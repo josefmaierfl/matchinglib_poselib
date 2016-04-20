@@ -42,8 +42,10 @@ namespace matchinglib
 /* Generation of features followed by matching, filtering, and subpixel-refinement.
  *
  * Mat img1						Input  -> First or left input image
- * Mat img2						Input  -> First or right input image
+ * Mat img2						Input  -> Second or right input image
  * vector<DMatch> finalMatches	Output -> Matched features
+ * vector<KeyPoint> kp1			Output -> All detected keypoints in the first or left image
+ * vector<KeyPoint> kp1			Output -> All detected keypoints in the second or right image
  * string featuretype			Input  -> Name of feature detector. Possible detectors [Default=FAST] are:
  *										  FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob
  *										  -> see the OpenCV documentation for further details on the different methods
@@ -85,13 +87,24 @@ namespace matchinglib
  *										  calculated by template matching. Be careful, if there are large rotations, 
  *										  changes in scale or other feature deformations between the matches, this 
  *										  method should not be called.
+ * int verbose					Input  -> Set the verbose level [Default = 0]:
+ *											0:	no information
+ *											1:	Display matching time
+ *											2:	Display feature detection times and matching time
+ *											3:	Display number of features and matches in addition to all temporal values
  *
  * Return value:				 0:		  Everything ok
- *								-1:		  Cannot create descriptor extractor
+ *								-1:		  Wrong, corrupt or missing imput data
+ *								-2:		  Error while calculating keypoints
+ *								-3:		  Error while extracting descriptors
+ *								-4:		  Incompatible feature detector and matcher
+ *								-5:		  Matching failed
  */
 int getCorrespondences(cv::Mat img1, 
 					   cv::Mat img2,
 					   std::vector<cv::DMatch> & finalMatches,
+					   std::vector<cv::KeyPoint> & kp1,
+					   std::vector<cv::KeyPoint> & kp2,
 					   std::string featuretype, 
 					   std::string extractortype, 
 					   std::string matchertype, 
@@ -100,7 +113,8 @@ int getCorrespondences(cv::Mat img1,
 					   bool VFCrefine, 
 					   bool ratioTest,
 					   bool SOFrefine,
-					   bool subPixRefine)
+					   bool subPixRefine,
+					   int verbose)
 {
 	if(img1.empty() || img2.empty())
 	{
@@ -120,20 +134,68 @@ int getCorrespondences(cv::Mat img1,
 	if((!featuretype.compare("MSER") || !featuretype.compare("SimpleBlob")) && !matchertype.compare("GMBSOF"))
 	{
 		cout << "MSER and SimpleBlob do not provide response information which is necessary for GMBSOF!" << endl;
-		return -1;
+		return -4;
 	}
 
 	vector<cv::KeyPoint> keypoints1, keypoints2;
 	cv::Mat descriptors1, descriptors2;
 	cv::Size imgSi = img1.size();
+	int err = 0;
+	double t_mea, t_oa;
+
+	if(verbose > 1)
+	{
+		t_mea = (double)getTickCount(); //Start time measurement
+	}
 
 	if(getKeypoints(img1, &keypoints1, featuretype, dynamicKeypDet, limitNrfeatures) != 0) return -2; //Error while calculating keypoints
 	if(getKeypoints(img2, &keypoints2, featuretype, dynamicKeypDet, limitNrfeatures) != 0) return -2; //Error while calculating keypoints
 
+	if(verbose > 1)
+	{
+		t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+		cout << "Time for keypoint detection (2 imgs): " << t_mea << "ms" << endl;
+		t_oa = t_mea;
+		t_mea = (double)getTickCount(); //Start time measurement
+	}
+
 	if(getDescriptors(img1, keypoints1, extractortype, descriptors1) != 0) return -3; //Error while extracting descriptors
 	if(getDescriptors(img2, keypoints2, extractortype, descriptors2) != 0) return -3; //Error while extracting descriptors
 
-	if(getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest) != 0) return -4; //Matching failed
+	if(verbose > 0)
+	{
+		if(verbose > 1)
+		{
+			t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+			cout << "Time for descriptor extraction (2 imgs): " << t_mea << "ms" << endl;
+			t_oa += t_mea;
+			cout << "Time for feature detection (2 imgs): " << t_oa << "ms" << endl;
+			if(verbose > 2)
+			{
+				cout << "# of features (1st img): " << keypoints1.size() << endl;
+				cout << "# of features (2nd img): " << keypoints2.size() << endl;
+			}
+		}
+		t_mea = (double)getTickCount(); //Start time measurement
+	}
+
+	err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest);
+	if(err != 0) return (-4 + err); //Matching failed
+
+	if(verbose > 0)
+	{
+		t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+		cout << "Time for matching: " << t_mea << "ms" << endl;
+		if(verbose > 1)
+		{
+			t_oa += t_mea;
+			cout << "Time for feature detection (2 imgs) and matching: " << t_oa << "ms" << endl;
+			if(verbose > 2)
+			{
+				cout << "# of matches: " << finalMatches.size() << endl;
+			}
+		}
+	}
 
 	if(SOFrefine)
 	{
@@ -143,6 +205,11 @@ int getCorrespondences(cv::Mat img1,
 		}
 		else
 		{
+			if(verbose > 1)
+			{
+				t_mea = (double)getTickCount(); //Start time measurement
+			}
+
 			vector<int> queryIdxs( finalMatches.size() ), trainIdxs( finalMatches.size() );
 			vector<cv::KeyPoint> keypoints1_tmp, keypoints2_tmp;
 			cv::Mat inliers;
@@ -220,11 +287,28 @@ int getCorrespondences(cv::Mat img1,
 					finalMatches = finalMatches_tmp;
 				}
 			}
+
+			if(verbose > 1)
+			{
+				t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+				cout << "Time SOF refinement: " << t_mea << "ms" << endl;
+				t_oa += t_mea;
+				cout << "Overall time with SOF refinement: " << t_oa << "ms" << endl;
+				if(verbose > 2)
+				{
+					cout << "# of matches after SOF refinement: " << finalMatches.size() << endl;
+				}
+			}
 		}
 	}
 
 	if(subPixRefine)
 	{
+		if(verbose > 1)
+		{
+			t_mea = (double)getTickCount(); //Start time measurement
+		}
+
 		std::vector<bool> inliers;
 		vector<int> queryIdxs( finalMatches.size() ), trainIdxs( finalMatches.size() );
 		vector<cv::KeyPoint> keypoints1_tmp, keypoints2_tmp;
@@ -260,7 +344,25 @@ int getCorrespondences(cv::Mat img1,
 			}
 			finalMatches = finalMatches_tmp;
 		}
+
+		if(verbose > 1)
+		{
+			t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+			cout << "Time subpixel refinement: " << t_mea << "ms" << endl;
+			t_oa += t_mea;
+			cout << "Overall time: " << t_oa << "ms" << endl;
+			if(verbose > 2)
+			{
+				cout << "# of matches after subpixel refinement: " << finalMatches.size() << endl;
+			}
+		}
 	}
+
+	if(verbose > 0)
+		cout << endl;
+
+	kp1 = keypoints1;
+	kp2 = keypoints2;
 	
 	return 0;
 }

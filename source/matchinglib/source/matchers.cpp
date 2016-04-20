@@ -87,6 +87,7 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
  *									-1:		  Wrong input data
  *									-2:		  Matcher not supported
  *									-3:		  Matching algorithm failed
+ *									-4:		  Too less keypoits
  */
 int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2, 
 			   cv::Mat descriptors1, cv::Mat descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
@@ -97,7 +98,7 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 	if((keypoints1.size() < 15) || (keypoints2.size() < 15))
 	{
 		cout << "Too less keypoits!" << endl;
-		return -1;
+		return -4;
 	}
 	if(((int)keypoints1.size() != descriptors1.rows) || ((int)keypoints2.size() != descriptors2.rows))
 	{
@@ -663,6 +664,7 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 				
 				keypoints2->at(i).pt = cv::Point2f(newKeyP.x+nx, 
 											   newKeyP.y+ny);
+				nrInliers++;
 			}
 
 			/*// Below -> Only for quality estimation
@@ -671,10 +673,6 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 			cout << posdiff_f.x << ", " << posdiff_f.y << endl;
 			diffsum += std::abs(posdiff_f.x)+std::abs(posdiff_f.y);
 			// Above -> Only for quality estimation*/
-		}
-		else
-		{
-			nrInliers++;
 		}
 	}
 	//cout << "Sum of differences from keypoint to matching position: " << diffsum << endl; //only for quality estimation

@@ -14,6 +14,8 @@ message(STATUS "Test ${target}")
 
 set(sources
     main.cpp
+	io_data.cpp
+	argvparser.cpp
 )
 
 

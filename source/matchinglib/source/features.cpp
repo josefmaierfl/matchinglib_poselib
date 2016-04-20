@@ -96,7 +96,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 				crita.epsilon = 0.01;
 				crita.type = CV_TERMCRIT_EPS;
 				cornerSubPix(img,corners,Size(3,3),Size(-1,-1),crita);*/
-				KeyPoint::convert(corners,*keypoints);
+				KeyPoint::convert(corners,*keypoints,1.0f,0);
 			}
 		else if(!featuretype.compare("SURF"))
 			{
@@ -272,7 +272,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
  *								-1:		  Cannot create descriptor extractor
  */
 int getDescriptors(cv::Mat img,
-				   std::vector<cv::KeyPoint> keypoints,
+				   std::vector<cv::KeyPoint> & keypoints,
 				   std::string extractortype,
 				   cv::Mat & descriptors)
 {
