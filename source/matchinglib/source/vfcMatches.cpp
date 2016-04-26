@@ -4,19 +4,19 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: February 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straﬂe 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Stra√üe 1, 1220 Vienna
 
  VERSION: 1.0
 
  DISCRIPTION: Interface for filtering matches with the VFC algorithm
 **********************************************************************************************************/
-#include "..\include\vfcMatches.h"
-#include "..\include\vfc.h"
+#include "../include/vfcMatches.h"
+#include "../include/vfc.h"
 
 using namespace std;
 

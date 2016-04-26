@@ -8,33 +8,18 @@ if("$ENV{THIRDPARTYROOT}" STREQUAL "")
 endif()
 include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 
-find_package(Eigen REQUIRED)
-if (Eigen_FOUND STREQUAL "YES")
-  message("Eigen found!")
+if(WIN32)
+  find_package(Eigen REQUIRED)
 else()
-  message(FATAL_ERROR "Eigen not found!")
+  find_package(PkgConfig)
+  pkg_search_module(EIGEN REQUIRED eigen3)
 endif()
 
-find_package(OpenCV 2.4.9 REQUIRED)
-if (OpenCV_FOUND STREQUAL "ON")
-  message("OpenCV found!")
-else()
-  message(FATAL_ERROR "OpenCV not found!")
-endif()
+find_package(OpenCV)
 
 find_package(Nanoflann REQUIRED)
-if (Nanoflann_FOUND STREQUAL "YES")
-  message("Nanoflann found!")
-else()
-  message(FATAL_ERROR "Nanoflann not found!")
-endif()
 
 find_package(Flann 1.8.4 REQUIRED)
-if (FLANN_FOUND STREQUAL "YES")
-  message("Flann found!")
-else()
-  message(FATAL_ERROR "Flann not found!")
-endif()
 
 #
 # Library name and options
@@ -149,8 +134,9 @@ target_include_directories(${target}
     ${FLANN_INCLUDE_DIRS}
     ${Nanoflann_INCLUDE_DIR}
     ${FLANN_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIR}
-    ${Eigen_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
+    ${EIGEN_INCLUDE_DIRS}
+	${Eigen_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -170,6 +156,7 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     ${FLANN_LIBRARIES}
     ${OPENCV_LIBRARIES_BASIC}
+    ${OpenCV_LIBS}
 
     INTERFACE
 )
@@ -200,6 +187,7 @@ target_compile_options(${target}
 
     PUBLIC
     ${DEFAULT_COMPILE_OPTIONS}
+    -msse4.2
 
     INTERFACE
 )

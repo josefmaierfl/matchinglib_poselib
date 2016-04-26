@@ -1,8 +1,9 @@
-#include "..\..\include\CascadeHash\CasHashMatcher.h"
+#include "../../include/CascadeHash/CasHashMatcher.h"
 
 #include <cstring>
 
-#include <intrin.h>
+
+#include <nmmintrin.h>
 #include <bitset>
 
 MatchList& CasHashMatcher::MatchSpFast(const ImageData& imageData_1, const ImageData& imageData_2)
@@ -52,7 +53,7 @@ MatchList& CasHashMatcher::MatchSpFast(const ImageData& imageData_1, const Image
 			for (int candidateIndex = 0; candidateIndex < cntCandidate; candidateIndex++)
 			{
 				CompHashDataPtr ptr_2 = imageData_2.compHashDataPtrList[candidateIndexList[candidateIndex]];
-				*(distPtr++) = (uint8_t)__popcnt64(ptr_1[0] ^ ptr_2[0]) + __popcnt64(ptr_1[1] ^ ptr_2[1]);
+                *(distPtr++) = (uint8_t)_mm_popcnt_u64(ptr_1[0] ^ ptr_2[0]) + _mm_popcnt_u64(ptr_1[1] ^ ptr_2[1]);
 			}
 		}
 		else

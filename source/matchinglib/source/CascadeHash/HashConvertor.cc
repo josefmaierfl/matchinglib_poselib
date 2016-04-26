@@ -1,4 +1,4 @@
-#include "..\..\include\CascadeHash\HashConvertor.h"
+#include "../../include/CascadeHash/HashConvertor.h"
 
 #include <cmath>
 #include <cstdlib>

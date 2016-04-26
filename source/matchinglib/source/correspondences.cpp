@@ -4,22 +4,22 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: April 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-StraÃŸe 1, 1220 Vienna
 
  VERSION: 1.0
 
- DISCRIPTION: This file provides functionalities for generating matched feature sets out of image 
+ DISCRIPTION: This file provides functionalities for generating matched feature sets out of image
 			  information.
 **********************************************************************************************************/
 
-#include "correspondences.h"
-#include "features.h"
-#include "matchers.h"
+#include "matchinglib_correspondences.h"
+#include "matchinglib_imagefeatures.h"
+#include "matchinglib_matchers.h"
 #include "match_statOptFlow.h"
 
 //#include "opencv2/calib3d/calib3d.hpp"
@@ -62,18 +62,18 @@ namespace matchinglib
  *											LINEAR: linear Matching algorithm (Brute force) from the FLANN library
  *											LSHIDX: LSH Index Matching algorithm from the FLANN library
  *											RANDKDTREE: randomized KD-trees matcher from the FLANN library
- * bool dynamicKeypDet			Input  -> If true [Default], the number of features is limited to a specific nr. of 
- *										  features using dynamic versions of the feature detectors. Only GFTT, SURF, 
+ * bool dynamicKeypDet			Input  -> If true [Default], the number of features is limited to a specific nr. of
+ *										  features using dynamic versions of the feature detectors. Only GFTT, SURF,
  *										  FAST and STAR are supported using this option.
- * int limitNrfeatures			Input  -> Maximum number of features that should remain after filtering or dynamic 
+ * int limitNrfeatures			Input  -> Maximum number of features that should remain after filtering or dynamic
  *										  feature detection [Default=8000].
  * bool VFCrefine				Input  -> If true [Default=false], the matches are refined using the vector field
- *										  consensus (VFC) algorithm. It is not recommended for non-rigid scenes or 
+ *										  consensus (VFC) algorithm. It is not recommended for non-rigid scenes or
  *										  scenes with volatile depth changes (The optical flow should smmoothly change
  *										  over the whole image). Otherwise, matches at such objects or "borders" are
- *										  rejected. The filter performance works quite well for all other kind of 
+ *										  rejected. The filter performance works quite well for all other kind of
  *										  scenes and inlier ratios above 20%.
- * bool ratioTest				Input  -> If true [Default=true], a ratio test is performed after matching. If 
+ * bool ratioTest				Input  -> If true [Default=true], a ratio test is performed after matching. If
  *										  VFCrefine=true, the ratio test is performed in advance to VFC. For
  *										  GMBSOF, a ratio test is always performed independent of the value of
  *										  ratioTest. If you wand to change this behaviour for GMBSOF, this has to
@@ -83,9 +83,9 @@ namespace matchinglib
  *										  optical flow (SOF). This only maks sence, if the GMBSOF algorithm is not
  *										  used, as GMBSOF depends on SOF. This filtering strategy is computational
  *										  expensive for a large amount of matches.
- * bool subPixRefine			Input  -> If true [Default = false], the subpixel-positions of matched keypoints are 
- *										  calculated by template matching. Be careful, if there are large rotations, 
- *										  changes in scale or other feature deformations between the matches, this 
+ * bool subPixRefine			Input  -> If true [Default = false], the subpixel-positions of matched keypoints are
+ *										  calculated by template matching. Be careful, if there are large rotations,
+ *										  changes in scale or other feature deformations between the matches, this
  *										  method should not be called.
  * int verbose					Input  -> Set the verbose level [Default = 0]:
  *											0:	no information
@@ -100,17 +100,17 @@ namespace matchinglib
  *								-4:		  Incompatible feature detector and matcher
  *								-5:		  Matching failed
  */
-int getCorrespondences(cv::Mat img1, 
+int getCorrespondences(cv::Mat img1,
 					   cv::Mat img2,
 					   std::vector<cv::DMatch> & finalMatches,
 					   std::vector<cv::KeyPoint> & kp1,
 					   std::vector<cv::KeyPoint> & kp2,
-					   std::string featuretype, 
-					   std::string extractortype, 
-					   std::string matchertype, 
+					   std::string featuretype,
+					   std::string extractortype,
+					   std::string matchertype,
 					   bool dynamicKeypDet,
-					   int limitNrfeatures, 
-					   bool VFCrefine, 
+					   int limitNrfeatures,
+					   bool VFCrefine,
 					   bool ratioTest,
 					   bool SOFrefine,
 					   bool subPixRefine,
@@ -260,7 +260,7 @@ int getCorrespondences(cv::Mat img1,
 			}
 			else
 			{
-				
+
 				/* ONLY FOR DEBUGGING START */
 				//for( size_t i1 = 0; i1 < keypoints1_tmp.size(); i1++)
 				//{
@@ -363,7 +363,7 @@ int getCorrespondences(cv::Mat img1,
 
 	kp1 = keypoints1;
 	kp2 = keypoints2;
-	
+
 	return 0;
 }
 

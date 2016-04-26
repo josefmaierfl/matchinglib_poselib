@@ -1,4 +1,4 @@
-#include "..\..\include\CascadeHash\BucketBuilder.h"
+#include "../../include/CascadeHash/BucketBuilder.h"
 
 #include <cstdlib>
 

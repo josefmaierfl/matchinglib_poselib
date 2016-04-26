@@ -4,30 +4,32 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: April 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straﬂe 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Stra√üe 1, 1220 Vienna
 
  VERSION: 1.0
 
  DISCRIPTION: This file provides functionalities for matching features
 **********************************************************************************************************/
-#include "matchers.h"
+#include "matchinglib_matchers.h"
 
 #include "match_statOptFlow.h"
-#include "features.h"
+#include "matchinglib_imagefeatures.h"
 
-#include "CascadeHash\Share.h"
-#include "CascadeHash\DataPreProcessor.h"
-#include "CascadeHash\HashConvertor.h"
-#include "CascadeHash\BucketBuilder.h"
-#include "CascadeHash\MatchPairLoader.h"
-#include "CascadeHash\CasHashMatcher.h"
+#include "CascadeHash/Share.h"
+#include "CascadeHash/DataPreProcessor.h"
+#include "CascadeHash/HashConvertor.h"
+#include "CascadeHash/BucketBuilder.h"
+#include "CascadeHash/MatchPairLoader.h"
+#include "CascadeHash/CasHashMatcher.h"
 
-#include "flann\flann.hpp"
+#include "flann/flann.hpp"
+
+#include <map>
 
 #include "vfcMatches.h"
 
@@ -71,12 +73,12 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
  *												LSHIDX: LSH Index Matching algorithm from the FLANN library
  *												RANDKDTREE: randomized KD-trees matcher from the FLANN library
  * bool VFCrefine					Input  -> If true [Default=false], the matches are refined using the vector field
- *											  consensus (VFC) algorithm. It is not recommended for non-rigid scenes or 
+ *											  consensus (VFC) algorithm. It is not recommended for non-rigid scenes or
  *											  scenes with volatile depth changes (The optical flow should smmoothly change
  *											  over the whole image). Otherwise, matches at such objects or "borders" are
- *											  rejected. The filter performance works quite well for all other kind of 
+ *											  rejected. The filter performance works quite well for all other kind of
  *											  scenes and inlier ratios above 20%.
- * bool ratioTest					Input  -> If true [Default=true], a ratio test is performed after matching. If 
+ * bool ratioTest					Input  -> If true [Default=true], a ratio test is performed after matching. If
  *											  VFCrefine=true, the ratio test is performed in advance to VFC. For
  *											  GMBSOF, a ratio test is always performed independent of the value of
  *											  ratioTest. If you wand to change this behaviour for GMBSOF, this has to
@@ -89,7 +91,7 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
  *									-3:		  Matching algorithm failed
  *									-4:		  Too less keypoits
  */
-int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2, 
+int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2,
 			   cv::Mat descriptors1, cv::Mat descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
 			   std::string matcher_name, bool VFCrefine, bool ratioTest)
 {
@@ -107,10 +109,10 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 	}
 
 	finalMatches.clear();
-	
+
 	if(!matcher_name.compare("GMBSOF"))
 	{
-		cv::Ptr<cv::DescriptorMatcher> matcher = NULL;//DescriptorMatcher::create( "BruteForce-Hamming" );
+		cv::Ptr<cv::DescriptorMatcher> matcher;// = NULL;//DescriptorMatcher::create( "BruteForce-Hamming" );
 		if(descriptors1.cols % 8)
 		{
 			cout << "For GMBSOF, the number of descriptor bytes must be a multiple of 8!" << endl;
@@ -147,7 +149,7 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 			return -3;
 		}
 	}
-	else if(!matcher_name.compare("HIRCLUIDX") || !matcher_name.compare("HIRKMEANS") || 
+	else if(!matcher_name.compare("HIRCLUIDX") || !matcher_name.compare("HIRKMEANS") ||
 			!matcher_name.compare("LINEAR") || !matcher_name.compare("LSHIDX") ||
 			!matcher_name.compare("RANDKDTREE"))
 	{
@@ -190,33 +192,33 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 			flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
 			flann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
 
-			if(!matcher_name.compare("HIRCLUIDX"))
-			{
-				// construct a hierarchical clustering index
-				flann::Index<flann::HammingLUT> index(dataset, flann::HierarchicalClusteringIndexParams());
-				index.buildIndex();
+      //if(!matcher_name.compare("HIRCLUIDX"))
+      //{
+      //    // construct a hierarchical clustering index
+      //    flann::Index<flann::HammingLUT> index(dataset, flann::HierarchicalClusteringIndexParams());
+      //    index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
-			else if(!matcher_name.compare("LINEAR"))
-			{
-				// construct a linear index
-				flann::Index<flann::HammingLUT> index(dataset, flann::LinearIndexParams());
-				index.buildIndex();
+      //    // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+      //    index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+      //}
+      //else if(!matcher_name.compare("LINEAR"))
+      //{
+      //    // construct a linear index
+      //    flann::Index<flann::HammingLUT> index(dataset, flann::LinearIndexParams());
+      //    index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
-			else
-			{
-				// construct a LSH index
-				flann::Index<flann::HammingLUT> index(dataset, flann::LshIndexParams());
-				index.buildIndex();
+      //    // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+      //    index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+      //}
+      //else
+      //{
+      //    // construct a LSH index
+      //    flann::Index<flann::HammingLUT> index(dataset, flann::LshIndexParams());
+      //    index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
+      //    // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+      //    index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+      //}
 
 			//Ratio test
 			if(ratioTest)
@@ -244,7 +246,7 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 					finalMatches.push_back(match);
 				}
 			}
-		
+
 			delete[] indices.ptr();
 			delete[] dists.ptr();
 		}
@@ -255,42 +257,42 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 			flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
 			flann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
 
-			if(!matcher_name.compare("HIRCLUIDX"))
-			{
-				// construct a hierarchical clustering index
-				flann::Index<flann::L2<float>> index(dataset, flann::HierarchicalClusteringIndexParams());
-				index.buildIndex();
+//			if(!matcher_name.compare("HIRCLUIDX"))
+//			{
+//				// construct a hierarchical clustering index
+//				flann::Index<flann::L2<float>> index(dataset, flann::HierarchicalClusteringIndexParams());
+//				index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
-			else if(!matcher_name.compare("HIRKMEANS"))
-			{
-				// construct a hierarchical k-means tree
-				flann::Index<flann::L2<float>> index(dataset, flann::KMeansIndexParams());
-				index.buildIndex();
+//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+//			}
+//			else if(!matcher_name.compare("HIRKMEANS"))
+//			{
+//				// construct a hierarchical k-means tree
+//				flann::Index<flann::L2<float>> index(dataset, flann::KMeansIndexParams());
+//				index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
-			else if(!matcher_name.compare("LINEAR"))
-			{
-				// construct a linear index
-				flann::Index<flann::L2<float>> index(dataset, flann::LinearIndexParams());
-				index.buildIndex();
+//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+//			}
+//			else if(!matcher_name.compare("LINEAR"))
+//			{
+//				// construct a linear index
+//				flann::Index<flann::L2<float>> index(dataset, flann::LinearIndexParams());
+//				index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
-			else
-			{
-				// construct a randomized KD-tree index
-				flann::Index<flann::L2<float>> index(dataset, flann::KDTreeIndexParams(8));
-				index.buildIndex();
+//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+//			}
+//			else
+//			{
+//				// construct a randomized KD-tree index
+//				flann::Index<flann::L2<float>> index(dataset, flann::KDTreeIndexParams(8));
+//				index.buildIndex();
 
-				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-			}
+//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+//			}
 
 			//Ratio test
 			if(ratioTest)
@@ -318,7 +320,7 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 					finalMatches.push_back(match);
 				}
 			}
-		
+
 			delete[] indices.ptr();
 			delete[] dists.ptr();
 		}
@@ -472,7 +474,7 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
 
 		return -2; //Too less matches left
 	}
-	
+
 	for(int k = 0; k < imgdata1.cntPoint; k++)
 	{
 		free(imgdata1.siftDataPtrList[k]);
@@ -488,7 +490,7 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
 }
 
 /* This function calculates the subpixel-position of matched keypoints by template matching. Be careful,
- * if there are large rotations, changes in scale or other feature deformations between the matches, this 
+ * if there are large rotations, changes in scale or other feature deformations between the matches, this
  * method should not be called. The two keypoint sets keypoints1 and keypoints2 must be matched keypoints,
  * where matches have the same index.
  *
@@ -500,7 +502,7 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
  * vector<KeyPoint> *keypoints2				Input  -> Keypoints in the second (right) image
  *													  which match to keypoints1 (a match must have the same index
  *													  in keypoints1 and keypoints2)
- * vector<bool> inliers						Output -> Inlier mask. For matches with subpixel-locations 
+ * vector<bool> inliers						Output -> Inlier mask. For matches with subpixel-locations
  *													  farer than 4 pixels to the original position are
  *													  marked as outliers.
  *
@@ -581,8 +583,8 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 
 		cv::Rect rec2 = cv::Rect(cvRound(keypoints2->at(i).pt.x)-diff2, cvRound(keypoints2->at(i).pt.y)-diff2, featuresize2, featuresize2);
 		cv::Rect rec1 = cv::Rect(cvRound(keypoints1->at(i).pt.x)-diff1, cvRound(keypoints1->at(i).pt.y)-diff1, featuresize1,featuresize1);
-		
-		
+
+
 
 		//// do a knn search
 		//resultSet.init(&ret_indexes[0], &out_dists_sqr[0] );
@@ -618,7 +620,7 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 		//	if(noLine_idx >= num_results)
 		//		matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
 		//	else
-		//	{		
+		//	{
 		//		hp1 = (Mat_<float>(3, 2) << eigkeypts1(ret_indexes[0],0) - rec1.x, eigkeypts1(ret_indexes[0],1) - rec1.y,
 		//									eigkeypts1(ret_indexes[1],0) - rec1.x, eigkeypts1(ret_indexes[1],1) - rec1.y,
 		//									eigkeypts1(ret_indexes[noLine_idx],0) - rec1.x, eigkeypts1(ret_indexes[noLine_idx],1) - rec1.y);
@@ -661,8 +663,8 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 			{
 				nx = (valPxp-valPxn)/nx;
 				ny = (valPyp-valPyn)/ny;
-				
-				keypoints2->at(i).pt = cv::Point2f(newKeyP.x+nx, 
+
+				keypoints2->at(i).pt = cv::Point2f(newKeyP.x+nx,
 											   newKeyP.y+ny);
 				nrInliers++;
 			}
@@ -682,15 +684,15 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 		*inliers = InliersMask;
 	}
 
-	if((nrInliers < keypoints1->size() / 3) || (nrInliers < MIN_FINAL_MATCHES)) 
+	if((nrInliers < keypoints1->size() / 3) || (nrInliers < MIN_FINAL_MATCHES))
 		return -1; //Subpixel refinement failed for too many keypoints
 
 	return 0;
 }
 
-/* This function compares the weights of the matches to be able to sort them accordingly 
+/* This function compares the weights of the matches to be able to sort them accordingly
  * while keeping track of the index.
- * 
+ *
  * KeyPoint first				Input  -> First pair of match and index
  * KeyPoint second				Input  -> Second pair of match and index
  */

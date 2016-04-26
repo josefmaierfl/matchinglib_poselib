@@ -89,7 +89,7 @@ bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors
 			filteredMatches12.clear();
 			for(size_t q = 0; q < matchesSize; q++)
 			{
-				matches2.push_back(make_pair<size_t,float>(q, dists[q][0] / dists[q][1]));
+                matches2.push_back(make_pair(q, dists[q][0] / dists[q][1]));
 			}
 			//Sort ratios to get the smaller values first (better ratio)
 			sort(matches2.begin(), matches2.end(),
@@ -157,7 +157,7 @@ bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors
 			filteredMatches12.clear();
 			for(size_t q = 0; q < matchesSize; q++)
 			{
-				matches2.push_back(make_pair<size_t,float>(q, (float)dists[q][0] / (float)dists[q][1]));
+                matches2.push_back(make_pair(q, (float)dists[q][0] / (float)dists[q][1]));
 			}
 			//Sort ratios to get the smaller values first (better ratio)
 			sort(matches2.begin(), matches2.end(),

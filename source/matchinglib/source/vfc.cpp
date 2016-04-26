@@ -1,4 +1,4 @@
-#include "..\include\vfc.h"
+#include "../include/vfc.h"
 
 using namespace cv;
 // Mismatch removal by vector field consensus (VFC)

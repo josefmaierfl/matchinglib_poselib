@@ -4,25 +4,25 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: April 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-StraÃŸe 1, 1220 Vienna
 
  VERSION: 1.0
 
- DISCRIPTION: This file provides functionalities for extracting keypoints and generating descriptors as 
+ DISCRIPTION: This file provides functionalities for extracting keypoints and generating descriptors as
 			  well as for sub-pixel refinement
 **********************************************************************************************************/
 
-#include "features.h"
+#include "matchinglib_imagefeatures.h"
 
 //#include "opencv2/calib3d/calib3d.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/nonfree/nonfree.hpp"
-#include <opencv2/nonfree/features2d.hpp>
+//#include "opencv2/imgproc/imgproc.hpp"
+//#include "opencv2/nonfree/nonfree.hpp"
+//#include <opencv2/nonfree/features2d.hpp>
 
 using namespace cv;
 using namespace std;
@@ -44,10 +44,10 @@ bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second);
  * string featuretype				Input  -> Algorithm for calculating the features. The following inputs are possible:
  *											  FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob
  *											  -> see the OpenCV documentation for further details on the different methods
- * bool dynamicKeypDet				Input  -> If true [Default], the number of features is limited to a specific nr. of 
- *											  features using dynamic versions of the feature detectors. Only GFTT, SURF, 
+ * bool dynamicKeypDet				Input  -> If true [Default], the number of features is limited to a specific nr. of
+ *											  features using dynamic versions of the feature detectors. Only GFTT, SURF,
  *											  FAST and STAR are supported using this option.
- * int limitNrfeatures				Input  -> Maximum number of features that should remain after filtering or dynamic 
+ * int limitNrfeatures				Input  -> Maximum number of features that should remain after filtering or dynamic
  *											  feature detection [Default=8000].
  *
  * Return value:					 0:		  Everything ok
@@ -59,8 +59,8 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 {
 	const int minnumfeatures = 10, maxnumfeatures = limitNrfeatures;
 
-	if(!featuretype.compare("SIFT") || !featuretype.compare("SURF"))
-		cv::initModule_nonfree();
+	//if(!featuretype.compare("SIFT") || !featuretype.compare("SURF"))
+	//	cv::initModule_nonfree();
 
 	if(dynamicKeypDet == true)
 	{
@@ -98,57 +98,57 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 				cornerSubPix(img,corners,Size(3,3),Size(-1,-1),crita);*/
 				KeyPoint::convert(corners,*keypoints,1.0f,0);
 			}
-		else if(!featuretype.compare("SURF"))
-			{
-				Ptr<FeatureDetector> detector(new SURF(500));
-				if(detector.empty())
-				{
-					cout << "Cannot create feature detector!" << endl;
-					return -2; //Error creating feature detector
-				}
-				detector->detect(img,*keypoints);
-				if(keypoints->size() < minnumfeatures)
-				{
-					detector.release();
-					/*detector = new DynamicAdaptedFeatureDetector(new SurfAdjuster(400,150,maxnumfeatures),
-																			minnumfeatures,maxnumfeatures,10);*/
-					int imgrows = 4, imgcols = 4, max_grid_features, min_grid_features;
-					if((img).rows > 400)
-					{
-						imgrows = (int)ceilf(((float)((img).rows))/100.0f);
-					}
-					if((img).cols > 400)
-					{
-						imgcols = (int)ceilf(((float)((img).cols))/100.0f);
-					}
-					max_grid_features = (int)ceil((float)maxnumfeatures/((float)(imgrows * imgcols)));
-					max_grid_features = max_grid_features > 200 ? max_grid_features:200;
-
-					min_grid_features = (int)ceil((float)minnumfeatures/((float)(imgrows * imgcols)));
-					min_grid_features = min_grid_features > 10 ? min_grid_features:10;
-				
-					detector = new GridAdaptedFeatureDetector(new DynamicAdaptedFeatureDetector(new SurfAdjuster(),
-																min_grid_features,max_grid_features,10),maxnumfeatures,imgrows,imgcols);
-					keypoints->clear();
-					if(detector.empty())
-					{
-						cout << "Cannot create feature detector!" << endl;
-						return -2; //Error creating feature detector
-					}
-					detector->detect(img,*keypoints);
-					if(keypoints->size() < minnumfeatures)
-					{
-						return -1; //Too less features detected
-					}
-				}
-				/*else if(keypoints->size() > maxnumfeatures)
-					{
-						std::sort(keypoints->begin(),keypoints->end(),sortKeyPoints);
-						keypoints->erase(keypoints->begin()+maxnumfeatures,keypoints->begin()+keypoints->size());
-					}*/
-				
-				//detector.release();
-			}
+		// else if(!featuretype.compare("SURF"))
+		// 	{
+		// 		Ptr<FeatureDetector> detector(new SURF(500));
+		// 		if(detector.empty())
+		// 		{
+		// 			cout << "Cannot create feature detector!" << endl;
+		// 			return -2; //Error creating feature detector
+		// 		}
+		// 		detector->detect(img,*keypoints);
+		// 		if(keypoints->size() < minnumfeatures)
+		// 		{
+		// 			detector.release();
+		// 			/*detector = new DynamicAdaptedFeatureDetector(new SurfAdjuster(400,150,maxnumfeatures),
+		// 																	minnumfeatures,maxnumfeatures,10);*/
+		// 			int imgrows = 4, imgcols = 4, max_grid_features, min_grid_features;
+		// 			if((img).rows > 400)
+		// 			{
+		// 				imgrows = (int)ceilf(((float)((img).rows))/100.0f);
+		// 			}
+		// 			if((img).cols > 400)
+		// 			{
+		// 				imgcols = (int)ceilf(((float)((img).cols))/100.0f);
+		// 			}
+		// 			max_grid_features = (int)ceil((float)maxnumfeatures/((float)(imgrows * imgcols)));
+		// 			max_grid_features = max_grid_features > 200 ? max_grid_features:200;
+    //
+		// 			min_grid_features = (int)ceil((float)minnumfeatures/((float)(imgrows * imgcols)));
+		// 			min_grid_features = min_grid_features > 10 ? min_grid_features:10;
+    //
+		// 			detector = new GridAdaptedFeatureDetector(new DynamicAdaptedFeatureDetector(new SurfAdjuster(),
+		// 														min_grid_features,max_grid_features,10),maxnumfeatures,imgrows,imgcols);
+		// 			keypoints->clear();
+		// 			if(detector.empty())
+		// 			{
+		// 				cout << "Cannot create feature detector!" << endl;
+		// 				return -2; //Error creating feature detector
+		// 			}
+		// 			detector->detect(img,*keypoints);
+		// 			if(keypoints->size() < minnumfeatures)
+		// 			{
+		// 				return -1; //Too less features detected
+		// 			}
+		// 		}
+		// 		/*else if(keypoints->size() > maxnumfeatures)
+		// 			{
+		// 				std::sort(keypoints->begin(),keypoints->end(),sortKeyPoints);
+		// 				keypoints->erase(keypoints->begin()+maxnumfeatures,keypoints->begin()+keypoints->size());
+		// 			}*/
+    //
+		// 		//detector.release();
+		// 	}
 		else if(!featuretype.compare("FAST"))
 			{
 				/*int imgrows = 7, imgcols = 7, max_grid_features, min_grid_features;
@@ -166,14 +166,14 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 
 				min_grid_features = (int)ceil((float)minnumfeatures/((float)(imgrows * imgcols)));
 				min_grid_features = min_grid_features > 10 ? min_grid_features:10;*/
-				
+
 				/*Ptr<FeatureDetector> detector = cv::FeatureDetector::create("FAST");*/
 				/*Ptr<FeatureDetector> detector(new GridAdaptedFeatureDetector(new FastAdjuster(),maxnumfeatures,imgrows,imgcols));*/
 				Ptr<FeatureDetector> detector(new DynamicAdaptedFeatureDetector(new FastAdjuster(),	minnumfeatures,maxnumfeatures,10));
 				/*Ptr<FeatureDetector> detector(new GridAdaptedFeatureDetector(new DynamicAdaptedFeatureDetector(new FastAdjuster(),
 																				min_grid_features,max_grid_features,10),maxnumfeatures,imgrows,imgcols));*/
-				
-				//cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+
+				//cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfï¿½gbar
 
 				if(detector.empty())
 				{
@@ -218,7 +218,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 				detector->detect(img,*keypoints);
 				if(keypoints->size() > maxnumfeatures)
 				{
-					cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+					cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfï¿½gbar
 					/*std::sort(keypoints->begin(),keypoints->end(),sortKeyPoints);
 					keypoints->erase(keypoints->begin()+maxnumfeatures,keypoints->begin()+keypoints->size());*/
 				}
@@ -247,7 +247,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 
 		if(keypoints->size() > maxnumfeatures)
 		{
-			cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+			cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfï¿½gbar
 		}
 
 		if(keypoints->size() < minnumfeatures)
@@ -265,7 +265,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
  * vector<KeyPoint> keypoints	Input  -> Locations (keypoints) for which descriptors should be extracted
  * string extractortype			Input  -> Methode for extracting the descriptors
  *										  (FREAK, SIFT, SURF, ORB, BRISK, BriefDescriptorExtractor)
- * Mat descriptors				Output -> Extracted descriptors (row size corresponds to number of 
+ * Mat descriptors				Output -> Extracted descriptors (row size corresponds to number of
  *										  descriptors and features, respectively)
  *
  * Return value:				 0:		  Everything ok
@@ -277,8 +277,8 @@ int getDescriptors(cv::Mat img,
 				   cv::Mat & descriptors)
 {
 
-	if(!extractortype.compare("SIFT") || !extractortype.compare("SURF"))
-		cv::initModule_nonfree();
+	//if(!extractortype.compare("SIFT") || !extractortype.compare("SURF"))
+	//	cv::initModule_nonfree();
 
 	cv::Ptr<cv::DescriptorExtractor> extractor = cv::DescriptorExtractor::create(extractortype);
 
@@ -294,7 +294,7 @@ int getDescriptors(cv::Mat img,
 }
 
 /* This function compares the response of two keypoints to be able to sort them accordingly.
- * 
+ *
  * KeyPoint first				Input  -> First Keypoint
  * KeyPoint second				Input  -> Second Keypoint
  */

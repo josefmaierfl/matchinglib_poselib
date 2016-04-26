@@ -83,6 +83,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <limits.h>
+
+#ifdef _LINUX
+#define MAX_PATH PATH_MAX
+#endif
 
 /* Entries missing from MSVC 6.0 */
 #if !defined(FILE_ATTRIBUTE_DEVICE)

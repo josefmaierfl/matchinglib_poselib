@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-StraÃŸe 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -21,7 +21,7 @@
 //#include <iterator>
 #include <list>
 
-#include "PfeInlineQSort.h"
+#include "PfeInlineQsort.h"
 
 //#include <Eigen/Dense>
 //#include <Eigen/StdVector>
@@ -37,12 +37,18 @@
 #include "omp.h"
 
 #include "vfcMatches.h"
-
-#include <intrin.h>
+#include <utility>
+#include <vector>
+#include <nmmintrin.h>
 #include <bitset>
+#ifdef _LINUX
+#include <inttypes.h>
+#include <cpuid.h>
+#endif
 
 using namespace cv;
 using namespace std;
+using std::make_pair;
 
 /* --------------------------- Defines --------------------------- */
 
@@ -74,33 +80,33 @@ void getStatisticfromVec(const std::vector<double> vals, qualityParm *stats, boo
 //Calculates statistical parameters for a vector of angular values including values near 0 and 2*pi
 void getAngularStatistic(const std::vector<double> vals, qualityParm *stats, bool rejQuartiles = false);
 //This function performs a guided matching on the basis of precalculated statistical optical flow (output of one match per keypoint)
-int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams, 
+int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 				   float gridElemSize,
 				   std::vector<cv::KeyPoint> keypoints,
-				   cv::Mat descriptors1, 
+				   cv::Mat descriptors1,
 				   cv::Mat descriptors2,
-				   KDTree_D2float &keypointtree, 
+				   KDTree_D2float &keypointtree,
 				   std::vector<int> keypIndexes,
 				   cv::Size imgSi,
 				   std::vector<cv::DMatch> &matches,
-				   std::vector<mCostDist> & mprops = std::vector<mCostDist>());
+                   std::vector<mCostDist> mprops = std::vector<mCostDist>());
 //This function performs a guided matching on the basis of precalculated statistical optical flow (output of knn)
-int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams, 
+int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 				   float gridElemSize,
 				   std::vector<cv::KeyPoint> keypoints,
-				   cv::Mat descriptors1, 
+				   cv::Mat descriptors1,
 				   cv::Mat descriptors2,
-				   KDTree_D2float &keypointtree, 
+				   KDTree_D2float &keypointtree,
 				   std::vector<int> keypIndexes,
 				   cv::Size imgSi,
 				   std::vector<std::vector<cv::DMatch>> &matches,
-				   unsigned int knn = 0,
-				   std::vector<std::vector<mCostDist>> & mprops = std::vector<std::vector<mCostDist>>());
+                   unsigned int knn = 0,
+                   std::vector<std::vector<mCostDist>> mprops = std::vector<std::vector<mCostDist>>());
 //Generates a sparse set of keypoints from a large keypoint set.
 void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit,
-							  KDTree_D2float &keypointtree, 
-							  EMatFloat2 eigkeypts, 
-							  EMatFloat2 gridPoints, 
+							  KDTree_D2float &keypointtree,
+							  EMatFloat2 eigkeypts,
+							  EMatFloat2 gridPoints,
 							  std::vector<cv::KeyPoint> keypoints,
 							  int divx,
 							  int divy,
@@ -121,19 +127,19 @@ void interpolStatOptFlow(std::vector<std::vector<cv::Point3f>> & gridSearchParam
 cv::Point3f interpolFlowRad(cv::Point3f *f1, cv::Point3f *f2, cv::Point3f *f3 = NULL);
 //Calculates for every match the cost and distance ratio to their local median
 #if FILTER_WITH_CD_RATIOS
-void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & Cfactors, 
-							std::vector<float> & quartDfactors, std::vector<float> & quartCfactors, 
+void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & Cfactors,
+							std::vector<float> & quartDfactors, std::vector<float> & quartCfactors,
 							std::vector<mCostDist> mprops, int si_x, int si_y);
 #endif
 
 /* --------------------- Functions --------------------- */
 
-/* This function matches keypoints from two images. This function first calculates a grid in the image. For 
- * every cell in this grid the strongest keypoints are chosen in the first and second image by using a KD tree. These 
- * keypoints are matched with a NN matcher (FLANN). From these matches, the statistical optical flow is calculated. 
- * Afterwards the approximated position for every keypoint in the first image is calculated in the second image. There, 
- * the keypoints within an uncertainty radius are selected (by using a KD tree) for matching. Next, the descriptors of 
- * the found keypoints are matched and filtered. If crosschecking is enabled, a final crosscheck or ratio test is 
+/* This function matches keypoints from two images. This function first calculates a grid in the image. For
+ * every cell in this grid the strongest keypoints are chosen in the first and second image by using a KD tree. These
+ * keypoints are matched with a NN matcher (FLANN). From these matches, the statistical optical flow is calculated.
+ * Afterwards the approximated position for every keypoint in the first image is calculated in the second image. There,
+ * the keypoints within an uncertainty radius are selected (by using a KD tree) for matching. Next, the descriptors of
+ * the found keypoints are matched and filtered. If crosschecking is enabled, a final crosscheck or ratio test is
  * performed on the matches. This depends on the number (BFknn) of nearest neighbors (NN):
  * |	finalCrossCheck		|	BFknn	|	Description
  * |		false			|	 0-n	|	Independent of Bfknn only one nearest neighbor is searched at the estimated position.
@@ -162,8 +168,8 @@ void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & 
  *														  within the stimation of the statistical optical flow.
  *														  The adjustable range lies between 1.0 and 7.0. [Default = 3.5]
  * int BFknn=0									Input  -> Maximum number of matching train descriptos per query descriptor.
- *														  If BFknn=0, the number of matching train descriptors for one query 
- *														  index depends on the distance (Hamming) to the next (in sorted 
+ *														  If BFknn=0, the number of matching train descriptors for one query
+ *														  index depends on the distance (Hamming) to the next (in sorted
  *														  order (Hamming)) descriptor.
  * bool filterSmallFlow							Input  -> If true [default=false], matches with a too small flow are marked as invalid
  *														  and are excluded during the SOF estimation. Use with care! Use only, if you are
@@ -172,7 +178,7 @@ void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & 
  *														  and its local median is returned for every match (ordering corresponds to
  *														  "filteredMatches12").
  * vector<float> *distRatios					Output -> If not NULL [Default = NULL], the ratio between the distance to the estimated
- *														  position (SOF) and its local median is returned for every match (ordering 
+ *														  position (SOF) and its local median is returned for every match (ordering
  *														  corresponds to "filteredMatches12").
  * double *estiInlRatio							Output -> It is only allowed to be used if the define INITMATCHQUALEVAL = 1.
  *														  If INITMATCHQUALEVAL = 1, it must be used. This variable returns the
@@ -180,9 +186,9 @@ void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & 
  * vector<DMatch> *initFilteredMatches			Output -> It is only allowed to be used if the define INITMATCHQUALEVAL = 1.
  *														  If INITMATCHQUALEVAL = 1, it must be used. This vector holds the
  *														  filtered initial matches after calculating the SOF.
- * InputArray img1 = cv::noArray()				Input  -> Only for visualization -> If the first (img1) and second (img2) 
+ * InputArray img1 = cv::noArray()				Input  -> Only for visualization -> If the first (img1) and second (img2)
  *														  image are specified, the matches are displayed
- * InputArray img2 = cv::noArray()				Input  -> Only for visualization -> If the first (img1) and second (img2) 
+ * InputArray img2 = cv::noArray()				Input  -> Only for visualization -> If the first (img1) and second (img2)
  *														  image are specified, the matches are displayed
  *
  * Return value:								 0:		  Everything ok
@@ -197,13 +203,13 @@ void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & 
  *												-9:		  Wrong SOF grid format
  */
 int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
-					  std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2, 
+					  std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2,
 					  cv::Mat descriptors1, cv::Mat descriptors2, cv::Size imgSi,
                       std::vector<DMatch>& filteredMatches12, bool finalCrossCheck, double validationTH,
-					  double stdMult, int BFknn, bool filterSmallFlow, 
+					  double stdMult, int BFknn, bool filterSmallFlow,
 					  std::vector<float> *costRatios, std::vector<float> *distRatios,
 					  double *estiInlRatio, std::vector<cv::DMatch> *initFilteredMatches, cv::InputArray img1, cv::InputArray img2)
-{    
+{
 	if((keypoints1.size() < MIN_INIT_KEYPS_FOR_MATCHING) || (keypoints2.size() < MIN_INIT_KEYPS_FOR_MATCHING)) return -1; //too less keypoints -> do better a normal BF matching
 
 #if INITMATCHQUALEVAL
@@ -220,7 +226,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		exit(0);
 	}
 #endif
-	
+
 	filteredMatches12.clear();
     vector<vector<DMatch> > matches12, matches21;
 	std::vector<std::pair<cv::KeyPoint,int>> keypInit1, keypInit2;
@@ -257,11 +263,11 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		gridY(0,0) += imgpart;
 	}
 	for(int j = 1;j < ((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix) ? (divx-1):divx);j++)
-	{	
+	{
 		xpos += imgpart;
 		gridX(j,0) = xpos;
 	}
-	if((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix)) 
+	if((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix))
 	{
 		gridX(divx-1,0) = xpos + imgpart2 + lwidth2;
 	}
@@ -271,8 +277,8 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	}
 
 	gridPoints.col(0) = gridX.replicate(divy,1);
-	
-	
+
+
 	//Prepare the coordinates of the keypoints for the KD-tree
 	EMatFloat2 eigkeypts1(keypoints1.size(),2), eigkeypts2(keypoints2.size(),2);
 
@@ -288,7 +294,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		eigkeypts2(i,1) = keypoints2.at(i).pt.y;
 	}
 
-	
+
 	//Generate the KD-tree index for the keypoint coordinates
 	const int maxLeafNum     = 20;
 	KDTree_D2float keypts1idx(2,eigkeypts1,maxLeafNum);
@@ -296,7 +302,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 
 	KDTree_D2float keypts2idx(2,eigkeypts2,maxLeafNum);
 	keypts2idx.index->buildIndex();
-	
+
 	//Get the sparse set of keypoints of the images
 	get_Sparse_KeypointField(keypInit1, keypts1idx, eigkeypts1, gridPoints, keypoints1, divx, divy, imgpart, lastwidthpart, remainGridPix);
 	get_Sparse_KeypointField(keypInit2, keypts2idx, eigkeypts2, gridPoints, keypoints2, divx, divy, imgpart, lastwidthpart, remainGridPix);
@@ -317,7 +323,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 
 		imshow("Keypoints 1", img1c );
 		imshow("Keypoints 2", img2c );
-		
+
 		waitKey(0);
 	}
 
@@ -572,7 +578,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			if(!img1.empty() && !img2.empty())
 			{
 				Mat drawImg;
-		
+
 				drawMatches( img1.getMat(), keypoints1, img2.getMat(), keypoints2, filteredMatches12, drawImg );
 				//imwrite("C:\\work\\matches_final.jpg", drawImg);
 				cv::imshow( "All Matches", drawImg );
@@ -621,7 +627,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 				}
 			}
 
-			if(filteredMatches12.size() < MIN_FINAL_MATCHES) return -7; //Too less remaining matches -> There might be a problem with your data	
+			if(filteredMatches12.size() < MIN_FINAL_MATCHES) return -7; //Too less remaining matches -> There might be a problem with your data
 
 			return 0;
 		}
@@ -637,7 +643,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		cv::eigen2cv(eigkeypts2,points);
 		for(unsigned int i = 0; i<trainIdxs.size();i++)
 			unFiltPoints2.push_back(points.row(keypInit2[trainIdxs[i]].second));*/
-	
+
 		for(unsigned int i = 0; i<queryIdxs.size();i++)
 			keyP1.row(i) = eigkeypts1.row(keypInit1[queryIdxs[i]].second);
 
@@ -699,7 +705,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 
 		//H = findHomography(unFiltPoints1, unFiltPoints2,CV_RANSAC,5,inliers);
 		//if( H.empty() ) return -4; //It was not possible to calculate H
-	
+
 		int nrIn = 0;
 		for( unsigned int i = 0; i < trainIdxs.size(); i++)
 			if(inliers.at<bool>(i,0) == true ) nrIn++;
@@ -741,7 +747,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			keyp1.push_back(keypInit1[i].first);
 		for(unsigned int i = 0; i<keypInit2.size();i++)
 			keyp2.push_back(keypInit2[i].first);
-				
+
 		drawMatches( img1.getMat(), keyp1, img2.getMat(), keyp2, initMatches, drawImg, CV_RGB(0, 255, 0), CV_RGB(0, 0, 255), matchesMask);
 		//imwrite("C:\\work\\matches_init_filtered.jpg", drawImg);
 		cv::imshow( "Filtered initial matches", drawImg );
@@ -828,7 +834,9 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	if(descriptors1.type() == CV_8U)
 	{
 		int cpuInfo[4];
-		__cpuid(cpuInfo,0x00000001);
+#ifndef _LINUX
+    __cpuid(cpuInfo,0x00000001);
+#endif
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		bool popcnt_available = f_1_ECX_[23];
 		if(popcnt_available)
@@ -912,7 +920,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			keypDiff[1] = keypoints2[singleTrainIdx].pt.y - esti_pos[1];
 			keypDiff[0] *= keypDiff[0];
 			keypDiff[1] *= keypDiff[1];
-			mprop_init_tmp.distance = std::sqrtf(keypDiff[0] + keypDiff[1]);
+			mprop_init_tmp.distance = sqrtf(keypDiff[0] + keypDiff[1]);
 			mprop_init_tmp.costs = filteredMatches12[i].distance;
 			mprop_init_tmp.x = grid_x;
 			mprop_init_tmp.y = grid_y;
@@ -920,7 +928,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		}
 	}
 #endif
-			
+
 	//Guided matching of all keypoints
 	vector<DMatch> matches;
 #if FILTER_WITH_CD_RATIOS
@@ -941,7 +949,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 #if FILTER_WITH_CD_RATIOS
 			gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches, mprops);
 #else
-			gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches);
+            gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches);
 #endif
 			if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
 		}
@@ -989,7 +997,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 #if FILTER_WITH_CD_RATIOS
 				errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], threadmprops12[i]);
 #else
-				errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i]);
+                errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i]);
 #endif
 			}
 			{
@@ -1054,7 +1062,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 #if FILTER_WITH_CD_RATIOS
 				gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches12, mprops12);
 #else
-				gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches12);
+                gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches12);
 #endif
 				if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
 			}
@@ -1100,9 +1108,9 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 				for(int i = 0; i < (const int)nr_threads; i++)
 				{
 #if FILTER_WITH_CD_RATIOS
-					errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], threadmprops12[i]);
+                    errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], threadmprops12[i]);
 #else
-					errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i]);
+                    errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i]);
 #endif
 				}
 				{
@@ -1138,8 +1146,8 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			}
 			if(keypoints2.size() < 40)//Perform matching on single CPU
 			{
-				gmerr = guidedMatching(gridSearchParams_inv, gridElemSize, keypoints2, descriptors2, descriptors1, keypts1idx, keypIndexes2, imgSi, matches21/*, mprops21*/);
-				if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
+                gmerr = guidedMatching(gridSearchParams_inv, gridElemSize, keypoints2, descriptors2, descriptors1, keypts1idx, keypIndexes2, imgSi, matches21/*, mprops21*/);
+                if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
 			}
 			else//Perform matching on multiple CPU cores
 			{
@@ -1151,7 +1159,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 				vector<cv::Mat> threadDescriptors;
 				vector<vector<int>> threadkeypIndexes1;
 				vector<vector<DMatch>> threadmatches12(nr_threads);
-				//vector<vector<mCostDist>> threadmprops12(nr_threads);
+                //vector<vector<mCostDist>> threadmprops12(nr_threads);
 				for(size_t i = 0; i < nr_threads - 1; i++)
 				{
 					nr_keypoints.push_back(nrFirstXKeys);
@@ -1180,7 +1188,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 				#pragma omp parallel for
 				for(int i = 0; i < (const int)nr_threads; i++)
 				{
-					errvec[i] = guidedMatching(gridSearchParams_inv, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors1, keypts1idx, threadkeypIndexes1[i], imgSi, threadmatches12[i]/*, threadmprops12[i]*/);
+                    errvec[i] = guidedMatching(gridSearchParams_inv, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors1, keypts1idx, threadkeypIndexes1[i], imgSi, threadmatches12[i]/*, threadmprops12[i]*/);
 				}
 				{
 					int errcnt = 0;
@@ -1240,7 +1248,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 #if FILTER_WITH_CD_RATIOS
 				gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches12, BFknn, mprops12);
 #else
-				gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches12, BFknn);
+                gmerr = guidedMatching(gridSearchParams, gridElemSize, keypoints1, descriptors1, descriptors2, keypts2idx, keypIndexes1, imgSi, matches12, BFknn);
 #endif
 				if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
 			}
@@ -1288,7 +1296,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 #if FILTER_WITH_CD_RATIOS
 					errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], BFknn, threadmprops12[i]);
 #else
-					errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], BFknn);
+                    errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], BFknn);
 #endif
 				}
 				{
@@ -1352,8 +1360,8 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			{
 				if(keypoints2.size() < 40)//Perform matching on single CPU
 				{
-					gmerr = guidedMatching(gridSearchParams_inv, gridElemSize, keypoints2, descriptors2, descriptors1, keypts1idx, keypIndexes2, imgSi, matches21, BFknn/*, mprops21*/);
-					if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
+                    gmerr = guidedMatching(gridSearchParams_inv, gridElemSize, keypoints2, descriptors2, descriptors1, keypts1idx, keypIndexes2, imgSi, matches21, BFknn/*, mprops21*/);
+                    if(gmerr != 0) return -6; //Error during the guided matching (too less matches remaining)
 				}
 				else//Perform matching on multiple CPU cores
 				{
@@ -1394,7 +1402,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 					#pragma omp parallel for
 					for(int i = 0; i < (const int)nr_threads; i++)
 					{
-						errvec[i] = guidedMatching(gridSearchParams_inv, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors1, keypts1idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], BFknn/*, threadmprops12[i]*/);
+                        errvec[i] = guidedMatching(gridSearchParams_inv, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors1, keypts1idx, threadkeypIndexes1[i], imgSi, threadmatches12[i], BFknn/*, threadmprops12[i]*/);
 					}
 					{
 						int errcnt = 0;
@@ -1504,7 +1512,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 							Mat descriptors21 = descriptors2.row(matches12[q][0].trainIdx);
 							vector<cv::KeyPoint> keypoints21;
 							keypoints21.push_back(keypoints2[matches12[q][0].trainIdx]);
-							guidedMatching(gridSearchParams_inv, gridElemSize, keypoints21, descriptors21, descriptors1, keypts1idx, keypIdxEmpty, imgSi, matches212, BFknn);
+                            guidedMatching(gridSearchParams_inv, gridElemSize, keypoints21, descriptors21, descriptors1, keypts1idx, keypIdxEmpty, imgSi, matches212, BFknn);
 							if(!matches212.empty() && (matches212[0].size() > 1))
 							{
 								//If the best match from backward search is the same match as from forward search and if the ratio test holds, save the match
@@ -1562,7 +1570,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 								keypDiff[1] = keypDiff[0] / (esti_pos[2] + 0.5f);
 #else
 								float keypDiff[2];
-								keypDiff[0] = std::sqrtf(mprops12[q][0].distance);
+								keypDiff[0] = sqrtf(mprops12[q][0].distance);
 								keypDiff[1] = keypDiff[0] / (gridSearchParams[mprops12[q][0].y][mprops12[q][0].x].z + 0.5f);
 #endif
 
@@ -1588,7 +1596,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		mprops[i].distance = std::sqrtf(mprops[i].distance);
 	}
 #endif
-	
+
 	/*//Calculate the flow between the correspondences
 	vector<Point2f> flowInit;
 	for(int i = 0; i<keypInit1Filt.size();i++)
@@ -1600,13 +1608,13 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	for(int i = 0; i<flowInit.size();i++)
 		flowNormAngle.push_back(make_pair(Point2f(powf(flowInit[i].x,2)+powf(flowInit[i].y,2),
 								atan2f(flowInit[i].y,flowInit[i].x)),i));
-	
+
 	std::sort(flowNormAngle.begin(),flowNormAngle.end(),sortFlowNormIdx);
 	if(flowNormAngle.size() % 2)
 		flowNormMed = flowNormAngle[(flowNormAngle.size()-1)/2].first.x;
 	else
 		flowNormMed = (flowNormAngle[flowNormAngle.size()/2].first.x + flowNormAngle[flowNormAngle.size()/2-1].first.x)/2;
-	
+
 	for(int i = (int)floorf((float)flowNormAngle.size()*0.1);i<(int)ceilf((float)flowNormAngle.size()*0.9);i++)
 		flowNormSdev += powf(flowNormAngle[i].first.x - flowNormMed,2.0);
 	flowNormSdev = std::sqrtf(flowNormSdev/(flowNormAngle.size()-1));
@@ -1627,7 +1635,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		flowAngleMed = flowNormAngle[(flowNormAngle.size()-1)/2].first.y;
 	else
 		flowAngleMed = (flowNormAngle[flowNormAngle.size()/2].first.y + flowNormAngle[flowNormAngle.size()/2-1].first.y)/2;
-	
+
 	for(int i = (int)floorf((float)flowNormAngle.size()*0.1);i<(int)ceilf((float)flowNormAngle.size()*0.9);i++)
 		flowAngleSdev += powf(flowNormAngle[i].first.y - flowAngleMed,2.0);
 	flowAngleSdev = std::sqrtf(flowAngleSdev/(flowNormAngle.size()-1));
@@ -1691,7 +1699,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			if( inliers.at<bool>(i,0) == true )
 			{
 				if(!delIdx.empty())
-					if(delIdx[idx1] == i) 
+					if(delIdx[idx1] == i)
 					{
 							if(delIdx.size()> idx1-1) idx1++;
 							continue;
@@ -1703,18 +1711,18 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 			keyp1.push_back(keypInit1[i].first);
 		for(int i = 0; i<keypInit2.size();i++)
 			keyp2.push_back(keypInit2[i].first);
-				
+
 		drawMatches( img1.getMat(), keyp1, img2.getMat(), keyp2, initMatches, drawImg, CV_RGB(0, 255, 0), CV_RGB(0, 0, 255), matchesMask);
 		cv::imshow( "Second filtering step of initial matches", drawImg );
 		cv::waitKey(0);
 	}
 	delIdx.clear();
 
-	
+
 	keypInit1.clear();
 	keypInit2.clear();*/
 
-	
+
 
 
 	//A filter could be inserted here to ensure the same density of matches throughout the whole image (remove matches in areas of high density of matches)
@@ -1848,7 +1856,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	if(!img1.empty() && !img2.empty())
 	{
 		Mat drawImg;
-		
+
 		drawMatches( img1.getMat(), keypoints1, img2.getMat(), keypoints2, filteredMatches12, drawImg );
 		//imwrite("C:\\work\\matches_final.jpg", drawImg);
 		cv::imshow( "All Matches", drawImg );
@@ -1897,7 +1905,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		}
 	}
 
-	if( (filteredMatches12.size() < MIN_FINAL_MATCHES) /*|| (filteredMatches12.size() < keypoints1.size()/3)*/) return -7; //Too less remaining matches -> There might be a problem with your data	
+	if( (filteredMatches12.size() < MIN_FINAL_MATCHES) /*|| (filteredMatches12.size() < keypoints1.size()/3)*/) return -7; //Too less remaining matches -> There might be a problem with your data
 
 	return 0;
 }
@@ -1911,9 +1919,9 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
  *																	(the outer vector corresponds to the rows or
  *																	y-coordinates and the inner vector corresponds to the
  *																	columns or x-coordinates). Each vector-element holds
- *																	3 values. The first corresponds to the average flow 
- *																	in x- and the second to the average flow in y-direction 
- *																	within the grid element. The third value is a multiple of 
+ *																	3 values. The first corresponds to the average flow
+ *																	in x- and the second to the average flow in y-direction
+ *																	within the grid element. The third value is a multiple of
  *																	the standard deviation of the flow.
  * float gridElemSize							Input & Output  ->	Size of one grid element in the image used by gridSearchParams
  * Size imgSi									Input			->	The size of the image
@@ -2133,7 +2141,7 @@ cv::Point3f interpolFlowRad(cv::Point3f *f1, cv::Point3f *f2, cv::Point3f *f3)
 
 		r_neu.x = f1->x - f2->x;
 		r_neu.y = f1->y - f2->y;
-		tmp.z = std::max(f1->z, f2->z) + std::sqrtf(r_neu.x * r_neu.x + r_neu.y * r_neu.y);
+        tmp.z = std::max(f1->z, f2->z) + sqrtf(r_neu.x * r_neu.x + r_neu.y * r_neu.y);
 	}
 	else
 	{
@@ -2147,9 +2155,9 @@ cv::Point3f interpolFlowRad(cv::Point3f *f1, cv::Point3f *f2, cv::Point3f *f3)
 		r_neu2.y = f2->y - tmp.y;
 		r_neu3.x = f3->x - tmp.x;
 		r_neu3.y = f3->y - tmp.y;
-		rn[0] = std::sqrtf(r_neu1.x * r_neu1.x + r_neu1.y * r_neu1.y);
-		rn[1] = std::sqrtf(r_neu2.x * r_neu2.x + r_neu2.y * r_neu2.y);
-		rn[2] = std::sqrtf(r_neu3.x * r_neu3.x + r_neu3.y * r_neu3.y);
+        rn[0] = sqrtf(r_neu1.x * r_neu1.x + r_neu1.y * r_neu1.y);
+        rn[1] = sqrtf(r_neu2.x * r_neu2.x + r_neu2.y * r_neu2.y);
+        rn[2] = sqrtf(r_neu3.x * r_neu3.x + r_neu3.y * r_neu3.y);
 		rn[0] += f1->z;
 		rn[1] += f2->z;
 		rn[2] += f3->z;
@@ -2160,9 +2168,9 @@ cv::Point3f interpolFlowRad(cv::Point3f *f1, cv::Point3f *f2, cv::Point3f *f3)
 }
 
 
-/* This function compares the response of two keypoints to be able to sort them accordingly 
+/* This function compares the response of two keypoints to be able to sort them accordingly
  * while keeping track of the index.
- * 
+ *
  * KeyPoint first				Input  -> First pair of keypoint and index
  * KeyPoint second				Input  -> Second pair of keypoint and index
  */
@@ -2190,7 +2198,7 @@ bool ratioTestMatches(cv::Ptr<DescriptorMatcher>& descriptorMatcher,
 	filteredMatches12.clear();
     vector<vector<DMatch> > matches12;
 	descriptorMatcher->knnMatch( descriptors1, descriptors2, matches12, 2 );
-	
+
 	//Ratio test
 	for(size_t q = 0; q < matches12.size(); q++)
 	{
@@ -2205,22 +2213,22 @@ bool ratioTestMatches(cv::Ptr<DescriptorMatcher>& descriptorMatcher,
 }
 
 
-/* Generates a grid-based statistical flow for many areas over the whole image. Moreover, a map for filtering 
- * the pre-matched keypoints keyP1 and keyP2 is generated based on the statistical result. The pre-matching can 
+/* Generates a grid-based statistical flow for many areas over the whole image. Moreover, a map for filtering
+ * the pre-matched keypoints keyP1 and keyP2 is generated based on the statistical result. The pre-matching can
  * e.g. be performed using the Bruteforce matcher.
  *
- * EMatFloat2 keyP1								Input  -> Matched keypoints of the left image in the correct 
+ * EMatFloat2 keyP1								Input  -> Matched keypoints of the left image in the correct
  *														  order to match keyP2
- * EMatFloat2 keyP2								Input  -> Matched keypoints of the right image in the correct 
+ * EMatFloat2 keyP2								Input  -> Matched keypoints of the right image in the correct
  *														  order to match keyP1
  * Size imgSi									Input  -> Size of the image
  * vector<vector<Point3f>> gridSearchParams		Output -> The vector-structure corresponds to the size of the
  *														  grid (the outer vector corresponds to the rows or
  *														  y-coordinates and the inner vector corresponds to the
  *														  columns or x-coordinates). Each vector-element holds
- *														  3 values. The first corresponds to the average flow 
- *														  in x- and the second to the average flow in y-direction 
- *														  within the grid element. The third value is a multiple of 
+ *														  3 values. The first corresponds to the average flow
+ *														  in x- and the second to the average flow in y-direction
+ *														  within the grid element. The third value is a multiple of
  *														  the standard deviation of the flow.
  * float *gridElemSize							Output -> Size of one grid element (pixel bin)
  * OutputArray mask								Output -> If provided, a mask marking invalid correspondences
@@ -2246,7 +2254,7 @@ bool ratioTestMatches(cv::Ptr<DescriptorMatcher>& descriptorMatcher,
  * Return value:								0:		  Everything ok
  *												-1:		  Calculation of the statistic failed
  */
-int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 keyP2, cv::Size imgSi, 
+int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 keyP2, cv::Size imgSi,
 									std::vector<std::vector<cv::Point3f>> & gridSearchParams, float *gridElemSize,
 									cv::OutputArray mask, bool filterSmallFlow, unsigned int minYGridSize,
 									double validationTH, KDTree_D2float *keypts1idxall, double stdMult_)
@@ -2335,7 +2343,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 				gridY(0,0) += imgpart;
 			}
 			for(int j = 1;j < divx;j++)
-			{	
+			{
 				xpos += imgpart;
 				gridX(j,0) = xpos;
 			}
@@ -2349,7 +2357,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 				for(int j = 0; j < divx; j++)
 				{
 					ret_matches.clear();
-					keypts1idxall->index->radiusSearch(&gridPoints(idx+j,0),imgpart22,ret_matches,nanoflann::SearchParams(maxDepthSearch));
+                    keypts1idxall->index->radiusSearch(&gridPoints(idx+j,0),imgpart22,ret_matches,nanoflann::SearchParams(maxDepthSearch));
 					int resSize = (int)ret_matches.size();
 					if(resSize < 5)
 					{
@@ -2382,7 +2390,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 	bool calcNewGrid = false;
 //calcNewGrid:
 	do{
-		vector<pair<Point3i,vector<std::pair<size_t,float>>>> validSqrs, lessPtSqrs;
+        vector<std::pair<Point3i,vector<std::pair<size_t,float>>>> validSqrs, lessPtSqrs;
 		gridTreeMatches.clear();
 		flow_dist.clear();
 		flow_ang.clear();
@@ -2410,7 +2418,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 				gridY(0,0) += imgpart;
 			}
 			for(int j = 1;j < divx;j++)
-			{	
+			{
 				xpos += imgpart;
 				gridX(j,0) = xpos;
 			}
@@ -2426,7 +2434,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 				for(int j = 0; j < divx; j++)
 				{
 					ret_matches.clear();
-					keypts1idx.index->radiusSearch(&gridPoints(idx+j,0),radius1,ret_matches,nanoflann::SearchParams(maxDepthSearch));
+                    keypts1idx.index->radiusSearch(&gridPoints(idx+j,0),radius1,ret_matches,nanoflann::SearchParams(maxDepthSearch));
 					int resSize = (int)ret_matches.size();
 					if(!resSize)
 					{
@@ -2434,11 +2442,11 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 					}
 					else if(resSize < minPtsPerSqr)
 					{
-						lessPtSqrs.push_back(make_pair<Point3i,vector<std::pair<size_t,float>>>(cv::Point3i(j,i,resSize),ret_matches));
+                        lessPtSqrs.push_back(make_pair(cv::Point3i(j,i,resSize),ret_matches));
 						gridElemType(i,j) = 2;
 					}
-					else
-						validSqrs.push_back(make_pair<Point3i,vector<std::pair<size_t,float>>>(cv::Point3i(j,i,resSize),ret_matches));
+                    else
+                        validSqrs.push_back(make_pair(cv::Point3i(j,i,resSize),ret_matches));
 				}
 			}
 
@@ -2451,7 +2459,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 					for(int j = 0; j < divx; j++)
 					{
 						ret_matches.clear();
-						keypts1idxall->index->radiusSearch(&gridPoints(idx+j,0),imgpart22,ret_matches,nanoflann::SearchParams(maxDepthSearch));
+                        keypts1idxall->index->radiusSearch(&gridPoints(idx+j,0),imgpart22,ret_matches,nanoflann::SearchParams(maxDepthSearch));
 						int resSize = (int)ret_matches.size();
 						if(resSize < 5)
 						{
@@ -2702,7 +2710,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 												int vSqsi = validSqrs[cnt].first.z;
 												for(int j1 = 0; j1 < vSqsi; j1++)
 												{
-													bool duplNFnd = true; 
+													bool duplNFnd = true;
 													for(int i1 = 0; i1 < gTMsi; i1++)
 													{
 														if(gridTreeMatches.back()[i1].first == validSqrs[cnt].second[j1].first)
@@ -2751,7 +2759,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 												int vSqsi = lessPtSqrs[cnt].first.z;
 												for(int j1 = 0; j1 < vSqsi; j1++)
 												{
-													bool duplNFnd = true; 
+													bool duplNFnd = true;
 													for(int i1 = 0; i1 < gTMsi; i1++)
 													{
 														if(gridTreeMatches.back()[i1].first == lessPtSqrs[cnt].second[j1].first)
@@ -2950,7 +2958,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 					for(unsigned int j = 0; j < flow_ang[i].size(); j++)
 					{
 						if((flow_dist[i][j] <= dist_th[1]) && (flow_dist[i][j] >= dist_th[0]) &&
-							((flow_ang[i][j] <= ang_th[1]) || (flow_ang[i][j] >= ang_th[2])) && 
+							((flow_ang[i][j] <= ang_th[1]) || (flow_ang[i][j] >= ang_th[2])) &&
 							(flow_ang[i][j] >= ang_th[0]))
 						{
 							flow_ang_tmp.push_back(flow_ang[i][j]);
@@ -2970,7 +2978,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 						idx = i * divx + j;
 						if(flow_dist_filtered[idx].empty())
 						{
-							int i_tmp, j_tmp = j;						
+							int i_tmp, j_tmp = j;
 							int idx_tmp;
 							if(i < (divy - 1))
 							{
@@ -3154,7 +3162,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 								continue;
 							for(int j1 = 0; j1 < 3; j1++)
 							{
-							
+
 								if((i1 == 1) && (j1 == 1))
 									continue;
 								const int xnew = j + j1 - 1;
@@ -3162,7 +3170,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 									break;
 								if(xnew < 0)
 									continue;
-							
+
 								if(validGridElem.at<unsigned char>(ynew,xnew))
 								{
 									validNeighbors_ang.push_back(stat_ang[ynew * divx + xnew]);
@@ -3208,9 +3216,9 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 							}
 							idx_min = std::distance(neighbor_diff.begin(), std::min_element(neighbor_diff.begin(), neighbor_diff.end()));
 						}
-						vect_diff[0] = std::cos(validNeighbors_ang[idx_min].medErr) * validNeighbors_dist[idx_min].medErr - 
+						vect_diff[0] = std::cos(validNeighbors_ang[idx_min].medErr) * validNeighbors_dist[idx_min].medErr -
 										std::cos(stat_ang[idx].medErr) * stat_dist[idx].medErr;
-						vect_diff[1] = std::sin(validNeighbors_ang[idx_min].medErr) * validNeighbors_dist[idx_min].medErr - 
+						vect_diff[1] = std::sin(validNeighbors_ang[idx_min].medErr) * validNeighbors_dist[idx_min].medErr -
 										std::sin(stat_ang[idx].medErr) * stat_dist[idx].medErr;
 						vect_diff[0] *= vect_diff[0];
 						vect_diff[1] *= vect_diff[1];
@@ -3592,7 +3600,7 @@ void getStatisticfromVec(const std::vector<double> vals, qualityParm *stats, boo
 
 /* This function calculates the L1-norm of the hamming distance between two column vectors
  * using a LUT.
- * 
+ *
  * Mat vec1						Input  -> First vector which must be of type uchar or CV_8U
  * Mat vec1						Input  -> Second vector which must be the same size as vec1
  *										  and of type uchar or CV_8U
@@ -3601,7 +3609,7 @@ void getStatisticfromVec(const std::vector<double> vals, qualityParm *stats, boo
  */
 inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
 {
-	static const unsigned char BitsSetTable256[256] = 
+	static const unsigned char BitsSetTable256[256] =
 	{
 	#   define B2(n) n,     n+1,     n+1,     n+2
 	#   define B4(n) B2(n), B2(n+1), B2(n+1), B2(n+2)
@@ -3618,7 +3626,7 @@ inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
 	//Slower version below
 	/*Mat v12xor;
 	bitwise_xor(vec1, vec2, v12xor);
-	for(int i = 0;i<v12xor.size().width;i++) 
+	for(int i = 0;i<v12xor.size().width;i++)
 	{
 		while(v12xor.at<uchar>(i))
 		{
@@ -3632,7 +3640,7 @@ inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
 
 /* This function calculates the L1-norm of the hamming distance between two column vectors using
  * the popcnt CPU-instruction
- * 
+ *
  * Mat vec1						Input  -> First vector which must be of type uchar or CV_8U
  * Mat vec1						Input  -> Second vector which must be the same size as vec1
  *										  and of type uchar or CV_8U
@@ -3642,18 +3650,24 @@ inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
  */
 inline unsigned int getHammingL1PopCnt(cv::Mat vec1, cv::Mat vec2, unsigned char byte8width)
 {
-	unsigned __int64 hamsum1 = 0;
-	const unsigned __int64 *inputarr1 = reinterpret_cast<const unsigned __int64*>(vec1.data);
-	const unsigned __int64 *inputarr2 = reinterpret_cast<const unsigned __int64*>(vec2.data);
+#ifdef _LINUX
+  __uint64_t hamsum1 = 0;
+  const __uint64_t *inputarr1 = reinterpret_cast<const __uint64_t*>(vec1.data);
+  const __uint64_t *inputarr2 = reinterpret_cast<const __uint64_t*>(vec2.data);
+#else
+  unsigned __int64 hamsum1 = 0;
+  const unsigned __int64 *inputarr1 = reinterpret_cast<const unsigned __int64*>(vec1.data);
+  const unsigned __int64 *inputarr2 = reinterpret_cast<const unsigned __int64*>(vec2.data);
+#endif
 	for(unsigned char i = 0; i < byte8width; i++)
 	{
-		hamsum1 += __popcnt64(*(inputarr1 + i) ^ *(inputarr2 + i));
+        hamsum1 += _mm_popcnt_u64(*(inputarr1 + i) ^ *(inputarr2 + i));
 	}
 	return (unsigned int)hamsum1;
 }
 
 /* This function calculates the L2-norm between two column vectors of desriptors
- * 
+ *
  * Mat vec1						Input  -> First vector which must be of type uchar or CV_32F
  * Mat vec1						Input  -> Second vector which must be the same size as vec1
  *										  and of type uchar or CV_8U
@@ -3684,16 +3698,16 @@ inline float getL2Distance(cv::Mat vec1, cv::Mat vec2)
  *														  (the outer vector corresponds to the rows or
  *														  y-coordinates and the inner vector corresponds to the
  *														  columns or x-coordinates). Each vector-element holds
- *														  3 values. The first corresponds to the average flow 
- *														  in x- and the second to the average flow in y-direction 
- *														  within the grid element. The third value is a multiple of 
+ *														  3 values. The first corresponds to the average flow
+ *														  in x- and the second to the average flow in y-direction
+ *														  within the grid element. The third value is a multiple of
  *														  the standard deviation of the flow.
  * float gridElemSize							Input  -> Size of one grid element in the image used by gridSearchParams
- * vector<KeyPoint> keypoints					Input  -> The keypoints of the view for which correspondences in the other 
+ * vector<KeyPoint> keypoints					Input  -> The keypoints of the view for which correspondences in the other
  *														  view should be searched for
  * Mat descriptors1								Input  -> The descriptors of the view corresponding to "keypoints"
  * Mat descriptors2								Input  -> The descriptors of the second view
- * KDTree_D2float &keypointtree					Input  -> The KD-tree (indexes) of the keypoints of the view for which 
+ * KDTree_D2float &keypointtree					Input  -> The KD-tree (indexes) of the keypoints of the view for which
  *														  correspondences in the other view should be searched for
  * vector<int> keypIndexes						Input  -> A sorted (from low to high) index of keypoints corresponding to
  *														  "keypoints" that were already matched during the calculation of "H"
@@ -3707,16 +3721,16 @@ inline float getL2Distance(cv::Mat vec1, cv::Mat vec2)
  *												-2:		  Too less remaining matches (maybe because of too many duplicates)
  *												-3:		  Size in dimension 1 (x and bin cols, respectively) must be the same for all bin rows (y coordinates) in gridSearchParams
  */
-int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams, 
+int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 				   float gridElemSize,
 				   std::vector<cv::KeyPoint> keypoints,
-				   cv::Mat descriptors1, 
+				   cv::Mat descriptors1,
 				   cv::Mat descriptors2,
-				   KDTree_D2float &keypointtree, 
+				   KDTree_D2float &keypointtree,
 				   std::vector<int> keypIndexes,
 				   cv::Size imgSi,
 				   std::vector<cv::DMatch> &matches,
-				   std::vector<mCostDist> & mprops)
+                   std::vector<mCostDist> mprops)
 {
 	const int maxDepthSearch = 32;
 	const int hammL1tresh = 160;
@@ -3764,7 +3778,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 		}
 
 		int cpuInfo[4];
-		__cpuid(cpuInfo,0x00000001);
+//		__cpuid(cpuInfo,0x00000001);
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		static bool popcnt_available = f_1_ECX_[23];
 		if(popcnt_available)
@@ -3874,7 +3888,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 		keypointtree.index->radiusSearch(&x2e(0),/*(1+pDistM)**/(float)var_searchRadius,ret_matches,nanoflann::SearchParams(maxDepthSearch)); //The larger the distance from the image center, the larger the search radius (compensate for radial distortion)
 		if(ret_matches.empty()) continue; //in this case there could be a nearest neighbor search (for image regions with large distortions)
 
-		if(ret_matches.size() > NormIdxSize) 
+		if(ret_matches.size() > NormIdxSize)
 			ret_matches.erase(ret_matches.begin()+NormIdxSize,ret_matches.end());
 
 		if(BinaryOrVector)
@@ -3967,33 +3981,33 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 
 /* This function finds the best matches between descriptors by estimating the position of the corresponding keypoint with a
  * precalculated flow in the first place and selecting the nearest neighbors within a specified radius (given by the
- * standard deviation of the flow) for descriptor matching in the second place. For matching the descriptors, the L1-norm 
+ * standard deviation of the flow) for descriptor matching in the second place. For matching the descriptors, the L1-norm
  * (Manhattan distance) of the Hamming distance is calculated.
  *
  * vector<vector<Point3f>> gridSearchParams		Input  -> The vector-structure corresponds to the size of a grid in the image
  *														  (the outer vector corresponds to the rows or
  *														  y-coordinates and the inner vector corresponds to the
  *														  columns or x-coordinates). Each vector-element holds
- *														  3 values. The first corresponds to the average flow 
- *														  in x- and the second to the average flow in y-direction 
- *														  within the grid element. The third value is a multiple of 
+ *														  3 values. The first corresponds to the average flow
+ *														  in x- and the second to the average flow in y-direction
+ *														  within the grid element. The third value is a multiple of
  *														  the standard deviation of the flow.
  * float gridElemSize							Input  -> Size of one grid element in the image used by gridSearchParams
- * vector<KeyPoint> keypoints					Input  -> The keypoints of the view for which correspondences in the other 
+ * vector<KeyPoint> keypoints					Input  -> The keypoints of the view for which correspondences in the other
  *														  view should be searched for
  * Mat descriptors1								Input  -> The descriptors of the view corresponding to "keypoints"
  * Mat descriptors2								Input  -> The descriptors of the second view
- * KDTree_D2float &keypointtree					Input  -> The KD-tree (indexes) of the keypoints of the view for which 
+ * KDTree_D2float &keypointtree					Input  -> The KD-tree (indexes) of the keypoints of the view for which
  *														  correspondences in the other view should be searched for
  * vector<int> keypIndexes						Input  -> A sorted (from low to high) index of keypoints corresponding to
  *														  "keypoints" that were already matched during the calculation of "H"
  * Size imgSi									Input  -> The size of the image
  * vector<vector<DMatch>> &matches				Output -> Array of matches
- * unsigned int knn = 0							Input  -> This variable specifies, how many train indexes should be stored for one query 
- *														  index (of the matches) in sorted order (L1-norm of hamming distance). If knn=0, 
+ * unsigned int knn = 0							Input  -> This variable specifies, how many train indexes should be stored for one query
+ *														  index (of the matches) in sorted order (L1-norm of hamming distance). If knn=0,
  *														  the number of train indexes stored for one query index depends on the distance
  *														  (Hamming) to the next (in sorted order (Hamming)) descriptor. The treshold of
- *														  this distance can be adjusted in the code by the variable "knn0hammL1tresh". 
+ *														  this distance can be adjusted in the code by the variable "knn0hammL1tresh".
  *														  It is not allowed to set knn=1. If you want that, only use a output vector of
  *														  the type vector<DMatch> and no knn.
  * vector<vector<mCostDist>> mprops				Output -> Holds for every match in "matches" the squared distance to the estimated position (SOF)
@@ -4004,17 +4018,17 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
  *												-2:		  Too less remaining matches
  *												-3:		  Size in dimension 1 (x and bin cols, respectively) must be the same for all bin rows (y coordinates) in gridSearchParams
  */
-int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams, 
+int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 				   float gridElemSize,
 				    std::vector<cv::KeyPoint> keypoints,
-				    cv::Mat descriptors1, 
+				    cv::Mat descriptors1,
 				    cv::Mat descriptors2,
-				    KDTree_D2float &keypointtree, 
+				    KDTree_D2float &keypointtree,
 				    std::vector<int> keypIndexes,
 				    cv::Size imgSi,
 				    std::vector<std::vector<cv::DMatch>> &matches,
 					unsigned int knn,
-					std::vector<std::vector<mCostDist>> & mprops)
+                    std::vector<std::vector<mCostDist>> mprops)
 {
 
 	if(knn == 1)
@@ -4105,7 +4119,9 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 		}
 
 		int cpuInfo[4];
+#ifndef _LINUX
 		__cpuid(cpuInfo,0x00000001);
+#endif
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		bool popcnt_available = f_1_ECX_[23];
 		if(popcnt_available)
@@ -4236,7 +4252,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 			ret_matches.erase(ret_matches.begin()+NormIdxSize,ret_matches.end());
 
 		//double* weights = new double[ret_matches.size()];
-		
+
 		if(BinaryOrVector)
 		{
 			if(useBinPopCnt)
@@ -4267,10 +4283,10 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 
 			INLINEQSORTREORDER(unsigned int, l1norms, normIdx, ret_matches.size(), Pfe32u_lt);
 
-			//vector<pair<double,unsigned int>> sorted;		
+			//vector<pair<double,unsigned int>> sorted;
 			if(knn == 0)
 			{
-			
+
 				//Be careful the distance values in the DMatch structs represent the L1-norms of the features and not the distances to the query keypoints
 				matches.push_back(vector<DMatch>(1,DMatch(i,ret_matches[normIdx[0]].first,(float)l1norms[0])));
 #if FILTER_WITH_CD_RATIOS
@@ -4329,7 +4345,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 			{
 				l2norms[k] = getL2Distance(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first));
 			}
-			
+
 			memcpy( normIdx, HamL1NormIdx, ret_matches.size() * sizeof(unsigned int) );
 
 			/*Here the L1-norms are used for sorting, because the number of matching features (corresponding to
@@ -4341,10 +4357,10 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 			/*vector<pair
 			for(unsigned int k = 0; k < ret_matches.size(); k++)*/
 
-			//vector<pair<double,unsigned int>> sorted;		
+			//vector<pair<double,unsigned int>> sorted;
 			if(knn == 0)
 			{
-			
+
 				//Be careful the distance values in the DMatch structs represent the L1-norms of the features and not the distances to the query keypoints
 				matches.push_back(vector<DMatch>(1,DMatch(i,ret_matches[normIdx[0]].first,l2norms[0])));
 #if FILTER_WITH_CD_RATIOS
@@ -4398,7 +4414,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 		}
 
 		//delete [] weights;
-		
+
 	}
 
 	if((matches.size() < MIN_FINAL_MATCHES)/* || (matches.size() < keypoints.size()/2)*/) return -2; // Too less remaining matches
@@ -4409,14 +4425,14 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 
 /* This function generates an sparse set of keypoints from a large keypoint set. The algorithm selects keypoints distributed
  * over the whole image with a density given by the grid size divx and divy. For every cell in the image the algorithm
- * selects the keypoints with the largest responses. Thus, only feature detectors can be used in advance that return a response 
+ * selects the keypoints with the largest responses. Thus, only feature detectors can be used in advance that return a response
  * for every keypoint.
  *
  * vector<pair<KeyPoint,int>> &keypInit			Output -> The sparse set of keypoints and the index numbers to the selected keypoints
  * KDTree_D2float &keypointtree					Input  -> The KD-tree (indexes) of the keypoints
  * EMatFloat2 eigkeypts							Input  -> The coordinates of the keypoints organized in RowMajor order in an
  *														  Eigen matrix
- * EMatFloat2 gridPoints						Input  -> The image coordinates within the grid for which near keypoints are 
+ * EMatFloat2 gridPoints						Input  -> The image coordinates within the grid for which near keypoints are
  *														  searched (one coordinate per cell)
  * int divx										Input  -> The number of columns of the grid
  * int divy										Input  -> The number of rows of the grid
@@ -4427,9 +4443,9 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
  * Return value:								none
  */
 void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit,
-							  KDTree_D2float &keypointtree, 
-							  EMatFloat2 eigkeypts, 
-							  EMatFloat2 gridPoints, 
+							  KDTree_D2float &keypointtree,
+							  EMatFloat2 eigkeypts,
+							  EMatFloat2 gridPoints,
 							  std::vector<cv::KeyPoint> keypoints,
 							  int divx,
 							  int divy,
@@ -4441,7 +4457,7 @@ void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit
 	int idx;
 
 	const int maxDepthSearch = 32;
-	//const int response_thresh[] = {35,18,8}; //bei FAST für die Response-Bereiche >100, 50-100 und <50
+	//const int response_thresh[] = {35,18,8}; //bei FAST fï¿½r die Response-Bereiche >100, 50-100 und <50
 	const float threshMultFactors[3] = {1.0/4.0, 1.0/8.0, 1.0/16.0}; // for the response-sorted upper, middel and lower third of the correspondences
 
 	const int minNperGridElem = (int)std::ceil(50.0/((float)(divx * divy)));
@@ -4449,10 +4465,10 @@ void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit
 
 	imgpart2 = imgpart/2; //Devide the width/height of the grid element by 2 to get the radius
 	lwidth2 = lastwidthpart/2;
-	imgpart22 = std::powf(imgpart2,2); //The grid element radius is squared as nanoflann uses squared radii as input (when L2-norms are used)
-	lwidth22 = std::powf(lwidth2,2);
+	imgpart22 = powf(imgpart2,2); //The grid element radius is squared as nanoflann uses squared radii as input (when L2-norms are used)
+	lwidth22 = powf(lwidth2,2);
 	radius1 = 2*imgpart22;
-	radius2 = 2*lwidth22; //This is the squared diagonal radius of an grid element (c²=a²+b², a=b => c² = 2a²)
+	radius2 = 2*lwidth22; //This is the squared diagonal radius of an grid element (cï¿½=aï¿½+bï¿½, a=b => cï¿½ = 2aï¿½)
 
 	// do a radius search
 	std::vector<std::pair<size_t,float> >   ret_matches;
@@ -4498,7 +4514,7 @@ void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit
 				{
 					const float response_thresh[3] = {responseDiff * threshMultFactors[0], responseDiff * threshMultFactors[1], responseDiff * threshMultFactors[2]};
 					const int threshPosIndexs[2] = {resSize/3-1, 2*resSize/3-1};
-			
+
 					idx_response_it_start = idx_response.begin();
 					std::advance(idx_response_it_start, minNperGridElem < 3 ? 2:(minNperGridElem - 1));
 					idx_response_it = idx_response_it_start;
@@ -4610,8 +4626,8 @@ void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit
 }
 
 #if FILTER_WITH_CD_RATIOS
-void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & Cfactors, 
-							std::vector<float> & quartDfactors, std::vector<float> & quartCfactors, 
+void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & Cfactors,
+							std::vector<float> & quartDfactors, std::vector<float> & quartCfactors,
 							std::vector<mCostDist> mprops, int si_x, int si_y)
 {
 	vector<vector<vector<float>>> costBins(si_y, vector<vector<float>>(si_x)), distBins(si_y, vector<vector<float>>(si_x)), costBins_tmp, distBins_tmp;

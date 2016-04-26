@@ -21,14 +21,19 @@
 
 //#include "..\include\glob_includes.h"
 #include "io_data.h"
-#include "atlstr.h"
 #include <stdint.h>
 #include <fstream>
+#ifdef _LINUX
+#include "sys/dir.h"
+#else
+#include "atlstr.h"
 #include "dirent.h"
+#endif
 #include <algorithm>
 
 //#include "PfeImgFileIO.h"
 //#include "PfeConv.h"
+
 
 using namespace std;
 //using namespace cv;

@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 
 #include "argvparser.h"
 #include "io_data.h"
-#include "gtest\gtest.h"
+#include "gtest/gtest.h"
 
 using namespace std;
 using namespace cv;
@@ -33,7 +33,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
 	testing::internal::FilePath program(argv[0]);
 	testing::internal::FilePath program_dir = program.RemoveFileName();
-	testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs\\flow"));
+  testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs//flow"));
 
 	cmd.setIntroductoryDescription("Interface for testing various keypoint detectors, descriptor extractors, and matching algorithms.\n Example of usage:\n" + std::string(argv[0]) + " --img_path=" + data_path.string() + " --l_img_pref=left_ --r_img_pref=right_ ");
 	//define error codes
@@ -217,13 +217,13 @@ void startEvaluation(ArgvParser& cmd)
 	{
 		if(oneCam)
 		{
-			src[0] = cv::imread(img_path + "\\" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-			src[1] = cv::imread(img_path + "\\" + filenamesl[i + 1],CV_LOAD_IMAGE_GRAYSCALE);
+			src[0] = cv::imread(img_path + "//" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
+			src[1] = cv::imread(img_path + "//" + filenamesl[i + 1],CV_LOAD_IMAGE_GRAYSCALE);
 		}
 		else
 		{
-			src[0] = cv::imread(img_path + "\\" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-			src[1] = cv::imread(img_path + "\\" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
+      src[0] = cv::imread(img_path + "//" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
+			src[1] = cv::imread(img_path + "//" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
 		}
 
 		err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, !noDynKeyP, f_nr, refineVFC, !noRatiot, refineSOF, subPixRef, verbose);

@@ -16,6 +16,6 @@
  DISCRIPTION: This is the main header file of matchinglib.
 **********************************************************************************************************/
 
-#include "features.h"
-#include "matchers.h"
-#include "correspondences.h"
+#include "matchinglib_imagefeatures.h"
+#include "matchinglib_matchers.h"
+#include "matchinglib_correspondences.h"
