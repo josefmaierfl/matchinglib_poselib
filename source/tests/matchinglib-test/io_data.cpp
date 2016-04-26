@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -23,7 +23,7 @@
 #include "io_data.h"
 #include <stdint.h>
 #include <fstream>
-#ifdef _LINUX
+#ifdef __linux__
 #include "sys/dir.h"
 #else
 #include "atlstr.h"
@@ -50,9 +50,9 @@ using namespace std;
  *										  last character in the filename before the image number)
  * string fileprefr				Input  -> File prefix for the right or second images (last character must be "_" which is the
  *										  last character in the filename before the image number)
- * vector<string> filenamesl	Output -> Vector with sorted filenames of the left or first images in the given directory 
+ * vector<string> filenamesl	Output -> Vector with sorted filenames of the left or first images in the given directory
  *										  that correspond to the image numbers of filenamesr
- * vector<string> filenamesr	Output -> Vector with sorted filenames of the right or second images in the given directory 
+ * vector<string> filenamesr	Output -> Vector with sorted filenames of the right or second images in the given directory
  *										  that correspond to the image numbers of filenamesl
  *
  * Return value:				 0:		  Everything ok
@@ -179,12 +179,12 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 }
 
 
-/* This function takes an 16Bit RGB integer image and converts it to a 3-channel float flow matrix where R specifies the 
+/* This function takes an 16Bit RGB integer image and converts it to a 3-channel float flow matrix where R specifies the
  * flow in u, G the flow in v and B if the flow is valid.
  *
  * string filepath				Input  -> Path to the directory
  * string filename				Input  -> File name of the flow file with extension (e.g. *.png)
- * Mat* flow3					Output -> Pointer to the resulting 3-channel flow matrix (floats) where channel 1 specifies 
+ * Mat* flow3					Output -> Pointer to the resulting 3-channel flow matrix (floats) where channel 1 specifies
  *										  the flow in u, channel 2 the flow in v and channel 3 if the flow is valid (=1).
  * float precision				Input  -> Used precision in the given flow image file after the decimal point
  *										  (e.g. a precision of 64 yields a resolution of 1/64). [Default = 64]
@@ -200,7 +200,7 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
  * Return value:				 0:		  Everything ok
  *								-1:		  Error reading flow file
  */
-//int convertImageFlowFile(std::string filepath, std::string filename, cv::Mat* flow3, const float precision, 
+//int convertImageFlowFile(std::string filepath, std::string filename, cv::Mat* flow3, const float precision,
 //						 bool useBoolValidity, const float validityPrecision, const float minConfidence)
 //{
 //	Mat intflow;
@@ -285,19 +285,19 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 //		}
 //	}
 //
-//	cv::merge(channels_fin,*flow3); 
+//	cv::merge(channels_fin,*flow3);
 //
 //	return 0;
 //}
 //
-///* This function takes an 16Bit 1-channel integer image (grey values) and converts it to a 3-channel (RGB) float flow matrix 
-// * where R specifies the disparity, G is always 0 (as the disparity only represents the flow in x-direction) and B specifies 
+///* This function takes an 16Bit 1-channel integer image (grey values) and converts it to a 3-channel (RGB) float flow matrix
+// * where R specifies the disparity, G is always 0 (as the disparity only represents the flow in x-direction) and B specifies
 // * if the flow/disparity is valid (0 or 1).
 // *
 // * string filepath				Input  -> Path to the directory
 // * string filename				Input  -> File name of the disparity file with extension (e.g. *.png)
-// * Mat* flow3					Output -> Pointer to the resulting 3-channel flow matrix (floats) where channel 1 specifies 
-// *										  the the disparity, channel 2 is always 0 (as the disparity only represents the 
+// * Mat* flow3					Output -> Pointer to the resulting 3-channel flow matrix (floats) where channel 1 specifies
+// *										  the the disparity, channel 2 is always 0 (as the disparity only represents the
 // *										  flow in x-direction) and channel 3 specifies if the disparity is valid (=1).
 // * bool useFLowStyle			Input  -> If true [Default], the input file is expected to be a 3-channel 16bit file,
 // *										  where the first channel includes the disparity values, the second channel is useless
@@ -432,7 +432,7 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 ///* This function reads all homography file names from a given directory and stores their names into a vector.
 // *
 // * string filepath				Input  -> Path to the directory
-// * string fileprefl				Input  -> File prefix for the left or first images (for the dataset of 
+// * string fileprefl				Input  -> File prefix for the left or first images (for the dataset of
 // *										  www.robots.ox.ac.uk/~vgg/research/affine/ this must be H1to because
 // *										  the file names look like H1to2, H1to3, ...)
 // * vector<string> filenamesl	Output -> Vector with sorted filenames of the images in the given directory

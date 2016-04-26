@@ -41,7 +41,7 @@
 #include <vector>
 #include <nmmintrin.h>
 #include <bitset>
-#ifdef _LINUX
+#ifdef __linux__
 #include <inttypes.h>
 #include <cpuid.h>
 #endif
@@ -834,9 +834,9 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	if(descriptors1.type() == CV_8U)
 	{
 		int cpuInfo[4];
-#ifndef _LINUX
-    __cpuid(cpuInfo,0x00000001);
-#endif
+// __linux__
+    // __cpuid(cpuInfo,0x00000001);
+// #endif
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		bool popcnt_available = f_1_ECX_[23];
 		if(popcnt_available)
@@ -3650,7 +3650,7 @@ inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
  */
 inline unsigned int getHammingL1PopCnt(cv::Mat vec1, cv::Mat vec2, unsigned char byte8width)
 {
-#ifdef _LINUX
+#ifdef __linux__
   __uint64_t hamsum1 = 0;
   const __uint64_t *inputarr1 = reinterpret_cast<const __uint64_t*>(vec1.data);
   const __uint64_t *inputarr2 = reinterpret_cast<const __uint64_t*>(vec2.data);
@@ -4119,9 +4119,9 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 		}
 
 		int cpuInfo[4];
-#ifndef _LINUX
-		__cpuid(cpuInfo,0x00000001);
-#endif
+// __linux__
+		// __cpuid(cpuInfo,0x00000001);
+// #endif
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		bool popcnt_available = f_1_ECX_[23];
 		if(popcnt_available)

@@ -13,10 +13,10 @@ MatchList& CasHashMatcher::MatchSpFast(const ImageData& imageData_1, const Image
 
 	//Check if the CPU instruction popcnt is available
 	int cpuInfo[4];
-	__cpuid(cpuInfo,0x00000001);
+	// __cpuid(cpuInfo,0x00000001);
 	std::bitset<32> f_1_ECX_ = cpuInfo[2];
 	static bool popcnt_available = f_1_ECX_[23];
-	static const unsigned char BitsSetTable256[256] = 
+	static const unsigned char BitsSetTable256[256] =
 	{
 	#   define B2(n) n,     n+1,     n+1,     n+2
 	#   define B4(n) B2(n), B2(n+1), B2(n+1), B2(n+2)
@@ -43,7 +43,7 @@ MatchList& CasHashMatcher::MatchSpFast(const ImageData& imageData_1, const Image
                 dataIndexUsedList[bucketPtr[eleIndex]] = false; // indicate this candidate has not been added to <candidateIndexListTop>
             }
         }
-        
+
         // calculate the Hamming distance of all candidates based on the CompHash code
         uint8_t* distPtr = distList;
         CompHashDataPtr ptr_1 = imageData_1.compHashDataPtrList[dataIndex_1];

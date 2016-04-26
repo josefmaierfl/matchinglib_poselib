@@ -85,7 +85,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#ifdef _LINUX
+#ifdef __linux__
 #define MAX_PATH PATH_MAX
 #endif
 

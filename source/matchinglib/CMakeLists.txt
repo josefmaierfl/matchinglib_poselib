@@ -3,11 +3,6 @@
 # External dependencies
 #
 
-if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-endif()
-include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-
 if(WIN32)
   find_package(Eigen REQUIRED)
 else()
@@ -19,7 +14,7 @@ find_package(OpenCV)
 
 find_package(Nanoflann REQUIRED)
 
-find_package(Flann 1.8.4 REQUIRED)
+find_package(Flann REQUIRED)
 
 #
 # Library name and options
