@@ -4,6 +4,13 @@
 #
 
 if(WIN32)
+if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+endif()
+include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+endif()
+
+if(WIN32)
 find_package(Eigen REQUIRED)
 else()
   find_package(PkgConfig)
@@ -26,8 +33,23 @@ find_package(OpenCV 3.0)
 # endif()
 
 find_package(Nanoflann REQUIRED)
+if (Nanoflann_FOUND STREQUAL "YES")
+  message("Nanoflann found!")
+else()
+  message(FATAL_ERROR "Nanoflann not found!")
+endif()
 
+#if(WIN32)
+#find_package(Flann 1.8.4 REQUIRED)
 find_package(Flann REQUIRED)
+if (FLANN_FOUND STREQUAL "YES")
+  message("Flann found!")
+else()
+  message(FATAL_ERROR "Flann not found!")
+endif()
+#else()
+#find_package(Flann REQUIRED)
+#endif()
 
 #
 # Library name and options
@@ -140,7 +162,7 @@ target_include_directories(${target}
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${FLANN_INCLUDE_DIRS}
     ${Nanoflann_INCLUDE_DIR}
-    ${FLANN_INCLUDE_DIRS}
+    #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
 
