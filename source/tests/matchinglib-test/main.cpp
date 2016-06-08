@@ -44,13 +44,13 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("img_path", "<Path to the images (all required in one folder). All images are loaded one after another for matching using the specified file prefixes for left and right images. If only the left prefix is specified, images with the same prefix flollowing after another are matched.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
 	cmd.defineOption("l_img_pref", "<The prefix of the left or first image. The whole prefix until the start of the number is needed (last character must be '_').>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
 	cmd.defineOption("r_img_pref", "<The prefix of the right or second image. The whole prefix until the start of the number is needed (last character must be '_'). Can be empty for image series where one image is matched to the next image.>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("f_detect", "<The name of the feature detector in OpenCV 2.4.9 style (FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob). [Default=FAST]>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("d_extr", "<The name of the descriptor extractor in OpenCV 2.4.9 style (FREAK, SIFT, SURF, ORB, BRISK, BRIEF). [Default=FREAK]>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("f_detect", "<The name of the feature detector in OpenCV 2.4.9 style (FAST, MSER, ORB, BRISK, KAZE, AKAZE, SIFT, SURF, STAR). [Default=FAST]>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("d_extr", "<The name of the descriptor extractor in OpenCV 2.4.9 style (BRISK, ORB, KAZE, AKAZE, FREAK, SIFT, SURF, DAISY, LATCH). [Default=FREAK]>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("matcher", "<The short form of the matcher [Default=GMBSOF]:\n CASHASH:\t Cascade Hashing matcher\n GMBSOF:\t Guided Matching based on Statistical Optical Flow\n HIRCLUIDX:\t Hirarchical Clustering Index Matching from the FLANN library\n HIRKMEANS:\t hierarchical k-means tree matcher from the FLANN library\n LINEAR:\t Linear matching algorithm (Brute force) from the FLANN library\n LSHIDX:\t LSH Index Matching algorithm from the FLANN library (not stable (bug in FLANN lib) -> program may crash)\n RANDKDTREE:\t randomized KD-trees matcher from the FLANN library>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("noRatiot", "<If provided, ratio test is disabled for the matchers for which it is possible.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("refineVFC", "<If provided, the result from the matching algorithm is refined with VFC>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("refineSOF", "<If provided, the result from the matching algorithm is refined with SOF>", ArgvParser::NoOptionAttribute);
-	cmd.defineOption("noDynKeyP", "<If provided, the keypoints are not detected dynamically to limit the number of keypoints approximately to the maximum number but are limited using response values.>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("DynKeyP", "<If provided, the keypoints are detected dynamically to limit the number of keypoints approximately to the maximum number but are limited using response values. CURRENTLY NOT WORKING with OpenCV 3.0.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=8000] that should be used for matching.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("subPixRef", "<If provided, the feature positions of the final matches are refined by template matching to get sub-pixel accuracy. Be careful, if there are large rotations, changes in scale or other feature deformations between the matches, this option should not be set.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("showNr", "<Specifies the number of matches that should be drawn [Default=50]. If the number is set to -1, all matches are drawn. If the number is set to -2, all matches in addition to all not matchable keypoints are drawn.>", ArgvParser::OptionRequiresValue);
@@ -110,7 +110,7 @@ void startEvaluation(ArgvParser& cmd)
 	string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher;
 	string show_str;
 	int showNr, f_nr;
-	bool noRatiot, refineVFC, refineSOF, noDynKeyP, subPixRef, drawSingleKps;
+	bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps;
 	bool oneCam = false;
 	int err, verbose;
 	vector<string> filenamesl, filenamesr;
@@ -122,7 +122,7 @@ void startEvaluation(ArgvParser& cmd)
 	noRatiot = cmd.foundOption("noRatiot");
 	refineVFC = cmd.foundOption("refineVFC");
 	refineSOF = cmd.foundOption("refineSOF");
-	noDynKeyP = cmd.foundOption("noDynKeyP");
+	DynKeyP = cmd.foundOption("DynKeyP");
 	subPixRef = cmd.foundOption("subPixRef");
 
 	if(cmd.foundOption("f_detect"))
@@ -226,7 +226,7 @@ void startEvaluation(ArgvParser& cmd)
 			src[1] = cv::imread(img_path + "//" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
 		}
 
-		err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, !noDynKeyP, f_nr, refineVFC, !noRatiot, refineSOF, subPixRef, verbose);
+		err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC, !noRatiot, refineSOF, subPixRef, verbose);
 		if(err)
 		{
 			if((err == -5) || (err == -6))

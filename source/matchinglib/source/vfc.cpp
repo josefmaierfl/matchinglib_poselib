@@ -191,7 +191,7 @@ void VFC::calculateC_SparseVFC() {
 void VFC::optimizeFastVFC() {
 	_K = constructIntraKernel(_X);
 	_numEig = static_cast<int>( sqrt((float)_numPt) + 0.5f );
-	eigen(_K, _S, _Q, -1, -1); //the last two parameters are ignored in the current opencv
+	eigen(_K, _S, _Q);//, -1, -1); //the last two parameters are ignored in the current opencv
 
 	initialize();
 	int iter = 0;

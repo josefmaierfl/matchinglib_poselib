@@ -192,33 +192,33 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 			flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
 			flann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
 
-      //if(!matcher_name.compare("HIRCLUIDX"))
-      //{
-      //    // construct a hierarchical clustering index
-      //    flann::Index<flann::HammingLUT> index(dataset, flann::HierarchicalClusteringIndexParams());
-      //    index.buildIndex();
+			if(!matcher_name.compare("HIRCLUIDX"))
+			{
+				// construct a hierarchical clustering index
+				flann::Index<flann::HammingLUT> index(dataset, flann::HierarchicalClusteringIndexParams());
+				index.buildIndex();
 
-      //    // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-      //    index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-      //}
-      //else if(!matcher_name.compare("LINEAR"))
-      //{
-      //    // construct a linear index
-      //    flann::Index<flann::HammingLUT> index(dataset, flann::LinearIndexParams());
-      //    index.buildIndex();
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
+			else if(!matcher_name.compare("LINEAR"))
+			{
+				// construct a linear index
+				flann::Index<flann::HammingLUT> index(dataset, flann::LinearIndexParams());
+				index.buildIndex();
 
-      //    // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-      //    index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-      //}
-      //else
-      //{
-      //    // construct a LSH index
-      //    flann::Index<flann::HammingLUT> index(dataset, flann::LshIndexParams());
-      //    index.buildIndex();
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
+			else
+			{
+				// construct a LSH index
+				flann::Index<flann::HammingLUT> index(dataset, flann::LshIndexParams());
+				index.buildIndex();
 
-      //    // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-      //    index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-      //}
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
 
 			//Ratio test
 			if(ratioTest)
@@ -257,42 +257,42 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 			flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
 			flann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
 
-//			if(!matcher_name.compare("HIRCLUIDX"))
-//			{
-//				// construct a hierarchical clustering index
-//				flann::Index<flann::L2<float>> index(dataset, flann::HierarchicalClusteringIndexParams());
-//				index.buildIndex();
+			if(!matcher_name.compare("HIRCLUIDX"))
+			{
+				// construct a hierarchical clustering index
+				flann::Index<flann::L2<float>> index(dataset, flann::HierarchicalClusteringIndexParams());
+				index.buildIndex();
 
-//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-//			}
-//			else if(!matcher_name.compare("HIRKMEANS"))
-//			{
-//				// construct a hierarchical k-means tree
-//				flann::Index<flann::L2<float>> index(dataset, flann::KMeansIndexParams());
-//				index.buildIndex();
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
+			else if(!matcher_name.compare("HIRKMEANS"))
+			{
+				// construct a hierarchical k-means tree
+				flann::Index<flann::L2<float>> index(dataset, flann::KMeansIndexParams());
+				index.buildIndex();
 
-//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-//			}
-//			else if(!matcher_name.compare("LINEAR"))
-//			{
-//				// construct a linear index
-//				flann::Index<flann::L2<float>> index(dataset, flann::LinearIndexParams());
-//				index.buildIndex();
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
+			else if(!matcher_name.compare("LINEAR"))
+			{
+				// construct a linear index
+				flann::Index<flann::L2<float>> index(dataset, flann::LinearIndexParams());
+				index.buildIndex();
 
-//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-//			}
-//			else
-//			{
-//				// construct a randomized KD-tree index
-//				flann::Index<flann::L2<float>> index(dataset, flann::KDTreeIndexParams(8));
-//				index.buildIndex();
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
+			else
+			{
+				// construct a randomized KD-tree index
+				flann::Index<flann::L2<float>> index(dataset, flann::KDTreeIndexParams(8));
+				index.buildIndex();
 
-//				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-//				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
-//			}
+				// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
+				index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+			}
 
 			//Ratio test
 			if(ratioTest)

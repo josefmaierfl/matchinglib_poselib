@@ -29,8 +29,8 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 //#include <opencv2/core/eigen.hpp>
-#include "opencv2/nonfree/nonfree.hpp"
-#include <opencv2/nonfree/features2d.hpp>
+//#include "opencv2/nonfree/nonfree.hpp"
+//#include <opencv2/nonfree/features2d.hpp>
 
 #include "ratioMatches_Flann.h"
 
@@ -149,8 +149,8 @@ void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & 
  * |		true			|	  2		|	Ratio test (2 NN)
  * |		true			|	  >2	|	Crosscheck for BFknn NN from left to right and back
  *
- * Ptr<DescriptorMatcher>& descriptorMatcher	Input  -> If not NULL, the provided matcher instead of the FLANN-matcher is used for
- *														  initial matching. Standard should be NULL.
+ * Ptr<DescriptorMatcher>& descriptorMatcher	Input  -> If not empty, the provided matcher instead of the FLANN-matcher is used for
+ *														  initial matching. Standard should be empty.
  * vector<KeyPoint> keypoints1					Input  -> The keypoints in the left (first) image
  * vector<KeyPoint> keypoints2					Input  -> The keypoints in the right (second) image
  * Mat descriptors1								Input  -> The descriptors of the keypoints in the left (first) image
@@ -337,7 +337,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 		initDescriptors1.push_back(descriptors1.row(keypInit1[i].second));
 	for(unsigned int i = 0; i<keypInit2.size();i++)
 		initDescriptors2.push_back(descriptors2.row(keypInit2[i].second));
-	if(descriptorMatcher == NULL)
+	if(descriptorMatcher.empty())
 	{
 		ratioTestFlannMatches(initDescriptors1, initDescriptors2, initMatches, &estim_inlRatio);
 	}

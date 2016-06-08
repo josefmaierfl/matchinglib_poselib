@@ -3,38 +3,60 @@
 # External dependencies
 #
 
-if(WIN32)
+if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+endif()
+include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+
 find_package(Eigen REQUIRED)
+if (Eigen_FOUND STREQUAL "YES")
+  message("Eigen found!")
 else()
-  find_package(PkgConfig)
-  pkg_search_module(EIGEN REQUIRED eigen3)
+  message(FATAL_ERROR "Eigen not found!")
 endif()
 
-# find_package(OpenCV 2.4.9 REQUIRED)
-# if (OpenCV_FOUND STREQUAL "ON")
-  # message("OpenCV found!")
+find_package(OpenCV 2.4.9 REQUIRED)
+if (OpenCV_FOUND STREQUAL "ON")
+  message("OpenCV found!")
+else()
+  message(FATAL_ERROR "OpenCV not found!")
+endif()
+
+# find_package(Nanoflann REQUIRED)
+# if (Nanoflann_FOUND STREQUAL "YES")
+  # message("Nanoflann found!")
 # else()
-  # message(FATAL_ERROR "OpenCV not found!")
+  # message(FATAL_ERROR "Nanoflann not found!")
 # endif()
 
-set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-find_package(OpenCV 3.0)
-# if (OpenCV_FOUND STREQUAL "ON")
-  # message("OpenCV found!")
+# find_package(Flann 1.8.4 REQUIRED)
+# if (FLANN_FOUND STREQUAL "YES")
+  # message("Flann found!")
 # else()
-  # message(FATAL_ERROR "OpenCV not found!")
+  # message(FATAL_ERROR "Flann not found!")
 # endif()
 
-find_package(Nanoflann REQUIRED)
+find_package(Clapack REQUIRED)
+if (CLAPACK_FOUND STREQUAL "YES")
+  message("Clapack found!")
+else()
+  message(FATAL_ERROR "Clapack not found!")
+endif()
 
-find_package(Flann REQUIRED)
+find_package(SBA REQUIRED)
+if (SBA_FOUND STREQUAL "YES")
+  message("SBA found!")
+else()
+  message(FATAL_ERROR "SBA not found!")
+endif()
+
 
 #
 # Library name and options
 #
 
 # Target name
-set(target matchinglib)
+set(target poselib)
 
 # Exit here if required dependencies are not met
 message(STATUS "Lib ${target}")
@@ -50,28 +72,42 @@ set(export_macro "${target_upper}_API")
 # Sources
 #
 
-set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}")
+#set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}")
+set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(headers
-#    ${include_path}/test.h
+	${include_path}/BA_driver.h
+	${include_path}/imgproj.h
+	${include_path}/glob_includes.h
+	${include_path}/pose_estim.h
+	${include_path}/pose_helper.h
+	
+	${include_path}/arrsac/arrsac.h
+	${include_path}/arrsac/estimator.h
+	${include_path}/arrsac/prosac_sampler.h
+	${include_path}/arrsac/quality_measurement.h
+	${include_path}/arrsac/random_sampler.h
+	${include_path}/arrsac/sample_consensus_estimator.h
+	${include_path}/arrsac/sampler.h
+	${include_path}/arrsac/sequential_probability_ratio.h
+	
+	${include_path}/five-point-nister/_modelest.h
+	${include_path}/five-point-nister/five-point.hpp
+	${include_path}/five-point-nister/precomp.hpp
 )
 
 set(sources
-    # ${source_path}/test.cpp
-    ${source_path}/matchers.cpp
-    ${source_path}/correspondences.cpp
-    ${source_path}/features.cpp
-    ${source_path}/match_statOptFlow.cpp
-    ${source_path}/vfc.cpp
-    ${source_path}/vfcMatches.cpp
-    ${source_path}/ratioMatches_Flann.cpp
-
-    ${source_path}/CascadeHash/BucketBuilder.cc
-    ${source_path}/CascadeHash/CasHashMatcher.cc
-    ${source_path}/CascadeHash/DataPreProcessor.cc
-    ${source_path}/CascadeHash/HashConvertor.cc
-    ${source_path}/CascadeHash/MatchPairLoader.cc
+	${source_path}/BA_driver.cpp
+	${source_path}/imgproj.c
+	${source_path}/pose_estim.cpp
+	${source_path}/pose_helper.cpp
+	
+	${source_path}/arrsac/sequential_probability_ratio.cc
+	
+	${source_path}/five-point-nister/five-point.cpp
+	${source_path}/five-point-nister/modelest.cpp
+	${source_path}/five-point-nister/precomp.cpp
 )
 
 # Group source files
@@ -130,6 +166,7 @@ set_target_properties(${target}
 #
 # Include directories
 #
+
 target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
@@ -138,11 +175,13 @@ target_include_directories(${target}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
-    ${FLANN_INCLUDE_DIRS}
-    ${Nanoflann_INCLUDE_DIR}
-    ${FLANN_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIRS}
+    #${FLANN_INCLUDE_DIRS}
+    #${Nanoflann_INCLUDE_DIR}
+    #${FLANN_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIR}
     ${Eigen_INCLUDE_DIR}
+	${CLAPACK_INCLUDE_DIR}
+	${SBA_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -154,14 +193,17 @@ target_include_directories(${target}
 #
 # Libraries
 #
+
 target_link_libraries(${target}
     PRIVATE
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
-    ${FLANN_LIBRARIES}
-    ${OpenCV_LIBS}
-	
+    #${FLANN_LIBRARIES}
+    ${OPENCV_LIBRARIES_BASIC}
+	${CLAPACK_LIBRARIES}
+	${SBA_LIBRARIES}
+
     INTERFACE
 )
 
@@ -176,7 +218,7 @@ target_compile_definitions(${target}
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
-    ${FLANN_DEFINITIONS}
+    #${FLANN_DEFINITIONS}
 
     INTERFACE
 )
@@ -191,7 +233,6 @@ target_compile_options(${target}
 
     PUBLIC
     ${DEFAULT_COMPILE_OPTIONS}
-    -msse4.2
 
     INTERFACE
 )

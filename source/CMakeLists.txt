@@ -17,6 +17,7 @@ set(IDE_FOLDER "")
 # add_subdirectory(baselib)
 # add_subdirectory(fiblib)
 add_subdirectory(matchinglib)
+# add_subdirectory(poselib)
 
 # Examples
 # set(IDE_FOLDER "Examples")
