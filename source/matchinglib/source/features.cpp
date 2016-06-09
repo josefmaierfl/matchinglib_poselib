@@ -33,10 +33,60 @@ using namespace std;
 namespace matchinglib
 {
 
+/* --------------------------- Defines --------------------------- */
+
+struct KeypointResponseGreaterThanThreshold2
+{
+    KeypointResponseGreaterThanThreshold2(float _value) :
+    value(_value)
+    {
+    }
+    inline bool operator()(const KeyPoint& kpt) const
+    {
+        return kpt.response >= value;
+    }
+    float value;
+};
+
+struct KeypointResponseGreater2
+{
+    inline bool operator()(const KeyPoint& kp1, const KeyPoint& kp2) const
+    {
+        return kp1.response > kp2.response;
+    }
+};
+
+typedef struct keyPIdx{
+	keyPIdx(int _idx, float _response) :
+	idx(_idx),
+	response(_response)
+	{
+	}
+	float response;
+	int idx;
+}keyPIdx;
+
+struct ResponseGreaterThanThreshold
+{
+    ResponseGreaterThanThreshold(float _value) :
+    value(_value)
+    {
+    }
+    inline bool operator()(const keyPIdx& kpt) const
+    {
+        return kpt.response >= value;
+    }
+    float value;
+};
+
 /* --------------------- Function prototypes --------------------- */
 
 //Compares the response of two keypoints
 bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second);
+
+void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, int number);
+
+int sortResponses(std::vector<keyPIdx>& keys, int number);
 
 /* --------------------- Functions --------------------- */
 
@@ -239,7 +289,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 		//		return -3; //No such feature detector
 		//	}
 
-		cout << "Dynamic keypoint detection is since OpenCV 3.0 not available! Performing response filtering." << endl;
+		//cout << "Dynamic keypoint detection is since OpenCV 3.0 not available! Performing response filtering." << endl;
 
 		Ptr<FeatureDetector> detector;
 
@@ -291,6 +341,8 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 			return -2; //Error creating feature detector
 		}
 		detector->detect( img, *keypoints );
+
+		responseFilterGridBased(*keypoints, img.size(), maxnumfeatures);
 
 	}
 	else
@@ -450,61 +502,242 @@ bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second)
 }
 
 
-//void responseFilterGridBased(std::vector<cv::KeyPoint> keys, cv::Size imgSi, int number)
-//{
-//	const float minGrSi = 50; //must be an integer number
-//	const float maxGrSi = 100; //must be an integer number
-//	const int sizeOptions = maxGrSi - minGrSi + 1;
-//	vector<int> errterm;
-//	float dimx = (float)imgSi.width;
-//	float dimy = (float)imgSi.height;
-//
-//	for(float i = 0; i < sizeOptions; i++)
-//	{
-//		float d = 
-//		errterm.push_back((dimx - floor(dimx/d)
-//	}
-//	
-//	
-//	//Generate grid for sparse flow init
-//	int divx, divy = 7, idx;
-//	const float remainGridPix = 25;
-//	float imgpart, lastwidthpart, xpos, imgpart2, lwidth2;
-//	if(imgSi.height >= 800)
-//		divy = (int)floor((float)imgSi.height/100.0);
-//	imgpart = (float)imgSi.height/(float)divy;
-//	divx = (int)floor((float)imgSi.width/imgpart);
-//	lastwidthpart = (float)imgSi.width-(float)divx*imgpart;
-//	imgpart2 = imgpart/2;
-//	lwidth2 = lastwidthpart/2;
-//	if(lastwidthpart > remainGridPix) //if the remaining column of the image is too small forget it
-//		divx++;
-//
-//	Eigen::Matrix<float,Eigen::Dynamic,2, Eigen::RowMajor> gridPoints(divx*divy,2);
-//	Eigen::Matrix<float,Eigen::Dynamic,1> gridX(divx,1);
-//	Eigen::Matrix<float,1,1> gridY(1,1);
-//	gridX(0,0) = gridY(0,0) = xpos = imgpart2;
-//	for(int i = 0; i<divy;i++)
-//	{
-//		idx = i*divx;
-//		gridPoints.block(idx,1,divx,1) = gridY.replicate(divx,1);
-//		gridY(0,0) += imgpart;
-//	}
-//	for(int j = 1;j < ((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix) ? (divx-1):divx);j++)
-//	{
-//		xpos += imgpart;
-//		gridX(j,0) = xpos;
-//	}
-//	if((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix))
-//	{
-//		gridX(divx-1,0) = xpos + imgpart2 + lwidth2;
-//	}
-//	else
-//	{
-//		gridX(divx-1,0) = xpos;
-//	}
-//
-//	gridPoints.col(0) = gridX.replicate(divy,1);
-//}
+void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, int number)
+{
+	vector<int> gridsizes, halfgridsizes;
+	int minGrSi = imgSi.height / 4; //minimum grid size of the larger grid (2 times the smaller grid)
+	int maxGrSi = imgSi.height / 2; //maximum grid size of the larger grid (2 times the smaller grid)
+	float sizeOptions = (float)maxGrSi - (float)minGrSi + 1.0f;
+	float dimx = (float)imgSi.width;
+	float dimy = (float)imgSi.height;
+	int minElem = INT_MAX;
+	vector<keyPIdx> scores;
+	float reduction = (float)number / (float)keys.size();
+	vector<cv::KeyPoint> keys_tmp;
+
+	if((number >= (int)keys.size()) || (number == 0))
+		return;
+
+	if(reduction > 0.875) //if only 12.5% (=1/8) should be removed
+	{
+		cv::KeyPointsFilter::retainBest(keys, number);
+		return;
+	}
+
+	while(minElem >= 100) //Generates new grid sizes until a grid size smaller than 100 pixels was estimated before
+	{
+		vector<float> errterm;
+		vector<float>::iterator minElemIt;
+		if(minElem <  imgSi.height)
+		{
+			minGrSi = minElem / 3;
+			maxGrSi = (int)floor((float)minElem / 1.5f);
+			sizeOptions = (float)maxGrSi - (float)minGrSi + 1.0f;
+		}
+		//Find the grid size with the smallest remaining pixels at the borders
+		for(float i = 0; i < sizeOptions; i++)
+		{
+			float d = (float)minGrSi + i;
+			float tmp1 = dimx - floor(dimx/d) * d;
+			float tmp2 = dimy - floor(dimy/d) * d;
+			errterm.push_back(tmp1 * tmp1 + tmp2 * tmp2);
+		}
+		//Find the grid size with smallest border overlap (if there are multiple -> the first in the vector)
+		minElemIt = ++min_element(errterm.begin(), errterm.end());//take the element above the minimum
+		//Get the largest grid size with the same overlap
+		for(vector<float>::iterator i = minElemIt--; i < errterm.end(); ++i)//set i to the element above the minimum and set minElemIt to the minimum
+		{
+			if(*i <= *minElemIt)
+			{
+				minElemIt = i;
+			}
+		}
+		minElem = minGrSi + (minElemIt - errterm.begin());
+		gridsizes.push_back(minElem);
+	}
+
+	for(size_t i = 0; i < gridsizes.size(); ++i)
+	{
+		halfgridsizes.push_back(gridsizes[i] / 2);
+	}
+	
+	//Get the strongest responses in the whole image
+	{
+		//first use nth element to partition the keypoints into the best and worst.
+		std::nth_element(keys.begin(), keys.begin() + number, keys.end(), KeypointResponseGreater2());
+		//this is the boundary response, and in the case of FAST may be ambigous
+		float ambiguous_response = keys[number - 1].response;
+		//use std::partition to grab all of the keypoints with the boundary response.
+		std::vector<KeyPoint>::const_iterator new_end =
+		std::partition(keys.begin() + number, keys.end(),
+						KeypointResponseGreaterThanThreshold2(ambiguous_response));
+
+		//Generate a scoring vector for the keypoints and increment the score for keypoints with the highest response in the image
+		int accept_keys = new_end - keys.begin();
+		for(int i = 0; i < (int)keys.size(); ++i)
+		{
+			if(i < accept_keys)
+			{
+				scores.push_back(keyPIdx(i, 1.0f));
+			}
+			else
+			{
+				scores.push_back(keyPIdx(i, 0));
+			}
+		}
+	}
+
+	//Generate vectors for all grids
+	vector<vector<vector<vector<keyPIdx>>>> gridsOrig((int)gridsizes.size(), vector<vector<vector<keyPIdx>>>());
+	vector<vector<vector<vector<keyPIdx>>>> gridsLeft((int)gridsizes.size(), vector<vector<vector<keyPIdx>>>()); //Start of grid shifted half cell size to the left & added one additional cell at the right side
+	vector<vector<vector<vector<keyPIdx>>>> gridsUp((int)gridsizes.size(), vector<vector<vector<keyPIdx>>>()); //Start of grid shifted half cell size below 0 & added one additional cell in y-dimension
+	vector<vector<vector<vector<keyPIdx>>>> gridsCenter((int)gridsizes.size(), vector<vector<vector<keyPIdx>>>()); //Combination of the two other shifted grids
+	for(size_t i = 0; i < gridsizes.size(); ++i)
+	{
+		int siX = (int)floor(dimx / (float)gridsizes[i]);
+		int siY = (int)floor(dimy / (float)gridsizes[i]);
+		gridsOrig[i].resize(siX, vector<vector<keyPIdx>>(siY));
+		gridsLeft[i].resize(siX + 1, vector<vector<keyPIdx>>(siY));
+		gridsUp[i].resize(siX, vector<vector<keyPIdx>>(siY + 1));
+		gridsCenter[i].resize(siX + 1, vector<vector<keyPIdx>>(siY + 1));
+	}
+
+	//Assign keypoint indices and responses to cells of all grids
+	for(int i = 0; i < (int)keys.size(); ++i)
+	{
+		float x = keys[i].pt.x;
+		float y = keys[i].pt.y;
+		float response = keys[i].response;
+		for(size_t j = 0; j < gridsizes.size(); ++j)
+		{
+			int posX = (int)floor(x/(float)gridsizes[j]);
+			int posY = (int)floor(y/(float)gridsizes[j]);
+			int posX1 = (int)floor((x - (float)halfgridsizes[j])/(float)gridsizes[j]) + 1;
+			int posY1 = (int)floor((y - (float)halfgridsizes[j])/(float)gridsizes[j]) + 1;
+
+			//Check if the keypoint is near the border
+			if(posX >= (int)gridsOrig[j].size())
+			{
+				posX--;
+			}
+			if(posY >= (int)gridsOrig[j][0].size())
+			{
+				posY--;
+			}
+			
+			gridsOrig[j][posX][posY].push_back(keyPIdx(i,response));
+			gridsLeft[j][posX1][posY].push_back(keyPIdx(i,response));
+			gridsUp[j][posX][posY1].push_back(keyPIdx(i,response));
+			gridsCenter[j][posX1][posY1].push_back(keyPIdx(i,response));
+		}
+	}
+
+	//Get for every cell the strongest percentage (variable reduction) of responses and score the keypoints
+	for(size_t i = 0; i < gridsOrig.size(); ++i)
+	{
+		for(size_t j = 0; j < gridsOrig[i].size(); ++j)
+		{
+			for(size_t k = 0; k < gridsOrig[i][j].size(); ++k)
+			{
+				int first_bad = sortResponses(gridsOrig[i][j][k], (int)floor((float)gridsOrig[i][j][k].size() * reduction + 0.5f));
+				for(size_t k1 = 0; k1 < first_bad; k1++)
+				{
+					scores[gridsOrig[i][j][k][k1].idx].response++;
+				}
+			}
+			for(size_t k = 0; k < gridsLeft[i][j].size(); ++k)
+			{
+				int first_bad = sortResponses(gridsLeft[i][j][k], (int)floor((float)gridsLeft[i][j][k].size() * reduction + 0.5f));
+				for(size_t k1 = 0; k1 < first_bad; k1++)
+				{
+					scores[gridsLeft[i][j][k][k1].idx].response++;
+				}
+			}
+			for(size_t k = 0; k < gridsUp[i][j].size(); ++k)
+			{
+				int first_bad = sortResponses(gridsUp[i][j][k], (int)floor((float)gridsUp[i][j][k].size() * reduction + 0.5f));
+				for(size_t k1 = 0; k1 < first_bad; k1++)
+				{
+					scores[gridsUp[i][j][k][k1].idx].response++;
+				}
+			}
+			for(size_t k = 0; k < gridsCenter[i][j].size(); ++k)
+			{
+				int first_bad = sortResponses(gridsCenter[i][j][k], (int)floor((float)gridsCenter[i][j][k].size() * reduction + 0.5f));
+				for(size_t k1 = 0; k1 < first_bad; k1++)
+				{
+					scores[gridsCenter[i][j][k][k1].idx].response++;
+				}
+			}
+		}
+	}
+
+	//Sort the score
+	std::sort(scores.begin(), scores.end(), [](keyPIdx first, keyPIdx second){return first.response > second.response;});
+
+	{
+		int idx1, idx2;
+		idx1 = idx2 = number - 1;
+		float hlp = scores[idx1].response;
+		idx2++;
+		while(std::abs(scores[idx2].response - hlp) < 1e-3)
+		{
+			idx2++;
+		}
+		idx2--;
+		if(idx2 == idx1) //If all elements with the same score would be accepted ("number" is at the boundary between two scores)
+		{
+			for(int i = 0; i <= idx2; i++)
+			{
+				keys_tmp.push_back(keys[scores[i].idx]);
+			}
+		}
+		else
+		{
+			vector<keyPIdx> scoredResp;
+			idx1--;
+			while(std::abs(scores[idx1].response - hlp) < 1e-3)
+			{
+				idx1--;
+			}
+			idx1++;
+
+			int remaining = number - idx1;
+
+			for(int i = idx1; i <= idx2; i++)
+			{
+				scoredResp.push_back(keyPIdx(scores[i].idx, keys[scores[i].idx].response));
+			}
+
+			remaining = sortResponses(scoredResp, remaining);
+
+			for(int i = 0; i < idx1; i++)
+			{
+				keys_tmp.push_back(keys[scores[i].idx]);
+			}
+			for(int i = 0; i < remaining; i++)
+			{
+				keys_tmp.push_back(keys[scoredResp[i].idx]);
+			}
+		}		
+	}
+
+	keys = keys_tmp;
+}
+
+
+int sortResponses(std::vector<keyPIdx>& keys, int number)
+{
+	if(keys.empty() || (number == 0))
+		return 0;
+	//first use nth element to partition the keypoints into the best and worst.
+	std::nth_element(keys.begin(), keys.begin() + number, keys.end(), [](keyPIdx first, keyPIdx second){return first.response > second.response;});
+	//this is the boundary response, and in the case of FAST may be ambigous
+	float ambiguous_response = keys[number - 1].response;
+	//use std::partition to grab all of the keypoints with the boundary response.
+	std::vector<keyPIdx>::const_iterator new_end = std::partition(keys.begin() + number, keys.end(), ResponseGreaterThanThreshold(ambiguous_response));
+
+	return new_end - keys.begin();
+}
 
 }

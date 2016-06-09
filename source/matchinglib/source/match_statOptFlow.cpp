@@ -835,7 +835,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	{
 		int cpuInfo[4];
 // __linux__
-    // __cpuid(cpuInfo,0x00000001);
+     __cpuid(cpuInfo,0x00000001);
 // #endif
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		bool popcnt_available = f_1_ECX_[23];
@@ -3778,7 +3778,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 		}
 
 		int cpuInfo[4];
-//		__cpuid(cpuInfo,0x00000001);
+		__cpuid(cpuInfo,0x00000001);
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		static bool popcnt_available = f_1_ECX_[23];
 		if(popcnt_available)
@@ -4120,7 +4120,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 
 		int cpuInfo[4];
 // __linux__
-		// __cpuid(cpuInfo,0x00000001);
+		__cpuid(cpuInfo,0x00000001);
 // #endif
 		std::bitset<32> f_1_ECX_ = cpuInfo[2];
 		bool popcnt_available = f_1_ECX_[23];
