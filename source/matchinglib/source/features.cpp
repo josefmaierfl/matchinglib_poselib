@@ -18,9 +18,11 @@
 **********************************************************************************************************/
 
 #include "matchinglib_imagefeatures.h"
-#include "opencv2\xfeatures2d\nonfree.hpp"
-#include "opencv2\xfeatures2d.hpp"
+//#include "opencv2\xfeatures2d\nonfree.hpp"
+#include "opencv2/xfeatures2d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+
+#include <Eigen/Core>
 
 //#include "opencv2/nonfree/nonfree.hpp"
 //#include <opencv2/nonfree/features2d.hpp>
@@ -44,7 +46,7 @@ bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second);
  * vector<KeyPoint>* keypoints		Output -> Pointer to the keypoints
  * string featuretype				Input  -> Algorithm for calculating the features. The following inputs are possible:
  *											  OpenCV 2.4.9: FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob
- *											  OpenCV 3.0: FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, KAZE, AKAZE
+ *											  OpenCV 3.0: FAST, STAR, (SIFT, SURF,) ORB, BRISK, MSER, KAZE, AKAZE
  *											  -> see the OpenCV documentation for further details on the different methods
  * bool dynamicKeypDet				Input  -> If true [Default], the number of features is limited to a specific nr. of 
  *											  features using dynamic versions of the feature detectors. Only GFTT, SURF, 
@@ -265,14 +267,14 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 		{
 			detector = AKAZE::create();
 		}
-		else if(!featuretype.compare("SIFT"))
+		/*else if(!featuretype.compare("SIFT"))
 		{
 			detector = xfeatures2d::SIFT::create();
 		}
 		else if(!featuretype.compare("SURF"))
 		{
 			detector = xfeatures2d::SURF::create();
-		}
+		}*/
 		else if(!featuretype.compare("STAR"))
 		{
 			detector = xfeatures2d::StarDetector::create();
@@ -319,14 +321,14 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 		{
 			detector = AKAZE::create();
 		}
-		else if(!featuretype.compare("SIFT"))
+		/*else if(!featuretype.compare("SIFT"))
 		{
 			detector = xfeatures2d::SIFT::create();
 		}
 		else if(!featuretype.compare("SURF"))
 		{
 			detector = xfeatures2d::SURF::create();
-		}
+		}*/
 		else if(!featuretype.compare("STAR"))
 		{
 			detector = xfeatures2d::StarDetector::create();
@@ -404,14 +406,14 @@ int getDescriptors(cv::Mat img,
 	{
 		extractor = xfeatures2d::FREAK::create();
 	}
-	else if(!extractortype.compare("SIFT"))
+	/*else if(!extractortype.compare("SIFT"))
 	{
 		extractor = xfeatures2d::SIFT::create();
 	}
 	else if(!extractortype.compare("SURF"))
 	{
 		extractor = xfeatures2d::SURF::create();
-	}
+	}*/
 	else if(!extractortype.compare("DAISY"))
 	{
 		extractor = xfeatures2d::DAISY::create();
@@ -446,5 +448,63 @@ bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second)
 {
 	return first.response > second.response;
 }
+
+
+//void responseFilterGridBased(std::vector<cv::KeyPoint> keys, cv::Size imgSi, int number)
+//{
+//	const float minGrSi = 50; //must be an integer number
+//	const float maxGrSi = 100; //must be an integer number
+//	const int sizeOptions = maxGrSi - minGrSi + 1;
+//	vector<int> errterm;
+//	float dimx = (float)imgSi.width;
+//	float dimy = (float)imgSi.height;
+//
+//	for(float i = 0; i < sizeOptions; i++)
+//	{
+//		float d = 
+//		errterm.push_back((dimx - floor(dimx/d)
+//	}
+//	
+//	
+//	//Generate grid for sparse flow init
+//	int divx, divy = 7, idx;
+//	const float remainGridPix = 25;
+//	float imgpart, lastwidthpart, xpos, imgpart2, lwidth2;
+//	if(imgSi.height >= 800)
+//		divy = (int)floor((float)imgSi.height/100.0);
+//	imgpart = (float)imgSi.height/(float)divy;
+//	divx = (int)floor((float)imgSi.width/imgpart);
+//	lastwidthpart = (float)imgSi.width-(float)divx*imgpart;
+//	imgpart2 = imgpart/2;
+//	lwidth2 = lastwidthpart/2;
+//	if(lastwidthpart > remainGridPix) //if the remaining column of the image is too small forget it
+//		divx++;
+//
+//	Eigen::Matrix<float,Eigen::Dynamic,2, Eigen::RowMajor> gridPoints(divx*divy,2);
+//	Eigen::Matrix<float,Eigen::Dynamic,1> gridX(divx,1);
+//	Eigen::Matrix<float,1,1> gridY(1,1);
+//	gridX(0,0) = gridY(0,0) = xpos = imgpart2;
+//	for(int i = 0; i<divy;i++)
+//	{
+//		idx = i*divx;
+//		gridPoints.block(idx,1,divx,1) = gridY.replicate(divx,1);
+//		gridY(0,0) += imgpart;
+//	}
+//	for(int j = 1;j < ((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix) ? (divx-1):divx);j++)
+//	{
+//		xpos += imgpart;
+//		gridX(j,0) = xpos;
+//	}
+//	if((lastwidthpart <= imgpart2) && (lastwidthpart > remainGridPix))
+//	{
+//		gridX(divx-1,0) = xpos + imgpart2 + lwidth2;
+//	}
+//	else
+//	{
+//		gridX(divx-1,0) = xpos;
+//	}
+//
+//	gridPoints.col(0) = gridX.replicate(divy,1);
+//}
 
 }
