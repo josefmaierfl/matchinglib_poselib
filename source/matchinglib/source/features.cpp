@@ -83,9 +83,9 @@ struct ResponseGreaterThanThreshold
 
 //Compares the response of two keypoints
 bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second);
-
+//Filters keypoints with a small response value within multiple grids.
 void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, int number);
-
+//Sorts the input vector based on the response values (largest elements first) until the given number is reached.
 int sortResponses(std::vector<keyPIdx>& keys, int number);
 
 /* --------------------- Functions --------------------- */
@@ -501,7 +501,21 @@ bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second)
 	return first.response > second.response;
 }
 
-
+/* Filters keypoints with a small response value within multiple grids. The image is devided into multiple grids
+ * depending on the size of the image. The grid sizes range from an 1x1 grid (whole image) to a grid with a maximum
+ * cell size of 100 pixels whereas the reduction of the grid size is in the range of 1.5 to 3.0 depending again on
+ * the size of the image. Thus, an optimal reduction factor is found by reducing the image border overlap of the
+ * cells. Moreover, each grid (size) is used 4 times - it is shifted in x- and y- direction to reduce effects that
+ * would change the result due to cell border effects. Each keypoint is scored within each grid and the cells it 
+ * belongs to, respectively. The scoring is based on its local/global response and the percentage of keypoints that
+ * should be kept. Thus, keypoints with the highest score within the specified number of keypoints are kept.
+ *
+ * vector<KeyPoint> keys		Input/Output  -> Keypoints
+ * Size imgSi					Input		  -> Size of the image
+ * int number					Input		  -> Number of keypoints that should be kept
+ *
+ * Return value:				none
+ */
 void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, int number)
 {
 	vector<int> gridsizes, halfgridsizes;
@@ -725,7 +739,16 @@ void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, in
 	keys = keys_tmp;
 }
 
-
+/* Sorts the input vector based on the response values (largest elements first) until the given number is reached.
+ * The remaining elements (at the end of the vector) stay unsorted.
+ *
+ * vector<keyPIdx> keys			Input/Output  -> Indices and responses of the keypoints
+ * int number					Input		  -> Number of elements that should be sorted
+ *
+ * Return value:				Last position within the vector that holds the response equal to the position at 
+ *								"number" of the sorted vector. E.g. number=4, sorted responses=[9,8,4,4,4,4,1,3,2,1,3],
+ *								return value=5
+ */
 int sortResponses(std::vector<keyPIdx>& keys, int number)
 {
 	if(keys.empty() || (number == 0))

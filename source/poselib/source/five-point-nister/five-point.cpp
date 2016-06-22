@@ -115,7 +115,9 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
         _E = E; 
         count = estimator.runKernel(&p1, &p2, &_E); 
         E = E.rowRange(0, 3 * count) * 1.0; 
-        Mat(tempMask).setTo(true); 
+        //Mat(tempMask).setTo(true); 
+		Mat tempMask1 = cvarrToMat(tempMask);
+		tempMask1.setTo(true);
     }
     else if (method == CV_RANSAC)
 	{
@@ -136,7 +138,9 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
     {
     	_mask.create(1, npoints, CV_8U, -1, true); 
     	Mat mask = _mask.getMat(); 
-    	Mat(tempMask).copyTo(mask); 
+		//Mat(tempMask).copyTo(mask); 
+		Mat tempMask1 = cvarrToMat(tempMask);
+		tempMask1.copyTo(mask);
     }
 
 	if(Essential.needed())
@@ -373,8 +377,10 @@ int CvEMEstimator::runKernel( const CvMat* m1, const CvMat* m2, CvMat* model )
 // to be of 1 row x n col x 2 channel. 
 int CvEMEstimator::run5Point( const CvMat* q1, const CvMat* q2, CvMat* ematrix )
 {
-	Mat Q1 = Mat(q1).reshape(1, q1->cols); 
-	Mat Q2 = Mat(q2).reshape(1, q2->cols); 
+	/*Mat Q1 = Mat(q1).reshape(1, q1->cols); 
+	Mat Q2 = Mat(q2).reshape(1, q2->cols);*/ 
+	Mat Q1 = cvarrToMat(q1).reshape(1, q1->cols);;
+	Mat Q2 = cvarrToMat(q2).reshape(1, q2->cols); ;
 
 	int n = Q1.rows; 
 	Mat Q(n, 9, CV_64F); 
@@ -482,7 +488,9 @@ int CvEMEstimator::run5Point( const CvMat* q1, const CvMat* q2, CvMat* ematrix )
 void CvEMEstimator::computeReprojError3( const CvMat* m1, const CvMat* m2,
                                      const CvMat* model, CvMat* error )
 {
-    Mat X1(m1), X2(m2); 
+    //Mat X1(m1), X2(m2); 
+	Mat X1 = cvarrToMat(m1);
+	Mat X2 = cvarrToMat(m2);
     int n = X1.cols; 
     X1 = X1.reshape(1, n); 
     X2 = X2.reshape(1, n); 
@@ -490,7 +498,8 @@ void CvEMEstimator::computeReprojError3( const CvMat* m1, const CvMat* m2,
     X1.convertTo(X1, CV_64F); 
     X2.convertTo(X2, CV_64F); 
 
-    Mat E(model);
+    //Mat E(model);
+	Mat E = cvarrToMat(model);
 	Mat Et = E.t();
     for (int i = 0; i < n; i++)
     {
@@ -538,7 +547,10 @@ void CvEMEstimator::computeReprojError3( const CvMat* m1, const CvMat* m2,
 
 bool CvEMEstimator::ValidModel(const CvMat* m1, const CvMat* m2, const CvMat* model)
 {
-	Mat p1(m1), p2(m2), Ecv(model), _p1, _p2;
+	Mat /*p1(m1), p2(m2), Ecv(model),*/ _p1, _p2;
+	Mat p1 = cvarrToMat(m1);
+	Mat p2 = cvarrToMat(m2);
+	Mat Ecv = cvarrToMat(model);
 	Eigen::Matrix3d E, V;
 	Eigen::Vector3d e2, x1, x2;
 	

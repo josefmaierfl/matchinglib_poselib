@@ -245,20 +245,22 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				cvGetRows( models, &model_i, i*modelSize.height, (i+1)*modelSize.height );
 				goodCount = findInliers( m1, m2, &model_i, err, tmask, reprojThreshold );
 
+				cv::Mat err_tmp = cvarrToMat(err);
 				if( goodCount > MAX(maxGoodCount, modelPoints-1) )
 				{
 					std::swap(tmask, mask);
 					cvCopy( &model_i, model );
 					maxGoodCount = goodCount;
-					errminsum = cv::sum(cv::Mat(err)).val[0];
+					//errminsum = cv::sum(cv::Mat(err)).val[0];
+					errminsum = cv::sum(err_tmp).val[0];
 					result = true;
 				}
 				else if( (goodCount == MAX(maxGoodCount, modelPoints)) && (errminsum < DBL_MAX) 
-						&& (errminsum > cv::sum(cv::Mat(err)).val[0]) )
+						&& (errminsum > cv::sum(err_tmp).val[0]) )
 				{
 					std::swap(tmask, mask);
 					cvCopy( &model_i, model );
-					errminsum = cv::sum(cv::Mat(err)).val[0];
+					errminsum = cv::sum(err_tmp).val[0];
 				}
 			}
 		}
@@ -272,7 +274,9 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 		input_data.push_back(i);
 	
 	cv::Ptr<CvMat> bestmodel = cvCloneMat(model);
-	EssentialMatEstimator esti(this, cv::Mat(m1), cv::Mat(m2));
+	cv::Mat m1_tmp = cv::cvarrToMat(m1);
+	cv::Mat m2_tmp = cv::cvarrToMat(m2);
+	EssentialMatEstimator esti(this, m1_tmp, m2_tmp);
 	theia::Arrsac<size_t,CvMat> arrsac_estimator(5, reprojThreshold * reprojThreshold);
 	result = arrsac_estimator.Estimate(input_data, esti, bestmodel);
 	if(result)
@@ -288,8 +292,8 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 			uchar* maskp = mask->data.ptr;
 			cv::Mat inl_points1(1, goodCount, m1->type);
 			cv::Mat inl_points2(1, goodCount, m1->type);
-			cv::Mat tmp1 = cv::Mat(m1);
-			cv::Mat tmp2 = cv::Mat(m2);
+			cv::Mat tmp1 = m1_tmp;
+			cv::Mat tmp2 = m2_tmp;
 			int j = 0;
 			for(int i = 0; i < mask->cols; i++)
 			{
@@ -317,7 +321,8 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				}
 				inl_points1.convertTo(inl_points1,CV_64FC2);
 				inl_points2.convertTo(inl_points2,CV_64FC2);
-				refineEssential(inl_points1,inl_points2,cv::Mat(bestmodel),E_refined, reprojThreshold/50.0,0,true,&err_i,&err_f,cv::noArray(),cv::noArray(),0);
+				cv::Mat bestmodel_tmp = cvarrToMat(bestmodel);
+				refineEssential(inl_points1,inl_points2,bestmodel_tmp,E_refined, reprojThreshold/50.0,0,true,&err_i,&err_f,cv::noArray(),cv::noArray(),0);
 				
 				goodCount_tmp = findInliers( m1, m2, bestmodel, err, mask_tmp, reprojThreshold );
 				if(((float)goodCount_tmp / (float)goodCount > 0.66f) || (err_i > err_f))
@@ -425,6 +430,7 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
             cvGetRows( models, &model_i, i*modelSize.height, (i+1)*modelSize.height );
             goodCount = findInliers( m1, m2, &model_i, err, tmask, reprojThreshold );
 
+			cv::Mat err_tmp = cvarrToMat(err);
             if( goodCount > MAX(maxGoodCount, modelPoints-1) )
             {
                 std::swap(tmask, mask);
@@ -432,14 +438,14 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
                 maxGoodCount = goodCount;
                 niters = cvRANSACUpdateNumIters1( confidence,
                     (double)(count - goodCount)/count, modelPoints, niters );
-				errminsum = cv::sum(cv::Mat(err)).val[0];
+				errminsum = cv::sum(err_tmp).val[0];
             }
 			else if( (goodCount == MAX(maxGoodCount, modelPoints)) && (errminsum < DBL_MAX) 
-					&& (errminsum > cv::sum(cv::Mat(err)).val[0]) )
+					&& (errminsum > cv::sum(err_tmp).val[0]) )
 			{
 				std::swap(tmask, mask);
                 cvCopy( &model_i, model );
-				errminsum = cv::sum(cv::Mat(err)).val[0];
+				errminsum = cv::sum(err_tmp).val[0];
 			}
         }
     }
@@ -448,10 +454,10 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 	//Calculate the least squares solution with all inliers
 	if(lesqu && (maxGoodCount > 0))
 	{
-		cv::Mat mask1 = cv::Mat(mask);
+		cv::Mat mask1 = cvarrToMat(mask);
 		mask1.convertTo(mask1,CV_8U);
 
-		cv::Mat m11 = cv::Mat(m1), m21 = cv::Mat(m2),ms11, ms21;
+		cv::Mat m11 = cv::cvarrToMat(m1), m21 = cv::cvarrToMat(m2),ms11, ms21;
 		m11.reshape(1,2);
 		m21.reshape(1,2);
 
@@ -479,18 +485,19 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 			cvGetRows( models, &model_i, i*modelSize.height, (i+1)*modelSize.height );
 			goodCount = findInliers( m1, m2, &model_i, err, tmask, reprojThreshold );
 
+			cv::Mat err_tmp = cvarrToMat(err);
 			if( goodCount > MAX(maxGoodCount, modelPoints-1) )
 			{
 				std::swap(tmask, mask);
 				cvCopy( &model_i, model );
 				maxGoodCount = goodCount;
-				errminsum = cv::sum(cv::Mat(err)).val[0];
+				errminsum = cv::sum(err_tmp).val[0];
 			}
-			else if( (goodCount == maxGoodCount) && (errminsum < DBL_MAX) && (errminsum > cv::sum(cv::Mat(err)).val[0]) )
+			else if( (goodCount == maxGoodCount) && (errminsum < DBL_MAX) && (errminsum > cv::sum(err_tmp).val[0]) )
 			{
 				std::swap(tmask, mask);
 				cvCopy( &model_i, model );
-				errminsum = cv::sum(cv::Mat(err)).val[0];
+				errminsum = cv::sum(err_tmp).val[0];
 			}
 		}
 	}
@@ -506,7 +513,11 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 }
 
 
-static CV_IMPLEMENT_QSORT( icvSortDistances, int, CV_LT )
+//static CV_IMPLEMENT_QSORT( icvSortDistances, int, CV_LT )
+static void icvSortDistances( int *array, size_t total, int /*unused*/ )
+{
+   std::sort( &array[0], &array[total] );
+}
 
 bool CvModelEstimator3::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model,
                                   CvMat* mask, double confidence, int maxIters )

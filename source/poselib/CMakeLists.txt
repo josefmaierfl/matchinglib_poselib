@@ -15,12 +15,14 @@ else()
   message(FATAL_ERROR "Eigen not found!")
 endif()
 
-find_package(OpenCV 2.4.9 REQUIRED)
-if (OpenCV_FOUND STREQUAL "ON")
-  message("OpenCV found!")
-else()
-  message(FATAL_ERROR "OpenCV not found!")
-endif()
+set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
+find_package(OpenCV 3.0)
+# find_package(OpenCV 2.4.9 REQUIRED)
+# if (OpenCV_FOUND STREQUAL "ON")
+  # message("OpenCV found!")
+# else()
+  # message(FATAL_ERROR "OpenCV not found!")
+# endif()
 
 # find_package(Nanoflann REQUIRED)
 # if (Nanoflann_FOUND STREQUAL "YES")
@@ -178,7 +180,7 @@ target_include_directories(${target}
     #${FLANN_INCLUDE_DIRS}
     #${Nanoflann_INCLUDE_DIR}
     #${FLANN_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
 	${CLAPACK_INCLUDE_DIR}
 	${SBA_INCLUDE_DIR}
@@ -200,7 +202,7 @@ target_link_libraries(${target}
     PUBLIC
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
-    ${OPENCV_LIBRARIES_BASIC}
+    ${OpenCV_LIBS}
 	${CLAPACK_LIBRARIES}
 	${SBA_LIBRARIES}
 
