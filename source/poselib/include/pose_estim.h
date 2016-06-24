@@ -23,6 +23,11 @@
 //#include "opencv2/features2d/features2d.hpp"
 #include "glob_includes.h"
 
+#include "poselib\poselib_api.h"
+
+namespace poselib
+{
+
 /* --------------------------- Defines --------------------------- */
 
 #define PIX_TH_START 0.5 //Start value of the pixel treshold for all algorithms
@@ -33,7 +38,7 @@
 
 /* --------------------------- Classes --------------------------- */
 
-class AutoThEpi
+class POSELIB_API AutoThEpi
 {
 private:
 
@@ -88,7 +93,7 @@ public:
 /* --------------------- Function prototypes --------------------- */
 
 //Recovers the rotation and translation from an essential matrix and triangulates the given correspondences to form 3D coordinates.
-int getPoseTriangPts(cv::InputArray E, 
+int POSELIB_API getPoseTriangPts(cv::InputArray E, 
 					 cv::InputArray p1, 
 					 cv::InputArray p2, 
 					 cv::OutputArray R, 
@@ -98,14 +103,14 @@ int getPoseTriangPts(cv::InputArray E,
 					 const double dist = 50.0, 
 					 bool translatE = false);
 //Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework.
-bool estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p2, std::string method = "ARRSAC", double threshold = PIX_MIN_GOOD_TH, bool refine = true, cv::OutputArray mask = cv::noArray());
+bool POSELIB_API estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p2, std::string method = "ARRSAC", double threshold = PIX_MIN_GOOD_TH, bool refine = true, cv::OutputArray mask = cv::noArray());
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function
-void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
+void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
 						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = NULL,
 						  double *sumSqrErr = NULL, cv::OutputArray errors = cv::noArray(), 
 						  cv::InputOutputArray mask = cv::noArray(), int model = 0);
 //Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices.
-bool refineStereoBA(cv::InputArray p1, 
+bool POSELIB_API refineStereoBA(cv::InputArray p1, 
 					cv::InputArray p2, 
 					cv::InputOutputArray R, 
 					cv::InputOutputArray t, 
@@ -116,3 +121,5 @@ bool refineStereoBA(cv::InputArray p1,
 					cv::InputArray mask = cv::noArray(),
 					const double angleThresh = 0.3,
 					const double t_norm_tresh = 0.05);
+
+}

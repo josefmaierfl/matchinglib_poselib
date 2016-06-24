@@ -25,6 +25,9 @@
 using namespace cv;
 using namespace std;
 
+namespace poselib
+{
+
 /* --------------------------- Defines --------------------------- */
 
 
@@ -44,9 +47,7 @@ using namespace std;
  *												  (n rows, 2 cols)
  * OutputArray E						Output -> Essential matrix
  * OutputArray mask						Output -> Inlier mask
- * double *th							I/O	   -> Pointer to the inlier threshold
- * double pixToCamFact					Input  -> Multiplication-factor to convert the threshold from the pixel coordinate system
- *												  to the camera coordinate system
+ * double *th							I/O	   -> Pointer to the inlier threshold (must be in the camera coordinate system)
  * int *nrgoodPts						Output -> Number of inliers to E
  *
  * Return value:						0 :		Everything ok
@@ -733,6 +734,11 @@ bool estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p
 	{
 		result = findEssentialMat(E, p1, p2, CV_LMEDS, 0.999, threshold, mask);
 	}
+	else
+	{
+		cout << "Either there is a typo in the specified robust estimation method or the method is not supported. Exiting." << endl;
+		exit(0);
+	}
 
 	return result;
 }
@@ -801,7 +807,7 @@ int getPoseTriangPts(cv::InputArray E, cv::InputArray p1, cv::InputArray p2, cv:
  * InputOutputArray K1					I/O	   -> Camera matrix of the first camera
  * InputOutputArray K2					I/O	   -> Camera matrix of the second camera
  * bool pointsInImgCoords				Input  -> Must be true if p1 and p2 are in image coordinates (pixels) or false if they are in camera coordinates
- *												  [Default=false]
+ *												  [Default=false]. If true, BA is always performed with intrinsics.
  * InputOutputArray mask				Input  -> Inlier mask [Default=cv::noArray()]
  * double angleThresh					Input  -> Threshold on the angular difference in degrees between the initial and refined rotation matrices [Default=0.3]
  * double t_norm_tresh					Input  -> Threshold on the norm of the difference between initial and refined translation vectors [Default=0.05]
@@ -1019,4 +1025,5 @@ bool refineStereoBA(cv::InputArray p1,
 	quatToMatrix(R_new,Rq_new);
 
 	return true;
+}
 }

@@ -309,9 +309,9 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				cv::Mat E_refined;
 				double err_i = 999.0, err_f = 999.0;
 				int goodCount_tmp;
-				cv::Ptr<CvMat> mask_tmp;
+				cv::Ptr<CvMat> mask_tmp = cvCloneMat(mask);;
 
-				cvCopy( mask_tmp, mask );
+				//cvCopy( mask_tmp, mask );
 
 				if(inl_points1.cols < 50)
 				{

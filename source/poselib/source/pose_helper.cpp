@@ -21,9 +21,13 @@
 
 #include <Eigen/SVD>
 #include <Eigen/Dense>
+#include <opencv2/core/eigen.hpp>
 
 using namespace cv;
 using namespace std;
+
+namespace poselib
+{
 
 /* --------------------------- Defines --------------------------- */
 
@@ -31,7 +35,8 @@ using namespace std;
 
 /* --------------------- Function prototypes --------------------- */
 
-
+//This function undistorts an image point
+bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, int iters = 10);
 
 /* --------------------- Functions --------------------- */
 
@@ -375,10 +380,10 @@ double normFromVec(cv::Mat vec)
  */
 double normFromVec(std::vector<double> vec)
 {
-	unsigned int n = vec.size();
+	size_t n = vec.size();
 	double norm = 0;
 	
-	for(unsigned int i = 0; i < n; i++)
+	for(size_t i = 0; i < n; i++)
 		norm += vec[i] * vec[i];
 
 	return std::sqrt(norm);
@@ -415,7 +420,7 @@ double normFromVec(std::vector<double> vec)
 void getReprojErrors(cv::Mat Essential, cv::InputArray p1, cv::InputArray p2, bool takeImageCoords, statVals* qp, std::vector<double> *repErr, cv::InputArray K1, cv::InputArray K2, bool EisF)
 {
 	CV_Assert(!p1.empty() && !p2.empty());
-	CV_Assert((takeImageCoords && !K1.empty() && !K2.empty()) || EisF);
+	CV_Assert(!(takeImageCoords && !K1.empty() && !K2.empty()) || EisF);
 	CV_Assert(!((qp == NULL) && (repErr == NULL)));
 
 	if(EisF && !takeImageCoords)
@@ -615,9 +620,12 @@ void getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & y
 		roll = std::atan2(-m.at<double>(1,2),m.at<double>(1,1));
 		yaw = std::asin(m.at<double>(1,0));
 	}
-	pitch *= radDegConv;
-	roll *= radDegConv;
-	yaw *= radDegConv;
+	if(useDegrees)
+	{
+		pitch *= radDegConv;
+		roll *= radDegConv;
+		yaw *= radDegConv;
+	}
 }
 
 /* Calculates the difference (roation angle) between two rotation quaternions and the distance between
@@ -961,3 +969,230 @@ Eigen::Vector4d quatConj(const Eigen::Vector4d & Q) //'transpose' -- inverse rot
 
     return invertedRot;
 };
+
+/* Normalizes the image coordinates and transfers the image coordinates into
+ * cameracoordinates, respectively.
+ *
+ * vector<Point2f> points			I/O    -> Input: Image coordinates (in pixels)
+ *											  Output: Camera coordinates
+ * Mat K							Input  -> Camera matrix
+ *
+ * Return value:					none
+ */
+void ImgToCamCoordTrans(std::vector<cv::Point2f>& points, cv::Mat K)
+{
+	size_t n = points.size();
+
+	for(size_t i = 0; i < n; i++)
+	{
+		points[i].x = (float)(((double)points[i].x - K.at<double>(0,2))/K.at<double>(0,0));
+		points[i].y = (float)(((double)points[i].y - K.at<double>(1,2))/K.at<double>(1,1));
+	}
+}
+
+/* Transfers coordinates from the camera coordinate system into the the image coordinate system.
+ *
+ * vector<Point2f> points			I/O    -> Input: Camera coordinates
+ *											  Output: Image coordinates (in pixels)
+ * Mat K							Input  -> Camera matrix
+ *
+ * Return value:					none
+ */
+void CamToImgCoordTrans(std::vector<cv::Point2f>& points, cv::Mat K)
+{
+	size_t n = points.size();
+
+	for(size_t i = 0; i < n; i++)
+	{
+		points[i].x = (float)((double)points[i].x * K.at<double>(0,0) + K.at<double>(0,2));
+		points[i].y = (float)((double)points[i].y * K.at<double>(1,1) + K.at<double>(1,2));
+	}
+}
+
+/* Transfers coordinates from the camera coordinate system into the the image coordinate system.
+ *
+ * Mat points						I/O    -> Input: Camera coordinates (n rows x 2 cols)
+ *											  Output: Image coordinates (in pixels)
+ * Mat K							Input  -> Camera matrix
+ *
+ * Return value:					none
+ */
+void CamToImgCoordTrans(cv::Mat& points, cv::Mat K)
+{
+	CV_Assert(((points.rows > points.cols) || ((points.rows <= 2) && (points.cols == 2))) && (points.type() == CV_64FC1));
+	int n = points.rows;
+
+	for(int i = 0; i < n; i++)
+	{
+		points.at<double>(i,0) = points.at<double>(i,0) * K.at<double>(0,0) + K.at<double>(0,2);
+		points.at<double>(i,1) = points.at<double>(i,1) * K.at<double>(1,1) + K.at<double>(1,2);
+	}
+}
+
+/* This function removes the lens distortion for corresponding points in the first (left) and second (right) image.
+ * Moreover, correspondences for which undistortion with subsequent distortion does not lead to the original
+ * coordinate, are removed. Thus, the point set might be smaller. The same lens distortion models as within the OpenCV
+ * library are supported (max. 8 coefficients including 2 for tangential distortion).
+ *
+ * vector<Point2f> points1			I/O	   -> Points in the first (left) image using the camera coordinate system
+ * vector<Point2f> points2			I/O	   -> Points in the second (right) image using the camera coordinate system
+ * cv::Mat dist1					Input  -> Distortion coefficients of the first (left) image. The ordering of the 
+ *											  coefficients is compliant with the OpenCV library. A number of 8
+ *											  coefficients is required. If higher order coefficients are not
+ *											  available, set them to 0.
+ * cv::Mat dist2					Input  -> Distortion coefficients of the second (right) image. The ordering of the 
+ *											  coefficients is compliant with the OpenCV library. A number of 8
+ *											  coefficients is required. If higher order coefficients are not
+ *											  available, set them to 0.
+ *
+ * Return value:					true:  Everything ok.
+ *									false: Undistortion failed
+ */
+bool Remove_LensDist(std::vector<cv::Point2f>& points1, 
+					 std::vector<cv::Point2f>& points2, 
+					 cv::Mat dist1,
+					 cv::Mat dist2)
+{
+	CV_Assert(points1.size() == points2.size());
+
+	vector<Point2f> distpoints1, distpoints2;
+	int n1, n = (int)points1.size();
+	cv::Mat mask = cv::Mat::ones(1, n, CV_8UC1);
+
+	//Remove the lens distortion on the normalized coordinates (camera coordinate system)
+	distpoints1 = points1;
+	distpoints2 = points2;
+	for(int i = 0;i < n;i++)
+	{
+		if(!LensDist_Oulu(distpoints1[i], points1[i], dist1))
+		{
+			mask.at<bool>(i) = false;
+			continue;
+		}
+		if(!LensDist_Oulu(distpoints2[i], points2[i], dist2))
+			mask.at<bool>(i) = false;
+	}
+
+	n1 = cv::countNonZero(mask);
+
+	if(n1 < 16)
+		return false;
+
+	if((float)n1/(float)n < 0.75f)
+		cout << "There is a problem with the distortion parameters! Check your internal calibration parameters!" << endl;
+
+	//Remove invalid correspondences
+	if(n1 < n)
+	{
+		vector<Point2f> validPoints1, validPoints2;
+		for(int i = 0;i < n;i++)
+		{
+			if(mask.at<bool>(i))
+			{
+				validPoints1.push_back(points1[i]);
+				validPoints2.push_back(points2[i]);
+			}
+		}
+		points1 = validPoints1;
+		points2 = validPoints2;
+	}
+
+	return true;
+}
+
+
+/* This function undistorts an image point using distortion parameters (intended for distorting a 
+ * point) and the methode of the Oulu University
+ *
+ * Point2f* distorted				Input  -> Distorted point
+ * Point2f* corrected				Output -> Corrected (undistorted) point
+ * cv::Mat dist						Input  -> Distortion coefficients. The ordering of the coefficients
+ *											  is compliant with the OpenCV library.
+ * int iters						Input  -> Number of iterations used to correct the point: 
+ *									the higher the number, the better the solution (use a number 
+ *									between 3 and 20). The number 3 typically results in an error
+ *									of 0.1 pixels.
+ *
+ * Return value:					true:  Everything ok.
+ *									false: Undistortion failed
+ */
+bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, int iters)
+{
+	CV_Assert(dist.cols == 8);
+
+	double r2, _2xy, rad_corr, delta[2], k1, k2, k3, k4, k5, k6, p1, p2;
+	k1 = dist.at<double>(0);
+	k2 = dist.at<double>(1);
+	p1 = dist.at<double>(2);
+	p2 = dist.at<double>(3);
+	k3 = dist.at<double>(4);
+	k4 = dist.at<double>(5);
+	k5 = dist.at<double>(6);
+	k6 = dist.at<double>(7);
+
+	for(int i = 0;i < iters;i++)
+	{
+		r2 = (double)corrected.x * (double)corrected.x + (double)corrected.y * (double)corrected.y;
+		_2xy = 2.0 * (double)corrected.x * (double)corrected.y;
+		rad_corr = (1.0 + ((k3 * r2 + k2) * r2 + k1) * r2) / (1.0 + ((k6 * r2 + k5) * r2 + k4) * r2);
+		delta[0] = p1 * _2xy + p2 * (r2 + 2.0 * (double)corrected.x * (double)corrected.x);
+		delta[1] = p1 * (r2 + 2.0 * (double)corrected.y * (double)corrected.y) + p2 * _2xy;
+		corrected.x = (float)(((double)distorted.x - delta[0]) / rad_corr);
+		corrected.y = (float)(((double)distorted.y - delta[1]) / rad_corr);
+	}
+
+	//proof
+	Point2f proofdist;
+	r2 = (double)corrected.x * (double)corrected.x + (double)corrected.y * (double)corrected.y;
+	_2xy = 2.0 * (double)corrected.x * (double)corrected.y;
+	rad_corr = (1.0 + ((k3 * r2 + k2) * r2 + k1) * r2) / (1.0 + ((k6 * r2 + k5) * r2 + k4) * r2);
+	delta[0] = p1 * _2xy + p2 * (r2 + 2.0 * (double)corrected.x * (double)corrected.x);
+	delta[1] = p1 * (r2 + 2.0 * (double)corrected.y * (double)corrected.y) + p2 * _2xy;
+	proofdist.x = (float)((double)corrected.x * rad_corr + delta[0] - (double)distorted.x);
+	proofdist.y = (float)((double)corrected.y * rad_corr + delta[1] - (double)distorted.y);
+	if( cvSqrt(proofdist.x * proofdist.x + proofdist.y * proofdist.y) > 0.25f)
+		return false;
+
+	return true;
+}
+
+/* Calculates the difference (roation angle) between two rotation matrices and the distance between
+ * two 3D translation vectors back-rotated by the matrices R1 and R2 (therefore, this error represents
+ * the full error caused by the different rotations and translations)
+ *
+ * Mat R1				Input  -> First rotation matrix (e.g. result from pose estimation)
+ * Mat R2				Input  -> Second rotation matrix (e.g. from offline calibration)
+ * Mat t1				Input  -> First 3D (translation) vector (e.g. result from pose estimation)
+ * Mat t2				Input  -> Second 3D (translation) vector (e.g. from offline calibration)
+ * double rdiff			Output -> Rotation angle (from Angle-axis-representation) between the two rotations
+ * double tdiff			Output -> Distance between the two translation vectors back-rotated by the matrices 
+ *								  R and Rcalib
+ * bool printDiff		Input  -> If true, the results are printed to std::out [Default=false]
+ *
+ * Return value:		none
+ */
+void compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff)
+{
+	Eigen::Matrix3d R1e, R2e;
+	Eigen::Vector4d r1quat, r2quat;
+	Eigen::Vector3d t1e, t2e;
+
+	cv::cv2eigen(R1,R1e);
+	cv::cv2eigen(R2,R2e);
+
+	MatToQuat(R1e, r1quat);
+	MatToQuat(R2e, r2quat);
+
+	t1e << t1.at<double>(0), t1.at<double>(1), t1.at<double>(2);
+	t2e << t2.at<double>(0), t2.at<double>(1), t2.at<double>(2);
+	
+	getRTQuality(r1quat, r2quat, t1e, t2e, rdiff, tdiff);
+
+	if(printDiff)
+	{
+		cout << "Angle between rotation matrices: " << *rdiff / PI * 180.0 << char(248) << endl;
+		cout << "Distance between translation vectors: " << *tdiff << endl;
+	}
+}
+
+}

@@ -36,6 +36,11 @@
 
 #include "imgproj.h"
 
+#include "poselib\poselib_api.h"
+
+namespace poselib
+{
+
 /* --------------------------- Defines --------------------------- */
 
 #define COST_LEASTSQUARES		0
@@ -86,7 +91,7 @@ typedef struct BAinfo {
 
 /* --------------------------- Classes --------------------------- */
 
-class SBAdriver
+class POSELIB_API SBAdriver
 {
 private:
 	int expert;
@@ -400,3 +405,5 @@ double costPseudoHuber(const double d, const double thresh);
 //#ifdef __cplusplus
 //}
 //#endif
+
+}

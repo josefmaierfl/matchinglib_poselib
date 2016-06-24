@@ -21,6 +21,8 @@
 
 #include "BA_driver.h"
 
+namespace poselib
+{
 
 /* --------------------------- Defines --------------------------- */
 
@@ -2641,4 +2643,6 @@ double costPseudoHuber(const double d, const double thresh)
 inline double sqr(const double var)
 {
 	return var * var;
+}
+
 }
