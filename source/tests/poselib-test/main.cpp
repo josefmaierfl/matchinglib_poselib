@@ -15,6 +15,7 @@ int main(int argc, char* argv[])
 #include "matchinglib.h"
 #include "pose_estim.h"
 #include "pose_helper.h"
+#include "pose_homography.h"
 // ---------------------
 
 #include "argvparser.h"
@@ -174,6 +175,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("BART", "<If provided, the pose (R, t) is refined using bundle adjustment (BA). Try using the option --refineRT in addition to BA. This can lead to a better solution (if --autoTH is enabled, --refineRT is always used). The following options are available:\n 1\t BA for extrinsics only (including structure)\n 2\t BA for extrinsics and intrinsics (including structure)>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("RobMethod", "<Specifies the method for the robust estimation of the essential matrix [Default=ARRSAC]. The following options are available:\n ARRSAC\n RANSAC\n LMEDS>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("absCoord", "<If provided, the provided pose is assumed to be related to a specific 3D coordinate orign. Thus, the provided poses are not relativ from camera to camera centre but absolute to a position given by the pose of the first camera.>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("Halign", "<If provided, the pose is estimated using homography alignment. Thus, multiple homographies are estimated using ARRSAC. The following options are available:\n 1\t Estimate homographies without a variable threshold\n 2\t Estimate homographies with a variable threshold>", ArgvParser::OptionRequiresValue);
 	
 	/// finally parse and handle return codes (display help etc...)
 	if(argc <= 1)
@@ -239,6 +241,7 @@ void startEvaluation(ArgvParser& cmd)
 	int showNr, f_nr;
 	bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps;
 	bool noPoseDiff, autoTH, refineRT, absCoord;
+	int Halign;
 	int BART;
 	bool oneCam = false;
 	int err, verbose;
@@ -258,6 +261,21 @@ void startEvaluation(ArgvParser& cmd)
 	autoTH = cmd.foundOption("autoTH");
 	refineRT = cmd.foundOption("refineRT");
 	absCoord = cmd.foundOption("absCoord");
+
+	if(cmd.foundOption("Halign"))
+	{
+		Halign = atoi(cmd.optionValue("Halign").c_str());
+		if((Halign < 0) || (Halign > 2))
+		{
+			cout << "The specified option for homography alignment (Halign) is not available. Exiting." << endl;
+			exit(0);
+		}
+	}
+	else
+	{
+		Halign = 0;
+	}
+
 
 	if(cmd.foundOption("c_file"))
 		c_file = cmd.optionValue("c_file");
@@ -283,6 +301,22 @@ void startEvaluation(ArgvParser& cmd)
 		RobMethod = cmd.optionValue("RobMethod");
 	else
 		RobMethod = "ARRSAC";
+
+	if(RobMethod.compare("ARRSAC") && autoTH)
+	{
+		cout << "With option 'autoTH' only ARRSAC is supported. Using ARRSAC!" << endl;
+	}
+
+	if(RobMethod.compare("ARRSAC") && Halign)
+	{
+		cout << "With option 'Halign' only ARRSAC is supported. Using ARRSAC!" << endl;
+	}
+
+	if(autoTH && Halign)
+	{
+		cout << "The options 'autoTH' and 'Halign' are mutually exclusive. Chosse only one of them. Exiting." << endl;
+		exit(0);
+	}
 
 	if(cmd.foundOption("f_detect"))
 		f_detect = cmd.optionValue("f_detect");
@@ -461,7 +495,7 @@ void startEvaluation(ArgvParser& cmd)
 			}
 			else
 			{
-				cout << "Undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+				cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
 				exit(1);
 			}
 		}
@@ -480,6 +514,7 @@ void startEvaluation(ArgvParser& cmd)
 
 		//Get essential matrix
 		cv::Mat E, mask, p1, p2;
+		cv::Mat R, t;
 		p1 = cv::Mat((int)points1.size(), 2, CV_64FC1);
 		p2 = cv::Mat((int)points2.size(), 2, CV_64FC1);
 		for(int i = 0; i < (int)points1.size(); i++)
@@ -489,24 +524,80 @@ void startEvaluation(ArgvParser& cmd)
 			p2.at<double>(i, 0) = (double)points2[i].x;
 			p2.at<double>(i, 1) = (double)points2[i].y;
 		}
+		double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(1,1) + K0.at<double>(2,2) + K1.at<double>(1,1) + K1.at<double>(2,2)));
+		double th = PIX_MIN_GOOD_TH * pixToCamFact;
 		if(autoTH)
 		{
-			double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(1,1) + K0.at<double>(2,2) + K1.at<double>(1,1) + K1.at<double>(2,2)));
-			double th = PIX_MIN_GOOD_TH * pixToCamFact;
 			int inlierPoints;
 			poselib::AutoThEpi Eautoth(pixToCamFact);
-			Eautoth.estimateEVarTH(p1, p2, E, mask, &th, &inlierPoints);
+			if(Eautoth.estimateEVarTH(p1, p2, E, mask, &th, &inlierPoints) != 0)
+			{
+				failNr++;
+				if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+				{
+					cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+					continue;
+				}
+				else
+				{
+					cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+					exit(1);
+				}
+			}
 
 			cout << "Estimated threshold: " << th / pixToCamFact << " pixels" << endl;
 		}
+		else if(Halign)
+		{
+			int inliers;
+			if(poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, Halign > 1 ? true:false) != 0)
+			{
+				failNr++;
+				if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+				{
+					cout << "Homography alignment failed! Trying next pair." << endl;
+					continue;
+				}
+				else
+				{
+					cout << "Pose estimation failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+					exit(1);
+				}
+			}
+		}
 		else
 		{
-			poselib::estimateEssentialMat(E, p1, p2, RobMethod, PIX_MIN_GOOD_TH, refineRT, mask);
+			if(!poselib::estimateEssentialMat(E, p1, p2, RobMethod, th, refineRT, mask))
+			{
+				failNr++;
+				if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+				{
+					cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+					continue;
+				}
+				else
+				{
+					cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+					exit(1);
+				}
+			}
 		}
 
 		//Get R & t
-		cv::Mat R, t, Q;
-		poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
+		cv::Mat Q;
+		if(Halign && !refineRT)
+		{
+			poselib::triangPts3D(R, t, p1, p2, Q, mask);
+		}
+		else
+		{
+			if(Halign && refineRT)
+			{
+				 poselib::robustEssentialRefine(p1, p2, E, E, PIX_MIN_GOOD_TH / 50.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
+			}
+
+			poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
+		}
 
 		if(verbose > 3)
 		{

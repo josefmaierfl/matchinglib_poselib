@@ -102,6 +102,8 @@ int POSELIB_API getPoseTriangPts(cv::InputArray E,
 					 cv::InputOutputArray mask = cv::noArray(), 
 					 const double dist = 50.0, 
 					 bool translatE = false);
+//Triangulates 3D-points from correspondences with provided R and t
+int POSELIB_API triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv::InputArray _points2, cv::OutputArray Q3D, cv::InputOutputArray mask = cv::noArray(), const double dist = 50.0);
 //Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework.
 bool POSELIB_API estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p2, std::string method = "ARRSAC", double threshold = PIX_MIN_GOOD_TH, bool refine = true, cv::OutputArray mask = cv::noArray());
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function

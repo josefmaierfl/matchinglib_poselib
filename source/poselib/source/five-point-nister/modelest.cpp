@@ -277,7 +277,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 	cv::Mat m1_tmp = cv::cvarrToMat(m1);
 	cv::Mat m2_tmp = cv::cvarrToMat(m2);
 	EssentialMatEstimator esti(this, m1_tmp, m2_tmp);
-	theia::Arrsac<size_t,CvMat> arrsac_estimator(5, reprojThreshold * reprojThreshold);
+	theia::Arrsac<size_t,CvMat> arrsac_estimator(5, reprojThreshold * reprojThreshold, 500, 100, 14, 8);
 	result = arrsac_estimator.Estimate(input_data, esti, bestmodel);
 	if(result)
 	{

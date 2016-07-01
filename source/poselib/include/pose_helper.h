@@ -23,7 +23,7 @@
 #include "glob_includes.h"
 #include <Eigen/Core>
 
-#include "poselib\poselib_api.h"
+#include "poselib/poselib_api.h"
 
 namespace poselib
 {
@@ -113,7 +113,7 @@ void POSELIB_API CamToImgCoordTrans(std::vector<cv::Point2f>& points, cv::Mat K)
 void POSELIB_API CamToImgCoordTrans(cv::Mat& points, cv::Mat K);
 //This function removes the lens distortion for corresponding points
 bool POSELIB_API Remove_LensDist(std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, cv::Mat dist1, cv::Mat dist2);
-
+//Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors
 void POSELIB_API compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff = false);
 
 }

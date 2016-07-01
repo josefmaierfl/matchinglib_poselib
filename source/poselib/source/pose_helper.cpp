@@ -120,7 +120,7 @@ int getClosestE(Eigen::Matrix3d & E)
  * Eigen::Matrix3d E				Input  -> Essential matrix
  * bool EfullCheck					Input  -> If true, the correctness of the singular values of 
  *											  the essential matrix is checked
- * InputOutputArray _mask			Input  -> If provided, a mask marking invalid correspondences
+ * InputOutputArray _mask			I/O    -> If provided, a mask marking invalid correspondences
  *											  is returned
  *
  * Return value:					true:		  Essential/Fundamental matrix is valid
@@ -171,59 +171,68 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
 
 	//cv2eigen(Ecv, E);
 
-	tryagain:
-	if(EfullCheck)
+//tryagain:
+	bool exitfor = true;
+	while(exitfor)
 	{
-		Eigen::Matrix3d V;
-		Eigen::JacobiSVD<Eigen::Matrix3d > svdE(E.transpose(), Eigen::ComputeFullV);
-
-		if(svdE.singularValues()(0) / svdE.singularValues()(1) > 1.2)
-			return false;
-		if(!nearZero(0.01*svdE.singularValues()(2)/svdE.singularValues()(1)))
-			return false;
-
-		V = svdE.matrixV();
-		e2 = V.col(2);
-	}
-	else
-	{
-		Eigen::MatrixXd ker = E.transpose().fullPivLu().kernel();
-		if(ker.cols() != 1)
-			return false;
-		e2 = ker.col(0);
-	}
-
-	//Does this improve something or only need time?
-	for(int i = 0; i < n; i++)
-	{
-		Eigen::Vector3d e2_line1, e2_line2;
-		x1 << _p1.at<double>(i,0),
-			  _p1.at<double>(i,1),
-			  1.0;
-		x2 << _p2.at<double>(i,0),
-			  _p2.at<double>(i,1),
-			  1.0;
-		e2_line1 = e2.cross(x2);
-		e2_line2 = E * x1;
-		for(int j = 0; j < 3; j++)
+		if(EfullCheck)
 		{
-			if(nearZero(0.1*e2_line1(j)) || nearZero(0.1*e2_line2(j)))
-				continue;
-			if(e2_line1(j)*e2_line2(j) < 0)
+			Eigen::Matrix3d V;
+			Eigen::JacobiSVD<Eigen::Matrix3d > svdE(E.transpose(), Eigen::ComputeFullV);
+
+			if(svdE.singularValues()(0) / svdE.singularValues()(1) > 1.2)
+				return false;
+			if(!nearZero(0.01*svdE.singularValues()(2)/svdE.singularValues()(1)))
+				return false;
+
+			V = svdE.matrixV();
+			e2 = V.col(2);
+		}
+		else
+		{
+			Eigen::MatrixXd ker = E.transpose().fullPivLu().kernel();
+			if(ker.cols() != 1)
+				return false;
+			e2 = ker.col(0);
+		}
+
+		//Does this improve something or only need time?
+		exitfor = false;
+		for(int i = 0; i < n; i++)
+		{
+			Eigen::Vector3d e2_line1, e2_line2;
+			x1 << _p1.at<double>(i,0),
+				  _p1.at<double>(i,1),
+				  1.0;
+			x2 << _p2.at<double>(i,0),
+				  _p2.at<double>(i,1),
+				  1.0;
+			e2_line1 = e2.cross(x2);
+			e2_line2 = E * x1;
+			for(int j = 0; j < 3; j++)
 			{
-				if(cnt < 3)
-					cnt++;
-				else if((cnt == 3) && (i == cnt))
+				if(nearZero(0.1*e2_line1(j)) || nearZero(0.1*e2_line2(j)))
+					continue;
+				if(e2_line1(j)*e2_line2(j) < 0)
 				{
-					E = E * -1.0;
-					for(int k = 0; k < cnt; k++)
-						mask.at<bool>(k) = 1;
-					cnt++;
-					goto tryagain;
+					if(cnt < 3)
+						cnt++;
+					else if((cnt == 3) && (i == cnt))
+					{
+						E = E * -1.0;
+						for(int k = 0; k < cnt; k++)
+							mask.at<bool>(k) = 1;
+						cnt++;
+						//goto tryagain;
+						exitfor = true;
+						break;
+					}
+					mask.at<bool>(i) = 0;
+					break;
 				}
-				mask.at<bool>(i) = 0;
-				break;
 			}
+			if(exitfor)
+				break;
 		}
 	}
 	badPtsRatio = 1.0f - (float)cv::countNonZero(mask) / (float)n;

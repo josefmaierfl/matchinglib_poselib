@@ -99,12 +99,13 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
   //   nonmin_sample_size: Sample size for the inner RANSAC (nonminimal sample set) - 
   //     for epipolar geometry estimation 14 and for homography estimation 12 are optimal
   Arrsac(int min_sample_size, double error_thresh, int max_candidate_hyps = 500,
-         int block_size = 100, int nonmin_sample_size = 14)
+         int block_size = 100, int nonmin_sample_size = 14, int nonmin_sample_size_min = 0)
       : min_sample_size_(min_sample_size),
         error_thresh_(error_thresh),
         max_candidate_hyps_(max_candidate_hyps),
         block_size_(block_size),
 		nonmin_sample_size_(nonmin_sample_size),
+		nonmin_sample_size_min_(nonmin_sample_size_min),
         sigma_(0.05),
         epsilon_(0.1),
         inlier_confidence_(0.95),
@@ -180,6 +181,11 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
   // Chum et.al. in Locally Optimized RANSAC (14 for E)
   int nonmin_sample_size_;
 
+  // Set the minimal sample size for non-minimal sampling according to the
+  // minimum sample size accepted by the model estimation algorithm 
+  // (e.g. 8 for the 8-point-algorithm for E & F)
+  int nonmin_sample_size_min_;
+
   // Time to compute a hypothesis measured in time units necessary for 
   // evaluating one data point
   double time_compute_model_ratio_;// = 250.0;
@@ -240,7 +246,7 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
       std::vector<Datum> random_subset;
 	  bool valid_model;
       random_sampler.Sample(data, &random_subset);
-	  if(random_sampler.getSampleSize() == min_sample_size_)
+	  if((random_sampler.getSampleSize() == min_sample_size_) || (random_sampler.getSampleSize() < nonmin_sample_size_min_))
 		  valid_model = estimator.EstimateModel(random_subset, &hypotheses);
 	  else
 		  valid_model = estimator.EstimateModelNonminimal(random_subset, &hypotheses);
@@ -302,7 +308,7 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
 			inner_ransac = true;
 			inner_ransac_its = 0;
 			random_sampler.setSampleSize(max(min(nonmin_sample_size_,
-										 (int)floor((float)max_num_inliers/2)),
+										 (int)floor((float)max_num_inliers/2.0f)),
 										 min_sample_size_));
 
 			// Set U_in = support of hypothesis h(k).

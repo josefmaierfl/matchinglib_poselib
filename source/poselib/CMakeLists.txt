@@ -97,6 +97,9 @@ set(headers
 	${include_path}/five-point-nister/_modelest.h
 	${include_path}/five-point-nister/five-point.hpp
 	${include_path}/five-point-nister/precomp.hpp
+	
+	${include_path}/HomographyAlignment.h
+	${include_path}/pose_homography.h
 )
 
 set(sources
@@ -110,6 +113,9 @@ set(sources
 	${source_path}/five-point-nister/five-point.cpp
 	${source_path}/five-point-nister/modelest.cpp
 	${source_path}/five-point-nister/precomp.cpp
+	
+	${source_path}/HomographyAlignment.cpp
+	${source_path}/pose_homography.cpp
 )
 
 # Group source files

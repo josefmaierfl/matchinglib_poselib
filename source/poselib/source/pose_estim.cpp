@@ -271,9 +271,11 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
  * reached.
  *
  * InputArray points1				Input  -> Image projections in the left camera without
- *											  outliers (1 projection per row)
+ *											  outliers (1 projection per column with 2 channels
+ *											  or 1 projection per row with 2 columns)
  * InputArray points2				Input  -> Image projections in the right camera without
- *											  outliers (1 projection per row)
+ *											  outliers (1 projection per column with 2 channels
+ *											  or 1 projection per row with 2 columns)
  * InputArray E_init				Input  -> Initial estimate of the essential matrix
  * Mat & E_refined					Output -> Refined essential matrix
  * double th						Input  -> Threshold for the pseudo-huber cost function.
@@ -292,8 +294,9 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
  *											  refinement).
  * unsigned int *sumSqrErr			Output -> Final sum of squared errors
  * OutputArray errors				Output -> Final Sampson error for every correspondence
- * InputOutputArray mask			Output -> Optional mask to exclude points which do not 
- *											  correspond withthe oriented epipolar constraint.
+ * InputOutputArray mask			I/O    -> Inlier mask (input) and mask to exclude points which do not 
+ *											  correspond with the oriented epipolar constraint combined with 
+ *											  the input inlier mask (output).
  * int model						Input  -> Optional input (Default = 0) to specify the used
  *											  model (0 = Normal essential matrix, 1 = affine 
  *											  essential matrix, 2 = translational essential matrix).
@@ -306,11 +309,68 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 {
 
 	Mat _points1 = points1.getMat(), _points2 = points2.getMat();
-	Mat E;
+	Mat pointsRedu1, pointsRedu2;
+	Mat E, mask_;
 	double err = -9999.0, err_old = 1e12;//, err_min = 1e12;
-    int npoints = _points1.checkVector(2);
-    CV_Assert( npoints >= 0 && _points2.checkVector(2) == npoints &&
+    int npoints;
+	if(_points1.channels() == 2)
+		npoints = _points1.checkVector(2);
+	else
+		npoints = _points1.rows;
+
+    CV_Assert( npoints >= 0 && 
+			  ((_points2.checkVector(2) == npoints &&
+              _points1.type() == CV_64FC2 &&
+			  _points1.rows == 1 && _points1.cols > _points1.rows) ||
+			  (_points1.rows == npoints &&
+			  _points1.type() == CV_64FC1 &&
+			  _points1.cols == 2 && _points1.rows > _points1.cols)) &&
               _points1.type() == _points2.type());
+
+	if(mask.needed() && !mask.getMat().empty())
+	{
+		Mat pointsRedu1_tmp;
+		Mat pointsRedu2_tmp;
+		mask_ = mask.getMat();
+		if(_points1.channels() == 2)
+		{
+			pointsRedu1_tmp = _points1.reshape(1,2).t();
+			pointsRedu2_tmp = _points2.reshape(1,2).t();
+		}
+		else
+		{
+			pointsRedu1_tmp = _points1;
+			pointsRedu2_tmp = _points2;
+		}
+		for(int i = 0; i < npoints; i++)
+		{
+			if(mask_.at<bool>(i))
+			{
+				pointsRedu1.push_back(pointsRedu1_tmp.row(i));
+				pointsRedu2.push_back(pointsRedu2_tmp.row(i));
+			}
+		}
+		npoints = pointsRedu1.rows;
+		pointsRedu1 = pointsRedu1.t();
+		pointsRedu1 = pointsRedu1.reshape(2,1);
+		pointsRedu2 = pointsRedu2.t();
+		pointsRedu2 = pointsRedu2.reshape(2,1);
+	}
+	else
+	{
+		if(_points1.channels() == 2)
+		{
+			pointsRedu1 = _points1;
+			pointsRedu2 = _points2;
+		}
+		else
+		{
+			pointsRedu1 = _points1.t();
+			pointsRedu1 = pointsRedu1.reshape(2,1);
+			pointsRedu2 = _points2.t();
+			pointsRedu2 = pointsRedu2.reshape(2,1);
+		}
+	}
 
 	if(npoints < 50)
 	{
@@ -328,8 +388,8 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
     CvPoint2D64f m0c = {0,0}, m1c = {0,0};
     double t, scale0 = 0, scale1 = 0;
 
-	const CvPoint2D64f* _m1 = (const CvPoint2D64f*)_points1.data;
-    const CvPoint2D64f* _m2 = (const CvPoint2D64f*)_points2.data;
+	const CvPoint2D64f* _m1 = (const CvPoint2D64f*)pointsRedu1.data;
+    const CvPoint2D64f* _m2 = (const CvPoint2D64f*)pointsRedu2.data;
 
     int i;
 
@@ -422,7 +482,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 		for( i = 0; i < npoints; i++ )
 		{
 			double denom1, num;
-			SampsonL1(_points1.col(i).reshape(1,2), _points2.col(i).reshape(1,2), F3, denom1, num);
+			SampsonL1(pointsRedu1.col(i).reshape(1,2), pointsRedu2.col(i).reshape(1,2), F3, denom1, num);
 			const double weight = costPseudoHuber(num*denom1,th);
 
 
@@ -487,7 +547,11 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 					break;
 			}
 			if( i < 8 )
+			{
+				E.copyTo(E_refined);
+				cout << "Refinement failed!" << endl;
 				return;
+			}
 
 			double smallestEigVal = fabs(eigA.eigenvalues().real()[0]);
 			int smallestEigValIdx = 0;
@@ -789,6 +853,101 @@ int getPoseTriangPts(cv::InputArray E, cv::InputArray p1, cv::InputArray p2, cv:
 	Q_.copyTo(Q.getMat());
 	
 	return n;
+}
+
+/* Triangulates 3D-points from correspondences with provided R and t. The world coordinate
+ * system is located in the left camera centre.
+ *
+ * InputArray R							Input  -> Rotation matrix R
+ * InputArray t							Input  -> Translation vector t
+ * InputArray _points1				Input  -> Image projections in the left camera
+ *											  in camera coordinates (1 projection per row)
+ * InputArray _points2				Input  -> Image projections in the right camera
+ *											  in camera coordinates (1 projection per row)
+ * Mat & Q3D						Output -> Triangulated 3D points (1 coordinate per row)
+ * Mat & mask						Output -> Mask marking points near infinity (mask(i) = 0)
+ * double dist						Input  -> Optional threshold (Default: 50.0) for far points (near infinity)
+ *
+ * Return value:					>= 0:	Valid triangulated 3D-points
+ *									  -1:	The matrix for the 3D points must be provided
+ */
+int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv::InputArray _points2, cv::OutputArray Q3D, cv::InputOutputArray mask, const double dist)
+{
+	Mat points1, points2; 
+	points1 = _points1.getMat(); 
+	points2 = _points2.getMat();
+	Mat R_ = R.getMat();
+	Mat t_ = t.getMat();
+	Mat mask_;
+	int npoints = points1.checkVector(2);
+	if(mask.needed())
+	{
+		mask_ = mask.getMat();
+	}
+
+	points1 = points1.t(); 
+	points2 = points2.t();
+
+	Mat P0 = Mat::eye(3, 4, R_.type()); 
+	Mat P1(3, 4, R_.type());
+	P1(Range::all(), Range(0, 3)) = R_ * 1.0;
+	P1.col(3) = t_ * 1.0;
+
+	// Notice here a threshold dist is used to filter
+	// out far away points (i.e. infinite points) since 
+	// there depth may vary between postive and negtive. 
+	//const double dist = 50.0; 
+	Mat Q1,q1; 
+	triangulatePoints(P0, P1, points1, points2, Q1);
+
+	q1 = P1 * Q1;
+	if(mask_.empty())
+	{
+		mask_ = (q1.row(2).mul(Q1.row(3)) > 0);
+	}
+	else
+	{
+		mask_ = (q1.row(2).mul(Q1.row(3)) > 0) & mask_;
+	}
+
+	Q1.row(0) /= Q1.row(3); 
+	Q1.row(1) /= Q1.row(3); 
+	Q1.row(2) /= Q1.row(3); 
+	mask_ = (Q1.row(2) < dist) & (Q1.row(2) > 0) & mask_;
+
+	if(!Q3D.needed())
+		return -1; //The matrix for the 3D points must be provided
+
+	Q3D.create(Q1.cols, 3, Q1.type());
+	Mat Q3D_tmp = Q3D.getMat();
+	Q3D_tmp = Q1.rowRange(0,3).t();
+
+	/*points1 = points1.t(); 
+	points2 = points2.t();
+
+	double scale = 0;
+	double scale1 = 0;
+	Mat Qs;
+	for(int i = 0; i < points1.rows;i++)
+	{
+		scale = points1.at<double>(i,0) * Q3D.at<double>(i,2) / Q3D.at<double>(i,0);
+		scale += points1.at<double>(i,1) * Q3D.at<double>(i,2) / Q3D.at<double>(i,1);
+		scale /= 2;
+		if(abs(scale - 1.0) > 0.001)
+		{
+			Q3D.row(i) *= scale;
+			scale = points1.at<double>(i,0) * Q3D.at<double>(i,2) / Q3D.at<double>(i,0);
+			scale += points1.at<double>(i,1) * Q3D.at<double>(i,2) / Q3D.at<double>(i,1);
+			scale /= 2;
+		}
+		Qs = R_*Q3D.row(i).t() + t_;
+		scale1 = points2.at<double>(i,0) * Qs.at<double>(2) / Qs.at<double>(0);
+		scale1 += points2.at<double>(i,1) * Qs.at<double>(2) / Qs.at<double>(1);
+		scale1 /= 2;
+	}
+	//scale /= points1.rows * 2;*/
+
+	return countNonZero(mask_);
 }
 
 /* Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices. For refinement of motion and structure without intrinsics,
