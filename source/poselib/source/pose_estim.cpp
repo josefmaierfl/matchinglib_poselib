@@ -374,7 +374,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 
 	if(npoints < 50)
 	{
-		E.copyTo(E_refined);
+		E_init.getMat().copyTo(E_refined);
 		cout << "There are too less points for a refinement left!" << endl;
 		return;
 	}
