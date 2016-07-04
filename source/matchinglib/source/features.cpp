@@ -109,7 +109,7 @@ int sortResponses(std::vector<keyPIdx>& keys, int number);
  *									-2:		  Error creating feature detector
  *									-3:		  No such feature detector
  */
-int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string featuretype, bool dynamicKeypDet, int limitNrfeatures)
+int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string featuretype, bool dynamicKeypDet, int limitNrfeatures)
 {
 	const int minnumfeatures = 10, maxnumfeatures = limitNrfeatures;
 
@@ -340,9 +340,9 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 			cout << "Cannot create feature detector!" << endl;
 			return -2; //Error creating feature detector
 		}
-		detector->detect( img, *keypoints );
+		detector->detect( img, keypoints );
 
-		responseFilterGridBased(*keypoints, img.size(), maxnumfeatures);
+		responseFilterGridBased(keypoints, img.size(), maxnumfeatures);
 
 	}
 	else
@@ -396,14 +396,15 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>* keypoints, std::string 
 			cout << "Cannot create feature detector!" << endl;
 			return -2; //Error creating feature detector
 		}
-		detector->detect( img, *keypoints );
 
-		if(keypoints->size() > maxnumfeatures)
+		detector->detect( img, keypoints );
+
+		if(keypoints.size() > maxnumfeatures)
 		{
-			cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+			cv::KeyPointsFilter::retainBest(keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
 		}
 
-		if(keypoints->size() < minnumfeatures)
+		if(keypoints.size() < minnumfeatures)
 		{
 			return -1; //Too less features detected
 		}

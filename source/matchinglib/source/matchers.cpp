@@ -113,11 +113,11 @@ int getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> k
 	if(!matcher_name.compare("GMBSOF"))
 	{
 		cv::Ptr<cv::DescriptorMatcher> matcher;// = NULL;//DescriptorMatcher::create( "BruteForce-Hamming" );
-		if(descriptors1.cols % 8)
+		/*if(descriptors1.cols % 8)
 		{
 			cout << "For GMBSOF, the number of descriptor bytes must be a multiple of 8!" << endl;
 			return -1;
-		}
+		} */
 		if(!(keypoints1[0].response > FLT_MIN) || !(keypoints2[0].response > FLT_MIN))
 		{
 			cout << "Keypoint response must be available for GMBSOF!" << endl;

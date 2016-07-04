@@ -148,8 +148,8 @@ int getCorrespondences(cv::Mat img1,
 		t_mea = (double)getTickCount(); //Start time measurement
 	}
 
-	if(getKeypoints(img1, &keypoints1, featuretype, dynamicKeypDet, limitNrfeatures) != 0) return -2; //Error while calculating keypoints
-	if(getKeypoints(img2, &keypoints2, featuretype, dynamicKeypDet, limitNrfeatures) != 0) return -2; //Error while calculating keypoints
+	if(getKeypoints(img1, keypoints1, featuretype, dynamicKeypDet, limitNrfeatures) != 0) return -2; //Error while calculating keypoints
+	if(getKeypoints(img2, keypoints2, featuretype, dynamicKeypDet, limitNrfeatures) != 0) return -2; //Error while calculating keypoints
 
 	if(verbose > 1)
 	{

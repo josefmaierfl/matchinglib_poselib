@@ -34,16 +34,21 @@
 
 #include "ratioMatches_Flann.h"
 
-#include "omp.h"
+#include <omp.h>
 
 #include "vfcMatches.h"
 #include <utility>
 #include <vector>
-#include <nmmintrin.h>
+
 #include <bitset>
-#ifdef __linux__
-#include <inttypes.h>
-#include <cpuid.h>
+
+#if defined(__x86_64__)
+  #include <nmmintrin.h>
+#endif
+
+#if defined(__linux__)
+  #include <inttypes.h>
+  #include <cpuid.h>
 #endif
 
 using namespace cv;
@@ -131,6 +136,8 @@ void getMeanDistCostFactors(std::vector<float> & Dfactors, std::vector<float> & 
 							std::vector<float> & quartDfactors, std::vector<float> & quartCfactors,
 							std::vector<mCostDist> mprops, int si_x, int si_y);
 #endif
+
+bool IsPopCntAvailable(); 
 
 /* --------------------- Functions --------------------- */
 
@@ -833,13 +840,7 @@ int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
 	//Calculate the matching costs for the initial keypoints
 	if(descriptors1.type() == CV_8U)
 	{
-		int cpuInfo[4];
-// __linux__
-     __cpuid(cpuInfo,0x00000001);
-// #endif
-		std::bitset<32> f_1_ECX_ = cpuInfo[2];
-		bool popcnt_available = f_1_ECX_[23];
-		if(popcnt_available)
+        if(IsPopCntAvailable())
 		{
 			unsigned char byte8width = (unsigned char)descriptors1.cols / 8;
 			for(size_t i = 0; i < filteredMatches12.size(); i++)
@@ -2167,6 +2168,23 @@ cv::Point3f interpolFlowRad(cv::Point3f *f1, cv::Point3f *f2, cv::Point3f *f3)
 	return tmp;
 }
 
+bool IsPopCntAvailable() {
+#if !defined(__x86_64__)
+    return false;
+#else
+  #if defined(__linux__)
+    unsigned level = 1, eax = 1, ebx, ecx, edx;
+    if(!__get_cpuid(level, &eax, &ebx, &ecx, &edx)) return false;
+    std::bitset<32> f_1_ECX_ = ecx;
+  #else
+    int cpuInfo[4];
+    __cpuid(cpuInfo,0x00000001);
+    std::bitset<32> f_1_ECX_ = cpuInfo[2];  // ECX
+  #endif
+
+    return (bool)f_1_ECX_[23];
+#endif
+}
 
 /* This function compares the response of two keypoints to be able to sort them accordingly
  * while keeping track of the index.
@@ -2647,6 +2665,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 										ystart = -1 * addArea_old + 1;
 									}
 									sideValid(0,1) = 0;
+                                 default: break;
 								}
 
 								for(int i2 = ystart; i2 < (ystart + yrange); i2++)
@@ -2691,6 +2710,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 												break;
 											case 3:
 												sideValid(0, 1) = 1;
+                                             default: break;
 											}
 											break;
 										case 1:
@@ -2740,6 +2760,7 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 												break;
 											case 3:
 												sideValid(0, 1) = 1;
+                                            default: break;
 											}
 											break;
 										case 2:
@@ -2788,7 +2809,10 @@ int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 key
 												break;
 											case 3:
 												sideValid(0, 1) = 1;
+                                            default: break;
 											}
+
+                                         default: break;
 										}
 									}
 								}
@@ -3650,20 +3674,25 @@ inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
  */
 inline unsigned int getHammingL1PopCnt(cv::Mat vec1, cv::Mat vec2, unsigned char byte8width)
 {
-#ifdef __linux__
-  __uint64_t hamsum1 = 0;
-  const __uint64_t *inputarr1 = reinterpret_cast<const __uint64_t*>(vec1.data);
-  const __uint64_t *inputarr2 = reinterpret_cast<const __uint64_t*>(vec2.data);
+#if defined(__x86_64__)
+  #ifdef __linux__
+    __uint64_t hamsum1 = 0;
+    const __uint64_t *inputarr1 = reinterpret_cast<const __uint64_t*>(vec1.data);
+    const __uint64_t *inputarr2 = reinterpret_cast<const __uint64_t*>(vec2.data);
+  #else
+    unsigned __int64 hamsum1 = 0;
+    const unsigned __int64 *inputarr1 = reinterpret_cast<const unsigned __int64*>(vec1.data);
+    const unsigned __int64 *inputarr2 = reinterpret_cast<const unsigned __int64*>(vec2.data);
+  #endif
+	  for(unsigned char i = 0; i < byte8width; i++)
+	  {
+          hamsum1 += _mm_popcnt_u64(*(inputarr1 + i) ^ *(inputarr2 + i));
+	  }
+	  return (unsigned int)hamsum1;
 #else
-  unsigned __int64 hamsum1 = 0;
-  const unsigned __int64 *inputarr1 = reinterpret_cast<const unsigned __int64*>(vec1.data);
-  const unsigned __int64 *inputarr2 = reinterpret_cast<const unsigned __int64*>(vec2.data);
+  return 0;
 #endif
-	for(unsigned char i = 0; i < byte8width; i++)
-	{
-        hamsum1 += _mm_popcnt_u64(*(inputarr1 + i) ^ *(inputarr2 + i));
-	}
-	return (unsigned int)hamsum1;
+
 }
 
 /* This function calculates the L2-norm between two column vectors of desriptors
@@ -3739,7 +3768,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 	const int NormIdxSize = 25;
 	unsigned int l1norms[NormIdxSize];
 	float l2norms[NormIdxSize];
-	int var_searchRadius;
+    int var_searchRadius = 0;
 	const unsigned int gridSPsize[2] = {gridSearchParams[0].size(), gridSearchParams.size()};//Format [x,y] -> gridSearchParams[y][x]
 	const unsigned int gridSPsizeIdx[2] = {gridSPsize[0] - 1, gridSPsize[1] - 1};
 #if FILTER_WITH_CD_RATIOS
@@ -3777,14 +3806,13 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 			BinaryOrVector = false;
 		}
 
-		int cpuInfo[4];
-		__cpuid(cpuInfo,0x00000001);
-		std::bitset<32> f_1_ECX_ = cpuInfo[2];
-		static bool popcnt_available = f_1_ECX_[23];
-		if(popcnt_available)
+		if(IsPopCntAvailable())
 			useBinPopCnt = true;
 
-		if(descriptors1.cols != 64)
+    if(descriptors1.cols % 8 != 0) 
+      useBinPopCnt = false;
+    
+    if(descriptors1.cols != 64)
 		{
 			byte8width = (unsigned char)(descriptors1.cols / 8);
 			descrCols = descriptors1.cols;
@@ -4118,14 +4146,11 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>> gridSearchParams,
 			BinaryOrVector = false;
 		}
 
-		int cpuInfo[4];
-// __linux__
-		__cpuid(cpuInfo,0x00000001);
-// #endif
-		std::bitset<32> f_1_ECX_ = cpuInfo[2];
-		bool popcnt_available = f_1_ECX_[23];
-		if(popcnt_available)
+		if(IsPopCntAvailable())
 			useBinPopCnt = true;
+    
+    if(descriptors1.cols % 8 != 0) 
+      useBinPopCnt = false;
 
 		if(descriptors1.cols != 64)
 		{
@@ -4519,7 +4544,7 @@ void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit
 					std::advance(idx_response_it_start, minNperGridElem < 3 ? 2:(minNperGridElem - 1));
 					idx_response_it = idx_response_it_start;
 					idx_response_it++;
-					for(idx_response_it;idx_response_it!=idx_response.end();idx_response_it++) //Only take a few strong (response) keypoints that have nearly the same response
+                    for(;idx_response_it!=idx_response.end();idx_response_it++) //Only take a few strong (response) keypoints that have nearly the same response
 					{
 						if(kptCnt > threshPosIndexs[1])
 						{
@@ -4590,7 +4615,7 @@ void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit
 				std::advance(idx_response_it_start, minNperGridElem - 1);
 				idx_response_it = idx_response_it_start;
 				idx_response_it++;
-				for(idx_response_it;idx_response_it!=idx_response.end();idx_response_it++)
+                for(;idx_response_it!=idx_response.end();idx_response_it++)
 				{
 					if(kptCnt > threshPosIndexs[1])
 					{

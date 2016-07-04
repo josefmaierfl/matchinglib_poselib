@@ -60,6 +60,10 @@ set_target_properties(test PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD 1)
 #
 # Tests
 #
+if(ENABLE_MATCHINGLIB)
+ add_test_without_ctest(matchinglib-test)
+endif()
 
-add_test_without_ctest(matchinglib-test)
-add_test_without_ctest(poselib-test)
+if(ENABLE_POSELIB)
+  add_test_without_ctest(poselib-test)
+endif()
