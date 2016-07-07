@@ -68,6 +68,11 @@ set(export_macro "${target_upper}_API")
 set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
+file(GLOB_RECURSE header_files
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+)
+
 set(headers
 #    ${include_path}/test.h
 )
@@ -106,6 +111,7 @@ source_group_by_path(${source_path}  "\\\\.cpp$|\\\\.c$|\\\\.h$|\\\\.hpp$"
 add_library(${target}
     ${sources}
     ${headers}
+    ${header_files}
 )
 
 # Create namespaced alias

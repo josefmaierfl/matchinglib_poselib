@@ -24,6 +24,7 @@
 #include "glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"
+#include <string>
 
 namespace matchinglib
 {
@@ -50,4 +51,12 @@ int MATCHINGLIB_API getCorrespondences(cv::Mat img1,
 					   bool subPixRefine = false,
 					   int verbose = 0);
 
-}
+bool MATCHINGLIB_API IsFeatureTypeSupported(std::string const& type);
+std::vector<std::string> MATCHINGLIB_API GetSupportedFeatureTypes();
+
+bool MATCHINGLIB_API IsExtractorTypeSupported(std::string const& type);
+std::vector<std::string> MATCHINGLIB_API GetSupportedExtractorTypes();
+
+} // namepace matchinglib
+
+

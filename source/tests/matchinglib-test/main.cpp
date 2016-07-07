@@ -23,6 +23,42 @@ using namespace std;
 using namespace cv;
 using namespace CommandLineProcessing;
 
+bool test_supportedFeatureTypes() {
+    auto var =  matchinglib::GetSupportedFeatureTypes();
+    bool res = true;
+    std::cout << __FUNCTION__ <<  " - supported feature types: \n";
+    for(auto i : var) {
+        std::cout << i << ",";
+        res &= matchinglib::IsFeatureTypeSupported(i);
+    }
+    std::cout << std::endl << std::endl;
+    return res;
+}
+
+bool test_supportedExtractorTypes() {
+    auto var =  matchinglib::GetSupportedExtractorTypes();
+    bool res = true;
+    std::cout << __FUNCTION__ <<  " - supported extractor types: \n";
+    for(auto i : var) {
+        std::cout << i << ",";
+        res &= matchinglib::IsExtractorTypeSupported(i);
+    }
+    std::cout << std::endl << std::endl;
+    return res;
+}
+
+bool test_supportedMatcherTypes() {
+    auto var =  matchinglib::GetSupportedMatcher();
+    bool res = true;
+    std::cout << __FUNCTION__ <<  " - supported matcher types: \n";
+    for(auto i : var) {
+        std::cout << i << ",";
+        res &= matchinglib::IsMatcherSupported(i);
+    }
+    std::cout << std::endl << std::endl;
+    return res;
+}
+
 void showMatches(cv::Mat img1, cv::Mat img2, 
 				 std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, 
 				 std::vector<cv::DMatch> matches,
@@ -209,7 +245,7 @@ void startEvaluation(ArgvParser& cmd)
 	}
 	else
 	{
-		showNr = 50;
+        showNr = 50;
 	}
 
 	int failNr = 0;
@@ -268,7 +304,7 @@ void showMatches(cv::Mat img1, cv::Mat img2,
 		}
 		else
 		{
-			cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg, Scalar::all(-1), Scalar(43, 112, 175), vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+            cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg, Scalar::all(-1), Scalar(43, 112, 175), vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 		}
 		cv::imshow( "All Matches", drawImg );
 	}
@@ -321,6 +357,10 @@ void showMatches(cv::Mat img1, cv::Mat img2,
 /** @function main */
 int main( int argc, char* argv[])
 {
+    if(!test_supportedMatcherTypes()) return -1;
+    if(!test_supportedFeatureTypes()) return -1;
+    if(!test_supportedExtractorTypes()) return -1;
+
 	ArgvParser cmd;
 	SetupCommandlineParser(cmd, argc, argv);
 	startEvaluation(cmd);

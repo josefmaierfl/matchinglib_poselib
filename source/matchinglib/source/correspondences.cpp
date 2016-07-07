@@ -47,7 +47,7 @@ namespace matchinglib
  * vector<KeyPoint> kp1			Output -> All detected keypoints in the first or left image
  * vector<KeyPoint> kp1			Output -> All detected keypoints in the second or right image
  * string featuretype			Input  -> Name of feature detector. Possible detectors [Default=FAST] are:
- *										  FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob
+ *										  FAST,11 STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob
  *										  -> see the OpenCV documentation for further details on the different methods
  * string extractortype			Input  -> Methode for extracting the descriptors. The following inputs [Default=FREAK]
  *										  are possible:
@@ -367,4 +367,4 @@ int getCorrespondences(cv::Mat img1,
 	return 0;
 }
 
-}
+} // namepace matchinglib

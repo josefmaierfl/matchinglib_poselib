@@ -41,4 +41,11 @@ int MATCHINGLIB_API getDescriptors(cv::Mat img,
 				   std::string extractortype,
 				   cv::Mat & descriptors);
 
-}
+bool MATCHINGLIB_API IsFeatureTypeSupported(std::string const& type);
+std::vector<std::string> MATCHINGLIB_API GetSupportedFeatureTypes();
+
+bool MATCHINGLIB_API IsExtractorTypeSupported(std::string const& type);
+std::vector<std::string> MATCHINGLIB_API GetSupportedExtractorTypes();
+
+} // namepace matchinglib
+

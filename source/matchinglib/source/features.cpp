@@ -61,9 +61,9 @@ typedef struct keyPIdx{
 	idx(_idx),
 	response(_response)
 	{
-	}
-	float response;
-	int idx;
+    }
+    int idx;
+    float response;
 }keyPIdx;
 
 struct ResponseGreaterThanThreshold
@@ -399,7 +399,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string 
 
 		detector->detect( img, keypoints );
 
-		if(keypoints.size() > maxnumfeatures)
+        if((int)keypoints.size() > maxnumfeatures)
 		{
 			cv::KeyPointsFilter::retainBest(keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
 		}
@@ -480,6 +480,10 @@ int getDescriptors(cv::Mat img,
 		extractor = xfeatures2d::LUCID::create(1,2);
 		cout << "Be careful: The lucid_kernel and blur_kernel size are set arbitrary! RGB images should be used!" << endl;
 	}*/
+    else {
+        cout << "This extractor type is not supported!" << endl;
+        return -3;
+    }
 
 	if(extractor.empty())
 	{
@@ -655,7 +659,7 @@ void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, in
 			for(size_t k = 0; k < gridsOrig[i][j].size(); ++k)
 			{
 				int first_bad = sortResponses(gridsOrig[i][j][k], (int)floor((float)gridsOrig[i][j][k].size() * reduction + 0.5f));
-				for(size_t k1 = 0; k1 < first_bad; k1++)
+                for(int k1 = 0; k1 < first_bad; k1++)
 				{
 					scores[gridsOrig[i][j][k][k1].idx].response++;
 				}
@@ -663,7 +667,7 @@ void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, in
 			for(size_t k = 0; k < gridsLeft[i][j].size(); ++k)
 			{
 				int first_bad = sortResponses(gridsLeft[i][j][k], (int)floor((float)gridsLeft[i][j][k].size() * reduction + 0.5f));
-				for(size_t k1 = 0; k1 < first_bad; k1++)
+                for(int k1 = 0; k1 < first_bad; k1++)
 				{
 					scores[gridsLeft[i][j][k][k1].idx].response++;
 				}
@@ -671,7 +675,7 @@ void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, in
 			for(size_t k = 0; k < gridsUp[i][j].size(); ++k)
 			{
 				int first_bad = sortResponses(gridsUp[i][j][k], (int)floor((float)gridsUp[i][j][k].size() * reduction + 0.5f));
-				for(size_t k1 = 0; k1 < first_bad; k1++)
+                for(int k1 = 0; k1 < first_bad; k1++)
 				{
 					scores[gridsUp[i][j][k][k1].idx].response++;
 				}
@@ -679,7 +683,7 @@ void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, in
 			for(size_t k = 0; k < gridsCenter[i][j].size(); ++k)
 			{
 				int first_bad = sortResponses(gridsCenter[i][j][k], (int)floor((float)gridsCenter[i][j][k].size() * reduction + 0.5f));
-				for(size_t k1 = 0; k1 < first_bad; k1++)
+                for(int k1 = 0; k1 < first_bad; k1++)
 				{
 					scores[gridsCenter[i][j][k][k1].idx].response++;
 				}
@@ -764,4 +768,31 @@ int sortResponses(std::vector<keyPIdx>& keys, int number)
 	return new_end - keys.begin();
 }
 
+bool IsFeatureTypeSupported(const std::string &type)
+{
+    std::vector<std::string> vecSupportedTypes = GetSupportedFeatureTypes();
+    if(std::find(vecSupportedTypes.begin(), vecSupportedTypes.end(), type) != vecSupportedTypes.end()) return true;
+    return false;
 }
+
+std::vector<std::string> GetSupportedFeatureTypes()
+{
+    static std::string types [] = {"FAST", "MSER", "ORB", "BRISK", "KAZE", "AKAZE", "SIFT", "SURF", "STAR"};
+    return std::vector<std::string>(types, types + 9);
+}
+
+bool IsExtractorTypeSupported(const std::string &type)
+{
+    std::vector<std::string> vecSupportedTypes = GetSupportedExtractorTypes();
+    if(std::find(vecSupportedTypes.begin(), vecSupportedTypes.end(), type) != vecSupportedTypes.end()) return true;
+    return false;
+}
+
+std::vector<std::string> GetSupportedExtractorTypes()
+{
+    static std::string types [] = {"BRISK", "ORB", "KAZE", "AKAZE", "FREAK", "SIFT", "SURF", "DAISY", "LATCH", "LUCID"};
+    return std::vector<std::string>(types, types + 10);
+}
+
+
+} // namepace matchinglib

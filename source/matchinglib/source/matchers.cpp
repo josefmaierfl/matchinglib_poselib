@@ -30,6 +30,7 @@
 #include "flann/flann.hpp"
 
 #include <map>
+#include <algorithm>
 
 #include "vfcMatches.h"
 
@@ -433,7 +434,7 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
 	{
 		for (int bucketID = 0; bucketID < kCntBucketPerGroup; bucketID++)
 		{
-			for(int k1 = 0; k1 < stImageDataList->size(); k1++)
+            for(int k1 = 0; k1 < (int)stImageDataList->size(); k1++)
 			{
 				free((*stImageDataList)[k1].bucketList[groupIndex][bucketID]);
 			}
@@ -442,13 +443,13 @@ int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & ma
 	//Free allocated memory of bucketIDList
 	for (int groupIndex = 0; groupIndex < kCntBucketGroup; groupIndex++)
 	{
-		for(int k1 = 0; k1 < stImageDataList->size(); k1++)
+        for(int k1 = 0; k1 < (int)stImageDataList->size(); k1++)
 		{
 			free((*stImageDataList)[k1].bucketIDList[groupIndex]);
 		}
 	}
 	//Free allocated memory of hashDataPtrList and compHashDataPtrList
-	for(int k1 = 0; k1 < stImageDataList->size(); k1++)
+    for(int k1 = 0; k1 < (int)stImageDataList->size(); k1++)
 	{
 		for(int k = 0; k < (*stImageDataList)[k1].cntPoint; k++)
 		{
@@ -699,6 +700,19 @@ int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keyp
 bool sortMatchWeightIdx(std::pair<double,unsigned int> first, std::pair<double,unsigned int> second)
 {
 	return first.first < second.first;
+}
+
+bool IsMatcherSupported(const std::string &type)
+{
+    std::vector<std::string> vecSupportedTypes = GetSupportedMatcher();
+    if(std::find(vecSupportedTypes.begin(), vecSupportedTypes.end(), type) != vecSupportedTypes.end()) return true;
+    return false;
+}
+
+std::vector<std::string> GetSupportedMatcher()
+{
+    static std::string types [] = {"GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE"};
+    return std::vector<std::string>(types, types + 6);
 }
 
 }
