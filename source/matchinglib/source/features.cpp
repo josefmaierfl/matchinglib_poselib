@@ -303,7 +303,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string 
 		}
 		else if(!featuretype.compare("ORB"))
 		{
-			detector = ORB::create();
+			detector = ORB::create(limitNrfeatures);
 		}
 		else if(!featuretype.compare("BRISK"))
 		{
@@ -359,7 +359,7 @@ int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string 
 		}
 		else if(!featuretype.compare("ORB"))
 		{
-			detector = ORB::create();
+			detector = ORB::create(limitNrfeatures);
 		}
 		else if(!featuretype.compare("BRISK"))
 		{
