@@ -3,6 +3,8 @@
 # External dependencies
 #
 
+option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
+
 if(WIN32)
 if("$ENV{THIRDPARTYROOT}" STREQUAL "")
   message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
@@ -28,14 +30,8 @@ else()
   find_package(OpenCV 3.1 REQUIRED)
 endif()
 
+
 find_package(Nanoflann REQUIRED)
-if (Nanoflann_FOUND STREQUAL "YES")
-  message("Nanoflann found!")
-else()
-  message(FATAL_ERROR "Nanoflann not found!")
-endif()
-
-
 find_package(Flann REQUIRED)
 
 find_package(OpenMP)
@@ -72,7 +68,6 @@ file(GLOB_RECURSE header_files
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
 )
-
 set(headers
 #    ${include_path}/test.h
 )
@@ -92,6 +87,7 @@ set(sources
     ${source_path}/CascadeHash/DataPreProcessor.cc
     ${source_path}/CascadeHash/HashConvertor.cc
     ${source_path}/CascadeHash/MatchPairLoader.cc
+
 )
 
 # Group source files
@@ -164,6 +160,7 @@ target_include_directories(${target}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
+    ${EIGEN3_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -178,11 +175,12 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
 
+
     PUBLIC
     ${DEFAULT_LIBRARIES}
     ${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
-	
+
     INTERFACE
 )
 
@@ -193,6 +191,7 @@ target_link_libraries(${target}
 
 target_compile_definitions(${target}
     PRIVATE
+    $<$<BOOL:${USE_NON_FREE_CODE}>:USE_NON_FREE_CODE>
 
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>

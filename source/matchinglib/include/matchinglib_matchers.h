@@ -29,20 +29,21 @@
 namespace matchinglib
 {
 
-/* --------------------------- Defines --------------------------- */
+  /* --------------------------- Defines --------------------------- */
 
 
-/* --------------------- Function prototypes --------------------- */
+  /* --------------------- Function prototypes --------------------- */
 
 //Matches 2 feature sets with an user selectable matching algorithm.
-int MATCHINGLIB_API getMatches(std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2,
-			   cv::Mat descriptors1, cv::Mat descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
-			   std::string matcher_name = "GMBSOF", bool VFCrefine = false, bool ratioTest = true);
+  int MATCHINGLIB_API getMatches(const std::vector<cv::KeyPoint> &keypoints1, const std::vector<cv::KeyPoint> &keypoints2,
+                                 cv::Mat const& descriptors1, cv::Mat const& descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
+                                 std::string const& matcher_name = "GMBSOF", bool VFCrefine = false, bool ratioTest = true);
 //This function calculates the subpixel-position of matched keypoints by template matching
-int MATCHINGLIB_API getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keypoints1, std::vector<cv::KeyPoint> *keypoints2, std::vector<bool> *inliers = NULL);
+  int MATCHINGLIB_API getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keypoints1,
+                                       std::vector<cv::KeyPoint> *keypoints2, std::vector<bool> *inliers = NULL);
 
-bool MATCHINGLIB_API IsMatcherSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedMatcher();
+  bool MATCHINGLIB_API IsMatcherSupported(std::string const& type);
+  std::vector<std::string> MATCHINGLIB_API GetSupportedMatcher();
 
 
 

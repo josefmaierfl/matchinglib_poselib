@@ -51,11 +51,11 @@ int MATCHINGLIB_API getCorrespondences(cv::Mat img1,
 					   bool subPixRefine = false,
 					   int verbose = 0);
 
-bool MATCHINGLIB_API IsFeatureTypeSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedFeatureTypes();
+bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
+std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();
 
-bool MATCHINGLIB_API IsExtractorTypeSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedExtractorTypes();
+bool MATCHINGLIB_API IsDescriptorTypeSupported(std::string const& type);
+std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
 
 } // namepace matchinglib
 

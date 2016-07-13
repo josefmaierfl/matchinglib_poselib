@@ -14,14 +14,14 @@
  VERSION: 1.0
 
  DISCRIPTION: This file provides functionalities for extracting keypoints and generating descriptors as
-			  well as for sub-pixel refinement
+        well as for sub-pixel refinement
 **********************************************************************************************************/
 
 #pragma once
 
 //#include "opencv2/highgui/highgui.hpp"
 //#include "opencv2/features2d/features2d.hpp"
-#include "cv.hpp" 
+#include "cv.hpp"
 #include "glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"
@@ -29,23 +29,24 @@
 namespace matchinglib
 {
 
-/* --------------------------- Defines --------------------------- */
+  /* --------------------------- Defines --------------------------- */
 
 
-/* --------------------- Function prototypes --------------------- */
+  /* --------------------- Function prototypes --------------------- */
 //Find the keypoints in the image
-int MATCHINGLIB_API getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string featuretype, bool dynamicKeypDet = true, int limitNrfeatures = 8000);
+  int MATCHINGLIB_API getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string keypointtype, bool dynamicKeypDet = true,
+                                   int limitNrfeatures = 8000);
 //Extraction of descriptors at given keypoint locations
-int MATCHINGLIB_API getDescriptors(cv::Mat img,
-				   std::vector<cv::KeyPoint> & keypoints,
-				   std::string extractortype,
-				   cv::Mat & descriptors);
+  int MATCHINGLIB_API getDescriptors(cv::Mat img,
+                                     std::vector<cv::KeyPoint> & keypoints,
+                                     std::string descriptortype,
+                                     cv::Mat & descriptors);
 
-bool MATCHINGLIB_API IsFeatureTypeSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedFeatureTypes();
+  bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
+  std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();
 
-bool MATCHINGLIB_API IsExtractorTypeSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedExtractorTypes();
+  bool MATCHINGLIB_API IsDescriptorTypeSupported(std::string const& type);
+  std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
 
 } // namepace matchinglib
 
