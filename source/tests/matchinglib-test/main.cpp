@@ -24,36 +24,36 @@ using namespace cv;
 using namespace CommandLineProcessing;
 
 bool test_supportedFeatureTypes() {
-    auto var =  matchinglib::GetSupportedKeypointTypes();
+    vector<string> var =  matchinglib::GetSupportedKeypointTypes();
     bool res = true;
     std::cout << __FUNCTION__ <<  " - supported key types: \n";
-    for(auto i : var) {
-        std::cout << i << ",";
-        res &= matchinglib::IsKeypointTypeSupported(i);
+    for(size_t i = 0; i < var.size(); i++) {
+        std::cout << var[i] << ",";
+        res &= matchinglib::IsKeypointTypeSupported(var[i]);
     }
     std::cout << std::endl << std::endl;
     return res;
 }
 
 bool test_supportedExtractorTypes() {
-    auto var =  matchinglib::GetSupportedDescriptorTypes();
+    vector<string> var =  matchinglib::GetSupportedDescriptorTypes();
     bool res = true;
     std::cout << __FUNCTION__ <<  " - supported descriptor types: \n";
-    for(auto i : var) {
-        std::cout << i << ",";
-        res &= matchinglib::IsDescriptorTypeSupported(i);
+    for(size_t i = 0; i < var.size(); i++) {
+        std::cout << var[i] << ",";
+        res &= matchinglib::IsDescriptorTypeSupported(var[i]);
     }
     std::cout << std::endl << std::endl;
     return res;
 }
 
 bool test_supportedMatcherTypes() {
-    auto var =  matchinglib::GetSupportedMatcher();
+    vector<string> var =  matchinglib::GetSupportedMatcher();
     bool res = true;
     std::cout << __FUNCTION__ <<  " - supported matcher types: \n";
-    for(auto i : var) {
-        std::cout << i << ",";
-        res &= matchinglib::IsMatcherSupported(i);
+    for(size_t i = 0; i < var.size(); i++) {
+        std::cout << var[i] << ",";
+        res &= matchinglib::IsMatcherSupported(var[i]);
     }
     std::cout << std::endl << std::endl;
     return res;
@@ -80,8 +80,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("img_path", "<Path to the images (all required in one folder). All images are loaded one after another for matching using the specified file prefixes for left and right images. If only the left prefix is specified, images with the same prefix flollowing after another are matched.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("l_img_pref", "<The prefix of the left or first image. The whole prefix until the start of the number is needed (last character must be '_').>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("r_img_pref", "<The prefix of the right or second image. The whole prefix until the start of the number is needed (last character must be '_'). Can be empty for image series where one image is matched to the next image.>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("f_detect", "<The name of the feature detector in OpenCV 2.4.9 style (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FAST]>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("d_extr", "<The name of the descriptor extractor in OpenCV 2.4.9 style (BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FREAK]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("f_detect", "<The name of the feature detector in OpenCV 3.0 style (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FAST]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("d_extr", "<The name of the descriptor extractor in OpenCV 3.0 style (BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FREAK]>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("matcher", "<The short form of the matcher [Default=GMBSOF]:\n CASHASH:\t Cascade Hashing matcher\n GMBSOF:\t Guided Matching based on Statistical Optical Flow\n HIRCLUIDX:\t Hirarchical Clustering Index Matching from the FLANN library\n HIRKMEANS:\t hierarchical k-means tree matcher from the FLANN library\n LINEAR:\t Linear matching algorithm (Brute force) from the FLANN library\n LSHIDX:\t LSH Index Matching algorithm from the FLANN library (not stable (bug in FLANN lib) -> program may crash)\n RANDKDTREE:\t randomized KD-trees matcher from the FLANN library>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("noRatiot", "<If provided, ratio test is disabled for the matchers for which it is possible.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("refineVFC", "<If provided, the result from the matching algorithm is refined with VFC>", ArgvParser::NoOptionAttribute);

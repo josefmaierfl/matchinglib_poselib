@@ -42,13 +42,15 @@
 
 #include <bitset>
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_WIN32)
   #include <nmmintrin.h>
+  #define _USE_HW_POPCNT_ 1
 #endif
 
 #if defined(__linux__)
   #include <inttypes.h>
   #include <cpuid.h>
+  #define _USE_HW_POPCNT_ 0
 #endif
 
 using namespace cv;
@@ -2169,7 +2171,7 @@ cv::Point3f interpolFlowRad(cv::Point3f *f1, cv::Point3f *f2, cv::Point3f *f3)
 }
 
 bool IsPopCntAvailable() {
-#if !defined(__x86_64__)
+#if !(_USE_HW_POPCNT_)
     return false;
 #else
   #if defined(__linux__)
@@ -3674,7 +3676,7 @@ inline unsigned int getHammingL1(cv::Mat vec1, cv::Mat vec2)
  */
 inline unsigned int getHammingL1PopCnt(cv::Mat vec1, cv::Mat vec2, unsigned char byte8width)
 {
-#if defined(__x86_64__)
+#if _USE_HW_POPCNT_
   #ifdef __linux__
     __uint64_t hamsum1 = 0;
     const __uint64_t *inputarr1 = reinterpret_cast<const __uint64_t*>(vec1.data);

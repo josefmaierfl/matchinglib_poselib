@@ -17,8 +17,8 @@ endif()
 
 
 if(WIN32)
-  set(OpenCV_DIR "C:/Users/JungR/opencv/build/install/")
-  find_package(OpenCV 3.1 REQUIRED NO_CMAKE_PATH)
+  set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
+  find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
 else()
   set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
   find_package(OpenCV 3.1 REQUIRED)
