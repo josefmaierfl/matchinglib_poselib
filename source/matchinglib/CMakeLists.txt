@@ -32,7 +32,7 @@ endif()
 
 
 find_package(Nanoflann REQUIRED)
-find_package(Flann REQUIRED)
+#find_package(Flann REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -155,7 +155,7 @@ target_include_directories(${target}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
-    ${FLANN_INCLUDE_DIRS}
+    #${FLANN_INCLUDE_DIRS}
     ${Nanoflann_INCLUDE_DIR}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
@@ -178,7 +178,7 @@ target_link_libraries(${target}
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
-    ${FLANN_LIBRARIES}
+    #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
 
     INTERFACE
@@ -196,7 +196,7 @@ target_compile_definitions(${target}
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
-    ${FLANN_DEFINITIONS}
+    #${FLANN_DEFINITIONS}
 
     INTERFACE
 )

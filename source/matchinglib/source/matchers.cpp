@@ -27,7 +27,8 @@
 #include "CascadeHash/MatchPairLoader.h"
 #include "CascadeHash/CasHashMatcher.h"
 
-#include "flann/flann.hpp"
+//#include "flann/flann.hpp"
+#include "opencv2/flann.hpp"
 
 #include <map>
 #include <algorithm>
@@ -200,37 +201,37 @@ namespace matchinglib
 
       if(descriptors1.type() == CV_8U)
       {
-        flann::Matrix<unsigned char> dataset(descriptors2.data, descriptors2.rows, descriptors2.cols);
-        flann::Matrix<unsigned char> query(descriptors1.data, descriptors1.rows, descriptors1.cols);
-        flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-        flann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
+        cvflann::Matrix<unsigned char> dataset(descriptors2.data, descriptors2.rows, descriptors2.cols);
+        cvflann::Matrix<unsigned char> query(descriptors1.data, descriptors1.rows, descriptors1.cols);
+        cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
+        cvflann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
 
         if(!matcher_name.compare("HIRCLUIDX"))
         {
           // construct a hierarchical clustering index
-          flann::Index<flann::HammingLUT> index(dataset, flann::HierarchicalClusteringIndexParams());
+          cvflann::Index<cvflann::HammingLUT> index(dataset, cvflann::HierarchicalClusteringIndexParams());
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
         else if(!matcher_name.compare("LINEAR"))
         {
           // construct a linear index
-          flann::Index<flann::HammingLUT> index(dataset, flann::LinearIndexParams());
+          cvflann::Index<cvflann::HammingLUT> index(dataset, cvflann::LinearIndexParams());
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
         else
         {
           // construct a LSH index
-          flann::Index<flann::HammingLUT> index(dataset, flann::LshIndexParams());
+          cvflann::Index<cvflann::HammingLUT> index(dataset, cvflann::LshIndexParams());
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
 
         //Ratio test
@@ -260,51 +261,53 @@ namespace matchinglib
           }
         }
 
-        delete[] indices.ptr();
-        delete[] dists.ptr();
+        /*delete[] indices.ptr();
+        delete[] dists.ptr();*/
+		delete[] indices.data;
+        delete[] dists.data;
       }
       else
       {
-        flann::Matrix<float> dataset((float*)descriptors2.data, descriptors2.rows, descriptors2.cols);
-        flann::Matrix<float> query((float*)descriptors1.data, descriptors1.rows, descriptors1.cols);
-        flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-        flann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
+        cvflann::Matrix<float> dataset((float*)descriptors2.data, descriptors2.rows, descriptors2.cols);
+        cvflann::Matrix<float> query((float*)descriptors1.data, descriptors1.rows, descriptors1.cols);
+        cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
+        cvflann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
 
         if(!matcher_name.compare("HIRCLUIDX"))
         {
           // construct a hierarchical clustering index
-          flann::Index<flann::L2<float>> index(dataset, flann::HierarchicalClusteringIndexParams());
+          cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::HierarchicalClusteringIndexParams());
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
         else if(!matcher_name.compare("HIRKMEANS"))
         {
           // construct a hierarchical k-means tree
-          flann::Index<flann::L2<float>> index(dataset, flann::KMeansIndexParams());
+          cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::KMeansIndexParams());
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
         else if(!matcher_name.compare("LINEAR"))
         {
           // construct a linear index
-          flann::Index<flann::L2<float>> index(dataset, flann::LinearIndexParams());
+          cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::LinearIndexParams());
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
         else
         {
           // construct a randomized KD-tree index
-          flann::Index<flann::L2<float>> index(dataset, flann::KDTreeIndexParams(8));
+          cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::KDTreeIndexParams(8));
           index.buildIndex();
 
           // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance) -> 32 can also be used
-          index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+          index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
         }
 
         //Ratio test
@@ -334,8 +337,10 @@ namespace matchinglib
           }
         }
 
-        delete[] indices.ptr();
-        delete[] dists.ptr();
+        /*delete[] indices.ptr();
+        delete[] dists.ptr();*/
+		delete[] indices.data;
+        delete[] dists.data;
       }
 
       if(finalMatches.size() < MIN_FINAL_MATCHES)

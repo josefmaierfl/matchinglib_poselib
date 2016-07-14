@@ -17,7 +17,8 @@
 **********************************************************************************************************/
 
 #include "../include/ratioMatches_Flann.h"
-#include "flann/flann.hpp"
+//#include "flann/flann.hpp"
+#include "opencv2/flann.hpp"
 
 using namespace std;
 
@@ -49,20 +50,20 @@ bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors
 	filteredMatches12.clear();
 	if(descriptors1.type() == CV_32F)
 	{
-		flann::Matrix<float> dataset((float*)descriptors2.data, descriptors2.rows, descriptors2.cols);
-		flann::Matrix<float> query((float*)descriptors1.data, descriptors1.rows, descriptors1.cols);
+		cvflann::Matrix<float> dataset((float*)descriptors2.data, descriptors2.rows, descriptors2.cols);
+		cvflann::Matrix<float> query((float*)descriptors1.data, descriptors1.rows, descriptors1.cols);
 
-		flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-		flann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
+		cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
+		cvflann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
 		/*vector<vector<int>> indices;
 		vector<vector<float>> dists;*/
 
 		// construct an randomized kd-tree index using 8 kd-trees
-		flann::Index<flann::L2<float>> index(dataset, flann::KDTreeIndexParams(8));
+		cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::KDTreeIndexParams(8));
 		index.buildIndex();
 
 		// do a knn search, using 32 checks (higher values lead to higher precision, but slower performance)
-		index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+		index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
 
 		//Ratio test
 		for(size_t q = 0; q < indices.rows; q++)
@@ -110,27 +111,27 @@ bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors
 				filteredMatches12.push_back(match);
 			}
 		}
-		delete[] indices.ptr();
-		delete[] dists.ptr();
-		/*delete[] dataset.ptr();
-		delete[] query.ptr();*/
+		/*delete[] indices.ptr();
+		delete[] dists.ptr();*/
+		delete[] indices.data;
+		delete[] dists.data;
 	}
 	else if(descriptors1.type() == CV_8U)
 	{
-		flann::Matrix<unsigned char> dataset(descriptors2.data, descriptors2.rows, descriptors2.cols);
-		flann::Matrix<unsigned char> query(descriptors1.data, descriptors1.rows, descriptors1.cols);
+		cvflann::Matrix<unsigned char> dataset(descriptors2.data, descriptors2.rows, descriptors2.cols);
+		cvflann::Matrix<unsigned char> query(descriptors1.data, descriptors1.rows, descriptors1.cols);
 		
-		flann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-		flann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
+		cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
+		cvflann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
 		/*vector<vector<int>> indices;
 		vector<vector<int>> dists;*/
 
 		// construct a hierarchical clustering index
-		flann::Index<flann::HammingLUT> index(dataset, flann::HierarchicalClusteringIndexParams());
+		cvflann::Index<cvflann::HammingLUT> index(dataset, cvflann::HierarchicalClusteringIndexParams());
 		index.buildIndex();
 
 		// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance)
-		index.knnSearch(query, indices, dists, nn, flann::SearchParams(64));
+		index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
 
 		//Ratio test
 		for(size_t q = 0; q < indices.rows; q++)
@@ -178,10 +179,10 @@ bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors
 				filteredMatches12.push_back(match);
 			}
 		}
-		delete[] indices.ptr();
-		delete[] dists.ptr();
-		/*delete[] dataset.ptr();
-		delete[] query.ptr();*/
+		/*delete[] indices.ptr();
+		delete[] dists.ptr();*/
+		delete[] indices.data;
+		delete[] dists.data;
 	}
 	else
 	{
