@@ -2,7 +2,7 @@
 #
 # External dependencies
 #
-message(STATUS HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH)
+
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
 
 if(WIN32)
