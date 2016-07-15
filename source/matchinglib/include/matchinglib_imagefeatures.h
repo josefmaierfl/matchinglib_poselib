@@ -19,9 +19,7 @@
 
 #pragma once
 
-//#include "opencv2/highgui/highgui.hpp"
-//#include "opencv2/features2d/features2d.hpp"
-#include "cv.hpp"
+#include "opencv2/core/core.hpp"
 #include "glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"

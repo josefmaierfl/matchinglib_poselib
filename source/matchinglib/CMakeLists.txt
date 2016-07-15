@@ -2,7 +2,7 @@
 #
 # External dependencies
 #
-
+message(STATUS HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH)
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
 
 if(WIN32)
@@ -21,13 +21,17 @@ endif()
 
 find_package(Eigen REQUIRED)
 
-
-if(WIN32)
-  set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-  find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
+if(NOT OpenCV_DIR)
+    message(STATUS "could not find any opencv dir trying fallback")
+    if(WIN32)
+      set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
+      find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
+    else()
+      set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
+      find_package(OpenCV 3.0 REQUIRED)
+    endif()
 else()
-  set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
-  find_package(OpenCV 3.1 REQUIRED)
+    find_package(OpenCV 3.0 REQUIRED)
 endif()
 
 
