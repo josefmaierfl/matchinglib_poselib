@@ -92,9 +92,9 @@ void getAngularStatistic(const std::vector<double>& vals, qualityParm *stats, bo
 //This function performs a guided matching on the basis of precalculated statistical optical flow (output of one match per keypoint)
 int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
                    float gridElemSize,
-                   std::vector<cv::KeyPoint>& keypoints,
-                   cv::Mat& descriptors1,
-                   cv::Mat& descriptors2,
+                   std::vector<cv::KeyPoint> const& keypoints,
+                   cv::Mat const& descriptors1,
+                   cv::Mat const& descriptors2,
                    KDTree_D2float &keypointtree,
                    std::vector<int>& keypIndexes,
                    cv::Size imgSi,
@@ -103,9 +103,9 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
 //This function performs a guided matching on the basis of precalculated statistical optical flow (output of knn)
 int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
                    float gridElemSize,
-                   std::vector<KeyPoint> &keypoints,
-                   Mat &descriptors1,
-                   Mat &descriptors2,
+                   std::vector<KeyPoint> const &keypoints,
+                   const Mat &descriptors1,
+                   const Mat &descriptors2,
                    KDTree_D2float &keypointtree,
                    std::vector<int> &keypIndexes,
                    cv::Size imgSi,
@@ -113,11 +113,11 @@ int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
                    unsigned int knn = 0,
                    std::vector<std::vector<mCostDist> > mprops = std::vector<std::vector<mCostDist>>());
 //Generates a sparse set of keypoints from a large keypoint set.
-void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit,
+void get_Sparse_KeypointField(std::vector<std::pair<KeyPoint, int> > &keypInit,
                               KDTree_D2float &keypointtree,
                               EMatFloat2 eigkeypts,
                               EMatFloat2 gridPoints,
-                              std::vector<cv::KeyPoint>& keypoints,
+                              const std::vector<KeyPoint> &keypoints,
                               int divx,
                               int divy,
                               float imgpart,
@@ -214,9 +214,9 @@ bool IsPopCntAvailable();
  *												-8:		  Descriptor type not supported
  *												-9:		  Wrong SOF grid format
  */
-int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
-                      std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2,
-                      cv::Mat descriptors1, cv::Mat descriptors2, cv::Size imgSi,
+int AdvancedMatching(cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
+                      std::vector<KeyPoint> const &keypoints1, std::vector<KeyPoint> const &keypoints2,
+                      Mat const& descriptors1, Mat const& descriptors2, cv::Size imgSi,
                       std::vector<DMatch>& filteredMatches12, bool finalCrossCheck, double validationTH,
                       double stdMult, int BFknn, bool filterSmallFlow,
                       std::vector<float> *costRatios, std::vector<float> *distRatios,
@@ -3754,9 +3754,9 @@ inline float getL2Distance(cv::Mat const& vec1, cv::Mat const& vec2)
  */
 int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
                    float gridElemSize,
-                   std::vector<KeyPoint> &keypoints,
-                   Mat &descriptors1,
-                   Mat &descriptors2,
+                   const std::vector<KeyPoint> &keypoints,
+                   const Mat &descriptors1,
+                   const Mat &descriptors2,
                    KDTree_D2float &keypointtree,
                    std::vector<int> &keypIndexes,
                    cv::Size imgSi,
@@ -4050,9 +4050,9 @@ int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
  */
 int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
                    float gridElemSize,
-                    std::vector<cv::KeyPoint>& keypoints,
-                    cv::Mat& descriptors1,
-                    cv::Mat& descriptors2,
+                    const std::vector<KeyPoint> &keypoints,
+                    cv::Mat const& descriptors1,
+                    cv::Mat const& descriptors2,
                     KDTree_D2float &keypointtree,
                     std::vector<int>& keypIndexes,
                     cv::Size imgSi,
@@ -4113,7 +4113,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
     float var_searchRadius;
     int max_search_its = MAX_ENLARGE_ITS;
     const static float enlarge_sRadius = 1.265625; //1.125*1.125=1.265625 (is squared because the squared range is used within the KD-tree)
-    const unsigned int gridSPsize[2] = {gridSearchParams[0].size(), gridSearchParams.size()};//Format [x,y] -> gridSearchParams[y][x]
+    const unsigned int gridSPsize[2] = {(unsigned)gridSearchParams[0].size(), (unsigned)gridSearchParams.size()};//Format [x,y] -> gridSearchParams[y][x]
     const unsigned int gridSPsizeIdx[2] = {gridSPsize[0] - 1, gridSPsize[1] - 1};
 #if FILTER_WITH_CD_RATIOS
     mCostDist mprop_tmp = {0,0,0,0};
@@ -4469,11 +4469,11 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
  *
  * Return value:								none
  */
-void get_Sparse_KeypointField(std::vector<std::pair<cv::KeyPoint,int>> &keypInit,
+void get_Sparse_KeypointField(std::vector<std::pair<KeyPoint, int> > &keypInit,
                               KDTree_D2float &keypointtree,
                               EMatFloat2 eigkeypts,
                               EMatFloat2 gridPoints,
-                              std::vector<KeyPoint> &keypoints,
+                              std::vector<KeyPoint> const&keypoints,
                               int divx,
                               int divy,
                               float imgpart,

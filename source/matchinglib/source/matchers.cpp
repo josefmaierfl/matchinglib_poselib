@@ -48,9 +48,9 @@ namespace matchinglib
   /* --------------------- Function prototypes --------------------- */
 
 //This function compares the weights of the matches to be able to sort them accordingly while keeping track of the index.
-  bool sortMatchWeightIdx(std::pair<double,unsigned int> first, std::pair<double,unsigned int> second);
+  bool sortMatchWeightIdx(std::pair<double,unsigned int>& first, std::pair<double,unsigned int>& second);
 //The Cascade Hashing matcher
-  int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & matches);
+  int cashashMatching(cv::Mat const& descrL, cv::Mat const& descrR, std::vector<cv::DMatch> & matches);
 
   /* --------------------- Functions --------------------- */
 
@@ -263,7 +263,7 @@ namespace matchinglib
 
         /*delete[] indices.ptr();
         delete[] dists.ptr();*/
-		delete[] indices.data;
+        delete[] indices.data;
         delete[] dists.data;
       }
       else
@@ -339,7 +339,7 @@ namespace matchinglib
 
         /*delete[] indices.ptr();
         delete[] dists.ptr();*/
-		delete[] indices.data;
+        delete[] indices.data;
         delete[] dists.data;
       }
 
@@ -372,7 +372,7 @@ namespace matchinglib
     return 0;
   }
 
-  int cashashMatching(cv::Mat descrL, cv::Mat descrR, std::vector<cv::DMatch> & matches)
+  int cashashMatching(cv::Mat const& descrL, cv::Mat const& descrR, std::vector<cv::DMatch> & matches)
   {
     ImageData imgdata1, imgdata2;
 
@@ -549,7 +549,7 @@ namespace matchinglib
    *                        -1:     Subpixel refinement failed for too many keypoints
    *                        -2:     Size of keypoint sets not equal
    */
-  int getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keypoints1, std::vector<cv::KeyPoint> *keypoints2,
+  int getSubPixMatches(cv::Mat &img1, cv::Mat &img2, std::vector<cv::KeyPoint> *keypoints1, std::vector<cv::KeyPoint> *keypoints2,
                        std::vector<bool> *inliers)
   {
     cv::Mat results;
@@ -751,7 +751,7 @@ namespace matchinglib
    * KeyPoint first       Input  -> First pair of match and index
    * KeyPoint second        Input  -> Second pair of match and index
    */
-  bool sortMatchWeightIdx(std::pair<double,unsigned int> first, std::pair<double,unsigned int> second)
+  bool sortMatchWeightIdx(std::pair<double, unsigned int> &first, std::pair<double, unsigned int> &second)
   {
     return first.first < second.first;
   }

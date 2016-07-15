@@ -14,7 +14,7 @@
  VERSION: 1.0
 
  DISCRIPTION: This file provides functionalities for generating matched feature sets out of image
-			  information.
+              information.
 **********************************************************************************************************/
 
 #pragma once
@@ -35,21 +35,21 @@ namespace matchinglib
 /* --------------------- Function prototypes --------------------- */
 
 //Generation of features followed by matching, filtering, and subpixel-refinement.
-int MATCHINGLIB_API getCorrespondences(cv::Mat img1,
-					   cv::Mat img2,
-					   std::vector<cv::DMatch> & finalMatches,
-					   std::vector<cv::KeyPoint> & kp1,
-					   std::vector<cv::KeyPoint> & kp2,
-					   std::string featuretype = "FAST",
-					   std::string extractortype = "FREAK",
-					   std::string matchertype = "GMBSOF",
-					   bool dynamicKeypDet = true,
-					   int limitNrfeatures = 8000,
-					   bool VFCrefine = false,
-					   bool ratioTest = true,
-					   bool SOFrefine = false,
-					   bool subPixRefine = false,
-					   int verbose = 0);
+int MATCHINGLIB_API getCorrespondences(cv::Mat& img1,
+                       cv::Mat& img2,
+                       std::vector<cv::DMatch> & finalMatches,
+                       std::vector<cv::KeyPoint> & kp1,
+                       std::vector<cv::KeyPoint> & kp2,
+                       std::string featuretype = "FAST",
+                       std::string extractortype = "FREAK",
+                       std::string matchertype = "GMBSOF",
+                       bool dynamicKeypDet = true,
+                       int limitNrfeatures = 8000,
+                       bool VFCrefine = false,
+                       bool ratioTest = true,
+                       bool SOFrefine = false,
+                       bool subPixRefine = false,
+                       int verbose = 0);
 
 bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
 std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();

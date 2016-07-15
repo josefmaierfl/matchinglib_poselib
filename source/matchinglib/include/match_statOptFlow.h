@@ -4,7 +4,7 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: September 2015
@@ -45,20 +45,20 @@ typedef nanoflann::KDTreeEigenMatrixAdaptor< EMatFloat2, 2,nanoflann::metric_L2_
 #define MIN_INIT_INL_RATIO_F 0.08 //If the inlier ratio after initial matching with binary descriptors (e.g. FREAK) is below this value, tree-based matching is performed instead of GMbSOF
 #define AUTOTH 1 //If 1, the SOF validation threshold is calculated using the estimated inlier ratio after initial matching. If 0, the provided or default=0.3 threshold is used
 #define FILTER_WITH_CD_RATIOS 0 //If 2, the final matches are filtered according to their cost and distance ratios (cost / med. cost of surrounding matches, dist. to SOF-estimated pos. / med. of surrounding dists).
-								//If it is only one, the ratios are calculated but no filtering is performed. This is used for testing.
+                                //If it is only one, the ratios are calculated but no filtering is performed. This is used for testing.
 
 /* --------------------- Function prototypes --------------------- */
 
 //Matches large sets of keypoints very effective and finds more correct matches than with BF matching
 int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
-					  std::vector<cv::KeyPoint> keypoints1, std::vector<cv::KeyPoint> keypoints2, 
-					  cv::Mat descriptors1, cv::Mat descriptors2, cv::Size imgSi,
+                      std::vector<cv::KeyPoint> const& keypoints1, std::vector<cv::KeyPoint> const& keypoints2,
+                      cv::Mat const& descriptors1, cv::Mat const& descriptors2, cv::Size imgSi,
                       std::vector<cv::DMatch>& filteredMatches12, bool finalCrossCheck = true, double validationTH = 0.3,
-					  double stdMult = 3.5, int BFknn = 2, bool filterSmallFlow = false, 
-					  std::vector<float> *costRatios = NULL, std::vector<float> *distRatios = NULL,
-					  double *estiInlRatio = NULL, std::vector<cv::DMatch> *initFilteredMatches = NULL, cv::InputArray img1 = cv::noArray(), cv::InputArray img2 = cv::noArray());
+                      double stdMult = 3.5, int BFknn = 2, bool filterSmallFlow = false,
+                      std::vector<float> *costRatios = NULL, std::vector<float> *distRatios = NULL,
+                      double *estiInlRatio = NULL, std::vector<cv::DMatch> *initFilteredMatches = NULL, cv::InputArray img1 = cv::noArray(), cv::InputArray img2 = cv::noArray());
 //Generates a grid-based statistical flow for many areas over the whole image.
-int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 keyP2, cv::Size imgSi, 
-									std::vector<std::vector<cv::Point3f>> & gridSearchParams, float *gridElemSize,
-									cv::OutputArray mask = cv::noArray(), bool filterSmallFlow = false, 
-									unsigned int minYGridSize = 0, double validationTH = 0.3, KDTree_D2float *keypts1idxall = NULL, double stdMult_ = 3.5);
+int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 keyP2, cv::Size imgSi,
+                                    std::vector<std::vector<cv::Point3f>> & gridSearchParams, float *gridElemSize,
+                                    cv::OutputArray mask = cv::noArray(), bool filterSmallFlow = false,
+                                    unsigned int minYGridSize = 0, double validationTH = 0.3, KDTree_D2float *keypts1idxall = NULL, double stdMult_ = 3.5);

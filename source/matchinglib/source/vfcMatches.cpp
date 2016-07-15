@@ -37,40 +37,41 @@ using namespace std;
  *												-1:		  Too less matches for refinement
  *												-2:		  Maybe VFC failed
  */
-int filterWithVFC(std::vector<cv::KeyPoint> keypL, std::vector<cv::KeyPoint> keypR, std::vector<cv::DMatch> matches_in, std::vector<cv::DMatch> & matches_out)
+int filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoint> const& keypR,
+                  std::vector<cv::DMatch> const& matches_in, std::vector<cv::DMatch> & matches_out)
 {
-	//Clear variables
-	matches_out.clear();
-	//Remove mismatches by vector field consensus (VFC)
-	// preprocess data format
-	vector<cv::Point2f> X;
-	vector<cv::Point2f> Y;
-	X.clear();
-	Y.clear();
-	for (unsigned int i = 0; i < matches_in.size(); i++) {
-		int idx1 = matches_in[i].queryIdx;
-		int idx2 = matches_in[i].trainIdx;
-		X.push_back(keypL[idx1].pt);
-		Y.push_back(keypR[idx2].pt);
-	}
+    //Clear variables
+    matches_out.clear();
+    //Remove mismatches by vector field consensus (VFC)
+    // preprocess data format
+    vector<cv::Point2f> X;
+    vector<cv::Point2f> Y;
+    X.clear();
+    Y.clear();
+    for (unsigned int i = 0; i < matches_in.size(); i++) {
+        int idx1 = matches_in[i].queryIdx;
+        int idx2 = matches_in[i].trainIdx;
+        X.push_back(keypL[idx1].pt);
+        Y.push_back(keypR[idx2].pt);
+    }
 
-	// main process
-	VFC myvfc;
-	if(!myvfc.setData(X, Y))
-	{
-		cout << "Too less matches for refinement with VFC!" << endl;
-		return -1; //Too less matches for refinement
-	}
-	myvfc.optimize();
-	vector<int> matchIdx = myvfc.obtainCorrectMatch();
+    // main process
+    VFC myvfc;
+    if(!myvfc.setData(X, Y))
+    {
+        cout << "Too less matches for refinement with VFC!" << endl;
+        return -1; //Too less matches for refinement
+    }
+    myvfc.optimize();
+    vector<int> matchIdx = myvfc.obtainCorrectMatch();
 
-	for (unsigned int i = 0; i < matchIdx.size(); i++) {
-		int idx = matchIdx[i];
-		matches_out.push_back(matches_in[idx]);
-	}
+    for (unsigned int i = 0; i < matchIdx.size(); i++) {
+        int idx = matchIdx[i];
+        matches_out.push_back(matches_in[idx]);
+    }
 
-	if((double)matches_out.size() / (double)matches_in.size() < 0.1)
-		return -2; //Maybe VFC failed
+    if((double)matches_out.size() / (double)matches_in.size() < 0.1)
+        return -2; //Maybe VFC failed
 
-	return 0;
+    return 0;
 }

@@ -4,7 +4,7 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: October 2015
@@ -43,152 +43,152 @@ using namespace std;
  * Return value:								true:		  Everything ok
  *												false:		  Too less matches are left
  */
-bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors2,
+bool ratioTestFlannMatches(const cv::Mat& descriptors1, const cv::Mat& descriptors2,
                          std::vector<cv::DMatch>& filteredMatches12, double *estim_inlRatio, bool onlyRatTestMatches)
 {
-	int nn = 2;
-	filteredMatches12.clear();
-	if(descriptors1.type() == CV_32F)
-	{
-		cvflann::Matrix<float> dataset((float*)descriptors2.data, descriptors2.rows, descriptors2.cols);
-		cvflann::Matrix<float> query((float*)descriptors1.data, descriptors1.rows, descriptors1.cols);
+    int nn = 2;
+    filteredMatches12.clear();
+    if(descriptors1.type() == CV_32F)
+    {
+        cvflann::Matrix<float> dataset((float*)descriptors2.data, descriptors2.rows, descriptors2.cols);
+        cvflann::Matrix<float> query((float*)descriptors1.data, descriptors1.rows, descriptors1.cols);
 
-		cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-		cvflann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
-		/*vector<vector<int>> indices;
-		vector<vector<float>> dists;*/
+        cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
+        cvflann::Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
+        /*vector<vector<int>> indices;
+        vector<vector<float>> dists;*/
 
-		// construct an randomized kd-tree index using 8 kd-trees
-		cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::KDTreeIndexParams(8));
-		index.buildIndex();
+        // construct an randomized kd-tree index using 8 kd-trees
+        cvflann::Index<cvflann::L2<float>> index(dataset, cvflann::KDTreeIndexParams(8));
+        index.buildIndex();
 
-		// do a knn search, using 32 checks (higher values lead to higher precision, but slower performance)
-		index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
+        // do a knn search, using 32 checks (higher values lead to higher precision, but slower performance)
+        index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
 
-		//Ratio test
-		for(size_t q = 0; q < indices.rows; q++)
-		{
-			if(dists[q][0] < (0.75f * dists[q][1]))
-			{
-				cv::DMatch match;
-				match.distance = dists[q][0];
-				match.queryIdx = q;
-				match.trainIdx = indices[q][0];
-				filteredMatches12.push_back(match);
-			}
-		}
+        //Ratio test
+        for(size_t q = 0; q < indices.rows; q++)
+        {
+            if(dists[q][0] < (0.75f * dists[q][1]))
+            {
+                cv::DMatch match;
+                match.distance = dists[q][0];
+                match.queryIdx = q;
+                match.trainIdx = indices[q][0];
+                filteredMatches12.push_back(match);
+            }
+        }
 
-		if(estim_inlRatio)
-		{
-			*estim_inlRatio = (double)filteredMatches12.size() / (double)indices.rows;
-		}
+        if(estim_inlRatio)
+        {
+            *estim_inlRatio = (double)filteredMatches12.size() / (double)indices.rows;
+        }
 
-		if((filteredMatches12.size() < 30) && !onlyRatTestMatches) //Get 50% (if 50% are larger than 30) of the matches with the best ratio
-		{
-			vector<pair<size_t,float>> matches2;
-			size_t matchesSize = indices.rows;
-			filteredMatches12.clear();
-			for(size_t q = 0; q < matchesSize; q++)
-			{
+        if((filteredMatches12.size() < 30) && !onlyRatTestMatches) //Get 50% (if 50% are larger than 30) of the matches with the best ratio
+        {
+            vector<pair<size_t,float>> matches2;
+            size_t matchesSize = indices.rows;
+            filteredMatches12.clear();
+            for(size_t q = 0; q < matchesSize; q++)
+            {
                 matches2.push_back(make_pair(q, dists[q][0] / dists[q][1]));
-			}
-			//Sort ratios to get the smaller values first (better ratio)
-			sort(matches2.begin(), matches2.end(),
-				[](pair<size_t,float> first, pair<size_t,float> second){return first.second < second.second;});
-			if((matchesSize > 60) && (matchesSize < 120))
-				matchesSize /= 2;
-			else if(matchesSize > 120)
-				matchesSize = 60;
-			while((matchesSize > 0) && (matches2[matchesSize - 1].second > 0.85f))
-				matchesSize--;
-			for(size_t q = 0; q < matchesSize; q++)
-			{
-				cv::DMatch match;
-				int idx = (int)matches2[q].first;
-				match.distance = dists[idx][0];
-				match.queryIdx = idx;
-				match.trainIdx = indices[idx][0];
-				filteredMatches12.push_back(match);
-			}
-		}
-		/*delete[] indices.ptr();
-		delete[] dists.ptr();*/
-		delete[] indices.data;
-		delete[] dists.data;
-	}
-	else if(descriptors1.type() == CV_8U)
-	{
-		cvflann::Matrix<unsigned char> dataset(descriptors2.data, descriptors2.rows, descriptors2.cols);
-		cvflann::Matrix<unsigned char> query(descriptors1.data, descriptors1.rows, descriptors1.cols);
-		
-		cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-		cvflann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
-		/*vector<vector<int>> indices;
-		vector<vector<int>> dists;*/
+            }
+            //Sort ratios to get the smaller values first (better ratio)
+            sort(matches2.begin(), matches2.end(),
+                [](pair<size_t,float> first, pair<size_t,float> second){return first.second < second.second;});
+            if((matchesSize > 60) && (matchesSize < 120))
+                matchesSize /= 2;
+            else if(matchesSize > 120)
+                matchesSize = 60;
+            while((matchesSize > 0) && (matches2[matchesSize - 1].second > 0.85f))
+                matchesSize--;
+            for(size_t q = 0; q < matchesSize; q++)
+            {
+                cv::DMatch match;
+                int idx = (int)matches2[q].first;
+                match.distance = dists[idx][0];
+                match.queryIdx = idx;
+                match.trainIdx = indices[idx][0];
+                filteredMatches12.push_back(match);
+            }
+        }
+        /*delete[] indices.ptr();
+        delete[] dists.ptr();*/
+        delete[] indices.data;
+        delete[] dists.data;
+    }
+    else if(descriptors1.type() == CV_8U)
+    {
+        cvflann::Matrix<unsigned char> dataset(descriptors2.data, descriptors2.rows, descriptors2.cols);
+        cvflann::Matrix<unsigned char> query(descriptors1.data, descriptors1.rows, descriptors1.cols);
 
-		// construct a hierarchical clustering index
-		cvflann::Index<cvflann::HammingLUT> index(dataset, cvflann::HierarchicalClusteringIndexParams());
-		index.buildIndex();
+        cvflann::Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
+        cvflann::Matrix<int> dists(new int[query.rows*nn], query.rows, nn);
+        /*vector<vector<int>> indices;
+        vector<vector<int>> dists;*/
 
-		// do a knn search, using 64 checks (higher values lead to higher precision, but slower performance)
-		index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
+        // construct a hierarchical clustering index
+        cvflann::Index<cvflann::HammingLUT> index(dataset, cvflann::HierarchicalClusteringIndexParams());
+        index.buildIndex();
 
-		//Ratio test
-		for(size_t q = 0; q < indices.rows; q++)
-		{
-			if((float)dists[q][0] < (0.75f * (float)dists[q][1]))
-			{
-				cv::DMatch match;
-				match.distance = (float)dists[q][0];
-				match.queryIdx = q;
-				match.trainIdx = indices[q][0];
-				filteredMatches12.push_back(match);
-			}
-		}
+        // do a knn search, using 64 checks (higher values lead to higher precision, but slower performance)
+        index.knnSearch(query, indices, dists, nn, cvflann::SearchParams(64));
 
-		if(estim_inlRatio)
-		{
-			*estim_inlRatio = (double)filteredMatches12.size() / (double)indices.rows;
-		}
+        //Ratio test
+        for(size_t q = 0; q < indices.rows; q++)
+        {
+            if((float)dists[q][0] < (0.75f * (float)dists[q][1]))
+            {
+                cv::DMatch match;
+                match.distance = (float)dists[q][0];
+                match.queryIdx = q;
+                match.trainIdx = indices[q][0];
+                filteredMatches12.push_back(match);
+            }
+        }
 
-		if(filteredMatches12.size() < 30) //Get 50% (if 50% are larger than 30) of the matches with the best ratio
-		{
-			vector<pair<size_t,float>> matches2;
-			size_t matchesSize = indices.rows;
-			filteredMatches12.clear();
-			for(size_t q = 0; q < matchesSize; q++)
-			{
+        if(estim_inlRatio)
+        {
+            *estim_inlRatio = (double)filteredMatches12.size() / (double)indices.rows;
+        }
+
+        if(filteredMatches12.size() < 30) //Get 50% (if 50% are larger than 30) of the matches with the best ratio
+        {
+            vector<pair<size_t,float>> matches2;
+            size_t matchesSize = indices.rows;
+            filteredMatches12.clear();
+            for(size_t q = 0; q < matchesSize; q++)
+            {
                 matches2.push_back(make_pair(q, (float)dists[q][0] / (float)dists[q][1]));
-			}
-			//Sort ratios to get the smaller values first (better ratio)
-			sort(matches2.begin(), matches2.end(),
-				[](pair<size_t,float> first, pair<size_t,float> second){return first.second < second.second;});
-			if((matchesSize > 60) && (matchesSize < 120))
-				matchesSize /= 2;
-			else if(matchesSize > 120)
-				matchesSize = 60;
-			while((matchesSize > 0) && (matches2[matchesSize - 1].second > 0.85f))
-				matchesSize--;
-			for(size_t q = 0; q < matchesSize; q++)
-			{
-				cv::DMatch match;
-				int idx = (int)matches2[q].first;
-				match.distance = (float)dists[idx][0];
-				match.queryIdx = idx;
-				match.trainIdx = indices[idx][0];
-				filteredMatches12.push_back(match);
-			}
-		}
-		/*delete[] indices.ptr();
-		delete[] dists.ptr();*/
-		delete[] indices.data;
-		delete[] dists.data;
-	}
-	else
-	{
-		cout << "Format of descriptors not supported!" << endl;
-		return false;
-	}
+            }
+            //Sort ratios to get the smaller values first (better ratio)
+            sort(matches2.begin(), matches2.end(),
+                [](pair<size_t,float> first, pair<size_t,float> second){return first.second < second.second;});
+            if((matchesSize > 60) && (matchesSize < 120))
+                matchesSize /= 2;
+            else if(matchesSize > 120)
+                matchesSize = 60;
+            while((matchesSize > 0) && (matches2[matchesSize - 1].second > 0.85f))
+                matchesSize--;
+            for(size_t q = 0; q < matchesSize; q++)
+            {
+                cv::DMatch match;
+                int idx = (int)matches2[q].first;
+                match.distance = (float)dists[idx][0];
+                match.queryIdx = idx;
+                match.trainIdx = indices[idx][0];
+                filteredMatches12.push_back(match);
+            }
+        }
+        /*delete[] indices.ptr();
+        delete[] dists.ptr();*/
+        delete[] indices.data;
+        delete[] dists.data;
+    }
+    else
+    {
+        cout << "Format of descriptors not supported!" << endl;
+        return false;
+    }
 
-	return true;
+    return true;
 }

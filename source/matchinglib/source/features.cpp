@@ -9,7 +9,7 @@
 
  DATE: April 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -116,7 +116,7 @@ namespace matchinglib
    *                  -2:     Error creating feature detector
    *                  -3:     No such feature detector
    */
-  int getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string keypointtype, bool dynamicKeypDet, int limitNrfeatures)
+  int getKeypoints(Mat &img, std::vector<cv::KeyPoint>& keypoints, string &keypointtype, bool dynamicKeypDet, int limitNrfeatures)
   {
     const int minnumfeatures = 10, maxnumfeatures = limitNrfeatures;
 
@@ -241,7 +241,7 @@ namespace matchinglib
       //    /*Ptr<FeatureDetector> detector(new GridAdaptedFeatureDetector(new DynamicAdaptedFeatureDetector(new FastAdjuster(),
       //                                    min_grid_features,max_grid_features,10),maxnumfeatures,imgrows,imgcols));*/
       //
-      //    //cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+      //    //cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfï¿½gbar
 
       //    if(detector.empty())
       //    {
@@ -286,7 +286,7 @@ namespace matchinglib
       //    detector->detect(img,*keypoints);
       //    if(keypoints->size() > maxnumfeatures)
       //    {
-      //      cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+      //      cv::KeyPointsFilter::retainBest(*keypoints, maxnumfeatures); //--------------> auch andere Filter verfï¿½gbar
       //      /*std::sort(keypoints->begin(),keypoints->end(),sortKeyPoints);
       //      keypoints->erase(keypoints->begin()+maxnumfeatures,keypoints->begin()+keypoints->size());*/
       //    }
@@ -332,7 +332,7 @@ namespace matchinglib
 
       if((int)keypoints.size() > maxnumfeatures)
       {
-        cv::KeyPointsFilter::retainBest(keypoints, maxnumfeatures); //--------------> auch andere Filter verfügbar
+        cv::KeyPointsFilter::retainBest(keypoints, maxnumfeatures); //--------------> auch andere Filter verfï¿½gbar
       }
 
       if(keypoints.size() < minnumfeatures)
@@ -358,9 +358,9 @@ namespace matchinglib
    *                      -1:     Cannot create descriptor extractor
    *                      -2:     No such extractor type
    */
-  int getDescriptors(cv::Mat img,
+  int getDescriptors(cv::Mat& img,
                      std::vector<cv::KeyPoint> & keypoints,
-                     std::string descriptortype,
+                     std::string& descriptortype,
                      cv::Mat & descriptors)
   {
     descriptors = cv::Mat(0,0,0);

@@ -26,4 +26,4 @@
 /* --------------------- Function prototypes --------------------- */
 
 //Filters matches using the VFC algorithm
-int filterWithVFC(std::vector<cv::KeyPoint> keypL, std::vector<cv::KeyPoint> keypR, std::vector<cv::DMatch> matches_in, std::vector<cv::DMatch> & matches_out);
+int filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoint> const& keypR, std::vector<cv::DMatch> const& matches_in, std::vector<cv::DMatch> & matches_out);

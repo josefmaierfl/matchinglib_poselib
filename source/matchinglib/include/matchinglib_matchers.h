@@ -39,7 +39,7 @@ namespace matchinglib
                                  cv::Mat const& descriptors1, cv::Mat const& descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
                                  std::string const& matcher_name = "GMBSOF", bool VFCrefine = false, bool ratioTest = true);
 //This function calculates the subpixel-position of matched keypoints by template matching
-  int MATCHINGLIB_API getSubPixMatches(cv::Mat img1, cv::Mat img2, std::vector<cv::KeyPoint> *keypoints1,
+  int MATCHINGLIB_API getSubPixMatches(cv::Mat& img1, cv::Mat& img2, std::vector<cv::KeyPoint> *keypoints1,
                                        std::vector<cv::KeyPoint> *keypoints2, std::vector<bool> *inliers = NULL);
 
   bool MATCHINGLIB_API IsMatcherSupported(std::string const& type);

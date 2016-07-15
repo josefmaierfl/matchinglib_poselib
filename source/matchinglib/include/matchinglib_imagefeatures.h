@@ -32,12 +32,12 @@ namespace matchinglib
 
   /* --------------------- Function prototypes --------------------- */
 //Find the keypoints in the image
-  int MATCHINGLIB_API getKeypoints(cv::Mat img, std::vector<cv::KeyPoint>& keypoints, std::string keypointtype, bool dynamicKeypDet = true,
+  int MATCHINGLIB_API getKeypoints(cv::Mat& img, std::vector<cv::KeyPoint>& keypoints, std::string& keypointtype, bool dynamicKeypDet = true,
                                    int limitNrfeatures = 8000);
 //Extraction of descriptors at given keypoint locations
-  int MATCHINGLIB_API getDescriptors(cv::Mat img,
+  int MATCHINGLIB_API getDescriptors(cv::Mat &img,
                                      std::vector<cv::KeyPoint> & keypoints,
-                                     std::string descriptortype,
+                                     std::string& descriptortype,
                                      cv::Mat & descriptors);
 
   bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);

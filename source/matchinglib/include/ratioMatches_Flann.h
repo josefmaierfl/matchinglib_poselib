@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: October 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -26,5 +26,5 @@
 /* --------------------- Function prototypes --------------------- */
 
 //This function performs the rario test and returns only matches with the best ratio
-bool ratioTestFlannMatches(const cv::Mat descriptors1, const cv::Mat descriptors2,
+bool ratioTestFlannMatches(const cv::Mat &descriptors1, const cv::Mat &descriptors2,
                          std::vector<cv::DMatch>& filteredMatches12, double *estim_inlRatio = NULL, bool onlyRatTestMatches = false);
