@@ -90,7 +90,7 @@ void getStatisticfromVec(const std::vector<double>& vals, qualityParm *stats, bo
 //Calculates statistical parameters for a vector of angular values including values near 0 and 2*pi
 void getAngularStatistic(const std::vector<double>& vals, qualityParm *stats, bool rejQuartiles = false);
 //This function performs a guided matching on the basis of precalculated statistical optical flow (output of one match per keypoint)
-int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
+int guidedMatching(std::vector<std::vector<Point3f> > gridSearchParams,
                    float gridElemSize,
                    std::vector<cv::KeyPoint> const& keypoints,
                    cv::Mat const& descriptors1,
@@ -101,7 +101,7 @@ int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
                    std::vector<cv::DMatch> &matches,
                    std::vector<mCostDist> mprops = std::vector<mCostDist>());
 //This function performs a guided matching on the basis of precalculated statistical optical flow (output of knn)
-int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
+int guidedMatching(std::vector<std::vector<Point3f> > gridSearchParams,
                    float gridElemSize,
                    std::vector<KeyPoint> const &keypoints,
                    const Mat &descriptors1,
@@ -3752,7 +3752,7 @@ inline float getL2Distance(cv::Mat const& vec1, cv::Mat const& vec2)
  *												-2:		  Too less remaining matches (maybe because of too many duplicates)
  *												-3:		  Size in dimension 1 (x and bin cols, respectively) must be the same for all bin rows (y coordinates) in gridSearchParams
  */
-int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
+int guidedMatching(std::vector<std::vector<Point3f> > gridSearchParams,
                    float gridElemSize,
                    const std::vector<KeyPoint> &keypoints,
                    const Mat &descriptors1,
@@ -4048,7 +4048,7 @@ int guidedMatching(std::vector<std::vector<Point3f> > &gridSearchParams,
  *												-2:		  Too less remaining matches
  *												-3:		  Size in dimension 1 (x and bin cols, respectively) must be the same for all bin rows (y coordinates) in gridSearchParams
  */
-int guidedMatching(std::vector<std::vector<cv::Point3f>>& gridSearchParams,
+int guidedMatching(std::vector<std::vector<Point3f> > gridSearchParams,
                    float gridElemSize,
                     const std::vector<KeyPoint> &keypoints,
                     cv::Mat const& descriptors1,
