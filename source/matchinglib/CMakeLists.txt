@@ -71,6 +71,7 @@ set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 file(GLOB_RECURSE header_files
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.inl"
 )
 set(headers
 #    ${include_path}/test.h
@@ -82,6 +83,7 @@ set(sources
     ${source_path}/correspondences.cpp
     ${source_path}/features.cpp
     ${source_path}/match_statOptFlow.cpp
+    ${source_path}/match_opticalflow.cpp
     ${source_path}/vfc.cpp
     ${source_path}/vfcMatches.cpp
     ${source_path}/ratioMatches_Flann.cpp

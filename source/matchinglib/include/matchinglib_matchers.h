@@ -38,6 +38,18 @@ namespace matchinglib
   int MATCHINGLIB_API getMatches(const std::vector<cv::KeyPoint> &keypoints1, const std::vector<cv::KeyPoint> &keypoints2,
                                  cv::Mat const& descriptors1, cv::Mat const& descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
                                  std::string const& matcher_name = "GMBSOF", bool VFCrefine = false, bool ratioTest = true);
+
+  int MATCHINGLIB_API getMatches_OpticalFlow(const std::vector<cv::KeyPoint> &keypoints_prev, const std::vector<cv::KeyPoint> &keypoints_next,
+      cv::Mat &img_prev, cv::Mat const& img_next, std::vector<cv::DMatch> & finalMatches,
+      bool const buildpyr = false, bool drawRes = true, cv::Size winSize = cv::Size(31,31), float searchRadius_px = 10.0f);
+
+  int MATCHINGLIB_API getMatches_OpticalFlowAdvanced(const std::vector<cv::KeyPoint> &keypoints_prev,
+      const std::vector<cv::KeyPoint> &keypoints_next,
+      cv::Mat const& descriptors1, cv::Mat const& descriptors2,
+      cv::Mat &img_prev, cv::Mat const& img_next, std::vector<cv::DMatch> & finalMatches, std::string const& matcher_name = "ALKOF",
+      bool const buildpyr = false, bool drawRes = true, cv::Size winSize = cv::Size(31,31), float searchRadius_px = 10.0f,
+      unsigned const numNeighbors = 3);
+
 //This function calculates the subpixel-position of matched keypoints by template matching
   int MATCHINGLIB_API getSubPixMatches(cv::Mat& img1, cv::Mat& img2, std::vector<cv::KeyPoint> *keypoints1,
                                        std::vector<cv::KeyPoint> *keypoints2, std::vector<bool> *inliers = NULL);
