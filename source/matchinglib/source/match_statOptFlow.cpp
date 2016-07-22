@@ -104,11 +104,6 @@ namespace matchinglib
 //This function compares the response of two keypoints to be able to sort them accordingly while keeping track of the index.
   bool sortKeyPointsIdx(std::pair<cv::KeyPoint,int>& first, std::pair<cv::KeyPoint,int>& second);
 //This function calculates the L1-norm of the hamming distance between two column vectors using a LUT.
-  unsigned int getHammingL1(cv::Mat const& vec1, cv::Mat const& vec2);
-//This function calculates the L1-norm of the hamming distance between two column vectors using the CPU popcnt instruction.
-  unsigned int getHammingL1PopCnt(cv::Mat const& vec1, cv::Mat const& vec2, unsigned char byte8width);
-//This function calculates the L2-norm of two descriptors
-  float getL2Distance(cv::Mat const& vec1, cv::Mat const& vec2);
 //This function interpolates a grid of bins with statistical optical flow (SOF) values to get a smoother transition between the elements.
   void interpolStatOptFlow(std::vector<std::vector<cv::Point3f>> & gridSearchParams, float & gridElemSize, cv::Size imgSi);
 //Used to weight 2 or 3 optical flow elements out of the grid

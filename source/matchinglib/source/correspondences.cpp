@@ -175,7 +175,7 @@ namespace matchinglib
       matchinglib::getMatches_OpticalFlow(keypoints1, keypoints2,
                                           img1, img2,
                                           finalMatches,
-                                          false, true,
+                                          false, false,
                                           cv::Size(21, 21), 5.0f);
 
       kp1 = keypoints1;
@@ -213,7 +213,20 @@ namespace matchinglib
       t_mea = (double)getTickCount(); //Start time measurement
     }
 
-    err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest);
+    if(matchertype == "ALKOF")
+    {
+      matchinglib::getMatches_OpticalFlowAdvanced(keypoints1, keypoints2,
+          descriptors1, descriptors2,
+          img1, img2,
+          finalMatches,
+          "ALKOF",
+          false, false,
+          cv::Size(21, 21), 5.0f, 3);
+    }
+    else
+    {
+      err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest);
+    }
 
     if(err != 0)
     {

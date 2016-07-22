@@ -25,6 +25,9 @@ namespace matchinglib
   //This function calculates the L2-norm of two descriptors
   inline float getL2Distance(cv::Mat const& vec1, cv::Mat const& vec2);
 
+  //
+  inline float calcMatchingCost(cv::Mat const& vDescriptors1, cv::Mat const& vDescriptors2, unsigned const idx1, unsigned const idx2);
+
 
 } // namespace matchinglib
 

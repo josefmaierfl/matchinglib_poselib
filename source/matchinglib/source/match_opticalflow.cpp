@@ -15,6 +15,7 @@
 #include <opencv2/videoio.hpp>
 #include <vector>
 #include <PointCloudOperation.hpp>
+#include <utils.hpp>
 
 using namespace PointCloud;
 
@@ -111,8 +112,9 @@ namespace matchinglib
     size_t const maxNumNeighbors = 10;
     assert(numNeighbors <= maxNumNeighbors);
     assert(img_next.size() == img_prev.size());
-    assert(matcher_name == "LKOF");
+    assert(matcher_name == "LKOF" || matcher_name == "ALKOF");
     assert(img_next.type() == CV_8UC1 && img_prev.type() == CV_8UC1);
+    assert(descriptors1.type() == CV_8U && descriptors2.type() == descriptors1.type());
 
 
     static cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 20, 0.013);
@@ -181,7 +183,7 @@ namespace matchinglib
 
 
       cv::imshow( img_name, cimg );
-      cv::waitKey(0);
+      cv::waitKey(1);
     }
 
     // now check if the pts_predict_next are in the keypoints_next visible!
@@ -197,11 +199,12 @@ namespace matchinglib
     size_t arr_ret_index[maxNumNeighbors];
     float arr_out_dist_sqr[maxNumNeighbors];
 
+    // TODO: check if there are enough pts to track! or to do a nearest neighbor search!
 
     // without descriptos
     if(matcher_name == "LKOF")
     {
-      for(int i = 0; i <vec2d_predict_next.size(); i++)
+      for(unsigned i = 0; i <vec2d_predict_next.size(); i++)
       {
         smartCloud2d.findKnn(vec2d_predict_next[i], 1, arr_ret_index, arr_out_dist_sqr);
 
@@ -217,7 +220,7 @@ namespace matchinglib
     // with descriptors and more neighbors are considered to be possible matches -> hamming distance
     else if(matcher_name == "ALKOF")
     {
-      for(int i = 0; i <vec2d_predict_next.size(); i++)
+      for(unsigned i = 0; i <vec2d_predict_next.size(); i++)
       {
 
         smartCloud2d.findKnn(vec2d_predict_next[i], numNeighbors, arr_ret_index, arr_out_dist_sqr);
@@ -231,22 +234,51 @@ namespace matchinglib
             finalMatches.push_back(cv::DMatch(idx_pred, idx_next, arr_out_dist_sqr[0]));
           }
         }
-        else
+        else // more neighbors have to be considered! calculate the hamming distance
         {
-          int min = 100000;
-          int idx_min = 0;
+          float const max_ham_dist = 50.0f;
+          float min = 10E8;
+          float dist = min;
+          int idx_min = -1;
+          int idx_pred = vec2d_predict_next[i].id;
           // TODO:
-          cv::Mat desc_next();
+          cv::Mat desc_predict = descriptors1.row(idx_pred);
+          cv::Mat desc_posible_next;
+          bool isPopCnt = IsPopCntAvailable();
+          unsigned char byte8width = (unsigned char)descriptors1.cols >> 3;
 
-          for(int k = 0; k < numNeighbors; k++)   // iterate over the neigh.
+          for(unsigned k = 0; k < numNeighbors; k++)   // iterate over the neigh.
           {
             if(arr_out_dist_sqr[k] < maxDist_sqr)
             {
+              int idx_next = vec2d_keypts_next[arr_ret_index[k]].id;
+              desc_posible_next = descriptors2.row(idx_next);
+              float res;
 
+              if(isPopCnt)
+              {
+                res = (float)getHammingL1PopCnt(desc_predict, desc_posible_next, byte8width);
+              }
+              else
+              {
+                res = (float)getHammingL1(desc_predict, desc_posible_next);
+              }
 
+              // better match found: store its data:
+              if(res < max_ham_dist && res < min)
+              {
+                min = res;
+                idx_min = idx_next;
+                dist = arr_out_dist_sqr[k];
+              }
             }
           }
 
+          // add the result if valid!
+          if(idx_min >= 0)
+          {
+            finalMatches.push_back(cv::DMatch(idx_pred, idx_min, dist));
+          }
         }
       }
     }

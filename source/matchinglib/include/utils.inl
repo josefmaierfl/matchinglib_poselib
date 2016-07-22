@@ -10,7 +10,7 @@
 ******************************************************************************/
 
 #include <bitset>
-
+#include <iostream>
 
 #if defined(__x86_64__) || defined(_WIN32)
 #include <nmmintrin.h>
@@ -137,6 +137,33 @@ namespace matchinglib
     }
 
     return vecsum;
+  }
+
+
+  inline float calcMatchingCost(cv::Mat const& vDescriptors1, cv::Mat const& vDescriptors2, unsigned const idx1, const unsigned idx2)
+  {
+    //Calculate the matching costs for the initial keypoints
+    if(vDescriptors1.type() == CV_8U)
+    {
+      if(IsPopCntAvailable())
+      {
+        unsigned char byte8width = (unsigned char)vDescriptors1.cols >> 3;
+        return (float)getHammingL1PopCnt(vDescriptors1.row(idx1), vDescriptors2.row(idx2), byte8width);
+      }
+      else
+      {
+        return (float)getHammingL1(vDescriptors1.row(idx1), vDescriptors2.row(idx2));
+      }
+    }
+    else if(vDescriptors1.type() == CV_32F)
+    {
+      return getL2Distance(vDescriptors1.row(idx1), vDescriptors2.row(idx2));
+    }
+    else
+    {
+      std::cout << "-- ERROR: descriptor type not supported!" << std::endl;
+      return 0.0f; //Descriptor type not supported
+    }
   }
 
 } // namespace matchinglib
