@@ -51,6 +51,7 @@ namespace matchinglib
       unsigned const numNeighbors = 3, const float maxHammDist = 50.0f);
 
   int MATCHINGLIB_API getMatches_OpticalFlowTracker(std::vector<cv::KeyPoint> & keypoints_prev,
+      std::vector<cv::KeyPoint> & keypoints_predicted,
       cv::Mat const& descriptors1,
       cv::Mat &img_prev, cv::Mat &img_next,
       std::vector<cv::DMatch> & finalMatches,

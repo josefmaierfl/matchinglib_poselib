@@ -26,6 +26,7 @@ namespace matchinglib
   {
     vecPoint2D pts;
     int idx = 0;
+    pts.reserve(pts_in.size());
 
     for(cv::Point2f p : pts_in)
     {
@@ -36,11 +37,12 @@ namespace matchinglib
     return pts;
   }
 
+
   static vecPoint2D toVecPoint2D(std::vector<cv::Point2f> const& pts_in, std::vector<uchar> status)
   {
     vecPoint2D pts;
     assert(pts_in.size() == status.size());
-
+    pts.reserve(pts_in.size());
     int idx = 0;
 
     for(cv::Point2f p : pts_in)
@@ -60,6 +62,7 @@ namespace matchinglib
   {
     vecPoint2D pts;
     int idx = 0;
+    pts.reserve(keypts.size());
 
     for(cv::KeyPoint i : keypts)
     {
@@ -70,9 +73,26 @@ namespace matchinglib
     return pts;
   }
 
+  static std::vector<cv::KeyPoint> toVecKeypoint(std::vector<cv::Point2f> const& pts)
+  {
+    std::vector<cv::KeyPoint> kpts;
+    kpts.reserve(pts.size());
+
+    int idx = 0;
+
+    for(auto i : pts)
+    {
+      kpts.push_back(cv::KeyPoint(i, 0.0f, -1, 0, 0, idx));
+      idx++;
+    }
+
+    return kpts;
+  }
+
   static std::vector<cv::Point2f> toPoints(std::vector<cv::KeyPoint> const& keypts)
   {
     std::vector<cv::Point2f> pts;
+    pts.reserve(keypts.size());
 
     for(cv::KeyPoint i : keypts)
     {

@@ -198,13 +198,12 @@ namespace matchinglib
   }
 
 
-  int MATCHINGLIB_API getMatches_OpticalFlowTracker(
-    std::vector<cv::KeyPoint> &keypoints_prev,
-    cv::Mat const& descriptors1,
-    cv::Mat &img_prev, cv::Mat & img_next,
-    std::vector<cv::DMatch> & finalMatches,
-    std::string const& matcher_name, const std::string &desciptor_type,
-    bool const buildpyr, bool drawRes, cv::Size winSize, const float maxHammDist)
+  int MATCHINGLIB_API getMatches_OpticalFlowTracker(std::vector<cv::KeyPoint> &keypoints_prev, std::vector<cv::KeyPoint> &keypoints_predicted,
+      cv::Mat const& descriptors1,
+      cv::Mat &img_prev, cv::Mat & img_next,
+      std::vector<cv::DMatch> & finalMatches,
+      std::string const& matcher_name, const std::string &desciptor_type,
+      bool const buildpyr, bool drawRes, cv::Size winSize, const float maxHammDist)
   {
 
     assert(matcher_name == "LKOFT" || matcher_name == "ALKOFT");
@@ -238,11 +237,12 @@ namespace matchinglib
     }
     else if(matcher_name == "ALKOFT")
     {
-      std::vector<cv::KeyPoint> keypoints_predict_next;
-      cv::KeyPoint::convert(pts_predict_next, keypoints_predict_next);
+      keypoints_predicted = toVecKeypoint(pts_predict_next);
+      //cv::KeyPoint::convert(pts_predict_next, keypoints_predicted );
+
       cv::Mat descriptors2;
       std::string type = desciptor_type;
-      int res = matchinglib::getDescriptors(img_next, keypoints_predict_next, type, descriptors2);
+      int res = matchinglib::getDescriptors(img_next, keypoints_predicted, type, descriptors2);
 
       assert(res == 0);
       assert(descriptors2.type() == descriptors1.type());
@@ -250,12 +250,18 @@ namespace matchinglib
       bool isPopCnt = IsPopCntAvailable();
       unsigned char byte8width = (unsigned char)descriptors1.cols >> 3;
 
-      for(unsigned i = 0; i < vStatus.size(); i++)
+      int numGood = 0;
+
+      for(unsigned k = 0; k < keypoints_predicted.size(); k++)
       {
+
+        int i = keypoints_predicted[k].class_id;
+
         if(vStatus[i])
         {
           cv::Mat desc_prev = descriptors1.row(i);
-          cv::Mat desc_predict_next = descriptors2.row(i);
+          cv::Mat desc_predict_next = descriptors2.row(k);
+          numGood++;
 
           if(isPopCnt)
           {
@@ -268,7 +274,7 @@ namespace matchinglib
 
           if(res < maxHammDist)
           {
-            finalMatches.push_back(cv::DMatch(i, i, maxHammDist));
+            finalMatches.push_back(cv::DMatch(i, k, maxHammDist));
           }
         }
       }

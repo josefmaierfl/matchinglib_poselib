@@ -187,7 +187,7 @@ namespace matchinglib
 
       if(matchertype == "LKOFT")
       {
-        matchinglib::getMatches_OpticalFlowTracker(keypoints1, cv::Mat(),
+        matchinglib::getMatches_OpticalFlowTracker(keypoints1, keypoints2, cv::Mat(),
             img1, img2, finalMatches,
             "LKOFT", "ORB",
             false, true,
@@ -260,10 +260,15 @@ namespace matchinglib
           cv::Size(11, 11), 5.0f, 3);
     }
 
-    if(matchertype == "ALKOF")
+    if(matchertype == "ALKOFT")
     {
-      matchinglib::getMatches_OpticalFlowTracker(keypoints1, descriptors1, img1, img2, finalMatches, "ALKOFT", "ORB", false, true, cv::Size(11,
-          11));
+      matchinglib::getMatches_OpticalFlowTracker(keypoints1, keypoints2, descriptors1,
+          img1, img2,
+          finalMatches,
+          "ALKOFT",
+          "ORB",
+          false, true,
+          cv::Size(11, 11));
 
     }
     else if(!onlyKeypoints)
