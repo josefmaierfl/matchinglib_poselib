@@ -358,7 +358,7 @@ namespace matchinglib
    *                      -1:     Cannot create descriptor extractor
    *                      -2:     No such extractor type
    */
-  int getDescriptors(cv::Mat& img,
+  int getDescriptors(Mat &img,
                      std::vector<cv::KeyPoint> & keypoints,
                      std::string& descriptortype,
                      cv::Mat & descriptors)

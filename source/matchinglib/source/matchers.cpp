@@ -770,8 +770,8 @@ namespace matchinglib
 
   std::vector<std::string> GetSupportedMatcher()
   {
-    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF"};
-    return std::vector<std::string>(types, types + 8);
+    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT"};
+    return std::vector<std::string>(types, types + 11);
   }
 
 }

@@ -169,48 +169,84 @@ namespace matchinglib
       t_mea = (double)getTickCount(); //Start time measurement
     }
 
+    bool onlyKeypoints = false;
 
-    if(matchertype == "LKOF")
+    if(matchertype == "LKOF" || matchertype == "LKOFT")
     {
-      matchinglib::getMatches_OpticalFlow(keypoints1, keypoints2,
-                                          img1, img2,
-                                          finalMatches,
-                                          false, false,
-                                          cv::Size(21, 21), 5.0f);
+      onlyKeypoints = true;
 
-      kp1 = keypoints1;
-      kp2 = keypoints2;
-      return 0;
-    }
-
-
-    if(getDescriptors(img1, keypoints1, extractortype, descriptors1) != 0)
-    {
-      return -3;  //Error while extracting descriptors
-    }
-
-    if(getDescriptors(img2, keypoints2, extractortype, descriptors2) != 0)
-    {
-      return -3;  //Error while extracting descriptors
-    }
-
-    if(verbose > 0)
-    {
-      if(verbose > 1)
+      if(matchertype == "LKOF")
       {
-        t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
-        cout << "Time for descriptor extraction (2 imgs): " << t_mea << "ms" << endl;
-        t_oa += t_mea;
-        cout << "Time for feature detection (2 imgs): " << t_oa << "ms" << endl;
+        matchinglib::getMatches_OpticalFlow(keypoints1, keypoints2,
+                                            img1, img2,
+                                            finalMatches,
+                                            false, false,
+                                            cv::Size(11, 11), 5.0f);
 
-        if(verbose > 2)
-        {
-          cout << "# of features (1st img): " << keypoints1.size() << endl;
-          cout << "# of features (2nd img): " << keypoints2.size() << endl;
-        }
       }
 
-      t_mea = (double)getTickCount(); //Start time measurement
+      if(matchertype == "LKOFT")
+      {
+        matchinglib::getMatches_OpticalFlowTracker(keypoints1, cv::Mat(),
+            img1, img2, finalMatches,
+            "LKOFT", "ORB",
+            false, true,
+            cv::Size(11, 11));
+
+        keypoints2 = keypoints1;  // SAME ASSIGNEMNENT!
+      }
+
+
+      if(verbose > 0)
+      {
+        if(verbose > 1)
+        {
+          t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+          cout << "getMatches_OpticalFlow: " << t_mea << "ms" << endl;
+          t_oa += t_mea;
+          cout << "getMatches_OpticalFlow + keypoint detection: " << t_oa << "ms" << endl;
+
+          if(verbose > 2)
+          {
+            cout << "# of features (1st img): " << keypoints1.size() << endl;
+            cout << "# of features (2nd img): " << keypoints2.size() << endl;
+          }
+        }
+
+        t_mea = (double)getTickCount(); //Start time measurement
+      }
+    }
+    else
+    {
+
+      if(getDescriptors(img1, keypoints1, extractortype, descriptors1) != 0)
+      {
+        return -3;  //Error while extracting descriptors
+      }
+
+      if(getDescriptors(img2, keypoints2, extractortype, descriptors2) != 0)
+      {
+        return -3;  //Error while extracting descriptors
+      }
+
+      if(verbose > 0)
+      {
+        if(verbose > 1)
+        {
+          t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+          cout << "Time for descriptor extraction (2 imgs): " << t_mea << "ms" << endl;
+          t_oa += t_mea;
+          cout << "Time for feature detection (2 imgs): " << t_oa << "ms" << endl;
+
+          if(verbose > 2)
+          {
+            cout << "# of features (1st img): " << keypoints1.size() << endl;
+            cout << "# of features (2nd img): " << keypoints2.size() << endl;
+          }
+        }
+
+        t_mea = (double)getTickCount(); //Start time measurement
+      }
     }
 
     if(matchertype == "ALKOF")
@@ -220,10 +256,17 @@ namespace matchinglib
           img1, img2,
           finalMatches,
           "ALKOF",
-          false, false,
-          cv::Size(21, 21), 5.0f, 3);
+          false, true,
+          cv::Size(11, 11), 5.0f, 3);
     }
-    else
+
+    if(matchertype == "ALKOF")
+    {
+      matchinglib::getMatches_OpticalFlowTracker(keypoints1, descriptors1, img1, img2, finalMatches, "ALKOFT", "ORB", false, true, cv::Size(11,
+          11));
+
+    }
+    else if(!onlyKeypoints)
     {
       err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest);
     }

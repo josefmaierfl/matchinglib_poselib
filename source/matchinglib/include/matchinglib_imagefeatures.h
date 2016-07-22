@@ -36,7 +36,7 @@ namespace matchinglib
                                    int limitNrfeatures = 8000);
 //Extraction of descriptors at given keypoint locations
   int MATCHINGLIB_API getDescriptors(cv::Mat &img,
-                                     std::vector<cv::KeyPoint> & keypoints,
+                                     std::vector<cv::KeyPoint> &keypoints,
                                      std::string& descriptortype,
                                      cv::Mat & descriptors);
 

@@ -48,7 +48,14 @@ namespace matchinglib
       cv::Mat const& descriptors1, cv::Mat const& descriptors2,
       cv::Mat &img_prev, cv::Mat const& img_next, std::vector<cv::DMatch> & finalMatches, std::string const& matcher_name = "ALKOF",
       bool const buildpyr = false, bool drawRes = true, cv::Size winSize = cv::Size(31,31), float searchRadius_px = 10.0f,
-      unsigned const numNeighbors = 3);
+      unsigned const numNeighbors = 3, const float maxHammDist = 50.0f);
+
+  int MATCHINGLIB_API getMatches_OpticalFlowTracker(std::vector<cv::KeyPoint> & keypoints_prev,
+      cv::Mat const& descriptors1,
+      cv::Mat &img_prev, cv::Mat &img_next,
+      std::vector<cv::DMatch> & finalMatches,
+      std::string const& matcher_name = "LKOFT", std::string const& desciptor_type = "ORB",
+      bool const buildpyr = false, bool drawRes = true, cv::Size winSize = cv::Size(31,31), const float maxHammDist = 50.0f);
 
 //This function calculates the subpixel-position of matched keypoints by template matching
   int MATCHINGLIB_API getSubPixMatches(cv::Mat& img1, cv::Mat& img2, std::vector<cv::KeyPoint> *keypoints1,
