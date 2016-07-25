@@ -99,7 +99,11 @@ namespace matchinglib
     std::vector<float> err;
     std::vector<cv::Point2f> pts_predict_next, pts_prev = toPoints(keypoints_prev);
 
+
+    START_TIME_MEASUREMENT(measure_opticalFlow);
     calc_opticalFlow(pts_prev, img_prev, img_next, buildpyr, pts_predict_next, vStatus, err, winSize);
+    STOP_TIME_MEASUREMENT(measure_opticalFlow, "getMatches_OpticalFlowAdvanced - calc_opticalFlow");
+
 
     if(drawRes)
     {
@@ -123,6 +127,8 @@ namespace matchinglib
     float arr_out_dist_sqr[maxNumNeighbors];
 
     // TODO: check if there are enough pts to track! or to do a nearest neighbor search!
+
+    START_TIME_MEASUREMENT(measure_matching);
 
     // without descriptos
     if(matcher_name == "LKOF")
@@ -194,6 +200,8 @@ namespace matchinglib
       } // for(prediction)
     }
 
+    STOP_TIME_MEASUREMENT(measure_matching, "getMatches_OpticalFlowAdvanced - matching");
+
     return 0;
   }
 
@@ -214,8 +222,10 @@ namespace matchinglib
     std::vector<float> err;
     std::vector<cv::Point2f> pts_predict_next, pts_prev = toPoints(keypoints_prev);
 
-
+    START_TIME_MEASUREMENT(measure_opticalFlow);
     calc_opticalFlow(pts_prev, img_prev, img_next, buildpyr, pts_predict_next, vStatus, err, winSize);
+    STOP_TIME_MEASUREMENT(measure_opticalFlow, "getMatches_OpticalFlowAdvanced - calc_opticalFlow");
+
 
     if(drawRes)
     {
@@ -224,6 +234,8 @@ namespace matchinglib
                                        keypoints_prev, std::vector<cv::KeyPoint>(),
                                        pts_prev, pts_predict_next, vStatus);
     }
+
+    START_TIME_MEASUREMENT(measure_matching);
 
     if(matcher_name == "LKOFT")
     {
@@ -280,6 +292,7 @@ namespace matchinglib
       }
     }
 
+    STOP_TIME_MEASUREMENT(measure_matching, "getMatches_OpticalFlowAdvanced - matching");
     return 0;
   }
 

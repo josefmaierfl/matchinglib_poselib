@@ -13,6 +13,23 @@
 #define UTILS_HPP
 #include <opencv2/core.hpp>
 
+#define USE_TIME_MEASUREMENT 0
+
+#if defined(__linux__) && USE_TIME_MEASUREMENT
+
+#include <chrono>
+#include <iostream>
+#define START_TIME_MEASUREMENT(var) std::chrono::steady_clock::time_point var = std::chrono::steady_clock::now()
+#define STOP_TIME_MEASUREMENT(var, description) { std::chrono::steady_clock::time_point end= std::chrono::steady_clock::now();  \
+    std::cout << (std::string) description <<  "; dur = "  << std::chrono::duration_cast<std::chrono::microseconds>(end - var).count() << " us." << std::endl; }
+
+#else
+
+#define START_TIME_MEASUREMENT(var)
+#define STOP_TIME_MEASUREMENT(var, description)
+
+#endif
+
 
 namespace matchinglib
 {

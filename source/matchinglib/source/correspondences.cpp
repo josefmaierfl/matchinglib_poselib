@@ -190,7 +190,7 @@ namespace matchinglib
         matchinglib::getMatches_OpticalFlowTracker(keypoints1, keypoints2, cv::Mat(),
             img1, img2, finalMatches,
             "LKOFT", "ORB",
-            false, true,
+            false, false,
             cv::Size(11, 11));
 
         keypoints2 = keypoints1;  // SAME ASSIGNEMNENT!
@@ -256,18 +256,17 @@ namespace matchinglib
           img1, img2,
           finalMatches,
           "ALKOF",
-          false, true,
+          false, false,
           cv::Size(11, 11), 5.0f, 3);
     }
-
-    if(matchertype == "ALKOFT")
+    else if(matchertype == "ALKOFT")
     {
       matchinglib::getMatches_OpticalFlowTracker(keypoints1, keypoints2, descriptors1,
           img1, img2,
           finalMatches,
           "ALKOFT",
           "ORB",
-          false, true,
+          false, false,
           cv::Size(11, 11));
 
     }
