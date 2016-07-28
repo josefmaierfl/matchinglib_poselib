@@ -22,6 +22,8 @@
 #include <Eigen/SVD>
 #include <Eigen/Dense>
 #include <opencv2/core/eigen.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/imgproc.hpp>
 
 using namespace cv;
 using namespace std;
@@ -37,6 +39,38 @@ namespace poselib
 
 //This function undistorts an image point
 bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, int iters = 10);
+//Calculation of the rectifying matrices
+int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t, 
+					cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize, 
+					cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new, 
+					double alpha = -1, cv::Size newImgSize=cv::Size(), cv::Rect *roi1 = NULL, cv::OutputArray P1new = cv::noArray(), 
+					cv::OutputArray P2new = cv::noArray());
+//OpenCV interface function for cvStereoRectify. This code was copied from the OpenCV without changes.
+void stereoRectify2( InputArray cameraMatrix1, InputArray distCoeffs1,
+                               InputArray cameraMatrix2, InputArray distCoeffs2,
+                               Size imageSize, InputArray R, InputArray T,
+                               OutputArray R1, OutputArray R2,
+                               OutputArray P1, OutputArray P2,
+                               OutputArray Q, int flags=CALIB_ZERO_DISPARITY,
+                               double alpha=-1, Size newImageSize=Size(),
+                               CV_OUT Rect* validPixROI1=0, CV_OUT Rect* validPixROI2=0 );
+//Slightly changed version of the OpenCV rectification function cvStereoRectify.
+void cvStereoRectify2( const CvMat* _cameraMatrix1, const CvMat* _cameraMatrix2,
+                      const CvMat* _distCoeffs1, const CvMat* _distCoeffs2,
+                      CvSize imageSize, const CvMat* matR, const CvMat* matT,
+                      CvMat* _R1, CvMat* _R2, CvMat* _P1, CvMat* _P2,
+                      CvMat* matQ, int flags, double alpha, CvSize newImgSize,
+                      CvRect* roi1, CvRect* roi2 );
+//Slightly changed version of the OpenCV undistortion function cvUndistortPoints.
+void cvUndistortPoints2( const CvMat* _src, CvMat* _dst, const CvMat* _cameraMatrix,
+                   const CvMat* _distCoeffs,
+                   const CvMat* matR, const CvMat* matP, cv::OutputArray mask );
+// Estimates the inner rectangle of a distorted image containg only valid/available image information and an outer rectangle countaing all image information
+void icvGetRectanglesV0( const CvMat* cameraMatrix, const CvMat* distCoeffs,
+                 const CvMat* R, const CvMat* newCameraMatrix, CvSize imgSize,
+                 cv::Rect_<float>& inner, cv::Rect_<float>& outer );
+// Helping function - Takes some actions on a mouse move
+void on_mouse_move(int event, int x, int y, int flags, void* param);
 
 /* --------------------- Functions --------------------- */
 
@@ -1202,6 +1236,1410 @@ void compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, d
 		cout << "Angle between rotation matrices: " << *rdiff / PI * 180.0 << char(248) << endl;
 		cout << "Distance between translation vectors: " << *tdiff << endl;
 	}
+}
+
+/* Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters. There are 2 methods available
+ * for calculating the rectifying matrices: 1st method (Default: globRectFunct=true): A. Fusiello, E. Trucco and A. Verri: "A compact 
+ * algorithm for rectification of stereo pairs", 2000. This methode can be used for the rectification of cameras with a general form 
+ * of the extrinsic parameters. 2nd method (globRectFunct=false): A slightly changed version (to be more robust) of the OpenCV 
+ * stereoRectify-function for stereo cameras with no or only a small differnce in the vertical position and small rotations (the cameras 
+ * should be nearly parallel). Moreover, an new camera matrix is calculated based on the image areas. Therefore, alpha specifies if all 
+ * valid pixels, only valid pixels (no black areas) or something inbetween should be present in the rectified images.
+ *
+ * InputArray R							Input  -> Rotation matrix
+ * InputArray t							Input  -> Translation matrix
+ * InputArray K1						Input  -> Input camera matrix of the left camera
+ * InputArray K2						Input  -> Input camera matrix of the right camera 
+ * InputArray distcoeffs1				Input  -> Distortion coeffitients of the left camera
+ * InputArray distcoeffs2				Input  -> Distortion coeffitients of the right camera
+ * Size imageSize						Input  -> Size of the input image
+ * OutputArray Rect1					Output -> Rectification matrix for the left camera
+ * OutputArray Rect2					Output -> Rectification matrix for the right camera
+ * OutputArray K1new					Output -> New camera matrix for the left camera (equal to K2new if globRectFunct=true)
+ * OutputArray K2new					Output -> New camera matrix for the right camera (equal to K1new if globRectFunct=true)
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent [Default=-1], the function performs the default 
+ *												  scaling. Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified 
+ *												  images are zoomed and shifted so that only valid pixels are visible (no black areas after 
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
+ *												  the pixels from the original images from the cameras are retained in the rectified images 
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ *												  result between those two extreme cases.
+ * bool globRectFunct					Input  -> Used method for rectification [Default=true]. If true, the method from A. Fusiello, E. Trucco 
+ *												  and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can 
+ *												  be used for the rectification of cameras with a general form of the extrinsic parameters. 
+ *												  If false, a slightly changed version (to be more robust) of the OpenCV stereoRectify-function 
+ *												  is used. This method can be used for stereo cameras with only a small differnce in the 
+ *												  vertical position and small rotations only (the cameras should be nearly parallel).
+ * Size newImgSize						Input  -> Optional new image resolution after rectification. The same size should be passed to 
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
+ *												  value can help you preserve details in the original image, especially when there is a big 
+ *												  radial distortion.
+ * Rect *roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ * Rect *roi2							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ * OutputArray P1new					Output -> Optional new projection matrix for the left camera (only available if globRectFunct=true) 
+ * OutputArray P2new					Output -> Optional new projection matrix for the right camera (only available if globRectFunct=true)
+ *
+ * Return value:						0 :		Everything ok
+ */
+int getRectificationParameters(cv::InputArray R, 
+							  cv::InputArray t, 
+							  cv::InputArray K1, 
+							  cv::InputArray K2, 
+							  cv::InputArray distcoeffs1, 
+							  cv::InputArray distcoeffs2, 
+							  cv::Size imageSize, 
+							  cv::OutputArray Rect1, 
+							  cv::OutputArray Rect2, 
+							  cv::OutputArray K1new, 
+							  cv::OutputArray K2new,
+							  double alpha, 
+							  bool globRectFunct,
+							  cv::Size newImgSize, 
+							  cv::Rect *roi1, 
+							  cv::Rect *roi2,
+							  cv::OutputArray P1new, 
+							  cv::OutputArray P2new)
+{
+	CV_Assert(!R.empty() && !t.empty() && !K1.empty() && !K2.empty() &&
+			  (!P1new.needed() || globRectFunct) && (!P2new.needed() || globRectFunct));
+
+	Mat _R, _t;
+	Mat R1, R2, P1, P2, Q, t_tmp;
+
+	_R = R.getMat();
+	_t = t.getMat();
+
+	double t_norm = normFromVec(_t);
+	t_tmp = _t.clone();
+	if(std::abs(t_norm-1.0) > 1e-4)
+		t_tmp /= t_norm;
+
+	if(globRectFunct)
+	{
+		//rectifyFusiello(K1, K2, _R.t(), -1.0 * _R.t() * t_tmp, distcoeffs1, distcoeffs2, imageSize, Rect1, Rect2, K1new, alpha, newImgSize, roi1, P1new, P2new);
+		rectifyFusiello(K1, K2, _R, t_tmp, distcoeffs1, distcoeffs2, imageSize, Rect1, Rect2, K1new, alpha, newImgSize, roi1, P1new, P2new);
+		
+		Mat _K2new, _K1new;
+		if(K2new.empty())
+		{
+			K2new.create(3, 3, K1new.type());
+		}
+		_K2new = K2new.getMat();
+		_K1new = K1new.getMat();
+		_K1new.copyTo(_K2new);
+
+		roi2 = roi1;
+	}
+	else
+	{
+		//stereoRectify2(K1, distcoeffs1, K2, distcoeffs2, imageSize, _R.t(), -1.0 * _R.t() * t_tmp, Rect1, Rect2, K1new, K2new, Q, /*0*/CV_CALIB_ZERO_DISPARITY, alpha, newImgSize, roi1, roi2);
+		stereoRectify2(K1, distcoeffs1, K2, distcoeffs2, imageSize, _R, t_tmp, Rect1, Rect2, K1new, K2new, Q, /*0*/CV_CALIB_ZERO_DISPARITY, alpha, newImgSize, roi1, roi2);
+	}
+
+	return 0;
+}
+
+/* Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters based on the methode from 
+ * A. Fusiello, E. Trucco and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can be used
+ * for the rectification of cameras with a general form of the extrinsic parameters. Moreover, an new camera matrix is calculated
+ * based on the image areas. Therefore, alpha specifies if all valid pixels, only valid pixels (no black areas) or something
+ * inbetween should be present in the rectified images.
+ *
+ * InputArray K1						Input  -> Input camera matrix of the left camera
+ * InputArray K2						Input  -> Input camera matrix of the right camera 
+ * InputArray R							Input  -> Rotation matrix
+ * InputArray t							Input  -> Translation matrix
+ * InputArray distcoeffs1				Input  -> Distortion coeffitients of the left camera
+ * InputArray distcoeffs2				Input  -> Distortion coeffitients of the right camera
+ * Size imageSize						Input  -> Size of the input image
+ * OutputArray Rect1					Output -> Rectification matrix for the left camera
+ * OutputArray Rect2					Output -> Rectification matrix for the right camera
+ * OutputArray K12new					Output -> New camera matrix for both cameras
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
+ *												  the pixels from the original images from the cameras are retained in the rectified images 
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ *												  result between those two extreme cases.
+ * Size newImgSize						Input  -> New image resolution after rectification. The same size should be passed to 
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
+ *												  value can help you preserve details in the original image, especially when there is a big 
+ *												  radial distortion.
+ * Rect *roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ * OutputArray P1new					Output -> Optional new projection matrix for the left camera
+ * OutputArray P2new					Output -> Optional new projection matrix for the right camera
+ *
+ * Return value:						0 :		Everything ok
+ */
+int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t, 
+					cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize, 
+					cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new, 
+					double alpha, cv::Size newImgSize, cv::Rect *roi1, cv::OutputArray P1new, 
+					cv::OutputArray P2new)
+{
+	Mat c1, c2, v1, v2, v3, Rv, Pn1, Pn2, Rect1_, Rect2_, K1_, K2_, R_, t_, dk1_, dk2_;
+
+	K1_ = K1.getMat();
+	K2_ = K2.getMat();
+	R_ = R.getMat();
+	t_ = t.getMat();
+	dk1_ = distcoeffs1.getMat();
+	dk2_ = distcoeffs2.getMat();
+	double nx = imageSize.width, ny = imageSize.height;
+
+	
+	Mat Po1, Po2;
+	//Calculate projection matrix of camera 1
+	Po1 = cv::Mat::zeros(3,4,K1_.type());
+	Po1.colRange(0,3) = cv::Mat::eye(3,3,K1_.type());
+	Po1 = K1_ * Po1;
+
+	//Calculate projection matrix of camera 2
+	Po2 = cv::Mat(3,4,K2_.type());
+	R_.copyTo(Po2.colRange(0,3));
+	t_.copyTo(Po2.col(3));
+	Po2 = K2_ * Po2;
+
+	/*Mat Q, Ucv, Bcv, R1, t1, K11, R2, t2, K21;
+	Eigen::Matrix3d U, B, Qe;
+	Eigen::MatrixXd test, P;
+
+	//Recalculate extrinsic and intrinsic paramters from camera 1
+	cv::invert(Po1.colRange(0,3),Q);
+	cv::cv2eigen(Q,Qe);
+	Eigen::ColPivHouseholderQR<Eigen::Matrix3d> qr(Qe);
+	//Eigen::HouseholderQR<Eigen::Matrix3d> qr(Qe);
+	U = qr.householderQ();
+	B = U.inverse()*Qe;
+	cv::eigen2cv(U,Ucv);
+	cv::eigen2cv(B,Bcv);
+	invert(Ucv,R1);
+	t1 = Bcv*Po1.col(3);
+	invert(Bcv, K11);
+	K11 = K11 / K11.at<double>(2,2);
+
+	//Recalculate extrinsic and intrinsic paramters from camera 2
+	cv::invert(Po2.colRange(0,3),Q);
+	cv::cv2eigen(Q,Qe);
+	qr.compute(Qe);
+	B = qr.matrixQR().triangularView<Eigen::Upper>();
+	U = qr.householderQ();
+	P = qr.colsPermutation(); //Permutation matrix must be integrated before it works
+	test = U*B;
+	cv::eigen2cv(U,Ucv);
+	cv::eigen2cv(B,Bcv);
+	invert(Ucv,R2);
+	t2 = Bcv*Po2.col(3);
+	invert(Bcv, K21);
+	K21 = K21 / K21.at<double>(2,2);*/
+	
+	int idx = fabs(t_.at<double>(0)) > fabs(t_.at<double>(1)) ? 0 : 1;
+	double fc_new = DBL_MAX;
+    CvPoint2D64f cc_new[2] = {{0,0}, {0,0}};
+	//CvPoint2D64f cc_init[2] = {{0,0}, {0,0}};
+
+    for(int k = 0; k < 2; k++ ) {
+        Mat A = k == 0 ? K1_ : K2_;
+        Mat Dk = k == 0 ? dk1_ : dk2_;
+        double dk1 = Dk.empty() ? 0 : Dk.at<double>(0);
+        double fc = A.at<double>(idx^1,idx^1);
+        if( dk1 < 0 ) {
+            fc *= 1 + dk1*(nx*nx + ny*ny)/(4*fc*fc);
+        }
+        fc_new = MIN(fc_new, fc);
+    }
+
+	newImgSize = newImgSize.width*newImgSize.height != 0 ? newImgSize : imageSize;
+	cc_new[0].x = cc_new[1].x = (nx-1)/2;
+    cc_new[0].y = cc_new[1].y = (ny-1)/2;
+	cc_new[0].x = cc_new[1].x = newImgSize.width*cc_new[0].x/imageSize.width;
+    cc_new[0].y = cc_new[1].y = newImgSize.height*cc_new[0].y/imageSize.height;
+
+	Mat Knew = (Mat_<double>(3, 3) << fc_new, 0, cc_new[0].x,
+									  0, fc_new, cc_new[0].y,
+									  0, 0, 1);
+
+	//The rectification is done using the algorithm from A. Fusiello, E. Trucco and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000
+
+	//Calculate optical centers from unchanged cameras
+	c1 = -1.0 * K1_.inv() * Po1.col(3);
+	c2 = -1.0 * R_.t() * K2_.inv() * Po2.col(3);
+
+	/*c1 = -1.0 * Po1.colRange(0,3).inv() * Po1.col(3);
+	c2 = -1.0 * Po2.colRange(0,3).inv() * Po2.col(3);*/
+
+	//New x axis (=direction of baseline)
+	v1 = c2 - c1;//c1 - c2;
+
+	//New y axis (orthogonal to new x and old z)
+	Mat r1_tmp = (Mat_<double>(3, 1) << 0, 0, 1);
+	v2 = r1_tmp.cross(v1);
+
+	//New z axis (orthogonal to baseline and y)
+	v3 = v1.cross(v2);
+
+	//New extrinsic parameters (translation is left unchanged)
+	Rv = Mat(3,3,CV_64FC1);
+	Rv.row(0) = v1.t()/cv::norm(v1);
+	Rv.row(1) = v2.t()/cv::norm(v2);
+	Rv.row(2) = v3.t()/cv::norm(v3);
+
+	//Calc new camera matrices
+	Mat K1new, K2new;
+	K2_.copyTo(K1new);
+	K2_.copyTo(K2new);
+	K1new.at<double>(0,1) = 0.0;
+	K2new.at<double>(0,1) = 0.0;
+
+	//New projection matrices
+	Mat Ptmp = Mat(3,4,CV_64FC1);
+	Rv.copyTo(Ptmp.colRange(0,3));
+	Ptmp.col(3) = -1.0 * Rv * c1;
+	Pn1 = K1new * Ptmp;
+	Ptmp.col(3) = -1.0 * Rv * c2;
+	Pn2 = K2new * Ptmp;
+
+	//Rectifying image transformation
+	Rect1_ = Pn1.colRange(0,3) * Po1.colRange(0,3).inv();
+	Rect2_ = Pn2.colRange(0,3) * Po2.colRange(0,3).inv();
+
+	//Center left image
+	double _imc[3] = {(nx-1)/2, (ny-1)/2, 1.0};
+	double _imcr1[3], _imcr2[3];
+	Mat imcr1 = Mat(3,1,CV_64FC1,_imcr1);
+	Mat imcr2 = Mat(3,1,CV_64FC1,_imcr2);
+	Mat imc = Mat(3,1,CV_64FC1,_imc);
+	imcr1 = Rect1_ * imc;
+	imcr1 = imcr1 / imcr1.at<double>(2);
+	Mat d_imc1 = imc - imcr1;
+
+	//Center right image
+	imcr2 = Rect2_ * imc;
+	imcr2 = imcr2 / imcr2.at<double>(2);
+	Mat d_imc2 = imc - imcr2;
+	//d_imc1.at<double>(1) = d_imc2.at<double>(1);
+
+	//Take the mean from the shifts
+	d_imc1 = (d_imc1 + d_imc2)/2.0;
+
+	//Recalculate camera matrix
+	Knew.rowRange(0,2).col(2) = Knew.rowRange(0,2).col(2) + d_imc1.rowRange(0,2);
+	//K1new.rowRange(0,2).col(2) = K1new.rowRange(0,2).col(2) + d_imc1.rowRange(0,2);
+	//K2new.rowRange(0,2).col(2) = K2new.rowRange(0,2).col(2) + d_imc2.rowRange(0,2);
+
+	//New projection matrices
+	Ptmp.col(3) = -1.0 * Rv * c1;
+	Pn1 = Knew * Ptmp;
+	Ptmp.col(3) = -1.0 * Rv * c2;
+	Pn2 = Knew * Ptmp;
+
+	//Rectifying image transformation
+	Rect1_ = Pn1.colRange(0,3) * Po1.colRange(0,3).inv();
+	Rect2_ = Pn2.colRange(0,3) * Po2.colRange(0,3).inv();
+
+	//Calculate new camera matrix like transformation matrix to asure the right image size
+	imcr1 = Rect1_ * imc;
+	imcr1 = imcr1 / imcr1.at<double>(2);
+	imcr2 = Rect2_ * imc;
+	imcr2 = imcr2 / imcr2.at<double>(2);
+
+	//double scaler = 0, ro2 = _imc[0]*_imc[0]+_imc[1]*_imc[1];
+	//double xmin = DBL_MAX, xmax = -1.0*DBL_MAX, ymin = DBL_MAX, ymax = -1.0*DBL_MAX;
+	//for(int i = 0; i < 4; i++ )
+	//{
+	//	int j = (i<2) ? 0 : 1;
+	//	double r_tmp1, r_tmp2, _corners[3], _corners1[3];
+	//	Mat corners = Mat(3,1,CV_64FC1,_corners);
+	//	Mat corners1 = Mat(3,1,CV_64FC1,_corners1);
+	//	_corners[0] = (double)((i % 2)*(nx-1));
+	//	_corners[1] = (double)(j*(ny-1));
+	//	_corners[2] = 1.0;
+	//	corners1 = Rect1_ * corners;
+	//	corners1 /= _corners1[2];
+	//	xmin = std::min(xmin,_corners1[0]);
+	//	ymin = std::min(ymin,_corners1[1]);
+	//	xmax = std::max(xmax,_corners1[0]);
+	//	ymax = std::max(ymax,_corners1[1]);
+	//	r_tmp1 = _corners1[0] - _imcr1[0];
+	//	r_tmp1 *= r_tmp1;
+	//	r_tmp2 = _corners1[1] - _imcr1[1];
+	//	r_tmp2 *= r_tmp2;
+	//	scaler += std::sqrt(ro2/(r_tmp1 + r_tmp2));
+	//	corners1 = Rect2_ * corners;
+	//	corners1 /= _corners1[2];
+	//	xmin = std::min(xmin,_corners1[0]);
+	//	ymin = std::min(ymin,_corners1[1]);
+	//	xmax = std::max(xmax,_corners1[0]);
+	//	ymax = std::max(ymax,_corners1[1]);
+	//	r_tmp1 = _corners1[0] - _imcr2[0];
+	//	r_tmp1 *= r_tmp1;
+	//	r_tmp2 = _corners1[1] - _imcr2[1];
+	//	r_tmp2 *= r_tmp2;
+	//	scaler += std::sqrt(ro2/(r_tmp1 + r_tmp2));
+	//}
+	//scaler /= 8;
+
+	////Scale the rectifying matrix
+	//Mat Kst = (Mat_<double>(3, 3) << scaler, 0, 0,
+	//								0, scaler, 0,
+	//								0, 0, 1);
+
+	//Rect1_ = Kst * Rect1_;
+	//Rect2_ = Kst * Rect2_;
+
+	//Recalculate camera matrix
+	/*Knew.at<double>(0,2) = scaler*(xmax-xmin)/2.0;
+	Knew.at<double>(1,2) = scaler*(ymax-ymin)/2.0;*/		
+
+	//Take the 2D rectifying transformations into 3D space
+	Rect1_ = Knew.inv() * (Rect1_ * K1_);
+	Rect2_ = Knew.inv() * (Rect2_ * K2_);
+
+	//Calculate optimal new camera matrix (extracted from OpenCV)
+	CvPoint2D64f cc_tmp = {DBL_MAX, DBL_MAX};
+	CvMat _cameraMatrix1 = K1_, _cameraMatrix2 = K2_;
+	CvMat _distCoeffs1 = dk1_, _distCoeffs2 = dk2_;
+	double _z[3] = {0,0,0}, _pp[3][3];
+	CvMat Z   = cvMat(3, 1, CV_64F, _z);
+	cv::Rect_<float> inner1, inner2, outer1, outer2;
+    CvMat pp  = cvMat(3, 3, CV_64F, _pp);
+	double cx1_0, cy1_0, cx1, cy1, s;
+
+	CvPoint2D32f _pts1[4], _pts2[4];
+	CvMat pts1 = cvMat(1, 4, CV_32FC2, _pts1);
+	CvMat pts2 = cvMat(1, 4, CV_32FC2, _pts2);
+	for(int k = 0; k < 2; k++ )
+	{
+		const CvMat* A = k == 0 ? &_cameraMatrix1 : &_cameraMatrix2;
+		const CvMat* Dk = k == 0 ? &_distCoeffs1 : &_distCoeffs2;
+		CvPoint2D32f* _pts = k == 0 ? _pts1 : _pts2;
+		CvMat* pts = k == 0 ? &pts1 : &pts2;
+
+		for(int i = 0; i < 4; i++ )
+		{
+			int j = (i<2) ? 0 : 1;
+			_pts[i].x = (float)((i % 2)*(nx-1));
+			_pts[i].y = (float)(j*(ny-1));
+		}
+		{
+			int valid_nr;
+			double reduction = 0.01;
+			CvPoint2D64f imgCent = cvPoint2D64f(nx / 2.0, ny / 2.0);
+			CvPoint2D32f _pts_sv[4];
+			memcpy(_pts_sv, _pts, 4 * sizeof(CvPoint2D32f));
+			do
+			{
+				Mat mask;
+				cvUndistortPoints2( pts, pts, A, Dk, 0, 0, mask );
+				valid_nr = cv::countNonZero(mask);
+				if(valid_nr < 4)
+				{
+					for(int i = 0; i < 4; i++ )
+					{
+						int j = (i<2) ? 0 : 1;
+						if(!mask.at<bool>(i))
+						{
+							_pts_sv[i].x = _pts[i].x = (float)((floor((1.0 - reduction) * ((i % 2) * nx - imgCent.x)) + imgCent.x - 1));
+							_pts_sv[i].y = _pts[i].y = (float)((floor((1.0 - reduction) * (j * ny - imgCent.y)) + imgCent.y - 1));
+						}
+						else
+						{
+							_pts[i].x = _pts_sv[i].x;
+							_pts[i].y = _pts_sv[i].y;
+						}
+					}
+					reduction += 0.01;
+				}
+			}while((valid_nr < 4) && (reduction < 0.25));
+
+			if(reduction >= 0.25)
+			{
+				Mat mask;
+				cvUndistortPoints2( pts, pts, A, 0, 0, 0, mask );
+			}
+		}
+	}
+
+	CvMat _R1 = Rect1_, _R2 = Rect2_;
+	for(int k = 0; k < 2; k++ )
+	{
+		CvPoint3D32f _pts_3[4];
+		CvPoint2D32f _pts_tmp[4];
+		CvMat pts_3 = cvMat(1, 4, CV_32FC3, _pts_3);
+		CvMat* pts = k == 0 ? &pts1 : &pts2;
+		CvMat pts_tmp = cvMat(1, 4, CV_32FC2, _pts_tmp);
+		//memcpy(_pts_tmp, _pts[k], 4 * sizeof(CvPoint2D32f));
+
+		cvConvertPointsHomogeneous( pts, &pts_3 );
+
+		//Change camera matrix to have cc=[0,0] and fc = fc_new
+		double _a_tmp[3][3];
+		CvMat A_tmp  = cvMat(3, 3, CV_64F, _a_tmp);
+		_a_tmp[0][0]=fc_new;
+		_a_tmp[1][1]=fc_new;
+		_a_tmp[0][2]=0.0;
+		_a_tmp[1][2]=0.0;
+		cvProjectPoints2( &pts_3, k == 0 ? &_R1 : &_R2, &Z, &A_tmp, 0, &pts_tmp );
+		CvScalar avg = cvAvg(&pts_tmp);
+		cc_new[k].x = (nx-1)/2 - avg.val[0];
+		cc_new[k].y = (ny-1)/2 - avg.val[1];
+	}
+
+	// For simplicity, set the principal points for both cameras to be the average
+	// of the two principal points
+	cc_new[0].x = cc_new[1].x = (cc_new[0].x + cc_new[1].x)*0.5;
+	cc_new[0].y = cc_new[1].y = (cc_new[0].y + cc_new[1].y)*0.5;
+
+	cvZero( &pp );
+	_pp[0][0] = _pp[1][1] = fc_new;
+	_pp[0][2] = cc_new[0].x;
+	_pp[1][2] = cc_new[0].y;
+	_pp[2][2] = 1;
+
+	alpha = MIN(alpha, 1.);
+
+	icvGetRectanglesV0( &_cameraMatrix1, &_distCoeffs1, &_R1, &pp, imageSize, inner1, outer1 );
+	icvGetRectanglesV0( &_cameraMatrix2, &_distCoeffs2, &_R2, &pp, imageSize, inner2, outer2 );
+
+	cx1_0 = cc_new[0].x;
+	cy1_0 = cc_new[0].y;
+	cx1 = newImgSize.width*cx1_0/imageSize.width;
+	cy1 = newImgSize.height*cy1_0/imageSize.height;
+	s = 1.;
+
+	if( alpha >= 0 )
+	{
+		double s0 = std::max(std::max(std::max((double)cx1/(cx1_0 - inner1.x), (double)cy1/(cy1_0 - inner1.y)),
+										(double)(newImgSize.width - cx1)/(inner1.x + inner1.width - cx1_0)),
+								(double)(newImgSize.height - cy1)/(inner1.y + inner1.height - cy1_0));
+
+		double s1 = std::min(std::min(std::min((double)cx1/(cx1_0 - outer1.x), (double)cy1/(cy1_0 - outer1.y)),
+										(double)(newImgSize.width - cx1)/(outer1.x + outer1.width - cx1_0)),
+								(double)(newImgSize.height - cy1)/(outer1.y + outer1.height - cy1_0));
+
+		s = s0*(1 - alpha) + s1*alpha;
+		if((s > 2) || (s < 0.5)) //added to OpenCV function
+			s = 1.0;
+	}
+
+	fc_new *= s;
+	cc_new[0] = cvPoint2D64f(cx1, cy1);
+
+	Knew = (Mat_<double>(3, 3) << fc_new, 0, cc_new[0].x,
+									0, fc_new, cc_new[0].y,
+									0, 0, 1);
+
+	if(roi1)
+    {
+        *roi1 = cv::Rect(cvCeil((inner1.x - cx1_0)*s + cx1),
+                     cvCeil((inner1.y - cy1_0)*s + cy1),
+                     cvFloor(inner1.width*s), cvFloor(inner1.height*s))
+            & cv::Rect(0, 0, newImgSize.width, newImgSize.height);
+    }
+
+	Rect1.create(3,3,CV_64FC1);
+	Mat Rect1_tmp = Rect1.getMat();
+	Rect1_.copyTo(Rect1_tmp);
+
+	Rect2.create(3,3,CV_64FC1);
+	Rect1_tmp = Rect2.getMat();
+	Rect2_.copyTo(Rect1_tmp);
+
+	K12new.create(3,3,CV_64FC1);
+	Rect1_tmp = K12new.getMat();
+	Knew.copyTo(Rect1_tmp);
+
+	if(P1new.needed())
+	{
+		Ptmp.col(3) = -1.0 * Rv * c1;
+		Pn1 = Knew * Ptmp;
+		P1new.create(3,4,CV_64FC1);
+		Rect1_tmp = P1new.getMat();
+		Pn1.copyTo(Rect1_tmp);
+	}
+
+	if(P2new.needed())
+	{
+		Ptmp.col(3) = -1.0 * Rv * c2;
+		Pn2 = Knew * Ptmp;
+		P2new.create(3,4,CV_64FC1);
+		Rect1_tmp = P2new.getMat();
+		Pn2.copyTo(Rect1_tmp);
+	}
+
+	return 0;
+}
+
+/* OpenCV interface function for cvStereoRectify. This code was copied from the OpenCV without changes. Check the OpenCV documentation
+ * for more information. This function was copied to be able to change a few details on the core functionality of the rectification - 
+ * especiallly the undistortion functionality to estimate the new virtual cameras.
+ *
+ * InputArray _cameraMatrix1			Input  -> Camera matrix of the first (left) camera
+ * InputArray _distCoeffs1				Input  -> Distortion parameters of the first camera
+ * InputArray _cameraMatrix2			Input  -> Camera matrix of the second (right) camera
+ * InputArray _distCoeffs2				Input  -> Distortion parameters of the second camera
+ * Size imageSize						Input  -> Size of the original image
+ * InputArray _Rmat						Input  -> Rotation matrix to specify the 3D rotation from the first to the second camera
+ * InputArray _Tmat						Input  -> Translation vector specifying the translational direction from the first to the
+ *												  second camera (the norm of the vector must be 1.0)
+ * OutputArray _Rmat1					Output -> Rectification transform (rotation matrix) for the first camera
+ * OutputArray _Rmat2					Output -> Rectification transform (rotation matrix) for the second camera
+ * OutputArray _Pmat1					Output -> Projection matrix in the new (rectified) coordinate systems for the first camera
+ * OutputArray _Pmat2					Output -> Projection matrix in the new (rectified) coordinate systems for the second camera
+ * OutputArray _Qmat					Output -> Output 4x4 disparity-to-depth mapping matrix (see reprojectImageTo3D() ).
+ * int flags							Input  -> Operation flags that may be zero or CV_CALIB_ZERO_DISPARITY . If the flag is set, 
+ *												  the function makes the principal points of each camera have the same pixel 
+ *												  coordinates in the rectified views. And if the flag is not set, the function may 
+ *												  still shift the images in the horizontal or vertical direction (depending on the 
+ *												  orientation of epipolar lines) to maximize the useful image area.
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
+ *												  the pixels from the original images from the cameras are retained in the rectified images 
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ *												  result between those two extreme cases.
+ * Size newImageSize					Input  -> New image resolution after rectification. The same size should be passed to 
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
+ *												  value can help you preserve details in the original image, especially when there is a big 
+ *												  radial distortion.
+ * Rect* validPixROI1					Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ * Rect* validPixROI2					Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ *
+ * Return value:						none
+ */
+void stereoRectify2( InputArray _cameraMatrix1, InputArray _distCoeffs1,
+                        InputArray _cameraMatrix2, InputArray _distCoeffs2,
+                        Size imageSize, InputArray _Rmat, InputArray _Tmat,
+                        OutputArray _Rmat1, OutputArray _Rmat2,
+                        OutputArray _Pmat1, OutputArray _Pmat2,
+                        OutputArray _Qmat, int flags,
+                        double alpha, Size newImageSize,
+                        Rect* validPixROI1, Rect* validPixROI2 )
+{
+    Mat cameraMatrix1 = _cameraMatrix1.getMat(), cameraMatrix2 = _cameraMatrix2.getMat();
+    Mat distCoeffs1 = _distCoeffs1.getMat(), distCoeffs2 = _distCoeffs2.getMat();
+    Mat Rmat = _Rmat.getMat(), Tmat = _Tmat.getMat();
+    CvMat c_cameraMatrix1 = cameraMatrix1;
+    CvMat c_cameraMatrix2 = cameraMatrix2;
+    CvMat c_distCoeffs1 = distCoeffs1;
+    CvMat c_distCoeffs2 = distCoeffs2;
+    CvMat c_R = Rmat, c_T = Tmat;
+
+    int rtype = CV_64F;
+    _Rmat1.create(3, 3, rtype);
+    _Rmat2.create(3, 3, rtype);
+    _Pmat1.create(3, 4, rtype);
+    _Pmat2.create(3, 4, rtype);
+    CvMat c_R1 = _Rmat1.getMat(), c_R2 = _Rmat2.getMat(), c_P1 = _Pmat1.getMat(), c_P2 = _Pmat2.getMat();
+    CvMat c_Q, *p_Q = 0;
+
+    if( _Qmat.needed() )
+    {
+        _Qmat.create(4, 4, rtype);
+        p_Q = &(c_Q = _Qmat.getMat());
+    }
+
+    cvStereoRectify2( &c_cameraMatrix1, &c_cameraMatrix2, &c_distCoeffs1, &c_distCoeffs2,
+        imageSize, &c_R, &c_T, &c_R1, &c_R2, &c_P1, &c_P2, p_Q, flags, alpha,
+        newImageSize, (CvRect*)validPixROI1, (CvRect*)validPixROI2);
+}
+
+
+/* Slightly changed version of the OpenCV rectification function cvStereoRectify. Check the OpenCV documentation
+ * for more information. This function was copied to be able to change a few details on the core functionality of the rectification - 
+ * especiallly the undistortion functionality to estimate the new virtual cameras.
+ *
+ * CvMat* _cameraMatrix1				Input  -> Camera matrix of the first (left) camera
+ * CvMat* _cameraMatrix2				Input  -> Camera matrix of the second (right) camera
+ * CvMat* _distCoeffs1					Input  -> Distortion parameters of the first camera
+ * CvMat* _distCoeffs2					Input  -> Distortion parameters of the second camera
+ * CvSize imageSize						Input  -> Size of the original image
+ * CvMat* matR							Input  -> Rotation matrix to specify the 3D rotation from the first to the second camera
+ * CvMat* matT							Input  -> Translation vector specifying the translational direction from the first to the
+ *												  second camera (the norm of the vector must be 1.0)
+ * CvMat* _R1							Output -> Rectification transform (rotation matrix) for the first camera
+ * CvMat* _R2							Output -> Rectification transform (rotation matrix) for the second camera
+ * CvMat* _P1							Output -> Projection matrix in the new (rectified) coordinate systems for the first camera
+ * CvMat* _P2							Output -> Projection matrix in the new (rectified) coordinate systems for the second camera
+ * CvMat* matQ							Output -> Output 4x4 disparity-to-depth mapping matrix (see reprojectImageTo3D() ).
+ * int flags							Input  -> Operation flags that may be zero or CV_CALIB_ZERO_DISPARITY . If the flag is set, 
+ *												  the function makes the principal points of each camera have the same pixel 
+ *												  coordinates in the rectified views. And if the flag is not set, the function may 
+ *												  still shift the images in the horizontal or vertical direction (depending on the 
+ *												  orientation of epipolar lines) to maximize the useful image area.
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
+ *												  the pixels from the original images from the cameras are retained in the rectified images 
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ *												  result between those two extreme cases.
+ * CvSize newImgSize					Input  -> New image resolution after rectification. The same size should be passed to 
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
+ *												  value can help you preserve details in the original image, especially when there is a big 
+ *												  radial distortion.
+ * CvRect* roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ * CvRect* roi2							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+ *
+ * Return value:						none
+ */
+void cvStereoRectify2( const CvMat* _cameraMatrix1, const CvMat* _cameraMatrix2,
+                      const CvMat* _distCoeffs1, const CvMat* _distCoeffs2,
+                      CvSize imageSize, const CvMat* matR, const CvMat* matT,
+                      CvMat* _R1, CvMat* _R2, CvMat* _P1, CvMat* _P2,
+                      CvMat* matQ, int flags, double alpha, CvSize newImgSize,
+                      CvRect* roi1, CvRect* roi2 )
+{
+    double _om[3], _t[3], _uu[3]={0,0,0}, _r_r[3][3], _pp[3][4];
+    double _ww[3], _wr[3][3], _z[3] = {0,0,0}, _ri[3][3];
+    cv::Rect_<float> inner1, inner2, outer1, outer2;
+
+    CvMat om  = cvMat(3, 1, CV_64F, _om);
+    CvMat t   = cvMat(3, 1, CV_64F, _t);
+    CvMat uu  = cvMat(3, 1, CV_64F, _uu);
+    CvMat r_r = cvMat(3, 3, CV_64F, _r_r);
+    CvMat pp  = cvMat(3, 4, CV_64F, _pp);
+    CvMat ww  = cvMat(3, 1, CV_64F, _ww); // temps
+    CvMat wR  = cvMat(3, 3, CV_64F, _wr);
+    CvMat Z   = cvMat(3, 1, CV_64F, _z);
+    CvMat Ri  = cvMat(3, 3, CV_64F, _ri);
+    double nx = imageSize.width, ny = imageSize.height;
+    int i, k;
+
+    if( matR->rows == 3 && matR->cols == 3 )
+        cvRodrigues2(matR, &om);          // get vector rotation
+    else
+        cvConvert(matR, &om); // it's already a rotation vector
+    cvConvertScale(&om, &om, -0.5); // get average rotation
+    cvRodrigues2(&om, &r_r);        // rotate cameras to same orientation by averaging
+    cvMatMul(&r_r, matT, &t);
+
+    int idx = fabs(_t[0]) > fabs(_t[1]) ? 0 : 1;
+    double c = _t[idx], nt = cvNorm(&t, 0, CV_L2);
+    _uu[idx] = c > 0 ? 1 : -1;
+
+    // calculate global Z rotation
+    cvCrossProduct(&t,&uu,&ww);
+    double nw = cvNorm(&ww, 0, CV_L2);
+    if (nw > 0.0)
+        cvConvertScale(&ww, &ww, acos(fabs(c)/nt)/nw);
+    cvRodrigues2(&ww, &wR);
+
+    // apply to both views
+    cvGEMM(&wR, &r_r, 1, 0, 0, &Ri, CV_GEMM_B_T);
+    cvConvert( &Ri, _R1 );
+    cvGEMM(&wR, &r_r, 1, 0, 0, &Ri, 0);
+    cvConvert( &Ri, _R2 );
+    cvMatMul(&Ri, matT, &t);
+
+    // calculate projection/camera matrices
+    // these contain the relevant rectified image internal params (fx, fy=fx, cx, cy)
+    double fc_new = DBL_MAX;
+    CvPoint2D64f cc_new[2] = {{0,0}, {0,0}};
+
+    for( k = 0; k < 2; k++ ) {
+        const CvMat* A = k == 0 ? _cameraMatrix1 : _cameraMatrix2;
+        const CvMat* Dk = k == 0 ? _distCoeffs1 : _distCoeffs2;
+        double dk1 = Dk ? cvmGet(Dk, 0, 0) : 0;
+        double fc = cvmGet(A,idx^1,idx^1);
+        if( dk1 < 0 ) {
+            fc *= 1 + dk1*(nx*nx + ny*ny)/(4*fc*fc);
+        }
+        fc_new = MIN(fc_new, fc);
+    }
+
+    for( k = 0; k < 2; k++ )
+    {
+        const CvMat* A = k == 0 ? _cameraMatrix1 : _cameraMatrix2;
+        const CvMat* Dk = k == 0 ? _distCoeffs1 : _distCoeffs2;
+        CvPoint2D32f _pts[4];
+        CvPoint3D32f _pts_3[4];
+        CvMat pts = cvMat(1, 4, CV_32FC2, _pts);
+        CvMat pts_3 = cvMat(1, 4, CV_32FC3, _pts_3);
+
+        for( i = 0; i < 4; i++ )
+        {
+            int j = (i<2) ? 0 : 1;
+            _pts[i].x = (float)((i % 2)*(nx-1));
+            _pts[i].y = (float)(j*(ny-1));
+        }
+		{ //From OpenCV deviating implementation starts here
+			int valid_nr;
+			double reduction = 0.01;
+			CvPoint2D64f imgCent = cvPoint2D64f(nx / 2.0, ny / 2.0);
+			CvPoint2D32f _pts_sv[4];
+			memcpy(_pts_sv, _pts, 4 * sizeof(CvPoint2D32f));
+			//CvMat pts_sv = cvMat(1, 4, CV_32FC2, _pts_sv);
+			//pts_sv = cvCloneMat(&pts);
+			do
+			{
+				Mat mask;
+				cvUndistortPoints2( &pts, &pts, A, Dk, 0, 0, mask );
+				valid_nr = cv::countNonZero(mask);
+				if(valid_nr < 4)
+				{
+					for( i = 0; i < 4; i++ )
+					{
+						int j = (i<2) ? 0 : 1;
+						if(!mask.at<bool>(i))
+						{
+							_pts_sv[i].x = _pts[i].x = (float)((floor((1.0 - reduction) * ((i % 2) * nx - imgCent.x)) + imgCent.x - 1));
+							_pts_sv[i].y = _pts[i].y = (float)((floor((1.0 - reduction) * (j * ny - imgCent.y)) + imgCent.y - 1));
+						}
+						else
+						{
+							_pts[i].x = _pts_sv[i].x;
+							_pts[i].y = _pts_sv[i].y;
+						}
+					}
+					reduction += 0.01;
+				}
+			}while((valid_nr < 4) && (reduction < 0.25));
+
+			if(reduction >= 0.25)
+			{
+				Mat mask;
+				cvUndistortPoints2( &pts, &pts, A, 0, 0, 0, mask );
+			}
+		} //From OpenCV deviating implementation ends here
+		
+
+        cvConvertPointsHomogeneous( &pts, &pts_3 );
+
+        //Change camera matrix to have cc=[0,0] and fc = fc_new
+        double _a_tmp[3][3];
+        CvMat A_tmp  = cvMat(3, 3, CV_64F, _a_tmp);
+        _a_tmp[0][0]=fc_new;
+        _a_tmp[1][1]=fc_new;
+        _a_tmp[0][2]=0.0;
+        _a_tmp[1][2]=0.0;
+        cvProjectPoints2( &pts_3, k == 0 ? _R1 : _R2, &Z, &A_tmp, 0, &pts );
+        CvScalar avg = cvAvg(&pts);
+        cc_new[k].x = (nx-1)/2 - avg.val[0];
+        cc_new[k].y = (ny-1)/2 - avg.val[1];
+    }
+
+    // vertical focal length must be the same for both images to keep the epipolar constraint
+    // (for horizontal epipolar lines -- TBD: check for vertical epipolar lines)
+    // use fy for fx also, for simplicity
+
+    // For simplicity, set the principal points for both cameras to be the average
+    // of the two principal points (either one of or both x- and y- coordinates)
+    if( flags & CV_CALIB_ZERO_DISPARITY )
+    {
+        cc_new[0].x = cc_new[1].x = (cc_new[0].x + cc_new[1].x)*0.5;
+        cc_new[0].y = cc_new[1].y = (cc_new[0].y + cc_new[1].y)*0.5;
+    }
+    else if( idx == 0 ) // horizontal stereo
+        cc_new[0].y = cc_new[1].y = (cc_new[0].y + cc_new[1].y)*0.5;
+    else // vertical stereo
+        cc_new[0].x = cc_new[1].x = (cc_new[0].x + cc_new[1].x)*0.5;
+
+    cvZero( &pp );
+    _pp[0][0] = _pp[1][1] = fc_new;
+    _pp[0][2] = cc_new[0].x;
+    _pp[1][2] = cc_new[0].y;
+    _pp[2][2] = 1;
+    cvConvert(&pp, _P1);
+
+    _pp[0][2] = cc_new[1].x;
+    _pp[1][2] = cc_new[1].y;
+    _pp[idx][3] = _t[idx]*fc_new; // baseline * focal length
+    cvConvert(&pp, _P2);
+
+    alpha = MIN(alpha, 1.);
+
+    icvGetRectanglesV0( _cameraMatrix1, _distCoeffs1, _R1, _P1, imageSize, inner1, outer1 );
+    icvGetRectanglesV0( _cameraMatrix2, _distCoeffs2, _R2, _P2, imageSize, inner2, outer2 );
+
+    {
+    newImgSize = newImgSize.width*newImgSize.height != 0 ? newImgSize : imageSize;
+    double cx1_0 = cc_new[0].x;
+    double cy1_0 = cc_new[0].y;
+    double cx2_0 = cc_new[1].x;
+    double cy2_0 = cc_new[1].y;
+    double cx1 = newImgSize.width*cx1_0/imageSize.width;
+    double cy1 = newImgSize.height*cy1_0/imageSize.height;
+    double cx2 = newImgSize.width*cx2_0/imageSize.width;
+    double cy2 = newImgSize.height*cy2_0/imageSize.height;
+    double s = 1.;
+
+    if( alpha >= 0 )
+    {
+        double s0 = std::max(std::max(std::max((double)cx1/(cx1_0 - inner1.x), (double)cy1/(cy1_0 - inner1.y)),
+                            (double)(newImgSize.width - cx1)/(inner1.x + inner1.width - cx1_0)),
+                        (double)(newImgSize.height - cy1)/(inner1.y + inner1.height - cy1_0));
+        s0 = std::max(std::max(std::max(std::max((double)cx2/(cx2_0 - inner2.x), (double)cy2/(cy2_0 - inner2.y)),
+                         (double)(newImgSize.width - cx2)/(inner2.x + inner2.width - cx2_0)),
+                     (double)(newImgSize.height - cy2)/(inner2.y + inner2.height - cy2_0)),
+                 s0);
+
+        double s1 = std::min(std::min(std::min((double)cx1/(cx1_0 - outer1.x), (double)cy1/(cy1_0 - outer1.y)),
+                            (double)(newImgSize.width - cx1)/(outer1.x + outer1.width - cx1_0)),
+                        (double)(newImgSize.height - cy1)/(outer1.y + outer1.height - cy1_0));
+        s1 = std::min(std::min(std::min(std::min((double)cx2/(cx2_0 - outer2.x), (double)cy2/(cy2_0 - outer2.y)),
+                         (double)(newImgSize.width - cx2)/(outer2.x + outer2.width - cx2_0)),
+                     (double)(newImgSize.height - cy2)/(outer2.y + outer2.height - cy2_0)),
+                 s1);
+
+        s = s0*(1 - alpha) + s1*alpha;
+		if((s > 2) || (s < 0.5)) //added to OpenCV function
+			s = 1.0;
+    }
+
+    fc_new *= s;
+    cc_new[0] = cvPoint2D64f(cx1, cy1);
+    cc_new[1] = cvPoint2D64f(cx2, cy2);
+
+    cvmSet(_P1, 0, 0, fc_new);
+    cvmSet(_P1, 1, 1, fc_new);
+    cvmSet(_P1, 0, 2, cx1);
+    cvmSet(_P1, 1, 2, cy1);
+
+    cvmSet(_P2, 0, 0, fc_new);
+    cvmSet(_P2, 1, 1, fc_new);
+    cvmSet(_P2, 0, 2, cx2);
+    cvmSet(_P2, 1, 2, cy2);
+    cvmSet(_P2, idx, 3, s*cvmGet(_P2, idx, 3));
+
+    if(roi1)
+    {
+        *roi1 = cv::Rect(cvCeil((inner1.x - cx1_0)*s + cx1),
+                     cvCeil((inner1.y - cy1_0)*s + cy1),
+                     cvFloor(inner1.width*s), cvFloor(inner1.height*s))
+            & cv::Rect(0, 0, newImgSize.width, newImgSize.height);
+    }
+
+    if(roi2)
+    {
+        *roi2 = cv::Rect(cvCeil((inner2.x - cx2_0)*s + cx2),
+                     cvCeil((inner2.y - cy2_0)*s + cy2),
+                     cvFloor(inner2.width*s), cvFloor(inner2.height*s))
+            & cv::Rect(0, 0, newImgSize.width, newImgSize.height);
+    }
+    }
+
+    if( matQ )
+    {
+        double q[] =
+        {
+            1, 0, 0, -cc_new[0].x,
+            0, 1, 0, -cc_new[0].y,
+            0, 0, 0, fc_new,
+            0, 0, -1./_t[idx],
+            (idx == 0 ? cc_new[0].x - cc_new[1].x : cc_new[0].y - cc_new[1].y)/_t[idx]
+        };
+        CvMat Q = cvMat(4, 4, CV_64F, q);
+        cvConvert( &Q, matQ );
+    }
+}
+
+/* Slightly changed version of the OpenCV undistortion function cvUndistortPoints. Check the OpenCV documentation
+ * for more information. Here a check was added to identify errors during undistortion. Therefore a mask is provided
+ * which marks coordinates for which the undistortion was not possible due to a too large error.
+ *
+ * CvMat* _src							Input  -> Observed point coordinates (distorted), 1xN or Nx1 2-channel (CV_32FC2 or CV_64FC2).
+ * CvMat* _dst							Output -> Output ideal point coordinates after undistortion and reverse perspective 
+ *												  transformation. If matrix P is identity or omitted, dst will contain normalized 
+ *												  point coordinates.
+ * CvMat* _cameraMatrix					Input  -> Camera matrix
+ * CvMat* _distCoeffs					Input  -> Input vector of distortion coefficients (k_1, k_2, p_1, p_2[, k_3[, k_4, k_5, k_6]]) 
+ *												  of 4, 5, or 8 elements. If the vector is NULL/empty, the zero distortion coefficients
+ *												  are assumed.
+ * CvMat* matR							Input  -> Rectification transform (rotation matrix) in the object space (3x3 matrix). R1 or R2
+ *												  computed by stereoRectify() can be passed here. If the matrix is empty, the identity 
+ *												  transformation is used.
+ * CvMat* matP							Input  -> New camera matrix (3x3) or new projection matrix (3x4). P1 or P2 computed by 
+ *												  stereoRectify() can be passed here. If the matrix is empty, the identity new camera 
+ *												  matrix is used.
+ * OutputArray mask						Output -> Mask marking coordinates for which the undistortion was not possible due to a too 
+ *												  large error
+ *
+ * Return value:						none
+ */
+void cvUndistortPoints2( const CvMat* _src, CvMat* _dst, const CvMat* _cameraMatrix,
+                   const CvMat* _distCoeffs,
+                   const CvMat* matR, const CvMat* matP, cv::OutputArray mask ) //the mask was added here
+{
+    double A[3][3], RR[3][3], k[8]={0,0,0,0,0,0,0,0}, fx, fy, ifx, ify, cx, cy;
+    CvMat matA=cvMat(3, 3, CV_64F, A), _Dk;
+    CvMat _RR=cvMat(3, 3, CV_64F, RR);
+    const CvPoint2D32f* srcf;
+    const CvPoint2D64f* srcd;
+    CvPoint2D32f* dstf;
+    CvPoint2D64f* dstd;
+    int stype, dtype;
+    int sstep, dstep;
+    int i, j, n, iters = 1;
+
+    CV_Assert( CV_IS_MAT(_src) && CV_IS_MAT(_dst) &&
+        (_src->rows == 1 || _src->cols == 1) &&
+        (_dst->rows == 1 || _dst->cols == 1) &&
+        _src->cols + _src->rows - 1 == _dst->rows + _dst->cols - 1 &&
+        (CV_MAT_TYPE(_src->type) == CV_32FC2 || CV_MAT_TYPE(_src->type) == CV_64FC2) &&
+        (CV_MAT_TYPE(_dst->type) == CV_32FC2 || CV_MAT_TYPE(_dst->type) == CV_64FC2));
+
+    CV_Assert( CV_IS_MAT(_cameraMatrix) &&
+        _cameraMatrix->rows == 3 && _cameraMatrix->cols == 3 );
+
+    cvConvert( _cameraMatrix, &matA );
+
+    if( _distCoeffs )
+    {
+        CV_Assert( CV_IS_MAT(_distCoeffs) &&
+            (_distCoeffs->rows == 1 || _distCoeffs->cols == 1) &&
+            (_distCoeffs->rows*_distCoeffs->cols == 4 ||
+             _distCoeffs->rows*_distCoeffs->cols == 5 ||
+             _distCoeffs->rows*_distCoeffs->cols == 8));
+
+        _Dk = cvMat( _distCoeffs->rows, _distCoeffs->cols,
+            CV_MAKETYPE(CV_64F,CV_MAT_CN(_distCoeffs->type)), k);
+
+        cvConvert( _distCoeffs, &_Dk );
+        iters = 5;
+    }
+
+    if( matR )
+    {
+        CV_Assert( CV_IS_MAT(matR) && matR->rows == 3 && matR->cols == 3 );
+        cvConvert( matR, &_RR );
+    }
+    else
+        cvSetIdentity(&_RR);
+
+    if( matP )
+    {
+        double PP[3][3];
+        CvMat _P3x3, _PP=cvMat(3, 3, CV_64F, PP);
+        CV_Assert( CV_IS_MAT(matP) && matP->rows == 3 && (matP->cols == 3 || matP->cols == 4));
+        cvConvert( cvGetCols(matP, &_P3x3, 0, 3), &_PP );
+        cvMatMul( &_PP, &_RR, &_RR );
+    }
+
+    srcf = (const CvPoint2D32f*)_src->data.ptr;
+    srcd = (const CvPoint2D64f*)_src->data.ptr;
+    dstf = (CvPoint2D32f*)_dst->data.ptr;
+    dstd = (CvPoint2D64f*)_dst->data.ptr;
+    stype = CV_MAT_TYPE(_src->type);
+    dtype = CV_MAT_TYPE(_dst->type);
+    sstep = _src->rows == 1 ? 1 : _src->step/CV_ELEM_SIZE(stype);
+    dstep = _dst->rows == 1 ? 1 : _dst->step/CV_ELEM_SIZE(dtype);
+
+    n = _src->rows + _src->cols - 1;
+
+    fx = A[0][0];
+    fy = A[1][1];
+    ifx = 1./fx;
+    ify = 1./fy;
+    cx = A[0][2];
+    cy = A[1][2];
+
+	//Generate a mask to check if the undistortion generates valid results
+	mask.create(1,n,CV_8UC1);
+	Mat _mask = mask.getMat();
+	_mask = cv::Mat::ones(1,n,CV_8UC1);
+
+    for( i = 0; i < n; i++ )
+    {
+        double x, y, x0, y0;
+        if( stype == CV_32FC2 )
+        {
+            x = srcf[i*sstep].x;
+            y = srcf[i*sstep].y;
+        }
+        else
+        {
+            x = srcd[i*sstep].x;
+            y = srcd[i*sstep].y;
+        }
+
+        x0 = x = (x - cx)*ifx;
+        y0 = y = (y - cy)*ify;
+
+        // compensate distortion iteratively
+        for( j = 0; j < iters; j++ )
+        {
+            double r2 = x*x + y*y;
+            double icdist = (1 + ((k[7]*r2 + k[6])*r2 + k[5])*r2)/(1 + ((k[4]*r2 + k[1])*r2 + k[0])*r2);
+            double deltaX = 2*k[2]*x*y + k[3]*(r2 + 2*x*x);
+            double deltaY = k[2]*(r2 + 2*y*y) + 2*k[3]*x*y;
+            x = (x0 - deltaX)*icdist;
+            y = (y0 - deltaY)*icdist;
+        }
+
+		//check the error of the undistortion
+		{
+			Point2f proofdist;
+			double r2 = x*x + y*y;
+			double icdist = (1 + ((k[4]*r2 + k[1])*r2 + k[0])*r2)/(1 + ((k[7]*r2 + k[6])*r2 + k[5])*r2);
+			double deltaX = 2*k[2]*x*y + k[3]*(r2 + 2*x*x);
+            double deltaY = k[2]*(r2 + 2*y*y) + 2*k[3]*x*y;
+			proofdist.x = x * icdist + deltaX - x0;
+			proofdist.y = y * icdist + deltaY - y0;
+			if( cvSqrt(proofdist.x * proofdist.x + proofdist.y * proofdist.y) > 0.25)
+				_mask.at<bool>(i) = false;
+		}
+
+        double xx = RR[0][0]*x + RR[0][1]*y + RR[0][2];
+        double yy = RR[1][0]*x + RR[1][1]*y + RR[1][2];
+        double ww = 1./(RR[2][0]*x + RR[2][1]*y + RR[2][2]);
+        x = xx*ww;
+        y = yy*ww;
+
+        if( dtype == CV_32FC2 )
+        {
+            dstf[i*dstep].x = (float)x;
+            dstf[i*dstep].y = (float)y;
+        }
+        else
+        {
+            dstd[i*dstep].x = x;
+            dstd[i*dstep].y = y;
+        }
+    }
+}
+
+/* Estimates the inner rectangle of a distorted image containg only valid/available image information and an outer rectangle countaing all
+ * image information. This function was copied from the OpenCV (calibration.cpp) and modified such that the image coordinates used for 
+ * undistortion are checked afterwards to be valid. If not, the initial coordinates are changed as long as only valid undistorted
+ * coordinates are used.
+ *
+ * CvMat* cameraMatrix					Input  -> Original camera matrix
+ * CvMat* distCoeffs					Input  -> Distortion parameters of the camera
+ * CvMat* R								Input  -> Rectification transform (rotation matrix) for the camera
+ * CvMat* newCameraMatrix				Input  -> Camera matrix of the new (virtual) camera
+ * CvSize imgSize						Input  -> Size of the original image
+ * Rect_<float>& inner					Output -> Inner rectangle containing only valid image information
+ * Rect_<float>& outer					Output -> Outer rectangle containing all the image information
+ *
+ * Return value:						none
+ */
+void icvGetRectanglesV0( const CvMat* cameraMatrix, const CvMat* distCoeffs,
+                 const CvMat* R, const CvMat* newCameraMatrix, CvSize imgSize,
+                 cv::Rect_<float>& inner, cv::Rect_<float>& outer )
+{
+    const int N = 9;
+    int x, y, k;
+    cv::Ptr<CvMat> _pts = cvCreateMat(1, N*N, CV_32FC2);
+    CvPoint2D32f* pts = (CvPoint2D32f*)(_pts->data.ptr);
+
+    for( y = k = 0; y < N; y++ )
+        for( x = 0; x < N; x++ )
+            pts[k++] = cvPoint2D32f((float)x*imgSize.width/(N-1),
+                                    (float)y*imgSize.height/(N-1));
+
+	{ //From OpenCV deviating implementation starts here
+		int valid_nr;
+		float reduction = 0.01f;
+		CvPoint2D32f imgCent = cvPoint2D32f((float)imgSize.width / 2.f,(float)imgSize.height / 2.f);
+		CvPoint2D32f pts_sv[N*N];
+		memcpy(pts_sv, pts, N * N * sizeof(CvPoint2D32f));
+		do
+		{
+			Mat mask;
+			cvUndistortPoints2(_pts, _pts, cameraMatrix, distCoeffs, R, newCameraMatrix, mask);
+			valid_nr = cv::countNonZero(mask);
+			if(valid_nr < N*N)
+			{
+				for( y = k = 0; y < N; y++ )
+					for( x = 0; x < N; x++ )
+					{
+						if(!mask.at<bool>(k))
+							pts_sv[k] = pts[k] = cvPoint2D32f((1.0 - reduction) * ((float)x*imgSize.width/(N-1) - imgCent.x) + imgCent.x,
+															  (1.0 - reduction) * ((float)y*imgSize.height/(N-1) - imgCent.y) + imgCent.y);
+						else
+							pts[k] = pts_sv[k];
+						k++;
+					}
+				reduction += 0.01f;
+			}
+		}while((valid_nr < N*N) && (reduction < 0.25));
+
+		if(reduction >= 0.25)
+		{
+			Mat mask;
+			cvUndistortPoints2(_pts, _pts, cameraMatrix, 0, R, newCameraMatrix, mask);
+		}
+	} //From OpenCV deviating implementation ends here
+
+    float iX0=-FLT_MAX, iX1=FLT_MAX, iY0=-FLT_MAX, iY1=FLT_MAX;
+    float oX0=FLT_MAX, oX1=-FLT_MAX, oY0=FLT_MAX, oY1=-FLT_MAX;
+    // find the inscribed rectangle.
+    // the code will likely not work with extreme rotation matrices (R) (>45%)
+    for( y = k = 0; y < N; y++ )
+        for( x = 0; x < N; x++ )
+        {
+            CvPoint2D32f p = pts[k++];
+            oX0 = MIN(oX0, p.x);
+            oX1 = MAX(oX1, p.x);
+            oY0 = MIN(oY0, p.y);
+            oY1 = MAX(oY1, p.y);
+
+            if( x == 0 )
+                iX0 = MAX(iX0, p.x);
+            if( x == N-1 )
+                iX1 = MIN(iX1, p.x);
+            if( y == 0 )
+                iY0 = MAX(iY0, p.y);
+            if( y == N-1 )
+                iY1 = MIN(iY1, p.y);
+        }
+    inner = cv::Rect_<float>(iX0, iY0, iX1-iX0, iY1-iY0);
+    outer = cv::Rect_<float>(oX0, oY0, oX1-oX0, oY1-oY0);
+}
+
+/* Estimates the vergence (shift of starting point) for correspondence search in the stereo engine. To get the right values, the 
+ * first camera centre must be at the orign of the coordinate system.
+ *
+ * Mat R								Input  -> Rotation matrix between the cameras.
+ * Mat RR1								Input  -> Rectification transform (rotation matrix) for the first camera
+ * Mat RR2								Input  -> Rectification transform (rotation matrix) for the second camera
+ * Mat PR1								Input  -> Camera (Projection) matrix in the new (rectified) coordinate systems for the first camera
+ * Mat PR2								Input  -> Camera (Projection) matrix in the new (rectified) coordinate systems for the second camera
+ *
+ * Return value:						Vergence
+ */
+int estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2)
+{
+	Mat a = R.row(2).t();
+	Mat K1 = PR1.colRange(0,3);
+	Mat K2 = PR2.colRange(0,3);
+	Mat ar1 = K1 * RR1 * a;
+	Mat ar2 = K2 * RR2.col(2);
+	ar1 = ar1 / ar1.at<double>(2);
+	ar2 = ar2 / ar2.at<double>(2);
+	double vergence = ar1.at<double>(0) - ar2.at<double>(0);
+	if(nearZero(vergence))
+		return 0;
+	vergence = std::ceil(1.1 * vergence);
+
+	if(vergence < 0.0)
+		cout << "Vergence is negative!" << endl;
+
+	return (int)vergence;
+}
+
+
+/* Estimates the optimal scale for the focal length of the virtuel camera. This is a slightly changed version of the same functionality
+ * implemented in the function cvStereoRectify of the OpenCV. In contrast to the original OpenCV function, the result of the undistortion
+ * is checked to be valid.
+ *
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
+ *												  the pixels from the original images from the cameras are retained in the rectified images 
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ *												  result between those two extreme cases.
+ * Mat K1								Input  -> Camera matrix of the first (left) camera
+ * Mat K2								Input  -> Camera matrix of the second (right) camera
+ * Mat R1								Input  -> Rectification transform (rotation matrix) for the first camera
+ * Mat R2								Input  -> Rectification transform (rotation matrix) for the second camera
+ * Mat P1								Input  -> Camera (Projection) matrix in the new (rectified) coordinate systems for the first camera
+ * Mat P2								Input  -> Camera (Projection) matrix in the new (rectified) coordinate systems for the second camera
+ * Mat dist1							Input  -> Distortion parameters of the first camera
+ * Mat dist2							Input  -> Distortion parameters of the second camera
+ * Size imageSize						Input  -> Size of the original image
+ * Size newImageSize					Input  -> Size of the new image (from the virtual camera)
+ *
+ * Return value:						Scaling parameter for the focal length
+ */
+double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2, 
+								 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize)
+{
+	alpha = MIN(alpha, 1.);
+
+	CvMat _cameraMatrix1 = K1;
+	CvMat _cameraMatrix2 = K2;
+	CvMat _distCoeffs1 = dist1;
+	CvMat _distCoeffs2 = dist2;
+	CvMat _R1 = R1;
+	CvMat _R2 = R2;
+	CvMat _P1 = P1;
+	CvMat _P2 = P2;
+
+	cv::Rect_<float> inner1, inner2, outer1, outer2;
+
+    icvGetRectanglesV0( &_cameraMatrix1, &_distCoeffs1, &_R1, &_P1, imageSize, inner1, outer1 );
+    icvGetRectanglesV0( &_cameraMatrix2, &_distCoeffs2, &_R2, &_P2, imageSize, inner2, outer2 );
+
+    newImgSize = newImgSize.width*newImgSize.height != 0 ? newImgSize : imageSize;
+    double cx1_0 = K1.at<double>(0,2);
+    double cy1_0 = K1.at<double>(1,2);
+    double cx2_0 = K2.at<double>(0,2);
+    double cy2_0 = K2.at<double>(1,2);
+    double cx1 = newImgSize.width*cx1_0/imageSize.width;
+    double cy1 = newImgSize.height*cy1_0/imageSize.height;
+    double cx2 = newImgSize.width*cx2_0/imageSize.width;
+    double cy2 = newImgSize.height*cy2_0/imageSize.height;
+    double s = 1.;
+
+    if( alpha >= 0 )
+    {
+        double s0 = std::max(std::max(std::max((double)cx1/(cx1_0 - inner1.x), (double)cy1/(cy1_0 - inner1.y)),
+                            (double)(newImgSize.width - cx1)/(inner1.x + inner1.width - cx1_0)),
+                        (double)(newImgSize.height - cy1)/(inner1.y + inner1.height - cy1_0));
+        s0 = std::max(std::max(std::max(std::max(cx2/(cx2_0 - (double)inner2.x), cy2/(cy2_0 - (double)inner2.y)),
+                         ((double)newImgSize.width - cx2)/((double)inner2.x + (double)inner2.width - cx2_0)),
+                     ((double)newImgSize.height - cy2)/((double)inner2.y + (double)inner2.height - cy2_0)),
+                 s0);
+
+        double s1 = std::min(std::min(std::min((double)cx1/(cx1_0 - outer1.x), (double)cy1/(cy1_0 - outer1.y)),
+                            (double)(newImgSize.width - cx1)/(outer1.x + outer1.width - cx1_0)),
+                        (double)(newImgSize.height - cy1)/(outer1.y + outer1.height - cy1_0));
+        s1 = std::min(std::min(std::min(std::min((double)cx2/(cx2_0 - outer2.x), (double)cy2/(cy2_0 - outer2.y)),
+                         (double)(newImgSize.width - cx2)/(outer2.x + outer2.width - cx2_0)),
+                     (double)(newImgSize.height - cy2)/(outer2.y + outer2.height - cy2_0)),
+                 s1);
+
+        s = s0*(1 - alpha) + s1*alpha;
+    }
+
+    return s;
+}
+
+/* This function shows the rectified images
+ *
+ * InputArray img1					Input  -> Image from the first camera
+ * InputArray img2					Input  -> Image from the second camera
+ * InputArray mapX1					Input  -> Rectification map for the x-coordinates of the first image
+ * InputArray mapY1					Input  -> Rectification map for the y-coordinates of the first image
+ * InputArray mapX2					Input  -> Rectification map for the x-coordinates of the second image
+ * InputArray mapY2					Input  -> Rectification map for the y-coordinates of the second image
+ * InputArray t						Input  -> Translation vector of the pose. Take translation vector for 
+ *											  mapping a position of the left camera x to the a position of 
+ *											  the right camera x' (x' = R^T * x - R^T * t0) with t0 the 
+ *											  translation vector after pose estimation and t = -1 * R^T * t0 
+ *											  the translation vector that should be provided.
+ * Size newImgSize					Input  -> Size of the new image (must be the same as specified at the 
+ *											  rectification function and initUndistortRectifyMap()). If not
+ *											  specified, the same size from the input images is used.
+ *
+ * Return:							0:		  Success
+ */
+int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::Size newImgSize)
+{
+	CV_Assert(!img1.empty() && !img2.empty() && !mapX1.empty() && !mapY1.empty() && !mapX2.empty() && !mapY2.empty() && !t.empty());
+	CV_Assert((img1.rows() == img2.rows()) && (img1.cols() == img2.cols()));
+
+	if(newImgSize == cv::Size())
+	{
+		newImgSize = img1.size();
+	}
+
+	Mat _t;
+	_t = t.getMat();
+
+	Mat imgRect1, imgRect2, composed, comCopy;
+	remap(img1, imgRect1, mapX1, mapY1, cv::BORDER_CONSTANT);
+	remap(img2, imgRect2, mapX2, mapY2, cv::BORDER_CONSTANT);
+
+	cvNamedWindow("Rectification");
+
+	int maxHorImgSize, maxVerImgSize;
+    //switch(cam_configuration)
+    //{
+    //case 0:	// Inline configuration
+    int r, c;
+	int rc;
+	if(std::abs(_t.at<double>(0)) > std::abs(_t.at<double>(1)))
+	{
+		r = 1;
+		c = 2;
+		rc = 1;
+		if(_t.at<double>(0) < 0)
+		{
+			Mat imgRect1_tmp;
+			imgRect1_tmp = imgRect1.clone();
+			imgRect1 = imgRect2.clone();
+			imgRect2 = imgRect1_tmp.clone();
+		}
+	}
+	else
+	{
+		r = 2;
+		c = 1;
+		rc = 0;
+		if(_t.at<double>(1) > 0)
+		{
+			Mat imgRect1_tmp;
+			imgRect1_tmp = imgRect1.clone();
+			imgRect1 = imgRect2.clone();
+			imgRect2 = imgRect1_tmp.clone();
+		}
+	}
+	
+    //Allocate memory for composed image
+	maxHorImgSize = 800;
+    if (newImgSize.width > maxHorImgSize)
+    {
+		maxVerImgSize = (int)((float)maxHorImgSize * (float)newImgSize.height / (float)newImgSize.width);
+        composed = cv::Mat(cv::Size(maxHorImgSize * c, maxVerImgSize * r), CV_8UC3);
+        comCopy = cv::Mat(cv::Size(maxHorImgSize, maxVerImgSize), CV_8UC3);
+    }
+    else
+    {
+        composed = cv::Mat(cv::Size(newImgSize.width * c, newImgSize.height * r), CV_8UC3);
+        comCopy = cv::Mat(cv::Size(newImgSize.width, newImgSize.height), CV_8UC3);
+    }
+
+    // create images to display
+	string str;
+    vector<cv::Mat> show_rect(2);
+	cv::cvtColor(imgRect1, show_rect[0], CV_GRAY2RGB);
+	cv::cvtColor(imgRect2, show_rect[1], CV_GRAY2RGB);
+	for (int j = 0; j < 2; j++) 
+    {
+		cv::resize(show_rect[j], comCopy, cv::Size(comCopy.cols, comCopy.rows));
+		if (j == 0) str = "CAM 1";
+		else str = "CAM 2";
+		cv::putText(comCopy, str.c_str(), cv::Point2d(25, 25), CV_FONT_HERSHEY_SIMPLEX | CV_FONT_ITALIC, 0.7, cv::Scalar(0, 0, 255));
+		comCopy.copyTo(composed(cv::Rect(j * rc * comCopy.cols, j * (rc^1) * comCopy.rows, comCopy.cols ,comCopy.rows)));
+    }
+
+    cvSetMouseCallback("Rectification", on_mouse_move, (void*)(&composed) );
+    cv::imshow("Rectification",composed);
+    cvWaitKey(0);
+
+    for(int i=0;i<2;i++)
+		show_rect[i].release();
+
+    cv::destroyWindow("Rectification");
+    composed.release();
+    comCopy.release();
+ 
+	return 0;
+}
+
+
+/*------------------------------------------------------------------------------------------
+Functionname: on_mouse_move
+Parameters: refer to OpenCV documentation (cvSetMouseCallback())
+Return: none
+Description: draws crosslines over images saved in Mat* composed from int ShowRectifiedImages(...)
+------------------------------------------------------------------------------------------*/
+void on_mouse_move(int event, int x, int y, int flags, void* param)
+{
+	Mat composed = *((Mat*)param);
+	Mat tmpCopy = cv::Mat(cv::Size(composed.cols, composed.rows), CV_8UC3);
+	composed.copyTo(tmpCopy);
+	cv::line(tmpCopy, cv::Point2d(0, y), cv::Point2d(tmpCopy.cols, y), cv::Scalar(0, 0, 255));
+	cv::line(tmpCopy, cv::Point2d(x, 0), cv::Point2d(x, tmpCopy.rows), cv::Scalar(0, 0, 255));
+	cv::imshow("Rectification", tmpCopy);
+	cv::waitKey(4);
 }
 
 }

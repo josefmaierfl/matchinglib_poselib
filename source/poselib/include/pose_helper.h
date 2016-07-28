@@ -115,5 +115,30 @@ void POSELIB_API CamToImgCoordTrans(cv::Mat& points, cv::Mat K);
 bool POSELIB_API Remove_LensDist(std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, cv::Mat dist1, cv::Mat dist2);
 //Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors
 void POSELIB_API compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff = false);
-
+//Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters.
+int POSELIB_API getRectificationParameters(cv::InputArray R, 
+							  cv::InputArray t, 
+							  cv::InputArray K1, 
+							  cv::InputArray K2, 
+							  cv::InputArray distcoeffs1, 
+							  cv::InputArray distcoeffs2, 
+							  cv::Size imageSize, 
+							  cv::OutputArray Rect1, 
+							  cv::OutputArray Rect2, 
+							  cv::OutputArray K1new, 
+							  cv::OutputArray K2new,
+							  double alpha = -1, 
+							  bool globRectFunct = true,
+							  cv::Size newImgSize = cv::Size(), 
+							  cv::Rect *roi1 = NULL, 
+							  cv::Rect *roi2 = NULL,
+							  cv::OutputArray P1new = cv::noArray(), 
+							  cv::OutputArray P2new = cv::noArray());
+//Estimates the optimal scale for the focal length of the virtuel camera.
+double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2, 
+								 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize);
+//Estimates the vergence (shift of starting point) for correspondence search in the stereo engine.
+int POSELIB_API estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2);
+//This function shows the rectified images.
+int POSELIB_API ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::Size newImgSize = cv::Size());
 }

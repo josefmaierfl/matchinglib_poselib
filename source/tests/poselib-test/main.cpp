@@ -176,18 +176,19 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("RobMethod", "<Specifies the method for the robust estimation of the essential matrix [Default=ARRSAC]. The following options are available:\n ARRSAC\n RANSAC\n LMEDS>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("absCoord", "<If provided, the provided pose is assumed to be related to a specific 3D coordinate orign. Thus, the provided poses are not relativ from camera to camera centre but absolute to a position given by the pose of the first camera.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("Halign", "<If provided, the pose is estimated using homography alignment. Thus, multiple homographies are estimated using ARRSAC. The following options are available:\n 1\t Estimate homographies without a variable threshold\n 2\t Estimate homographies with a variable threshold>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("showRect", "<If provided, the images are rectified and shown using the estimated pose.>", ArgvParser::NoOptionAttribute);
 	
 	/// finally parse and handle return codes (display help etc...)
 	if(argc <= 1)
 	{
 		if(data_path.DirectoryExists())
 		{
-			char *newargs[9];
+			char *newargs[10];
 			string arg1str = "--img_path=" + data_path.string();
 
 			if(!cmd.isDefinedOption("img_path") || !cmd.isDefinedOption("l_img_pref") || !cmd.isDefinedOption("r_img_pref")
 				|| !cmd.isDefinedOption("DynKeyP") || !cmd.isDefinedOption("subPixRef") || !cmd.isDefinedOption("c_file")
-				|| !cmd.isDefinedOption("autoTH") || !cmd.isDefinedOption("BART"))
+				|| !cmd.isDefinedOption("autoTH") || !cmd.isDefinedOption("BART") || !cmd.isDefinedOption("showRect"))
 			{
 				cout << "Option definitions changed in code!! Exiting." << endl;
 				exit(1);
@@ -202,9 +203,10 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 			newargs[6] = "--c_file=calib_cam_to_cam.txt";
 			newargs[7] = "--autoTH";
 			newargs[8] = "--BART=1";
+			newargs[9] = "--showRect";
 
 			int result = -1;
-			result = cmd.parse(9, newargs);
+			result = cmd.parse(10, newargs);
 			if (result != ArgvParser::NoParserError)
 			{
 				cout << cmd.parseErrorDescription(result);
@@ -212,7 +214,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 			}
 
 			cout << "Executing the following default command: " << endl;
-			cout << argv[0] << " " << arg1str << " --l_img_pref=left_ --r_img_pref=right_ --DynKeyP --subPixRef --c_file=calib_cam_to_cam.txt --autoTH --BART=1" << endl << endl;
+			cout << argv[0] << " " << arg1str << " --l_img_pref=left_ --r_img_pref=right_ --DynKeyP --subPixRef --c_file=calib_cam_to_cam.txt --autoTH --BART=1 --showRect" << endl << endl;
 			cout << "For options see help with option -h" << endl;
 		}
 		else
@@ -241,6 +243,7 @@ void startEvaluation(ArgvParser& cmd)
 	int showNr, f_nr;
 	bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps;
 	bool noPoseDiff, autoTH, refineRT, absCoord;
+	bool showRect;
 	int Halign;
 	int BART;
 	bool oneCam = false;
@@ -261,6 +264,8 @@ void startEvaluation(ArgvParser& cmd)
 	autoTH = cmd.foundOption("autoTH");
 	refineRT = cmd.foundOption("refineRT");
 	absCoord = cmd.foundOption("absCoord");
+
+	showRect = cmd.foundOption("showRect");
 
 	if(cmd.foundOption("Halign"))
 	{
@@ -662,6 +667,24 @@ void startEvaluation(ArgvParser& cmd)
 		cout << "Original  translation vector: [ " << setprecision(4) << t1.at<double>(0) << " " << t1.at<double>(1) << " " << t1.at<double>(2) << " ]" << endl;
 		cout << "Estimated translation vector: [ " << setprecision(4) << t.at<double>(0) << " " << t.at<double>(1) << " " << t.at<double>(2) << " ]" << endl;
 		cout << endl << endl;
+
+		if(showRect)
+		{
+			Mat Rect1, Rect2, K0new, K1new, t0_1, mapX1, mapY1, mapX2, mapY2;
+
+			//get rectification matrices
+			poselib::getRectificationParameters(R, t, K0, K1, dist0_8, dist1_8, cv::Size(src[0].cols, src[0].rows), Rect1, Rect2, K0new, K1new, 0.2);
+
+			//get translation vector for mapping left (camera) coordinates to right (camera) coordinates
+			t0_1 = -1.0 * R.t() * t;
+
+			//get rectification maps
+			cv::initUndistortRectifyMap(K0, dist0_8, Rect1, K0new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX1, mapY1);
+			cv::initUndistortRectifyMap(K1, dist1_8, Rect2, K1new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX2, mapY2);
+
+			//Show rectified images
+			poselib::ShowRectifiedImages(src[0], src[1], mapX1, mapY1, mapX2, mapY2, t0_1);
+		}
 	}
 }
 
@@ -685,6 +708,8 @@ void showMatches(cv::Mat img1, cv::Mat img2,
 			cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg, Scalar::all(-1), Scalar(43, 112, 175), vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 		}
 		cv::imshow( "All Matches", drawImg );
+		cv::waitKey(0);
+		cv::destroyWindow("All Matches");
 	}
 	else
 	{
@@ -726,10 +751,11 @@ void showMatches(cv::Mat img1, cv::Mat img2,
 				}
 				drawMatches(img1, keypL_reduced1, img2, keypR_reduced1, matches_reduced1, img_match);
 				imshow("Reduced set of matches", img_match);
+				cv::waitKey(0);
+				cv::destroyWindow("Reduced set of matches");
 			}
 		}
 	}
-	cv::waitKey(0);
 }
 
 /** @function main */
