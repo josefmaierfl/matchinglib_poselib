@@ -140,5 +140,5 @@ double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K
 //Estimates the vergence (shift of starting point) for correspondence search in the stereo engine.
 int POSELIB_API estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2);
 //This function shows the rectified images.
-int POSELIB_API ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::Size newImgSize = cv::Size());
+int POSELIB_API ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, std::string path, cv::Size newImgSize = cv::Size());
 }

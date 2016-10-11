@@ -18,6 +18,8 @@ int main(int argc, char* argv[])
 #include "pose_homography.h"
 // ---------------------
 
+#include "opencv2\imgproc\imgproc.hpp"
+
 #include "argvparser.h"
 #include "io_data.h"
 #include "gtest/gtest.h"
@@ -177,6 +179,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("absCoord", "<If provided, the provided pose is assumed to be related to a specific 3D coordinate orign. Thus, the provided poses are not relativ from camera to camera centre but absolute to a position given by the pose of the first camera.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("Halign", "<If provided, the pose is estimated using homography alignment. Thus, multiple homographies are estimated using ARRSAC. The following options are available:\n 1\t Estimate homographies without a variable threshold\n 2\t Estimate homographies with a variable threshold>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("showRect", "<If provided, the images are rectified and shown using the estimated pose.>", ArgvParser::NoOptionAttribute);
+  cmd.defineOption("output_path", "<Path where rectified images are saved to.>", ArgvParser::OptionRequiresValue);
 	
 	/// finally parse and handle return codes (display help etc...)
 	if(argc <= 1)
@@ -237,7 +240,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 
 void startEvaluation(ArgvParser& cmd)
 {
-	string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher;
+	string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, output_path;
 	string show_str;
 	string c_file, RobMethod;
 	int showNr, f_nr;
@@ -375,6 +378,8 @@ void startEvaluation(ArgvParser& cmd)
 	img_path = cmd.optionValue("img_path");
 	l_img_pref = cmd.optionValue("l_img_pref");
 
+  output_path = cmd.optionValue("output_path");
+
 	if(oneCam)
 	{
 		err = loadImageSequence(img_path, l_img_pref, filenamesl);
@@ -408,15 +413,16 @@ void startEvaluation(ArgvParser& cmd)
 	else
 	{
 		showNr = 50;
-	}
+	} 
 
 	int failNr = 0;
-	for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - 1):(int)filenamesl.size()); i++)
+  int step = 1;
+	for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - step):(int)filenamesl.size()); i++)
 	{
 		if(oneCam)
 		{
 			src[0] = cv::imread(img_path + "//" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-			src[1] = cv::imread(img_path + "//" + filenamesl[i + 1],CV_LOAD_IMAGE_GRAYSCALE);
+			src[1] = cv::imread(img_path + "//" + filenamesl[i + step],CV_LOAD_IMAGE_GRAYSCALE);
 		}
 		else
 		{
@@ -679,11 +685,11 @@ void startEvaluation(ArgvParser& cmd)
 			t0_1 = -1.0 * R.t() * t;
 
 			//get rectification maps
-			cv::initUndistortRectifyMap(K0, dist0_8, Rect1, K0new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX1, mapY1);
-			cv::initUndistortRectifyMap(K1, dist1_8, Rect2, K1new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX2, mapY2);
+      initUndistortRectifyMap(K0, dist0_8, Rect1, K0new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX1, mapY1);
+			initUndistortRectifyMap(K1, dist1_8, Rect2, K1new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX2, mapY2);
 
 			//Show rectified images
-			poselib::ShowRectifiedImages(src[0], src[1], mapX1, mapY1, mapX2, mapY2, t0_1);
+      poselib::ShowRectifiedImages(src[0], src[1], mapX1, mapY1, mapX2, mapY2, t0_1, output_path);
 		}
 	}
 }

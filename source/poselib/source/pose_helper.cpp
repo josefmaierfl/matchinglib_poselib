@@ -24,6 +24,7 @@
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
+#include <string> 
 
 using namespace cv;
 using namespace std;
@@ -2513,24 +2514,26 @@ double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R
 
 /* This function shows the rectified images
  *
- * InputArray img1					Input  -> Image from the first camera
- * InputArray img2					Input  -> Image from the second camera
- * InputArray mapX1					Input  -> Rectification map for the x-coordinates of the first image
- * InputArray mapY1					Input  -> Rectification map for the y-coordinates of the first image
- * InputArray mapX2					Input  -> Rectification map for the x-coordinates of the second image
- * InputArray mapY2					Input  -> Rectification map for the y-coordinates of the second image
+ * InputArray img1				Input  -> Image from the first camera
+ * InputArray img2				Input  -> Image from the second camera
+ * InputArray mapX1				Input  -> Rectification map for the x-coordinates of the first image
+ * InputArray mapY1				Input  -> Rectification map for the y-coordinates of the first image
+ * InputArray mapX2				Input  -> Rectification map for the x-coordinates of the second image
+ * InputArray mapY2				Input  -> Rectification map for the y-coordinates of the second image
  * InputArray t						Input  -> Translation vector of the pose. Take translation vector for 
  *											  mapping a position of the left camera x to the a position of 
  *											  the right camera x' (x' = R^T * x - R^T * t0) with t0 the 
  *											  translation vector after pose estimation and t = -1 * R^T * t0 
  *											  the translation vector that should be provided.
- * Size newImgSize					Input  -> Size of the new image (must be the same as specified at the 
+ * Size newImgSize				Input  -> Size of the new image (must be the same as specified at the 
  *											  rectification function and initUndistortRectifyMap()). If not
  *											  specified, the same size from the input images is used.
+ * string path            Input -> output path for rectified images (e.g.: c:\temp\results)
+ *                        if "", no images are saved
  *
  * Return:							0:		  Success
  */
-int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::Size newImgSize)
+int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, std::string path, cv::Size newImgSize)
 {
 	CV_Assert(!img1.empty() && !img2.empty() && !mapX1.empty() && !mapY1.empty() && !mapX2.empty() && !mapY2.empty() && !t.empty());
 	CV_Assert((img1.rows() == img2.rows()) && (img1.cols() == img2.cols()));
@@ -2548,6 +2551,22 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
 	remap(img2, imgRect2, mapX2, mapY2, cv::BORDER_CONSTANT);
 
 	cvNamedWindow("Rectification");
+
+  // save rectified images
+  if (path != "")
+  {
+    static int count = 0;
+    
+    char buffer[12];
+    sprintf(buffer, "left_%04d.jpg", count);
+    std::string namel = path + "\\" + buffer;
+    sprintf(buffer, "right_%04d.jpg", count);
+    std::string namer = path + "\\" + buffer;
+    count++;
+
+    cv::imwrite(namel, imgRect1);
+    cv::imwrite(namer, imgRect2);
+  }
 
 	int maxHorImgSize, maxVerImgSize;
     //switch(cam_configuration)
@@ -2612,12 +2631,12 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
 
     cvSetMouseCallback("Rectification", on_mouse_move, (void*)(&composed) );
     cv::imshow("Rectification",composed);
-    cvWaitKey(0);
+    cvWaitKey(1);
 
     for(int i=0;i<2;i++)
 		show_rect[i].release();
 
-    cv::destroyWindow("Rectification");
+    //cv::destroyWindow("Rectification");
     composed.release();
     comCopy.release();
  

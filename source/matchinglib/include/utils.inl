@@ -133,8 +133,8 @@ namespace matchinglib
   // http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
   inline int descriptorDistance(const cv::Mat &a, const cv::Mat &b, unsigned char byte8width)
   {
-    const int *pa = a.ptr<int32_t>();
-    const int *pb = b.ptr<int32_t>();
+    const int *pa = a.ptr<int>();
+    const int *pb = b.ptr<int>();
 
     int dist = 0;
 #if USE_SSE
