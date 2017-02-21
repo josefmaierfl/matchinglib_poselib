@@ -100,13 +100,13 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                    "<The prefix of the right or second image. The whole prefix until the start of the number is needed (last character must be '_'). Can be empty for image series where one image is matched to the next image.>",
                    ArgvParser::OptionRequiresValue);
   cmd.defineOption("f_detect",
-                   "<The name of the feature detector in OpenCV 3.0 style (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FAST]>",
+                   "<The name of the feature detector in OpenCV 3.2 style (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FAST]>",
                    ArgvParser::OptionRequiresValue);
   cmd.defineOption("d_extr",
-                   "<The name of the descriptor extractor in OpenCV 3.0 style (BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FREAK]>",
+                   "<The name of the descriptor extractor in OpenCV 3.2 style (BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FREAK]>",
                    ArgvParser::OptionRequiresValue);
   cmd.defineOption("matcher",
-                   "<The short form of the matcher [Default=GMBSOF]:\n CASHASH:\t Cascade Hashing matcher\n GMBSOF:\t Guided Matching based on Statistical Optical Flow\n HIRCLUIDX:\t Hirarchical Clustering Index Matching from the FLANN library\n HIRKMEANS:\t hierarchical k-means tree matcher from the FLANN library\n LINEAR:\t Linear matching algorithm (Brute force) from the FLANN library\n LSHIDX:\t LSH Index Matching algorithm from the FLANN library (not stable (bug in FLANN lib) -> program may crash)\n RANDKDTREE:\t randomized KD-trees matcher from the FLANN library>",
+                   "<The short form of the matcher [Default=GMBSOF]:\n CASHASH:\t Cascade Hashing matcher\n GMBSOF:\t Guided Matching based on Statistical Optical Flow\n HIRCLUIDX:\t Hirarchical Clustering Index Matching from the FLANN library\n HIRKMEANS:\t hierarchical k-means tree matcher from the FLANN library\n LINEAR:\t Linear matching algorithm (Brute force) from the FLANN library\n LSHIDX:\t LSH Index Matching algorithm from the FLANN library (not stable (bug in FLANN lib) -> program may crash)\n RANDKDTREE:\t randomized KD-trees matcher from the FLANN library\n SWGRAPH:\t Small World Graph (SW-graph) from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.>",
                    ArgvParser::OptionRequiresValue);
   cmd.defineOption("noRatiot", "<If provided, ratio test is disabled for the matchers for which it is possible.>",
                    ArgvParser::NoOptionAttribute);
@@ -126,6 +126,12 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
   cmd.defineOption("v",
                    "<Verbose value [Default=3].\n 0\t no information\n 1\t Display matching time\n 2\t Display feature detection times and matching time\n 3\t Display number of features and matches in addition to all temporal values>",
                    ArgvParser::OptionRequiresValue);
+  cmd.defineOption("nmsIdx",
+				  "<Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
+				  ArgvParser::OptionRequiresValue);
+  cmd.defineOption("nmsQry",
+	  "<Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
+	  ArgvParser::OptionRequiresValue);
 
   /// finally parse and handle return codes (display help etc...)
   if(argc <= 1)
@@ -180,7 +186,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 
 void startEvaluation(ArgvParser& cmd)
 {
-  string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher;
+  string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry;
   string show_str;
   int showNr, f_nr;
   bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps;
@@ -222,8 +228,27 @@ void startEvaluation(ArgvParser& cmd)
   }
   else
   {
-    matcher = "ALKOF";
+    matcher = "GMBSOF";
   }
+
+  if (cmd.foundOption("nmsIdx"))
+  {
+	  nmsIdx = cmd.optionValue("nmsIdx");
+  }
+  else
+  {
+	  nmsIdx = "";
+  }
+
+  if (cmd.foundOption("nmsQry"))
+  {
+	  nmsQry = cmd.optionValue("nmsQry");
+  }
+  else
+  {
+	  nmsQry = "";
+  }
+
 
   if(cmd.foundOption("f_nr"))
   {
@@ -327,7 +352,7 @@ void startEvaluation(ArgvParser& cmd)
     }
 
     err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC,
-                                          !noRatiot, refineSOF, subPixRef, verbose);
+                                          !noRatiot, refineSOF, subPixRef, verbose, nmsIdx, nmsQry);
 
     if(err)
     {

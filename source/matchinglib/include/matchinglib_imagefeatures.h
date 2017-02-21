@@ -38,7 +38,8 @@ namespace matchinglib
   int MATCHINGLIB_API getDescriptors(cv::Mat &img,
                                      std::vector<cv::KeyPoint> &keypoints,
                                      std::string& descriptortype,
-                                     cv::Mat & descriptors);
+                                     cv::Mat & descriptors,
+									 std::string const& keypointtype = "");
 
   bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
   std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();

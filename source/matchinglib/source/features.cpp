@@ -20,7 +20,7 @@
 #include "matchinglib_imagefeatures.h"
 #if defined(USE_NON_FREE_CODE)
 #include "opencv2/xfeatures2d/nonfree.hpp"
-#warning "matchinglib::features is about to use non-free source code!"
+#pragma message ("matchinglib::features is about to use non-free source code!")
 #endif
 
 #include "opencv2/xfeatures2d.hpp"
@@ -92,7 +92,7 @@ namespace matchinglib
 
   // returns one of the supportet detectors
   cv::Ptr<FeatureDetector> createDetector(std::string const& keypointtype, int const limitNrfeatures);
-  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype);
+  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype, std::string const& keypointtype = "");
 
 
   /* --------------------- Functions --------------------- */
@@ -353,6 +353,8 @@ namespace matchinglib
    *                      (OpenCV 3.0: FREAK, SIFT, SURF, ORB, BRISK, KAZE, AKAZE, DAISY, LATCH)
    * Mat descriptors        Output -> Extracted descriptors (row size corresponds to number of
    *                      descriptors and features, respectively)
+   * string descriptortype     Input  -> [Default=""], The keypointtype is used to set the correct scale 
+   *					  factor for learned descriptors like VGG or BoostDesc
    *
    * Return value:         0:     Everything ok
    *                      -1:     Cannot create descriptor extractor
@@ -361,7 +363,8 @@ namespace matchinglib
   int getDescriptors(Mat &img,
                      std::vector<cv::KeyPoint> & keypoints,
                      std::string& descriptortype,
-                     cv::Mat & descriptors)
+                     cv::Mat & descriptors,
+					 std::string const& keypointtype)
   {
     descriptors = cv::Mat(0,0,0);
 
@@ -371,7 +374,7 @@ namespace matchinglib
       return -2;
     }
 
-    cv::Ptr<cv::DescriptorExtractor> extractor = createExtractor(descriptortype);
+    cv::Ptr<cv::DescriptorExtractor> extractor = createExtractor(descriptortype, keypointtype);
 
     if(extractor.empty())
     {
@@ -725,17 +728,17 @@ namespace matchinglib
     }
 
 #if defined(USE_NON_FREE_CODE)
-    else if(!featuretype.compare("SIFT"))
+    else if(!keypointtype.compare("SIFT"))
     {
-      cv::initModule_nonfree();
+      //cv::initModule_nonfree();
       detector = xfeatures2d::SIFT::create();
     }
 
 #endif
 #if defined(USE_NON_FREE_CODE)
-    else if(!featuretype.compare("SURF"))
+    else if(!keypointtype.compare("SURF"))
     {
-      cv::initModule_nonfree();
+      //cv::initModule_nonfree();
       detector = xfeatures2d::SURF::create();
     }
 
@@ -744,14 +747,44 @@ namespace matchinglib
     {
       detector = xfeatures2d::StarDetector::create();
     }
+	else if (!keypointtype.compare("MSD"))
+	{
+		detector = xfeatures2d::MSDDetector::create();
+	}
 
     return detector;
   }
 
-  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype)
+  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype, std::string const& keypointtype)
   {
     cv::Ptr<cv::DescriptorExtractor> extractor;
 
+	float scale = 6.25f;
+	if (!keypointtype.empty())
+	{
+		if (!keypointtype.compare(0, 3, "VGG"))
+		{
+			if (!keypointtype.compare("SIFT"))
+				scale = 6.75f;
+			else if (!keypointtype.compare("AKAZE") || !keypointtype.compare("MSD") || !keypointtype.compare("AGAST") || !keypointtype.compare("FAST") || !keypointtype.compare("BRISK"))
+				scale = 5.0f;
+			else if (!keypointtype.compare("ORB"))
+				scale = 0.75f;
+			else
+				scale = 6.25f;
+		}
+		else
+		{
+			if (!keypointtype.compare("SIFT"))
+				scale = 6.75f;
+			else if (!keypointtype.compare("AKAZE") || !keypointtype.compare("MSD") || !keypointtype.compare("AGAST") || !keypointtype.compare("FAST") || !keypointtype.compare("BRISK"))
+				scale = 5.0f;
+			else if (!keypointtype.compare("ORB"))
+				scale = 0.75f;
+			else
+				scale = 6.25f;
+		}
+	}
 
     if(!descriptortype.compare("BRISK"))
     {
@@ -775,17 +808,17 @@ namespace matchinglib
     }
 
 #if defined(USE_NON_FREE_CODE)
-    else if(!extractortype.compare("SIFT"))
+    else if(!descriptortype.compare("SIFT"))
     {
-      cv::initModule_nonfree();
+      //cv::initModule_nonfree();
       extractor = xfeatures2d::SIFT::create();
     }
 
 #endif
 #if defined(USE_NON_FREE_CODE)
-    else if(!extractortype.compare("SURF"))
+    else if(!descriptortype.compare("SURF"))
     {
-      cv::initModule_nonfree();
+      //cv::initModule_nonfree();
       extractor = xfeatures2d::SURF::create();
     }
 
@@ -798,6 +831,50 @@ namespace matchinglib
     {
       extractor = xfeatures2d::LATCH::create();
     }
+	else if (!descriptortype.compare("BGM"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::BGM, true, scale);
+	}
+	else if (!descriptortype.compare("BGM_HARD"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::BGM_HARD, true, scale);
+	}
+	else if (!descriptortype.compare("BGM_BILINEAR"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::BGM_BILINEAR, true, scale);
+	}
+	else if (!descriptortype.compare("LBGM"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::LBGM, true, scale);
+	}
+	else if (!descriptortype.compare("BINBOOST_64"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::BINBOOST_64, true, scale);
+	}
+	else if (!descriptortype.compare("BINBOOST_128"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::BINBOOST_128, true, scale);
+	}
+	else if (!descriptortype.compare("BINBOOST_256"))
+	{
+		extractor = xfeatures2d::BoostDesc::create(xfeatures2d::BoostDesc::BINBOOST_256, true, scale);
+	}
+	else if (!descriptortype.compare("VGG_120"))
+	{
+		extractor = xfeatures2d::VGG::create(xfeatures2d::VGG::VGG_120, 1.4f, true, true, scale);
+	}
+	else if (!descriptortype.compare("VGG_80"))
+	{
+		extractor = xfeatures2d::VGG::create(xfeatures2d::VGG::VGG_80, 1.4f, true, true, scale);
+	}
+	else if (!descriptortype.compare("VGG_64"))
+	{
+		extractor = xfeatures2d::VGG::create(xfeatures2d::VGG::VGG_64, 1.4f, true, true, scale);
+	}
+	else if (!descriptortype.compare("VGG_48"))
+	{
+		extractor = xfeatures2d::VGG::create(xfeatures2d::VGG::VGG_48, 1.4f, true, true, scale);
+	}
 
     return extractor;
   }
@@ -820,9 +897,9 @@ namespace matchinglib
   {
     int const nrSupportedTypes =
 #if defined(USE_NON_FREE_CODE)
-      9;
+      10;
 #else
-      7;
+      8;
 #endif
 
     static std::string types [] = {"FAST",
@@ -835,7 +912,8 @@ namespace matchinglib
                                    "SIFT",
                                    "SURF",
 #endif
-                                   "STAR"
+                                   "STAR",
+								   "MSD"
                                   };
     return std::vector<std::string>(types, types + nrSupportedTypes);
   }
@@ -856,9 +934,9 @@ namespace matchinglib
   {
     int const nrSupportedTypes =
 #if defined(USE_NON_FREE_CODE)
-      9;
+      20;
 #else
-      7;
+      18;
 #endif
     static std::string types [] = {"BRISK",
                                    "ORB",
@@ -871,6 +949,17 @@ namespace matchinglib
 #endif
                                    "DAISY",
                                    "LATCH",
+								"BGM",
+								"BGM_HARD",
+								"BGM_BILINEAR",
+								"LBGM",
+								"BINBOOST_64",
+								"BINBOOST_128",
+								"BINBOOST_256",
+								"VGG_120",
+								"VGG_80",
+								"VGG_64",
+								"VGG_48"
                                   };
     return std::vector<std::string>(types, types + nrSupportedTypes);
   }

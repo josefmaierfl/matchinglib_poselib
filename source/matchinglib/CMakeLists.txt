@@ -21,17 +21,18 @@ endif()
 
 find_package(Eigen REQUIRED)
 
-if(NOT OpenCV_DIR)
+if("${OpenCV_DIR}" STREQUAL "")
     message(STATUS "could not find any opencv dir trying fallback")
     if(WIN32)
-      set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-      find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
+      # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
+      # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
+	  find_package(OpenCV 3.2 REQUIRED)
     else()
       set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
       find_package(OpenCV REQUIRED)
     endif()
 else()
-    find_package(OpenCV 3.0 REQUIRED)
+    find_package(OpenCV 3.2 REQUIRED)
 endif()
 
 
@@ -43,6 +44,8 @@ if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
+add_subdirectory(similarity_search)
 
 #
 # Library name and options
@@ -93,7 +96,6 @@ set(sources
     ${source_path}/CascadeHash/DataPreProcessor.cc
     ${source_path}/CascadeHash/HashConvertor.cc
     ${source_path}/CascadeHash/MatchPairLoader.cc
-
 )
 
 # Group source files
@@ -174,19 +176,20 @@ target_include_directories(${target}
     $<INSTALL_INTERFACE:include>
 )
 
-
+#message(STATUS "=====NonMetricSpaceLib ${NonMetricSpaceLib_LIBRARIES}")
 #
 # Libraries
 #
 target_link_libraries(${target}
     PRIVATE
-
+	NonMetricSpaceLib
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
-
+	
+	
     INTERFACE
 )
 

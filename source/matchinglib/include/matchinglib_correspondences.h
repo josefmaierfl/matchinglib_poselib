@@ -49,7 +49,9 @@ int MATCHINGLIB_API getCorrespondences(cv::Mat& img1,
                        bool ratioTest = true,
                        bool SOFrefine = false,
                        bool subPixRefine = false,
-                       int verbose = 0);
+                       int verbose = 0,
+					   std::string idxPars_NMSLIB = "",
+					   std::string queryPars_NMSLIB = "");
 
 bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
 std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();

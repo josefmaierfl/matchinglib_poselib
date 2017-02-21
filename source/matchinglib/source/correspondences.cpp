@@ -92,6 +92,10 @@ namespace matchinglib
    *                      1:  Display matching time
    *                      2:  Display feature detection times and matching time
    *                      3:  Display number of features and matches in addition to all temporal values
+   * string idxPars_NMSLIB		Input  -> Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details.
+   *					  [Default = ""]
+   * string queryPars_NMSLIB	Input  -> Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details.
+   *					  [Default = ""]
    *
    * Return value:         0:     Everything ok
    *                -1:     Wrong, corrupt or missing imput data
@@ -99,6 +103,7 @@ namespace matchinglib
    *                -3:     Error while extracting descriptors
    *                -4:     Incompatible feature detector and matcher
    *                -5:     Matching failed
+   *				-6:		Incompatible feature detector and descriptor
    */
   int getCorrespondences(Mat &img1,
                          Mat &img2,
@@ -114,7 +119,9 @@ namespace matchinglib
                          bool ratioTest,
                          bool SOFrefine,
                          bool subPixRefine,
-                         int verbose)
+                         int verbose,
+						 std::string idxPars_NMSLIB,
+						 std::string queryPars_NMSLIB)
   {
     if(img1.empty() || img2.empty())
     {
@@ -139,6 +146,18 @@ namespace matchinglib
       cout << "MSER and SimpleBlob do not provide response information which is necessary for GMBSOF!" << endl;
       return -4;
     }
+
+	if (featuretype.compare("KAZE") && !extractortype.compare("KAZE"))
+	{
+		cout << "KAZE descriptors are only compatible with KAZE keypoints!" << endl;
+		return -6;
+	}
+
+	if (featuretype.compare("AKAZE") && !extractortype.compare("AKAZE"))
+	{
+		cout << "AKAZE descriptors are only compatible with AKAZE keypoints!" << endl;
+		return -6;
+	}
 
     vector<cv::KeyPoint> keypoints1, keypoints2;
     cv::Mat descriptors1, descriptors2;
@@ -219,12 +238,12 @@ namespace matchinglib
     else
     {
 
-      if(getDescriptors(img1, keypoints1, extractortype, descriptors1) != 0)
+      if(getDescriptors(img1, keypoints1, extractortype, descriptors1, featuretype) != 0)
       {
         return -3;  //Error while extracting descriptors
       }
 
-      if(getDescriptors(img2, keypoints2, extractortype, descriptors2) != 0)
+      if(getDescriptors(img2, keypoints2, extractortype, descriptors2, featuretype) != 0)
       {
         return -3;  //Error while extracting descriptors
       }

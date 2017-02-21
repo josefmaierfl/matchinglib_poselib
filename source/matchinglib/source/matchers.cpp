@@ -27,6 +27,8 @@
 #include "CascadeHash/MatchPairLoader.h"
 #include "CascadeHash/CasHashMatcher.h"
 
+#include "nmslib\nmslib_matchers.h"
+
 //#include "flann/flann.hpp"
 #include "opencv2/flann.hpp"
 
@@ -37,7 +39,6 @@
 
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
-
 
 //using namespace cv;
 using namespace std;
@@ -84,6 +85,10 @@ namespace matchinglib
    *                        ratioTest. If you wand to change this behaviour for GMBSOF, this has to
    *                        be changed directly at the call of function AdvancedMatching. Moreover,
    *                        no ratio test can be performed for the CASHASH matcher.
+   * string idxPars_NMSLIB		Input  -> Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details.
+   *					  [Default = ""]
+   * string queryPars_NMSLIB	Input  -> Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details.
+   *					  [Default = ""]
    *
    * Return value:           0:     Everything ok
    *                  -1:     Wrong input data
@@ -93,7 +98,7 @@ namespace matchinglib
    */
   int getMatches(std::vector<cv::KeyPoint> const& keypoints1, std::vector<cv::KeyPoint> const& keypoints2,
                  const cv::Mat &descriptors1, const cv::Mat &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
-                 const string &matcher_name, bool VFCrefine, bool ratioTest)
+                 const string &matcher_name, bool VFCrefine, bool ratioTest, std::string idxPars_NMSLIB, std::string queryPars_NMSLIB)
   {
     CV_Assert(descriptors1.type() == descriptors2.type());
     int err;
@@ -159,6 +164,63 @@ namespace matchinglib
         return -3;
       }
     }
+	else if (!matcher_name.compare("SWGRAPH"))
+	{
+		if (descriptors1.type() == CV_32F)
+		{
+			if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+			{
+				nmslibMatching<float>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"sw-graph",
+					"l2",
+					"NN=3,initIndexAttempts=5",
+					"initSearchAttempts=2,efSearch=2,efConstruction=2",
+					ratioTest,
+					8);
+			}
+			else
+			{
+				nmslibMatching<float>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"sw-graph",
+					"l2",
+					idxPars_NMSLIB,
+					queryPars_NMSLIB,
+					ratioTest,
+					8);
+			}
+		}
+		else if (descriptors1.type() == CV_8U)
+		{
+			if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+			{
+				nmslibMatching<int>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"sw-graph",
+					"bit_hamming",
+					"NN=3,initIndexAttempts=5",
+					"initSearchAttempts=2,efSearch=2,efConstruction=2",
+					ratioTest,
+					8);
+			}
+			else
+			{
+				nmslibMatching<int>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"sw-graph",
+					"bit_hamming",
+					idxPars_NMSLIB,
+					queryPars_NMSLIB,
+					ratioTest,
+					8);
+			}
+		}
+	}
     else if(!matcher_name.compare("HIRCLUIDX") || !matcher_name.compare("HIRKMEANS") ||
             !matcher_name.compare("LINEAR") || !matcher_name.compare("LSHIDX") ||
             !matcher_name.compare("RANDKDTREE"))
@@ -770,7 +832,7 @@ namespace matchinglib
 
   std::vector<std::string> GetSupportedMatcher()
   {
-    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT"};
+    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT", "SWGRAPH"};
     return std::vector<std::string>(types, types + 11);
   }
 
