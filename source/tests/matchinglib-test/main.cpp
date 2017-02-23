@@ -189,7 +189,7 @@ void startEvaluation(ArgvParser& cmd)
   string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry;
   string show_str;
   int showNr, f_nr;
-  bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps;
+  bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps = false;
   bool oneCam = false;
   int err, verbose;
   vector<string> filenamesl, filenamesr;

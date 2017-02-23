@@ -117,12 +117,12 @@ MatchList& CasHashMatcher::MatchSpFast(const ImageData& imageData_1, const Image
             int distEuclid = 0;
 
             // fetch the pointers to two SIFT feature vectors
-            SiftDataPtr ptr_1 = &(imageData_1.siftDataPtrList[dataIndex_1][kDimSiftData - 1]);
-            SiftDataPtr ptr_2 = &(imageData_2.siftDataPtrList[dataIndex_2][kDimSiftData - 1]);
+            SiftDataPtr ptr_11 = &(imageData_1.siftDataPtrList[dataIndex_1][kDimSiftData - 1]);
+            SiftDataPtr ptr_21 = &(imageData_2.siftDataPtrList[dataIndex_2][kDimSiftData - 1]);
 
             for (int dimSiftIndex = kDimSiftData - 1; dimSiftIndex >= 0; dimSiftIndex--)
             {
-                int diff = *(ptr_1--) - *(ptr_2--);
+                int diff = *(ptr_11--) - *(ptr_21--);
                 distEuclid += diff * diff;
             }
             candidateDistListTop[candidateIndex] = distEuclid;

@@ -44,7 +44,7 @@ struct DataWrapper {
 using namespace std;
 const size_t MIN_ITER_PROGRESS_QTY = 1000; // A minimum # of assigned items that we expect to see in a single iteration
 
-const float  MAX_UNASSIGN_FRACT    = 0.02;
+const float  MAX_UNASSIGN_FRACT    = 0.02f;
 
 const bool PRINT_FIRMAL_DEBUG = false;
 const bool PRINT_CLARANS_DEBUG = false;
@@ -99,7 +99,7 @@ void ClusterUtils<dist_t>::doFIRMAL(bool PrintProgress,
   }
   sort (dists.begin(), dists.end());
 
-  float ExpClustSize = round(min<float>(max<float>(1, SampleDistQty / ExpCenterQty), SampleDistQty - 1));
+  float ExpClustSize = round(min<float>(max<float>(1.f, (float)SampleDistQty / (float)ExpCenterQty), (float)SampleDistQty - 1.f));
   size_t pctPos = size_t(ExpClustSize);
   CHECK(pctPos < dists.size());
   float R = dists[pctPos];
@@ -138,7 +138,7 @@ void ClusterUtils<dist_t>::doFIRMAL(bool PrintProgress,
   CHECK(!data.empty());
   IdTypeUnsign lastCluster = data.size();
 
-  IdTypeUnsign stopQty = (IdTypeUnsign)data.size() * 0.01;
+  IdTypeUnsign stopQty = (IdTypeUnsign)((double)data.size() * 0.01);
   IdTypeUnsign assignedQty = 0, iterNum = 0;
 
   vector<const Object*> vTmpClustCenter;
@@ -670,7 +670,7 @@ void ClusterUtils<dist_t>::doReductiveCLARANS(bool PrintProgress,
   }
   sort (dists.begin(), dists.end());
 
-  float ExpClustSize = round(min<float>(max<float>(1, SampleDistQty / centerQty), SampleDistQty - 1));
+  float ExpClustSize = round(min<float>(max<float>(1.f, (float)SampleDistQty / (float)centerQty), (float)SampleDistQty - 1.f));
   size_t pctPos = size_t(ExpClustSize);
   CHECK(pctPos < dists.size());
   float R = dists[pctPos];

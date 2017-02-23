@@ -175,8 +175,8 @@ namespace matchinglib
 					finalMatches,
 					"sw-graph",
 					"l2",
-					"NN=3,initIndexAttempts=5",
-					"initSearchAttempts=2,efSearch=2,efConstruction=2",
+					"NN=2,initIndexAttempts=5,efConstruction=2,indexThreadQty=8",
+					"initSearchAttempts=2,efSearch=2",
 					ratioTest,
 					8);
 			}
@@ -202,8 +202,8 @@ namespace matchinglib
 					finalMatches,
 					"sw-graph",
 					"bit_hamming",
-					"NN=3,initIndexAttempts=5",
-					"initSearchAttempts=2,efSearch=2,efConstruction=2",
+					"NN=2,initIndexAttempts=5,efConstruction=2,indexThreadQty=8",
+					"initSearchAttempts=2,efSearch=2",
 					ratioTest,
 					8);
 			}
@@ -220,6 +220,129 @@ namespace matchinglib
 					8);
 			}
 		}
+		else if (descriptors1.type() == CV_64F)
+		{
+			if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+			{
+				nmslibMatching<double>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"sw-graph",
+					"l2",
+					"NN=2,initIndexAttempts=5,efConstruction=2,indexThreadQty=8",
+					"initSearchAttempts=2,efSearch=2",
+					ratioTest,
+					8);
+			}
+			else
+			{
+				nmslibMatching<double>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"sw-graph",
+					"l2",
+					idxPars_NMSLIB,
+					queryPars_NMSLIB,
+					ratioTest,
+					8);
+			}
+		}
+		else
+		{
+			cout << "Wrong descriptor data type for SWGRAPH! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+			return -1;
+		}
+
+	}
+	else if (!matcher_name.compare("HNSW"))
+	{
+		if (descriptors1.type() == CV_32F)
+		{
+			if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+			{
+				nmslibMatching<float>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"hnsw",
+					"l2",
+					"M=5,efConstruction=10,delaunay_type=1,indexThreadQty=8",
+					"efSearch=5",
+					ratioTest,
+					8);
+			}
+			else
+			{
+				nmslibMatching<float>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"hnsw",
+					"l2",
+					idxPars_NMSLIB,
+					queryPars_NMSLIB,
+					ratioTest,
+					8);
+			}
+		}
+		else if (descriptors1.type() == CV_8U)
+		{
+			if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+			{
+				nmslibMatching<int>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"hnsw",
+					"bit_hamming",
+					"M=5,efConstruction=10,delaunay_type=1,indexThreadQty=8",
+					"efSearch=5",
+					ratioTest,
+					8);
+			}
+			else
+			{
+				nmslibMatching<int>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"hnsw",
+					"bit_hamming",
+					idxPars_NMSLIB,
+					queryPars_NMSLIB,
+					ratioTest,
+					8);
+			}
+		}
+		else if (descriptors1.type() == CV_64F)
+		{
+			if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+			{
+				nmslibMatching<double>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"hnsw",
+					"l2",
+					"M=5,efConstruction=10,delaunay_type=1,indexThreadQty=8",
+					"efSearch=5",
+					ratioTest,
+					8);
+			}
+			else
+			{
+				nmslibMatching<double>(descriptors1,
+					descriptors2,
+					finalMatches,
+					"hnsw",
+					"l2",
+					idxPars_NMSLIB,
+					queryPars_NMSLIB,
+					ratioTest,
+					8);
+			}
+		}
+		else
+		{
+			cout << "Wrong descriptor data type for SWGRAPH! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+			return -1;
+		}
+
 	}
     else if(!matcher_name.compare("HIRCLUIDX") || !matcher_name.compare("HIRKMEANS") ||
             !matcher_name.compare("LINEAR") || !matcher_name.compare("LSHIDX") ||
@@ -510,11 +633,11 @@ namespace matchinglib
         MatchList matchList = stCasHashMatcher->MatchSpFast((*stImageDataList)[imageIndex_2], (*stImageDataList)[imageIndex_1]);
 
         // if the number of successfully matched SIFT points exceeds the required minimal threshold, then write the result to file
-        for (MatchList::const_iterator iter = matchList.begin(); iter != matchList.end(); iter++)
+        for (MatchList::const_iterator iter1 = matchList.begin(); iter1 != matchList.end(); iter1++)
         {
           cv::DMatch match_tmp;
-          match_tmp.queryIdx = iter->first;
-          match_tmp.trainIdx = iter->second;
+          match_tmp.queryIdx = iter1->first;
+          match_tmp.trainIdx = iter1->second;
           matches.push_back(match_tmp);
         }
       }

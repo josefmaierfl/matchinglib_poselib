@@ -163,7 +163,7 @@ namespace matchinglib
     cv::Mat descriptors1, descriptors2;
     cv::Size imgSi = img1.size();
     int err = 0;
-    double t_mea, t_oa;
+    double t_mea = 0.0, t_oa = 0.0;
 
     if(verbose > 1)
     {
@@ -461,7 +461,7 @@ namespace matchinglib
           keypoints2[trainIdxs[i]] = keypoints2_tmp[i];
         }
 
-        for(int i = finalMatches.size() - 1; i >= 0; i--)
+        for(int i = (int)finalMatches.size() - 1; i >= 0; i--)
         {
           if(inliers[i])
           {

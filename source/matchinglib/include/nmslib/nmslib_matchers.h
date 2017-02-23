@@ -37,6 +37,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 #include "query_creator.h"
 #include "query.h"
 #include "object.h"
+#include "method/small_world_rand.h"
 
 	using namespace cv;
 	using namespace std;
@@ -167,6 +168,8 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			similarity::ToLower(methodStr);//name of the matching-method
 			
 			similarity::initLibrary(LIB_LOGNONE,'\0');
+			/*string logfilename = "C:\\work\\nmslib_log.txt";
+			similarity::initLibrary(LIB_LOGFILE, logfilename.c_str());*/
 
 			//Get the correct format for the space parameter, like "l2"
 			{
@@ -245,6 +248,9 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 				vQueryTimeParams.push_back(shared_ptr<similarity::AnyParams>(new similarity::AnyParams(desc)));
 			}
 
+			const similarity::AnyParams& qtp = *vQueryTimeParams[0];
+			IndexPtr->SetQueryTimeParams(qtp);
+
 			////Bring the query data for indexing into the correct format
 			id = 0;
 			if (descrL.type() == CV_8U)
@@ -284,10 +290,13 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			//Set number of knn
 			similarity::KNNCreator<dist_t>  cr(K, eps);
 
+			space.get()->SetQueryPhase();
+
 			vector<ThreadParams<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>*> ThreadParamsVar(ThreadQty_);
 			vector<thread> Threads(ThreadQty_);
 			
-			//similarity::AutoVectDel<ThreadParams<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>>> DelThreadParams(ThreadQty);
+			//Delets the thread-paramters that are generated with "new" in the next phase, when this object is released
+			similarity::AutoVectDel<ThreadParams<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>> DelThreadParams(ThreadParamsVar);
 			mutex UpdateStat;
 
 			//Prepare the data for (mutithreaded) searching
@@ -346,10 +355,10 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 				}
 			}
 
-			for (unsigned QueryPart = 0; QueryPart < ThreadQty_; ++QueryPart) 
+			/*for (unsigned QueryPart = 0; QueryPart < ThreadQty_; ++QueryPart) 
 			{
 				delete ThreadParamsVar[QueryPart];
-			}
+			}*/
 
 			for (int i = 0; i < dataobjects_.size(); i++)
 			{

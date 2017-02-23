@@ -263,7 +263,7 @@ static void readBinaryPOD(istream& in, T& podRef) {
 /**/
 
 inline void ToLower(string &s) {
-  for (size_t i = 0; i < s.size(); ++i) s[i] = std::tolower(s[i]);
+  for (size_t i = 0; i < s.size(); ++i) s[i] = (char)std::tolower(s[i]);
 }
 
 inline bool StartsWith(const std::string& str, const std::string& prefix) {

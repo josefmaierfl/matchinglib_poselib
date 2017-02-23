@@ -210,10 +210,11 @@ class Space {
    */
   virtual void CreateDenseVectFromObj(const Object* obj, dist_t* pVect,
                                  size_t nElem) const = 0;
- protected:
+ //protected:
   void SetIndexPhase() const { bIndexPhase = true; }
   void SetQueryPhase() const { bIndexPhase = false; }
 
+ protected:
   friend class Query<dist_t>;
   friend class RangeQuery<dist_t>;
   friend class KNNQuery<dist_t>;

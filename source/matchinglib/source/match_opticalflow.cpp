@@ -277,11 +277,11 @@ namespace matchinglib
 
           if(isPopCnt)
           {
-            res = (float)getHammingL1PopCnt(desc_prev, desc_predict_next, byte8width);
+            res = getHammingL1PopCnt(desc_prev, desc_predict_next, byte8width);
           }
           else
           {
-            res = (float)getHammingL1(desc_prev, desc_predict_next);
+            res = getHammingL1(desc_prev, desc_predict_next);
           }
 
           if(res < maxHammDist)

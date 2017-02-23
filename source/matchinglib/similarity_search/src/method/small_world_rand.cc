@@ -47,7 +47,7 @@ using namespace std;
 
 template <typename dist_t>
 struct IndexThreadParamsSW {
-  const Space<dist_t>&                        space_;
+  //const Space<dist_t>&                        space_;
   SmallWorldRand<dist_t>&                     index_;
   const ObjectVector&                         data_;
   size_t                                      index_every_;
@@ -57,7 +57,7 @@ struct IndexThreadParamsSW {
   size_t                                      progress_update_qty_;
   
   IndexThreadParamsSW(
-                     const Space<dist_t>&             space,
+                     //const Space<dist_t>&             space,
                      SmallWorldRand<dist_t>&          index, 
                      const ObjectVector&              data,
                      size_t                           index_every,
@@ -66,7 +66,7 @@ struct IndexThreadParamsSW {
                      mutex&                           display_mutex,
                      size_t                           progress_update_qty
                       ) : 
-                     space_(space),
+                     //space_(space),
                      index_(index), 
                      data_(data),
                      index_every_(index_every),
@@ -90,7 +90,7 @@ struct IndexThreadSW {
       if (prm.index_every_ == id % prm.out_of_) {
         MSWNode* node = new MSWNode(prm.data_[id], id);
         prm.index_.add(node);
-      
+		
         if ((id + 1 >= min(prm.data_.size(), nextQty)) && progress_bar) {
           unique_lock<mutex> lock(display_mutex);
           (*progress_bar) += (nextQty - progress_bar->count());
@@ -102,6 +102,8 @@ struct IndexThreadSW {
       unique_lock<mutex> lock(display_mutex);
       (*progress_bar) += (progress_bar->expected_count() - progress_bar->count());
     }
+	  //this_thread::sleep_for(std::chrono::seconds(prm.index_every_));
+	  //cout << "pause for " << prm.index_every_ << endl;
   }
 };
 
@@ -120,7 +122,9 @@ void SmallWorldRand<dist_t>::CreateIndex(const AnyParams& IndexParams)
   pmgr.GetParamOptional("efConstruction",     efConstruction_,      NN_);
   efSearch_ = NN_;
   pmgr.GetParamOptional("initIndexAttempts",  initIndexAttempts_,   1);
-  pmgr.GetParamOptional("indexThreadQty",     indexThreadQty_,      thread::hardware_concurrency());
+  size_t                indexThreadQty_default = thread::hardware_concurrency();
+  indexThreadQty_default = (indexThreadQty_default > 0) ? indexThreadQty_default : 1;
+  pmgr.GetParamOptional("indexThreadQty",     indexThreadQty_, indexThreadQty_default);
 
   LOG(LIB_INFO) << "NN                  = " << NN_;
   LOG(LIB_INFO) << "efConstruction_     = " << efConstruction_;
@@ -135,11 +139,9 @@ void SmallWorldRand<dist_t>::CreateIndex(const AnyParams& IndexParams)
 
   // 2) One entry should be added before all the threads are started, or else add() will not work properly
   addCriticalSection(new MSWNode(data_[0], 0 /* id == 0 */));
-
   unique_ptr<ProgressDisplay> progress_bar(PrintProgress_ ?
                                 new ProgressDisplay(data_.size(), cerr)
                                 :NULL);
-
   if (indexThreadQty_ <= 1) {
     // Skip the first element, one element is already added
     if (progress_bar) ++(*progress_bar);
@@ -149,18 +151,22 @@ void SmallWorldRand<dist_t>::CreateIndex(const AnyParams& IndexParams)
       if (progress_bar) ++(*progress_bar);
     }
   } else {
+	  //cout << "works 2 threads: " << indexThreadQty_ << endl;
     vector<thread>                                    threads(indexThreadQty_);
     vector<shared_ptr<IndexThreadParamsSW<dist_t>>>   threadParams; 
     mutex                                             progressBarMutex;
-
+	//cout << "works 3" << endl;
     for (size_t i = 0; i < indexThreadQty_; ++i) {
       threadParams.push_back(shared_ptr<IndexThreadParamsSW<dist_t>>(
-                              new IndexThreadParamsSW<dist_t>(space_, *this, data_, i, indexThreadQty_,
+                              new IndexThreadParamsSW<dist_t>(/*space_, */*this, data_, i, indexThreadQty_,
                                                               progress_bar.get(), progressBarMutex, 200)));
     }
+	//cout << "works 4" << endl;
     for (size_t i = 0; i < indexThreadQty_; ++i) {
-      threads[i] = thread(IndexThreadSW<dist_t>(), ref(*threadParams[i]));
+		threads[i] = thread(IndexThreadSW<dist_t>(), ref(*threadParams[i]));
+	  //cout << "works 4." << i << endl;
     }
+	//cout << "works 5" << endl;
     for (size_t i = 0; i < indexThreadQty_; ++i) {
       threads[i].join();
     }

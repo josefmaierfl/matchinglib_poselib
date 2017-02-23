@@ -219,7 +219,7 @@ namespace matchinglib
 #endif
 
     filteredMatches12.clear();
-    vector<vector<DMatch> > matches12, matches21;
+    //vector<vector<DMatch> > matches12, matches21;
     std::vector<std::pair<cv::KeyPoint,int>> keypInit1, keypInit2;
     vector<int> index1, index2;
     const int remainGridPix = 25; //If the last column of the grid in the image is smaller than this, it is ignored
@@ -231,7 +231,7 @@ namespace matchinglib
 #endif
 
     //Generate grid for sparse flow init
-    int divx, divy = 7, idx;
+    int divx = 1, divy = 7, idx = 0;
     float imgpart, lastwidthpart, xpos, imgpart2, lwidth2;
 
     if(imgSi.height >= 800)
@@ -679,8 +679,8 @@ namespace matchinglib
 
               for (unsigned int i = 0; i < filteredMatches12.size(); i++)
               {
-                int idx = filteredMatches12[i].queryIdx;
-                keypL_reduced.push_back(keypoints1[idx]);
+                int idx1 = filteredMatches12[i].queryIdx;
+                keypL_reduced.push_back(keypoints1[idx1]);
                 matches_reduced.push_back(filteredMatches12[i]);
                 matches_reduced.back().queryIdx = i;
                 keypR_reduced.push_back(keypoints2[matches_reduced.back().trainIdx]);
@@ -2183,8 +2183,8 @@ namespace matchinglib
 
           for (unsigned int i = 0; i < filteredMatches12.size(); i++)
           {
-            int idx = filteredMatches12[i].queryIdx;
-            keypL_reduced.push_back(keypoints1[idx]);
+            int idx1 = filteredMatches12[i].queryIdx;
+            keypL_reduced.push_back(keypoints1[idx1]);
             matches_reduced.push_back(filteredMatches12[i]);
             matches_reduced.back().queryIdx = i;
             keypR_reduced.push_back(keypoints2[matches_reduced.back().trainIdx]);
@@ -2999,7 +2999,7 @@ namespace matchinglib
 
                 for(int k = 0; k < 4; k++)
                 {
-                  int yrange, xrange, xstart, ystart;
+                  int yrange = 0, xrange = 0, xstart = 0, ystart = 0;
 
                   switch(k)
                   {
@@ -3689,9 +3689,9 @@ namespace matchinglib
                 validGridElemSi--;
               }
 
-              double minStdAng[2];
-              minStdAng[0] = 1.07 * std::atan(1.0 / (tmp.arithErr + 0.1)) / stdMult_th;
-              minStdAng[1] = 1.07 * std::atan(1.0 / (tmp.medErr + 0.1)) / stdMult_th;
+              double minStdAng1[2];
+              minStdAng1[0] = 1.07 * std::atan(1.0 / (tmp.arithErr + 0.1)) / stdMult_th;
+              minStdAng1[1] = 1.07 * std::atan(1.0 / (tmp.medErr + 0.1)) / stdMult_th;
 
               if(tmp.arithStd < 0.5)
               {
@@ -3719,14 +3719,14 @@ namespace matchinglib
                 validGridElemSi--;
               }
 
-              if(tmp.arithStd < minStdAng[0])
+              if(tmp.arithStd < minStdAng1[0])
               {
-                tmp.arithStd = minStdAng[0];
+                tmp.arithStd = minStdAng1[0];
               }
 
-              if(tmp.medStd < minStdAng[1])
+              if(tmp.medStd < minStdAng1[1])
               {
-                tmp.medStd = minStdAng[1];
+                tmp.medStd = minStdAng1[1];
               }
 
               stat_ang.push_back(tmp);
@@ -4421,7 +4421,7 @@ namespace matchinglib
 
     int idx = 0;
     Size imgSi2 = cv::Size(imgSi.width/2,imgSi.height/2);
-    float imgDiag = powf((float)imgSi2.width,2)+powf((float)imgSi.height,2);
+    //float imgDiag = powf((float)imgSi2.width,2)+powf((float)imgSi.height,2);
     //Eigen::Matrix3f He;
     //Eigen::Vector3f x1e;
     Eigen::Vector2f x2e;
@@ -4433,7 +4433,7 @@ namespace matchinglib
     static bool useBinPopCnt = false;
     static bool fixProperties = true;
     static unsigned char byte8width = 8;
-    static unsigned char descrCols = 64;
+    //static unsigned char descrCols = 64;
 
     if(fixProperties)
     {
@@ -4455,7 +4455,7 @@ namespace matchinglib
       if(descriptors1.cols != 64)
       {
         byte8width = (unsigned char)(descriptors1.cols / 8);
-        descrCols = descriptors1.cols;
+        //descrCols = descriptors1.cols;
       }
 
       fixProperties = false;
@@ -4802,8 +4802,8 @@ namespace matchinglib
 
     int idx = 0;
     Size imgSi2 = cv::Size(imgSi.width/2,imgSi.height/2);
-    float imgDiag = (float)(imgSi2.width * imgSi2.width) + (float)(imgSi.height *
-                    imgSi.height);//powf((float)imgSi2.width,2)+powf((float)imgSi.height,2);
+    //float imgDiag = (float)(imgSi2.width * imgSi2.width) + (float)(imgSi.height *
+    //                imgSi.height);//powf((float)imgSi2.width,2)+powf((float)imgSi.height,2);
     Eigen::Matrix3f He;
     //Eigen::Vector3f x1e, x2e;
     Eigen::Vector2f x2e;
