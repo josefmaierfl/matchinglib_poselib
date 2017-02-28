@@ -78,6 +78,52 @@ elseif(WIN32)
     if(NOT MSVC12 AND NOT MSVC14)
          message(FATAL_ERROR "On Windows, only MSVC version 12 and 14 are supported!") 
     endif()
+	
+	#set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE}
+        #/MP           # -> build with multiple processes
+        #/W4           # -> warning level 4
+        ## /WX         # -> treat warnings as errors
+
+        #/wd4251       # -> disable warning: 'identifier': class 'type' needs to have dll-interface to be used by clients of class 'type2'
+        #/wd4592       # -> disable warning: 'identifier': symbol will be dynamically initialized (implementation limitation)
+        ## /wd4201     # -> disable warning: nonstandard extension used: nameless struct/union (caused by GLM)
+        ## /wd4127     # -> disable warning: conditional expression is constant (caused by Qt)
+        
+        ## $<$<CONFIG:Debug>:
+        ## /RTCc         # -> value is assigned to a smaller data type and results in a data loss
+        ## >
+
+        ## /Gw           # -> whole program global optimization
+        #/GS-          # -> buffer security check: no 
+        ## /GL           # -> whole program optimization: enable link-time code generation (disables Zi)
+        #/GF           # -> enable string pooling
+		
+		## /O2-		  # -> disable maximize speed
+		## /TP			  # -> Compile as C++ Code
+		## /W3			  # -> Warning level 3
+		## /Zc:wchar_t	  # -> Treat WChar_t as built in type
+		## /Gm-		  # -> Disable Minimal Rebuild
+		## /Ob2
+		## /Zc:inline
+		## /fp:precise
+		## /D "WIN32"
+		## /D "_WINDOWS"
+		## /D "NDEBUG"
+		## /D "CMAKE_INTDIR=\"Release\""
+		## /D "_MBCS"
+		## /errorReport:prompt
+		## /WX-
+		## /Zc:forScope
+		## /GR
+		## /Gd
+		## /MD
+		## /openmp
+		## /Fa"Release/"
+		## /EHsc
+		## /nologo
+		#/Ot
+       
+    #)
 else ()
     message(FATAL_ERROR "Unrecognized compiler (use GCC, Clang, Intel compiler, or MSVC (on Windows)!")
 endif()

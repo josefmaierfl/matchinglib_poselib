@@ -27,6 +27,13 @@
 //#include "opencv2/nonfree/nonfree.hpp"
 //#include <opencv2/nonfree/features2d.hpp>
 
+#define USE_FSTREAM 0
+#if USE_FSTREAM
+#include <fstream>
+#include <bitset>
+#include <type_traits>
+#endif
+
 using namespace cv;
 using namespace std;
 
@@ -34,8 +41,17 @@ namespace matchinglib
 {
 
   /* --------------------- Function prototypes --------------------- */
-
-
+#if USE_FSTREAM
+  // SFINAE for safety. Sue me for putting it in a macro for brevity on the function
+#define IS_INTEGRAL(T) typename std::enable_if< std::is_integral<T>::value >::type* = 0
+	void writeDescriptorsToDisk(cv::Mat descriptors, std::string file);
+	template<class T>
+	std::string integral_to_binary_string(T byte, IS_INTEGRAL(T))
+	{
+		std::bitset<sizeof(T) * CHAR_BIT> bs(byte);
+		return bs.to_string();
+	}
+#endif
 
   /* --------------------- Functions --------------------- */
 
@@ -248,6 +264,12 @@ namespace matchinglib
         return -3;  //Error while extracting descriptors
       }
 
+#if USE_FSTREAM
+	  //Function to write descriptor entries to disk -> for external tuning of the paramters of matcher VPTREE
+	  writeDescriptorsToDisk(descriptors1, "C:\\work\\THIRDPARTY\\NMSLIB-1.6\\trunk\\sample_data\\descriptors_" + extractortype + ".txt");
+	  return -1;
+#endif
+
       if(verbose > 0)
       {
         if(verbose > 1)
@@ -291,7 +313,7 @@ namespace matchinglib
     }
     else if(!onlyKeypoints)
     {
-      err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest);
+      err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest, extractortype, idxPars_NMSLIB, queryPars_NMSLIB);
     }
 
     if(err != 0)
@@ -496,5 +518,46 @@ namespace matchinglib
 
     return 0;
   }
+
+#if USE_FSTREAM
+  //Function to write descriptor entries to disk -> for external tuning of the paramters of matcher VPTREE
+  void writeDescriptorsToDisk(cv::Mat descriptors, std::string file)
+  {
+	  std::ofstream ofile(file, std::ofstream::app);
+
+	  for (int i = 0; i < descriptors.rows; i++)
+	  {
+		if (descriptors.type() == CV_8U)
+		{
+			for (int j = 0; j < descriptors.cols - 1; j = j + 2)
+			{
+				ofile << integral_to_binary_string(descriptors.at<unsigned char>(i, j));
+			}
+		}
+		else if (descriptors.type() == CV_32F)
+		{
+			for (int j = 0; j < descriptors.cols - 1; j = j + 2)
+			{
+				ofile << ' ' << descriptors.at<float>(i, j);
+			}
+		}
+		else if (descriptors.type() == CV_64F)
+		{
+			for (int j = 0; j < descriptors.cols - 1; j = j + 2)
+			{
+				ofile << ' ' << descriptors.at<double>(i, j);
+			}
+		}
+		else
+		{
+			ofile.close();
+			return;
+		}
+		ofile << endl;
+	  }
+	  
+	  ofile.close();
+  }
+#endif
 
 } // namepace matchinglib
