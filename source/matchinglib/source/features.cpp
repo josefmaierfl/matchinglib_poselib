@@ -28,6 +28,9 @@
 
 #include <Eigen/Core>
 
+#include "descriptor-RIFF/riff.h"
+#include "descriptor-BOLD/bold.hpp"
+
 using namespace cv;
 using namespace std;
 
@@ -374,15 +377,42 @@ namespace matchinglib
       return -2;
     }
 
-    cv::Ptr<cv::DescriptorExtractor> extractor = createExtractor(descriptortype, keypointtype);
+	if (!descriptortype.compare("RIFF"))
+	{
+		RIFFDescriptor riff;
+		riff.Descriptor_Generation(img, descriptors, keypoints);
+	}
+	else if (!descriptortype.compare("BOLD"))
+	{
+		int N = 32;
+		int N2 = N / 2;
+		int nkeypoints = (int)keypoints.size();
+		descriptors.create(nkeypoints, DIMS / 8, CV_8U);
+		Mat masks = Mat(nkeypoints, DIMS / 8, CV_8U);
+		BOLD bold;
 
-    if(extractor.empty())
-    {
-      fprintf(stderr,"Cannot create descriptor extractor!\n");
-      return -1;
-    }
+		for (size_t i = 0; i < nkeypoints; i++)
+		{
+			int x = (int)std::round(keypoints[i].pt.x);
+			int y = (int)std::round(keypoints[i].pt.y);
+			Mat patch = img(cv::Range(cv::max(y-N2,0), cv::min(y + N2, img.rows)),
+				cv::Range(cv::max(x - N2, 0), cv::min(x + N2, img.cols)));
+			bold.compute_patch(patch, descriptors(Range(i, i+1), Range::all()), masks(Range(i, i + 1), Range::all()));
+		}
+		
+	}
+	else
+	{
+		cv::Ptr<cv::DescriptorExtractor> extractor = createExtractor(descriptortype, keypointtype);
 
-    extractor->compute(img,keypoints,descriptors);
+		if (extractor.empty())
+		{
+			fprintf(stderr, "Cannot create descriptor extractor!\n");
+			return -1;
+		}
+
+		extractor->compute(img, keypoints, descriptors);
+	}
 
     return 0;
   }
@@ -934,9 +964,9 @@ namespace matchinglib
   {
     int const nrSupportedTypes =
 #if defined(USE_NON_FREE_CODE)
-      20;
+      22;
 #else
-      18;
+      20;
 #endif
     static std::string types [] = {"BRISK",
                                    "ORB",
@@ -959,7 +989,9 @@ namespace matchinglib
 								"VGG_120",
 								"VGG_80",
 								"VGG_64",
-								"VGG_48"
+								"VGG_48",
+								"RIFF",
+								"BOLD"
                                   };
     return std::vector<std::string>(types, types + nrSupportedTypes);
   }

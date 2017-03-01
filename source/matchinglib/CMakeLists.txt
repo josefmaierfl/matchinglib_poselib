@@ -98,8 +98,9 @@ set(sources
     ${source_path}/CascadeHash/HashConvertor.cc
     ${source_path}/CascadeHash/MatchPairLoader.cc
 	
-	#${source_path}/annoy/annoyluamodule.cc
-	#${source_path}/annoy/annoymodule.cc
+	${source_path}/descriptor-RIFF/riff.cpp
+	
+	${source_path}/descriptor-BOLD/bold.cpp
 )
 
 # Group source files
