@@ -15,6 +15,7 @@
 
  DISCRIPTION: This file provides functionalities for matching features
 **********************************************************************************************************/
+
 #include "matchinglib_matchers.h"
 
 #include "match_statOptFlow.h"
@@ -40,6 +41,8 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
+#include "annoy/annoylib.h"
+
 //using namespace cv;
 using namespace std;
 
@@ -54,6 +57,7 @@ namespace matchinglib
   bool sortMatchWeightIdx(std::pair<double,unsigned int>& first, std::pair<double,unsigned int>& second);
 //The Cascade Hashing matcher
   int cashashMatching(cv::Mat const& descrL, cv::Mat const& descrR, std::vector<cv::DMatch> & matches);
+  int annoyMatching(cv::Mat const& descrL, cv::Mat const& descrR, std::vector<cv::DMatch> & matches, bool ratioTest = true, unsigned int n_trees = 0, unsigned int search_k = 0);
 
   /* --------------------- Functions --------------------- */
 
@@ -461,6 +465,11 @@ namespace matchinglib
 			return -1;
 		}
 	}
+	else if (!matcher_name.compare("ANNOY"))//exact search method
+	{
+		if (annoyMatching(descriptors1, descriptors2, finalMatches, ratioTest) != 0)
+			return -1;
+	}
     else if(!matcher_name.compare("HIRCLUIDX") || !matcher_name.compare("HIRKMEANS") ||
             !matcher_name.compare("LINEAR") || !matcher_name.compare("LSHIDX") ||
             !matcher_name.compare("RANDKDTREE"))
@@ -828,6 +837,129 @@ namespace matchinglib
     free(imgdata2.siftDataPtrList);
 
     return 0;
+  }
+
+  /* Wrapper function for the Annoy matching library
+  *
+  * Mat descrL              Input  -> Descriptors within the first or left image
+  * Mat descrR              Input  -> Descriptors within the second or right image
+  * vector<DMatch> matches  Output -> Matches
+  * bool ratioTest          Input  -> If true [Default=true], a ratio test is performed on the results.
+  * unsigned int n_trees    Input  -> If provided, the build process of the index is influenced in the following way:
+  *									  n_trees is provided during build time and affects the build time and the index 
+  *									  size. A larger value will give more accurate results, but larger indexes.
+  * unsigned int search_k   Input  -> If provided, the search process influenced in the following way:
+  *									  search_k is provided in runtime and affects the search performance. A larger 
+  *									  value will give more accurate results, but will take longer time to return.
+  *
+  * Return value:           0:     Everything ok
+  *                  -1:     Discriptor type not supported
+  */
+  int annoyMatching(cv::Mat const& descrL, cv::Mat const& descrR, std::vector<cv::DMatch> & matches, bool ratioTest, unsigned int n_trees, unsigned int search_k)
+  {
+	  unsigned int descrDim = (unsigned int)descrR.cols;
+	  unsigned int nrEntriesR = (unsigned int)descrR.rows;
+	  unsigned int nrEntriesL = (unsigned int)descrL.rows;
+	  if (descrR.type() == CV_32F)
+	  {
+		  //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
+		  AnnoyIndex<unsigned int, float, Euclidean, RandRandom> index(descrR.cols);
+
+		  for (unsigned int i = 0; i < nrEntriesR; i++)
+		  {
+			  index.add_item(i, (float*)descrR.data + i * descrDim);
+		  }
+		  //index.verbose(true);
+
+		  if (n_trees)
+			  index.build(n_trees);
+		  else
+			  index.build(10);
+		  
+		  for (unsigned int i = 0; i < nrEntriesL; i++)
+		  {
+			  vector<unsigned int> idxs;
+			  vector<float> distances;
+			  cv::DMatch match;
+
+			  if(search_k)
+				  index.get_nns_by_vector((float*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
+			  else
+				  index.get_nns_by_vector((float*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
+
+			  if (ratioTest && (idxs.size() > 1))
+			  {
+				if (distances[0] < (0.75f * distances[1]))
+				{
+					match.distance = distances[0];
+					match.queryIdx = (int)i;
+					match.trainIdx = (int)idxs[0];
+					matches.push_back(match);
+				}
+			  }
+			  else if(!idxs.empty())
+			  {
+				  match.distance = distances[0];
+				  match.queryIdx = (int)i;
+				  match.trainIdx = (int)idxs[0];
+				  matches.push_back(match);
+			  }
+		  }
+	  }
+	  else if (descrR.type() == CV_64F)
+	  {
+		  //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
+		  AnnoyIndex<unsigned int, double, Euclidean, RandRandom> index(descrR.cols);
+
+		  for (unsigned int i = 0; i < nrEntriesR; i++)
+		  {
+			  index.add_item(i, (double*)descrR.data + i * descrDim);
+		  }
+		  //index.verbose(true);
+
+		  if (n_trees)
+			  index.build(n_trees);
+		  else
+			  index.build(10);
+
+		  for (unsigned int i = 0; i < nrEntriesL; i++)
+		  {
+			  vector<unsigned int> idxs;
+			  vector<double> distances;
+			  cv::DMatch match;
+
+			  if (search_k)
+				  index.get_nns_by_vector((double*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
+			  else
+				  index.get_nns_by_vector((double*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
+
+			  if (ratioTest && (idxs.size() > 1))
+			  {
+				  if (distances[0] < (0.75f * distances[1]))
+				  {
+					  match.distance = distances[0];
+					  match.queryIdx = (int)i;
+					  match.trainIdx = (int)idxs[0];
+					  matches.push_back(match);
+				  }
+			  }
+			  else if (!idxs.empty())
+			  {
+				  match.distance = distances[0];
+				  match.queryIdx = (int)i;
+				  match.trainIdx = (int)idxs[0];
+				  matches.push_back(match);
+			  }
+		  }
+	  }
+	  else
+	  {
+		  cout << "Wrong descriptor data type for ANNOY! Must be 32bit float or 64bit double." << endl;
+		  return -1;
+	  }
+
+
+	  return 0;
   }
 
   /* This function calculates the subpixel-position of matched keypoints by template matching. Be careful,

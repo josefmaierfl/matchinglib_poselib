@@ -4,6 +4,7 @@
 #
 
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
+#option(DISABLE_ITERATOR_DEBUG "Set _ITERATOR_DEBUG_LEVEL=0 to be able to run the annoy matcher in Debug mode." OFF)
 
 if(WIN32)
 if("$ENV{THIRDPARTYROOT}" STREQUAL "")
@@ -96,6 +97,9 @@ set(sources
     ${source_path}/CascadeHash/DataPreProcessor.cc
     ${source_path}/CascadeHash/HashConvertor.cc
     ${source_path}/CascadeHash/MatchPairLoader.cc
+	
+	#${source_path}/annoy/annoyluamodule.cc
+	#${source_path}/annoy/annoymodule.cc
 )
 
 # Group source files
@@ -201,11 +205,13 @@ target_link_libraries(${target}
 target_compile_definitions(${target}
     PRIVATE
     $<$<BOOL:${USE_NON_FREE_CODE}>:USE_NON_FREE_CODE>
+	#$<$<BOOL:${DISABLE_ITERATOR_DEBUG}>:_ITERATOR_DEBUG_LEVEL=0>
 
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
     #${FLANN_DEFINITIONS}
+	
 
     INTERFACE
 )

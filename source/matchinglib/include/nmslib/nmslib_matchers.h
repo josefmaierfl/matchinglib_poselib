@@ -116,19 +116,17 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			return new similarity::Object(id, label, InpVect.size() * sizeof(dist_t), &InpVect[0]);
 		};
 
-		/* This function calculates the keypoints in an image
+		/* This is a wrapper function for the NMSLIB
 		*
-		* Mat img              Input  -> Input image
-		* vector<KeyPoint>* keypoints    Output -> Pointer to the keypoints
-		* string keypointtype       Input  -> Algorithm for calculating the features. The following inputs are possible:
-		*                        OpenCV 2.4.9: FAST, STAR, SIFT, SURF, ORB, BRISK, MSER, GFTT, HARRIS, Dense, SimpleBlob
-		*                        OpenCV 3.0: FAST, STAR, (SIFT, SURF,) ORB, BRISK, MSER, KAZE, AKAZE
-		*                        -> see the OpenCV documentation for further details on the different methods
-		* bool dynamicKeypDet        Input  -> If true [Default], the number of features is limited to a specific nr. of
-		*                        features using dynamic versions of the feature detectors. Only GFTT, SURF,
-		*                        FAST and STAR are supported using this option.
-		* int limitNrfeatures        Input  -> Maximum number of features that should remain after filtering or dynamic
-		*                        feature detection [Default=8000].
+		* Mat descrL              Input  -> Descriptors within the first or left image
+		* Mat descrR              Input  -> Descriptors within the second or right image
+		* vector<DMatch> matches  Output -> Matches
+		* string methodStr        Input  -> Name of the NMSLIB matching method. See the NMSLIB documentation for options.
+		* string spaceStr         Input  -> The name of the distance function like l2 or bit_hamming. See the NMSLIB documentation for options.
+		* string indexParsStr     Input  -> The parameters for generating the search index. See the NMSLIB documentation for options.
+		* string queryTimeParsStr Input  -> The parameters for searching. See the NMSLIB documentation for options.
+		* bool ratioTest          Input  -> If true [Default=true], a ratio test is performed on the results.
+		* unsigned ThreadQty      Input  -> The number of threads used for searching. A higher number must not lead to smaller search times.
 		*
 		* Return value:           0:     Everything ok
 		*                  -1:     Too less features detected
