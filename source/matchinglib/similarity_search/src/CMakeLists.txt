@@ -78,20 +78,20 @@ else ()
     set (EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/debug/")
 endif ()
 
-string(LENGTH ${PROJECT_SOURCE_DIR} PREFIX_LEN) 
-MATH(EXPR PREFIX_LEN "${PREFIX_LEN}+1")
-foreach(F ${PROJ_HDR_FILES}) 
-  GET_FILENAME_COMPONENT(FP ${F} PATH)
-  string(SUBSTRING ${FP} ${PREFIX_LEN} -1 FS)
-  #message(${PREFIX_LEN} ":" ${FS})
-  install(FILES "${F}" DESTINATION ${FS})
-endforeach(F)
+# string(LENGTH ${PROJECT_SOURCE_DIR} PREFIX_LEN) 
+# MATH(EXPR PREFIX_LEN "${PREFIX_LEN}+1")
+# foreach(F ${PROJ_HDR_FILES}) 
+  # GET_FILENAME_COMPONENT(FP ${F} PATH)
+  # string(SUBSTRING ${FP} ${PREFIX_LEN} -1 FS)
+  ##message(${PREFIX_LEN} ":" ${FS})
+  # install(FILES "${F}" DESTINATION ${FS})
+# endforeach(F)
 
-install(TARGETS NonMetricSpaceLib   
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  COMPONENT library
-)
+#install(TARGETS NonMetricSpaceLib   
+ # ARCHIVE DESTINATION lib
+  #LIBRARY DESTINATION lib
+  #COMPONENT library
+#)
 
 set(NonMetricSpaceLib_LIBRARIES NonMetricSpaceLib ${LSHKIT_LIB} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 message(STATUS "NonMetricSpaceLib_LIBRARIES: ${NonMetricSpaceLib_LIBRARIES}")

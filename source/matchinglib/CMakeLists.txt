@@ -78,7 +78,11 @@ file(GLOB_RECURSE header_files
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.inl"
 )
 set(headers
-#    ${include_path}/test.h
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib_imagefeatures.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib_matchers.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib_correspondences.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/vfcMatches.h"
 )
 
 set(sources
@@ -164,6 +168,8 @@ target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+	
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
     PUBLIC

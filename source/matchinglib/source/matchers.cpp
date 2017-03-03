@@ -465,6 +465,50 @@ namespace matchinglib
 			return -1;
 		}
 	}
+	else if (!matcher_name.compare("BRUTEFORCENMS"))
+	{
+		if (descriptors1.type() == CV_32F)
+		{
+			nmslibMatching<float>(descriptors1,
+				descriptors2,
+				finalMatches,
+				"seq_search",
+				"l2",
+				"",
+				"",
+				ratioTest,
+				NMSLIB_SEARCH_THREADS);
+		}
+		else if (descriptors1.type() == CV_8U)
+		{
+			nmslibMatching<int>(descriptors1,
+				descriptors2,
+				finalMatches,
+				"seq_search",
+				"bit_hamming",
+				"",
+				"",
+				ratioTest,
+				NMSLIB_SEARCH_THREADS);
+		}
+		else if (descriptors1.type() == CV_64F)
+		{
+			nmslibMatching<double>(descriptors1,
+				descriptors2,
+				finalMatches,
+				"seq_search",
+				"l2",
+				"",
+				"",
+				ratioTest,
+				NMSLIB_SEARCH_THREADS);
+		}
+		else
+		{
+			cout << "Wrong descriptor data type for BRUTEFORCENMS! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+			return -1;
+		}
+	}
 	else if (!matcher_name.compare("ANNOY"))//exact search method
 	{
 		if (annoyMatching(descriptors1, descriptors2, finalMatches, ratioTest) != 0)
@@ -1204,8 +1248,8 @@ namespace matchinglib
 
   std::vector<std::string> GetSupportedMatcher()
   {
-    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT", "SWGRAPH", "HNSW", "VPTREE", "MVPTREE", "GHTREE", "LISTCLU", "SATREE"};
-    return std::vector<std::string>(types, types + 18);
+    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT", "SWGRAPH", "HNSW", "VPTREE", "MVPTREE", "GHTREE", "LISTCLU", "SATREE", "BRUTEFORCENMS", "ANNOY"};
+    return std::vector<std::string>(types, types + 20);
   }
 
 }

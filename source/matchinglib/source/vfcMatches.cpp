@@ -15,7 +15,7 @@
 
  DISCRIPTION: Interface for filtering matches with the VFC algorithm
 **********************************************************************************************************/
-#include "../include/vfcMatches.h"
+#include "../include/matchinglib/vfcMatches.h"
 #include "../include/vfc.h"
 
 using namespace std;
