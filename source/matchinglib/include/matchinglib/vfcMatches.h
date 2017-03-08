@@ -21,9 +21,11 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "../include/glob_includes.h"
 
+#include "matchinglib/matchinglib_api.h"
+
 /* --------------------------- Defines --------------------------- */
 
 /* --------------------- Function prototypes --------------------- */
 
 //Filters matches using the VFC algorithm
-int filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoint> const& keypR, std::vector<cv::DMatch> const& matches_in, std::vector<cv::DMatch> & matches_out);
+int MATCHINGLIB_API filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoint> const& keypR, std::vector<cv::DMatch> const& matches_in, std::vector<cv::DMatch> & matches_out);

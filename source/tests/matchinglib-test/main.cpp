@@ -127,10 +127,10 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                    "<Verbose value [Default=3].\n 0\t no information\n 1\t Display matching time\n 2\t Display feature detection times and matching time\n 3\t Display number of features and matches in addition to all temporal values>",
                    ArgvParser::OptionRequiresValue);
   cmd.defineOption("nmsIdx",
-				  "<Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
+				  "<Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details. Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
 				  ArgvParser::OptionRequiresValue);
   cmd.defineOption("nmsQry",
-	  "<Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
+	  "<Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details. Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
 	  ArgvParser::OptionRequiresValue);
 
   /// finally parse and handle return codes (display help etc...)
@@ -234,6 +234,7 @@ void startEvaluation(ArgvParser& cmd)
   if (cmd.foundOption("nmsIdx"))
   {
 	  nmsIdx = cmd.optionValue("nmsIdx");
+	  std::replace(nmsIdx.begin(), nmsIdx.end(), '+', '=');
   }
   else
   {
@@ -243,6 +244,7 @@ void startEvaluation(ArgvParser& cmd)
   if (cmd.foundOption("nmsQry"))
   {
 	  nmsQry = cmd.optionValue("nmsQry");
+	  std::replace(nmsQry.begin(), nmsQry.end(), '+', '=');
   }
   else
   {
