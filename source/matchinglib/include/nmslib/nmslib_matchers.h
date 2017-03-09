@@ -367,6 +367,11 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 				delete (queryobjects_[i]);
 			}
 
+			/*SpaceParams.reset();
+			IndexParams.reset();
+			IndexPtr.reset();*/
+			//DelThreadParams.~AutoVectDel();
+
 			//Ratio test
 			if (ratioTest)
 			{

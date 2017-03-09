@@ -49,7 +49,7 @@ using namespace std;
 namespace matchinglib
 {
 
-#define NMSLIB_SEARCH_THREADS 4
+#define NMSLIB_SEARCH_THREADS 8
 
   /* --------------------- Function prototypes --------------------- */
 

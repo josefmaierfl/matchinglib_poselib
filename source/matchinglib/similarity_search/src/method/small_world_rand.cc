@@ -209,6 +209,8 @@ const std::string SmallWorldRand<dist_t>::StrDesc() const {
 
 template <typename dist_t>
 SmallWorldRand<dist_t>::~SmallWorldRand() {
+	for (int i = 0; i < ElList_.size(); i++)
+		delete ElList_[i];
 }
 
 template <typename dist_t>
