@@ -221,7 +221,7 @@ namespace matchinglib
 	}
 	else if (!matcher_name.compare("HNSW"))
 	{
-		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "M=10,efConstruction=10,delaunay_type=1,indexThreadQty=8" : idxPars_NMSLIB;
+		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "M=50,efConstruction=10,delaunay_type=1,indexThreadQty=8" : idxPars_NMSLIB;
 		string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "efSearch=10" : queryPars_NMSLIB;
 		if (descriptors1.type() == CV_32F)
 		{

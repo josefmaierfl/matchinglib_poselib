@@ -121,7 +121,15 @@ namespace matchinglib
    */
   int getKeypoints(Mat &img, std::vector<cv::KeyPoint>& keypoints, string &keypointtype, bool dynamicKeypDet, int limitNrfeatures)
   {
-    const int minnumfeatures = 10, maxnumfeatures = limitNrfeatures;
+	  const int minnumfeatures = 10;
+	  int maxnumfeatures = limitNrfeatures;
+
+	int limitNrfeatures_tmp = limitNrfeatures;
+	if (!keypointtype.compare("ORB") && (limitNrfeatures > 100000))
+	{
+		limitNrfeatures_tmp = 100000;
+		maxnumfeatures = limitNrfeatures_tmp;
+	}
 
     /*if(!featuretype.compare("SIFT") || !featuretype.compare("SURF"))
       cv::initModule_nonfree();*/
@@ -308,7 +316,7 @@ namespace matchinglib
 
       //cout << "Dynamic keypoint detection is since OpenCV 3.0 not available! Performing response filtering." << endl;
 
-      Ptr<FeatureDetector> detector = createDetector(keypointtype, limitNrfeatures);// = FeatureDetector::create( featuretype );
+      Ptr<FeatureDetector> detector = createDetector(keypointtype, limitNrfeatures_tmp);// = FeatureDetector::create( featuretype );
 
       if(detector.empty())
       {
@@ -323,7 +331,7 @@ namespace matchinglib
     }
     else
     {
-      Ptr<FeatureDetector> detector = createDetector(keypointtype, limitNrfeatures);// = FeatureDetector::create( featuretype );
+      Ptr<FeatureDetector> detector = createDetector(keypointtype, limitNrfeatures_tmp);// = FeatureDetector::create( featuretype );
 
       if(detector.empty())
       {

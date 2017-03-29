@@ -175,6 +175,18 @@ namespace matchinglib
 		return -6;
 	}
 
+	if (!featuretype.compare("SIFT") && !extractortype.compare("ORB"))
+	{
+		cout << "ORB descriptors are not compatible with SIFT keypoints!" << endl;
+		return -6;
+	}
+
+	if (!featuretype.compare("MSD") && !extractortype.compare("SIFT"))
+	{
+		cout << "SIFT descriptors are not compatible with MSD keypoints!" << endl;
+		return -6;
+	}
+
     vector<cv::KeyPoint> keypoints1, keypoints2;
     cv::Mat descriptors1, descriptors2;
     cv::Size imgSi = img1.size();
