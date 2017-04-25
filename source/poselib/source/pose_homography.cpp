@@ -390,7 +390,7 @@ int estimateMultHomographys(cv::InputArray p1,
 	{
 		for(unsigned int i = 0; i < num_inl_tmp.size(); i++)
 		{
-			num_inl_idx.push_back(make_pair<unsigned int, unsigned int>(i,num_inl_tmp.at(i)));
+			num_inl_idx.push_back(make_pair(i,num_inl_tmp.at(i)));
 		}
 		std::sort(num_inl_idx.begin(),num_inl_idx.end(),[](std::pair<unsigned int, unsigned int> const & first, std::pair<unsigned int, unsigned int> const & second){
 			return first.second > second.second;});

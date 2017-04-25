@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 #else
 
 // ideal case
-#include "matchinglib.h"
+#include "matchinglib\matchinglib.h"
 #include "pose_estim.h"
 #include "pose_helper.h"
 #include "pose_homography.h"
@@ -379,7 +379,10 @@ void startEvaluation(ArgvParser& cmd)
 	img_path = cmd.optionValue("img_path");
 	l_img_pref = cmd.optionValue("l_img_pref");
 
-  output_path = cmd.optionValue("output_path");
+	if (cmd.foundOption("output_path"))
+		output_path = cmd.optionValue("output_path");
+	else
+		output_path = "";
 
 	if(oneCam)
 	{

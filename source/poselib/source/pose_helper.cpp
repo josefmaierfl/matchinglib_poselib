@@ -2631,7 +2631,8 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
 
     cvSetMouseCallback("Rectification", on_mouse_move, (void*)(&composed) );
     cv::imshow("Rectification",composed);
-    cvWaitKey(1);
+    cvWaitKey(0);
+	cv::destroyWindow("Rectification");
 
     for(int i=0;i<2;i++)
 		show_rect[i].release();
