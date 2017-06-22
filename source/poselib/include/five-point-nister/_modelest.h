@@ -67,7 +67,7 @@ public:
 							void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
 													cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 
 													double *sumSqrErr_init, double *sumSqrErr, 
-													cv::OutputArray errors, cv::InputOutputArray mask, int model) = NULL);
+													cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs) = NULL);
     virtual bool refine( const CvMat*, const CvMat*, CvMat*, int ) { return true; }
     virtual void setSeed( int64 seed );
 	virtual void computeReprojError3( const CvMat* m1, const CvMat* m2,
@@ -92,19 +92,19 @@ protected:
     int maxBasicSolutions;
     bool checkPartialSubsets;
 
-	friend class EssentialMatEstimator;
+	friend class EssentialMatEstimatorTheia;
 };
 
-class EssentialMatEstimator: public theia::Estimator<size_t,CvMat>							 
+class EssentialMatEstimatorTheia: public theia::Estimator<size_t,CvMat>							 
 {
 public:
-	EssentialMatEstimator(CvModelEstimator3* modelEstimator,
+	EssentialMatEstimatorTheia(CvModelEstimator3* modelEstimator,
 						  cv::Mat points1, cv::Mat points2)
 		:modelEstimator_(modelEstimator),
 		 points1_(points1),
 		 points2_(points2) {}
 
-	~EssentialMatEstimator() {}
+	~EssentialMatEstimatorTheia() {}
 
 	bool EstimateModel(const std::vector<size_t>& data,
 		std::vector<CvMat>* model) const;

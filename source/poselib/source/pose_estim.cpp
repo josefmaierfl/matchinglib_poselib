@@ -19,8 +19,9 @@
 
 #include "pose_estim.h"
 #include "pose_helper.h"
-#include "five-point-nister\five-point.hpp"
+#include "five-point-nister/five-point.hpp"
 #include "BA_driver.h"
+#include "usac/usac_estimations.h"
 
 using namespace cv;
 using namespace std;
@@ -34,7 +35,7 @@ namespace poselib
 
 /* --------------------- Function prototypes --------------------- */
 
-
+	
 
 /* --------------------- Functions --------------------- */
 
@@ -165,7 +166,7 @@ double AutoThEpi::estimateThresh(cv::InputArray p1, cv::InputArray p2, cv::Input
 	Mat _p2 = p2.getMat();
 	std::vector<double> error;
 	double th, th_tmp, maxInlDist;
-	//double pixToCamFact = 4.0/(std::sqrt((double)2)*(this->K1.at<double>(1,1)+this->K1.at<double>(2,2)+this->K2.at<double>(1,1)+this->K2.at<double>(2,2)));
+	//double pixToCamFact = 4.0/(std::sqrt((double)2)*(this->K1.at<double>(0,0)+this->K1.at<double>(1,1)+this->K2.at<double>(0,0)+this->K2.at<double>(1,1)));
 
 	getReprojErrors(_E,_p1,_p2,useImgCoordSystem,NULL,&error);
 
@@ -235,7 +236,7 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
 	//CV_Assert(!this->K1.empty() && !this->K2.empty());
 
 	double pix_th_tmp, cam_th_tmp;
-	//double pixToCamFact = 4.0/(std::sqrt((double)2)*(this->K1.at<double>(1,1)+this->K1.at<double>(2,2)+this->K2.at<double>(1,1)+this->K2.at<double>(2,2)));
+	//double pixToCamFact = 4.0/(std::sqrt((double)2)*(this->K1.at<double>(0,0)+this->K1.at<double>(1,1)+this->K2.at<double>(0,0)+this->K2.at<double>(1,1)));
 
 	if(useImgCoordSystem)
 		pix_th_tmp = thresh;
@@ -300,12 +301,18 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
  * int model						Input  -> Optional input (Default = 0) to specify the used
  *											  model (0 = Normal essential matrix, 1 = affine 
  *											  essential matrix, 2 = translational essential matrix).
+ * bool tryOrientedEpipolar			Input  -> Optional input [DEFAULT = false] to specify if a essential matrix
+ *											  should be evaluated by the oriented epipolar constraint. Maybe this
+ *											  is only possible for a fundamental matrix?
+ * bool normalizeCorrs				Input  -> If true [DEFAULT=false], the coordinates are normalized. Normalization has 
+ *											  an impact on the properties of the essential matrix! Thus, after normalization,
+ *											  the properties of the fundamental matrix are valid!
  *
  * Return value:					none
  */
 void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
 						  double th, unsigned int iters, bool makeClosestE, double *sumSqrErr_init,
-						  double *sumSqrErr, cv::OutputArray errors, cv::InputOutputArray mask, int model)
+						  double *sumSqrErr, cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs)
 {
 
 	Mat _points1 = points1.getMat(), _points2 = points2.getMat();
@@ -351,9 +358,9 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 			}
 		}
 		npoints = pointsRedu1.rows;
-		pointsRedu1 = pointsRedu1.t();
+		//pointsRedu1 = pointsRedu1.t();
 		pointsRedu1 = pointsRedu1.reshape(2,1);
-		pointsRedu2 = pointsRedu2.t();
+		//pointsRedu2 = pointsRedu2.t();
 		pointsRedu2 = pointsRedu2.reshape(2,1);
 	}
 	else
@@ -365,10 +372,12 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 		}
 		else
 		{
-			pointsRedu1 = _points1.t();
-			pointsRedu1 = pointsRedu1.reshape(2,1);
-			pointsRedu2 = _points2.t();
-			pointsRedu2 = pointsRedu2.reshape(2,1);
+			//pointsRedu1 = _points1.t();
+			//pointsRedu1 = pointsRedu1.reshape(2, 1);
+			pointsRedu1 = _points1.reshape(2,1);
+			//pointsRedu2 = _points2.t();
+			//pointsRedu2 = pointsRedu2.reshape(2,1);
+			pointsRedu2 = _points2.reshape(2, 1);
 		}
 	}
 
@@ -394,63 +403,67 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
     int i;
 
     // compute centers and average distances for each of the two point sets
-    for( i = 0; i < npoints; i++ )
-    {
-        double x = _m1[i].x, y = _m1[i].y;
-        m0c.x += x; m0c.y += y;
-
-        x = _m2[i].x, y = _m2[i].y;
-        m1c.x += x; m1c.y += y;
-    }
-
-    // calculate the normalizing transformations for each of the point sets:
-    // after the transformation each set will have the mass center at the coordinate origin
-    // and the average distance from the origin will be ~sqrt(2).
-    t = 1./npoints;
-	if(model != 2)
+	Mat H0, H1;
+	if (normalizeCorrs)
 	{
-		m0c.x *= t; m0c.y *= t;
-		m1c.x *= t; m1c.y *= t;
+		for (i = 0; i < npoints; i++)
+		{
+			double x = _m1[i].x, y = _m1[i].y;
+			m0c.x += x; m0c.y += y;
+
+			x = _m2[i].x, y = _m2[i].y;
+			m1c.x += x; m1c.y += y;
+		}
+
+		// calculate the normalizing transformations for each of the point sets:
+		// after the transformation each set will have the mass center at the coordinate origin
+		// and the average distance from the origin will be ~sqrt(2).
+		t = 1. / npoints;
+		if (model != 2)
+		{
+			m0c.x *= t; m0c.y *= t;
+			m1c.x *= t; m1c.y *= t;
+		}
+		else
+		{
+			t *= 0.5;
+			m1c.x = m0c.x = (m0c.x + m1c.x) * t;
+			m1c.y = m0c.y = (m0c.y + m1c.y) * t;
+		}
+
+		for (i = 0; i < npoints; i++)
+		{
+			double x = _m1[i].x - m0c.x, y = _m1[i].y - m0c.y;
+			scale0 += sqrt(x*x + y*y);
+
+			x = _m2[i].x - m1c.x, y = _m2[i].y - m1c.y;
+			scale1 += sqrt(x*x + y*y);
+		}
+
+		if (model != 2)
+		{
+			scale0 *= t;
+			scale1 *= t;
+		}
+		else
+		{
+			scale1 = scale0 = (scale0 + scale1) * t;
+		}
+
+		if (scale0 < FLT_EPSILON || scale1 < FLT_EPSILON)
+			return;
+
+		scale0 = sqrt(2.) / scale0;
+		scale1 = sqrt(2.) / scale1;
+
+		H0 = (Mat_<double>(3, 3) << scale0, 0, -scale0*m0c.x,
+			0, scale0, -scale0*m0c.y,
+			0, 0, 1);
+
+		H1 = (Mat_<double>(3, 3) << scale1, 0, -scale1*m1c.x,
+			0, scale1, -scale1*m1c.y,
+			0, 0, 1);
 	}
-	else
-	{
-		t *= 0.5;
-		m1c.x = m0c.x = (m0c.x + m1c.x) * t;
-		m1c.y = m0c.y = (m0c.y + m1c.y) * t;
-	}
-
-    for( i = 0; i < npoints; i++ )
-    {
-        double x = _m1[i].x - m0c.x, y = _m1[i].y - m0c.y;
-        scale0 += sqrt(x*x + y*y);
-
-        x = _m2[i].x - m1c.x, y = _m2[i].y - m1c.y;
-        scale1 += sqrt(x*x + y*y);
-    }
-
-	if(model != 2)
-	{
-		scale0 *= t;
-		scale1 *= t;
-	}
-	else
-	{
-		scale1 = scale0 = (scale0 + scale1) * t;
-	}
-
-    if( scale0 < FLT_EPSILON || scale1 < FLT_EPSILON )
-        return;
-
-    scale0 = sqrt(2.)/scale0;
-    scale1 = sqrt(2.)/scale1;
-
-	Mat H0 = (Mat_<double>(3, 3) << scale0, 0, -scale0*m0c.x,
-									0, scale0, -scale0*m0c.y,
-									0, 0, 1);
-
-	Mat H1 = (Mat_<double>(3, 3) << scale1, 0, -scale1*m1c.x,
-									0, scale1, -scale1*m1c.y,
-									0, 0, 1);
 
 	typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic > TAMat;
 	TAMat A1, A2;
@@ -479,17 +492,44 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 		// form a linear system Ax=0: for each selected pair of points m1 & m2,
 		// the row of A(=a) represents the coefficients of equation: (m2, 1)'*F*(m1, 1) = 0
 		// to save computation time, we compute (At*A) instead of A and then solve (At*A)x=0. 
-		for( i = 0; i < npoints; i++ )
+		std::vector<double> weights(npoints), denom1s(npoints);
+		for (i = 0; i < npoints; i++)
 		{
 			double denom1, num;
-			SampsonL1(pointsRedu1.col(i).reshape(1,2), pointsRedu2.col(i).reshape(1,2), F3, denom1, num);
-			const double weight = costPseudoHuber(num*denom1,th);
+			SampsonL1(pointsRedu1.col(i).reshape(1, 2), pointsRedu2.col(i).reshape(1, 2), F3, denom1, num);
+			const double weight = costPseudoHuber(num*denom1, th);
+			weights[i] = weight;
+			denom1s[i] = denom1;
+		}
+		double weightnorm = 0;
+		for (i = 0; i < npoints; i++)
+		{
+			weightnorm += pow(weights[i]* denom1s[i], 2);
+		}
+		weightnorm = sqrt(weightnorm);
+
+		for (i = 0; i < npoints; i++)
+		{
 
 
-			double x0 = (_m1[i].x - m0c.x)*scale0;
-			double y0 = (_m1[i].y - m0c.y)*scale0;
-			double x1 = (_m2[i].x - m1c.x)*scale1;
-			double y1 = (_m2[i].y - m1c.y)*scale1;
+			double x0;
+			double y0;
+			double x1;
+			double y1;
+			if (normalizeCorrs)
+			{
+				x0 = (_m1[i].x - m0c.x)*scale0;
+				y0 = (_m1[i].y - m0c.y)*scale0;
+				x1 = (_m2[i].x - m1c.x)*scale1;
+				y1 = (_m2[i].y - m1c.y)*scale1;
+			}
+			else
+			{
+				x0 = _m1[i].x;
+				y0 = _m1[i].y;
+				x1 = _m2[i].x;
+				y1 = _m2[i].y;
+			}
 
 			if(!model)
 			{
@@ -524,7 +564,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 				A1(i, 2) = 1.0;
 			}
 
-			A1.row(i) *= denom1*weight; /* multiply by 1/dominator of the Sampson L1-distance to eliminate
+			A1.row(i) *= denom1s[i] * weights[i] / weightnorm; /* multiply by 1/dominator of the Sampson L1-distance to eliminate
 										* it from the dominator of the pseudo-huber weight value (which is
 										* actually sqrt(cost_pseudo_huber)/Sampson_L1_distance). This is
 										* necessary because the SVD calculates the least squared algebraic
@@ -569,7 +609,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 
 			//Much slower then solving for eigenvectors of A^T*A
 			/*Eigen::JacobiSVD<TAMat> svdA(A1, Eigen::ComputeFullV);
-			Eigen::Matrix<double, 9, 1 > lastCol = svdA.matrixV().col(8);*/
+			lastCol = svdA.matrixV().col(8);*/
 
 			//Convert to F
 			
@@ -590,9 +630,9 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 			{
 				bool validE;
 				if(mask.needed())
-					validE = validateEssential(_points1, _points2, F2, false, mask);
+					validE = validateEssential(_points1, _points2, F2, false, mask, tryOrientedEpipolar);
 				else
-					validE = validateEssential(_points1, _points2, F2);
+					validE = validateEssential(_points1, _points2, F2, false, cv::noArray(), tryOrientedEpipolar);
 				if(!validE)
 				{
 					cout << "E is no valid essential matrix - taking last valid E!" << endl;
@@ -603,9 +643,9 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 			{
 				bool validE;
 				if(mask.needed())
-					validE = validateEssential(_points1, _points2, F2, true, mask);
+					validE = validateEssential(_points1, _points2, F2, true, mask, tryOrientedEpipolar);
 				else
-					validE = validateEssential(_points1, _points2, F2, true);
+					validE = validateEssential(_points1, _points2, F2, true, cv::noArray(), tryOrientedEpipolar);
 				if(!validE)
 				{
 					cout << "E is no valid essential matrix - taking last valid E!" << endl;
@@ -652,9 +692,9 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 
 			bool validE;
 			if(mask.needed())
-				validE = validateEssential(_points1, _points2, F2, false, mask);
+				validE = validateEssential(_points1, _points2, F2, false, mask, tryOrientedEpipolar);
 			else
-				validE = validateEssential(_points1, _points2, F2);
+				validE = validateEssential(_points1, _points2, F2, false, cv::noArray(), tryOrientedEpipolar);
 			if(!validE)
 			{
 				cout << "E is no valid essential matrix - taking last valid E!" << endl;
@@ -703,9 +743,9 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 
 			bool validE;
 			if(mask.needed())
-				validE = validateEssential(_points1, _points2, F2, false, mask);
+				validE = validateEssential(_points1, _points2, F2, false, mask, tryOrientedEpipolar);
 			else
-				validE = validateEssential(_points1, _points2, F2);
+				validE = validateEssential(_points1, _points2, F2, false, cv::noArray(), tryOrientedEpipolar);
 			if(!validE)
 			{
 				cout << "E is no valid essential matrix - taking last valid E!" << endl;
@@ -714,7 +754,9 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 		}
 
 		cv::eigen2cv(F2,F3);
-		F3 = H1.t() * F3 * H0;
+		if(normalizeCorrs)
+			F3 = H1.t() * F3 * H0;
+
 
 		if(!iters)
 		{
@@ -724,7 +766,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 			//	E_refined = F3.clone();
 			//	err_min = err;
 			//}
-			const double errdiff = err_old - err;
+			const double errdiff = abs(err_old - err);
 			if((j > 1) && ((errdiff < minSumSqrErrDiff) ||
 				(err < minSumSqrErr)))
 			{
@@ -759,10 +801,10 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 	}
 
 	E_refined = F3.clone();
-	if(model != 2)
+	/*if(model != 2)
 		E_refined /= E_refined.at<double>(2,2);
-	else
-		cv::normalize(E_refined, E_refined);
+	else*/
+		//cv::normalize(E_refined, E_refined);
 }
 
 
@@ -797,6 +839,11 @@ bool estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p
 	else if(!method.compare("LMEDS"))//Only LMEDS without least squares solution
 	{
 		result = findEssentialMat(E, p1, p2, CV_LMEDS, 0.999, threshold, mask);
+	}
+	else if (!method.compare("USAC"))
+	{
+		cout << "USAC must be executed by function estimateEssentialOrPoseUSAC as it needs additional paramters! Exiting." << endl;
+		exit(0);
 	}
 	else
 	{
@@ -1184,5 +1231,374 @@ bool refineStereoBA(cv::InputArray p1,
 	quatToMatrix(R_new,Rq_new);
 
 	return true;
+}
+
+int estimateEssentialOrPoseUSAC(cv::InputArray p1,
+	cv::InputArray p2,
+	cv::OutputArray E,
+	double th,
+	ConfigUSAC & cfg,
+	bool & isDegenerate,
+	cv::OutputArray inliers,
+	cv::OutputArray R_degenerate,
+	cv::OutputArray inliers_degenerate_R,
+	cv::OutputArray R,
+	cv::OutputArray t)
+{
+	//const double degenerateDecisionThreshold = 0.85;//Used for the option UsacChkDegenType::DEGEN_USAC_INTERNAL: Threshold on the fraction of degenerate inliers compared to the E-inlier fraction
+	USACConfig::EssentialMatEstimatorUsed used_estimator;
+	USACConfig::RefineAlgorithm	refineMethod;
+	unsigned int nrInliers = 0;
+	double prosac_beta = 0.09, sprt_delta = 0.05, sprt_epsilon = 0.15, sprt_delta_res = 0, sprt_epsilon_res = 0;
+	static double sprt_delta_old = 0, sprt_delta_new = 0, sprt_epsilon_old = 0, sprt_epsilon_new = 0;
+	std::vector<unsigned int> sortedMatchIdx, *sortedMatchIdxPtr = NULL;
+	switch (cfg.estimator)
+	{
+	case(PoseEstimator::POSE_EIG_KNEIP):
+		used_estimator = USACConfig::EssentialMatEstimatorUsed::ESTIM_EIG_KNEIP;
+		break;
+	case(PoseEstimator::POSE_NISTER):
+		used_estimator = USACConfig::EssentialMatEstimatorUsed::ESTIM_NISTER;
+		break;
+	case(PoseEstimator::POSE_STEWENIUS):
+		used_estimator = USACConfig::EssentialMatEstimatorUsed::ESTIM_STEWENIUS;
+		break;
+	default:
+		cout << "Estimator not supported!" << endl;
+		return -1;
+	}
+	switch (cfg.refinealg)
+	{
+	case(RefineAlg::REF_8PT_PSEUDOHUBER):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_8PT_PSEUDOHUBER;
+		break;
+	case(RefineAlg::REF_EIG_KNEIP):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_EIG_KNEIP;
+		break;
+	case(RefineAlg::REF_EIG_KNEIP_WEIGHTS):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_EIG_KNEIP_WEIGHTS;
+		break;
+	case(RefineAlg::REF_WEIGHTS):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_WEIGHTS;
+		break;
+	default:
+		cout << "Refinement algorithm not supported!" << endl;
+		return -1;
+	}
+	
+	//Estimate initial values for delta and epsilon of the SPRT test
+	if (cfg.automaticSprtInit == SprtInit::SPRT_DELTA_AUTOM_INIT)
+	{
+		if (sprt_delta_old == 0 || sprt_delta_new == 0)
+		{
+			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+			sprt_delta_new = sprt_delta;
+		}
+		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.15)
+		{
+			sprt_delta = sprt_delta_new;
+		}
+		else
+		{
+			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+		}
+	}
+	else if (cfg.automaticSprtInit == SprtInit::SPRT_EPSILON_AUTOM_INIT)
+	{
+		if (sprt_epsilon_old == 0 || sprt_epsilon_new == 0)
+		{
+			sprt_epsilon = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
+			sprt_epsilon_new = sprt_epsilon;
+		}
+		else
+		{
+			double sprt_epsilon_tmp = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
+			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.15 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.33)
+			{
+				sprt_epsilon = sprt_epsilon_new;
+			}
+			else
+			{
+				sprt_epsilon = sprt_epsilon_tmp;
+			}
+		}
+	}
+	else if (cfg.automaticSprtInit == (SprtInit::SPRT_DELTA_AUTOM_INIT | SprtInit::SPRT_EPSILON_AUTOM_INIT))
+	{
+		if (sprt_delta_old == 0 || sprt_delta_new == 0)
+		{
+			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+			sprt_delta_new = sprt_delta;
+		}
+		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.15)
+		{
+			sprt_delta = sprt_delta_new;
+		}
+		else
+		{
+			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+		}
+		if (sprt_epsilon_old == 0 || sprt_epsilon_new == 0)
+		{
+			sprt_epsilon = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
+			sprt_epsilon_new = sprt_epsilon;
+		}
+		else
+		{
+			double sprt_epsilon_tmp = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
+			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.15 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.33)
+			{
+				sprt_epsilon = sprt_epsilon_new;
+			}
+			else
+			{
+				sprt_epsilon = sprt_epsilon_tmp;
+			}
+		}
+	}
+	else if (cfg.automaticSprtInit != SprtInit::SPRT_DEFAULT_INIT)
+	{
+		cout << "Method for SPRT initialization not supported!" << endl;
+		return -1;
+	}
+	if (!cfg.noAutomaticProsacParamters)
+	{
+		prosac_beta = sprt_delta;
+	}
+	if (cfg.matches)
+	{
+		getSortedMatchIdx(*cfg.matches, sortedMatchIdx);
+		sortedMatchIdxPtr = &sortedMatchIdx;
+	}
+	
+	if (cfg.degeneracyCheck == UsacChkDegenType::DEGEN_NO_CHECK)
+	{
+		Mat R_degen, inl_degen, inliers_degenerate_noMotion, R_kneip, t_kneip;
+		double fraction_degen_inliers_R = 0, fraction_degen_inliers_noMot = 0;
+		if (estimateEssentialMatUsac(p1,
+			p2,
+			E,
+			sprt_delta_res,
+			sprt_epsilon_res,
+			th,
+			cfg.focalLength,
+			cfg.th_pixels,
+			prosac_beta,
+			sprt_delta,
+			sprt_epsilon,
+			false,
+			used_estimator,
+			refineMethod,
+			inliers,
+			&nrInliers,
+			cv::noArray(),
+			cv::noArray(),
+			R_degen,
+			inl_degen,
+			cv::noArray(),
+			cv::noArray(),
+			inliers_degenerate_noMotion,
+			NULL,
+			&fraction_degen_inliers_R,
+			NULL,
+			&fraction_degen_inliers_noMot,
+			*sortedMatchIdxPtr,
+			R_kneip,
+			t_kneip) == EXIT_FAILURE)
+		{
+			cout << "USAC failed!" << endl;
+			return -2;
+		}
+		isDegenerate = false;
+		if ((used_estimator == USACConfig::REFINE_EIG_KNEIP || used_estimator == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && !R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
+		{
+			if (R.empty())
+				R.create(3, 3, CV_64F);
+			R_kneip.copyTo(R.getMat());
+			if (t.empty())
+				t.create(3, 1, CV_64F);
+			t_kneip.copyTo(t.getMat());
+		}
+		else if (R.needed() || t.needed())
+		{
+			if (R.needed() && !R.empty())
+				R.clear();
+			if (t.needed() && !t.empty())
+				t.clear();
+		}
+	}
+	else if (cfg.degeneracyCheck == UsacChkDegenType::DEGEN_USAC_INTERNAL)
+	{
+		Mat R_degen, inl_degen, inliers_degenerate_noMotion, R_kneip, t_kneip;
+		double fraction_degen_inliers_R = 0, fraction_degen_inliers_noMot = 0, fraction_inliers = 0;
+		if (estimateEssentialMatUsac(p1,
+			p2,
+			E,
+			sprt_delta_res,
+			sprt_epsilon_res,
+			th,
+			cfg.focalLength,
+			cfg.th_pixels,
+			prosac_beta,
+			sprt_delta,
+			sprt_epsilon,
+			true,
+			used_estimator,
+			refineMethod,
+			inliers,
+			&nrInliers,
+			cv::noArray(),
+			cv::noArray(),
+			R_degen,
+			inl_degen,
+			cv::noArray(),
+			cv::noArray(),
+			inliers_degenerate_noMotion,
+			NULL,
+			&fraction_degen_inliers_R,
+			NULL,
+			&fraction_degen_inliers_noMot,
+			*sortedMatchIdxPtr,
+			R_kneip,
+			t_kneip) == EXIT_FAILURE)
+		{
+			cout << "USAC failed!" << endl;
+			return -2;
+		}
+
+		if ((used_estimator == USACConfig::REFINE_EIG_KNEIP || used_estimator == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && !R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
+		{
+			if (R.empty())
+				R.create(3, 3, CV_64F);
+			R_kneip.copyTo(R.getMat());
+			if (t.empty())
+				t.create(3, 1, CV_64F);
+			t_kneip.copyTo(t.getMat());
+		}
+		else if (R.needed() || t.needed())
+		{
+			if (R.needed() && !R.empty())
+				R.clear();
+			if (t.needed() && !t.empty())
+				t.clear();
+		}
+		fraction_inliers = (double)nrInliers / (double)p1.rows();
+		if (cfg.degenDecisionTh * fraction_inliers < fraction_degen_inliers_R)
+		{
+			isDegenerate = true;
+			if (R_degenerate.needed() && !R_degen.empty())
+			{
+				if(R_degenerate.empty())
+					R_degenerate.create(3, 3, CV_64F);
+				R_degen.copyTo(R_degenerate.getMat());
+			}
+			if (inliers_degenerate_R.needed() && !inl_degen.empty())
+			{
+				if (inliers_degenerate_R.empty())
+					inliers_degenerate_R.create(1, inl_degen.cols, CV_8U);
+				inl_degen.copyTo(R_degenerate.getMat());
+			}
+		}
+	}
+	else if (cfg.degeneracyCheck == UsacChkDegenType::DEGEN_QDEGSAC)
+	{
+		Mat R_degen, inl_degen, R_kneip, t_kneip, E_, inliers_;
+		double fraction_degen_inliers_R = 0;
+		if (estimateEssentialQDEGSAC(p1,
+			p2,
+			E_,
+			sprt_delta_res,
+			sprt_epsilon_res,
+			th,
+			cfg.focalLength,
+			cfg.th_pixels,
+			prosac_beta,
+			sprt_delta,
+			sprt_epsilon,
+			0.5,//Inlier ratio threshold for detecting degeneracy (should be between 0.5 and 0.8)
+			used_estimator,
+			refineMethod,
+			inliers_,
+			&nrInliers,
+			R_degen,
+			inl_degen,
+			&fraction_degen_inliers_R,
+			*sortedMatchIdxPtr,
+			R_kneip,
+			t_kneip) == EXIT_FAILURE)
+		{
+			cout << "USAC failed!" << endl;
+			return -2;
+		}
+		if ((used_estimator == USACConfig::REFINE_EIG_KNEIP || used_estimator == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && !R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
+		{
+			if (R.empty())
+				R.create(3, 3, CV_64F);
+			R_kneip.copyTo(R.getMat());
+			if (t.empty())
+				t.create(3, 1, CV_64F);
+			t_kneip.copyTo(t.getMat());
+		}
+		else if (R.needed() || t.needed())
+		{
+			if (R.needed() && !R.empty())
+				R.clear();
+			if (t.needed() && !t.empty())
+				t.clear();
+		}
+		if (E_.empty() || inliers_.empty())
+		{
+			isDegenerate = true;
+			if (R_degenerate.needed() && !R_degen.empty())
+			{
+				if (R_degenerate.empty())
+					R_degenerate.create(3, 3, CV_64F);
+				R_degen.copyTo(R_degenerate.getMat());
+			}
+			if (inliers_degenerate_R.needed() && !inl_degen.empty())
+			{
+				if (inliers_degenerate_R.empty())
+					inliers_degenerate_R.create(1, inl_degen.cols, CV_8U);
+				inl_degen.copyTo(R_degenerate.getMat());
+			}
+			if (!E.empty())
+				E.clear();
+			if (inliers.needed() && !inliers.empty())
+				inliers.clear();
+			if (R.needed() && !R.empty())
+				R.clear();
+			if (t.needed() && !t.empty())
+				t.clear();
+		}
+		else
+		{
+			isDegenerate = false;
+			if (E.empty())
+				E.create(3, 3, CV_64F);
+			E_.copyTo(E.getMat());
+			if (inliers.needed())
+			{
+				if (inliers.empty())
+					inliers.create(1, inliers_.cols, CV_8U);
+				inliers_.copyTo(inliers.getMat());
+			}
+			if (inliers_degenerate_R.needed() && !inliers_degenerate_R.empty())
+				inliers_degenerate_R.clear();
+			if (R_degenerate.needed() && !R_degenerate.empty())
+				R_degenerate.clear();
+		}
+	}
+	else
+	{
+		cout << "Mothod for checking degeneracy not available!" << endl;
+		return -1;
+	}
+	sprt_delta_old = sprt_delta_new;
+	sprt_delta_new = sprt_delta_res;
+	sprt_epsilon_old = sprt_epsilon_new;
+	sprt_epsilon_new = sprt_epsilon_res;
+
+	
+	return 0;
 }
 }

@@ -1169,7 +1169,25 @@ namespace matchinglib
       //    matchTemplate((img2)(rec2), imgpart1_warped, results, CV_TM_SQDIFF);
       //  }
       //}
-      cv::matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
+
+	  Mat img_border[2];
+	  const int border_size = 100;
+	  copyMakeBorder(img1, img_border[0], border_size, border_size, border_size, border_size, BORDER_CONSTANT, Scalar(0, 0, 0));
+	  copyMakeBorder(img2, img_border[1], border_size, border_size, border_size, border_size, BORDER_CONSTANT, Scalar(0, 0, 0));
+	  if (rec2.x + rec2.width >= img2.cols || rec2.y + rec2.height >= img2.rows || rec2.x < 0 || rec2.y < 0 ||
+		  rec1.x + rec1.width >= img1.cols || rec1.y + rec1.height >= img1.rows || rec1.x < 0 || rec1.y < 0)
+	  {
+			cv::Rect rec2_tmp = rec2, rec1_tmp = rec1;
+			rec2_tmp.x += border_size;
+			rec2_tmp.y += border_size;
+			rec1_tmp.x += border_size;
+			rec1_tmp.y += border_size;
+			cv::matchTemplate((img_border[1])(rec2_tmp), (img_border[0])(rec1_tmp), results, CV_TM_SQDIFF);
+	  }
+	  else
+	  {
+		  cv::matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
+	  }
       cv::minMaxLoc(results,(double *)0,(double *)0,&minLoc);
 
       newKeyP = cv::Point2f((float)(rec2.x+minLoc.x+(featuresize1-1)/2), (float)(rec2.y+minLoc.y+(featuresize1-1)/2));

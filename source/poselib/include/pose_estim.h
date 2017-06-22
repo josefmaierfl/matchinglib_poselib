@@ -35,6 +35,67 @@ namespace poselib
 #define MAX_PIX_TH 2.0 //Maximal inlier/ooutlier threshold in pixels (image coordinate system)
 #define PIX_MIN_GOOD_TH 0.8 //If the pixel start threshold chosen is too small to give a result this is checked by this "normal" pixel threshold
 
+	enum POSELIB_API UsacChkDegenType { DEGEN_NO_CHECK, DEGEN_QDEGSAC, DEGEN_USAC_INTERNAL };
+
+	//Possibilities to estimate the essential matrix:
+	enum POSELIB_API PoseEstimator { POSE_NISTER, POSE_EIG_KNEIP, POSE_STEWENIUS };
+
+	//Possibilities to refine the model:
+	enum POSELIB_API RefineAlg { 
+		REF_WEIGHTS, 
+		REF_8PT_PSEUDOHUBER, 
+		REF_EIG_KNEIP, 
+		REF_EIG_KNEIP_WEIGHTS,
+		REF_STEWENIUS,
+		REF_STEWENIUS_WEIGHTS,
+		REF_NISTER,
+		REF_NISTER_WEIGHTS
+	};
+
+	//Possible initializations for SPRT
+	enum POSELIB_API SprtInit { SPRT_DEFAULT_INIT = 0x0, SPRT_DELTA_AUTOM_INIT = 0x1, SPRT_EPSILON_AUTOM_INIT = 0x2};
+
+	// problem specific/data-related parameters: essential matrix
+	struct POSELIB_API ConfigUSAC
+	{
+		ConfigUSAC() : focalLength(800),
+			th_pixels(0.8),
+			degeneracyCheck(DEGEN_USAC_INTERNAL),
+			estimator(POSE_STEWENIUS),
+			refinealg(REF_STEWENIUS_WEIGHTS),
+			prevalidateSample(false),
+			noAutomaticProsacParamters(false),
+			automaticSprtInit(SPRT_DELTA_AUTOM_INIT | SPRT_EPSILON_AUTOM_INIT),
+			//sprt_delta_initial(0.05),
+			//sprt_epsilon_initial(0.15),
+			//sortedMatchIdx(NULL),
+			matches(NULL),
+			keypoints1(NULL),
+			keypoints2(NULL),
+			nrMatchesVfcFiltered(0),
+			imgSize(800,600),
+			degenDecisionTh(0.85)
+		{}
+
+		double focalLength;
+		double th_pixels;
+		UsacChkDegenType degeneracyCheck;
+		PoseEstimator estimator;
+		RefineAlg refinealg;
+		bool prevalidateSample;
+		bool noAutomaticProsacParamters;
+		int automaticSprtInit;//Check enum SprtInit and its combinations
+		//double sprt_delta_initial;
+		//double sprt_epsilon_initial;
+		//std::vector<unsigned int> *sortedMatchIdx;
+		std::vector<cv::DMatch> *matches;
+		std::vector<cv::KeyPoint> *keypoints1;
+		std::vector<cv::KeyPoint> *keypoints2;
+		unsigned int nrMatchesVfcFiltered;
+		cv::Size imgSize;
+		double degenDecisionTh;//Used for the option UsacChkDegenType::DEGEN_USAC_INTERNAL: Threshold on the fraction of degenerate inliers compared to the E-inlier fraction
+	};
+
 
 /* --------------------------- Classes --------------------------- */
 
@@ -106,11 +167,23 @@ int POSELIB_API getPoseTriangPts(cv::InputArray E,
 int POSELIB_API triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv::InputArray _points2, cv::OutputArray Q3D, cv::InputOutputArray mask = cv::noArray(), const double dist = 50.0);
 //Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework.
 bool POSELIB_API estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p2, std::string method = "ARRSAC", double threshold = PIX_MIN_GOOD_TH, bool refine = true, cv::OutputArray mask = cv::noArray());
+//Estimation of the Essential matrix and/or pose using the USAC framework
+int POSELIB_API estimateEssentialOrPoseUSAC(cv::InputArray p1,
+	cv::InputArray p2,
+	cv::OutputArray E,
+	double th,
+	ConfigUSAC & cfg,
+	bool & isDegenerate,
+	cv::OutputArray inliers = cv::noArray(),
+	cv::OutputArray R_degenerate = cv::noArray(),
+	cv::OutputArray inliers_degenerate_R = cv::noArray(),
+	cv::OutputArray R = cv::noArray(),
+	cv::OutputArray t = cv::noArray());
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function
 void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
 						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = NULL,
 						  double *sumSqrErr = NULL, cv::OutputArray errors = cv::noArray(), 
-						  cv::InputOutputArray mask = cv::noArray(), int model = 0);
+						  cv::InputOutputArray mask = cv::noArray(), int model = 0, bool tryOrientedEpipolar = false, bool normalizeCorrs = false);
 //Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices.
 bool POSELIB_API refineStereoBA(cv::InputArray p1, 
 					cv::InputArray p2, 

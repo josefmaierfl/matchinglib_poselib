@@ -71,7 +71,7 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
 					void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
 											cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 
 											double *sumSqrErr_init, double *sumSqrErr, 
-											cv::OutputArray errors, cv::InputOutputArray mask, int model)) 
+											cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs))
 {
 	Mat points1, points2; 
 	_points1.getMat().copyTo(points1); 

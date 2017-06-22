@@ -110,7 +110,7 @@ cvRANSACUpdateNumIters1( double p, double ep,
         max_iters : cvRound(num/denom);
 }
 
-bool EssentialMatEstimator::EstimateModel(const std::vector<size_t>& data,
+bool EssentialMatEstimatorTheia::EstimateModel(const std::vector<size_t>& data,
 										  std::vector<CvMat>* model) const
 {
 	CV_Assert((points1_.rows == 1) && (points1_.rows == points2_.rows) &&
@@ -155,7 +155,7 @@ bool EssentialMatEstimator::EstimateModel(const std::vector<size_t>& data,
 }
 
 
-bool EssentialMatEstimator::EstimateModelNonminimal(const std::vector<size_t>& data,
+bool EssentialMatEstimatorTheia::EstimateModelNonminimal(const std::vector<size_t>& data,
 													std::vector<CvMat>* model) const
 {
 	CV_Assert((points1_.rows == 1) && (points1_.rows == points2_.rows) &&
@@ -186,7 +186,7 @@ bool EssentialMatEstimator::EstimateModelNonminimal(const std::vector<size_t>& d
 }
 
 
-double EssentialMatEstimator::Error(const size_t& data, const CvMat& model) const
+double EssentialMatEstimatorTheia::Error(const size_t& data, const CvMat& model) const
 {
 	CvMat m1, m2;
 	cv::Mat mc1, mc2;
@@ -207,7 +207,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 								   void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
 														   cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 
 														   double *sumSqrErr_init, double *sumSqrErr, 
-														   cv::OutputArray errors, cv::InputOutputArray mask, int model))
+														   cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs))
 {
 	bool result = false;
 	int goodCount = 0;
@@ -276,7 +276,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 	cv::Ptr<CvMat> bestmodel = cvCloneMat(model);
 	cv::Mat m1_tmp = cv::cvarrToMat(m1);
 	cv::Mat m2_tmp = cv::cvarrToMat(m2);
-	EssentialMatEstimator esti(this, m1_tmp, m2_tmp);
+	EssentialMatEstimatorTheia esti(this, m1_tmp, m2_tmp);
 	theia::Arrsac<size_t,CvMat> arrsac_estimator(5, reprojThreshold * reprojThreshold, 500, 100, 14, 8);
 	result = arrsac_estimator.Estimate(input_data, esti, bestmodel);
 	if(result)
@@ -322,7 +322,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				inl_points1.convertTo(inl_points1,CV_64FC2);
 				inl_points2.convertTo(inl_points2,CV_64FC2);
 				cv::Mat bestmodel_tmp = cvarrToMat(bestmodel);
-				refineEssential(inl_points1,inl_points2,bestmodel_tmp,E_refined, reprojThreshold/50.0,0,true,&err_i,&err_f,cv::noArray(),cv::noArray(),0);
+				refineEssential(inl_points1,inl_points2,bestmodel_tmp,E_refined, reprojThreshold/50.0,0,true,&err_i,&err_f,cv::noArray(),cv::noArray(),0,false,false);
 				
 				goodCount_tmp = findInliers( m1, m2, bestmodel, err, mask_tmp, reprojThreshold );
 				if(((float)goodCount_tmp / (float)goodCount > 0.66f) || (err_i > err_f))

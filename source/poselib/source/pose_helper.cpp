@@ -157,11 +157,14 @@ int getClosestE(Eigen::Matrix3d & E)
  *											  the essential matrix is checked
  * InputOutputArray _mask			I/O    -> If provided, a mask marking invalid correspondences
  *											  is returned
+ * bool tryOrientedEpipolar			Input  -> Optional input [DEFAULT = false] to specify if a essential matrix
+ *											  should be evaluated by the oriented epipolar constraint. Maybe this
+ *											  is only possible for a fundamental matrix?
  *
  * Return value:					true:		  Essential/Fundamental matrix is valid
  *									false:		  Essential/Fundamental matrix is invalid
  */
-bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bool EfullCheck, cv::InputOutputArray _mask)
+bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bool EfullCheck, cv::InputOutputArray _mask, bool tryOrientedEpipolar)
 {
 	//Eigen::Matrix3d E;
 	Eigen::Vector3d e2, x1, x2;
@@ -208,16 +211,16 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
 
 //tryagain:
 	bool exitfor = true;
-	while(exitfor)
+	while (exitfor)
 	{
-		if(EfullCheck)
+		if (EfullCheck)
 		{
 			Eigen::Matrix3d V;
 			Eigen::JacobiSVD<Eigen::Matrix3d > svdE(E.transpose(), Eigen::ComputeFullV);
 
-			if(svdE.singularValues()(0) / svdE.singularValues()(1) > 1.2)
+			if (svdE.singularValues()(0) / svdE.singularValues()(1) > 1.2)
 				return false;
-			if(!nearZero(0.01*svdE.singularValues()(2)/svdE.singularValues()(1)))
+			if (!nearZero(0.01*svdE.singularValues()(2) / svdE.singularValues()(1)))
 				return false;
 
 			V = svdE.matrixV();
@@ -226,52 +229,55 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
 		else
 		{
 			Eigen::MatrixXd ker = E.transpose().fullPivLu().kernel();
-			if(ker.cols() != 1)
+			if (ker.cols() != 1)
 				return false;
 			e2 = ker.col(0);
 		}
 
 		//Does this improve something or only need time?
 		exitfor = false;
-		for(int i = 0; i < n; i++)
+		if (tryOrientedEpipolar)
 		{
-			Eigen::Vector3d e2_line1, e2_line2;
-			x1 << _p1.at<double>(i,0),
-				  _p1.at<double>(i,1),
-				  1.0;
-			x2 << _p2.at<double>(i,0),
-				  _p2.at<double>(i,1),
-				  1.0;
-			e2_line1 = e2.cross(x2);
-			e2_line2 = E * x1;
-			for(int j = 0; j < 3; j++)
+			for (int i = 0; i < n; i++)
 			{
-				if(nearZero(0.1*e2_line1(j)) || nearZero(0.1*e2_line2(j)))
-					continue;
-				if(e2_line1(j)*e2_line2(j) < 0)
+				Eigen::Vector3d e2_line1, e2_line2;
+				x1 << _p1.at<double>(i, 0),
+					_p1.at<double>(i, 1),
+					1.0;
+				x2 << _p2.at<double>(i, 0),
+					_p2.at<double>(i, 1),
+					1.0;
+				e2_line1 = e2.cross(x2);
+				e2_line2 = E * x1;
+				for (int j = 0; j < 3; j++)
 				{
-					if(cnt < 3)
-						cnt++;
-					else if((cnt == 3) && (i == cnt))
+					if (nearZero(0.1*e2_line1(j)) || nearZero(0.1*e2_line2(j)))
+						continue;
+					if (e2_line1(j)*e2_line2(j) < 0)
 					{
-						E = E * -1.0;
-						for(int k = 0; k < cnt; k++)
-							mask.at<bool>(k) = 1;
-						cnt++;
-						//goto tryagain;
-						exitfor = true;
+						if (cnt < 3)
+							cnt++;
+						else if ((cnt == 3) && (i == cnt))
+						{
+							E = E * -1.0;
+							for (int k = 0; k < cnt; k++)
+								mask.at<bool>(k) = 1;
+							cnt++;
+							//goto tryagain;
+							exitfor = true;
+							break;
+						}
+						mask.at<bool>(i) = 0;
 						break;
 					}
-					mask.at<bool>(i) = 0;
-					break;
 				}
+				if (exitfor)
+					break;
 			}
-			if(exitfor)
-				break;
 		}
 	}
 	badPtsRatio = 1.0f - (float)cv::countNonZero(mask) / (float)n;
-	if(badPtsRatio > 0.4f)
+	if (badPtsRatio > 0.4f)
 		return false;
 
 	if(_mask.needed())
@@ -2662,4 +2668,108 @@ void on_mouse_move(int event, int x, int y, int flags, void* param)
 	cv::waitKey(4);
 }
 
+/* This function estimates an initial delta value for the SPRT test used within USAC.
+* It estimates the initial propability of a keypoint to be classified as an inlier of
+* an invalid model (e.g. essential matrix). This initial value is estimated dividing the
+* area around the longest possible epipolar line e (length of e * 2 * inlier threshold) by
+* the area of the convex hull defined by the found correspondences.
+*
+* vector<DMatch> matches		Input  -> Matches (ascending queries)
+* vector<KeyPoint> kp1			Input  -> Keypoints in the left/first image
+* vector<KeyPoint> kp2			Input  -> Keypoints in the right/second image
+* double th						Input  -> Inlier threshold in pixels
+* Size imgSize					Input  -> Size of the image
+*
+* Return:						initial delta for SPRT
+*/
+double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, double th, cv::Size imgSize)
+{
+	//Extract coordinates from keypoints
+	vector<cv::Point2f> points1, points2;
+	vector<cv::Point2f> hull1, hull2;
+	double area[2] = { 0, 0 };
+	double maxEpipoleArea = 0, sprt_delta = 0;
+	for (size_t i = 0; i < matches.size(); i++)
+	{
+		points1.push_back(kp1[matches[i].queryIdx].pt);
+		points2.push_back(kp2[matches[i].trainIdx].pt);
+	}
+
+	//Convex hull of the keypoints
+	cv::convexHull(points1, hull1);
+	cv::convexHull(points2, hull2);
+
+	//Area of the convex hull
+	area[0] = cv::contourArea(hull1);
+	area[1] = cv::contourArea(hull2);
+	area[0] = area[0] > area[1] ? area[1] : area[0];
+
+	//max length of an epipolar line within image
+	maxEpipoleArea = std::sqrt((double)(imgSize.width * imgSize.width + imgSize.height * imgSize.height));
+	//max area for a keypoint to be classified as inlier
+	maxEpipoleArea *= 2 * th;
+	area[0] = area[0] < (6 * maxEpipoleArea) ? (6 * maxEpipoleArea) : area[0];
+	sprt_delta = maxEpipoleArea / area[0];
+	sprt_delta = sprt_delta < 0.001 ? 0.001 : sprt_delta;
+
+	return sprt_delta;
+}
+
+/* This function estimates an initial epsilon value for the SPRT test used within USAC.
+* It estimates the probability that a data point is consistend with a good model (e.g. essential matrix)
+* which corresponds approximately to the inlier ratio. To estimate the inlier ratio, VFC has to be applied
+* to the matches which should reject most false matches (additionally removes matches at borders) as the
+* filtering only allows smooth changes of the optical flow. VFC does not work well for low inlier ratios. 
+* Thus, the inlier ratio is bounded between 0.1 and 0.75.
+*
+* vector<DMatch> matches				Input  -> Matches
+* unsigned int nrMatchesVfcFiltered		Input  -> Number of remaining matches after filtering with VFC
+*
+* Return:						initial epsilon for SPRT
+*/
+double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrMatchesVfcFiltered)
+{
+	double nrMatches = (double)matches.size();
+	double epsilonInit = 0.8 * (double)nrMatchesVfcFiltered / nrMatches;
+	epsilonInit = epsilonInit > 0.75 ? 0.75 : epsilonInit;
+	epsilonInit = epsilonInit < 0.1 ? 0.1 : epsilonInit;
+
+	return epsilonInit;
+}
+
+/* This function generates an index of the matches with the lowest matching costs first. It is used
+* within PROSAC of the USAC framework. To work correctly, the order of the queries within "matches"
+* should be ascending. The used correspondences within USAC must be in the same order than "matches".
+*
+* vector<DMatch> matches				Input  -> Matches
+* unsigned int nrMatchesVfcFiltered		Output -> Indices of matches sorted corresponding to the 
+*												  matching costs in ascending order
+*
+* Return:						none
+*/
+void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int> & sortedMatchIdx)
+{
+	size_t i = 0;
+	for (i = 0; i < matches.size(); i++)
+	{
+		if (matches[i].queryIdx != i)
+			break;
+	}
+	if (i < matches.size())
+	{
+		for (i = 0; i < matches.size(); i++)
+		{
+			matches[i].queryIdx = i;
+		}
+	}
+	
+	std::sort(matches.begin(), matches.end(), [](cv::DMatch const & first, cv::DMatch const & second) {
+		return first.distance < second.distance; });
+
+	sortedMatchIdx.resize(matches.size());
+	for (i = 0; i < matches.size(); i++)
+	{
+		sortedMatchIdx[i] = (unsigned int)matches[i].queryIdx;
+	}
+}
 }

@@ -76,6 +76,13 @@ else()
   message(FATAL_ERROR "SBA not found!")
 endif()
 
+find_package(OpenGV REQUIRED)
+if (OPENGV_FOUND STREQUAL "YES")
+  message("OpenGV found!")
+else()
+  message(FATAL_ERROR "OpenGV not found!")
+endif()
+
 
 #
 # Library name and options
@@ -124,6 +131,27 @@ set(headers
 	
 	${include_path}/HomographyAlignment.h
 	${include_path}/pose_homography.h
+	
+	#${include_path}/usac/config/ConfigFileReader.h
+	${include_path}/usac/config/ConfigParams.h
+	${include_path}/usac/config/ConfigParamsFundmatrix.h
+	${include_path}/usac/config/ConfigParamsHomog.h
+	${include_path}/usac/config/ConfigParamsEssentialMat.h
+	${include_path}/usac/config/ConfigParamsRotationMat.h
+	#${include_path}/usac/config/ConfigParamsNoMotion.h
+	${include_path}/usac/estimators/FundmatrixEstimator.h
+	${include_path}/usac/estimators/HomogEstimator.h
+	${include_path}/usac/estimators/EssentialMatEstimator.h
+	${include_path}/usac/estimators/RotationMatEstimator.h
+	#${include_path}/usac/estimators/NoMotionEstimator.h
+	${include_path}/usac/estimators/USAC.h
+	${include_path}/usac/utils/FundmatrixFunctions.h
+	${include_path}/usac/utils/PoseFunctions.h
+	${include_path}/usac/utils/HomographyFunctions.h
+	${include_path}/usac/utils/MathFunctions.h
+	${include_path}/usac/utils/Timer.h
+	${include_path}/usac/utils/weightingEssential.h
+	${include_path}/usac/usac_estimations.h
 )
 
 set(sources
@@ -140,6 +168,17 @@ set(sources
 	
 	${source_path}/HomographyAlignment.cpp
 	${source_path}/pose_homography.cpp
+	
+	#${source_path}/usac/config/ConfigFileReader.cpp
+	#${source_path}/usac/config/ConfigParams.cpp
+	#${source_path}/usac/config/ConfigParamsFundmatrix.cpp
+	#${source_path}/usac/config/ConfigParamsHomog.cpp
+	${source_path}/usac/utils/FundmatrixFunctions.cpp
+	${source_path}/usac/utils/HomographyFunctions.cpp
+	${source_path}/usac/utils/PoseFunctions.cpp
+	${source_path}/usac/utils/MathFunctions.cpp
+	${source_path}/usac/utils/weightingEssential.cpp
+	${source_path}/usac/usac_estimations.cpp
 )
 
 # Group source files
@@ -214,6 +253,7 @@ target_include_directories(${target}
     ${Eigen_INCLUDE_DIR}
 	${CLAPACK_INCLUDE_DIR}
 	${SBA_INCLUDE_DIR}
+	${OPENGV_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -235,6 +275,7 @@ target_link_libraries(${target}
     ${OpenCV_LIBS}
 	${CLAPACK_LIBRARIES}
 	${SBA_LIBRARIES}
+	${OPENGV_LIBRARIES}
 
     INTERFACE
 )

@@ -49,7 +49,7 @@ void POSELIB_API SampsonL1(const cv::Mat x1, const cv::Mat x2, const cv::Mat E, 
 //Calculates the closest essential matrix
 int POSELIB_API getClosestE(Eigen::Matrix3d & E);
 //Validate the Essential/Fundamental matrix with the oriented epipolar constraint
-bool POSELIB_API validateEssential(const cv::Mat p1, const cv::Mat p2, const Eigen::Matrix3d E, bool EfullCheck = false, cv::InputOutputArray _mask = cv::noArray());
+bool POSELIB_API validateEssential(const cv::Mat p1, const cv::Mat p2, const Eigen::Matrix3d E, bool EfullCheck = false, cv::InputOutputArray _mask = cv::noArray(), bool tryOrientedEpipolar = false);
 //Checks, if determinants, etc. are too close to 0
 inline bool POSELIB_API nearZero(double d);
 //Calculates statistical parameters for the given values in the vector
@@ -141,4 +141,10 @@ double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K
 int POSELIB_API estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2);
 //This function shows the rectified images.
 int POSELIB_API ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, std::string path, cv::Size newImgSize = cv::Size());
+//This function estimates an initial delta value for the SPRT test used within USAC.
+double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, double th, cv::Size imgSize);
+//This function estimates an initial epsilon value for the SPRT test used within USAC.
+double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrMatchesVfcFiltered);
+//This function generates an index of the matches with the lowest matching costs first.
+void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int> & sortedMatchIdx);
 }

@@ -62,7 +62,7 @@ bool findEssentialMat(OutputArray Essential, InputArray points1, InputArray poin
 					void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
 											cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 
 											double *sumSqrErr_init, double *sumSqrErr, 
-											cv::OutputArray errors, cv::InputOutputArray mask, int model) = NULL); 
+											cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs) = NULL);
 
 void decomposeEssentialMat( const Mat & E, Mat & R1, Mat & R2, Mat & t ); 
 

@@ -94,3 +94,11 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LINKER_OPTIONS}
 )
+
+
+# Library
+# Executable
+install(TARGETS ${target}
+    RUNTIME DESTINATION ${INSTALL_BIN} COMPONENT bin
+    BUNDLE  DESTINATION ${INSTALL_BIN} COMPONENT bin
+)

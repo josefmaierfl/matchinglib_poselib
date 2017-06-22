@@ -13,6 +13,7 @@ int main(int argc, char* argv[])
 
 // ideal case
 #include "matchinglib\matchinglib.h"
+#include "matchinglib\vfcMatches.h"
 #include "pose_estim.h"
 #include "pose_helper.h"
 #include "pose_homography.h"
@@ -37,11 +38,11 @@ void showMatches(cv::Mat img1, cv::Mat img2,
 				 int nrFeatures,
 				 bool drawAllKps = false);
 bool readCalibMat(std::ifstream& calibFile, std::string label, cv::Size matsize, cv::Mat& calibMat);
-int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::Mat& R1, cv::Mat& t0, cv::Mat& t1, cv::Mat& K0, cv::Mat& K1, cv::Mat& dist0, cv::Mat& dist1);
+int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::Mat& R1, cv::Mat& t0, cv::Mat& t1, cv::Mat& K0, cv::Mat& K1, cv::Mat& dist0, cv::Mat& dist1, int nrDist = 5);
 
 
 
-int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::Mat& R1, cv::Mat& t0, cv::Mat& t1, cv::Mat& K0, cv::Mat& K1, cv::Mat& dist0, cv::Mat& dist1)
+int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::Mat& R1, cv::Mat& t0, cv::Mat& t1, cv::Mat& K0, cv::Mat& K1, cv::Mat& dist0, cv::Mat& dist1, int nrDist)
 {
 	if(filepath.empty() || filename.empty())
 		return -1;
@@ -69,11 +70,24 @@ int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::M
 		calibFile.close();
 		return -2;
 	}
-	if(!readCalibMat(calibFile, "D_00:", cv::Size(5, 1), dist0))
+	if (nrDist == 5)
 	{
-		calibFile.close();
-		return -2;
+		if (!readCalibMat(calibFile, "D_00:", cv::Size(5, 1), dist0))
+		{
+			calibFile.close();
+			return -2;
+		}
 	}
+	else if (nrDist == 8)
+	{
+		if (!readCalibMat(calibFile, "D_00:", cv::Size(8, 1), dist0))
+		{
+			calibFile.close();
+			return -2;
+		}
+	}
+	else
+		return -2;
 	if(!readCalibMat(calibFile, "K_01:", cv::Size(3, 3), K1))
 	{
 		calibFile.close();
@@ -89,11 +103,24 @@ int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::M
 		calibFile.close();
 		return -2;
 	}
-	if(!readCalibMat(calibFile, "D_01:", cv::Size(5, 1), dist1))
+	if (nrDist == 5)
 	{
-		calibFile.close();
+		if (!readCalibMat(calibFile, "D_01:", cv::Size(5, 1), dist1))
+		{
+			calibFile.close();
+			return -2;
+		}
+	}
+	else if (nrDist == 8)
+	{
+		if (!readCalibMat(calibFile, "D_01:", cv::Size(8, 1), dist1))
+		{
+			calibFile.close();
+			return -2;
+		}
+	}
+	else
 		return -2;
-	}	
 	
 	calibFile.close();
 	
@@ -176,12 +203,23 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("autoTH", "<If provided, the threshold for estimating the pose is automatically adapted to the data. This methode always uses ARRSAC with subsequent refinement.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("refineRT", "<If provided, the pose (R, t) is refined using a pseudo-huber cost-function. This is a linear mothod for refinement.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("BART", "<If provided, the pose (R, t) is refined using bundle adjustment (BA). Try using the option --refineRT in addition to BA. This can lead to a better solution (if --autoTH is enabled, --refineRT is always used). The following options are available:\n 1\t BA for extrinsics only (including structure)\n 2\t BA for extrinsics and intrinsics (including structure)>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("RobMethod", "<Specifies the method for the robust estimation of the essential matrix [Default=ARRSAC]. The following options are available:\n ARRSAC\n RANSAC\n LMEDS>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("RobMethod", "<Specifies the method for the robust estimation of the essential matrix [Default=USAC]. The following options are available:\n USAC\n ARRSAC\n RANSAC\n LMEDS>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("absCoord", "<If provided, the provided pose is assumed to be related to a specific 3D coordinate orign. Thus, the provided poses are not relativ from camera to camera centre but absolute to a position given by the pose of the first camera.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("Halign", "<If provided, the pose is estimated using homography alignment. Thus, multiple homographies are estimated using ARRSAC. The following options are available:\n 1\t Estimate homographies without a variable threshold\n 2\t Estimate homographies with a variable threshold>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("showRect", "<If provided, the images are rectified and shown using the estimated pose.>", ArgvParser::NoOptionAttribute);
-  cmd.defineOption("output_path", "<Path where rectified images are saved to.>", ArgvParser::OptionRequiresValue);
-	
+    cmd.defineOption("output_path", "<Path where rectified images are saved to.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("distcoeffNr", "<Number of used distortion coeffitients in the calibration file. Can be 5 or 8. If not specifyed a default value of 5 is used.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("histEqual", "<If provided, histogram equalization is applied to the source images.>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("cfgUSAC", "<Specifies parameters for USAC. It consists of a combination of 6 digits [Default=311225]. "
+		"In the following the options for every digit are explained:\n "
+		"1st digit:\n 0\t Use default paramters for SPRT\n 1\t Automatic estimation of SPRT delta\n 2\t Automatic estimation of SPRT epsilon (only without option refineVFC)\n 3\t Automatic estimation of SPRT delta and epsilon\n "
+		"2nd digit:\n 0\t Use default paramter for PROSAC beta\n 1\t Automatic estimation of PROSAC beta (uses SPRT delta)\n "
+		"3rd digit:\n 0\t Disable prevalidation of samples\n 1\t Enable prevalidation of samples\n "
+		"4th digit:\n 0\t Disable degeneracy check\n 1\t Use QDEGSAC for checking degeneracy\n 2\t Use USACs internal degeneracy check\n "
+		"5th digit:\n 0\t Estimator: Nister\n 1\t Estimator: Kneip's Eigen solver\n 2\t Estimator: Stewenius\n "
+		"6th digit:\n 0\t Inner refinement alg: 8pt with Torr weights\n 1\t Inner refinement alg: 8pt with pseudo-huber weights\n 2\t Inner refinement alg: Kneip's Eigen solver\n 3\t Inner refinement alg: Kneip's Eigen solver with Torr weights\n 4\t Inner refinement alg: Stewenius\n 5\t Inner refinement alg: Stewenius with pseudo-huber weights\n 6\t Inner refinement alg: Nister\n 7\t Inner refinement alg: Nister with pseudo-huber weights>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("USACdegenTh", "<Decision threshold on the inlier ratios between Essential matrix and the degenerate configuration (only rotation) to decide if the solution is degenerate or not [Default=0.85]. It is only used for the internal degeneracy check of USAC (4th digit of option cfgUSAC = 2)>", ArgvParser::NoOptionAttribute);
+
 	/// finally parse and handle return codes (display help etc...)
 	if(argc <= 1)
 	{
@@ -244,12 +282,13 @@ void startEvaluation(ArgvParser& cmd)
 	string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, output_path;
 	string show_str;
 	string c_file, RobMethod;
+	string cfgUSAC;
 	int showNr, f_nr;
 	bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps;
-	bool noPoseDiff, autoTH, refineRT, absCoord;
+	bool noPoseDiff, autoTH, refineRT, absCoord, histEqual;
 	bool showRect;
 	int Halign;
-	int BART;
+	int BART = 0;
 	bool oneCam = false;
 	int err, verbose;
 	vector<string> filenamesl, filenamesr;
@@ -257,12 +296,16 @@ void startEvaluation(ArgvParser& cmd)
 	std::vector<cv::DMatch> finalMatches;
 	std::vector<cv::KeyPoint> kp1;
 	std::vector<cv::KeyPoint> kp2;
+	int distcoeffNr;
+	double USACdegenTh = 0.85;
+	int cfgUSACnr[6] = {3,1,1,2,2,5};
 
 	noRatiot = cmd.foundOption("noRatiot");
 	refineVFC = cmd.foundOption("refineVFC");
 	refineSOF = cmd.foundOption("refineSOF");
 	DynKeyP = cmd.foundOption("DynKeyP");
 	subPixRef = cmd.foundOption("subPixRef");
+	histEqual = cmd.foundOption("histEqual");
 
 	noPoseDiff = cmd.foundOption("noPoseDiff");
 	autoTH = cmd.foundOption("autoTH");
@@ -294,6 +337,11 @@ void startEvaluation(ArgvParser& cmd)
 		exit(1);
 	}
 
+	if (cmd.foundOption("distcoeffNr"))
+		distcoeffNr = atoi(cmd.optionValue("distcoeffNr").c_str());
+	else
+		distcoeffNr = 5;
+
 	if(cmd.foundOption("BART"))
 	{
 		BART = atoi(cmd.optionValue("BART").c_str());
@@ -309,7 +357,7 @@ void startEvaluation(ArgvParser& cmd)
 	if(cmd.foundOption("RobMethod"))
 		RobMethod = cmd.optionValue("RobMethod");
 	else
-		RobMethod = "ARRSAC";
+		RobMethod = "USAC";
 
 	if(RobMethod.compare("ARRSAC") && autoTH)
 	{
@@ -326,6 +374,66 @@ void startEvaluation(ArgvParser& cmd)
 		cout << "The options 'autoTH' and 'Halign' are mutually exclusive. Chosse only one of them. Exiting." << endl;
 		exit(0);
 	}
+
+	if (cmd.foundOption("cfgUSAC"))
+		cfgUSAC = cmd.optionValue("cfgUSAC");
+	else
+		cfgUSAC = "311225";
+
+	if (cfgUSAC.size() == 6)
+	{
+		cfgUSACnr[0] = atoi(cfgUSAC.substr(0, 1).c_str());
+		cfgUSACnr[1] = atoi(cfgUSAC.substr(1, 1).c_str());
+		cfgUSACnr[2] = atoi(cfgUSAC.substr(2, 1).c_str());
+		cfgUSACnr[3] = atoi(cfgUSAC.substr(3, 1).c_str());
+		cfgUSACnr[4] = atoi(cfgUSAC.substr(4, 1).c_str());
+		cfgUSACnr[5] = atoi(cfgUSAC.substr(5, 1).c_str());
+		if (cfgUSACnr[0] < 0 || cfgUSACnr[0] > 3)
+		{
+			cout << "Option for 1st digit of cfgUSAC out of range! Taking default value." << endl;
+			cfgUSACnr[0] = 3;
+		}
+		if (cfgUSACnr[0] > 1 && refineVFC)
+		{
+			cout << "Impossible to estimate epsilon for SPRT if option refineVFC is enabled! Disabling option refineVFC!" << endl;
+			refineVFC = false;
+		}
+		if (cfgUSACnr[1] > 1)
+		{
+			cout << "Option for 2nd digit of cfgUSAC out of range! Taking default value." << endl;
+			cfgUSACnr[1] = 1;
+		}
+		if (cfgUSACnr[2] > 1)
+		{
+			cout << "Option for 3rd digit of cfgUSAC out of range! Taking default value." << endl;
+			cfgUSACnr[2] = 1;
+		}
+		if (cfgUSACnr[3] > 2)
+		{
+			cout << "Option for 4th digit of cfgUSAC out of range! Taking default value." << endl;
+			cfgUSACnr[3] = 2;
+		}
+		if (cfgUSACnr[4] > 2)
+		{
+			cout << "Option for 5th digit of cfgUSAC out of range! Taking default value." << endl;
+			cfgUSACnr[4] = 2;
+		}
+		if (cfgUSACnr[5] > 7)
+		{
+			cout << "Option for 6th digit of cfgUSAC out of range! Taking default value." << endl;
+			cfgUSACnr[5] = 5;
+		}
+	}
+	else
+	{
+		cout << "Option cfgUSAC is corrupt! Taking default values." << endl;
+	}
+
+
+	if (cmd.foundOption("USACdegenTh"))
+		USACdegenTh = std::stod(cmd.optionValue("USACdegenTh"));
+	else
+		USACdegenTh = 0.85;
 
 	if(cmd.foundOption("f_detect"))
 		f_detect = cmd.optionValue("f_detect");
@@ -434,6 +542,12 @@ void startEvaluation(ArgvParser& cmd)
 			src[1] = cv::imread(img_path + "//" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
 		}
 
+		if (histEqual)
+		{
+			equalizeHist(src[0], src[0]);
+			equalizeHist(src[1], src[1]);
+		}
+
 		//Matching
 		err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC, !noRatiot, refineSOF, subPixRef, ((verbose < 4) || (verbose > 5)) ? verbose:0);
 		if(err)
@@ -467,20 +581,41 @@ void startEvaluation(ArgvParser& cmd)
 		//Get calibration data from file
 		double t_mea = 0, t_oa = 0;
 		cv::Mat R0, R1, t0, t1, K0, K1, dist0_5, dist1_5, dist0_8, dist1_8;
-		if(loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_5, dist1_5) != 0)
+		if (distcoeffNr == 5)
 		{
-			cout << "Format of calibration file not supported. Exiting." << endl;
-			exit(0);
+			if (loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_5, dist1_5) != 0)
+			{
+				cout << "Format of calibration file not supported. Exiting." << endl;
+				exit(0);
+			}
+			dist0_8 = Mat::zeros(1, 8, dist0_5.type());
+			dist1_8 = Mat::zeros(1, 8, dist1_5.type());
+			if (dist0_5.rows > dist0_5.cols)
+			{
+				dist0_5 = dist0_5.t();
+				dist1_5 = dist1_5.t();
+			}
+			dist0_5.copyTo(dist0_8.colRange(0, 5));
+			dist1_5.copyTo(dist1_8.colRange(0, 5));
 		}
-		dist0_8 = Mat::zeros(1,8,dist0_5.type());
-		dist1_8 = Mat::zeros(1,8,dist1_5.type());
-		if(dist0_5.rows > dist0_5.cols)
+		else
 		{
-			dist0_5 = dist0_5.t();
-			dist1_5 = dist1_5.t();
+			if (loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_8, dist1_8, distcoeffNr) != 0)
+			{
+				cout << "Format of calibration file not supported. Exiting." << endl;
+				exit(0);
+			}
+			if (dist0_8.rows > dist0_8.cols)
+			{
+				dist0_8 = dist0_8.t();
+				dist1_8 = dist1_8.t();
+			}
 		}
-		dist0_5.copyTo(dist0_8.colRange(0,5));
-		dist1_5.copyTo(dist1_8.colRange(0,5));
+		if (oneCam)
+		{
+			dist1_8 = dist0_8;
+			K1 = K0;
+		}
 		
 		//Extract coordinates from keypoints
 		vector<cv::Point2f> points1, points2;
@@ -527,9 +662,152 @@ void startEvaluation(ArgvParser& cmd)
 			t_mea = (double)getTickCount(); //Start time measurement
 		}
 
+		//Set up USAC paramters
+		poselib::ConfigUSAC cfg;
+		if (!RobMethod.compare("USAC"))
+		{
+			switch (cfgUSACnr[0])
+			{
+			case(0):
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
+				break;
+			case(1):
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
+				break;
+			case(2):
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
+				break;
+			case(3):
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT | poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
+				break;
+			default:
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT | poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
+				break;
+			}
+			switch (cfgUSACnr[1])
+			{
+			case(0):
+				cfg.noAutomaticProsacParamters = true;
+				break;
+			case(1):
+				cfg.noAutomaticProsacParamters = false;
+				break;
+			default:
+				cfg.noAutomaticProsacParamters = false;
+				break;
+			}
+			switch (cfgUSACnr[2])
+			{
+			case(0):
+				cfg.prevalidateSample = false;
+				break;
+			case(1):
+				cfg.prevalidateSample = true;
+				break;
+			default:
+				cfg.prevalidateSample = true;
+				break;
+			}
+			switch (cfgUSACnr[3])
+			{
+			case(0):
+				cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_NO_CHECK;
+				break;
+			case(1):
+				cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_QDEGSAC;
+				break;
+			case(2):
+				cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_USAC_INTERNAL;
+				break;
+			default:
+				cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_USAC_INTERNAL;
+				break;
+			}
+			switch (cfgUSACnr[4])
+			{
+			case(0):
+				cfg.estimator = poselib::PoseEstimator::POSE_NISTER;
+				break;
+			case(1):
+				cfg.estimator = poselib::PoseEstimator::POSE_EIG_KNEIP;
+				break;
+			case(2):
+				cfg.estimator = poselib::PoseEstimator::POSE_STEWENIUS;
+				break;
+			default:
+				cfg.estimator = poselib::PoseEstimator::POSE_STEWENIUS;
+				break;
+			}
+			switch (cfgUSACnr[5])
+			{
+			case(0):
+				cfg.refinealg = poselib::RefineAlg::REF_WEIGHTS;
+				break;
+			case(1):
+				cfg.refinealg = poselib::RefineAlg::REF_8PT_PSEUDOHUBER;
+				break;
+			case(2):
+				cfg.refinealg = poselib::RefineAlg::REF_EIG_KNEIP;
+				break;
+			case(3):
+				cfg.refinealg = poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS;
+				break;
+			case(4):
+				cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS;
+				break;
+			case(5):
+				cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS_WEIGHTS;
+				break;
+			case(6):
+				cfg.refinealg = poselib::RefineAlg::REF_NISTER;
+				break;
+			case(7):
+				cfg.refinealg = poselib::RefineAlg::REF_NISTER_WEIGHTS;
+				break;
+			default:
+				cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS_WEIGHTS;
+				break;
+			}
+			cfg.degenDecisionTh = USACdegenTh;
+			cfg.focalLength = (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)) / 4;
+			cfg.imgSize = src[0].size();
+			cfg.keypoints1 = &kp1;
+			cfg.keypoints2 = &kp2;
+			cfg.matches = &finalMatches;
+			cfg.th_pixels = PIX_MIN_GOOD_TH;
+
+			if (cfgUSACnr[0] > 1)
+			{
+				vector<cv::DMatch> vfcfilteredMatches;
+
+				if (!filterWithVFC(kp1, kp2, finalMatches, vfcfilteredMatches))
+				{
+					if ((vfcfilteredMatches.size() > 8) || (finalMatches.size() < 24))
+					{
+						cfg.nrMatchesVfcFiltered = vfcfilteredMatches.size();
+					}
+					else
+					{
+						if (cfgUSACnr[0] == 2)
+							cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
+						else
+							cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
+					}
+				}
+				else
+				{
+					if (cfgUSACnr[0] == 2)
+						cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
+					else
+						cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
+				}
+			}
+		}
+
 		//Get essential matrix
 		cv::Mat E, mask, p1, p2;
 		cv::Mat R, t;
+		cv::Mat R_kneip, t_kneip;
 		p1 = cv::Mat((int)points1.size(), 2, CV_64FC1);
 		p2 = cv::Mat((int)points2.size(), 2, CV_64FC1);
 		for(int i = 0; i < (int)points1.size(); i++)
@@ -539,7 +817,7 @@ void startEvaluation(ArgvParser& cmd)
 			p2.at<double>(i, 0) = (double)points2[i].x;
 			p2.at<double>(i, 1) = (double)points2[i].y;
 		}
-		double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(1,1) + K0.at<double>(2,2) + K1.at<double>(1,1) + K1.at<double>(2,2)));
+		double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(0,0) + K0.at<double>(1,1) + K1.at<double>(0,0) + K1.at<double>(1,1)));
 		double th = PIX_MIN_GOOD_TH * pixToCamFact;
 		if(autoTH)
 		{
@@ -582,18 +860,82 @@ void startEvaluation(ArgvParser& cmd)
 		}
 		else
 		{
-			if(!poselib::estimateEssentialMat(E, p1, p2, RobMethod, th, refineRT, mask))
+			if (!RobMethod.compare("USAC"))
 			{
-				failNr++;
-				if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+				bool isDegenerate = false;
+				Mat inliers, R_degenerate, inliers_degenerate_R;
+				bool usacerror = false;
+				if (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
 				{
-					cout << "Estimation of essential matrix failed! Trying next pair." << endl;
-					continue;
+					if (estimateEssentialOrPoseUSAC(p1,
+						p2,
+						E,
+						th,
+						cfg,
+						isDegenerate,
+						inliers,
+						R_degenerate,
+						inliers_degenerate_R,
+						R_kneip,
+						t_kneip) != 0)
+					{
+						usacerror = true;
+					}
 				}
 				else
 				{
-					cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-					exit(1);
+					if (estimateEssentialOrPoseUSAC(p1,
+						p2,
+						E,
+						th,
+						cfg,
+						isDegenerate,
+						inliers,
+						R_degenerate,
+						inliers_degenerate_R) != 0)
+					{
+						usacerror = true;
+					}
+				}
+				if(usacerror)
+				{
+					failNr++;
+					if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+					{
+						cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+						continue;
+					}
+					else
+					{
+						cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+						exit(1);
+					}
+				}
+				if (isDegenerate)
+				{
+					cout << "Camera configuration is degenerate and, thus, rotation only. Skipping further calculations! Rotation angles: " << endl;
+					double roll, pitch, yaw;
+					poselib::getAnglesRotMat(R_degenerate, roll, pitch, yaw);
+					cout << "roll: " << roll << char(248) << ", pitch: " << pitch << char(248) << ", yaw: " << yaw << char(248) << endl;
+					cout << "Trying next pair!" << endl;
+					continue;
+				}
+			}
+			else
+			{
+				if (!poselib::estimateEssentialMat(E, p1, p2, RobMethod, th, refineRT, mask))
+				{
+					failNr++;
+					if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+					{
+						cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+						continue;
+					}
+					else
+					{
+						cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+						exit(1);
+					}
 				}
 			}
 		}
@@ -606,12 +948,20 @@ void startEvaluation(ArgvParser& cmd)
 		}
 		else
 		{
-			if(Halign && refineRT)
+			if((Halign && refineRT) || (!RobMethod.compare("USAC") && refineRT))
 			{
-				 poselib::robustEssentialRefine(p1, p2, E, E, PIX_MIN_GOOD_TH / 50.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
+				 poselib::robustEssentialRefine(p1, p2, E, E, th / 10.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
 			}
-
-			poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
+			
+			if (!(!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS) && !refineRT))
+				poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
+			else
+			{
+				R = R_kneip;
+				t = t_kneip;
+				if(BART > 0)
+					poselib::triangPts3D(R, t, p1, p2, Q, mask);
+			}
 		}
 
 		if(verbose > 3)
