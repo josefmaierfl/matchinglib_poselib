@@ -618,18 +618,26 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 				int min_elem = std::distance(E_diffs.begin(), std::min_element(E_diffs.begin(), E_diffs.end()));*/
 
 				std::vector<double> errSums(nsols, 0);
+				std::vector<std::vector<double>> possible_models(nsols);
+				for (size_t j = 0; j < nsols; j++)
+				{
+					possible_models[j].resize(9);
+					for (size_t r = 0; r < 3; r++)
+						for (size_t c = 0; c < 3; c++)
+							possible_models[j][r * 3 + c] = Es_eigen[j](r, c);
+				}
 				for (unsigned int i = 0; i < usac_num_data_points_; ++i)
 				{
 					if (usac_results_.inlier_flags_[i])
 					{
 						for (size_t j = 0; j < nsols; j++)
 						{
-							errSums[j] += PoseTools::getSampsonError(final_model_params_, input_points_denorm_, i);
+							errSums[j] += PoseTools::getSampsonError(possible_models[j], input_points_denorm_, i);
 						}
 						if ((i > 3) && (i % 4 == 0))
 						{
 							std::vector<double> errSums_tmp = errSums;
-							std::partial_sort(errSums_tmp.begin(), errSums_tmp.begin() + 1, errSums_tmp.end());
+							std::partial_sort(errSums_tmp.begin(), errSums_tmp.begin() + 2, errSums_tmp.end());
 							if (errSums_tmp[0] < 0.66 * errSums_tmp[1])
 							{
 								break;
@@ -704,18 +712,26 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 				int min_elem = std::distance(E_diffs.begin(), std::min_element(E_diffs.begin(), E_diffs.end()));*/
 
 				std::vector<double> errSums(nsols, 0);
+				std::vector<std::vector<double>> possible_models(nsols);
+				for (size_t j = 0; j < nsols; j++)
+				{
+					possible_models[j].resize(9);
+					for (size_t r = 0; r < 3; r++)
+						for (size_t c = 0; c < 3; c++)
+							possible_models[j][r * 3 + c] = Es_eigen[j](r, c);
+				}
 				for (unsigned int i = 0; i < usac_num_data_points_; ++i)
 				{
 					if (usac_results_.inlier_flags_[i])
 					{
 						for (size_t j = 0; j < nsols; j++)
 						{
-							errSums[j] += PoseTools::getSampsonError(final_model_params_, input_points_denorm_, i);
+							errSums[j] += PoseTools::getSampsonError(possible_models[j], input_points_denorm_, i);
 						}
 						if ((i > 3) && (i % 4 == 0))
 						{
 							std::vector<double> errSums_tmp = errSums;
-							std::partial_sort(errSums_tmp.begin(), errSums_tmp.begin() + 1, errSums_tmp.end());
+							std::partial_sort(errSums_tmp.begin(), errSums_tmp.begin() + 2, errSums_tmp.end());
 							if (errSums_tmp[0] < 0.66 * errSums_tmp[1])
 							{
 								break;

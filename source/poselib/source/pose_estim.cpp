@@ -1281,6 +1281,18 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 	case(RefineAlg::REF_WEIGHTS):
 		refineMethod = USACConfig::RefineAlgorithm::REFINE_WEIGHTS;
 		break;
+	case(RefineAlg::REF_STEWENIUS):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_STEWENIUS;
+		break;
+	case(RefineAlg::REF_STEWENIUS_WEIGHTS):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_STEWENIUS_WEIGHTS;
+		break;
+	case(RefineAlg::REF_NISTER):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_NISTER;
+		break;
+	case(RefineAlg::REF_NISTER_WEIGHTS):
+		refineMethod = USACConfig::RefineAlgorithm::REFINE_NISTER_WEIGHTS;
+		break;
 	default:
 		cout << "Refinement algorithm not supported!" << endl;
 		return -1;
