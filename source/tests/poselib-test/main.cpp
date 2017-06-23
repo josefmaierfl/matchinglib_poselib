@@ -807,7 +807,7 @@ void startEvaluation(ArgvParser& cmd)
 		//Get essential matrix
 		cv::Mat E, mask, p1, p2;
 		cv::Mat R, t;
-		cv::Mat R_kneip, t_kneip;
+		cv::Mat R_kneip = cv::Mat::eye(3,3,CV_64FC1), t_kneip = cv::Mat::zeros(3,1,CV_64FC1);
 		p1 = cv::Mat((int)points1.size(), 2, CV_64FC1);
 		p2 = cv::Mat((int)points2.size(), 2, CV_64FC1);
 		for(int i = 0; i < (int)points1.size(); i++)
@@ -952,8 +952,14 @@ void startEvaluation(ArgvParser& cmd)
 			{
 				 poselib::robustEssentialRefine(p1, p2, E, E, th / 10.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
 			}
+			double sumt = 0;
+			for (int i = 0; i < 3; i++)
+			{
+				sumt += t_kneip.at<double>(i);
+			}
 			
-			if (!(!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS) && !refineRT))
+			if (!(!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || 
+				cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS) && !refineRT && !poselib::nearZero(sumt)))
 				poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
 			else
 			{

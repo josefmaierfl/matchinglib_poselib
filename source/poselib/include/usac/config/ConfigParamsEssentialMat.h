@@ -20,7 +20,7 @@ namespace USACConfig
 	};
 
 //Ampliotude for generating a random rotation (range: 0...1) that is used for initializing Kneip's Eigen solver
-#define RAND_ROTATION_AMPLITUDE 0.1
+#define RAND_ROTATION_AMPLITUDE 0.0
 
 	// problem specific/data-related parameters: essential matrix
 	struct EssMat

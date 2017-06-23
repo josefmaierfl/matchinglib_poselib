@@ -89,6 +89,7 @@ private:
 	inline void testSolutionDegeneracyNoMot(bool* degenerateModel);
 	inline bool evaluateModelRot(opengv::rotation_t model, unsigned int* numInliers, unsigned int* numPointsTested);
 	inline bool evaluateModelTrans(opengv::translation_t model, unsigned int* numInliers, unsigned int* numPointsTested);
+	//inline bool restoreModel0(bool store);
 
 private:
 	double*		 input_points_denorm_;					    // stores pointer to original input points
@@ -99,6 +100,8 @@ private:
 	//unsigned int degen_max_upgrade_samples_trans;			// maximum number of upgrade attempts for t
 	//unsigned int degen_max_upgrade_samples_noMot_rot;		// maximum number of upgrade attempts for no motion to R
 	unsigned int degen_max_upgrade_samples_noMot_trans;		// maximum number of upgrade attempts for no motion to t
+	opengv::rotation_t R_eigen_new;							// Stores temporally R_eigen
+	opengv::translation_t t_eigen_new;						// Stores temporally t_eigen
 	
 	// ------------------------------------------------------------------------
 	// temporary storage
@@ -118,7 +121,8 @@ private:
 	std::vector<double*> models_denorm_;				// stores vector of (denormalized) models
 
 	std::unique_ptr<opengv::relative_pose::CentralRelativeAdapter> adapter; //Pointer to adapter for OpenGV
-	std::shared_ptr<opengv::relative_pose::CentralRelativeAdapter> adapter_denorm; //Pointer to adapter for OpenGV if Kneip's Eigen solver is used
+	std::shared_ptr<opengv::relative_pose::CentralRelativeAdapter> adapter_denorm; //Pointer to adapter for OpenGV with denormalized correspondences
+	//std::shared_ptr<opengv::relative_pose::CentralRelativeAdapter> adapter_denorm_kneip; //Pointer to adapter for OpenGV if Kneip's Eigen solver is used
 	opengv::bearingVectors_t bearingVectors1_all;
 	opengv::bearingVectors_t bearingVectors2_all;
 	opengv::bearingVectors_t bearingVectors1_denorm;
@@ -191,6 +195,10 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 		models_[i] = new double[9];
 		models_denorm_[i] = new double[9];
 	}
+	R_eigen = opengv::rotation_t::Identity();
+	t_eigen = opengv::translation_t::Zero();
+	R_eigen_new = opengv::rotation_t::Identity();
+	t_eigen_new = opengv::translation_t::Zero();
 
 	p1 = cv::Mat(cfg.common.numDataPoints, 2, CV_64FC1);
 	p2 = cv::Mat(cfg.common.numDataPoints, 2, CV_64FC1);
@@ -236,6 +244,10 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 	adapter_denorm.reset(new opengv::relative_pose::CentralRelativeAdapter(
 		bearingVectors2_denorm,
 		bearingVectors1_denorm));
+
+	/*adapter_denorm_kneip.reset(new opengv::relative_pose::CentralRelativeAdapter(
+		bearingVectors1_denorm,
+		bearingVectors2_denorm));*/
 
 	fivept_nister_essentials = opengv::essentials_t(usac_max_solns_per_sample_);
 	fivept_nister_essentials_denorm = opengv::essentials_t(usac_max_solns_per_sample_);
@@ -342,8 +354,18 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 		PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
 
 		adapter_denorm->setR12(R_init);
-		R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm, indices);
+		eig_out.rotation = R_init;
+		R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm, indices, eig_out);
 		t_eigen = eig_out.translation;
+		t_eigen /= t_eigen.norm();
+		for (size_t r = 0; r < 3; r++)
+			for (size_t c = 0; c < 3; c++)
+				if (isnan(R_eigen(r, c)))
+				{
+					return 0;
+				}
+		if (poselib::nearZero(R_eigen(0, 0)) || poselib::nearZero(R_eigen(1, 1)) || poselib::nearZero(R_eigen(2, 2)))
+			return 0;
 		cv::eigen2cv(R_eigen, R_tmp);
 		cv::eigen2cv(t_eigen, t_tmp);
 		E_tmp = poselib::getEfromRT(R_tmp, t_tmp);
@@ -724,13 +746,25 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 			cv::Mat R_tmp, t_tmp, E_tmp;
 			//Variation of R as init for eigen-solver
 			opengv::rotation_t R_init;
-			if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
-				adapter_denorm->setR12(R_eigen);
+			if (used_estimator == USACConfig::ESTIM_EIG_KNEIP || weighted)
+			{
+				if (weighted)
+				{
+					adapter_denorm->setR12(R_eigen_new);
+					eig_out.rotation = R_eigen_new;
+				}
+				else
+				{
+					adapter_denorm->setR12(R_eigen);
+					eig_out.rotation = R_eigen;
+				}
+			}
 			else
 			{
 				R_init = Eigen::Matrix3d::Identity();
 				PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
 				adapter_denorm->setR12(R_init);
+				eig_out.rotation = R_init;
 			}
 
 			if (refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS && weighted)
@@ -755,8 +789,9 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 				else
 					adapter_denorm_weights->setR12(R_init);
 
-				R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm_weights, eig_out);
-				t_eigen = eig_out.translation;
+				R_eigen_new = opengv::relative_pose::eigensolver(*adapter_denorm_weights, eig_out);
+				t_eigen_new = eig_out.translation;
+				t_eigen_new /= t_eigen_new.norm();
 			}
 			else
 			{
@@ -765,12 +800,25 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 				{
 					indices.push_back((int)sample[i]);
 				}
-				R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm, indices, eig_out);
-				t_eigen = eig_out.translation;
+				R_eigen_new = opengv::relative_pose::eigensolver(*adapter_denorm, indices, eig_out);
+				t_eigen_new = eig_out.translation;
+				t_eigen_new /= t_eigen_new.norm();
+				/*R_eigen_new.transposeInPlace();
+				t_eigen_new = -1.0 * R_eigen_new * t_eigen_new;*/
 			}
+			for (size_t r = 0; r < 3; r++)
+				for (size_t c = 0; c < 3; c++)
+					if (isnan(R_eigen_new(r, c)))
+					{
+						return false;
+					}
+			if (poselib::nearZero(R_eigen_new(0, 0)) || poselib::nearZero(R_eigen_new(1, 1)) || poselib::nearZero(R_eigen_new(2, 2)))
+				return false;
+			if (poselib::nearZero(t_eigen_new(0, 0) * 10) && poselib::nearZero(t_eigen_new(1, 1) * 10) && poselib::nearZero(t_eigen_new(2, 2) * 10))
+				return false;
 
-			cv::eigen2cv(R_eigen, R_tmp);
-			cv::eigen2cv(t_eigen, t_tmp);
+			cv::eigen2cv(R_eigen_new, R_tmp);
+			cv::eigen2cv(t_eigen_new, t_tmp);
 			E_tmp = poselib::getEfromRT(R_tmp, t_tmp);
 			cv::cv2eigen(E_tmp, E_eigen);
 			fivept_nister_essentials_denorm[0] = E_eigen;
@@ -1572,9 +1620,11 @@ void EssentialMatEstimator::testSolutionDegeneracyTrans(bool* degenerateModel)
 					inlier_sample[count++] = (int)evaluation_pool_[j];
 				}
 			}
+			eig_out.rotation = R_;
 			R_ = opengv::relative_pose::eigensolver(*adapter_denorm, inlier_sample, eig_out);
 			t_ = eig_out.translation;
-			cv::eigen2cv(R_eigen, R_tmp);
+			t_ /= t_.norm();
+			cv::eigen2cv(R_, R_tmp);
 			poselib::getAnglesRotMat(R_tmp, roll, pitch, yaw, false);
 			double sum_R = roll + pitch + yaw;
 			if (sum_R > 0.01)
@@ -1612,9 +1662,11 @@ void EssentialMatEstimator::testSolutionDegeneracyTrans(bool* degenerateModel)
 						inlier_sample[count++] = evaluation_pool_[j];
 					}
 				}
+				eig_out.rotation = R_;
 				R_ = opengv::relative_pose::eigensolver(*adapter_denorm, inlier_sample, eig_out);
 				t_ = eig_out.translation;
-				cv::eigen2cv(R_eigen, R_tmp);
+				t_ /= t_.norm();
+				cv::eigen2cv(R_, R_tmp);
 				poselib::getAnglesRotMat(R_tmp, roll, pitch, yaw, false);
 				sum_R = roll + pitch + yaw;
 				if (sum_R > 0.01)
@@ -2090,12 +2142,16 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 				opengv::eigensolverOutput_t eig_out;
 				cv::Mat R_tmp, t_tmp, E_tmp;
 				adapter_denorm->setR12(R_eigen_degen);
-				R_ = opengv::relative_pose::eigensolver(*adapter_denorm, index);
+				eig_out.rotation = R_eigen_degen;
+				R_ = opengv::relative_pose::eigensolver(*adapter_denorm, index, eig_out);
 				t_ = eig_out.translation;
 				if (poselib::nearZero(t_.norm() * 100))
 					continue;
-				cv::eigen2cv(R_eigen, R_tmp);
-				cv::eigen2cv(t_eigen, t_tmp);
+				t_ /= t_.norm();
+				R_eigen_new = R_;
+				t_eigen_new = t_;
+				cv::eigen2cv(R_eigen_new, R_tmp);
+				cv::eigen2cv(t_eigen_new, t_tmp);
 				E_tmp = poselib::getEfromRT(R_tmp, t_tmp);
 				for (size_t r = 0; r < 3; r++)
 					for (size_t c = 0; c < 3; c++)
@@ -2229,7 +2285,23 @@ void EssentialMatEstimator::storeModel(unsigned int modelIndex, unsigned int num
 	{
 		final_model_params_[i] = *(models_denorm_[modelIndex] + i);
 	}
+	R_eigen = R_eigen_new;
+	t_eigen = t_eigen_new;
 }
+
+//bool EssentialMatEstimator::restoreModel0(bool store)
+//{
+//	if (store)
+//	{
+//		R_eigen_old = R_eigen;
+//		t_eigen_old = t_eigen;
+//	}
+//	else
+//	{		
+//		R_eigen = R_eigen_old;
+//		t_eigen = t_eigen_old;
+//	}
+//}
 
 #endif
 
