@@ -128,6 +128,7 @@ class USAC
 		unsigned int lo_num_inner_ransac_reps_;
 		double       lo_threshold_multiplier_;
 		unsigned int lo_num_iterative_steps_;
+		bool refinedModelvalid;
 
 	// ------------------------------------------------------------------------
 	// data-specific parameters/temporary storage
@@ -291,6 +292,7 @@ void USAC<ProblemType>::initDataUSAC(const ConfigParams& cfg)
 		prev_best_inliers_lo_.clear();
 		prev_best_inliers_lo_.resize(usac_num_data_points_, 0);
 	}
+	refinedModelvalid = false;
 
 	// space to store point-to-model errors
 	errs_.clear(); errs_.resize(2*usac_num_data_points_, 0);
@@ -922,6 +924,7 @@ unsigned int USAC<ProblemType>::locallyOptimizeSolution(const unsigned int bestI
 		{
 			sample[j] = orig_inliers[sample[j]];    // we want points only from the current inlier set
 		}
+		refinedModelvalid = false;
 		if ( !static_cast<ProblemType *>(this)->generateRefinedModel(sample, lo_sample_size) )
 		{
 			continue;
@@ -932,6 +935,7 @@ unsigned int USAC<ProblemType>::locallyOptimizeSolution(const unsigned int bestI
 			continue;
 		}
 		temp_inliers = findInliers(err_ptr_[0], lo_threshold_multiplier_*usac_inlier_threshold_, &iter_inliers);
+		refinedModelvalid = true;
 
 		// generate least squares model from all inliers
 		if (! static_cast<ProblemType *>(this)->generateRefinedModel(iter_inliers, temp_inliers) )
@@ -945,6 +949,7 @@ unsigned int USAC<ProblemType>::locallyOptimizeSolution(const unsigned int bestI
 		{
 			if (! static_cast<ProblemType *>(this)->evaluateModel(0, &temp_inliers, &num_points_tested) )
 			{
+				refinedModelvalid = false;
 				continue;
 			}
 			findInliers(err_ptr_[0], (lo_threshold_multiplier_*usac_inlier_threshold_) - (j+1)*threshold_step_size, &iter_inliers);		
@@ -958,6 +963,7 @@ unsigned int USAC<ProblemType>::locallyOptimizeSolution(const unsigned int bestI
 		// find final set of inliers for this round
 		if (! static_cast<ProblemType *>(this)->evaluateModel(0, &temp_inliers, &num_points_tested) )
 		{
+			refinedModelvalid = false;
 			continue;
 		}
 		//findInliers(err_ptr_[0], iter_inliers, usac_inlier_threshold_);	

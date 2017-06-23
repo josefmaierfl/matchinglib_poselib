@@ -89,7 +89,6 @@ private:
 	inline void testSolutionDegeneracyNoMot(bool* degenerateModel);
 	inline bool evaluateModelRot(opengv::rotation_t model, unsigned int* numInliers, unsigned int* numPointsTested);
 	inline bool evaluateModelTrans(opengv::translation_t model, unsigned int* numInliers, unsigned int* numPointsTested);
-	//inline bool restoreModel0(bool store);
 
 private:
 	double*		 input_points_denorm_;					    // stores pointer to original input points
@@ -746,9 +745,9 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 			cv::Mat R_tmp, t_tmp, E_tmp;
 			//Variation of R as init for eigen-solver
 			opengv::rotation_t R_init;
-			if (used_estimator == USACConfig::ESTIM_EIG_KNEIP || weighted)
+			if (used_estimator == USACConfig::ESTIM_EIG_KNEIP || weighted || refinedModelvalid)
 			{
-				if (weighted)
+				if (weighted || refinedModelvalid)
 				{
 					adapter_denorm->setR12(R_eigen_new);
 					eig_out.rotation = R_eigen_new;
@@ -784,10 +783,7 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 					bearingVectors2,
 					weights_vec));
 
-				if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
-					adapter_denorm_weights->setR12(R_eigen);
-				else
-					adapter_denorm_weights->setR12(R_init);
+				adapter_denorm_weights->setR12(R_eigen_new);
 
 				R_eigen_new = opengv::relative_pose::eigensolver(*adapter_denorm_weights, eig_out);
 				t_eigen_new = eig_out.translation;
@@ -2288,20 +2284,6 @@ void EssentialMatEstimator::storeModel(unsigned int modelIndex, unsigned int num
 	R_eigen = R_eigen_new;
 	t_eigen = t_eigen_new;
 }
-
-//bool EssentialMatEstimator::restoreModel0(bool store)
-//{
-//	if (store)
-//	{
-//		R_eigen_old = R_eigen;
-//		t_eigen_old = t_eigen;
-//	}
-//	else
-//	{		
-//		R_eigen = R_eigen_old;
-//		t_eigen = t_eigen_old;
-//	}
-//}
 
 #endif
 

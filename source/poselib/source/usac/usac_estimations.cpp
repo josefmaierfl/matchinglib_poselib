@@ -343,7 +343,10 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	c_com.localOptMethod = USACConfig::LO_LOSAC;//specifies what type of local optimization is to be performed
 
 	//Parameters of inner RANSAC
-	c_lo.innerRansacRepetitions = 5;// 20;//was in USAC example: 5;
+	if(refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS)
+		c_lo.innerRansacRepetitions = 40;// 20;//was in USAC example: 5;
+	else
+		c_lo.innerRansacRepetitions = 5;// 20;//was in USAC example: 5;
 	c_lo.innerSampleSize = 14;//was in USAC example: 15;
 	c_lo.thresholdMultiplier = 2.0;//--------------> maybe should be changed
 	c_lo.numStepsIterative = 4;//--------------> maybe should be changed
@@ -710,7 +713,7 @@ int estimateRotationMatUsac(cv::InputArray p1,
 	c_com.verifMethod = USACConfig::VERIF_SPRT;//specifies the type of model verification to be performed
 	c_com.localOptMethod = USACConfig::LO_LOSAC;//specifies what type of local optimization is to be performed
 
-												//Parameters of inner RANSAC
+	//Parameters of inner RANSAC
 	c_lo.innerRansacRepetitions = 5;// 20;//was in USAC example: 5;
 	c_lo.innerSampleSize = 10;
 	c_lo.thresholdMultiplier = 2.0;//--------------> maybe should be changed
@@ -895,8 +898,11 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	c_com.verifMethod = USACConfig::VERIF_SPRT;//specifies the type of model verification to be performed
 	c_com.localOptMethod = USACConfig::LO_LOSAC;//specifies what type of local optimization is to be performed
 
-												//Parameters of inner RANSAC
-	c_lo.innerRansacRepetitions = 5;// 20;//was in USAC example: 5;
+	//Parameters of inner RANSAC
+	if (refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS)
+		c_lo.innerRansacRepetitions = 40;// 20;//was in USAC example: 5;
+	else
+		c_lo.innerRansacRepetitions = 5;// 20;//was in USAC example: 5;
 	c_lo.innerSampleSize = 14;//was in USAC example: 15;
 	c_lo.thresholdMultiplier = 2.0;//--------------> maybe should be changed
 	c_lo.numStepsIterative = 4;//--------------> maybe should be changed
