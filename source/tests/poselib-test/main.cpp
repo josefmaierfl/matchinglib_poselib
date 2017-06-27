@@ -570,6 +570,10 @@ void startEvaluation(ArgvParser& cmd)
 			}
 		}
 
+		//Sort matches according to their query index
+		/*std::sort(finalMatches.begin(), finalMatches.end(), [](cv::DMatch const & first, cv::DMatch const & second) {
+			return first.queryIdx < second.queryIdx; });*/
+
 		if(verbose >= 7)
 		{
 			showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);

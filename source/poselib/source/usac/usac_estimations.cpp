@@ -294,6 +294,9 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	cv::Mat p2_ = p2.getMat();
 	unsigned int numPts = p1_.rows;
 	unsigned int nr_inliers_ = 0;
+	static unsigned int numhyps = 0;
+	static unsigned int modelcount = 0;
+	static double avgModels = 6;
 
 	if (numPts > INT_MAX)
 	{
@@ -329,8 +332,11 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	c_com.confThreshold = 0.99; // ransac_conf: 0.0 - 1.0 (must be double), specifies the confidence parameter
 	c_com.minSampleSize = 5; //min_sample_size: int, number of points used to generate models
 	c_com.inlierThreshold = th; //inlier_threshold: double, threshold for inlier classification
-	c_com.maxHypotheses = 850000;//--------------> maybe should be changed
-	c_com.maxSolutionsPerSample = 10; //max_solutions_per_sample: int, number of possible solutions using the minimal sample
+	c_com.maxHypotheses = 100000;// 850000;//--------------> maybe should be changed
+	if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
+		c_com.maxSolutionsPerSample = MAX_SOLS_KNEIP;
+	else
+		c_com.maxSolutionsPerSample = 10; //max_solutions_per_sample: int, number of possible solutions using the minimal sample
 	c_com.numDataPoints = numPts; //number of correspondences from matching
 	c_com.prevalidateSample = true; //specifies whether samples are to be prevalidated prior to model generation
 	c_com.prevalidateModel = true; //specifies whether models are to be prevalidated prior to verification against data points
@@ -364,10 +370,43 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	//SPRT parameters
 	c_sprt.delta = sprt_delta;// 0.05;//initial average of inlier ratios in bad models, it is reestimated as USAC proceeds, --------------> maybe should be changed
 	c_sprt.epsilon = sprt_epsilon;// 0.15;//initial inlier ratio for largest size of support, it is reestimated as USAC proceeds; is set to 0.1 in ARRSAC --------------> maybe should be changed
-	c_sprt.mS = 2.38;//average number of models verified for each sample (fundamental mat with 7-pt alg has 1 to 3 solutions)
-					 //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
-	c_sprt.tM = 200.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
-					  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	if (numhyps == 0 || modelcount == 0)
+	{
+		if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
+			c_sprt.mS = MAX_SOLS_KNEIP;
+		else if (used_estimator == USACConfig::ESTIM_NISTER)
+			c_sprt.mS = 8.5;
+		else
+			c_sprt.mS = avgModels;//average number of models verified for each sample (fundamental mat with 7-pt alg has 1 to 3 solutions with average 2.38)
+						 //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else
+	{
+		avgModels = (double)modelcount / (double)numhyps;
+		c_sprt.mS = avgModels;
+	}
+	if (used_estimator == USACConfig::ESTIM_STEWENIUS)
+	{
+		c_sprt.tM = 2736.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else if (used_estimator == USACConfig::ESTIM_NISTER)
+	{
+		c_sprt.tM = 2314.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
+	{
+		c_sprt.tM = MAX_SOLS_KNEIP * 15700.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else
+	{
+		cout << "Not aware of used estimator. Using Nister timings." << endl;
+		c_sprt.tM = 2314.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	
 
 	//Problem specific parameters (for estimating a essential matrix)
 	c_essential.focalLength = focalLength; //The focal length of the camera (for 2 different cameras, use the mean focal length if they are not completely different)
@@ -393,6 +432,8 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	{
 		return(EXIT_FAILURE);
 	}
+	numhyps += fund->usac_results_.hyp_count_;
+	modelcount += fund->usac_results_.model_count_;
 
 	sprt_delta_result = fund->usac_results_.sprt_delta_;
 	sprt_epsilon_result = fund->usac_results_.sprt_epsilon_;
@@ -700,7 +741,7 @@ int estimateRotationMatUsac(cv::InputArray p1,
 	c_com.confThreshold = 0.99; // ransac_conf: 0.0 - 1.0 (must be double), specifies the confidence parameter
 	c_com.minSampleSize = 2; //min_sample_size: int, number of points used to generate models
 	c_com.inlierThreshold = std::sqrt(1.0 - std::cos(std::atan(th_pixels / focalLength))); //inlier_threshold: double, threshold for inlier classification
-	c_com.maxHypotheses = 850000;//--------------> maybe should be changed
+	c_com.maxHypotheses = 100000;// 850000;//--------------> maybe should be changed
 	c_com.maxSolutionsPerSample = 1; //max_solutions_per_sample: int, number of possible solutions using the minimal sample
 	c_com.numDataPoints = numPts; //number of correspondences from matching
 	c_com.prevalidateSample = false; //specifies whether samples are to be prevalidated prior to model generation
@@ -734,7 +775,7 @@ int estimateRotationMatUsac(cv::InputArray p1,
 	c_sprt.epsilon = sprt_epsilon;// 0.15;//initial inlier ratio for largest size of support, it is reestimated as USAC proceeds; is set to 0.1 in ARRSAC --------------> maybe should be changed
 	c_sprt.mS = 1.0;//average number of models verified for each sample (fundamental mat with 7-pt alg has 1 to 3 solutions)
 					 //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
-	c_sprt.tM = 36.27;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+	c_sprt.tM = 65.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
 					  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
 
 	ConfigParamsRotationMat cfg(c_com, c_pro, c_sprt, c_lo);
@@ -832,6 +873,9 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	unsigned int numPts = p1_.rows;
 	unsigned int degenInlCnt = 0;
 	unsigned int nr_inliers_ = 0;
+	static unsigned int numhyps = 0;
+	static unsigned int modelcount = 0;
+	static double avgModels = 6;
 
 	if (numPts > INT_MAX)
 	{
@@ -885,8 +929,11 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	c_com.confThreshold = 0.99; // ransac_conf: 0.0 - 1.0 (must be double), specifies the confidence parameter
 	c_com.minSampleSize = 5; //min_sample_size: int, number of points used to generate models
 	c_com.inlierThreshold = th; //inlier_threshold: double, threshold for inlier classification
-	c_com.maxHypotheses = 850000;//--------------> maybe should be changed
-	c_com.maxSolutionsPerSample = 10; //max_solutions_per_sample: int, number of possible solutions using the minimal sample
+	c_com.maxHypotheses = 100000;// 850000;//--------------> maybe should be changed
+	if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
+		c_com.maxSolutionsPerSample = MAX_SOLS_KNEIP;
+	else
+		c_com.maxSolutionsPerSample = 10; //max_solutions_per_sample: int, number of possible solutions using the minimal sample
 	c_com.numDataPoints = numPts; //number of correspondences from matching
 	c_com.numDataPointsDegenerate = degenInlCnt; //Number of inliers to the degenerate model (must agree with the sorted inliers to the degenerate model at the beginning of pointData)
 	c_com.prevalidateSample = true; //specifies whether samples are to be prevalidated prior to model generation
@@ -910,10 +957,42 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	//SPRT parameters
 	c_sprt.delta = sprt_delta;// 0.05;//initial average of inlier ratios in bad models, it is reestimated as USAC proceeds, --------------> maybe should be changed
 	c_sprt.epsilon = sprt_epsilon;// 0.15;//initial inlier ratio for largest size of support, it is reestimated as USAC proceeds; is set to 0.1 in ARRSAC --------------> maybe should be changed
-	c_sprt.mS = 2.38;//average number of models verified for each sample (fundamental mat with 7-pt alg has 1 to 3 solutions)
-					 //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
-	c_sprt.tM = 200.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
-					  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	if (numhyps == 0 || modelcount == 0)
+	{
+		if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
+			c_sprt.mS = MAX_SOLS_KNEIP;
+		else if (used_estimator == USACConfig::ESTIM_NISTER)
+			c_sprt.mS = 8.5;
+		else
+			c_sprt.mS = avgModels;//average number of models verified for each sample (fundamental mat with 7-pt alg has 1 to 3 solutions with average 2.38)
+							  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else
+	{
+		avgModels = (double)modelcount / (double)numhyps;
+		c_sprt.mS = avgModels;
+	}
+	if (used_estimator == USACConfig::ESTIM_STEWENIUS)
+	{
+		c_sprt.tM = 2736.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						   //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else if (used_estimator == USACConfig::ESTIM_NISTER)
+	{
+		c_sprt.tM = 2314.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						   //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
+	{
+		c_sprt.tM = MAX_SOLS_KNEIP * 15700.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+											 //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
+	else
+	{
+		cout << "Not aware of used estimator. Using Nister timings." << endl;
+		c_sprt.tM = 2314.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
+						   //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
+	}
 
 					  //Problem specific parameters (for estimating a essential matrix)
 	c_essential.focalLength = focalLength; //The focal length of the camera (for 2 different cameras, use the mean focal length if they are not completely different)
@@ -939,6 +1018,8 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	{
 		return(EXIT_FAILURE);
 	}
+	numhyps += fund->usac_results_.hyp_count_;
+	modelcount += fund->usac_results_.model_count_;
 
 	sprt_delta_result = fund->usac_results_.sprt_delta_;
 	sprt_epsilon_result = fund->usac_results_.sprt_epsilon_;
@@ -1101,17 +1182,48 @@ int estimateEssentialQDEGSAC(cv::InputArray p1,
 
 	p1_inl.create(nr_inliers_init, 2, CV_64FC1);
 	p2_inl.create(nr_inliers_init, 2, CV_64FC1);
-	sortedMatchIdxDegen.resize(nr_inliers_init);
+	std::vector<unsigned int> matchidx(nr_inliers_init);
 	for (unsigned int i = 0, count = 0; i < numPts; i++)
 	{
 		if (inliers_init.at<bool>(i))
 		{
-			p1_inl.row(count) = p1_.row(i);
-			p2_inl.row(count) = p2_.row(i);
-			sortedMatchIdxDegen[count] = sortedMatchIdx[i];
+			p1_.row(i).copyTo(p1_inl.row(count));
+			p2_.row(i).copyTo(p2_inl.row(count));
+			matchidx[count] = i;// sortedMatchIdx[i];
 			count++;
 		}
 	}
+#if 0
+	std::vector<std::pair<unsigned int, unsigned int>> sortedMatchIdxIdx(nr_inliers_init);
+	for (unsigned int i = 0; i < nr_inliers_init; i++)
+	{
+		unsigned int j = 0;
+		while (j < numPts && matchidx[i] != sortedMatchIdx[j])
+			j++;
+		if (j < numPts)
+			sortedMatchIdxIdx[i] = std::make_pair(i,j);
+		else
+		{
+			cout << "This should not happen! Disabling PROSAC!" << endl;
+			sortedMatchIdxDegen.clear();
+			sortedMatchIdxIdx.clear();
+			break;
+		}
+	}
+
+	if (!sortedMatchIdxIdx.empty())
+	{
+		std::sort(sortedMatchIdxIdx.begin(), sortedMatchIdxIdx.end(), [](std::pair<unsigned int, unsigned int> const & first, std::pair<unsigned int, unsigned int> const & second) {
+			return first.second < second.second; });
+		sortedMatchIdxDegen.resize(nr_inliers_init);
+		for (unsigned int i = 0; i < nr_inliers_init; i++)
+		{
+			sortedMatchIdxDegen[i] = sortedMatchIdxIdx[i].first;
+		}
+	}
+#else
+	sortedMatchIdxDegen.clear();
+#endif
 
 	if(estimateRotationMatUsac(p1_inl,
 		p2_inl,
@@ -1122,7 +1234,7 @@ int estimateEssentialQDEGSAC(cv::InputArray p1,
 		th_pixels,
 		prosac_beta,
 		sprt_delta,
-		sprt_epsilon,
+		sprt_epsilon / 10.0,
 		inliers_degen,
 		&nr_inliers_deg,
 		sortedMatchIdxDegen) == EXIT_FAILURE)
@@ -1234,7 +1346,7 @@ int estimateEssentialQDEGSAC(cv::InputArray p1,
 		if (!inliers_res.empty())
 		{
 			if (inliers.empty())
-				inliers.create(3, 3, CV_64F);
+				inliers.create(inliers_res.size(), inliers_res.type());
 			inliers_res.copyTo(inliers.getMat());
 		}
 		else

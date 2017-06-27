@@ -209,7 +209,7 @@ void USAC<ProblemType>::initParamsUSAC(const ConfigParams& cfg)
 	usac_conf_threshold_        = cfg.common.confThreshold;
 	usac_min_sample_size_		= cfg.common.minSampleSize;
 	usac_min_sample_size_degen	= cfg.common.minSampleSizeDegenerate;
-	usac_inlier_threshold_		= cfg.common.inlierThreshold;
+	usac_inlier_threshold_		= cfg.common.inlierThreshold * cfg.common.inlierThreshold; //added multiplication
 	usac_max_hypotheses_		= cfg.common.maxHypotheses;
 	usac_max_solns_per_sample_	= cfg.common.maxSolutionsPerSample;
 	usac_prevalidate_sample_	= cfg.common.prevalidateSample;
@@ -263,7 +263,7 @@ void USAC<ProblemType>::initDataUSAC(const ConfigParams& cfg)
 	// initialize some data specfic stuff
 	usac_num_data_points_ = cfg.common.numDataPoints;
 	usac_num_data_points_degen = cfg.common.numDataPointsDegenerate;
-	usac_inlier_threshold_ = cfg.common.inlierThreshold*cfg.common.inlierThreshold;
+	//usac_inlier_threshold_ = cfg.common.inlierThreshold*cfg.common.inlierThreshold;//removed
 
 	// set up PROSAC if required
 	if (usac_sampling_method_ == USACConfig::SAMP_PROSAC)

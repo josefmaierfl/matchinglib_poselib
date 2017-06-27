@@ -26,6 +26,12 @@ opengv::complexEssentials_t fivept_stewenius_weight(
 	assert(numberCorrespondences > 4);
 
 	Eigen::MatrixXd Q(numberCorrespondences, 9);
+	double weightnorm = 0;
+	for (size_t i = 0; i < numberCorrespondences; i++)
+	{
+		weightnorm += std::pow(adapter.getWeight(indices[i]), 2);
+	}
+	weightnorm = std::sqrt(weightnorm);
 	for (size_t i = 0; i < numberCorrespondences; i++)
 	{
 		//bearingVector_t f = adapter.getBearingVector1(indices[i]);
@@ -42,7 +48,7 @@ opengv::complexEssentials_t fivept_stewenius_weight(
 		row << f[0] * fprime[0], f[1] * fprime[0], f[2] * fprime[0],
 			f[0] * fprime[1], f[1] * fprime[1], f[2] * fprime[1],
 			f[0] * fprime[2], f[1] * fprime[2], f[2] * fprime[2];
-		row *= weight;
+		row *= weight / weightnorm;
 		Q.row(i) = row;
 	}
 
@@ -68,6 +74,13 @@ opengv::essentials_t fivept_nister_weight(
 	assert(numberCorrespondences > 4);
 
 	Eigen::MatrixXd Q(numberCorrespondences, 9);
+	double weightnorm = 0;
+	for (size_t i = 0; i < numberCorrespondences; i++)
+	{
+		weightnorm += std::pow(adapter.getWeight(indices[i]), 2);
+	}
+	weightnorm = std::sqrt(weightnorm);
+
 	for (size_t i = 0; i < numberCorrespondences; i++)
 	{
 		//bearingVector_t f = adapter.getBearingVector1(indices[i]);
@@ -81,7 +94,7 @@ opengv::essentials_t fivept_nister_weight(
 		row << f[0] * fprime[0], f[1] * fprime[0], f[2] * fprime[0],
 			f[0] * fprime[1], f[1] * fprime[1], f[2] * fprime[1],
 			f[0] * fprime[2], f[1] * fprime[2], f[2] * fprime[2];
-		row *= weight;
+		row *= weight / weightnorm;
 		Q.row(i) = row;
 	}
 

@@ -49,6 +49,8 @@ public:
 private:
 	double*		 input_points_denorm_;					    // stores pointer to original input points
 	std::shared_ptr<opengv::relative_pose::CentralRelativeAdapter> adapter_denorm; //Pointer to adapter for OpenGV if Kneip's Eigen solver is used
+	opengv::bearingVectors_t bearingVectors1_denorm;
+	opengv::bearingVectors_t bearingVectors2_denorm;
 };
 
 // ============================================================================================
@@ -64,8 +66,6 @@ bool RotationMatEstimator::initProblem(const ConfigParamsRotationMat& cfg, doubl
 		std::cerr << "Input point data not properly initialized" << std::endl;
 		return false;
 	}
-	opengv::bearingVectors_t bearingVectors1_denorm;
-	opengv::bearingVectors_t bearingVectors2_denorm;
 	double* p_idx1 = input_points_denorm_;
 	for (unsigned int i = 0; i < cfg.common.numDataPoints; i++)
 	{

@@ -348,30 +348,44 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 		opengv::eigensolverOutput_t eig_out;
 		opengv::essential_t E_eigen;
 		cv::Mat R_tmp, t_tmp, E_tmp;
-		//Variation of R as init for eigen-solver
-		opengv::rotation_t R_init = Eigen::Matrix3d::Identity();
-		PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
-
-		adapter_denorm->setR12(R_init);
-		eig_out.rotation = R_init;
-		R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm, indices, eig_out);
-		t_eigen = eig_out.translation;
-		t_eigen /= t_eigen.norm();
-		for (size_t r = 0; r < 3; r++)
-			for (size_t c = 0; c < 3; c++)
-				if (isnan(R_eigen(r, c)))
-				{
-					return 0;
-				}
-		if (poselib::nearZero(R_eigen(0, 0)) || poselib::nearZero(R_eigen(1, 1)) || poselib::nearZero(R_eigen(2, 2)))
-			return 0;
-		cv::eigen2cv(R_eigen, R_tmp);
-		cv::eigen2cv(t_eigen, t_tmp);
-		E_tmp = poselib::getEfromRT(R_tmp, t_tmp);
-		cv::cv2eigen(E_tmp, E_eigen);
 		fivept_nister_essentials_denorm.clear();
-		fivept_nister_essentials_denorm.push_back(E_eigen);
-		nsols = 1;
+		nsols = MAX_SOLS_KNEIP;
+		for (unsigned int i = 0; i < MAX_SOLS_KNEIP; i++)
+		{
+			//Variation of R as init for eigen-solver
+			opengv::rotation_t R_init = Eigen::Matrix3d::Identity();
+			PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+
+			adapter_denorm->setR12(R_init);
+			eig_out.rotation = R_init;
+			R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm, indices, eig_out);
+			t_eigen = eig_out.translation;
+			t_eigen /= t_eigen.norm();
+			bool kneipFailed = false;
+			for (size_t r = 0; r < 3; r++)
+			{
+				for (size_t c = 0; c < 3; c++)
+				{
+					if (isnan(R_eigen(r, c)))
+					{
+						nsols--;
+						kneipFailed = true;
+						break;
+					}
+				}
+				if (kneipFailed)
+					break;
+			}
+			if ((poselib::nearZero(R_eigen(0, 0)) || poselib::nearZero(R_eigen(1, 1)) || poselib::nearZero(R_eigen(2, 2))) && !kneipFailed)
+				nsols--;
+			cv::eigen2cv(R_eigen, R_tmp);
+			cv::eigen2cv(t_eigen, t_tmp);
+			E_tmp = poselib::getEfromRT(R_tmp, t_tmp);
+			cv::cv2eigen(E_tmp, E_eigen);
+			fivept_nister_essentials_denorm.push_back(E_eigen);
+		}
+		if (nsols == 0)
+			return 0;
 	}
 	else if (used_estimator == USACConfig::ESTIM_STEWENIUS)
 	{

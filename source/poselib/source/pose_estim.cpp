@@ -1306,7 +1306,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
 			sprt_delta_new = sprt_delta;
 		}
-		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.15)
+		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.2)
 		{
 			sprt_delta = sprt_delta_new;
 		}
@@ -1325,7 +1325,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 		else
 		{
 			double sprt_epsilon_tmp = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
-			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.15 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.33)
+			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.25 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.5)
 			{
 				sprt_epsilon = sprt_epsilon_new;
 			}
@@ -1342,7 +1342,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
 			sprt_delta_new = sprt_delta;
 		}
-		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.15)
+		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.2)
 		{
 			sprt_delta = sprt_delta_new;
 		}
@@ -1358,7 +1358,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 		else
 		{
 			double sprt_epsilon_tmp = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
-			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.15 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.33)
+			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.25 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.5)
 			{
 				sprt_epsilon = sprt_epsilon_new;
 			}
