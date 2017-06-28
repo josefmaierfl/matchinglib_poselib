@@ -201,7 +201,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 			H_.copyTo(H.getMat());
 		}
 		if(fraction_degen_inliers)
-			*fraction_degen_inliers = fund->usac_results_.degen_inlier_count_ / fund->usac_results_.best_inlier_count_;
+			*fraction_degen_inliers = (double)fund->usac_results_.degen_inlier_count_ / (double)fund->usac_results_.best_inlier_count_;
 	}
 	else
 	{
@@ -514,7 +514,7 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	if (fraction_degen_inliers_H)
 	{
 		if (fund->usac_results_.degen_inlier_count_ > 4)
-			*fraction_degen_inliers_H = fund->usac_results_.best_inlier_count_ > 0 ? (fund->usac_results_.degen_inlier_count_ / fund->usac_results_.best_inlier_count_) : 0;
+			*fraction_degen_inliers_H = fund->usac_results_.best_inlier_count_ > 0 ? ((double)fund->usac_results_.degen_inlier_count_ / (double)fund->usac_results_.best_inlier_count_) : 0;
 		else
 			*fraction_degen_inliers_H = 0;
 	}
@@ -548,7 +548,7 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	if (fraction_degen_inliers_R)
 	{
 		if (fund->usac_results_.degen_inlier_count_rot > 2)
-			*fraction_degen_inliers_R = fund->usac_results_.best_inlier_count_ > 0 ? (fund->usac_results_.degen_inlier_count_rot / fund->usac_results_.best_inlier_count_) : 0;
+			*fraction_degen_inliers_R = fund->usac_results_.best_inlier_count_ > 0 ? ((double)fund->usac_results_.degen_inlier_count_rot / (double)fund->usac_results_.best_inlier_count_) : 0;
 		else
 			*fraction_degen_inliers_R = 0;
 	}
@@ -579,14 +579,14 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	if (fraction_degen_inliers_t)
 	{
 		if (fund->usac_results_.degen_inlier_count_trans > 2)
-			*fraction_degen_inliers_t = fund->usac_results_.best_inlier_count_ > 0 ? (fund->usac_results_.degen_inlier_count_trans / fund->usac_results_.best_inlier_count_) : 0;
+			*fraction_degen_inliers_t = fund->usac_results_.best_inlier_count_ > 0 ? ((double)fund->usac_results_.degen_inlier_count_trans / (double)fund->usac_results_.best_inlier_count_) : 0;
 		else
 			*fraction_degen_inliers_t = 0;
 	}
 	if (fraction_degen_inliers_noMot)
 	{
 		if (fund->usac_results_.degen_inlier_count_noMot > 1)
-			*fraction_degen_inliers_noMot = fund->usac_results_.best_inlier_count_ > 0 ? (fund->usac_results_.degen_inlier_count_noMot / fund->usac_results_.best_inlier_count_) : 0;
+			*fraction_degen_inliers_noMot = fund->usac_results_.best_inlier_count_ > 0 ? ((double)fund->usac_results_.degen_inlier_count_noMot / (double)fund->usac_results_.best_inlier_count_) : 0;
 		else
 			*fraction_degen_inliers_noMot = 0;
 	}
@@ -1263,25 +1263,46 @@ int estimateEssentialQDEGSAC(cv::InputArray p1,
 			}
 		}
 
-		if(upgradeEssentialMatDegenUsac(p1,
-			p2,
-			inliers_degen_all_out,
-			E_upgrade,
-			sprt_delta_result_tmp,
-			sprt_epsilon_result_tmp,
-			th,
-			focalLength,
-			th_pixels,
-			sprt_delta,
-			sprt_epsilon,
-			used_estimator,
-			refineMethod,
-			inliers_upgrade,
-			&nr_inliers_upgrade,
-			R_kneip_upgr,
-			t_kneip_upgr) == EXIT_FAILURE)
+		if (std::abs((int)nr_inliers_init - (int)nr_inliers_deg) < 5)
 		{
-			return EXIT_FAILURE;
+			nr_inliers_upgrade = 0;
+		}
+		else
+		{
+			//Check if the rotation is an identity and thus "no Motion"
+			Eigen::Matrix3d rot_deg;
+			Eigen::Vector4d quat_rot, quat_identity;
+			quat_identity << 1.0, 0, 0, 0;
+			cv::cv2eigen(R_, rot_deg);
+			poselib::MatToQuat(rot_deg, quat_rot);
+			double angle_diff = poselib::rotDiff(quat_rot, quat_identity);
+			if (poselib::nearZero(angle_diff))
+			{
+				nr_inliers_upgrade = 0;
+			}
+			else
+			{
+				if (upgradeEssentialMatDegenUsac(p1,
+					p2,
+					inliers_degen_all_out,
+					E_upgrade,
+					sprt_delta_result_tmp,
+					sprt_epsilon_result_tmp,
+					th,
+					focalLength,
+					th_pixels,
+					sprt_delta,
+					sprt_epsilon,
+					used_estimator,
+					refineMethod,
+					inliers_upgrade,
+					&nr_inliers_upgrade,
+					R_kneip_upgr,
+					t_kneip_upgr) == EXIT_FAILURE)
+				{
+					return EXIT_FAILURE;
+				}
+			}
 		}
 
 		if (nr_inliers_upgrade > nr_inliers_deg)

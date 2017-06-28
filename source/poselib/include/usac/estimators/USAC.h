@@ -615,26 +615,34 @@ void USAC<ProblemType>::generateModelCompletionMinSample(unsigned int dataSize_d
 	unsigned int count = 0;
 	unsigned int index;
 	unsigned int dataSize_outl = dataSize - dataSize_degen;
-	std::vector<unsigned int>::iterator pos;
-	pos = sample->begin();
-	do {
-		index = rand() % dataSize_degen;
-		if (find(sample->begin(), pos, index) == pos)
-		{
-			(*sample)[count] = index;
-			++count;
-			++pos;
-		}
-	} while (count < sampleSize_degen);
-	do {
-		index = rand() % dataSize_outl + dataSize_degen;
-		if (find(sample->begin(), pos, index) == pos)
-		{
-			(*sample)[count] = index;
-			++count;
-			++pos;
-		}
-	} while (count < sampleSize_outl);
+	if (dataSize_outl < sampleSize_outl)
+	{
+		usac_sampling_method_ = USACConfig::SAMP_UNIFORM;
+		generateUniformRandomSample(dataSize, usac_min_sample_size_, sample);
+	}
+	else
+	{
+		std::vector<unsigned int>::iterator pos;
+		pos = sample->begin();
+		do {
+			index = rand() % dataSize_degen;
+			if (find(sample->begin(), pos, index) == pos)
+			{
+				(*sample)[count] = index;
+				++count;
+				++pos;
+			}
+		} while (count < sampleSize_degen);
+		do {
+			index = rand() % dataSize_outl + dataSize_degen;
+			if (find(sample->begin(), pos, index) == pos)
+			{
+				(*sample)[count] = index;
+				++count;
+				++pos;
+			}
+		} while (count < usac_min_sample_size_);
+	}
 }
 
 

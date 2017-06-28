@@ -1508,7 +1508,24 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			{
 				if (inliers_degenerate_R.empty())
 					inliers_degenerate_R.create(1, inl_degen.cols, CV_8U);
-				inl_degen.copyTo(R_degenerate.getMat());
+				inl_degen.copyTo(inliers_degenerate_R.getMat());
+			}
+		}
+		else if (cfg.degenDecisionTh * fraction_inliers < fraction_degen_inliers_noMot)
+		{
+			isDegenerate = true;
+			if (R_degenerate.needed())
+			{
+				R_degen = cv::Mat::eye(3, 3, CV_64FC1);
+				if (R_degenerate.empty())
+					R_degenerate.create(3, 3, CV_64F);
+				R_degen.copyTo(R_degenerate.getMat());
+			}
+			if (inliers_degenerate_R.needed() && !inliers_degenerate_noMotion.empty())
+			{
+				if (inliers_degenerate_R.empty())
+					inliers_degenerate_R.create(1, inliers_degenerate_noMotion.cols, CV_8U);
+				inliers_degenerate_noMotion.copyTo(inliers_degenerate_R.getMat());
 			}
 		}
 	}
@@ -1571,7 +1588,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			{
 				if (inliers_degenerate_R.empty())
 					inliers_degenerate_R.create(1, inl_degen.cols, CV_8U);
-				inl_degen.copyTo(R_degenerate.getMat());
+				inl_degen.copyTo(inliers_degenerate_R.getMat());
 			}
 			if (!E.empty())
 				E.clear();

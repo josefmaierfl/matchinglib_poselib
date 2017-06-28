@@ -275,6 +275,10 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 		degen_final_model_params_trans.clear(); degen_final_model_params_trans.resize(3);
 		degen_data_matrix_ = new double[2 * 9 * usac_num_data_points_];	// 2 equations per correspondence
 		HTools::computeDataMatrix(degen_data_matrix_, usac_num_data_points_, input_points_);
+		degen_outlier_flags_rot.resize(usac_num_data_points_);
+		//degen_outlier_flags_trans.resize(usac_num_data_points_);;
+		degen_outlier_flags_noMot.resize(usac_num_data_points_);
+		degen_sample_trans.resize(2);
 	}
 	else
 	{
@@ -662,8 +666,10 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 				int min_elem = std::distance(errSums.begin(), std::min_element(errSums.begin(), errSums.end()));
 				E_singele = Es_eigen[min_elem];
 			}
-			else
+			else if (nsols == 1)
 				E_singele = Es_eigen[0];
+			else
+				return false;
 
 			fivept_nister_essentials_denorm[0] = E_singele;
 			fivept_nister_essentials[0] = m_T2_trans_e_inv * E_singele * m_T1_e_inv;
@@ -756,8 +762,10 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 				int min_elem = std::distance(errSums.begin(), std::min_element(errSums.begin(), errSums.end()));
 				E_singele = Es_eigen[min_elem];
 			}
-			else
+			else if (nsols == 1)
 				E_singele = Es_eigen[0];
+			else
+				return false;
 
 			fivept_nister_essentials_denorm[0] = E_singele;
 			fivept_nister_essentials[0] = m_T2_trans_e_inv * E_singele * m_T1_e_inv;
@@ -1509,7 +1517,8 @@ void EssentialMatEstimator::testSolutionDegeneracyRot(bool* degenerateModel)
 #endif
 			// set flag
 			*degenerateModel = true;
-			degeneracyType = DEGEN_ROT_TRANS;
+			if(degeneracyType != (degeneracyType & (DEGEN_UPGRADE | DEGEN_ROT_TRANS)))
+				degeneracyType = DEGEN_ROT_TRANS;
 
 			// if largest degenerate model found so far, store results
 			if (num_inliers > usac_results_.degen_inlier_count_rot)
@@ -1774,7 +1783,8 @@ void EssentialMatEstimator::testSolutionDegeneracyNoMot(bool* degenerateModel)
 		// set flag
 		*degenerateModel = true;
 		if (((double)num_inliers > 0.7 * (double)usac_results_.degen_inlier_count_rot))// || ((double)num_inliers > 0.7 * (double)usac_results_.degen_inlier_count_trans))
-			degeneracyType = DEGEN_NO_MOT;
+			if (degeneracyType != (degeneracyType & (DEGEN_UPGRADE | DEGEN_NO_MOT)))
+				degeneracyType = DEGEN_NO_MOT;
 
 		// if largest degenerate model found so far, store results
 		if (num_inliers > usac_results_.degen_inlier_count_noMot)
