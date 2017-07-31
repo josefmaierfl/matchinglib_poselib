@@ -16,8 +16,8 @@
 #include <opengv/math/cayley.hpp>
 #include <memory>
 
-#include "pose_estim.h"
-#include "pose_helper.h"
+#include "poselib/pose_estim.h"
+#include "poselib/pose_helper.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/core/eigen.hpp"
 
@@ -137,7 +137,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 	}
 
 	// normalize input data
-	// following this, input_points_ has the normalized points and input_points_denorm_ has 
+	// following this, input_points_ has the normalized points and input_points_denorm_ has
 	// the original input points
 	FTools::normalizePoints(input_points_denorm_, input_points_, cfg.common.numDataPoints, m_T1_, m_T2_);
 	MathTools::mattr(m_T2_trans_, m_T2_, 3, 3);
@@ -211,7 +211,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 
 	fivept_nister_essentials = opengv::essentials_t(usac_max_solns_per_sample_);
 	fivept_nister_essentials_denorm = opengv::essentials_t(usac_max_solns_per_sample_);
-	
+
 
 	// precompute the data matrix
 	data_matrix_ = new double[9 * usac_num_data_points_];	// 9 values per correspondence
@@ -246,7 +246,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 
 
 // ============================================================================================
-// cleanupProblem: release any temporary problem specific data storage 
+// cleanupProblem: release any temporary problem specific data storage
 // this function is called at the end of each run on new data
 // ============================================================================================
 void EssentialMatEstimator::cleanupProblem()
@@ -269,8 +269,8 @@ void EssentialMatEstimator::cleanupProblem()
 
 
 // ============================================================================================
-// generateMinimalSampleModels: generates minimum sample model(s) from the data points whose  
-// indices are currently stored in m_sample. 
+// generateMinimalSampleModels: generates minimum sample model(s) from the data points whose
+// indices are currently stored in m_sample.
 // the generated models are stored in a vector of models and are all evaluated
 // ============================================================================================
 unsigned int EssentialMatEstimator::generateMinimalSampleModels()
@@ -281,7 +281,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 	{
 		indices.push_back((int)min_sample_[i]);
 	}
-	
+
 	if (used_estimator == USACConfig::ESTIM_NISTER)
 	{
 		fivept_nister_essentials_denorm = opengv::relative_pose::fivept_nister(*adapter_denorm, indices);
@@ -347,7 +347,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 		fivept_nister_essentials_denorm = opengv::relative_pose::fivept_nister(*adapter_denorm, indices);
 		nsols = fivept_nister_essentials_denorm.size();
 	}
-	
+
 	fivept_nister_essentials.clear();
 	for (unsigned int i = 0; i < nsols; ++i)
 	{
@@ -832,16 +832,16 @@ void EssentialMatEstimator::testSolutionDegeneracy(bool* degenerateModel, bool* 
 
 	// make up the tuples to be used to check for degeneracy
 	unsigned int degen_sample_indices[] = { 0, 1, 2, 3,
-		1, 2, 3, 4, 
-		0, 2, 3, 4, 
-		0, 1, 3, 4, 
+		1, 2, 3, 4,
+		0, 2, 3, 4,
+		0, 1, 3, 4,
 		0, 1, 2, 4 };
 
 	// the above tuples need to be tested on the remaining points for each case
-	unsigned int test_point_indices[] = { 4, 
-		0, 
-		1, 
-		2, 
+	unsigned int test_point_indices[] = { 4,
+		0,
+		1,
+		2,
 		3 };
 
 	unsigned int *sample_pos = degen_sample_indices;
@@ -1043,7 +1043,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 				}
 			}
 			unsigned int num_samples = updateStandardStopping(count, num_outliers, 2);
-			//std::cout << "Inliers = " << num_inliers << ", in/out = " << count << "/" << num_outliers 
+			//std::cout << "Inliers = " << num_inliers << ", in/out = " << count << "/" << num_outliers
 			//	      << ". Num samples = " << num_samples << std::endl;
 			if (num_samples < degen_max_upgrade_samples_)
 			{
@@ -1122,4 +1122,3 @@ void EssentialMatEstimator::storeModel(unsigned int modelIndex, unsigned int num
 }
 
 #endif
-

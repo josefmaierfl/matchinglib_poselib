@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: May 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -20,7 +20,7 @@
 #pragma once
 
 #include "opencv2/highgui/highgui.hpp"
-#include "glob_includes.h"
+#include "poselib/glob_includes.h"
 #include <Eigen/Core>
 
 #include "poselib/poselib_api.h"
@@ -51,7 +51,12 @@ int POSELIB_API getClosestE(Eigen::Matrix3d & E);
 //Validate the Essential/Fundamental matrix with the oriented epipolar constraint
 bool POSELIB_API validateEssential(const cv::Mat p1, const cv::Mat p2, const Eigen::Matrix3d E, bool EfullCheck = false, cv::InputOutputArray _mask = cv::noArray(), bool tryOrientedEpipolar = false);
 //Checks, if determinants, etc. are too close to 0
-inline bool POSELIB_API nearZero(double d);
+inline bool POSELIB_API nearZero(double d)
+{
+    //Decide if determinants, etc. are too close to 0 to bother with
+    const double EPSILON = 1e-3;
+    return (d<EPSILON) && (d>-EPSILON);
+}
 //Calculates statistical parameters for the given values in the vector
 void POSELIB_API getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles = false);
 //Extracts the 3D translation vector from the translation essential matrix.
@@ -60,15 +65,15 @@ cv::Mat POSELIB_API getTfromTransEssential(cv::Mat Et);
 double POSELIB_API normFromVec(cv::Mat vec);
 //Calculates the vector norm.
 double POSELIB_API normFromVec(std::vector<double> vec);
-//Calculates the reprojection errors for all correspondences and/or their statistics  
-void POSELIB_API getReprojErrors(cv::Mat Essential, 
-					 cv::InputArray p1, 
-					 cv::InputArray p2, 
-					 bool takeImageCoords, 
-					 statVals* qp = NULL, 
-					 std::vector<double> *repErr = NULL, 
-					 cv::InputArray K1 = cv::noArray(), 
-					 cv::InputArray K2 = cv::noArray(), 
+//Calculates the reprojection errors for all correspondences and/or their statistics
+void POSELIB_API getReprojErrors(cv::Mat Essential,
+					 cv::InputArray p1,
+					 cv::InputArray p2,
+					 bool takeImageCoords,
+					 statVals* qp = NULL,
+					 std::vector<double> *repErr = NULL,
+					 cv::InputArray K1 = cv::noArray(),
+					 cv::InputArray K2 = cv::noArray(),
 					 bool EisF = false);
 //Computes the Sampson distance (first-order geometric error) for the provided point correspondences in the form 2 rows x n columns.
 void POSELIB_API computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> & error, double *error1 = NULL);
@@ -77,7 +82,7 @@ void POSELIB_API computeReprojError2(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vec
 //Calculates the euler angles from a given rotation matrix.
 void POSELIB_API getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & yaw, bool useDegrees = true);
 //Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors.
-void POSELIB_API getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d & T, 
+void POSELIB_API getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d & T,
 				  Eigen::Vector3d & Tcalib, double* rdiff, double* tdiff);
 //Calculates the essential matrix from the rotation matrix R and the translation
 cv::Mat POSELIB_API getEfromRT(cv::Mat R, cv::Mat t);
@@ -116,31 +121,33 @@ bool POSELIB_API Remove_LensDist(std::vector<cv::Point2f>& points1, std::vector<
 //Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors
 void POSELIB_API compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff = false);
 //Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters.
-int POSELIB_API getRectificationParameters(cv::InputArray R, 
-							  cv::InputArray t, 
-							  cv::InputArray K1, 
-							  cv::InputArray K2, 
-							  cv::InputArray distcoeffs1, 
-							  cv::InputArray distcoeffs2, 
-							  cv::Size imageSize, 
-							  cv::OutputArray Rect1, 
-							  cv::OutputArray Rect2, 
-							  cv::OutputArray K1new, 
+int POSELIB_API getRectificationParameters(cv::InputArray R,
+							  cv::InputArray t,
+							  cv::InputArray K1,
+							  cv::InputArray K2,
+							  cv::InputArray distcoeffs1,
+							  cv::InputArray distcoeffs2,
+							  cv::Size imageSize,
+							  cv::OutputArray Rect1,
+							  cv::OutputArray Rect2,
+							  cv::OutputArray K1new,
 							  cv::OutputArray K2new,
-							  double alpha = -1, 
+							  double alpha = -1,
 							  bool globRectFunct = true,
-							  cv::Size newImgSize = cv::Size(), 
-							  cv::Rect *roi1 = NULL, 
+							  cv::Size newImgSize = cv::Size(),
+							  cv::Rect *roi1 = NULL,
 							  cv::Rect *roi2 = NULL,
-							  cv::OutputArray P1new = cv::noArray(), 
+							  cv::OutputArray P1new = cv::noArray(),
 							  cv::OutputArray P2new = cv::noArray());
 //Estimates the optimal scale for the focal length of the virtuel camera.
-double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2, 
+double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2,
 								 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize);
 //Estimates the vergence (shift of starting point) for correspondence search in the stereo engine.
 int POSELIB_API estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2);
 //This function shows the rectified images.
 int POSELIB_API ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, std::string path, cv::Size newImgSize = cv::Size());
+// This function return the rectified images
+int POSELIB_API GetRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::OutputArray outImg1, cv::OutputArray outImg2, cv::Size newImgSize = cv::Size());
 //This function estimates an initial delta value for the SPRT test used within USAC.
 double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, double th, cv::Size imgSize);
 //This function estimates an initial epsilon value for the SPRT test used within USAC.

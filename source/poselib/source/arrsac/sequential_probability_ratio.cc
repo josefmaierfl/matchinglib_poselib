@@ -49,7 +49,7 @@
  *																			*
  ****************************************************************************/
 
-#include "arrsac\sequential_probability_ratio.h"
+#include "arrsac/sequential_probability_ratio.h"
 
 namespace theia {
 

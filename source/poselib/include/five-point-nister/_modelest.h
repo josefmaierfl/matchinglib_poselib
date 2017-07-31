@@ -44,7 +44,7 @@
 #define _CV_MODEL_EST_H_
 
 #include "precomp.hpp"
-#include "arrsac\arrsac.h"
+#include "arrsac/arrsac.h"
 //#include "../../Theia-master/src/theia/solvers/estimator.h"
 
 
@@ -63,10 +63,10 @@ public:
                             double confidence=0.99, int maxIters=2000, bool lesqu=false );
 	virtual bool runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
 							CvMat* mask0, double reprojThreshold,
-							bool lesqu=false, 
-							void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
-													cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 
-													double *sumSqrErr_init, double *sumSqrErr, 
+							bool lesqu=false,
+							void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
+													cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE,
+													double *sumSqrErr_init, double *sumSqrErr,
 													cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs) = NULL);
     virtual bool refine( const CvMat*, const CvMat*, CvMat*, int ) { return true; }
     virtual void setSeed( int64 seed );
@@ -78,7 +78,7 @@ public:
 	int getMaxBasicSolutions(){return maxBasicSolutions;}
 
 protected:
-    
+
     virtual int findInliers( const CvMat* m1, const CvMat* m2,
                              const CvMat* model, CvMat* error,
                              CvMat* mask, double threshold );
@@ -95,7 +95,7 @@ protected:
 	friend class EssentialMatEstimatorTheia;
 };
 
-class EssentialMatEstimatorTheia: public theia::Estimator<size_t,CvMat>							 
+class EssentialMatEstimatorTheia: public theia::Estimator<size_t,CvMat>
 {
 public:
 	EssentialMatEstimatorTheia(CvModelEstimator3* modelEstimator,
@@ -120,4 +120,3 @@ private:
 };
 
 #endif // _CV_MODEL_EST_H_
-

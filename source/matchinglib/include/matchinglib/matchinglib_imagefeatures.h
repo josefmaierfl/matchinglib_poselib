@@ -20,7 +20,7 @@
 #pragma once
 
 #include "opencv2/core/core.hpp"
-#include "glob_includes.h"
+#include "matchinglib/glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"
 
@@ -48,4 +48,3 @@ namespace matchinglib
   std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
 
 } // namepace matchinglib
-

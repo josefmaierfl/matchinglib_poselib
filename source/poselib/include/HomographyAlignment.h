@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: July 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -20,7 +20,7 @@
 #pragma once
 
 #include "opencv2/highgui/highgui.hpp"
-#include "glob_includes.h"
+#include "poselib/glob_includes.h"
 
 
 /* --------------------- Function prototypes --------------------- */
@@ -73,7 +73,7 @@ void LinearTransformD(
 );
 int update_h0_rt(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				  std::vector<unsigned int> num_inl,
-				  cv::Mat & homo, 
+				  cv::Mat & homo,
 				  cv::Mat dn,
 				  cv::Mat & rt);
 int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat k0, cv::Mat & dn);
@@ -93,7 +93,7 @@ void LUSolveD(
 );
 double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				  std::vector<unsigned int> num_inl,
-				  cv::Mat base_homo, 
+				  cv::Mat base_homo,
 				  cv::Mat dn,
 				  cv::Mat rt);
 int homographyTransfer33D(double h[3][3], double ip[2], double op[2]);

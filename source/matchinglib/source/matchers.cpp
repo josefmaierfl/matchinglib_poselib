@@ -28,7 +28,7 @@
 #include "CascadeHash/MatchPairLoader.h"
 #include "CascadeHash/CasHashMatcher.h"
 
-#include "nmslib\nmslib_matchers.h"
+#include "nmslib/nmslib_matchers.h"
 
 //#include "flann/flann.hpp"
 #include "opencv2/flann.hpp"

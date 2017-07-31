@@ -18,8 +18,8 @@
 #include <opengv/triangulation/methods.hpp>
 #include <memory>
 
-#include "pose_estim.h"
-#include "pose_helper.h"
+#include "poselib/pose_estim.h"
+#include "poselib/pose_helper.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/core/eigen.hpp"
 
@@ -101,7 +101,7 @@ private:
 	unsigned int degen_max_upgrade_samples_noMot_trans;		// maximum number of upgrade attempts for no motion to t
 	opengv::rotation_t R_eigen_new;							// Stores temporally R_eigen
 	opengv::translation_t t_eigen_new;						// Stores temporally t_eigen
-	
+
 	// ------------------------------------------------------------------------
 	// temporary storage
 	double* input_points_;								// stores normalized data points
@@ -167,7 +167,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 	}
 
 	// normalize input data
-	// following this, input_points_ has the normalized points and input_points_denorm_ has 
+	// following this, input_points_ has the normalized points and input_points_denorm_ has
 	// the original input points
 	FTools::normalizePoints(input_points_denorm_, input_points_, cfg.common.numDataPoints, m_T1_, m_T2_);
 	MathTools::mattr(m_T2_trans_, m_T2_, 3, 3);
@@ -231,7 +231,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 		bearingVectors1_denorm.push_back(bodyPoint1_d);
 		bearingVectors2_denorm.push_back(bodyPoint2_d);
 
-		
+
 	}
 
 	//create a central relative adapter
@@ -250,7 +250,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 
 	fivept_nister_essentials = opengv::essentials_t(usac_max_solns_per_sample_);
 	fivept_nister_essentials_denorm = opengv::essentials_t(usac_max_solns_per_sample_);
-	
+
 
 	// precompute the data matrix
 	data_matrix_ = new double[9 * usac_num_data_points_];	// 9 values per correspondence
@@ -306,7 +306,7 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
 
 
 // ============================================================================================
-// cleanupProblem: release any temporary problem specific data storage 
+// cleanupProblem: release any temporary problem specific data storage
 // this function is called at the end of each run on new data
 // ============================================================================================
 void EssentialMatEstimator::cleanupProblem()
@@ -329,8 +329,8 @@ void EssentialMatEstimator::cleanupProblem()
 
 
 // ============================================================================================
-// generateMinimalSampleModels: generates minimum sample model(s) from the data points whose  
-// indices are currently stored in m_sample. 
+// generateMinimalSampleModels: generates minimum sample model(s) from the data points whose
+// indices are currently stored in m_sample.
 // the generated models are stored in a vector of models and are all evaluated
 // ============================================================================================
 unsigned int EssentialMatEstimator::generateMinimalSampleModels()
@@ -341,7 +341,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 	{
 		indices.push_back((int)min_sample_[i]);
 	}
-	
+
 	if (used_estimator == USACConfig::ESTIM_NISTER)
 	{
 		fivept_nister_essentials_denorm = opengv::relative_pose::fivept_nister(*adapter_denorm, indices);
@@ -370,7 +370,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 			{
 				for (size_t c = 0; c < 3; c++)
 				{
-					if (isnan(R_eigen(r, c)))
+					if (isnan(((long double) R_eigen(r, c))))
 					{
 						nsols--;
 						kneipFailed = true;
@@ -431,7 +431,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 		fivept_nister_essentials_denorm = opengv::relative_pose::fivept_nister(*adapter_denorm, indices);
 		nsols = fivept_nister_essentials_denorm.size();
 	}
-	
+
 	fivept_nister_essentials.clear();
 	for (unsigned int i = 0; i < nsols; ++i)
 	{
@@ -562,7 +562,7 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 			opengv::complexEssentials_t comlexEs;
 			opengv::essentials_t Es_eigen;
 			opengv::essential_t E_singele;
-	
+
 			if (refineMethod == USACConfig::REFINE_STEWENIUS_WEIGHTS && weighted)
 			{
 				opengv::bearingVectors_t bearingVectors1;
@@ -842,7 +842,7 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 			}
 			for (size_t r = 0; r < 3; r++)
 				for (size_t c = 0; c < 3; c++)
-					if (isnan(R_eigen_new(r, c)))
+					if (isnan(((long double) R_eigen_new(r, c))))
 					{
 						return false;
 					}
@@ -1664,7 +1664,7 @@ void EssentialMatEstimator::testSolutionDegeneracyTrans(bool* degenerateModel)
 			double sum_R = roll + pitch + yaw;
 			if (sum_R > 0.01)
 				continue;
-			
+
 			// find support of translation
 			num_inliers = PoseTools::getTransError(evaluation_pool_, usac_num_data_points_, errs, adapter_denorm, t_, poseDegenTheshold);
 			//std::cout << "Refined model has " << num_inliers << " inliers" << std::endl;
@@ -1773,7 +1773,7 @@ void EssentialMatEstimator::testSolutionDegeneracyNoMot(bool* degenerateModel)
 	{
 		// find inliers from all data points
 		num_inliers = PoseTools::getNoMotError(evaluation_pool_, usac_num_data_points_, errs, adapter_denorm, poseDegenTheshold);
-			
+
 #if 1
 		if (num_inliers < usac_results_.best_inlier_count_ / 5)
 		{
@@ -1847,7 +1847,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 		double temp[3], l1[3], l2[3], ep[3];
 		double skew_sym_ep[9];
 		double T2_F[9];
-	
+
 		if (ransacLikeUpgradeDegenerate)
 		{
 			opengv::eigensolverOutput_t eig_out;
@@ -1974,7 +1974,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 							}
 						}
 						unsigned int num_samples = updateStandardStopping(count, num_outliers - diffToNumOutliers, 2);
-						//std::cout << "Inliers = " << num_inliers << ", in/out = " << count << "/" << num_outliers 
+						//std::cout << "Inliers = " << num_inliers << ", in/out = " << count << "/" << num_outliers
 						//	      << ". Num samples = " << num_samples << std::endl;
 						if (num_samples < degen_max_upgrade_samples_)
 						{
@@ -2044,7 +2044,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 					t_eigen_upgrade = t_;
 
 					//If found translation has quiet high support compared to best inlier ratio of R+t
-					if (num_inliers > best_upgrade_inliers || 
+					if (num_inliers > best_upgrade_inliers ||
 						(poselib::nearZero(final_model_params_[0] * 100) && poselib::nearZero(final_model_params_[4] * 100) && poselib::nearZero(final_model_params_[8] * 100)))
 					{
 						cv::Mat E_tmp, t_tmp, R_tmp = cv::Mat::eye(3, 3, CV_64FC1);
@@ -2110,7 +2110,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 			//	{
 			//		for (unsigned int j = 0; j < 2; j++)
 			//			degen_sample_rot[j] = (unsigned int)index[j];
-			//		
+			//
 			//		// store rotation
 			//		for (unsigned int r = 0; r < 3; ++r)
 			//			for (unsigned int c = 0; c < 3; ++c)
@@ -2137,7 +2137,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 			//		}
 
 			//	}
-			//	
+			//
 			//}
 		}
 		else
@@ -2235,7 +2235,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 			}
 		}
 	}
-	
+
 	std::cout << "Upgraded model has " << best_upgrade_inliers << " inliers" << std::endl;
 	return best_upgrade_inliers;
 }
@@ -2326,4 +2326,3 @@ void EssentialMatEstimator::storeModel(unsigned int modelIndex, unsigned int num
 }
 
 #endif
-

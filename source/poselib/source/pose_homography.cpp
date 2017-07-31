@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: June 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -18,11 +18,11 @@
  in the ARRSAC algorithm.
 **********************************************************************************************************/
 
-#include "pose_homography.h"
+#include "poselib/pose_homography.h"
 #include "arrsac/arrsac.h"
 #include "opencv2/calib3d/calib3d.hpp"
 #include "HomographyAlignment.h"
-#include "pose_helper.h"
+#include "poselib/pose_helper.h"
 
 using namespace cv;
 using namespace std;
@@ -49,7 +49,7 @@ bool refineHomography( const CvMat* m1, const CvMat* m2, CvMat* model, int maxIt
 /* --------------------------- Classes --------------------------- */
 
 //ARRSAC algorithm wich embeds homography estimation algorithms for robust homography estimations
-class ArrHomogrophyEstimator: public theia::Estimator<size_t,cv::Mat>							 
+class ArrHomogrophyEstimator: public theia::Estimator<size_t,cv::Mat>
 {
 public:
 	ArrHomogrophyEstimator(const cv::Mat points1, const cv::Mat points2):points1_(points1),
@@ -71,8 +71,8 @@ private:
 
 /* --------------------- Functions --------------------- */
 
-/* Estimates an essential matrix as well as rotation and translation using homography alignment. It robustly 
- * estimates a pose out of multiple homographies which in turn are generated using point correspondences and 
+/* Estimates an essential matrix as well as rotation and translation using homography alignment. It robustly
+ * estimates a pose out of multiple homographies which in turn are generated using point correspondences and
  * a homography estimation algorithm embedded in the ARRSAC algorithm.
  *
  * InputArray p1							Input  -> Left image projections (n rows x 2 columns)
@@ -85,8 +85,8 @@ private:
  * InputOutputArray mask					I/O	   -> Mask for inliers of correspondences p1 & p2
  * bool checkPlaneStrength					Input  -> If true [Default=false], the pose is only estimated if the
  *													  planes are dominant enough
- * bool varTh								Input  -> If true [default=false], a variable threshold is used for the homography 
- *													  estimation with th the minimum threshold. The threshold is 
+ * bool varTh								Input  -> If true [default=false], a variable threshold is used for the homography
+ *													  estimation with th the minimum threshold. The threshold is
  *													  only changed if no plane was found in an iteration.
  * vector<pair<Mat,Mat>> *inlier_points		Output -> Optional correspondences (left, right) for every found plane
  * vector<unsigned int> *numbersHinliers	Output -> Optional number of inliers for every found plane
@@ -100,22 +100,22 @@ private:
  *										-3: Homography alignment failed
  *										-4: Pose variables are necessary
  */
-int estimatePoseHomographies(cv::InputArray p1, 
-							 cv::InputArray p2, 
+int estimatePoseHomographies(cv::InputArray p1,
+							 cv::InputArray p2,
 							 cv::OutputArray R,
 							 cv::OutputArray t,
 							 cv::OutputArray E,
-							 double th, 
+							 double th,
 							 int & inliers,
-							 cv::InputOutputArray mask, 
+							 cv::InputOutputArray mask,
 							 bool checkPlaneStrength,
 							 bool varTh,
-							 std::vector<std::pair<cv::Mat,cv::Mat>>* inlier_points, 
+							 std::vector<std::pair<cv::Mat,cv::Mat>>* inlier_points,
 							 std::vector<unsigned int>* numbersHinliers,
 							 std::vector<cv::Mat>* homographies,
 							 std::vector<double>* planeStrengths)
 {
-	
+
 	Mat p_tmp1 = p1.getMat();
 	Mat p_tmp2 = p2.getMat();
 	Mat mask_;
@@ -264,10 +264,10 @@ int estimatePoseHomographies(cv::InputArray p1,
  * Return value:						 0:	Everything ok
  *										-1:	No homography found
  */
-int estimateMultHomographys(cv::InputArray p1, 
-							cv::InputArray p2, 
-							double th, 
-							std::vector<cv::Mat> *inl_mask, 
+int estimateMultHomographys(cv::InputArray p1,
+							cv::InputArray p2,
+							double th,
+							std::vector<cv::Mat> *inl_mask,
 							std::vector<std::pair<cv::Mat,cv::Mat>> *inl_points,
 							std::vector<cv::Mat> *Hs,
 							std::vector<unsigned int> *num_inl,
@@ -380,7 +380,7 @@ int estimateMultHomographys(cv::InputArray p1,
 				}
 			}
 		}
-		
+
 		p1_ = p1_tmp;
 		p2_ = p2_tmp;
 		i++;
@@ -713,7 +713,7 @@ bool runHomogrophyKernel( const CvMat* m1, const CvMat* m2, CvMat* H )
  * CvMat* m2							Input  -> Pointer to the corresponding right image projections
  * CvMat* model							Input  -> Estimated homography
  * vector<double> err					Output -> Vector of reprojection errors
- * 
+ *
  *
  * Return value:						none
  */
@@ -740,7 +740,7 @@ void computeHomographyReprojError(const CvMat* m1, const CvMat* m2, const CvMat*
  * CvMat* model							Input  -> Estimated homography
  * double th							Input  -> Inlier/Outlier treshold
  * OutputArray mask						Output -> Correspondence mask marking inliers/ouliers
- * 
+ *
  *
  * Return value:						none
  */

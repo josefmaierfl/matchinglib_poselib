@@ -18,6 +18,7 @@ set(sources
 	argvparser.cpp
 )
 
+#find_package(Clapack REQUIRED)
 
 #
 # Create executable
@@ -51,6 +52,8 @@ target_include_directories(${target}
     PRIVATE
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${PROJECT_BINARY_DIR}/source/include
+    ${CLAPACK_INCLUDE_DIR}
+    ${SBA_INCLUDE_DIR}
 )
 
 
@@ -62,8 +65,12 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::matchinglib
-	${META_PROJECT_NAME}::poselib
+    #${CLAPACK_LIBRARIES}
+    ${META_PROJECT_NAME}::poselib
     gmock-dev
+    ${SBA_LIBRARIES}
+    ${CLAPACK_LIBRARIES}
+#    blas
 )
 
 

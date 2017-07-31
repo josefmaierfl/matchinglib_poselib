@@ -21,7 +21,7 @@
 
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/features2d/features2d.hpp"
-#include "glob_includes.h"
+#include "matchinglib/glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"
 #include <string>
@@ -60,5 +60,3 @@ bool MATCHINGLIB_API IsDescriptorTypeSupported(std::string const& type);
 std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
 
 } // namepace matchinglib
-
-

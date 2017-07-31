@@ -112,9 +112,9 @@ set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(headers
 	${include_path}/BA_driver.h
 	${include_path}/imgproj.h
-	${include_path}/glob_includes.h
-	${include_path}/pose_estim.h
-	${include_path}/pose_helper.h
+	${include_path}/${target}/glob_includes.h
+	${include_path}/${target}/pose_estim.h
+	${include_path}/${target}/pose_helper.h
 	
 	${include_path}/arrsac/arrsac.h
 	${include_path}/arrsac/estimator.h
@@ -130,7 +130,7 @@ set(headers
 	${include_path}/five-point-nister/precomp.hpp
 	
 	${include_path}/HomographyAlignment.h
-	${include_path}/pose_homography.h
+	${include_path}/${target}/pose_homography.h
 	
 	#${include_path}/usac/config/ConfigFileReader.h
 	${include_path}/usac/config/ConfigParams.h
@@ -251,9 +251,9 @@ target_include_directories(${target}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
-	${CLAPACK_INCLUDE_DIR}
-	${SBA_INCLUDE_DIR}
-	${OPENGV_INCLUDE_DIR}
+    ${CLAPACK_INCLUDE_DIR}
+    ${SBA_INCLUDE_DIR}
+    ${OPENGV_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -273,9 +273,10 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
-	${CLAPACK_LIBRARIES}
-	${SBA_LIBRARIES}
-	${OPENGV_LIBRARIES}
+    ${CLAPACK_LIBRARIES}
+    ${SBA_LIBRARIES}
+    ${CLAPACK_LIBRARIES}
+    ${OPENGV_LIBRARIES}
 
     INTERFACE
 )

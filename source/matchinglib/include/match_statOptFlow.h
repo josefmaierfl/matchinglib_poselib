@@ -9,7 +9,7 @@
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -20,7 +20,7 @@
 
 #define _WIN32_WINNT     0x0601
 
-#include "glob_includes.h"
+#include "matchinglib/glob_includes.h"
 
 #include <Eigen/Core>
 
@@ -66,4 +66,3 @@ namespace matchinglib
                                       cv::OutputArray mask = cv::noArray(), bool filterSmallFlow = false,
                                       unsigned int minYGridSize = 0, double validationTH = 0.3, KDTree_D2float *keypts1idxall = NULL, double stdMult_ = 3.5);
 } // namespace matchinglib
-

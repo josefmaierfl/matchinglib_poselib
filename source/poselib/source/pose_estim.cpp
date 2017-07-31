@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: May 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -17,8 +17,8 @@
 			  two camera views (images).
 **********************************************************************************************************/
 
-#include "pose_estim.h"
-#include "pose_helper.h"
+#include "poselib/pose_estim.h"
+#include "poselib/pose_helper.h"
 #include "five-point-nister/five-point.hpp"
 #include "BA_driver.h"
 #include "usac/usac_estimations.h"
@@ -35,16 +35,16 @@ namespace poselib
 
 /* --------------------- Function prototypes --------------------- */
 
-	
+
 
 /* --------------------- Functions --------------------- */
 
 /* Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC framework with an automatic threshold
  * estimation based on the reprojection errors.
  *
- * InputArray p1						Input  -> Observed point coordinates of the left image in the camera coordinate system 
+ * InputArray p1						Input  -> Observed point coordinates of the left image in the camera coordinate system
  *												  (n rows, 2 cols)
- * InputArray p2						Input  -> Observed point coordinates of the right image in the camera coordinate system 
+ * InputArray p2						Input  -> Observed point coordinates of the right image in the camera coordinate system
  *												  (n rows, 2 cols)
  * OutputArray E						Output -> Essential matrix
  * OutputArray mask						Output -> Inlier mask
@@ -125,7 +125,7 @@ int AutoThEpi::estimateEVarTH(cv::InputArray p1, cv::InputArray p2, cv::OutputAr
 	if(E.needed())
 	{
 		if(E.empty())
-			E.create(3, 3, CV_64F); 
+			E.create(3, 3, CV_64F);
 		E_.copyTo(E.getMat());
 	}
 	else
@@ -153,7 +153,7 @@ int AutoThEpi::estimateEVarTH(cv::InputArray p1, cv::InputArray p2, cv::OutputAr
  * bool storeGlobally				Input  -> If true (default: false), the threshold is stored globally in the
  *											  class member variable
  *
- * Return value:					Threshold in the camera coordinate system if 
+ * Return value:					Threshold in the camera coordinate system if
  *									useImgCoordSystem = false (default) and in the image coordinate system
  *									otherwise
  */
@@ -227,7 +227,7 @@ double AutoThEpi::estimateThresh(cv::InputArray p1, cv::InputArray p2, cv::Input
  * bool storeGlobally				Input  -> If true (default), the threshold is stored globally in the
  *											  class member variable
  *
- * Return value:					Threshold in the camera coordinate system if 
+ * Return value:					Threshold in the camera coordinate system if
  *									useImgCoordSystem = false (default) and in the image coordinate system
  *									otherwise
  */
@@ -263,12 +263,12 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
 }
 
 /* Refines the essential matrix E by using the 8-point-algorithm and SVD (currently the
- * solution is not found by SVD but by calculating the eigenvalues and eigenvectors of 
- * A^T*A and selcting the eigenvector corresponding to the smallest eigenvalue which is 
- * much faster than SVD) with a pseudo-huber cost function. Thus, this methode is very 
- * robust and can refine E also in an iterative manner. If the input variable iters is 
+ * solution is not found by SVD but by calculating the eigenvalues and eigenvectors of
+ * A^T*A and selcting the eigenvector corresponding to the smallest eigenvalue which is
+ * much faster than SVD) with a pseudo-huber cost function. Thus, this methode is very
+ * robust and can refine E also in an iterative manner. If the input variable iters is
  * set to 0, the essential matrix is as long refined as the sum of squared errors reaches
- * a minimum value, its reduction is too small or the maximum number of iterations is 
+ * a minimum value, its reduction is too small or the maximum number of iterations is
  * reached.
  *
  * InputArray points1				Input  -> Image projections in the left camera without
@@ -287,7 +287,7 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
  *											  as the sum of squared errors reaches a minimum
  *											  value, its reduction is too small or the
  *											  maximum number of iterations is reached.
- * bool makeClosestE				Input  -> Specifies if the closest essential matrix 
+ * bool makeClosestE				Input  -> Specifies if the closest essential matrix
  *											  should be computed by enforcing the singularity
  *											  constraint (first 2 singular values are equal
  *											  and third is zero).
@@ -295,16 +295,16 @@ double AutoThEpi::setCorrTH(double thresh, bool useImgCoordSystem, bool storeGlo
  *											  refinement).
  * unsigned int *sumSqrErr			Output -> Final sum of squared errors
  * OutputArray errors				Output -> Final Sampson error for every correspondence
- * InputOutputArray mask			I/O    -> Inlier mask (input) and mask to exclude points which do not 
- *											  correspond with the oriented epipolar constraint combined with 
+ * InputOutputArray mask			I/O    -> Inlier mask (input) and mask to exclude points which do not
+ *											  correspond with the oriented epipolar constraint combined with
  *											  the input inlier mask (output).
  * int model						Input  -> Optional input (Default = 0) to specify the used
- *											  model (0 = Normal essential matrix, 1 = affine 
+ *											  model (0 = Normal essential matrix, 1 = affine
  *											  essential matrix, 2 = translational essential matrix).
  * bool tryOrientedEpipolar			Input  -> Optional input [DEFAULT = false] to specify if a essential matrix
  *											  should be evaluated by the oriented epipolar constraint. Maybe this
  *											  is only possible for a fundamental matrix?
- * bool normalizeCorrs				Input  -> If true [DEFAULT=false], the coordinates are normalized. Normalization has 
+ * bool normalizeCorrs				Input  -> If true [DEFAULT=false], the coordinates are normalized. Normalization has
  *											  an impact on the properties of the essential matrix! Thus, after normalization,
  *											  the properties of the fundamental matrix are valid!
  *
@@ -325,7 +325,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 	else
 		npoints = _points1.rows;
 
-    CV_Assert( npoints >= 0 && 
+    CV_Assert( npoints >= 0 &&
 			  ((_points2.checkVector(2) == npoints &&
               _points1.type() == CV_64FC2 &&
 			  _points1.rows == 1 && _points1.cols > _points1.rows) ||
@@ -491,7 +491,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 	{
 		// form a linear system Ax=0: for each selected pair of points m1 & m2,
 		// the row of A(=a) represents the coefficients of equation: (m2, 1)'*F*(m1, 1) = 0
-		// to save computation time, we compute (At*A) instead of A and then solve (At*A)x=0. 
+		// to save computation time, we compute (At*A) instead of A and then solve (At*A)x=0.
 		std::vector<double> weights(npoints), denom1s(npoints);
 		for (i = 0; i < npoints; i++)
 		{
@@ -568,8 +568,8 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 										* it from the dominator of the pseudo-huber weight value (which is
 										* actually sqrt(cost_pseudo_huber)/Sampson_L1_distance). This is
 										* necessary because the SVD calculates the least squared algebraic
-										* error of the fundamental matrix (x2^T*F*x1)^2. This algebraic 
-										* error is the same as the numerator of the Sampson distance and 
+										* error of the fundamental matrix (x2^T*F*x1)^2. This algebraic
+										* error is the same as the numerator of the Sampson distance and
 										* should be replaced by the pseudo-huber cost function during SVD.
 										*/
 		}
@@ -612,7 +612,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 			lastCol = svdA.matrixV().col(8);*/
 
 			//Convert to F
-			
+
 			F2 = Eigen::Matrix3d(lastCol.data());
 			F2.transposeInPlace();
 			if(makeClosestE)
@@ -674,7 +674,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 					smallestEigValIdx = i;
 				}
 			}
-	
+
 			lastCol.resize(3,1);
 			lastCol = eigA.eigenvectors().col(smallestEigValIdx).real();
 
@@ -726,7 +726,7 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 			//Much slower then solving for eigenvectors of A^T*A
 			/*Eigen::JacobiSVD<TAMat> svdA(A1, Eigen::ComputeFullV);
 			Eigen::Matrix<double, 5, 1 > lastCol = svdA.matrixV().col(4);*/
-	
+
 			lastCol.resize(3,1);
 			lastCol = eigA.eigenvectors().col(smallestEigValIdx).real();
 
@@ -809,13 +809,13 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 
 
 /* Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework. For
- * ARRSAC optional refinement (refine=true) is performed using a Pseudo Huber cost function. For RANSAC optional refinement 
+ * ARRSAC optional refinement (refine=true) is performed using a Pseudo Huber cost function. For RANSAC optional refinement
  * (refine=true) is performed using a least squares solution. For LMEDS no refinement is available.
  *
  * OutputArray E						Output -> Essential matrix
- * InputArray p1						Input  -> Observed point coordinates of the left image in the camera coordinate system 
+ * InputArray p1						Input  -> Observed point coordinates of the left image in the camera coordinate system
  *												  (n rows, 2 cols)
- * InputArray p2						Input  -> Observed point coordinates of the right image in the camera coordinate system 
+ * InputArray p2						Input  -> Observed point coordinates of the right image in the camera coordinate system
  *												  (n rows, 2 cols)
  * string method						Input  -> Name of preferred algorithm: ARRSAC, RANSAC, or LMEDS [Default = ARRSAC]
  * double threshold						Input  -> Threshold [Default=PIX_MIN_GOOD_TH]
@@ -856,13 +856,13 @@ bool estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p
 
 /* Recovers the rotation and translation from an essential matrix and triangulates the given correspondences to form 3D coordinates.
  * If the given essential matrix corresponds to a translational essential matrix, set "translatE" to true. Moreover 3D coordintes with
- * a z-value lager than "dist" are marked as invalid within "mask" due to their numerical instability (such 3D points are also not 
+ * a z-value lager than "dist" are marked as invalid within "mask" due to their numerical instability (such 3D points are also not
  * considered in the returned number of valid 3D points.
  *
  * InputArray E							Input  -> Essential matrix
- * InputArray p1						Input  -> Observed point coordinates of the left image in the camera coordinate system 
+ * InputArray p1						Input  -> Observed point coordinates of the left image in the camera coordinate system
  *												  (n rows, 2 cols)
- * InputArray p2						Input  -> Observed point coordinates of the right image in the camera coordinate system 
+ * InputArray p2						Input  -> Observed point coordinates of the right image in the camera coordinate system
  *												  (n rows, 2 cols)
  * OutputArray R						Output -> Rotation matrix
  * OutputArray t						Output -> Translation vector (3 rows x 1 column)
@@ -881,7 +881,7 @@ int getPoseTriangPts(cv::InputArray E, cv::InputArray p1, cv::InputArray p2, cv:
 	Mat R_, t_, Q_;
 	if(!R.needed() || !t.needed() || !Q.needed())
 		return -1;
-	
+
 	n = recoverPose( E.getMat(), p1.getMat(), p2.getMat(), R_, t_, Q_, mask, dist, translatE ? getTfromTransEssential(E.getMat()):(cv::noArray()));
 
 	if(R.empty())
@@ -898,7 +898,7 @@ int getPoseTriangPts(cv::InputArray E, cv::InputArray p1, cv::InputArray p2, cv:
 
 	Q.create(Q_.size(),Q_.type());
 	Q_.copyTo(Q.getMat());
-	
+
 	return n;
 }
 
@@ -920,8 +920,8 @@ int getPoseTriangPts(cv::InputArray E, cv::InputArray p1, cv::InputArray p2, cv:
  */
 int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv::InputArray _points2, cv::OutputArray Q3D, cv::InputOutputArray mask, const double dist)
 {
-	Mat points1, points2; 
-	points1 = _points1.getMat(); 
+	Mat points1, points2;
+	points1 = _points1.getMat();
 	points2 = _points2.getMat();
 	Mat R_ = R.getMat();
 	Mat t_ = t.getMat();
@@ -932,19 +932,19 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
 		mask_ = mask.getMat();
 	}
 
-	points1 = points1.t(); 
+	points1 = points1.t();
 	points2 = points2.t();
 
-	Mat P0 = Mat::eye(3, 4, R_.type()); 
+	Mat P0 = Mat::eye(3, 4, R_.type());
 	Mat P1(3, 4, R_.type());
 	P1(Range::all(), Range(0, 3)) = R_ * 1.0;
 	P1.col(3) = t_ * 1.0;
 
 	// Notice here a threshold dist is used to filter
-	// out far away points (i.e. infinite points) since 
-	// there depth may vary between postive and negtive. 
-	//const double dist = 50.0; 
-	Mat Q1,q1; 
+	// out far away points (i.e. infinite points) since
+	// there depth may vary between postive and negtive.
+	//const double dist = 50.0;
+	Mat Q1,q1;
 	triangulatePoints(P0, P1, points1, points2, Q1);
 
 	q1 = P1 * Q1;
@@ -957,9 +957,9 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
 		mask_ = (q1.row(2).mul(Q1.row(3)) > 0) & mask_;
 	}
 
-	Q1.row(0) /= Q1.row(3); 
-	Q1.row(1) /= Q1.row(3); 
-	Q1.row(2) /= Q1.row(3); 
+	Q1.row(0) /= Q1.row(3);
+	Q1.row(1) /= Q1.row(3);
+	Q1.row(2) /= Q1.row(3);
 	mask_ = (Q1.row(2) < dist) & (Q1.row(2) > 0) & mask_;
 
 	if(!Q3D.needed())
@@ -969,7 +969,7 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
 	Mat Q3D_tmp = Q3D.getMat();
 	Q3D_tmp = Q1.rowRange(0,3).t();
 
-	/*points1 = points1.t(); 
+	/*points1 = points1.t();
 	points2 = points2.t();
 
 	double scale = 0;
@@ -1003,9 +1003,9 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
  * used for BA. If BA fails or the refined motion differs too much from the initial motion (thresholds can be modified with angleThresh and t_norm_tresh),
  * the initial motion and structure are stored and the refined data is rejected.
  *
- * InputArray p1						Input  -> Observed point coordinates of the first image in the camera (pointsInImgCoords=false) or image 
+ * InputArray p1						Input  -> Observed point coordinates of the first image in the camera (pointsInImgCoords=false) or image
  *												  (pointsInImgCoords=true) coordinate system (n rows, 2 cols). Points must be undistorted.
- * InputArray p2						Input  -> Observed point coordinates of the second image in the camera (pointsInImgCoords=false) or image 
+ * InputArray p2						Input  -> Observed point coordinates of the second image in the camera (pointsInImgCoords=false) or image
  *												  (pointsInImgCoords=true) coordinate system (n rows, 2 cols). Points must be undistorted.
  * InputOutputArray R					I/O	   -> Rotation matrix
  * InputOutputArray t					I/O	   -> Translation vector (3 rows x 1 column)
@@ -1020,12 +1020,12 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
  *
  * Return value:						true :	Success
  *										false:	Failed
- */										
-bool refineStereoBA(cv::InputArray p1, 
-					cv::InputArray p2, 
-					cv::InputOutputArray R, 
-					cv::InputOutputArray t, 
-					cv::InputOutputArray Q, 
+ */
+bool refineStereoBA(cv::InputArray p1,
+					cv::InputArray p2,
+					cv::InputOutputArray R,
+					cv::InputOutputArray t,
+					cv::InputOutputArray Q,
 					cv::InputOutputArray K1,
 					cv::InputOutputArray K2,
 					bool pointsInImgCoords,
@@ -1120,7 +1120,7 @@ bool refineStereoBA(cv::InputArray p1,
 			t_ = t_after_refine.clone();
 			return false; //BA failed
 		}
-			
+
 		info = optiMotStruct.getFinalSBAinfo();
 	}
 	else //BA with internals
@@ -1169,7 +1169,7 @@ bool refineStereoBA(cv::InputArray p1,
 		K1_tmp.at<double>(0,2) = intr1[1];
 		K1_tmp.at<double>(1,2) = intr1[2];
 		K1_tmp.at<double>(1,1) = intr1[3] * intr1[0];
-		
+
 		K2_tmp.at<double>(0,0) = intr2[0];
 		K2_tmp.at<double>(0,2) = intr2[1];
 		K2_tmp.at<double>(1,2) = intr2[2];
@@ -1226,7 +1226,7 @@ bool refineStereoBA(cv::InputArray p1,
 		K2_tmp.copyTo(K2.getMat());
 	}
 
-	cv::eigen2cv(R1quat,Rq_new); 
+	cv::eigen2cv(R1quat,Rq_new);
 	Mat R_new = R.getMat();
 	quatToMatrix(R_new,Rq_new);
 
@@ -1297,7 +1297,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 		cout << "Refinement algorithm not supported!" << endl;
 		return -1;
 	}
-	
+
 	//Estimate initial values for delta and epsilon of the SPRT test
 	if (cfg.automaticSprtInit == SprtInit::SPRT_DELTA_AUTOM_INIT)
 	{
@@ -1382,7 +1382,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 		getSortedMatchIdx(*cfg.matches, sortedMatchIdx);
 		sortedMatchIdxPtr = &sortedMatchIdx;
 	}
-	
+
 	if (cfg.degeneracyCheck == UsacChkDegenType::DEGEN_NO_CHECK)
 	{
 		Mat R_degen, inl_degen, inliers_degenerate_noMotion, R_kneip, t_kneip;
@@ -1627,7 +1627,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 	sprt_epsilon_old = sprt_epsilon_new;
 	sprt_epsilon_new = sprt_epsilon_res;
 
-	
+
 	return 0;
 }
 }

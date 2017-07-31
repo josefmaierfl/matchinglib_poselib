@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: May 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -21,9 +21,9 @@
 
 #include "opencv2/highgui/highgui.hpp"
 //#include "opencv2/features2d/features2d.hpp"
-#include "glob_includes.h"
+#include "poselib/glob_includes.h"
 
-#include "poselib\poselib_api.h"
+#include "poselib/poselib_api.h"
 
 namespace poselib
 {
@@ -41,10 +41,10 @@ namespace poselib
 	enum POSELIB_API PoseEstimator { POSE_NISTER, POSE_EIG_KNEIP, POSE_STEWENIUS };
 
 	//Possibilities to refine the model:
-	enum POSELIB_API RefineAlg { 
-		REF_WEIGHTS, 
-		REF_8PT_PSEUDOHUBER, 
-		REF_EIG_KNEIP, 
+	enum POSELIB_API RefineAlg {
+		REF_WEIGHTS,
+		REF_8PT_PSEUDOHUBER,
+		REF_EIG_KNEIP,
 		REF_EIG_KNEIP_WEIGHTS,
 		REF_STEWENIUS,
 		REF_STEWENIUS_WEIGHTS,
@@ -113,8 +113,8 @@ private:
 public:
 
 	AutoThEpi(double pixToCamFact_, bool thStable = false)
-		: corr_filt_pix_th(PIX_TH_START), 
-		  corr_filt_cam_th(-1.0), 
+		: corr_filt_pix_th(PIX_TH_START),
+		  corr_filt_cam_th(-1.0),
 		  corr_filt_min_pix_th(MIN_PIX_TH),
 		  pixToCamFact(pixToCamFact_),
 		  th_stable(thStable)
@@ -154,14 +154,14 @@ public:
 /* --------------------- Function prototypes --------------------- */
 
 //Recovers the rotation and translation from an essential matrix and triangulates the given correspondences to form 3D coordinates.
-int POSELIB_API getPoseTriangPts(cv::InputArray E, 
-					 cv::InputArray p1, 
-					 cv::InputArray p2, 
-					 cv::OutputArray R, 
-					 cv::OutputArray t, 
-					 cv::OutputArray Q, 
-					 cv::InputOutputArray mask = cv::noArray(), 
-					 const double dist = 50.0, 
+int POSELIB_API getPoseTriangPts(cv::InputArray E,
+					 cv::InputArray p1,
+					 cv::InputArray p2,
+					 cv::OutputArray R,
+					 cv::OutputArray t,
+					 cv::OutputArray Q,
+					 cv::InputOutputArray mask = cv::noArray(),
+					 const double dist = 50.0,
 					 bool translatE = false);
 //Triangulates 3D-points from correspondences with provided R and t
 int POSELIB_API triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv::InputArray _points2, cv::OutputArray Q3D, cv::InputOutputArray mask = cv::noArray(), const double dist = 50.0);
@@ -182,14 +182,14 @@ int POSELIB_API estimateEssentialOrPoseUSAC(cv::InputArray p1,
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function
 void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
 						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = NULL,
-						  double *sumSqrErr = NULL, cv::OutputArray errors = cv::noArray(), 
+						  double *sumSqrErr = NULL, cv::OutputArray errors = cv::noArray(),
 						  cv::InputOutputArray mask = cv::noArray(), int model = 0, bool tryOrientedEpipolar = false, bool normalizeCorrs = false);
 //Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices.
-bool POSELIB_API refineStereoBA(cv::InputArray p1, 
-					cv::InputArray p2, 
-					cv::InputOutputArray R, 
-					cv::InputOutputArray t, 
-					cv::InputOutputArray Q, 
+bool POSELIB_API refineStereoBA(cv::InputArray p1,
+					cv::InputArray p2,
+					cv::InputOutputArray R,
+					cv::InputOutputArray t,
+					cv::InputOutputArray Q,
 					cv::InputOutputArray K1,
 					cv::InputOutputArray K2,
 					bool pointsInImgCoords = false,

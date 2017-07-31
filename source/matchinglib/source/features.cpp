@@ -405,7 +405,9 @@ namespace matchinglib
 			int y = (int)std::round(keypoints[i].pt.y);
 			Mat patch = img(cv::Range(cv::max(y-N2,0), cv::min(y + N2, img.rows)),
 				cv::Range(cv::max(x - N2, 0), cv::min(x + N2, img.cols)));
-			bold.compute_patch(patch, descriptors(Range(i, i+1), Range::all()), masks(Range(i, i + 1), Range::all()));
+			cv::Mat descrs = descriptors(Range(i, i+1), Range::all());
+			cv::Mat masks = masks(Range(i, i + 1), Range::all());
+			bold.compute_patch(patch, descrs, masks);
 		}
 		
 	}

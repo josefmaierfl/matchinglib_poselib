@@ -40,6 +40,7 @@
 #include <omp.h>
 #endif*/
 #include <vector>
+#include <cstdlib>
 
 namespace theia {
 // Templated class for estimating a model for RANSAC. This class is purely a

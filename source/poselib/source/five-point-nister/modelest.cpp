@@ -39,8 +39,8 @@
 //
 //M*/
 
-#include "five-point-nister\precomp.hpp"
-#include "five-point-nister\_modelest.h"
+#include "five-point-nister/precomp.hpp"
+#include "five-point-nister/_modelest.h"
 #include <algorithm>
 #include <iterator>
 #include <limits>
@@ -203,10 +203,10 @@ double EssentialMatEstimatorTheia::Error(const size_t& data, const CvMat& model)
 
 bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
 								   CvMat* mask0, double reprojThreshold,
-								   bool lesqu, 
-								   void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
-														   cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 
-														   double *sumSqrErr_init, double *sumSqrErr, 
+								   bool lesqu,
+								   void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
+														   cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE,
+														   double *sumSqrErr_init, double *sumSqrErr,
 														   cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs))
 {
 	bool result = false;
@@ -221,7 +221,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 
     if( count < modelPoints )
         return false;
-    
+
     if( count == modelPoints )
     {
 		cv::Ptr<CvMat> models, tmask;
@@ -255,7 +255,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 					errminsum = cv::sum(err_tmp).val[0];
 					result = true;
 				}
-				else if( (goodCount == MAX(maxGoodCount, modelPoints)) && (errminsum < DBL_MAX) 
+				else if( (goodCount == MAX(maxGoodCount, modelPoints)) && (errminsum < DBL_MAX)
 						&& (errminsum > cv::sum(err_tmp).val[0]) )
 				{
 					std::swap(tmask, mask);
@@ -272,7 +272,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 	std::vector<size_t> input_data;
 	for(size_t i = 0; i < (size_t)m1->cols; i++)
 		input_data.push_back(i);
-	
+
 	cv::Ptr<CvMat> bestmodel = cvCloneMat(model);
 	cv::Mat m1_tmp = cv::cvarrToMat(m1);
 	cv::Mat m2_tmp = cv::cvarrToMat(m2);
@@ -323,7 +323,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				inl_points2.convertTo(inl_points2,CV_64FC2);
 				cv::Mat bestmodel_tmp = cvarrToMat(bestmodel);
 				refineEssential(inl_points1,inl_points2,bestmodel_tmp,E_refined, reprojThreshold/50.0,0,true,&err_i,&err_f,cv::noArray(),cv::noArray(),0,false,false);
-				
+
 				goodCount_tmp = findInliers( m1, m2, bestmodel, err, mask_tmp, reprojThreshold );
 				if(((float)goodCount_tmp / (float)goodCount > 0.66f) || (err_i > err_f))
 				{
@@ -348,7 +348,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				//	//*bestmodel = E_refined;
 				//	goodCount = findInliers( m1, m2, bestmodel, err, mask, reprojThreshold );
 				//}
-				//else 
+				//else
 				//{
 				//	//goto cvleastsquares;
 				//	cv::Mat model_ls = cv::findFundamentalMat(inl_points1, inl_points2, CV_FM_8POINT);
@@ -440,7 +440,7 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
                     (double)(count - goodCount)/count, modelPoints, niters );
 				errminsum = cv::sum(err_tmp).val[0];
             }
-			else if( (goodCount == MAX(maxGoodCount, modelPoints)) && (errminsum < DBL_MAX) 
+			else if( (goodCount == MAX(maxGoodCount, modelPoints)) && (errminsum < DBL_MAX)
 					&& (errminsum > cv::sum(err_tmp).val[0]) )
 			{
 				std::swap(tmask, mask);
@@ -473,7 +473,7 @@ bool CvModelEstimator3::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 		ms21 = ms21.t();
 		CvMat ms12 = ms11;
 		CvMat ms22 = ms21;
-	
+
 
 		int i, goodCount, nmodels;
 		nmodels = runKernel( &ms12, &ms22, models );

@@ -39,6 +39,6 @@
 //
 //M*/
 
-#include "five-point-nister\precomp.hpp"
+#include "five-point-nister/precomp.hpp"
 
 /* End of file. */

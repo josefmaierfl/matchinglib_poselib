@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.9
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: May 2016
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -17,14 +17,14 @@
 			  two camera views (images).
 **********************************************************************************************************/
 
-#include "pose_helper.h"
+#include "poselib/pose_helper.h"
 
 #include <Eigen/SVD>
 #include <Eigen/Dense>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
-#include <string> 
+#include <string>
 
 using namespace cv;
 using namespace std;
@@ -41,10 +41,10 @@ namespace poselib
 //This function undistorts an image point
 bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, int iters = 10);
 //Calculation of the rectifying matrices
-int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t, 
-					cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize, 
-					cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new, 
-					double alpha = -1, cv::Size newImgSize=cv::Size(), cv::Rect *roi1 = NULL, cv::OutputArray P1new = cv::noArray(), 
+int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t,
+					cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize,
+					cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new,
+					double alpha = -1, cv::Size newImgSize=cv::Size(), cv::Rect *roi1 = NULL, cv::OutputArray P1new = cv::noArray(),
 					cv::OutputArray P2new = cv::noArray());
 //OpenCV interface function for cvStereoRectify. This code was copied from the OpenCV without changes.
 void stereoRectify2( InputArray cameraMatrix1, InputArray distCoeffs1,
@@ -92,31 +92,31 @@ void SampsonL1(const cv::Mat x1, const cv::Mat x2, const cv::Mat E, double & den
 	Mat X1, X2;
 	if(x1.rows > x1.cols)
 	{
-		X1 = (Mat_<double>(3, 1) << x1.at<double>(0,0), x1.at<double>(1,0), 1.0); 
-		X2 = (Mat_<double>(3, 1) << x2.at<double>(0,0), x2.at<double>(1,0), 1.0); 
+		X1 = (Mat_<double>(3, 1) << x1.at<double>(0,0), x1.at<double>(1,0), 1.0);
+		X2 = (Mat_<double>(3, 1) << x2.at<double>(0,0), x2.at<double>(1,0), 1.0);
 	}
 	else
 	{
-		X1 = (Mat_<double>(3, 1) << x1.at<double>(0,0), x1.at<double>(0,1), 1.0); 
-		X2 = (Mat_<double>(3, 1) << x2.at<double>(0,0), x2.at<double>(0,1), 1.0); 
+		X1 = (Mat_<double>(3, 1) << x1.at<double>(0,0), x1.at<double>(0,1), 1.0);
+		X2 = (Mat_<double>(3, 1) << x2.at<double>(0,0), x2.at<double>(0,1), 1.0);
 	}
 	Mat xpE = X2.t() * E;
 	xpE = xpE.t();
 	num = xpE.dot(X1);
-    //num = X2.dot(E * X1); 
-    Mat Ex1 = E * X1; 
+    //num = X2.dot(E * X1);
+    Mat Ex1 = E * X1;
 	//Ex1 /= Ex1.at<double>(2);
 	//xpE /= xpE.at<double>(2);
-    //Mat Etx2 = E.t() * X2; 
-    double a = Ex1.at<double>(0,0) * Ex1.at<double>(0,0); 
-    double b = Ex1.at<double>(1,0) * Ex1.at<double>(1,0); 
-    double c = xpE.at<double>(0,0) * xpE.at<double>(0,0); 
-    double d = xpE.at<double>(1,0) * xpE.at<double>(1,0); 
+    //Mat Etx2 = E.t() * X2;
+    double a = Ex1.at<double>(0,0) * Ex1.at<double>(0,0);
+    double b = Ex1.at<double>(1,0) * Ex1.at<double>(1,0);
+    double c = xpE.at<double>(0,0) * xpE.at<double>(0,0);
+    double d = xpE.at<double>(1,0) * xpE.at<double>(1,0);
 
 	denom1 = 1 / (std::sqrt(a + b + c + d) + 1e-8);
 }
 
-/* Calculates the closest essential matrix by enforcing the singularity constraint (third 
+/* Calculates the closest essential matrix by enforcing the singularity constraint (third
  * singular value is zero).
  *
  * Mat x1							Input & Output  -> Essential matrix
@@ -147,13 +147,13 @@ int getClosestE(Eigen::Matrix3d & E)
 
 
 /* Validate the Essential/Fundamental matrix with the oriented epipolar constraint (this should
- * be extensively tested if it makes sence) and optionally checks the correctness of the singular 
+ * be extensively tested if it makes sence) and optionally checks the correctness of the singular
  * values of the essential matrix.
  *
  * Mat p1							Input  -> Image projections (n rows) of the left image
  * Mat p2							Input  -> Corresponding image projections of the right image
  * Eigen::Matrix3d E				Input  -> Essential matrix
- * bool EfullCheck					Input  -> If true, the correctness of the singular values of 
+ * bool EfullCheck					Input  -> If true, the correctness of the singular values of
  *											  the essential matrix is checked
  * InputOutputArray _mask			I/O    -> If provided, a mask marking invalid correspondences
  *											  is returned
@@ -168,7 +168,7 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
 {
 	//Eigen::Matrix3d E;
 	Eigen::Vector3d e2, x1, x2;
-	
+
 	Mat _p1, _p2;
 	if(p1.channels() == 2)
 	{
@@ -178,12 +178,12 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
 			_p2 = p2.clone();
 			_p1 = _p1.t();
 			_p2 = _p2.t();
-			_p1 = _p1.reshape(1); 
+			_p1 = _p1.reshape(1);
 			_p2 = _p2.reshape(1);
 		}
 		else
 		{
-			_p1 = p1.reshape(1); 
+			_p1 = p1.reshape(1);
 			_p2 = p2.reshape(1);
 		}
 	}
@@ -198,7 +198,7 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
 		}
 		else
 		{
-			_p1 = p1; 
+			_p1 = p1;
 			_p2 = p2;
 		}
 	}
@@ -302,12 +302,12 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
  * Return value:					TRUE:  Value is too close to zero
  *									FALSE: Value is ok.
  */
-inline bool nearZero(double d)
-{
-    //Decide if determinants, etc. are too close to 0 to bother with
-    const double EPSILON = 1e-3;
-    return (d<EPSILON) && (d>-EPSILON);
-}
+//inline bool nearZero(double d)
+//{
+//    //Decide if determinants, etc. are too close to 0 to bother with
+//    const double EPSILON = 1e-3;
+//    return (d<EPSILON) && (d>-EPSILON);
+//}
 
 
 /* Calculates statistical parameters for the given values in the vector. The following parameters
@@ -362,9 +362,9 @@ void getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQu
 
 	std::sort(madVec.begin(),madVec.end(),[](double const & first, double const & second){
 		return first < second;});
-	
+
 	if(n % 2)
-		stats->medStd = 1.4826 * madVec[(n-1)/2]; //1.4826 corresponds to a scale factor for transform the MAD to approximately 
+		stats->medStd = 1.4826 * madVec[(n-1)/2]; //1.4826 corresponds to a scale factor for transform the MAD to approximately
 													//the standard deviation for a standard normal distribution, see https://en.wikipedia.org/wiki/Median_absolute_deviation
 	else
 		stats->medStd = 1.4826 * (madVec[n/2] + madVec[n/2-1]) / 2.0;
@@ -377,7 +377,7 @@ void getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQu
 		stats->arithStd = std::sqrt(hlp/((double)n - 1.0));
 }
 
-/* Extracts the 3D translation vector from the translation essential matrix. It is possible that the 
+/* Extracts the 3D translation vector from the translation essential matrix. It is possible that the
  * resulting vector points in the opposite direction.
  *
  * Mat Et								Input  -> The translation essential matrix
@@ -399,7 +399,7 @@ cv::Mat getTfromTransEssential(cv::Mat Et)
 
 /* Calculates the vector norm.
  *
- * cv::Mat vec						Input  -> Vector for which the norm should be calculated 
+ * cv::Mat vec						Input  -> Vector for which the norm should be calculated
  *											  (size must be 1 x n or n x 1)
  *
  * Return value:					Vector norm
@@ -424,7 +424,7 @@ double normFromVec(cv::Mat vec)
 
 /* Calculates the vector norm.
  *
- * vector<double> vec				Input  -> Vector for which the norm should be calculated 
+ * vector<double> vec				Input  -> Vector for which the norm should be calculated
  *
  * Return value:					Vector norm
  */
@@ -432,21 +432,21 @@ double normFromVec(std::vector<double> vec)
 {
 	size_t n = vec.size();
 	double norm = 0;
-	
+
 	for(size_t i = 0; i < n; i++)
 		norm += vec[i] * vec[i];
 
 	return std::sqrt(norm);
 }
 
-/* Calculates the statistics on the reprojection errors for the given correspondences and a given 
+/* Calculates the statistics on the reprojection errors for the given correspondences and a given
  * essential matrix. If a (normalized) fundamental matrix is used, EisF and takeImageCoords must be true
- * and the correspondences must be normalized. If "takeImageCoords" is true and EisF=false [Default], the 
- * correspondences which are in the camera (or world) coordinate system are transferred into the image 
- * coordinate system (Thus, K1 and K2 must be provided). The following parameters are calculated from 
- * the correspondences (if qp != NULL): median, arithmetic mean value, standard deviation and median 
- * absolute deviation (MAD) which is scaled to match the standard deviation of a standard normal 
- * distribution. 
+ * and the correspondences must be normalized. If "takeImageCoords" is true and EisF=false [Default], the
+ * correspondences which are in the camera (or world) coordinate system are transferred into the image
+ * coordinate system (Thus, K1 and K2 must be provided). The following parameters are calculated from
+ * the correspondences (if qp != NULL): median, arithmetic mean value, standard deviation and median
+ * absolute deviation (MAD) which is scaled to match the standard deviation of a standard normal
+ * distribution.
  *
  * Mat Essential			Input  -> Essential matrix
  * bool takeImageCoords		Input  -> If true, the image coordinate system is used instead of the camera
@@ -527,7 +527,7 @@ void getReprojErrors(cv::Mat Essential, cv::InputArray p1, cv::InputArray p2, bo
 
 	if(repErr != NULL)
 		computeReprojError2(x1, x2, FE, *repErr);
-	
+
 	if(qp != NULL)
 	{
 		if(repErr == NULL)
@@ -536,14 +536,14 @@ void getReprojErrors(cv::Mat Essential, cv::InputArray p1, cv::InputArray p2, bo
 			getStatsfromVec(error, qp);
 		}
 		else
-		{		
+		{
 			getStatsfromVec(*repErr, qp);
 		}
 	}
 }
 
 /* Computes the Sampson distance (first-order geometric error) for the provided point correspondences.
- * If the fundamental matrix is used, the homogeneous points have to be in (normalized) camera 
+ * If the fundamental matrix is used, the homogeneous points have to be in (normalized) camera
  * coordinate system units. If the essential matrix is used for computing the error, the homogeneous
  * points have to be in world coordinate system units (K^-1 * x).
  *
@@ -566,17 +566,17 @@ void computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> 
 
     for (int i = 0; i < n; i++)
     {
-        Mat x1 = (Mat_<double>(3, 1) << X1.at<double>(0, i), X1.at<double>(1, i), 1.0); 
-        Mat x2 = (Mat_<double>(3, 1) << X2.at<double>(0, i), X2.at<double>(1, i), 1.0); 
+        Mat x1 = (Mat_<double>(3, 1) << X1.at<double>(0, i), X1.at<double>(1, i), 1.0);
+        Mat x2 = (Mat_<double>(3, 1) << X2.at<double>(0, i), X2.at<double>(1, i), 1.0);
 		//Mat x1 = X1.col(i);
 		//Mat x2 = X2.col(i);
-        double x2tEx1 = x2.dot(E * x1); 
-        Mat Ex1 = E * x1; 
-        Mat Etx2 = Et * x2; 
-        double a = Ex1.at<double>(0) * Ex1.at<double>(0); 
-        double b = Ex1.at<double>(1) * Ex1.at<double>(1); 
-        double c = Etx2.at<double>(0) * Etx2.at<double>(0); 
-        double d = Etx2.at<double>(1) * Etx2.at<double>(1); 
+        double x2tEx1 = x2.dot(E * x1);
+        Mat Ex1 = E * x1;
+        Mat Etx2 = Et * x2;
+        double a = Ex1.at<double>(0) * Ex1.at<double>(0);
+        double b = Ex1.at<double>(1) * Ex1.at<double>(1);
+        double c = Etx2.at<double>(0) * Etx2.at<double>(0);
+        double d = Etx2.at<double>(1) * Etx2.at<double>(1);
 
 		if(error1 && (n == 1))
 			*error1 = x2tEx1 * x2tEx1 / (a + b + c + d);
@@ -586,7 +586,7 @@ void computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> 
 }
 
 /* Computes the Sampson distance (first-order geometric error) for the provided point correspondences.
- * If the fundamental matrix is used, the homogeneous points have to be in (normalized) camera 
+ * If the fundamental matrix is used, the homogeneous points have to be in (normalized) camera
  * coordinate system units. If the essential matrix is used for computing the error, the homogeneous
  * points have to be in world coordinate system units (K^-1 * x).
  *
@@ -609,17 +609,17 @@ void computeReprojError2(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> 
 
     for (int i = 0; i < n; i++)
     {
-        Mat x1 = (Mat_<double>(3, 1) << X1.at<double>(i, 0), X1.at<double>(i, 1), 1.0); 
-        Mat x2 = (Mat_<double>(3, 1) << X2.at<double>(i, 0), X2.at<double>(i, 1), 1.0); 
+        Mat x1 = (Mat_<double>(3, 1) << X1.at<double>(i, 0), X1.at<double>(i, 1), 1.0);
+        Mat x2 = (Mat_<double>(3, 1) << X2.at<double>(i, 0), X2.at<double>(i, 1), 1.0);
 		//Mat x1 = X1.col(i);
 		//Mat x2 = X2.col(i);
-        double x2tEx1 = x2.dot(E * x1); 
-        Mat Ex1 = E * x1; 
-        Mat Etx2 = Et * x2; 
-        double a = Ex1.at<double>(0) * Ex1.at<double>(0); 
-        double b = Ex1.at<double>(1) * Ex1.at<double>(1); 
-        double c = Etx2.at<double>(0) * Etx2.at<double>(0); 
-        double d = Etx2.at<double>(1) * Etx2.at<double>(1); 
+        double x2tEx1 = x2.dot(E * x1);
+        Mat Ex1 = E * x1;
+        Mat Etx2 = Et * x2;
+        double a = Ex1.at<double>(0) * Ex1.at<double>(0);
+        double b = Ex1.at<double>(1) * Ex1.at<double>(1);
+        double c = Etx2.at<double>(0) * Etx2.at<double>(0);
+        double d = Etx2.at<double>(1) * Etx2.at<double>(1);
 
 		if(error1 && (n == 1))
 			*error1 = x2tEx1 * x2tEx1 / (a + b + c + d);
@@ -687,18 +687,18 @@ void getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & y
  * Eigen::Vector3d T		Input  -> First 3D (translation) vector (e.g. result from pose estimation)
  * Eigen::Vector3d Tcalib	Input  -> Second 3D (translation) vector (e.g. from offline calibration)
  * double rdiff				Output -> Rotation angle (from Angle-axis-representation) between the two rotations
- * double tdiff				Output -> Distance between the two translation vectors back-rotated by the matrices 
+ * double tdiff				Output -> Distance between the two translation vectors back-rotated by the matrices
  *									  R and Rcalib
  *
  * Return value:			none
  */
-void getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d & T, 
+void getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d & T,
 				  Eigen::Vector3d & Tcalib, double* rdiff, double* tdiff)
 {
 	Eigen::Vector4d t1, t2;
 
 	*rdiff = rotDiff(R, Rcalib);
-	
+
 	Eigen::Vector3d Tdiff1;
 	Tdiff1 = quatMult3DPt(quatConj(R), T);
 	Tdiff1 -= quatMult3DPt(quatConj(Rcalib), Tcalib); //Error vecot includes both, the error from R and T
@@ -732,7 +732,7 @@ cv::Mat getSkewSymMatFromVec(cv::Mat t)
 		t.convertTo(t,CV_64FC1);
 
 	return (Mat_<double>(3, 3) << 0, -t.at<double>(2), t.at<double>(1),
-								  t.at<double>(2), 0, -t.at<double>(0), 
+								  t.at<double>(2), 0, -t.at<double>(0),
 								  -t.at<double>(1), t.at<double>(0), 0);
 }
 
@@ -756,12 +756,12 @@ void quatToMatrix(cv::Mat & R, cv::Mat q)
     R.at<double>(0,0) = ( sqx - sqy - sqz + sqw)*invs ; // since sqw + sqx + sqy + sqz =1/invs*invs
     R.at<double>(1,1) = (-sqx + sqy - sqz + sqw)*invs ;
     R.at<double>(2,2) = (-sqx - sqy + sqz + sqw)*invs ;
-    
+
     double tmp1 = q.at<double>(1)*q.at<double>(2);
     double tmp2 = q.at<double>(3)*q.at<double>(0);
     R.at<double>(1,0) = 2.0 * (tmp1 + tmp2)*invs ;
     R.at<double>(0,1) = 2.0 * (tmp1 - tmp2)*invs ;
-    
+
     tmp1 = q.at<double>(1)*q.at<double>(3);
     tmp2 = q.at<double>(2)*q.at<double>(0);
     R.at<double>(2,0) = 2.0 * (tmp1 - tmp2)*invs ;
@@ -769,7 +769,7 @@ void quatToMatrix(cv::Mat & R, cv::Mat q)
     tmp1 = q.at<double>(2)*q.at<double>(3);
     tmp2 = q.at<double>(1)*q.at<double>(0);
     R.at<double>(2,1) = 2.0 * (tmp1 + tmp2)*invs ;
-    R.at<double>(1,2) = 2.0 * (tmp1 - tmp2)*invs ;      
+    R.at<double>(1,2) = 2.0 * (tmp1 - tmp2)*invs ;
 }
 
 
@@ -1086,11 +1086,11 @@ void CamToImgCoordTrans(cv::Mat& points, cv::Mat K)
  *
  * vector<Point2f> points1			I/O	   -> Points in the first (left) image using the camera coordinate system
  * vector<Point2f> points2			I/O	   -> Points in the second (right) image using the camera coordinate system
- * cv::Mat dist1					Input  -> Distortion coefficients of the first (left) image. The ordering of the 
+ * cv::Mat dist1					Input  -> Distortion coefficients of the first (left) image. The ordering of the
  *											  coefficients is compliant with the OpenCV library. A number of 8
  *											  coefficients is required. If higher order coefficients are not
  *											  available, set them to 0.
- * cv::Mat dist2					Input  -> Distortion coefficients of the second (right) image. The ordering of the 
+ * cv::Mat dist2					Input  -> Distortion coefficients of the second (right) image. The ordering of the
  *											  coefficients is compliant with the OpenCV library. A number of 8
  *											  coefficients is required. If higher order coefficients are not
  *											  available, set them to 0.
@@ -1098,8 +1098,8 @@ void CamToImgCoordTrans(cv::Mat& points, cv::Mat K)
  * Return value:					true:  Everything ok.
  *									false: Undistortion failed
  */
-bool Remove_LensDist(std::vector<cv::Point2f>& points1, 
-					 std::vector<cv::Point2f>& points2, 
+bool Remove_LensDist(std::vector<cv::Point2f>& points1,
+					 std::vector<cv::Point2f>& points2,
 					 cv::Mat dist1,
 					 cv::Mat dist2)
 {
@@ -1151,15 +1151,15 @@ bool Remove_LensDist(std::vector<cv::Point2f>& points1,
 }
 
 
-/* This function undistorts an image point using distortion parameters (intended for distorting a 
+/* This function undistorts an image point using distortion parameters (intended for distorting a
  * point) and the methode of the Oulu University
  *
  * Point2f* distorted				Input  -> Distorted point
  * Point2f* corrected				Output -> Corrected (undistorted) point
  * cv::Mat dist						Input  -> Distortion coefficients. The ordering of the coefficients
  *											  is compliant with the OpenCV library.
- * int iters						Input  -> Number of iterations used to correct the point: 
- *									the higher the number, the better the solution (use a number 
+ * int iters						Input  -> Number of iterations used to correct the point:
+ *									the higher the number, the better the solution (use a number
  *									between 3 and 20). The number 3 typically results in an error
  *									of 0.1 pixels.
  *
@@ -1215,7 +1215,7 @@ bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, 
  * Mat t1				Input  -> First 3D (translation) vector (e.g. result from pose estimation)
  * Mat t2				Input  -> Second 3D (translation) vector (e.g. from offline calibration)
  * double rdiff			Output -> Rotation angle (from Angle-axis-representation) between the two rotations
- * double tdiff			Output -> Distance between the two translation vectors back-rotated by the matrices 
+ * double tdiff			Output -> Distance between the two translation vectors back-rotated by the matrices
  *								  R and Rcalib
  * bool printDiff		Input  -> If true, the results are printed to std::out [Default=false]
  *
@@ -1235,7 +1235,7 @@ void compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, d
 
 	t1e << t1.at<double>(0), t1.at<double>(1), t1.at<double>(2);
 	t2e << t2.at<double>(0), t2.at<double>(1), t2.at<double>(2);
-	
+
 	getRTQuality(r1quat, r2quat, t1e, t2e, rdiff, tdiff);
 
 	if(printDiff)
@@ -1246,17 +1246,17 @@ void compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, d
 }
 
 /* Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters. There are 2 methods available
- * for calculating the rectifying matrices: 1st method (Default: globRectFunct=true): A. Fusiello, E. Trucco and A. Verri: "A compact 
- * algorithm for rectification of stereo pairs", 2000. This methode can be used for the rectification of cameras with a general form 
- * of the extrinsic parameters. 2nd method (globRectFunct=false): A slightly changed version (to be more robust) of the OpenCV 
- * stereoRectify-function for stereo cameras with no or only a small differnce in the vertical position and small rotations (the cameras 
- * should be nearly parallel). Moreover, an new camera matrix is calculated based on the image areas. Therefore, alpha specifies if all 
+ * for calculating the rectifying matrices: 1st method (Default: globRectFunct=true): A. Fusiello, E. Trucco and A. Verri: "A compact
+ * algorithm for rectification of stereo pairs", 2000. This methode can be used for the rectification of cameras with a general form
+ * of the extrinsic parameters. 2nd method (globRectFunct=false): A slightly changed version (to be more robust) of the OpenCV
+ * stereoRectify-function for stereo cameras with no or only a small differnce in the vertical position and small rotations (the cameras
+ * should be nearly parallel). Moreover, an new camera matrix is calculated based on the image areas. Therefore, alpha specifies if all
  * valid pixels, only valid pixels (no black areas) or something inbetween should be present in the rectified images.
  *
  * InputArray R							Input  -> Rotation matrix
  * InputArray t							Input  -> Translation matrix
  * InputArray K1						Input  -> Input camera matrix of the left camera
- * InputArray K2						Input  -> Input camera matrix of the right camera 
+ * InputArray K2						Input  -> Input camera matrix of the right camera
  * InputArray distcoeffs1				Input  -> Distortion coeffitients of the left camera
  * InputArray distcoeffs2				Input  -> Distortion coeffitients of the right camera
  * Size imageSize						Input  -> Size of the input image
@@ -1264,50 +1264,50 @@ void compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, d
  * OutputArray Rect2					Output -> Rectification matrix for the right camera
  * OutputArray K1new					Output -> New camera matrix for the left camera (equal to K2new if globRectFunct=true)
  * OutputArray K2new					Output -> New camera matrix for the right camera (equal to K1new if globRectFunct=true)
- * double alpha							Input  -> Free scaling parameter. If it is -1 or absent [Default=-1], the function performs the default 
- *												  scaling. Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified 
- *												  images are zoomed and shifted so that only valid pixels are visible (no black areas after 
- *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
- *												  the pixels from the original images from the cameras are retained in the rectified images 
- *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent [Default=-1], the function performs the default
+ *												  scaling. Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified
+ *												  images are zoomed and shifted so that only valid pixels are visible (no black areas after
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all
+ *												  the pixels from the original images from the cameras are retained in the rectified images
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate
  *												  result between those two extreme cases.
- * bool globRectFunct					Input  -> Used method for rectification [Default=true]. If true, the method from A. Fusiello, E. Trucco 
- *												  and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can 
- *												  be used for the rectification of cameras with a general form of the extrinsic parameters. 
- *												  If false, a slightly changed version (to be more robust) of the OpenCV stereoRectify-function 
- *												  is used. This method can be used for stereo cameras with only a small differnce in the 
+ * bool globRectFunct					Input  -> Used method for rectification [Default=true]. If true, the method from A. Fusiello, E. Trucco
+ *												  and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can
+ *												  be used for the rectification of cameras with a general form of the extrinsic parameters.
+ *												  If false, a slightly changed version (to be more robust) of the OpenCV stereoRectify-function
+ *												  is used. This method can be used for stereo cameras with only a small differnce in the
  *												  vertical position and small rotations only (the cameras should be nearly parallel).
- * Size newImgSize						Input  -> Optional new image resolution after rectification. The same size should be passed to 
- *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
- *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
- *												  value can help you preserve details in the original image, especially when there is a big 
+ * Size newImgSize						Input  -> Optional new image resolution after rectification. The same size should be passed to
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory).
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger
+ *												  value can help you preserve details in the original image, especially when there is a big
  *												  radial distortion.
- * Rect *roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * Rect *roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
- * Rect *roi2							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * Rect *roi2							Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
- * OutputArray P1new					Output -> Optional new projection matrix for the left camera (only available if globRectFunct=true) 
+ * OutputArray P1new					Output -> Optional new projection matrix for the left camera (only available if globRectFunct=true)
  * OutputArray P2new					Output -> Optional new projection matrix for the right camera (only available if globRectFunct=true)
  *
  * Return value:						0 :		Everything ok
  */
-int getRectificationParameters(cv::InputArray R, 
-							  cv::InputArray t, 
-							  cv::InputArray K1, 
-							  cv::InputArray K2, 
-							  cv::InputArray distcoeffs1, 
-							  cv::InputArray distcoeffs2, 
-							  cv::Size imageSize, 
-							  cv::OutputArray Rect1, 
-							  cv::OutputArray Rect2, 
-							  cv::OutputArray K1new, 
+int getRectificationParameters(cv::InputArray R,
+							  cv::InputArray t,
+							  cv::InputArray K1,
+							  cv::InputArray K2,
+							  cv::InputArray distcoeffs1,
+							  cv::InputArray distcoeffs2,
+							  cv::Size imageSize,
+							  cv::OutputArray Rect1,
+							  cv::OutputArray Rect2,
+							  cv::OutputArray K1new,
 							  cv::OutputArray K2new,
-							  double alpha, 
+							  double alpha,
 							  bool globRectFunct,
-							  cv::Size newImgSize, 
-							  cv::Rect *roi1, 
+							  cv::Size newImgSize,
+							  cv::Rect *roi1,
 							  cv::Rect *roi2,
-							  cv::OutputArray P1new, 
+							  cv::OutputArray P1new,
 							  cv::OutputArray P2new)
 {
 	CV_Assert(!R.empty() && !t.empty() && !K1.empty() && !K2.empty() &&
@@ -1328,7 +1328,7 @@ int getRectificationParameters(cv::InputArray R,
 	{
 		//rectifyFusiello(K1, K2, _R.t(), -1.0 * _R.t() * t_tmp, distcoeffs1, distcoeffs2, imageSize, Rect1, Rect2, K1new, alpha, newImgSize, roi1, P1new, P2new);
 		rectifyFusiello(K1, K2, _R, t_tmp, distcoeffs1, distcoeffs2, imageSize, Rect1, Rect2, K1new, alpha, newImgSize, roi1, P1new, P2new);
-		
+
 		Mat _K2new, _K1new;
 		if(K2new.empty())
 		{
@@ -1349,14 +1349,14 @@ int getRectificationParameters(cv::InputArray R,
 	return 0;
 }
 
-/* Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters based on the methode from 
+/* Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters based on the methode from
  * A. Fusiello, E. Trucco and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can be used
  * for the rectification of cameras with a general form of the extrinsic parameters. Moreover, an new camera matrix is calculated
  * based on the image areas. Therefore, alpha specifies if all valid pixels, only valid pixels (no black areas) or something
  * inbetween should be present in the rectified images.
  *
  * InputArray K1						Input  -> Input camera matrix of the left camera
- * InputArray K2						Input  -> Input camera matrix of the right camera 
+ * InputArray K2						Input  -> Input camera matrix of the right camera
  * InputArray R							Input  -> Rotation matrix
  * InputArray t							Input  -> Translation matrix
  * InputArray distcoeffs1				Input  -> Distortion coeffitients of the left camera
@@ -1365,29 +1365,29 @@ int getRectificationParameters(cv::InputArray R,
  * OutputArray Rect1					Output -> Rectification matrix for the left camera
  * OutputArray Rect2					Output -> Rectification matrix for the right camera
  * OutputArray K12new					Output -> New camera matrix for both cameras
- * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
- *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
- *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
- *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
- *												  the pixels from the original images from the cameras are retained in the rectified images 
- *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling.
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all
+ *												  the pixels from the original images from the cameras are retained in the rectified images
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate
  *												  result between those two extreme cases.
- * Size newImgSize						Input  -> New image resolution after rectification. The same size should be passed to 
- *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
- *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
- *												  value can help you preserve details in the original image, especially when there is a big 
+ * Size newImgSize						Input  -> New image resolution after rectification. The same size should be passed to
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory).
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger
+ *												  value can help you preserve details in the original image, especially when there is a big
  *												  radial distortion.
- * Rect *roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * Rect *roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
  * OutputArray P1new					Output -> Optional new projection matrix for the left camera
  * OutputArray P2new					Output -> Optional new projection matrix for the right camera
  *
  * Return value:						0 :		Everything ok
  */
-int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t, 
-					cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize, 
-					cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new, 
-					double alpha, cv::Size newImgSize, cv::Rect *roi1, cv::OutputArray P1new, 
+int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t,
+					cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize,
+					cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new,
+					double alpha, cv::Size newImgSize, cv::Rect *roi1, cv::OutputArray P1new,
 					cv::OutputArray P2new)
 {
 	Mat c1, c2, v1, v2, v3, Rv, Pn1, Pn2, Rect1_, Rect2_, K1_, K2_, R_, t_, dk1_, dk2_;
@@ -1400,7 +1400,7 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
 	dk2_ = distcoeffs2.getMat();
 	double nx = imageSize.width, ny = imageSize.height;
 
-	
+
 	Mat Po1, Po2;
 	//Calculate projection matrix of camera 1
 	Po1 = cv::Mat::zeros(3,4,K1_.type());
@@ -1445,7 +1445,7 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
 	t2 = Bcv*Po2.col(3);
 	invert(Bcv, K21);
 	K21 = K21 / K21.at<double>(2,2);*/
-	
+
 	int idx = fabs(t_.at<double>(0)) > fabs(t_.at<double>(1)) ? 0 : 1;
 	double fc_new = DBL_MAX;
     CvPoint2D64f cc_new[2] = {{0,0}, {0,0}};
@@ -1602,7 +1602,7 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
 
 	//Recalculate camera matrix
 	/*Knew.at<double>(0,2) = scaler*(xmax-xmin)/2.0;
-	Knew.at<double>(1,2) = scaler*(ymax-ymin)/2.0;*/		
+	Knew.at<double>(1,2) = scaler*(ymax-ymin)/2.0;*/
 
 	//Take the 2D rectifying transformations into 3D space
 	Rect1_ = Knew.inv() * (Rect1_ * K1_);
@@ -1784,7 +1784,7 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
 }
 
 /* OpenCV interface function for cvStereoRectify. This code was copied from the OpenCV without changes. Check the OpenCV documentation
- * for more information. This function was copied to be able to change a few details on the core functionality of the rectification - 
+ * for more information. This function was copied to be able to change a few details on the core functionality of the rectification -
  * especiallly the undistortion functionality to estimate the new virtual cameras.
  *
  * InputArray _cameraMatrix1			Input  -> Camera matrix of the first (left) camera
@@ -1800,26 +1800,26 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
  * OutputArray _Pmat1					Output -> Projection matrix in the new (rectified) coordinate systems for the first camera
  * OutputArray _Pmat2					Output -> Projection matrix in the new (rectified) coordinate systems for the second camera
  * OutputArray _Qmat					Output -> Output 4x4 disparity-to-depth mapping matrix (see reprojectImageTo3D() ).
- * int flags							Input  -> Operation flags that may be zero or CV_CALIB_ZERO_DISPARITY . If the flag is set, 
- *												  the function makes the principal points of each camera have the same pixel 
- *												  coordinates in the rectified views. And if the flag is not set, the function may 
- *												  still shift the images in the horizontal or vertical direction (depending on the 
+ * int flags							Input  -> Operation flags that may be zero or CV_CALIB_ZERO_DISPARITY . If the flag is set,
+ *												  the function makes the principal points of each camera have the same pixel
+ *												  coordinates in the rectified views. And if the flag is not set, the function may
+ *												  still shift the images in the horizontal or vertical direction (depending on the
  *												  orientation of epipolar lines) to maximize the useful image area.
- * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
- *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
- *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
- *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
- *												  the pixels from the original images from the cameras are retained in the rectified images 
- *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling.
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all
+ *												  the pixels from the original images from the cameras are retained in the rectified images
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate
  *												  result between those two extreme cases.
- * Size newImageSize					Input  -> New image resolution after rectification. The same size should be passed to 
- *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
- *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
- *												  value can help you preserve details in the original image, especially when there is a big 
+ * Size newImageSize					Input  -> New image resolution after rectification. The same size should be passed to
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory).
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger
+ *												  value can help you preserve details in the original image, especially when there is a big
  *												  radial distortion.
- * Rect* validPixROI1					Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * Rect* validPixROI1					Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
- * Rect* validPixROI2					Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * Rect* validPixROI2					Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
  *
  * Return value:						none
@@ -1863,7 +1863,7 @@ void stereoRectify2( InputArray _cameraMatrix1, InputArray _distCoeffs1,
 
 
 /* Slightly changed version of the OpenCV rectification function cvStereoRectify. Check the OpenCV documentation
- * for more information. This function was copied to be able to change a few details on the core functionality of the rectification - 
+ * for more information. This function was copied to be able to change a few details on the core functionality of the rectification -
  * especiallly the undistortion functionality to estimate the new virtual cameras.
  *
  * CvMat* _cameraMatrix1				Input  -> Camera matrix of the first (left) camera
@@ -1879,26 +1879,26 @@ void stereoRectify2( InputArray _cameraMatrix1, InputArray _distCoeffs1,
  * CvMat* _P1							Output -> Projection matrix in the new (rectified) coordinate systems for the first camera
  * CvMat* _P2							Output -> Projection matrix in the new (rectified) coordinate systems for the second camera
  * CvMat* matQ							Output -> Output 4x4 disparity-to-depth mapping matrix (see reprojectImageTo3D() ).
- * int flags							Input  -> Operation flags that may be zero or CV_CALIB_ZERO_DISPARITY . If the flag is set, 
- *												  the function makes the principal points of each camera have the same pixel 
- *												  coordinates in the rectified views. And if the flag is not set, the function may 
- *												  still shift the images in the horizontal or vertical direction (depending on the 
+ * int flags							Input  -> Operation flags that may be zero or CV_CALIB_ZERO_DISPARITY . If the flag is set,
+ *												  the function makes the principal points of each camera have the same pixel
+ *												  coordinates in the rectified views. And if the flag is not set, the function may
+ *												  still shift the images in the horizontal or vertical direction (depending on the
  *												  orientation of epipolar lines) to maximize the useful image area.
- * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
- *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
- *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
- *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
- *												  the pixels from the original images from the cameras are retained in the rectified images 
- *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling.
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all
+ *												  the pixels from the original images from the cameras are retained in the rectified images
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate
  *												  result between those two extreme cases.
- * CvSize newImgSize					Input  -> New image resolution after rectification. The same size should be passed to 
- *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory). 
- *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger 
- *												  value can help you preserve details in the original image, especially when there is a big 
+ * CvSize newImgSize					Input  -> New image resolution after rectification. The same size should be passed to
+ *												  initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory).
+ *												  When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger
+ *												  value can help you preserve details in the original image, especially when there is a big
  *												  radial distortion.
- * CvRect* roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * CvRect* roi1							Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
- * CvRect* roi2							Output -> Optional output rectangles inside the rectified images where all the pixels are valid. 
+ * CvRect* roi2							Output -> Optional output rectangles inside the rectified images where all the pixels are valid.
  *												  If alpha=0 , the ROIs cover the whole images. Otherwise, they are likely to be smaller.
  *
  * Return value:						none
@@ -2022,7 +2022,7 @@ void cvStereoRectify2( const CvMat* _cameraMatrix1, const CvMat* _cameraMatrix2,
 				cvUndistortPoints2( &pts, &pts, A, 0, 0, 0, mask );
 			}
 		} //From OpenCV deviating implementation ends here
-		
+
 
         cvConvertPointsHomogeneous( &pts, &pts_3 );
 
@@ -2159,20 +2159,20 @@ void cvStereoRectify2( const CvMat* _cameraMatrix1, const CvMat* _cameraMatrix2,
  * which marks coordinates for which the undistortion was not possible due to a too large error.
  *
  * CvMat* _src							Input  -> Observed point coordinates (distorted), 1xN or Nx1 2-channel (CV_32FC2 or CV_64FC2).
- * CvMat* _dst							Output -> Output ideal point coordinates after undistortion and reverse perspective 
- *												  transformation. If matrix P is identity or omitted, dst will contain normalized 
+ * CvMat* _dst							Output -> Output ideal point coordinates after undistortion and reverse perspective
+ *												  transformation. If matrix P is identity or omitted, dst will contain normalized
  *												  point coordinates.
  * CvMat* _cameraMatrix					Input  -> Camera matrix
- * CvMat* _distCoeffs					Input  -> Input vector of distortion coefficients (k_1, k_2, p_1, p_2[, k_3[, k_4, k_5, k_6]]) 
+ * CvMat* _distCoeffs					Input  -> Input vector of distortion coefficients (k_1, k_2, p_1, p_2[, k_3[, k_4, k_5, k_6]])
  *												  of 4, 5, or 8 elements. If the vector is NULL/empty, the zero distortion coefficients
  *												  are assumed.
  * CvMat* matR							Input  -> Rectification transform (rotation matrix) in the object space (3x3 matrix). R1 or R2
- *												  computed by stereoRectify() can be passed here. If the matrix is empty, the identity 
+ *												  computed by stereoRectify() can be passed here. If the matrix is empty, the identity
  *												  transformation is used.
- * CvMat* matP							Input  -> New camera matrix (3x3) or new projection matrix (3x4). P1 or P2 computed by 
- *												  stereoRectify() can be passed here. If the matrix is empty, the identity new camera 
+ * CvMat* matP							Input  -> New camera matrix (3x3) or new projection matrix (3x4). P1 or P2 computed by
+ *												  stereoRectify() can be passed here. If the matrix is empty, the identity new camera
  *												  matrix is used.
- * OutputArray mask						Output -> Mask marking coordinates for which the undistortion was not possible due to a too 
+ * OutputArray mask						Output -> Mask marking coordinates for which the undistortion was not possible due to a too
  *												  large error
  *
  * Return value:						none
@@ -2320,7 +2320,7 @@ void cvUndistortPoints2( const CvMat* _src, CvMat* _dst, const CvMat* _cameraMat
 }
 
 /* Estimates the inner rectangle of a distorted image containg only valid/available image information and an outer rectangle countaing all
- * image information. This function was copied from the OpenCV (calibration.cpp) and modified such that the image coordinates used for 
+ * image information. This function was copied from the OpenCV (calibration.cpp) and modified such that the image coordinates used for
  * undistortion are checked afterwards to be valid. If not, the initial coordinates are changed as long as only valid undistorted
  * coordinates are used.
  *
@@ -2408,7 +2408,7 @@ void icvGetRectanglesV0( const CvMat* cameraMatrix, const CvMat* distCoeffs,
     outer = cv::Rect_<float>(oX0, oY0, oX1-oX0, oY1-oY0);
 }
 
-/* Estimates the vergence (shift of starting point) for correspondence search in the stereo engine. To get the right values, the 
+/* Estimates the vergence (shift of starting point) for correspondence search in the stereo engine. To get the right values, the
  * first camera centre must be at the orign of the coordinate system.
  *
  * Mat R								Input  -> Rotation matrix between the cameras.
@@ -2444,12 +2444,12 @@ int estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat P
  * implemented in the function cvStereoRectify of the OpenCV. In contrast to the original OpenCV function, the result of the undistortion
  * is checked to be valid.
  *
- * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling. 
- *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images 
- *												  are zoomed and shifted so that only valid pixels are visible (no black areas after 
- *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all 
- *												  the pixels from the original images from the cameras are retained in the rectified images 
- *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate 
+ * double alpha							Input  -> Free scaling parameter. If it is -1 or absent, the function performs the default scaling.
+ *												  Otherwise, the parameter should be between 0 and 1. alpha=0 means that the rectified images
+ *												  are zoomed and shifted so that only valid pixels are visible (no black areas after
+ *												  rectification). alpha=1 means that the rectified image is decimated and shifted so that all
+ *												  the pixels from the original images from the cameras are retained in the rectified images
+ *												  (no source image pixels are lost). Obviously, any intermediate value yields an intermediate
  *												  result between those two extreme cases.
  * Mat K1								Input  -> Camera matrix of the first (left) camera
  * Mat K2								Input  -> Camera matrix of the second (right) camera
@@ -2464,7 +2464,7 @@ int estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat P
  *
  * Return value:						Scaling parameter for the focal length
  */
-double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2, 
+double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2,
 								 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize)
 {
 	alpha = MIN(alpha, 1.);
@@ -2526,12 +2526,12 @@ double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R
  * InputArray mapY1				Input  -> Rectification map for the y-coordinates of the first image
  * InputArray mapX2				Input  -> Rectification map for the x-coordinates of the second image
  * InputArray mapY2				Input  -> Rectification map for the y-coordinates of the second image
- * InputArray t						Input  -> Translation vector of the pose. Take translation vector for 
- *											  mapping a position of the left camera x to the a position of 
- *											  the right camera x' (x' = R^T * x - R^T * t0) with t0 the 
- *											  translation vector after pose estimation and t = -1 * R^T * t0 
+ * InputArray t						Input  -> Translation vector of the pose. Take translation vector for
+ *											  mapping a position of the left camera x to the a position of
+ *											  the right camera x' (x' = R^T * x - R^T * t0) with t0 the
+ *											  translation vector after pose estimation and t = -1 * R^T * t0
  *											  the translation vector that should be provided.
- * Size newImgSize				Input  -> Size of the new image (must be the same as specified at the 
+ * Size newImgSize				Input  -> Size of the new image (must be the same as specified at the
  *											  rectification function and initUndistortRectifyMap()). If not
  *											  specified, the same size from the input images is used.
  * string path            Input -> output path for rectified images (e.g.: c:\temp\results)
@@ -2562,7 +2562,7 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
   if (path != "")
   {
     static int count = 0;
-    
+
     char buffer[12];
     sprintf(buffer, "left_%04d.jpg", count);
     std::string namel = path + "\\" + buffer;
@@ -2606,7 +2606,7 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
 			imgRect2 = imgRect1_tmp.clone();
 		}
 	}
-	
+
     //Allocate memory for composed image
 	maxHorImgSize = 800;
     if (newImgSize.width > maxHorImgSize)
@@ -2626,7 +2626,7 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
     vector<cv::Mat> show_rect(2);
 	cv::cvtColor(imgRect1, show_rect[0], CV_GRAY2RGB);
 	cv::cvtColor(imgRect2, show_rect[1], CV_GRAY2RGB);
-	for (int j = 0; j < 2; j++) 
+	for (int j = 0; j < 2; j++)
     {
 		cv::resize(show_rect[j], comCopy, cv::Size(comCopy.cols, comCopy.rows));
 		if (j == 0) str = "CAM 1";
@@ -2646,10 +2646,50 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
     //cv::destroyWindow("Rectification");
     composed.release();
     comCopy.release();
- 
+
 	return 0;
 }
 
+/* This function returns the rectified images
+ *
+ * InputArray img1				Input  -> Image from the first camera
+ * InputArray img2				Input  -> Image from the second camera
+ * InputArray mapX1				Input  -> Rectification map for the x-coordinates of the first image
+ * InputArray mapY1				Input  -> Rectification map for the y-coordinates of the first image
+ * InputArray mapX2				Input  -> Rectification map for the x-coordinates of the second image
+ * InputArray mapY2				Input  -> Rectification map for the y-coordinates of the second image
+ * InputArray t						Input  -> Translation vector of the pose. Take translation vector for
+ *											  mapping a position of the left camera x to the a position of
+ *											  the right camera x' (x' = R^T * x - R^T * t0) with t0 the
+ *											  translation vector after pose estimation and t = -1 * R^T * t0
+ *											  the translation vector that should be provided.
+ * OutputArray outImg1			Output -> Rectified Image from the first camera
+ * OutputArray outImg2			Output -> Rectified Image from the second camera
+ * Size newImgSize				Input  -> Size of the new image (must be the same as specified at the
+ *											  rectification function and initUndistortRectifyMap()). If not
+ *											  specified, the same size from the input images is used.
+ *
+ * Return:							0:		  Success
+ */
+int GetRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::OutputArray outImg1, cv::OutputArray outImg2, cv::Size newImgSize)
+{
+	CV_Assert(!img1.empty() && !img2.empty() && !mapX1.empty() && !mapY1.empty() && !mapX2.empty() && !mapY2.empty() && !t.empty());
+	CV_Assert((img1.rows() == img2.rows()) && (img1.cols() == img2.cols()));
+
+	if(newImgSize == cv::Size())
+	{
+		newImgSize = img1.size();
+	}
+
+	Mat _t;
+	_t = t.getMat();
+
+	Mat composed, comCopy;
+	remap(img1, outImg1, mapX1, mapY1, cv::BORDER_CONSTANT);
+	remap(img2, outImg2, mapX2, mapY2, cv::BORDER_CONSTANT);
+
+	return 0;
+}
 
 /*------------------------------------------------------------------------------------------
 Functionname: on_mouse_move
@@ -2719,7 +2759,7 @@ double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::Ke
 * It estimates the probability that a data point is consistend with a good model (e.g. essential matrix)
 * which corresponds approximately to the inlier ratio. To estimate the inlier ratio, VFC has to be applied
 * to the matches which should reject most false matches (additionally removes matches at borders) as the
-* filtering only allows smooth changes of the optical flow. VFC does not work well for low inlier ratios. 
+* filtering only allows smooth changes of the optical flow. VFC does not work well for low inlier ratios.
 * Thus, the inlier ratio is bounded between 0.1 and 0.75.
 *
 * vector<DMatch> matches				Input  -> Matches
@@ -2742,7 +2782,7 @@ double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrM
 * should be ascending. The used correspondences within USAC must be in the same order than "matches".
 *
 * vector<DMatch> matches				Input  -> Matches
-* unsigned int nrMatchesVfcFiltered		Output -> Indices of matches sorted corresponding to the 
+* unsigned int nrMatchesVfcFiltered		Output -> Indices of matches sorted corresponding to the
 *												  matching costs in ascending order
 *
 * Return:						none
@@ -2762,7 +2802,7 @@ void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int
 			matches[i].queryIdx = i;
 		}
 	}
-	
+
 	std::sort(matches.begin(), matches.end(), [](cv::DMatch const & first, cv::DMatch const & second) {
 		return first.distance < second.distance; });
 

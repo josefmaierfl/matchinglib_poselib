@@ -19,7 +19,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 #pragma once
 
 #include "opencv2/core/core.hpp"
-#include "glob_includes.h"
+#include "matchinglib/glob_includes.h"
 
 #include <thread>
 #include <mutex>
@@ -157,14 +157,14 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			const size_t K = 2;//knn = number of results per query -> BE CAREFUL: If the number is choosen larger than 2, the results for each query must be sorted
 			unsigned ThreadQty_ = thread::hardware_concurrency();// 8;//Number of search threads
 			float eps = 0;
-		
+
 
 			if (ThreadQty) ThreadQty_ = ThreadQty;
 			ThreadQty_ = ThreadQty_ <= 0 ? 1 :ThreadQty_;
 
 			similarity::ToLower(spaceStr);//the used space like "l2", "l1", "bit_hamming", ...
 			similarity::ToLower(methodStr);//name of the matching-method
-			
+
 			similarity::initLibrary(LIB_LOGNONE,'\0');
 			/*string logfilename = "C:\\work\\nmslib_log.txt";
 			similarity::initLibrary(LIB_LOGFILE, logfilename.c_str());*/
@@ -292,7 +292,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 
 			vector<ThreadParams<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>*> ThreadParamsVar(ThreadQty_);
 			vector<thread> Threads(ThreadQty_);
-			
+
 			//Delets the thread-paramters that are generated with "new" in the next phase, when this object is released
 			similarity::AutoVectDel<ThreadParams<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>> DelThreadParams(ThreadParamsVar);
 			mutex UpdateStat;
@@ -353,7 +353,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 				}
 			}
 
-			/*for (unsigned QueryPart = 0; QueryPart < ThreadQty_; ++QueryPart) 
+			/*for (unsigned QueryPart = 0; QueryPart < ThreadQty_; ++QueryPart)
 			{
 				delete ThreadParamsVar[QueryPart];
 			}*/

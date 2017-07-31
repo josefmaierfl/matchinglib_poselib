@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: March 2014
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -36,7 +36,7 @@
 
 #include "imgproj.h"
 
-#include "poselib\poselib_api.h"
+#include "poselib/poselib_api.h"
 
 namespace poselib
 {
@@ -64,7 +64,7 @@ typedef struct BAinfo {
 		double SlnSumSquaredErr; //Final squared norm errors to the image point measurements -> ||e||^2
 		double FinalSumNormJacErr; //Norm of transposed Jacobi matrix multiplied with the error -> ||(J^T)*e||
 		double SumSquaredParmCorrTerms; //Final squared norm of the parameter correction vector -> ||sigma||^2
-		double DumpTermDivJacTJacMax; /* Final Jacobi matrix damping term devided by maximum diagonal 
+		double DumpTermDivJacTJacMax; /* Final Jacobi matrix damping term devided by maximum diagonal
 									   * term of the Jacobi normal matrix ->mu/max_k(((J^T)J)_kk) */
 		double numIterations; //Total number of iterations of the SBA
 		double terminatingReason; /* Reason for terminating:
@@ -84,7 +84,7 @@ typedef struct BAinfo {
 		double numJacCalcs; //Number, how often the Jacobi calculation function was called
 		double numNormEquSolve; //Total number of times that the normal equations were solved
 		double firstClapackError; // first CLAPACK Error encountered:
-								  //       0: no error,  
+								  //       0: no error,
 								  //       d: leading minor of order d is not positive definite
 								  //      -d: the d-th diagonal element of A is zero (singular matrix)
 } BAinfo;
@@ -111,7 +111,7 @@ private:
 	double costThresh;
 
 	std::vector<double *> Rquats_out;
-	std::vector<double *> trans_out; 
+	std::vector<double *> trans_out;
 	std::vector<double *> intrParms_out;
 	std::vector<double *> dist_out;
 	double *pts3D_out;
@@ -126,11 +126,11 @@ public:
 	 * int BAhowto						Input  -> Specifies, which parameters should be optimized:
 	 *											  BA_MOTSTRUCT: Motion and structure are opimized. Thus,
 	 *															the structure elements (3D points), the camera
-	 *															rotation, translation and depending 
+	 *															rotation, translation and depending
 	 *															on other options, the intrinsics and distortion
 	 *															are optimized.
 	 *											  BA_MOT:		Only the motion is optimized. Thus,
-	 *															the camera rotation, translation and depending 
+	 *															the camera rotation, translation and depending
 	 *															on other options, the intrinsics and distortion
 	 *															are optimized.
 	 *											  BA_STRUCT:	Only the structure elements are optimized.
@@ -142,7 +142,7 @@ public:
 	 *											  COST_LEASTSQUARES: The original least squares cost function is
 	 *																 used.
 	 *											  COST_PSEUDOHUBER: The robust pseudo-huber cost function is used.
-	 *																This cost function is computational more 
+	 *																This cost function is computational more
 	 *																expensive because the least squares cost
 	 *																function is part of the core algorithm of SBA
 	 *																and is performed anyway - this has to be
@@ -150,51 +150,51 @@ public:
 	 * double cost_tresh				Input  -> The threshold for the cost function. The default value should only
 	 *											  be used when working in image coordinates and with the pseudo-huber
 	 *											  cost function. Otherwise, please use a different threshold.
-	 * bool BAuseInputVarsAsOutput		Input  -> If true, the results from BA are written back to the input 
+	 * bool BAuseInputVarsAsOutput		Input  -> If true, the results from BA are written back to the input
 	 *											  variables of the function perform_sba. If false, the results
 	 *											  from SBA can be read via the different get-methods. In this
 	 *											  case, be careful, because the memory which holds the
 	 *											  results from BA is deallocated after the lifetime of this
 	 *											  object.
-	 * int SlnPrnt						Input  -> Specifies, which results should be written back to the input 
+	 * int SlnPrnt						Input  -> Specifies, which results should be written back to the input
 	 *											  variables (if BAuseInputVarsAsOutput = true) or which results
-	 *											  are available through the get-methods (if 
+	 *											  are available through the get-methods (if
 	 *											  BAuseInputVarsAsOutput = false). The options are the same as for
 	 *											  BAhowto. This option can help saving memory or prevents
 	 *											  writing back data.
 	 * int BAnccalib					Input  -> Specifies which intrinsics should be kept fixed during BA (if
 	 *											  intrinsics are provided to perform_sba):
-	 *											  0: all parameters are free 
-     *											  1: skew is fixed to its initial value, all other parameters vary 
-	 *												 (i.e. fu, u0, v0, ar) 
-     *											  2: skew and aspect ratio are fixed to their initial values, all 
+	 *											  0: all parameters are free
+     *											  1: skew is fixed to its initial value, all other parameters vary
+	 *												 (i.e. fu, u0, v0, ar)
+     *											  2: skew and aspect ratio are fixed to their initial values, all
 	 *												 other parameters vary (i.e. fu, u0, v0)
      *											  3: meaningless
-     *											  4: skew, aspect ratio and principal point are fixed to their 
+     *											  4: skew, aspect ratio and principal point are fixed to their
 	 *												 initial values, only the focal length varies (i.e. fu)
      *											  5: all intrinsics are kept fixed to their initial values
      *											  >5: meaningless
      *											  Used only when calibration varies among cameras
-	 * int BAncdist						Input  -> Specifies which distortion coeffitients of Bouguet's model 
-	 *											  should be kept fixed during BA (if distortion parameters are 
+	 * int BAncdist						Input  -> Specifies which distortion coeffitients of Bouguet's model
+	 *											  should be kept fixed during BA (if distortion parameters are
 	 *											  provided to perform_sba):
-	 *											  0: all parameters are free 
+	 *											  0: all parameters are free
      *											  1: 6th order radial distortion term (kc[4]) is fixed
-     *											  2: 6th order radial distortion and one of the tangential 
+     *											  2: 6th order radial distortion and one of the tangential
 	 *												 distortion terms (kc[3]) are fixed
-     *											  3: 6th order radial distortion and both tangential distortion 
-	 *												 terms (kc[3], kc[2]) are fixed [i.e., only 2nd & 4th order 
+     *											  3: 6th order radial distortion and both tangential distortion
+	 *												 terms (kc[3], kc[2]) are fixed [i.e., only 2nd & 4th order
 	 *												 radial dist.]
-     *											  4: 4th & 6th order radial distortion terms and both tangential 
+     *											  4: 4th & 6th order radial distortion terms and both tangential
 	 *												 distortion ones are fixed [i.e., only 2nd order radial dist.]
-     *											  5: all distortion parameters are kept fixed to their initial 
+     *											  5: all distortion parameters are kept fixed to their initial
 	 *												 values
      *											  >5: meaningless
-     *											  Used only when calibration varies among cameras and distortion 
+     *											  Used only when calibration varies among cameras and distortion
 	 *											  is to be estimated
 	 * int BAnconstframes				Input  -> Number of frames or cameras beginning from the first for which
 	 *											  their parameters (exrinsic and intrinsic) should be kept fixed.
-	 *											  This is, e.g., useful when the world's coordinate frame is 
+	 *											  This is, e.g., useful when the world's coordinate frame is
 	 *											  aligned with taht of the first camera, therefore the (projective)
 	 *											  first camera matrix should be kept fixed to [I|0].
 	 * int BAnconst3Dpts				Input  -> Number of structure elements (3D points) beginning from the first
@@ -222,25 +222,25 @@ public:
 	  nconstframes(BAnconstframes),
 	  nconst3Dpts(BAnconst3Dpts),
 	  expert(1), //If 1, the user specific expert drivers are used (all data is supplied at once to the functions for
-				 //calculating the jacobian and the projections). If 0, the functions are called for every single 
+				 //calculating the jacobian and the projections). If 0, the functions are called for every single
 				 //structure element.
 	  analyticjac(1), //if 1, a user-specified function for calculating the jacobian matrix (analytically) is called.
 					  //Otherwise, it is calculated numerically.
 	  verbose(0) //Verbosity level: The higher the number the more debug information is printed to the std-output
 	{
-		opts[0] = SBA_INIT_MU; //multiplication factor (tau) for the damping term (u = max_i=1...n(A_ii) with the 
+		opts[0] = SBA_INIT_MU; //multiplication factor (tau) for the damping term (u = max_i=1...n(A_ii) with the
 							   //normal equation A_ii = J^T*J) of the Levenberg-Marquardt algorithm
 		opts[1] = SBA_STOP_THRESH; //algorithm terminates if the magnitude of the gradient drops below this threshold
-		opts[2] = SBA_STOP_THRESH; //algorithm terminates if the relative magnitude of the parameter correction 
+		opts[2] = SBA_STOP_THRESH; //algorithm terminates if the relative magnitude of the parameter correction
 								   //vector (sigma) drops below a threshold involving this parameter
 		opts[3] = SBA_STOP_THRESH; //algorithm terminates if the magnitude of the residual (epsilon) drops below this
 								   //threshold
-		/* uncomment the following line in the function SBAdriver::perform_sba to force termination 
+		/* uncomment the following line in the function SBAdriver::perform_sba to force termination
 		if the average reprojection error drops below 0.05: opts[3]=0.05*numprojs; */
 		//opts[4] = 0.0; //algorithm terminates if the relative reduction in the magnitude of the residual (epsilon)
 					   //drops below this threshold
 		//uncomment to force termination if the relative reduction in the RMS reprojection error drops below 1E-05:
-		opts[4]=1E-05; 
+		opts[4]=1E-05;
 	}
 
 	//Destructor
@@ -363,14 +363,14 @@ public:
 	}
 
 	//Performs Bundle Adjustment (BA) by a Sparse Bundleadjustment Algorithm (SBA)
-	int perform_sba(std::vector<double *> & Rquats, 
-			   std::vector<double *> & trans, 
+	int perform_sba(std::vector<double *> & Rquats,
+			   std::vector<double *> & trans,
 			   std::vector<double *> pts2D,
-			   std::vector<int> num2Dpts, 
-			   double *pts3D, 
+			   std::vector<int> num2Dpts,
+			   double *pts3D,
 			   int numpts3D,
 			   std::vector<char *> *mask2Dpts = NULL,
-			   std::vector<double *> *intrParms = NULL, 
+			   std::vector<double *> *intrParms = NULL,
 			   std::vector<double *> *dist = NULL,
 			   std::vector<double *> *cov2Dpts = NULL);
 };

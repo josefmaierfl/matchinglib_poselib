@@ -12,14 +12,14 @@ int main(int argc, char* argv[])
 #else
 
 // ideal case
-#include "matchinglib\matchinglib.h"
-#include "matchinglib\vfcMatches.h"
-#include "pose_estim.h"
-#include "pose_helper.h"
-#include "pose_homography.h"
+#include "matchinglib/matchinglib.h"
+#include "matchinglib/vfcMatches.h"
+#include "poselib/pose_estim.h"
+#include "poselib/pose_helper.h"
+#include "poselib/pose_homography.h"
 // ---------------------
 
-#include "opencv2\imgproc\imgproc.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 #include "argvparser.h"
 #include "io_data.h"
@@ -32,8 +32,8 @@ using namespace std;
 using namespace cv;
 using namespace CommandLineProcessing;
 
-void showMatches(cv::Mat img1, cv::Mat img2, 
-				 std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, 
+void showMatches(cv::Mat img1, cv::Mat img2,
+				 std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2,
 				 std::vector<cv::DMatch> matches,
 				 int nrFeatures,
 				 bool drawAllKps = false);
@@ -121,9 +121,9 @@ int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::M
 	}
 	else
 		return -2;
-	
+
 	calibFile.close();
-	
+
 	return 0;
 }
 
@@ -203,7 +203,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 		"MVPTREE : \t Multi - Vantage Point Tree from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
 		"GHTREE : \t GH - Tree from the NMSLIB.Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
 		"LISTCLU : \t List of clusters from the NMSLIB.Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
-		"SATREE : \t Spatial Approximation Tree from the NMSLIB.\n BRUTEFORCENMS : \t Brute - force(sequential) searching from the NMSLIB.\n "
+		"SATREE : \t Spatial Approximation Tree from the NMSLIB.\n "
+		"BRUTEFORCENMS : \t Brute - force(sequential) searching from the NMSLIB.\n "
 		"ANNOY : \t Approximate Nearest Neighbors Matcher.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("nmsIdx",
 		"<Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details. Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
@@ -256,7 +257,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 				cout << "Option definitions changed in code!! Exiting." << endl;
 				exit(1);
 			}
-			
+
 			newargs[0] = argv[0];
 			newargs[1] = (char*)arg1str.c_str();
 			newargs[2] = "--l_img_pref=left_";
@@ -509,7 +510,7 @@ void startEvaluation(ArgvParser& cmd)
 	}
 	else
 		verbose = 7;
-	
+
 	if(cmd.foundOption("img_path") && cmd.foundOption("l_img_pref") && !cmd.foundOption("r_img_pref"))
 	{
 		oneCam = true;
@@ -566,7 +567,7 @@ void startEvaluation(ArgvParser& cmd)
 	else
 	{
 		showNr = 50;
-	} 
+	}
 
 	int failNr = 0;
   int step = 1;
@@ -661,7 +662,7 @@ void startEvaluation(ArgvParser& cmd)
 			dist1_8 = dist0_8;
 			K1 = K0;
 		}
-		
+
 		//Extract coordinates from keypoints
 		vector<cv::Point2f> points1, points2;
 		for(size_t i = 0; i < finalMatches.size(); i++)
@@ -1002,8 +1003,8 @@ void startEvaluation(ArgvParser& cmd)
 			{
 				sumt += t_kneip.at<double>(i);
 			}
-			
-			if (!(!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || 
+
+			if (!(!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
 				cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS) && !refineRT && !poselib::nearZero(sumt)))
 				poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
 			else
@@ -1099,8 +1100,8 @@ void startEvaluation(ArgvParser& cmd)
 	}
 }
 
-void showMatches(cv::Mat img1, cv::Mat img2, 
-				 std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, 
+void showMatches(cv::Mat img1, cv::Mat img2,
+				 std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2,
 				 std::vector<cv::DMatch> matches,
 				 int nrFeatures,
 				 bool drawAllKps)
@@ -1108,7 +1109,7 @@ void showMatches(cv::Mat img1, cv::Mat img2,
 	if(nrFeatures <= 0)
 	{
 		Mat drawImg;
-		
+
 		if(drawAllKps)
 		{
 			cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg);

@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: May 2017
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -19,7 +19,7 @@ DISCRIPTION: This file provides interfaces to the USAC framework for robust para
 #pragma once
 
 #include "opencv2/highgui/highgui.hpp"
-#include "glob_includes.h"
+#include "poselib/glob_includes.h"
 #include "usac/config/ConfigParamsEssentialMat.h"
 
 

@@ -4,12 +4,12 @@
  PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
 
  CODE: C++
- 
+
  AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
  DATE: July 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -20,7 +20,7 @@
 #include "HomographyAlignment.h"
 #include <Eigen/Core>
 #include <opencv2/core/eigen.hpp>
-#include "pose_helper.h"
+#include "poselib/pose_helper.h"
 
 using namespace std;
 using namespace cv;
@@ -31,22 +31,22 @@ using namespace cv;
  *
  * vector<pair<Mat,Mat>> inl_points		Input  -> Vector containing the correspondences of the different planes in the camera
  *												  coordinate system. Each vector element contains the correspondeces of one
- *												  plane where the first points are coordinates of the left camera and the second 
+ *												  plane where the first points are coordinates of the left camera and the second
  *												  points are coordinates of the right camera. The first vector element must contain
  *												  the largest correspondence set for the dominatest plane in the images.
  * vector<Mat> Hs						Input  -> Homographies of the planes in the camera coordinate system. The vector-ordering
  *												  of the homographys must be in the same order than their correspondences in
- *												  inl_points. 
+ *												  inl_points.
  * vector<unsigned int> num_inl			Input  -> Number of inliers (correspondences) for each plane. The vector-ordering
  *												  must be in the same order than Hs.
  * Mat R1_2								Input & Output -> If a rotation matrix is provided, the homography alignment is initialized
- *														  with this rotation and with t1_2 (in this case both, R1_2 & t1_2 have to 
- *														  be provided. Be careful to use the right rotation matrix and not its 
+ *														  with this rotation and with t1_2 (in this case both, R1_2 & t1_2 have to
+ *														  be provided. Be careful to use the right rotation matrix and not its
  *														  inverse R1_2.t(). If no initialization should be performed R1_2 must be empty.
  *														  The resulting rotation matrix after homography alignment is stored in R1_2.
  * Mat t1_2								Input & Output -> If a translation vector is provided, the homography alignment is initialized
- *														  with this translation and with R1_2 (in this case both, R1_2 & t1_2 have to 
- *														  be provided. Be careful to use the right rotation matrix and not its 
+ *														  with this translation and with R1_2 (in this case both, R1_2 & t1_2 have to
+ *														  be provided. Be careful to use the right rotation matrix and not its
  *														  inverse -t1_2. If no initialization should be performed t1_2 must be empty.
  *														  The resulting translation vector after homography alignment is stored in t1_2.
  * double tol							Input  -> Inlier threshold in the camera coordinate system.
@@ -81,7 +81,7 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 		//rot is rotation from frame 1 to frame 2
 		//PRT_INT("---- nr of planes", num_planes)
 		if(!t1_2.empty() && cv::norm(t1_2) > 0.0)
-		{		
+		{
 			if(!R1_2.empty())
 				rot2_1 = R1_2.t();
 			HomographysAlignment_initial_rotation(inl_points,num_inl,Hs[0],homo,rot2_1,t1_2,norms,tol);
@@ -164,13 +164,13 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
  *
  * vector<pair<Mat,Mat>> inl_points		Input  -> Vector containing the correspondences of the different planes in the camera
  *												  coordinate system. Each vector element contains the correspondeces of one
- *												  plane where the first points are coordinates of the left camera and the second 
+ *												  plane where the first points are coordinates of the left camera and the second
  *												  points are coordinates of the right camera. The first vector element must contain
  *												  the largest correspondence set for the dominatest plane in the images.
  * vector<unsigned int> num_inl			Input  -> Number of inliers (correspondences) for each plane. The vector-ordering
  *												  must be in the same order than inl_points.
  * InputArray H							Input  -> Homography corresponding to the first entry (correspondences) of inl_points. This
- *												  homography should have the largest support set of correspondences. 
+ *												  homography should have the largest support set of correspondences.
  * Mat homo								Output -> The refined input homography H after homography alignment.
  * Mat R2_1								Output -> The resulting rotation matrix from camera 1 to camera 2.
  * Mat t1_2								Output -> The resulting translation vector from camera 2 to camera 1.
@@ -219,7 +219,7 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	int num_patches;
 	num_patches = (int)num_inl.size();
 	_hh = Mat(3,3,CV_64F,hh);
-  
+
 	nump = 0;
 	for(i = 0; i < num_patches; ++i)
 	{
@@ -259,7 +259,8 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 
 				for(i = 1; i < num_patches; ++i)
 				{
-					update_dn(inl_points[i].first, inl_points[i].second, (int)num_inl[i], h0, rt0, dn.row(i));
+					cv::Mat tmp = dn.row(i);
+					update_dn(inl_points[i].first, inl_points[i].second, (int)num_inl[i], h0, rt0, tmp);
 				}
 
 				update_h0_rt(inl_points,num_inl,h0,dn,rt0);
@@ -365,13 +366,13 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
  *
  * vector<pair<Mat,Mat>> inl_points		Input  -> Vector containing the correspondences of the different planes in the camera
  *												  coordinate system. Each vector element contains the correspondeces of one
- *												  plane where the first points are coordinates of the left camera and the second 
+ *												  plane where the first points are coordinates of the left camera and the second
  *												  points are coordinates of the right camera. The first vector element must contain
  *												  the largest correspondence set for the dominatest plane in the images.
  * vector<unsigned int> num_inl			Input  -> Number of inliers (correspondences) for each plane. The vector-ordering
  *												  must be in the same order than inl_points.
  * InputArray H							Input  -> Homography corresponding to the first entry (correspondences) of inl_points. This
- *												  homography should have the largest support set of correspondences. 
+ *												  homography should have the largest support set of correspondences.
  * Mat homo								Output -> The refined input homography H after homography alignment.
  * Mat R2_1								Input & Output -> The homography alignment is initialized with this rotation. The resulting
  *														  rotation matrix from camera 1 to camera 2 after homography alignment is
@@ -481,11 +482,12 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 
 				for(i = 1; i < num_patches; ++i)
 				{
-					update_dn(inl_points[i].first, inl_points[i].second, (int)num_inl[i], h0, rt0, dn.row(i));
+					cv::Mat tmp = dn.row(i);
+					update_dn(inl_points[i].first, inl_points[i].second, (int)num_inl[i], h0, rt0, tmp);
 				}
 
 				update_h0_rt(inl_points,num_inl,h0,dn,rt0);
-				e1 = Check_error(inl_points, num_inl, h0, dn, rt0);        
+				e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
 				//printf("q = %d iter %d e1 = %f e2 = %f\n", q, iter, e1, e2);
 
 				if((fabs(e1-e2) < 0.00001 || e1 < tol)&& iter > 2)
@@ -561,8 +563,8 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 #undef MAX_ITERATION
 #endif
 
-/* Estimation of R, t & the plane normal vector (two possible solutions) based on the algorithm from Longuet-Higgine "A computer 
- * algorithm for reconstructing a scene from two projections", 1981. These parameters are estimted from a homography H and its 
+/* Estimation of R, t & the plane normal vector (two possible solutions) based on the algorithm from Longuet-Higgine "A computer
+ * algorithm for reconstructing a scene from two projections", 1981. These parameters are estimted from a homography H and its
  * inliers (in the camera coordinate system).
  *
  * InputArray H							Input  -> Homography between images and a world plane in the camera coordinate system.
@@ -607,7 +609,7 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
     double ps[3] ;
     double check1;
     int s1, s2, iter, k, i;
-    
+
 	Mat ht, ut, h_norm, x, r, _ts, _n, trans, plane, invtn, rot;
 	Mat _tn = Mat(3,3,CV_64F,tn);
 	Mat _hh = Mat(3,3,CV_64F,hh);
@@ -624,7 +626,7 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
     d[0] = d[0]/d[1];
     d[2] = d[2]/d[1];
     d[1] = 1.0;
-    
+
     if(d[0] - d[1] < 0.000001 && d[1]- d[2] < 0.000001)
     {
         // the two images are too close each other
@@ -635,13 +637,13 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
         //the homography degerate to a rotation
 		h_norm.copyTo(R1_2[0]);
 		h_norm.copyTo(R1_2[1]);
-        
+
         //the surface normal cannot be estimated here
 		norm[0] = Mat::zeros(3,1,CV_64F);
 		norm[1] = Mat::zeros(3,1,CV_64F);
         return 1;
     }
-    
+
     if(d[0] > 1.0 && d[2] <= 1.0)
     {
         t[0] = sqrt((d[0] - 1.0)*d[2]/(d[0] - d[2]));
@@ -662,7 +664,7 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
 	_ts = Mat(3,1,CV_64F,ts);
 	_ts = Mat::zeros(3,1,CV_64F);
 	_n = Mat(3,1,CV_64F,n);
-    
+
     for(s1 =-1; s1 <=1; s1 +=2)
     {
         for(s2 =-1; s2 <=1; s2 +=2)
@@ -676,12 +678,12 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
 			ts[0] = s1*t[0];
 			ts[1] = 0.0;
 			ts[2] = s2*t[2];
-            
+
 			trans = _u * _ts;
 			plane = _u * _n;
 			check1 = _n.dot(r);
 			check = trans.dot(plane) - 1.0;
-			
+
 			if(plane.at<double>(2) > 0.0 )
 			{
 				trans.copyTo(dt2in1[k]);
@@ -690,8 +692,8 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
 			}
          }
     }
-    
-   
+
+
     for(i = 0; i < k; ++i)
     {
 		for(size_t j = 0; j < 3; j++)
@@ -715,12 +717,12 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
 		}
 		rot.copyTo(R1_2[i]);
     }
-    
+
     return 1;
 }
 
-/* Estimation of R, t & the plane normal vector (two possible solutions) based on the algorithm from Longuet-Higgine "A computer 
- * algorithm for reconstructing a scene from two projections", 1981. These parameters are estimted from a homography H and its 
+/* Estimation of R, t & the plane normal vector (two possible solutions) based on the algorithm from Longuet-Higgine "A computer
+ * algorithm for reconstructing a scene from two projections", 1981. These parameters are estimted from a homography H and its
  * inliers (in the camera coordinate system).
  *
  * InputArray H							Input  -> Homography between images and a world plane in the camera coordinate system.
@@ -743,7 +745,7 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
     double ps[3] ;
 
     double check1;
-    
+
     int s1, s2, iter, i;
 
 	Mat ht, h_norm, rot, x, r, _ts, trans, plane, _ps, _n, invtn;
@@ -751,13 +753,13 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 	Mat _tn = Mat(3,3,CV_64F,tn);
 	Mat _hh = Mat(3,3,CV_64F,hh);
 	Mat _u = Mat(3,3,CV_64F,u);
-    
+
 	ht = _H.t();
 	_hh = ht * _H;
     //u here is the Ut on the right side
     jacobi33(hh, d, u, &iter);
-    
-    
+
+
     //if d[1] != 1.0 make a correction
 	_hh = -1.0 * _hh;
     d2 = 1.0/sqrt(d[1]);
@@ -774,12 +776,12 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
         //the homography degerate to a rotation
 		h_norm.copyTo(rot);
 		h_norm.copyTo(R2_1);
-        
+
         //the surface normal cannot be estimated here
 		norm1 = Mat::zeros(3,1,CV_64F);
         return 1;
     }
-    
+
     if(d[0] > 1.0 && d[2] <= 1.0)
     {
         t[0] = sqrt((d[0] - 1.0)*d[2]/(d[0] - d[2]));
@@ -793,14 +795,14 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
     {
         return 0;
     }
-    
+
 	x = Mat::zeros(3,1,CV_64F);
 	x.at<double>(2) = 1.0;
 	r = _u * x;
 	_ts = Mat(3,1,CV_64F,ts);
 	_ts = Mat::zeros(3,1,CV_64F);
 	_n = Mat(3,1,CV_64F,n);
-    
+
     for(s1 =-1; s1 <=1; s1 +=2)
     {
         for(s2 =-1; s2 <=1; s2 +=2)
@@ -814,12 +816,12 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 			ts[0] = s1*t[0];
 			ts[1] = 0.0;
 			ts[2] = s2*t[2];
-            
+
 			trans = _u * _ts;
 			plane = _u * _n;
 			check1 = _n.dot(r);
 			check = trans.dot(plane) - 1.0;
-			
+
 			if(plane.at<double>(2) > 0.0 )
 			{
 				dt.push_back(trans.clone());
@@ -839,7 +841,7 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 		dt[1].copyTo(dt1);
 		norm[1].copyTo(norm1);
     }
-    
+
 	for(size_t j = 0; j < 3; j++)
 	{
 		for(size_t j1 = 0; j1 < 3; j1++)
@@ -853,18 +855,18 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 	_tn = -1.0 * _tn;
 	invtn = _tn.inv();
 	rot = h_norm * invtn;
-    
+
     if(determinant(rot) < 0.0)
     {
 		rot = -1.0 * rot;
     }
     rot.copyTo(R2_1);
-    
+
     return 1;
 }
 
 /* Diagonalization of the matrix W=(H^T)H with the unknown orthogonal matrix U (where H is a homography) to solve UWU^T=Diag(d1, d2, d3)
- * as described in the paper "Real-time Surface Estimation by Homography Alignment for Spacecraft Safe Landing" from Yang Cheng 
+ * as described in the paper "Real-time Surface Estimation by Homography Alignment for Spacecraft Safe Landing" from Yang Cheng
  * in 2010. The input to this function is a=W=(H^T)H. The output are the 3 diagonal elemnts d and the matrix v=U^T.
  *
  * double a[3][3]						Input  -> Matrix W=(H^T)H, where H is a homography matrix
@@ -912,11 +914,11 @@ int jacobi33(double a[3][3], double d[3], double v[3][3], int *nrot)
 				d[0] = d[1];
 				d[1] = c;
 				//zero33(dt);
-				memset(dt,0,9*sizeof(double));           
+				memset(dt,0,9*sizeof(double));
 				dt[0][1] = 1.0;
 				dt[1][0] = 1.0;
 				dt[2][2] = 1.0;
-				
+
 				//mult333(v, dt, tmp);
 				Mat _v = Mat(3,3,CV_64F,v);
 				Mat _dt = Mat(3,3,CV_64F,dt);
@@ -1208,7 +1210,7 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
 
  int update_h0_rt(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				  std::vector<unsigned int> num_inl,
-				  cv::Mat & homo, 
+				  cv::Mat & homo,
 				  cv::Mat dn,
 				  cv::Mat & rt)
 {
@@ -1326,7 +1328,7 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
  * M[4][4] * N[4][4] -> P[4][4]:	MLLinearTransform(&M[0][0], &N[0][0], &P[0][0], 4, 4, 4);
  * v[4] * M[4][3] -> w[3]:			MLLinearTransform(&v[0], &M[0][0], &w[0], 1, 4, 3);
  * v[3] tensor w[3] -> T[3][3]:		MLLinearTransform(&v[0], &w[0], T[3][3], 3, 1, 3);
- * This can be used In Place, i.e., 
+ * This can be used In Place, i.e.,
  * to transform the left matrix
  * by the right matrix, placing the result back in the left.  By its nature,
  * then, this can only be used for transforming row vectors or concatenating
@@ -1352,13 +1354,13 @@ void LinearTransformD(
 	register long j, i;				/* Loop counters */
 	register long lRowBytes = lCol * sizeof(double);
 	const char *lb = (const char*)L;
-	double temp[MAXDIM*MAXDIM]; // Temporary storage for in-place transformations 
+	double temp[MAXDIM*MAXDIM]; // Temporary storage for in-place transformations
 	register double *tp;
-	
+
 	if (P == L) {  // IN PLACE
 		double *op = P;				/* Output geometry */
 		for (i = nRows; i--; lb += rowBytes) {	/* Each row in L */
-			{	
+			{
 				for (k = lCol, lp = (double*)lb, tp = &temp[0]; k--; )
 					*tp++ = *lp++;			/* Copy one input vector to temp storage */
 			}
@@ -1394,7 +1396,7 @@ void LinearTransformD(
 				*P++ = sum;
 			}
 		}
-	} 
+	}
 }
 
 void AddMatrixD (double *A, double *B, double *result, long m, long n)
@@ -1447,7 +1449,7 @@ long InvertMatrixD (const double *M, double *Minv, long nRows, register long n)
 
 		LUSolveD(lu, b, m, n);	/* Into a row of m */
 	}
-	
+
 	/* Special post-processing for affine transformations (e.g. 4x3) */
 	if (tallerBy) {			/* Affine transformation */
 		register double *t = Minv+n*n;			/* Translation vector */
@@ -1548,7 +1550,7 @@ void LUSolveD(
 	register long i, j;
 	double dot;
 	register const long *ps;
-	
+
 	ps = (const long *)(&lu[n*n]); /* Memory for ps[] comes after LU[][] */
 
 	/* Vector reduction using U triangular matrix */
@@ -1571,7 +1573,7 @@ void LUSolveD(
 //compute mean of reprojection error
 double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				  std::vector<unsigned int> num_inl,
-				  cv::Mat base_homo, 
+				  cv::Mat base_homo,
 				  cv::Mat dn,
 				  cv::Mat rt)
 	//double **points1, double **points2, int *num_pts, int num_homo, double base_homo[3][3], double *dn, double rt[3])

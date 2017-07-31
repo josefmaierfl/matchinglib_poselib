@@ -83,6 +83,7 @@ set(headers
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib_matchers.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib_correspondences.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/vfcMatches.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/glob_includes.h"
 )
 
 set(sources
@@ -101,9 +102,9 @@ set(sources
     ${source_path}/CascadeHash/DataPreProcessor.cc
     ${source_path}/CascadeHash/HashConvertor.cc
     ${source_path}/CascadeHash/MatchPairLoader.cc
-	
+
 	${source_path}/descriptor-RIFF/riff.cpp
-	
+
 	${source_path}/descriptor-BOLD/bold.cpp
 )
 
@@ -168,7 +169,7 @@ target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-	
+
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
@@ -199,8 +200,8 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
-	
-	
+
+
     INTERFACE
 )
 
@@ -218,7 +219,7 @@ target_compile_definitions(${target}
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
     #${FLANN_DEFINITIONS}
-	
+
 
     INTERFACE
 )

@@ -27,7 +27,7 @@ set_policy(CMP0054 NEW) # ENABLE CMP0054: Only interpret if() arguments as varia
 set_policy(CMP0042 NEW) # ENABLE CMP0042: MACOSX_RPATH is enabled by default.
 set_policy(CMP0063 NEW) # ENABLE CMP0063: Honor visibility properties for all target types.
 
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 #
 # Project description and (meta) information
 #
@@ -171,7 +171,7 @@ install(FILES LICENSE   DESTINATION ${INSTALL_ROOT} COMPONENT runtime)
 install(FILES README.md DESTINATION ${INSTALL_ROOT} COMPONENT runtime)
 
 # Install runtime data
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/data DESTINATION ${INSTALL_DATA} COMPONENT runtime)
+#install(DIRECTORY ${PROJECT_SOURCE_DIR}/data DESTINATION ${INSTALL_DATA} COMPONENT runtime)
 
 # Install runtime data
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/imgs DESTINATION ${INSTALL_DATA} COMPONENT bin)
+#install(DIRECTORY ${PROJECT_SOURCE_DIR}/imgs DESTINATION ${INSTALL_DATA} COMPONENT bin)
