@@ -46,9 +46,12 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 
-#include <Eigen/Core>
-#include <Eigen/SVD>
-#include <Eigen/Dense>
+//#include <Eigen/Core>
+#include <eigen3/Eigen/Core>
+//#include <Eigen/SVD>
+#include <eigen3/Eigen/SVD>
+//#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
 #include <opencv2/core/eigen.hpp>
 

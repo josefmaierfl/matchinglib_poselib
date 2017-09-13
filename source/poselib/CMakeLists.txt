@@ -6,14 +6,14 @@
 if("$ENV{THIRDPARTYROOT}" STREQUAL "")
   message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
 endif()
-include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+#include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 
 find_package(Eigen REQUIRED)
-if (Eigen_FOUND STREQUAL "YES")
-  message("Eigen found!")
-else()
-  message(FATAL_ERROR "Eigen not found!")
-endif()
+#if (Eigen_FOUND STREQUAL "YES")
+#  message("Eigen found!")
+#else()
+#  message(FATAL_ERROR "Eigen not found!")
+#endif()
 
 
 # if(WIN32)
@@ -26,18 +26,21 @@ endif()
 
 # if(NOT OpenCV_DIR)
 if("${OpenCV_DIR}" STREQUAL "")
-    message(STATUS "could not find any opencv dir trying fallback")
-    if(WIN32)
-      # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-      # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-	  find_package(OpenCV 3.2 REQUIRED)
-    else()
-      set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
-      find_package(OpenCV REQUIRED)
-    endif()
+	message(ERROR " OpenCV_DIR not set!")
+	#if(WIN32)
+	# set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
+	# find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
+	#find_package(OpenCV 3.2 REQUIRED)
+	#else()
+	#set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
+	#find_package(OpenCV 3.2 REQUIRED)
+	#endif()
 else()
-    find_package(OpenCV 3.2 REQUIRED)
+	#set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
+	#find_package(OpenCV 3.2 REQUIRED)
 endif()
+
+find_package(OpenCV 3.2 REQUIRED)
 
 #set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
 #find_package(OpenCV 3.0)
@@ -76,12 +79,14 @@ else()
   message(FATAL_ERROR "SBA not found!")
 endif()
 
-find_package(OpenGV REQUIRED)
-if (OPENGV_FOUND STREQUAL "YES")
-  message("OpenGV found!")
-else()
-  message(FATAL_ERROR "OpenGV not found!")
-endif()
+#find_package(OpenGV REQUIRED)
+#if (OPENGV_FOUND STREQUAL "YES")
+#  message("OpenGV found!")
+#else()
+#  message(FATAL_ERROR "OpenGV not found!")
+#endif()
+
+add_subdirectory(thirdparty/opengv)
 
 
 #
@@ -243,6 +248,7 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
+    ${EIGEN3_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
@@ -250,10 +256,10 @@ target_include_directories(${target}
     #${Nanoflann_INCLUDE_DIR}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
-    ${Eigen_INCLUDE_DIR}
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
-    ${OPENGV_INCLUDE_DIR}
+    #${OPENGV_INCLUDE_DIR}
+    #${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -269,6 +275,8 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
 
+    opengv
+
     PUBLIC
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
@@ -276,7 +284,8 @@ target_link_libraries(${target}
     ${CLAPACK_LIBRARIES}
     ${SBA_LIBRARIES}
     ${CLAPACK_LIBRARIES}
-    ${OPENGV_LIBRARIES}
+    #${OPENGV_LIBRARIES}
+    Eigen
 
     INTERFACE
 )

@@ -10,34 +10,40 @@ if(WIN32)
 if("$ENV{THIRDPARTYROOT}" STREQUAL "")
   message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
 endif()
-include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+#include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 endif()
 
-if(WIN32)
-  find_package(Eigen REQUIRED)
-else()
-  find_package(PkgConfig)
-  pkg_search_module(EIGEN REQUIRED eigen3)
-endif()
+#if(WIN32)
+#  find_package(Eigen REQUIRED)
+#else()
+#  find_package(PkgConfig)
+#  pkg_search_module(EIGEN REQUIRED eigen3)
+#endif()
+
+#message(WARNING ${CMAKE_MODULE_PATH})
 
 find_package(Eigen REQUIRED)
 
 if("${OpenCV_DIR}" STREQUAL "")
-    message(STATUS "could not find any opencv dir trying fallback")
-    if(WIN32)
+    message(ERROR " OpenCV_DIR not set!")
+    #if(WIN32)
       # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
       # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-	  find_package(OpenCV 3.2 REQUIRED)
-    else()
-      set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
-      find_package(OpenCV REQUIRED)
-    endif()
+	  #find_package(OpenCV 3.2 REQUIRED)
+    #else()
+      #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
+      #find_package(OpenCV 3.2 REQUIRED)
+    #endif()
 else()
-    find_package(OpenCV 3.2 REQUIRED)
+    #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
+    #find_package(OpenCV 3.2 REQUIRED)
 endif()
 
+find_package(OpenCV 3.2 REQUIRED)
 
-find_package(Nanoflann REQUIRED)
+#SET( Nanoflann_FOUND "YES" )
+SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.1.1/include")
+#find_package(Nanoflann REQUIRED)
 #find_package(Flann REQUIRED)
 
 find_package(OpenMP)
@@ -103,9 +109,8 @@ set(sources
     ${source_path}/CascadeHash/HashConvertor.cc
     ${source_path}/CascadeHash/MatchPairLoader.cc
 
-	${source_path}/descriptor-RIFF/riff.cpp
-
-	${source_path}/descriptor-BOLD/bold.cpp
+    ${source_path}/descriptor-RIFF/riff.cpp
+    ${source_path}/descriptor-BOLD/bold.cpp
 )
 
 # Group source files
@@ -172,15 +177,15 @@ target_include_directories(${target}
 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
+    ${EIGEN3_INCLUDE_DIR}
+    ${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
     #${FLANN_INCLUDE_DIRS}
-    ${Nanoflann_INCLUDE_DIR}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
-    ${Eigen_INCLUDE_DIR}
-    ${EIGEN3_INCLUDE_DIR}
+    #${EIGEN3_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -194,13 +199,13 @@ target_include_directories(${target}
 #
 target_link_libraries(${target}
     PRIVATE
-	NonMetricSpaceLib
+    NonMetricSpaceLib
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
-
+    Eigen
 
     INTERFACE
 )
@@ -213,7 +218,7 @@ target_link_libraries(${target}
 target_compile_definitions(${target}
     PRIVATE
     $<$<BOOL:${USE_NON_FREE_CODE}>:USE_NON_FREE_CODE>
-	#$<$<BOOL:${DISABLE_ITERATOR_DEBUG}>:_ITERATOR_DEBUG_LEVEL=0>
+    #$<$<BOOL:${DISABLE_ITERATOR_DEBUG}>:_ITERATOR_DEBUG_LEVEL=0>
 
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
