@@ -6,12 +6,12 @@
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
 #option(DISABLE_ITERATOR_DEBUG "Set _ITERATOR_DEBUG_LEVEL=0 to be able to run the annoy matcher in Debug mode." OFF)
 
-if(WIN32)
-if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-endif()
+#if(WIN32)
+#if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+#  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+#endif()
 #include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-endif()
+#endif()
 
 #if(WIN32)
 #  find_package(Eigen REQUIRED)

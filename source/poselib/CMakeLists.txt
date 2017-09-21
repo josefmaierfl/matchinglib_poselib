@@ -3,9 +3,9 @@
 # External dependencies
 #
 
-if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-endif()
+#if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+#  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+#endif()
 #include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 
 find_package(Eigen REQUIRED)
@@ -249,6 +249,7 @@ target_include_directories(${target}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${EIGEN3_INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
@@ -259,7 +260,6 @@ target_include_directories(${target}
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
     #${OPENGV_INCLUDE_DIR}
-    #${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
