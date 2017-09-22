@@ -202,6 +202,7 @@ target_link_libraries(${target}
     NonMetricSpaceLib
 
     PUBLIC
+
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}

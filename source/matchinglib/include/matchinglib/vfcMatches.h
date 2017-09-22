@@ -19,7 +19,7 @@
 
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/features2d/features2d.hpp"
-#include "matchinglib//glob_includes.h"
+#include "matchinglib/glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"
 
