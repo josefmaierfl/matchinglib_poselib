@@ -1,6 +1,13 @@
+if ("$ENV{THIRDPARTYROOT}" STREQUAL "")
+    message(FATAL_ERROR "THIRDPARTYROOT not set!" )
+endif()
+SET(THIRDPARTYROOT "$ENV{THIRDPARTYROOT}")
+
 SET( SBA_FOUND "YES" )
-SET( SBA_INCLUDE_DIR "/home/martin/thirdpartyroot/sba-1.6")
-SET( SBA_LIBRARY_DIR "/home/martin/thirdpartyroot/sba-1.6/lib/linux64gcc48")
+SET( SBA_INCLUDE_DIR "${THIRDPARTYROOT}/sba-1.6")
+SET( SBA_LIBRARY_DIR "${THIRDPARTYROOT}/sba-1.6/lib/linux64gcc48")
+
+
 
 SET(SBAlibs "sba")
 set(SBA_DEBUG_POSTFIX "_d")

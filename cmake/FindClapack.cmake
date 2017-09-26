@@ -1,6 +1,12 @@
+if ("$ENV{THIRDPARTYROOT}" STREQUAL "")
+    message(FATAL_ERROR "THIRDPARTYROOT not set!" )
+endif()
+SET(THIRDPARTYROOT "$ENV{THIRDPARTYROOT}")
+
 SET( CLAPACK_FOUND "YES" )
-SET( CLAPACK_INCLUDE_DIR "/home/martin/thirdpartyroot/clapack-3.2.1/INCLUDE")
-SET( CLAPACK_LIBRARY_DIR "/home/martin/thirdpartyroot/clapack-3.2.1/lib/linux64gcc48")
+SET( CLAPACK_LIBRARY_DIR "${THIRDPARTYROOT}/clapack-3.2.1/lib/linux64gcc48")
+SET( CLAPACK_INCLUDE_DIR "${THIRDPARTYROOT}/clapack-3.2.1/INCLUDE")
+
 
 SET(CLAPACKlibs "blas" "lapack" "tmglib")
 
