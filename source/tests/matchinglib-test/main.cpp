@@ -117,9 +117,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                    ArgvParser::NoOptionAttribute);
   cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=8000] that should be used for matching.>",
                    ArgvParser::OptionRequiresValue);
-  cmd.defineOption("subPixRef",
-                   "<If provided, the feature positions of the final matches are refined by template matching to get sub-pixel accuracy. Be careful, if there are large rotations, changes in scale or other feature deformations between the matches, this option should not be set.>",
-                   ArgvParser::NoOptionAttribute);
+  cmd.defineOption("subPixRef", "<If provided, the feature positions of the final matches are refined by either template matching or OpenCV's corner refinement (cv::cornerSubPix) to get sub-pixel accuracy. Be careful, if there are large rotations, changes in scale or other feature deformations between the matches, template matching option should not be set. The following options are possible:\n 0\t No refinement.\n 1\t Refinement using template matching.\n >1\t Refinement using the OpenCV function cv::cornerSubPix seperately for both images.>", ArgvParser::OptionRequiresValue);
   cmd.defineOption("showNr",
                    "<Specifies the number of matches that should be drawn [Default=50]. If the number is set to -1, all matches are drawn. If the number is set to -2, all matches in addition to all not matchable keypoints are drawn.>",
                    ArgvParser::OptionRequiresValue);
@@ -189,7 +187,8 @@ void startEvaluation(ArgvParser& cmd)
   string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry;
   string show_str;
   int showNr, f_nr;
-  bool noRatiot, refineVFC, refineSOF, DynKeyP, subPixRef, drawSingleKps = false;
+  bool noRatiot, refineVFC, refineSOF, DynKeyP, drawSingleKps = false;
+  int subPixRef = 0;
   bool oneCam = false;
   int err, verbose;
   vector<string> filenamesl, filenamesr;
@@ -202,7 +201,11 @@ void startEvaluation(ArgvParser& cmd)
   refineVFC = cmd.foundOption("refineVFC");
   refineSOF = cmd.foundOption("refineSOF");
   DynKeyP = cmd.foundOption("DynKeyP");
-  subPixRef = cmd.foundOption("subPixRef");
+  
+  if (cmd.foundOption("subPixRef"))
+  {
+	  subPixRef = atoi(cmd.optionValue("subPixRef").c_str());
+  }
 
   if(cmd.foundOption("f_detect"))
   {

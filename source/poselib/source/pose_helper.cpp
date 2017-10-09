@@ -2771,7 +2771,7 @@ double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrM
 {
 	double nrMatches = (double)matches.size();
 	double epsilonInit = 0.8 * (double)nrMatchesVfcFiltered / nrMatches;
-	epsilonInit = epsilonInit > 0.75 ? 0.75 : epsilonInit;
+	epsilonInit = epsilonInit > 0.4 ? 0.4 : epsilonInit;
 	epsilonInit = epsilonInit < 0.1 ? 0.1 : epsilonInit;
 
 	return epsilonInit;
@@ -2811,5 +2811,73 @@ void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int
 	{
 		sortedMatchIdx[i] = (unsigned int)matches[i].queryIdx;
 	}
+}
+
+/* Checks if a 3x3 matrix is a rotation matrix
+*
+* cv::Mat R				Input  -> Rotation matrix
+*
+* Return:				true or false
+*/
+bool isMatRoationMat(cv::Mat R)
+{
+	CV_Assert(!R.empty());
+
+	Eigen::Matrix3d Re;
+	cv::cv2eigen(R, Re);
+
+	return isMatRoationMat(Re);
+}
+
+/* Checks if a 3x3 matrix is a rotation matrix
+*
+* Matrix3d R			Input  -> Rotation matrix
+*
+* Return:				true or false
+*/
+bool isMatRoationMat(Eigen::Matrix3d R)
+{
+	//Check if R is a rotation matrix
+	Eigen::Matrix3d R_check = (R.transpose() * R) - Eigen::Matrix3d::Identity();
+	double r_det = R.determinant() - 1.0;
+
+	return R_check.isZero(1e-3) && poselib::nearZero(r_det);
+}
+
+/* Calculates the Sampson L2 error for 1 correspondence
+*
+* InputArray E			Input  -> Essential matrix
+* InputArray x1			Input  -> First point correspondence
+* InputArray x2			Input  -> Second point correspondence
+*
+* Return:				Sampson L2 error
+*/
+double getSampsonL2Error(cv::InputArray E, cv::InputArray x1, cv::InputArray x2)
+{
+	Eigen::Vector3d x1e, x2e;
+	Eigen::Matrix3d Ee;
+	cv::cv2eigen(E.getMat(), Ee);
+	cv::cv2eigen(x1.getMat(), x1e);
+	cv::cv2eigen(x2.getMat(), x2e);
+	return getSampsonL2Error(Ee, x1e, x2e);
+}
+
+/* Calculates the Sampson L2 error for 1 correspondence
+*
+* Matrix3d E			Input  -> Essential matrix
+* Vector3d x1			Input  -> First point correspondence
+* Vector3d x2			Input  -> Second point correspondence
+*
+* Return:				Sampson L2 error
+*/
+double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d x2)
+{
+	double r, rx, ry, temp_err;
+	Eigen::Vector3d x2E = x2.transpose() * E;
+	r = x2E.dot(x1);
+	rx = E.row(0).dot(x1);
+	ry = E.row(2).dot(x1);
+	temp_err = r*r / (x2E(0)*x2E(0) + x2E(1)*x2E(1) + rx*rx + ry*ry);
+	return temp_err;
 }
 }

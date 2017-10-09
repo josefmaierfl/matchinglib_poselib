@@ -546,7 +546,7 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 			else
 			{
 				fivept_nister_essentials[0] = opengv::relative_pose::eightpt(*adapter, indices);
-				poselib::getClosestE(fivept_nister_essentials[0]);
+				//poselib::getClosestE(fivept_nister_essentials[0]);
 				fivept_nister_essentials_denorm[0] = m_T2_trans_e * fivept_nister_essentials[0] * m_T1_e;
 			}
 			//Store result back into USAC format to allow using their validateSample() code
@@ -846,9 +846,9 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 					{
 						return false;
 					}
-			if (poselib::nearZero(R_eigen_new(0, 0)) || poselib::nearZero(R_eigen_new(1, 1)) || poselib::nearZero(R_eigen_new(2, 2)))
+			if (!poselib::isMatRoationMat(R_eigen_new))
 				return false;
-			if (poselib::nearZero(t_eigen_new(0, 0) * 10) && poselib::nearZero(t_eigen_new(1, 1) * 10) && poselib::nearZero(t_eigen_new(2, 2) * 10))
+			if (t_eigen_new.isZero(1e-3))
 				return false;
 
 			cv::eigen2cv(R_eigen_new, R_tmp);
@@ -1078,6 +1078,7 @@ bool EssentialMatEstimator::evaluateModel(unsigned int modelIndex, unsigned int*
 			{
 				lambdaj = lambdaj_1 * ((1 - sprt_delta_) / (1 - sprt_epsilon_));
 			}
+			if (lambdaj <= DBL_EPSILON) lambdaj = DBL_EPSILON * 10;
 
 			if (lambdaj > decision_threshold_sprt_)
 			{
@@ -1144,6 +1145,7 @@ bool EssentialMatEstimator::evaluateModelRot(opengv::rotation_t model, unsigned 
 			{
 				lambdaj = lambdaj_1 * ((1 - sprt_delta_) / (1 - sprt_epsilon_));
 			}
+			if (lambdaj <= DBL_EPSILON) lambdaj = DBL_EPSILON * 10;
 
 			if (lambdaj > decision_threshold_sprt_)
 			{
@@ -1227,6 +1229,7 @@ bool EssentialMatEstimator::evaluateModelTrans(opengv::translation_t model, unsi
 			{
 				lambdaj = lambdaj_1 * ((1 - sprt_delta_) / (1 - sprt_epsilon_));
 			}
+			if (lambdaj <= DBL_EPSILON) lambdaj = DBL_EPSILON * 10;
 
 			if (lambdaj > decision_threshold_sprt_)
 			{
@@ -1274,7 +1277,7 @@ void EssentialMatEstimator::testSolutionDegeneracy(bool* degenerateModel, bool* 
 		if (!enableHDegen && (degeneracyType & DEGEN_UPGRADE))
 			*upgradeModel = true;*/
 
-		if (degeneracyType == DEGEN_ROT_TRANS | DEGEN_UPGRADE)
+		if (degeneracyType == (DEGEN_ROT_TRANS | DEGEN_UPGRADE))
 		{
 			//Degeneracy due to no motion:
 			testSolutionDegeneracyNoMot(degenerateModel);
@@ -1477,11 +1480,12 @@ void EssentialMatEstimator::testSolutionDegeneracyRot(bool* degenerateModel)
 		}
 		unsigned int num_inliers = PoseTools::getRotError(test, 3, errs, adapter_denorm, R_, poseDegenTheshold);
 
-		for (unsigned int j = 0, count = 2; j < 3; ++j)
+		unsigned int count1 = 2;
+		for (unsigned int j = 0; j < 3; ++j)
 		{
 			if (errs[j] < poseDegenTheshold)
 			{
-				sample[count++] = test[j];
+				sample[count1++] = test[j];
 			}
 		}
 
@@ -1490,6 +1494,12 @@ void EssentialMatEstimator::testSolutionDegeneracyRot(bool* degenerateModel)
 		{
 			// find inliers from all data points
 			num_inliers = PoseTools::getRotError(evaluation_pool_, usac_num_data_points_, errs, adapter_denorm, R_, poseDegenTheshold);
+			if (num_inliers < 2)
+			{
+				sample_pos += 2;
+				test_pos += 3;
+				continue;
+			}
 			//std::cout << "Degenerate sample found with " << num_inliers << " inliers" << std::endl;
 
 			// refine with least squares fit
@@ -1500,6 +1510,8 @@ void EssentialMatEstimator::testSolutionDegeneracyRot(bool* degenerateModel)
 				if (errs[j] < poseDegenTheshold)
 				{
 					inlier_sample[count++] = (int)evaluation_pool_[j];
+					if(count1 < 5)
+						sample[count1++] = (int)evaluation_pool_[j];
 				}
 			}
 			R_ = opengv::relative_pose::rotationOnly(*adapter_denorm, inlier_sample);
@@ -1635,7 +1647,7 @@ void EssentialMatEstimator::testSolutionDegeneracyTrans(bool* degenerateModel)
 			}
 		}
 
-		// if at least 1 inlier in the test points, then h-degenerate sample found
+		// if at least 1 inlier in the test points, then t-degenerate sample found
 		if (num_inliers > 0)
 		{
 			opengv::eigensolverOutput_t eig_out;
@@ -1643,6 +1655,12 @@ void EssentialMatEstimator::testSolutionDegeneracyTrans(bool* degenerateModel)
 			double roll, pitch, yaw;
 			// find inliers from all data points
 			num_inliers = PoseTools::getTransError(evaluation_pool_, usac_num_data_points_, errs, adapter_denorm, t_, poseDegenTheshold);
+			if (num_inliers < 2)
+			{
+				sample_pos += 2;
+				test_pos += 3;
+				continue;
+			}
 			//std::cout << "Degenerate sample found with " << num_inliers << " inliers" << std::endl;
 
 			// refine with least squares fit
@@ -1800,6 +1818,8 @@ void EssentialMatEstimator::testSolutionDegeneracyNoMot(bool* degenerateModel)
 				{
 					usac_results_.degen_inlier_flags_noMot[evaluation_pool_[j]] = 1;
 					degen_outlier_flags_noMot[evaluation_pool_[j]] = 0;
+					if(degen_sample_noMot.size() < 5)
+						degen_sample_noMot.push_back((int)evaluation_pool_[j]);
 				}
 				else
 				{
@@ -1839,7 +1859,8 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 			}
 		}
 		std::vector<unsigned int> outlier_sample(2);
-		std::fill(errs_.begin(), errs_.begin() + usac_num_data_points_, DBL_MAX);
+		//std::fill(errs_.begin(), errs_.begin() + usac_num_data_points_, DBL_MAX);
+		std::fill(err_ptr_[0], err_ptr_[0] + usac_num_data_points_, DBL_MAX);
 		std::vector<double>::iterator current_err_array = err_ptr_[0];
 
 		double* pt1_index, *pt2_index;
@@ -2014,15 +2035,17 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 				}
 			}
 			std::vector<unsigned int> outlier_sample(1);
-			std::fill(errs_.begin(), errs_.begin() + usac_num_data_points_, DBL_MAX);
+			//std::fill(errs_.begin(), errs_.begin() + usac_num_data_points_, DBL_MAX);
+			std::fill(err_ptr_[0], err_ptr_[0] + usac_num_data_points_, DBL_MAX);
 			std::vector<double>::iterator current_err_array = err_ptr_[0];
 			opengv::translation_t t_;
+			unsigned int degen_sample_noMot_size = degen_sample_noMot.size();
 			for (unsigned int i = 0; i < degen_max_upgrade_samples_noMot_trans; ++i)
 			{
 				generateUniformRandomSample(num_outliers, 1, &outlier_sample);
 				std::vector<int> index(2);
 				index[0] = (int)outlier_indices[outlier_sample[0]];
-				unsigned int deg_sample_idx = std::rand() % 5;
+				unsigned int deg_sample_idx = std::rand() % degen_sample_noMot_size;
 				index[1] = degen_sample_noMot[deg_sample_idx];
 
 				t_ = opengv::relative_pose::twopt(*adapter_denorm, false, index);
@@ -2058,15 +2081,29 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 						storeSolution(0, num_inliers);
 						best_upgrade_inliers = num_inliers;
 
-						for (size_t j = 0; j < 3; j++)
+						if (degen_sample_noMot_size > 3)
 						{
-							unsigned int deg_sample_idx1 = std::rand() % 5;
-							while(degen_sample_noMot[deg_sample_idx1] == index[1])
-								deg_sample_idx1 = std::rand() % 5;
-							min_sample_[j] = degen_sample_noMot[deg_sample_idx1];
+							unsigned int deg_sample_idx1 = 0;
+							for (size_t j = 0; j < 3; j++)
+							{
+								/*unsigned int deg_sample_idx1 = std::rand() % degen_sample_noMot_size;
+								while(degen_sample_noMot[deg_sample_idx1] == index[1])
+									deg_sample_idx1 = std::rand() % degen_sample_noMot_size;
+								min_sample_[j] = degen_sample_noMot[deg_sample_idx1];*/
+
+								if (degen_sample_noMot[deg_sample_idx1] == index[1])
+								{
+									j--;
+									deg_sample_idx1++;
+									continue;
+								}
+								min_sample_[j] = degen_sample_noMot[deg_sample_idx1];
+								deg_sample_idx1++;
+
+							}
+							min_sample_[3] = index[1];
+							min_sample_[4] = index[0];
 						}
-						min_sample_[3] = index[1];
-						min_sample_[4] = index[0];
 						usac_results_.degen_inlier_count_trans = num_inliers;
 					}
 
@@ -2158,7 +2195,8 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 				}
 			}
 			std::vector<unsigned int> outlier_sample(3);
-			std::fill(errs_.begin(), errs_.begin() + usac_num_data_points_, DBL_MAX);
+			//std::fill(errs_.begin(), errs_.begin() + usac_num_data_points_, DBL_MAX);
+			std::fill(err_ptr_[0], err_ptr_[0] + usac_num_data_points_, DBL_MAX);
 			std::vector<double>::iterator current_err_array = err_ptr_[0];
 			opengv::rotation_t R_;
 			opengv::translation_t t_;
@@ -2166,9 +2204,6 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 			{
 				generateUniformRandomSample(num_outliers, 3, &outlier_sample);
 				std::vector<int> index(5);
-				index[0] = (int)outlier_indices[outlier_sample[0]];
-				unsigned int deg_sample_idx = std::rand() % 5;
-				index[1] = degen_sample_noMot[deg_sample_idx];
 
 				for (unsigned int j = 0; j < 3; j++)
 					index[j] = (int)outlier_indices[outlier_sample[j]];
@@ -2292,7 +2327,7 @@ void EssentialMatEstimator::findWeights(unsigned int modelIndex, const std::vect
 	{
 		opengv::essential_t model = fivept_nister_essentials_denorm[modelIndex];
 		opengv::bearingVector_t f, fprime;
-		double pseudohuberth = usac_inlier_threshold_ / 50.0;
+		double pseudohuberth = std::sqrt(usac_inlier_threshold_) / 50.0;
 		for (unsigned int i = 0; i < numInliers; ++i)
 		{
 			// get index of point to be verified

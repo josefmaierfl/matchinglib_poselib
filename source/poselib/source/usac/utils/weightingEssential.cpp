@@ -1,3 +1,21 @@
+/**********************************************************************************************************
+FILE: weightingEssential.cpp
+
+PLATFORM: Windows 7, MS Visual Studio 2010
+
+CODE: C++
+
+AUTOR: Josef Maier, AIT Austrian Institute of Technology
+
+DATE: June 2017
+
+LOCATION: TechGate Vienna, Donau-City-Stra?e 1, 1220 Vienna
+
+VERSION: 1.0
+
+DISCRIPTION: This file provides functions for linear refinement of Essential matrices using weights
+**********************************************************************************************************/
+
 
 #include "usac/utils/weightingEssential.h"
 
@@ -161,4 +179,89 @@ double computePseudoHuberWeight(const opengv::bearingVector_t  & f, const opengv
 							  * error is the same as the numerator of the Sampson distance and
 							  * should be replaced by the pseudo-huber cost function during SVD.
 							  */
+}
+
+double computeTorrWeight(const opengv::bearingVector_t  & f, const opengv::bearingVector_t  & fprime, const opengv::essential_t & E)
+{
+	double rx, ry, ryc, rxc;
+	// compute weight (ref: torr dissertation, eqn. 2.25)
+	rxc = E.col(0).transpose() * fprime;
+	ryc = E.col(1).transpose() * fprime;
+	rx = E.row(0) * f;
+	ry = E.row(1) * f;
+
+	/*pt = input_points_ + 6 * pt_index;
+	rxc = (*model) * (*(pt + 3)) + (*(model + 3)) * (*(pt + 4)) + (*(model + 6));
+	ryc = (*(model + 1)) * (*(pt + 3)) + (*(model + 4)) * (*(pt + 4)) + (*(model + 7));
+	rx = (*model) * (*(pt)) + (*(model + 1)) * (*(pt + 1)) + (*(model + 2));
+	ry = (*(model + 3)) * (*(pt)) + (*(model + 4)) * (*(pt + 1)) + (*(model + 5));*/
+
+	double weight = 1 / sqrt(rxc*rxc + ryc*ryc + rx*rx + ry*ry);
+	return weight;
+}
+
+opengv::essential_t eightpt_weight(
+	const opengv::relative_pose::CentralRelativeWeightingAdapter & adapter)
+{
+	opengv::Indices idx(adapter.getNumberCorrespondences());
+	return eightpt_weight(adapter, idx);
+}
+
+opengv::essential_t eightpt_weight(
+	const opengv::relative_pose::CentralRelativeWeightingAdapter & adapter,
+	const opengv::Indices & indices)
+{
+	size_t numberCorrespondences = indices.size();
+	assert(numberCorrespondences > 7);
+
+	Eigen::MatrixXd A(numberCorrespondences, 9);
+
+	double weightnorm = 0;
+	for (size_t i = 0; i < numberCorrespondences; i++)
+	{
+		weightnorm += std::pow(adapter.getWeight(indices[i]), 2);
+	}
+	weightnorm = std::sqrt(weightnorm);
+
+	for (size_t i = 0; i < numberCorrespondences; i++)
+	{
+		//bearingVector_t f1 = adapter.getBearingVector1(indices[i]);
+		//bearingVector_t f2 = adapter.getBearingVector2(indices[i]);
+		//The eight-point essentially computes the inverse transformation, which is
+		//why we invert the input here
+		opengv::bearingVector_t f1 = adapter.getBearingVector2(indices[i]);
+		opengv::bearingVector_t f2 = adapter.getBearingVector1(indices[i]);
+		double weight = adapter.getWeight(indices[i]);
+
+		//normal 8pt algorithm
+		A.block<1, 3>(i, 0) = f2[0] * f1.transpose();
+		A.block<1, 3>(i, 3) = f2[1] * f1.transpose();
+		A.block<1, 3>(i, 6) = f2[2] * f1.transpose();
+		//additional weighting:
+		A.row(i) *= weight / weightnorm;
+	}
+
+	Eigen::JacobiSVD< Eigen::MatrixXd > SVD(
+		A,
+		Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::Matrix<double, 9, 1> f = SVD.matrixV().col(8);
+
+	Eigen::MatrixXd F_temp(3, 3);
+	F_temp.col(0) = f.block<3, 1>(0, 0);
+	F_temp.col(1) = f.block<3, 1>(3, 0);
+	F_temp.col(2) = f.block<3, 1>(6, 0);
+	opengv::essential_t F = F_temp.transpose();
+
+	Eigen::JacobiSVD< Eigen::MatrixXd > SVD2(
+		F,
+		Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::Matrix3d S = Eigen::Matrix3d::Zero();
+	S(0, 0) = SVD2.singularValues()[0];
+	S(1, 1) = SVD2.singularValues()[1];
+
+	Eigen::Matrix3d U = SVD2.matrixU();
+	Eigen::Matrix3d Vtr = SVD2.matrixV().transpose();
+
+	opengv::essential_t essential = U * S * Vtr;
+	return essential;
 }

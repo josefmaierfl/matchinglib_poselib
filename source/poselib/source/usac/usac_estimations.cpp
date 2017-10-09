@@ -129,7 +129,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	if (!sortedMatchIdx.empty())
 	{
 		c_pro.beta = prosac_beta;// 0.09;//probability of incorrect model being support by a random data point, can be adapted to use values from sprt, --------------> maybe should be changed
-		c_pro.maxSamples = 100000; //number of samples after which PROSAC behaves like RANSAC
+		c_pro.maxSamples = 1000;// 100000; //number of samples after which PROSAC behaves like RANSAC
 		c_pro.minStopLen = 20;
 		c_pro.nonRandConf = 0.99; //find non-minimal subset with probability of randomness smaller than (1-non_rand_conf)
 		c_pro.sortedPointIndices = &sortedMatchIdx[0];
@@ -332,7 +332,7 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	c_com.confThreshold = 0.99; // ransac_conf: 0.0 - 1.0 (must be double), specifies the confidence parameter
 	c_com.minSampleSize = 5; //min_sample_size: int, number of points used to generate models
 	c_com.inlierThreshold = th; //inlier_threshold: double, threshold for inlier classification
-	c_com.maxHypotheses = 100000;// 850000;//--------------> maybe should be changed
+	c_com.maxHypotheses = 25000;// 850000;//--------------> maybe should be changed
 	if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
 		c_com.maxSolutionsPerSample = MAX_SOLS_KNEIP;
 	else
@@ -361,7 +361,7 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	if (!sortedMatchIdx.empty())
 	{
 		c_pro.beta = prosac_beta;// 0.09;//probability of incorrect model being support by a random data point, can be adapted to use values from sprt, --------------> maybe should be changed
-		c_pro.maxSamples = 100000; //number of samples after which PROSAC behaves like RANSAC
+		c_pro.maxSamples = 1000;// 100000; //number of samples after which PROSAC behaves like RANSAC
 		c_pro.minStopLen = 20;
 		c_pro.nonRandConf = 0.99; //find non-minimal subset with probability of randomness smaller than (1-non_rand_conf)
 		c_pro.sortedPointIndices = &sortedMatchIdx[0];
@@ -434,9 +434,16 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	}
 	numhyps += fund->usac_results_.hyp_count_;
 	modelcount += fund->usac_results_.model_count_;
-
+	if (fund->usac_results_.hyp_count_ > 2000 && fund->usac_results_.sprt_epsilon_ > 0.2)//If epsilon is chosen too large USAC will fail returning a good model and will need many iteratios for really small inlier ratios or a threshold chosen too small
+	{
+		sprt_epsilon_result = fund->usac_results_.sprt_epsilon_ / 2.0;
+	}
+	else
+	{
+		sprt_epsilon_result = fund->usac_results_.sprt_epsilon_;
+	}
 	sprt_delta_result = fund->usac_results_.sprt_delta_;
-	sprt_epsilon_result = fund->usac_results_.sprt_epsilon_;
+	
 
 	//Get model parameters
 	if (E.needed())
@@ -764,7 +771,7 @@ int estimateRotationMatUsac(cv::InputArray p1,
 	if (!sortedMatchIdx.empty())
 	{
 		c_pro.beta = prosac_beta;// 0.09;//probability of incorrect model being support by a random data point, can be adapted to use values from sprt, --------------> maybe should be changed
-		c_pro.maxSamples = 100000; //number of samples after which PROSAC behaves like RANSAC
+		c_pro.maxSamples = 1000;// 100000; //number of samples after which PROSAC behaves like RANSAC
 		c_pro.minStopLen = 20;
 		c_pro.nonRandConf = 0.99; //find non-minimal subset with probability of randomness smaller than (1-non_rand_conf)
 		c_pro.sortedPointIndices = &sortedMatchIdx[0];
@@ -929,7 +936,7 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	c_com.confThreshold = 0.99; // ransac_conf: 0.0 - 1.0 (must be double), specifies the confidence parameter
 	c_com.minSampleSize = 5; //min_sample_size: int, number of points used to generate models
 	c_com.inlierThreshold = th; //inlier_threshold: double, threshold for inlier classification
-	c_com.maxHypotheses = 100000;// 850000;//--------------> maybe should be changed
+	c_com.maxHypotheses = 25000;// 850000;//--------------> maybe should be changed
 	if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
 		c_com.maxSolutionsPerSample = MAX_SOLS_KNEIP;
 	else

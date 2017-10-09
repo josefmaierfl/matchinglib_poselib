@@ -62,6 +62,10 @@ namespace matchinglib
 //This function calculates the subpixel-position of matched keypoints by template matching
   int MATCHINGLIB_API getSubPixMatches(cv::Mat& img1, cv::Mat& img2, std::vector<cv::KeyPoint> *keypoints1,
                                        std::vector<cv::KeyPoint> *keypoints2, std::vector<bool> *inliers = NULL);
+  
+  //This function calculates the subpixel-position of matched keypoints by using the OpenCV function cv::cornerSubPix()
+  int MATCHINGLIB_API getSubPixMatches_seperate_Imgs(cv::Mat &img1, cv::Mat &img2, std::vector<cv::KeyPoint> *keypoints1, std::vector<cv::KeyPoint> *keypoints2,
+	  std::vector<bool> *inliers);
 
   bool MATCHINGLIB_API IsMatcherSupported(std::string const& type);
   std::vector<std::string> MATCHINGLIB_API GetSupportedMatcher();

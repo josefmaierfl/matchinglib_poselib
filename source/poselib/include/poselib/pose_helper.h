@@ -154,4 +154,12 @@ double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::Ke
 double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrMatchesVfcFiltered);
 //This function generates an index of the matches with the lowest matching costs first.
 void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int> & sortedMatchIdx);
+//Checks if a 3x3 matrix is a rotation matrix
+bool POSELIB_API isMatRoationMat(cv::Mat R);
+//Checks if a 3x3 matrix is a rotation matrix
+bool POSELIB_API isMatRoationMat(Eigen::Matrix3d R);
+//Calculates the Sampson L2 error for 1 correspondence
+double POSELIB_API getSampsonL2Error(cv::InputArray E, cv::InputArray x1, cv::InputArray x2);
+//Calculates the Sampson L2 error for 1 correspondence
+double POSELIB_API getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d x2);
 }

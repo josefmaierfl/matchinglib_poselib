@@ -48,7 +48,7 @@ int MATCHINGLIB_API getCorrespondences(cv::Mat& img1,
                        bool VFCrefine = false,
                        bool ratioTest = true,
                        bool SOFrefine = false,
-                       bool subPixRefine = false,
+                       int subPixRefine = 0,
                        int verbose = 0,
 					   std::string idxPars_NMSLIB = "",
 					   std::string queryPars_NMSLIB = "");

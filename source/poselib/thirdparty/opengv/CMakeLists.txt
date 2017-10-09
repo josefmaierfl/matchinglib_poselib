@@ -54,9 +54,9 @@ ENDIF()
 
 # get eigen (under windows)
 IF(WIN32)
-  set(ADDITIONAL_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/third_party
-                              ${PROJECT_SOURCE_DIR}/third_party/eigen3
-                              ${PROJECT_SOURCE_DIR}/third_party/eigen3/unsupported )
+  find_package(Eigen REQUIRED)
+  set(ADDITIONAL_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR}
+      ${EIGEN3_INCLUDE_DIR}/unsupported )
 ELSE()
 #  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/modules/")
   find_package(Eigen REQUIRED)
@@ -186,8 +186,8 @@ set( OPENGV_HEADER_FILES
   include/opengv/point_cloud/MAPointCloud.hpp )
 
 IF(WIN32)
-  add_library( opengv ${OPENGV_SOURCE_FILES} ${OPENGV_HEADER_FILES} )
-  add_library( random_generators test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )
+  add_library( opengv STATIC ${OPENGV_SOURCE_FILES} ${OPENGV_HEADER_FILES} )
+  add_library( random_generators STATIC test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )
 ELSE()
   add_library( opengv STATIC ${OPENGV_SOURCE_FILES} ${OPENGV_HEADER_FILES} )
   add_library( random_generators STATIC test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )

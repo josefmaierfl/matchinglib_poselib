@@ -40,7 +40,7 @@ namespace poselib
 	//Possibilities to estimate the essential matrix:
 	enum POSELIB_API PoseEstimator { POSE_NISTER, POSE_EIG_KNEIP, POSE_STEWENIUS };
 
-	//Possibilities to refine the model:
+	//Possibilities to refine the model in the inner USAC:
 	enum POSELIB_API RefineAlg {
 		REF_WEIGHTS,
 		REF_8PT_PSEUDOHUBER,
@@ -50,6 +50,18 @@ namespace poselib
 		REF_STEWENIUS_WEIGHTS,
 		REF_NISTER,
 		REF_NISTER_WEIGHTS
+	};
+
+	//Possibilities for refinement and weighting after the first estimation with RANSAC, ARRSAC, or USAC (first 8bit choose refinement alg and second 8bit weighting function)
+	enum POSELIB_API RefinePostAlg {
+		PR_NO_REFINEMENT = 0x0,//no refinement
+		PR_8PT = 0x1,//refinement using 8pt algorithm
+		PR_NISTER = 0x2,//refinement using Nister
+		PR_STEWENIUS = 0x3,//refinement using Stewenius
+		PR_KNEIP = 0x4,//refinement using Kneips Eigensolver
+		PR_TORR_WEIGHTS = 0x10,//Refinement using weighting with Torr weights. This option must be combined with one of the solvers (8pt, Nister, ...)
+		PR_PSEUDOHUBER_WEIGHTS = 0x20,//Refinement using weighting with Pseudo-Huber weights. This option must be combined with one of the solvers (8pt, Nister, ...)
+		PR_NO_WEIGHTS = 0x30//Do not use weights for refinement
 	};
 
 	//Possible initializations for SPRT

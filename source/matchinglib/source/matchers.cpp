@@ -1192,7 +1192,7 @@ namespace matchinglib
 
       newKeyP = cv::Point2f((float)(rec2.x+minLoc.x+(featuresize1-1)/2), (float)(rec2.y+minLoc.y+(featuresize1-1)/2));
 
-      if( std::sqrt(std::pow(newKeyP.x-cvRound(keypoints2->at(i).pt.x),2)+std::pow(newKeyP.y-cvRound(keypoints2->at(i).pt.y),2)) <= 4)
+      if((std::pow(newKeyP.x-cvRound(keypoints2->at(i).pt.x),2)+std::pow(newKeyP.y-cvRound(keypoints2->at(i).pt.y),2)) <= 16)
       {
         InliersMask[(int)i] = true;
 
@@ -1239,6 +1239,100 @@ namespace matchinglib
     }
 
     return 0;
+  }
+
+  /* This function calculates the subpixel-position of each keypoint in both images seperately using the OpenCV function
+  * cv::cornerSubPix(). This function is also suitable for large rotations and scale changes between images.
+  *
+  * Mat img1                 Input  -> First image
+  * Mat img2                 Input  -> Second image
+  * vector<KeyPoint> *keypoints1       Input  -> Keypoints in the first (left) image
+  *                            which match to keypoints2 (a match must have the same index
+  *                            in keypoints1 and keypoints2)
+  * vector<KeyPoint> *keypoints2       Input  -> Keypoints in the second (right) image
+  *                            which match to keypoints1 (a match must have the same index
+  *                            in keypoints1 and keypoints2)
+  * vector<bool> inliers           Output -> Inlier mask. For matches with subpixel-locations
+  *                            farer than 4 pixels to the original position are
+  *                            marked as outliers.
+  *
+  * Return value:                 0:     Everything ok
+  *                        -1:     Subpixel refinement failed for too many keypoints
+  *                        -2:     Size of keypoint sets not equal
+  */
+  int getSubPixMatches_seperate_Imgs(cv::Mat &img1, cv::Mat &img2, std::vector<cv::KeyPoint> *keypoints1, std::vector<cv::KeyPoint> *keypoints2,
+	  std::vector<bool> *inliers)
+  {
+	  unsigned int nrInliers = 0;
+	  vector<bool> InliersMask(keypoints1->size(), true);
+	  float minKeySize[2] = { FLT_MAX, FLT_MAX };
+
+	  if (keypoints1->size() != keypoints2->size())
+	  {
+		  cout << "For subpixel-refinement the number of left and right keypoints must be the same as they must match!" << endl;
+		  return -2;
+	  }
+
+	  size_t n = keypoints1->size();
+	  vector<cv::Point2f> p1s(keypoints1->size()), p2s(keypoints2->size());
+	  vector<cv::Point2f> p1s_old, p2s_old;
+
+	  for (size_t i = 0; i < n; i++)
+	  {
+		  p1s[i] = keypoints1->at(i).pt;
+		  p2s[i] = keypoints2->at(i).pt;
+		  if ((keypoints1->at(i).size > 0) && (keypoints1->at(i).size < minKeySize[0]))
+			  minKeySize[0] = keypoints1->at(i).size;
+		  if ((keypoints2->at(i).size > 0) && (keypoints2->at(i).size < minKeySize[1]))
+			  minKeySize[1] = keypoints2->at(i).size;
+	  }
+	  p1s_old = p1s;
+	  p2s_old = p2s;
+	  minKeySize[0] = minKeySize[0] > 20.f ? 20.f : minKeySize[0];
+	  minKeySize[0] = minKeySize[0] < 6.f ? 6.f : minKeySize[0];
+	  minKeySize[0] /= 2.f;
+	  minKeySize[0] = std::ceilf(minKeySize[0]);
+	  minKeySize[1] = minKeySize[1] > 20.f ? 20.f : minKeySize[1];
+	  minKeySize[1] = minKeySize[1] < 6.f ? 6.f : minKeySize[1];
+	  minKeySize[1] /= 2.f;
+	  minKeySize[1] = std::ceilf(minKeySize[1]);
+
+	  TermCriteria criteria = TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+
+	  cv::cornerSubPix(img1, p1s, cv::Size((int)minKeySize[0], (int)minKeySize[0]), cv::Size(-1, -1), criteria);
+	  cv::cornerSubPix(img2, p2s, cv::Size((int)minKeySize[1], (int)minKeySize[1]), cv::Size(-1, -1), criteria);
+
+	  cv::Point2f diff[2];
+	  float diffd[2];
+	  for (size_t i = 0; i < n; i++)
+	  {
+		  diff[0] = p1s_old[i] - p1s[i];
+		  diffd[0] = diff[0].x * diff[0].x + diff[0].y * diff[0].y;
+		  diff[1] = p2s_old[i] - p2s[i];
+		  diffd[1] = diff[1].x * diff[1].x + diff[1].y * diff[1].y;
+		  if (diffd[0] > 12 || diffd[1] > 12)
+		  {
+			  InliersMask[i] = false;
+		  }
+		  else
+		  {
+			  keypoints1->at(i).pt = p1s[i];
+			  keypoints2->at(i).pt = p2s[i];
+			  nrInliers++;
+		  }
+	  }
+
+	  if (inliers != NULL)
+	  {
+		  *inliers = InliersMask;
+	  }
+
+	  if ((nrInliers < n / 3) || (nrInliers < MIN_FINAL_MATCHES))
+	  {
+		  return -1;  //Subpixel refinement failed for too many keypoints
+	  }
+
+	  return 0;
   }
 
   /* This function compares the weights of the matches to be able to sort them accordingly

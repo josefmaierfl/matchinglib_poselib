@@ -99,9 +99,9 @@ namespace matchinglib
    *                      optical flow (SOF). This only maks sence, if the GMBSOF algorithm is not
    *                      used, as GMBSOF depends on SOF. This filtering strategy is computational
    *                      expensive for a large amount of matches.
-   * bool subPixRefine      Input  -> If true [Default = false], the subpixel-positions of matched keypoints are
-   *                      calculated by template matching. Be careful, if there are large rotations,
-   *                      changes in scale or other feature deformations between the matches, this
+   * bool subPixRefine      Input  -> If larger 0 [Default = 0], the subpixel-positions of matched keypoints are
+   *                      calculated by either template matching (subPixRefine = 1) or corner refinement using cv::cornerSubPix (subPixRefine > 1). Be careful, if there are large rotations,
+   *                      changes in scale or other feature deformations between the matches, the template matching
    *                      method should not be called.
    * int verbose          Input  -> Set the verbose level [Default = 0]:
    *                      0:  no information
@@ -134,7 +134,7 @@ namespace matchinglib
                          bool VFCrefine,
                          bool ratioTest,
                          bool SOFrefine,
-                         bool subPixRefine,
+                         int subPixRefine,
                          int verbose,
 						 std::string idxPars_NMSLIB,
 						 std::string queryPars_NMSLIB)
@@ -483,8 +483,13 @@ namespace matchinglib
         keypoints1_tmp.push_back(keypoints1.at(queryIdxs[i]));
         keypoints2_tmp.push_back(keypoints2.at(trainIdxs[i]));
       }
-
-      if(getSubPixMatches(img1, img2, &keypoints1_tmp, &keypoints2_tmp, &inliers) != 0)
+	  
+	  int err_subpix;
+	  if (subPixRefine == 1)
+		  err_subpix = getSubPixMatches(img1, img2, &keypoints1_tmp, &keypoints2_tmp, &inliers);
+	  else
+		  err_subpix = getSubPixMatches_seperate_Imgs(img1, img2, &keypoints1_tmp, &keypoints2_tmp, &inliers);
+	  if (err_subpix != 0)
       {
         cout << "Subpixel refinement would have rejected too many matches -> skipped. Taking integer positions instead." << endl;
       }

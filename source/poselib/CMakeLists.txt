@@ -3,12 +3,16 @@
 # External dependencies
 #
 
-#if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-#  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-#endif()
-#include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 
 find_package(Eigen REQUIRED)
+
+if(WIN32)
+	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+	 message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+	endif()
+	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+endif()
+
 #if (Eigen_FOUND STREQUAL "YES")
 #  message("Eigen found!")
 #else()
@@ -120,6 +124,7 @@ set(headers
 	${include_path}/${target}/glob_includes.h
 	${include_path}/${target}/pose_estim.h
 	${include_path}/${target}/pose_helper.h
+	${include_path}/${target}/pose_linear_refinement.h
 	
 	${include_path}/arrsac/arrsac.h
 	${include_path}/arrsac/estimator.h
@@ -164,6 +169,7 @@ set(sources
 	${source_path}/imgproj.c
 	${source_path}/pose_estim.cpp
 	${source_path}/pose_helper.cpp
+	${source_path}/pose_linear_refinement.cpp
 	
 	${source_path}/arrsac/sequential_probability_ratio.cc
 	
@@ -248,7 +254,7 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${EIGEN3_INCLUDE_DIR}
+    # ${EIGEN3_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
 
     PUBLIC
@@ -275,9 +281,10 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
 
-    opengv
+    # opengv
 
     PUBLIC
+	opengv
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}

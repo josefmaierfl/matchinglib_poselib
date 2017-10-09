@@ -1251,6 +1251,12 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 	unsigned int nrInliers = 0;
 	double prosac_beta = 0.09, sprt_delta = 0.05, sprt_epsilon = 0.15, sprt_delta_res = 0, sprt_epsilon_res = 0;
 	static double sprt_delta_old = 0, sprt_delta_new = 0, sprt_epsilon_old = 0, sprt_epsilon_new = 0;
+	const int historylength = 20;//If this value is changed, also the array sizes of sprt_delta_history and sprt_epsilon_history have to be changed to the same value
+	static double sprt_delta_history[20], sprt_epsilon_history[20];
+	static int historyCnt = 0;
+	static bool historyBufFull = false;
+	static statVals sprt_delta_stat, sprt_epsilon_stat;
+	static bool statistic_valid = false;
 	std::vector<unsigned int> sortedMatchIdx, *sortedMatchIdxPtr = NULL;
 	switch (cfg.estimator)
 	{
@@ -1299,6 +1305,10 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 	}
 
 	//Estimate initial values for delta and epsilon of the SPRT test
+	const double statStdDivTh[2] = { 0.1, 0.2 };//Threshold for delta and epsilon on their history standard deviation
+	const double relativeDifferenceTh[2] = { 0.33, 0.4 };//Threshold for delta and epsilon on their relative difference of the last two values
+	const double relDiffArithToStd = 0.45;//Used to choose if the statistic should be used: The standard deviation must be smaller than relDiffArithToStd times the arithmetic mean value
+	const double ignoreRelDiffATSTh[2] = { 0.1, 0.1 };//The relative threshold using relDiffArithToStd is ignored, if the arithmetic mean is below this value for delta and epsilon
 	if (cfg.automaticSprtInit == SprtInit::SPRT_DELTA_AUTOM_INIT)
 	{
 		if (sprt_delta_old == 0 || sprt_delta_new == 0)
@@ -1306,14 +1316,33 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
 			sprt_delta_new = sprt_delta;
 		}
-		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.2)
+		else if (!statistic_valid || (statistic_valid && ((sprt_delta_stat.arithStd > statStdDivTh[0]) || ((sprt_delta_stat.arithErr > ignoreRelDiffATSTh[0]) && (sprt_delta_stat.arithStd > relDiffArithToStd * sprt_delta_stat.arithErr)))))
 		{
-			sprt_delta = sprt_delta_new;
+			if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < relativeDifferenceTh[0])
+			{
+				sprt_delta = sprt_delta_new;
+			}
+			else
+			{
+				sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+			}
 		}
 		else
 		{
-			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+			sprt_delta = sprt_delta_stat.arithErr;
 		}
+
+		/*if (statistic_valid &&
+			(sprt_epsilon_stat.arithStd <= statStdDivTh[1]) &&
+			((sprt_epsilon_stat.arithErr <= ignoreRelDiffATSTh[1]) ||
+			(sprt_epsilon_stat.arithStd <= relDiffArithToStd * sprt_epsilon_stat.arithErr)))
+		{
+			sprt_epsilon = sprt_epsilon_stat.arithErr;
+		}
+		else
+		{
+			sprt_epsilon = 0.15;
+		}*/
 	}
 	else if (cfg.automaticSprtInit == SprtInit::SPRT_EPSILON_AUTOM_INIT)
 	{
@@ -1322,18 +1351,39 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			sprt_epsilon = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
 			sprt_epsilon_new = sprt_epsilon;
 		}
-		else
+		else if (!statistic_valid || 
+			(statistic_valid && 
+			((sprt_epsilon_stat.arithStd > statStdDivTh[1]) || 
+				((sprt_epsilon_stat.arithErr > ignoreRelDiffATSTh[1]) && 
+				(sprt_epsilon_stat.arithStd > relDiffArithToStd * sprt_epsilon_stat.arithErr)))))
 		{
-			double sprt_epsilon_tmp = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
-			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.25 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.5)
+			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < relativeDifferenceTh[1])
 			{
 				sprt_epsilon = sprt_epsilon_new;
 			}
 			else
 			{
-				sprt_epsilon = sprt_epsilon_tmp;
+				sprt_epsilon = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
 			}
 		}
+		else
+		{
+			sprt_epsilon = sprt_epsilon_stat.arithErr;
+		}
+
+		/*if (statistic_valid &&
+			(sprt_delta_stat.arithStd <= statStdDivTh[0]) &&
+			((sprt_delta_stat.arithErr <= ignoreRelDiffATSTh[0]) ||
+			(sprt_delta_stat.arithStd <= relDiffArithToStd * sprt_delta_stat.arithErr)))
+		{
+			sprt_delta = sprt_delta_stat.arithErr;
+			prosac_beta = sprt_delta;
+		}
+		else
+		{
+			sprt_delta = 0.05;
+			prosac_beta = 0.09;
+		}*/
 	}
 	else if (cfg.automaticSprtInit == (SprtInit::SPRT_DELTA_AUTOM_INIT | SprtInit::SPRT_EPSILON_AUTOM_INIT))
 	{
@@ -1342,32 +1392,77 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
 			sprt_delta_new = sprt_delta;
 		}
-		else if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < 0.2)
+		else if (!statistic_valid || 
+			(statistic_valid && 
+			((sprt_delta_stat.arithStd > statStdDivTh[0]) || 
+				((sprt_delta_stat.arithErr > ignoreRelDiffATSTh[0]) && 
+				(sprt_delta_stat.arithStd > relDiffArithToStd * sprt_delta_stat.arithErr)))))
 		{
-			sprt_delta = sprt_delta_new;
+			if (abs((sprt_delta_old - sprt_delta_new) / sprt_delta_old) < relativeDifferenceTh[0])
+			{
+				sprt_delta = sprt_delta_new;
+			}
+			else
+			{
+				sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+			}
 		}
 		else
 		{
-			sprt_delta = estimateSprtDeltaInit(*cfg.matches, *cfg.keypoints1, *cfg.keypoints2, cfg.th_pixels, cfg.imgSize);
+			sprt_delta = sprt_delta_stat.arithErr;
 		}
 		if (sprt_epsilon_old == 0 || sprt_epsilon_new == 0)
 		{
 			sprt_epsilon = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
 			sprt_epsilon_new = sprt_epsilon;
 		}
-		else
+		else if (!statistic_valid || 
+			(statistic_valid && 
+			((sprt_epsilon_stat.arithStd > statStdDivTh[1]) || 
+				((sprt_epsilon_stat.arithErr > ignoreRelDiffATSTh[1]) && 
+				(sprt_epsilon_stat.arithStd > relDiffArithToStd * sprt_epsilon_stat.arithErr)))))
 		{
-			double sprt_epsilon_tmp = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
-			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < 0.25 && abs((sprt_epsilon_tmp - sprt_epsilon_new) / sprt_epsilon_tmp) < 0.5)
+			if (abs((sprt_epsilon_old - sprt_epsilon_new) / sprt_epsilon_old) < relativeDifferenceTh[1])
 			{
 				sprt_epsilon = sprt_epsilon_new;
 			}
 			else
 			{
-				sprt_epsilon = sprt_epsilon_tmp;
+				sprt_epsilon = estimateSprtEpsilonInit(*cfg.matches, cfg.nrMatchesVfcFiltered);
 			}
 		}
+		else
+		{
+			sprt_epsilon = sprt_epsilon_stat.arithErr;
+		}
 	}
+	/*else if (cfg.automaticSprtInit == SprtInit::SPRT_DEFAULT_INIT)
+	{
+		if (statistic_valid && 
+			(sprt_delta_stat.arithStd <= statStdDivTh[0]) && 
+			((sprt_delta_stat.arithErr <= ignoreRelDiffATSTh[0]) || 
+			(sprt_delta_stat.arithStd <= relDiffArithToStd * sprt_delta_stat.arithErr)))
+		{
+			sprt_delta = sprt_delta_stat.arithErr;
+			prosac_beta = sprt_delta;
+		}
+		else
+		{
+			sprt_delta = 0.05;
+			prosac_beta = 0.09;
+		}
+		if (statistic_valid && 
+			(sprt_epsilon_stat.arithStd <= statStdDivTh[1]) && 
+			((sprt_epsilon_stat.arithErr <= ignoreRelDiffATSTh[1]) || 
+			(sprt_epsilon_stat.arithStd <= relDiffArithToStd * sprt_epsilon_stat.arithErr)))
+		{
+			sprt_epsilon = sprt_epsilon_stat.arithErr;
+		}
+		else
+		{
+			sprt_epsilon = 0.15;
+		}
+	}*/
 	else if (cfg.automaticSprtInit != SprtInit::SPRT_DEFAULT_INIT)
 	{
 		cout << "Method for SPRT initialization not supported!" << endl;
@@ -1422,7 +1517,8 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			return -2;
 		}
 		isDegenerate = false;
-		if ((used_estimator == USACConfig::REFINE_EIG_KNEIP || used_estimator == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && !R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
+		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && 
+			!R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
 		{
 			if (R.empty())
 				R.create(3, 3, CV_64F);
@@ -1478,7 +1574,8 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			return -2;
 		}
 
-		if ((used_estimator == USACConfig::REFINE_EIG_KNEIP || used_estimator == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && !R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
+		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && 
+			!R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
 		{
 			if (R.empty())
 				R.create(3, 3, CV_64F);
@@ -1559,7 +1656,8 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			cout << "USAC failed!" << endl;
 			return -2;
 		}
-		if ((used_estimator == USACConfig::REFINE_EIG_KNEIP || used_estimator == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && !R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
+		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && 
+			!R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
 		{
 			if (R.empty())
 				R.create(3, 3, CV_64F);
@@ -1627,6 +1725,26 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 	sprt_epsilon_old = sprt_epsilon_new;
 	sprt_epsilon_new = sprt_epsilon_res;
 
+	//History
+	if (!nearZero(sprt_delta_res) && !nearZero(sprt_epsilon_res))
+	{
+		sprt_delta_history[historyCnt] = sprt_delta_res;
+		sprt_epsilon_history[historyCnt] = sprt_epsilon_res;
+		historyCnt = (historyCnt + 1) % historylength;
+		if (historyCnt == 0) historyBufFull = true;
+
+		if (historyBufFull)
+		{
+			getStatsfromVec(std::vector<double>(sprt_delta_history, sprt_delta_history + historylength), &sprt_delta_stat, true);
+			getStatsfromVec(std::vector<double>(sprt_epsilon_history, sprt_epsilon_history + historylength), &sprt_epsilon_stat, true);
+		}
+		else if (historyCnt > 5)
+		{
+			getStatsfromVec(std::vector<double>(sprt_delta_history, sprt_delta_history + historyCnt), &sprt_delta_stat, true);
+			getStatsfromVec(std::vector<double>(sprt_epsilon_history, sprt_epsilon_history + historyCnt), &sprt_epsilon_stat, true);
+			statistic_valid = true;
+		}
+	}
 
 	return 0;
 }

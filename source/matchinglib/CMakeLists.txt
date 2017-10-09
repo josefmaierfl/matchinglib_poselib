@@ -3,15 +3,18 @@
 # External dependencies
 #
 
+
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
 #option(DISABLE_ITERATOR_DEBUG "Set _ITERATOR_DEBUG_LEVEL=0 to be able to run the annoy matcher in Debug mode." OFF)
 
-#if(WIN32)
-#if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-#  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-#endif()
-#include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-#endif()
+find_package(Eigen REQUIRED)
+
+if(WIN32)
+	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+	 message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+	endif()
+	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+endif()
 
 #if(WIN32)
 #  find_package(Eigen REQUIRED)
@@ -22,18 +25,17 @@ option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the libr
 
 #message(WARNING ${CMAKE_MODULE_PATH})
 
-find_package(Eigen REQUIRED)
 
 if("${OpenCV_DIR}" STREQUAL "")
     message(ERROR " OpenCV_DIR not set!")
-    #if(WIN32)
+    if(WIN32)
       # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
       # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
 	  #find_package(OpenCV 3.2 REQUIRED)
-    #else()
+    else()
       #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
       #find_package(OpenCV 3.2 REQUIRED)
-    #endif()
+    endif()
 else()
     #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
     #find_package(OpenCV 3.2 REQUIRED)
