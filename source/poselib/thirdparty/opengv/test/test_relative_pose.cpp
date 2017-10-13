@@ -52,7 +52,7 @@ int main( int argc, char** argv )
   initializeRandomSeed();
 
   //set experiment parameters
-  double noise = 0.0;
+  double noise = 0.1;
   double outlierFraction = 0.0;
   size_t numberPoints = 100;
 
@@ -61,11 +61,11 @@ int main( int argc, char** argv )
   rotation_t rotation1 = Eigen::Matrix3d::Identity();
 
   //generate a random pose for viewpoint 2
-  // translation_t position2 = generateRandomTranslation(2.0);
-  translation_t position2 = Eigen::Vector3d(0.5,0.5,0.5);
-  // rotation_t rotation2 = generateRandomRotation(0.5);
+   translation_t position2 = generateRandomTranslation(2.0);
+  //translation_t position2 = Eigen::Vector3d(0.5,0.5,0.5);
+   rotation_t rotation2 = generateRandomRotation(0.5);
   // translation_t position2 = Eigen::Vector3d::Zero();
-  rotation_t rotation2 = Eigen::Matrix3d::Identity();
+  //rotation_t rotation2 = Eigen::Matrix3d::Identity();
 
 
 

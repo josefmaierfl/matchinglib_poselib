@@ -7,10 +7,10 @@
 find_package(Eigen REQUIRED)
 
 if(WIN32)
-	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-	 message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-	endif()
-	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+  if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+   message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+  endif()
+  include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 endif()
 
 #if (Eigen_FOUND STREQUAL "YES")
@@ -30,18 +30,18 @@ endif()
 
 # if(NOT OpenCV_DIR)
 if("${OpenCV_DIR}" STREQUAL "")
-	message(ERROR " OpenCV_DIR not set!")
-	#if(WIN32)
-	# set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-	# find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-	#find_package(OpenCV 3.2 REQUIRED)
-	#else()
-	#set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
-	#find_package(OpenCV 3.2 REQUIRED)
-	#endif()
+  message(ERROR " OpenCV_DIR not set!")
+  #if(WIN32)
+  # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
+  # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
+  #find_package(OpenCV 3.2 REQUIRED)
+  #else()
+  #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
+  #find_package(OpenCV 3.2 REQUIRED)
+  #endif()
 else()
-	#set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
-	#find_package(OpenCV 3.2 REQUIRED)
+  #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
+  #find_package(OpenCV 3.2 REQUIRED)
 endif()
 
 find_package(OpenCV 3.2 REQUIRED)
@@ -119,77 +119,77 @@ set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(headers
-	${include_path}/BA_driver.h
-	${include_path}/imgproj.h
-	${include_path}/${target}/glob_includes.h
-	${include_path}/${target}/pose_estim.h
-	${include_path}/${target}/pose_helper.h
-	${include_path}/${target}/pose_linear_refinement.h
-	
-	${include_path}/arrsac/arrsac.h
-	${include_path}/arrsac/estimator.h
-	${include_path}/arrsac/prosac_sampler.h
-	${include_path}/arrsac/quality_measurement.h
-	${include_path}/arrsac/random_sampler.h
-	${include_path}/arrsac/sample_consensus_estimator.h
-	${include_path}/arrsac/sampler.h
-	${include_path}/arrsac/sequential_probability_ratio.h
-	
-	${include_path}/five-point-nister/_modelest.h
-	${include_path}/five-point-nister/five-point.hpp
-	${include_path}/five-point-nister/precomp.hpp
-	
-	${include_path}/HomographyAlignment.h
-	${include_path}/${target}/pose_homography.h
-	
-	#${include_path}/usac/config/ConfigFileReader.h
-	${include_path}/usac/config/ConfigParams.h
-	${include_path}/usac/config/ConfigParamsFundmatrix.h
-	${include_path}/usac/config/ConfigParamsHomog.h
-	${include_path}/usac/config/ConfigParamsEssentialMat.h
-	${include_path}/usac/config/ConfigParamsRotationMat.h
-	#${include_path}/usac/config/ConfigParamsNoMotion.h
-	${include_path}/usac/estimators/FundmatrixEstimator.h
-	${include_path}/usac/estimators/HomogEstimator.h
-	${include_path}/usac/estimators/EssentialMatEstimator.h
-	${include_path}/usac/estimators/RotationMatEstimator.h
-	#${include_path}/usac/estimators/NoMotionEstimator.h
-	${include_path}/usac/estimators/USAC.h
-	${include_path}/usac/utils/FundmatrixFunctions.h
-	${include_path}/usac/utils/PoseFunctions.h
-	${include_path}/usac/utils/HomographyFunctions.h
-	${include_path}/usac/utils/MathFunctions.h
-	${include_path}/usac/utils/Timer.h
-	${include_path}/usac/utils/weightingEssential.h
-	${include_path}/usac/usac_estimations.h
+  ${include_path}/BA_driver.h
+  ${include_path}/imgproj.h
+  ${include_path}/${target}/glob_includes.h
+  ${include_path}/${target}/pose_estim.h
+  ${include_path}/${target}/pose_helper.h
+  ${include_path}/${target}/pose_linear_refinement.h
+
+  ${include_path}/arrsac/arrsac.h
+  ${include_path}/arrsac/estimator.h
+  ${include_path}/arrsac/prosac_sampler.h
+  ${include_path}/arrsac/quality_measurement.h
+  ${include_path}/arrsac/random_sampler.h
+  ${include_path}/arrsac/sample_consensus_estimator.h
+  ${include_path}/arrsac/sampler.h
+  ${include_path}/arrsac/sequential_probability_ratio.h
+
+  ${include_path}/five-point-nister/_modelest.h
+  ${include_path}/five-point-nister/five-point.hpp
+  ${include_path}/five-point-nister/precomp.hpp
+
+  ${include_path}/HomographyAlignment.h
+  ${include_path}/${target}/pose_homography.h
+
+  #${include_path}/usac/config/ConfigFileReader.h
+  ${include_path}/usac/config/ConfigParams.h
+  ${include_path}/usac/config/ConfigParamsFundmatrix.h
+  ${include_path}/usac/config/ConfigParamsHomog.h
+  ${include_path}/usac/config/ConfigParamsEssentialMat.h
+  ${include_path}/usac/config/ConfigParamsRotationMat.h
+  #${include_path}/usac/config/ConfigParamsNoMotion.h
+  ${include_path}/usac/estimators/FundmatrixEstimator.h
+  ${include_path}/usac/estimators/HomogEstimator.h
+  ${include_path}/usac/estimators/EssentialMatEstimator.h
+  ${include_path}/usac/estimators/RotationMatEstimator.h
+  #${include_path}/usac/estimators/NoMotionEstimator.h
+  ${include_path}/usac/estimators/USAC.h
+  ${include_path}/usac/utils/FundmatrixFunctions.h
+  ${include_path}/usac/utils/PoseFunctions.h
+  ${include_path}/usac/utils/HomographyFunctions.h
+  ${include_path}/usac/utils/MathFunctions.h
+  ${include_path}/usac/utils/Timer.h
+  ${include_path}/usac/utils/weightingEssential.h
+  ${include_path}/usac/usac_estimations.h
 )
 
 set(sources
-	${source_path}/BA_driver.cpp
-	${source_path}/imgproj.c
-	${source_path}/pose_estim.cpp
-	${source_path}/pose_helper.cpp
-	${source_path}/pose_linear_refinement.cpp
-	
-	${source_path}/arrsac/sequential_probability_ratio.cc
-	
-	${source_path}/five-point-nister/five-point.cpp
-	${source_path}/five-point-nister/modelest.cpp
-	${source_path}/five-point-nister/precomp.cpp
-	
-	${source_path}/HomographyAlignment.cpp
-	${source_path}/pose_homography.cpp
-	
-	#${source_path}/usac/config/ConfigFileReader.cpp
-	#${source_path}/usac/config/ConfigParams.cpp
-	#${source_path}/usac/config/ConfigParamsFundmatrix.cpp
-	#${source_path}/usac/config/ConfigParamsHomog.cpp
-	${source_path}/usac/utils/FundmatrixFunctions.cpp
-	${source_path}/usac/utils/HomographyFunctions.cpp
-	${source_path}/usac/utils/PoseFunctions.cpp
-	${source_path}/usac/utils/MathFunctions.cpp
-	${source_path}/usac/utils/weightingEssential.cpp
-	${source_path}/usac/usac_estimations.cpp
+  ${source_path}/BA_driver.cpp
+  ${source_path}/imgproj.c
+  ${source_path}/pose_estim.cpp
+  ${source_path}/pose_helper.cpp
+  ${source_path}/pose_linear_refinement.cpp
+
+  ${source_path}/arrsac/sequential_probability_ratio.cc
+
+  ${source_path}/five-point-nister/five-point.cpp
+  ${source_path}/five-point-nister/modelest.cpp
+  ${source_path}/five-point-nister/precomp.cpp
+
+  ${source_path}/HomographyAlignment.cpp
+  ${source_path}/pose_homography.cpp
+
+  #${source_path}/usac/config/ConfigFileReader.cpp
+  #${source_path}/usac/config/ConfigParams.cpp
+  #${source_path}/usac/config/ConfigParamsFundmatrix.cpp
+  #${source_path}/usac/config/ConfigParamsHomog.cpp
+  ${source_path}/usac/utils/FundmatrixFunctions.cpp
+  ${source_path}/usac/utils/HomographyFunctions.cpp
+  ${source_path}/usac/utils/PoseFunctions.cpp
+  ${source_path}/usac/utils/MathFunctions.cpp
+  ${source_path}/usac/utils/weightingEssential.cpp
+  ${source_path}/usac/usac_estimations.cpp
 )
 
 # Group source files
@@ -281,10 +281,10 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
 
-    # opengv
+
+    opengv
 
     PUBLIC
-	opengv
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}

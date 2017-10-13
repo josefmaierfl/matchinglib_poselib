@@ -35,6 +35,7 @@
 
 #include <map>
 #include <algorithm>
+#include <cmath>
 
 #include "vfcMatches.h"
 
@@ -91,7 +92,7 @@ namespace matchinglib
    *                        ratioTest. If you wand to change this behaviour for GMBSOF, this has to
    *                        be changed directly at the call of function AdvancedMatching. Moreover,
    *                        no ratio test can be performed for the CASHASH matcher.
-   * string &descriptor_name	Input  -> Name of the used descriptor type which is used to adjust the paramters of the 
+   * string &descriptor_name	Input  -> Name of the used descriptor type which is used to adjust the paramters of the
    *						VPTREE matcher of the NMSLIB
    * string idxPars_NMSLIB		Input  -> Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details.
    *					  [Default = ""]
@@ -172,348 +173,348 @@ namespace matchinglib
         return -3;
       }
     }
-	else if (!matcher_name.compare("SWGRAPH"))
-	{
-		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "NN=10,initIndexAttempts=5,efConstruction=10,indexThreadQty=8" : idxPars_NMSLIB;
-		string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "initSearchAttempts=2,efSearch=10" : queryPars_NMSLIB;
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"sw-graph",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_8U)
-		{
-			nmslibMatching<int>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"sw-graph",
-				"bit_hamming",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"sw-graph",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for SWGRAPH! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
+    else if (!matcher_name.compare("SWGRAPH"))
+    {
+        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "NN=10,initIndexAttempts=5,efConstruction=10,indexThreadQty=8" : idxPars_NMSLIB;
+        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "initSearchAttempts=2,efSearch=10" : queryPars_NMSLIB;
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "sw-graph",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_8U)
+        {
+            nmslibMatching<int>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "sw-graph",
+                "bit_hamming",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "sw-graph",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for SWGRAPH! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
 
-	}
-	else if (!matcher_name.compare("HNSW"))
-	{
-		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "M=50,efConstruction=10,delaunay_type=1,indexThreadQty=8" : idxPars_NMSLIB;
-		string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "efSearch=10" : queryPars_NMSLIB;
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"hnsw",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_8U)
-		{
-			nmslibMatching<int>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"hnsw",
-				"bit_hamming",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"hnsw",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for HNSW! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("VPTREE"))
-	{
-		string idxPars = "";
-		string queryPars = "";
-		if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
-		{
-			idxPars = "chunkBucket=1,bucketSize=20";
-			if (!descriptor_name.compare("SIFT"))
-				queryPars = "alphaLeft=3.66802,alphaRight=3.01833,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("SURF"))
-				queryPars = "alphaLeft=2.22949,alphaRight=1.78183,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("KAZE"))
-				queryPars = "alphaLeft=2.9028,alphaRight=1.94528,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("DAISY"))
-				queryPars = "alphaLeft=2.82843,alphaRight=2.18102,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("LBGM"))
-				queryPars = "alphaLeft=2.92572,alphaRight=2.24031,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("VGG_120"))
-				queryPars = "alphaLeft=3.45397,alphaRight=2.91922,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("VGG_80"))
-				queryPars = "alphaLeft=3.01833,alphaRight=2.56574,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("VGG_64"))
-				queryPars = "alphaLeft=2.77269,alphaRight=2.33744,expLeft=1,expRight=1"; //for a recall of 0.98
-			else if (!descriptor_name.compare("VGG_48"))
-				queryPars = "alphaLeft=2.57083,alphaRight=2.12745,expLeft=1,expRight=1"; //for a recall of 0.98
-			else
-			{
-				queryPars = "alphaLeft=1,alphaRight=1,expLeft=1,expRight=1"; //Default parameters
-				cout << "No tuned parameters are available for VPTREE matcher and the given descriptor! Using default values!" << endl;
-			}
-		}
-		else
-		{
-			idxPars = idxPars_NMSLIB;
-			queryPars = queryPars_NMSLIB;
-		}
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"vptree",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"vptree",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for VPTREE! Must be 32bit float or 64bit double." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("MVPTREE"))
-	{
-		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20" : idxPars_NMSLIB;
-		string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"mvptree",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"mvptree",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for MVPTREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("GHTREE"))
-	{
-		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20" : idxPars_NMSLIB;
-		string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"ghtree",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"ghtree",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for GHTREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("LISTCLU"))//exact search method
-	{
-		string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20,useBucketSize=1,strategy=random" : idxPars_NMSLIB;
-		string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"list_clusters",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"list_clusters",
-				"l2",
-				idxPars,
-				queryPars,
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for LISTCLU! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("SATREE"))//exact search method
-	{
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"satree",
-				"l2",
-				"",
-				"",
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"satree",
-				"l2",
-				"",
-				"",
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for SATREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("BRUTEFORCENMS"))
-	{
-		if (descriptors1.type() == CV_32F)
-		{
-			nmslibMatching<float>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"seq_search",
-				"l2",
-				"",
-				"",
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_8U)
-		{
-			nmslibMatching<int>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"seq_search",
-				"bit_hamming",
-				"",
-				"",
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else if (descriptors1.type() == CV_64F)
-		{
-			nmslibMatching<double>(descriptors1,
-				descriptors2,
-				finalMatches,
-				"seq_search",
-				"l2",
-				"",
-				"",
-				ratioTest,
-				NMSLIB_SEARCH_THREADS);
-		}
-		else
-		{
-			cout << "Wrong descriptor data type for BRUTEFORCENMS! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-			return -1;
-		}
-	}
-	else if (!matcher_name.compare("ANNOY"))//exact search method
-	{
-		if (annoyMatching(descriptors1, descriptors2, finalMatches, ratioTest) != 0)
-			return -1;
-	}
+    }
+    else if (!matcher_name.compare("HNSW"))
+    {
+        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "M=50,efConstruction=10,delaunay_type=1,indexThreadQty=8" : idxPars_NMSLIB;
+        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "efSearch=10" : queryPars_NMSLIB;
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "hnsw",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_8U)
+        {
+            nmslibMatching<int>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "hnsw",
+                "bit_hamming",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "hnsw",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for HNSW! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("VPTREE"))
+    {
+        string idxPars = "";
+        string queryPars = "";
+        if (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty())
+        {
+            idxPars = "chunkBucket=1,bucketSize=20";
+            if (!descriptor_name.compare("SIFT"))
+                queryPars = "alphaLeft=3.66802,alphaRight=3.01833,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("SURF"))
+                queryPars = "alphaLeft=2.22949,alphaRight=1.78183,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("KAZE"))
+                queryPars = "alphaLeft=2.9028,alphaRight=1.94528,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("DAISY"))
+                queryPars = "alphaLeft=2.82843,alphaRight=2.18102,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("LBGM"))
+                queryPars = "alphaLeft=2.92572,alphaRight=2.24031,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("VGG_120"))
+                queryPars = "alphaLeft=3.45397,alphaRight=2.91922,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("VGG_80"))
+                queryPars = "alphaLeft=3.01833,alphaRight=2.56574,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("VGG_64"))
+                queryPars = "alphaLeft=2.77269,alphaRight=2.33744,expLeft=1,expRight=1"; //for a recall of 0.98
+            else if (!descriptor_name.compare("VGG_48"))
+                queryPars = "alphaLeft=2.57083,alphaRight=2.12745,expLeft=1,expRight=1"; //for a recall of 0.98
+            else
+            {
+                queryPars = "alphaLeft=1,alphaRight=1,expLeft=1,expRight=1"; //Default parameters
+                cout << "No tuned parameters are available for VPTREE matcher and the given descriptor! Using default values!" << endl;
+            }
+        }
+        else
+        {
+            idxPars = idxPars_NMSLIB;
+            queryPars = queryPars_NMSLIB;
+        }
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "vptree",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "vptree",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for VPTREE! Must be 32bit float or 64bit double." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("MVPTREE"))
+    {
+        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20" : idxPars_NMSLIB;
+        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "mvptree",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "mvptree",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for MVPTREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("GHTREE"))
+    {
+        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20" : idxPars_NMSLIB;
+        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "ghtree",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "ghtree",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for GHTREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("LISTCLU"))//exact search method
+    {
+        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20,useBucketSize=1,strategy=random" : idxPars_NMSLIB;
+        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "list_clusters",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "list_clusters",
+                "l2",
+                idxPars,
+                queryPars,
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for LISTCLU! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("SATREE"))//exact search method
+    {
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "satree",
+                "l2",
+                "",
+                "",
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "satree",
+                "l2",
+                "",
+                "",
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for SATREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("BRUTEFORCENMS"))
+    {
+        if (descriptors1.type() == CV_32F)
+        {
+            nmslibMatching<float>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "seq_search",
+                "l2",
+                "",
+                "",
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_8U)
+        {
+            nmslibMatching<int>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "seq_search",
+                "bit_hamming",
+                "",
+                "",
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else if (descriptors1.type() == CV_64F)
+        {
+            nmslibMatching<double>(descriptors1,
+                descriptors2,
+                finalMatches,
+                "seq_search",
+                "l2",
+                "",
+                "",
+                ratioTest,
+                NMSLIB_SEARCH_THREADS);
+        }
+        else
+        {
+            cout << "Wrong descriptor data type for BRUTEFORCENMS! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
+            return -1;
+        }
+    }
+    else if (!matcher_name.compare("ANNOY"))//exact search method
+    {
+        if (annoyMatching(descriptors1, descriptors2, finalMatches, ratioTest) != 0)
+            return -1;
+    }
     else if(!matcher_name.compare("HIRCLUIDX") || !matcher_name.compare("HIRKMEANS") ||
             !matcher_name.compare("LINEAR") || !matcher_name.compare("LSHIDX") ||
             !matcher_name.compare("RANDKDTREE"))
@@ -890,10 +891,10 @@ namespace matchinglib
   * vector<DMatch> matches  Output -> Matches
   * bool ratioTest          Input  -> If true [Default=true], a ratio test is performed on the results.
   * unsigned int n_trees    Input  -> If provided, the build process of the index is influenced in the following way:
-  *									  n_trees is provided during build time and affects the build time and the index 
+  *									  n_trees is provided during build time and affects the build time and the index
   *									  size. A larger value will give more accurate results, but larger indexes.
   * unsigned int search_k   Input  -> If provided, the search process influenced in the following way:
-  *									  search_k is provided in runtime and affects the search performance. A larger 
+  *									  search_k is provided in runtime and affects the search performance. A larger
   *									  value will give more accurate results, but will take longer time to return.
   *
   * Return value:           0:     Everything ok
@@ -901,109 +902,109 @@ namespace matchinglib
   */
   int annoyMatching(cv::Mat const& descrL, cv::Mat const& descrR, std::vector<cv::DMatch> & matches, bool ratioTest, unsigned int n_trees, unsigned int search_k)
   {
-	  unsigned int descrDim = (unsigned int)descrR.cols;
-	  unsigned int nrEntriesR = (unsigned int)descrR.rows;
-	  unsigned int nrEntriesL = (unsigned int)descrL.rows;
-	  if (descrR.type() == CV_32F)
-	  {
-		  //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
-		  AnnoyIndex<unsigned int, float, Euclidean, RandRandom> index(descrR.cols);
+      unsigned int descrDim = (unsigned int)descrR.cols;
+      unsigned int nrEntriesR = (unsigned int)descrR.rows;
+      unsigned int nrEntriesL = (unsigned int)descrL.rows;
+      if (descrR.type() == CV_32F)
+      {
+          //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
+          AnnoyIndex<unsigned int, float, Euclidean, RandRandom> index(descrR.cols);
 
-		  for (unsigned int i = 0; i < nrEntriesR; i++)
-		  {
-			  index.add_item(i, (float*)descrR.data + i * descrDim);
-		  }
-		  //index.verbose(true);
+          for (unsigned int i = 0; i < nrEntriesR; i++)
+          {
+              index.add_item(i, (float*)descrR.data + i * descrDim);
+          }
+          //index.verbose(true);
 
-		  if (n_trees)
-			  index.build(n_trees);
-		  else
-			  index.build(10);
-		  
-		  for (unsigned int i = 0; i < nrEntriesL; i++)
-		  {
-			  vector<unsigned int> idxs;
-			  vector<float> distances;
-			  cv::DMatch match;
+          if (n_trees)
+              index.build(n_trees);
+          else
+              index.build(10);
 
-			  if(search_k)
-				  index.get_nns_by_vector((float*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
-			  else
-				  index.get_nns_by_vector((float*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
+          for (unsigned int i = 0; i < nrEntriesL; i++)
+          {
+              vector<unsigned int> idxs;
+              vector<float> distances;
+              cv::DMatch match;
 
-			  if (ratioTest && (idxs.size() > 1))
-			  {
-				if (distances[0] < (0.75f * distances[1]))
-				{
-					match.distance = distances[0];
-					match.queryIdx = (int)i;
-					match.trainIdx = (int)idxs[0];
-					matches.push_back(match);
-				}
-			  }
-			  else if(!idxs.empty())
-			  {
-				  match.distance = distances[0];
-				  match.queryIdx = (int)i;
-				  match.trainIdx = (int)idxs[0];
-				  matches.push_back(match);
-			  }
-		  }
-	  }
-	  else if (descrR.type() == CV_64F)
-	  {
-		  //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
-		  AnnoyIndex<unsigned int, double, Euclidean, RandRandom> index(descrR.cols);
+              if(search_k)
+                  index.get_nns_by_vector((float*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
+              else
+                  index.get_nns_by_vector((float*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
 
-		  for (unsigned int i = 0; i < nrEntriesR; i++)
-		  {
-			  index.add_item(i, (double*)descrR.data + i * descrDim);
-		  }
-		  //index.verbose(true);
+              if (ratioTest && (idxs.size() > 1))
+              {
+                if (distances[0] < (0.75f * distances[1]))
+                {
+                    match.distance = distances[0];
+                    match.queryIdx = (int)i;
+                    match.trainIdx = (int)idxs[0];
+                    matches.push_back(match);
+                }
+              }
+              else if(!idxs.empty())
+              {
+                  match.distance = distances[0];
+                  match.queryIdx = (int)i;
+                  match.trainIdx = (int)idxs[0];
+                  matches.push_back(match);
+              }
+          }
+      }
+      else if (descrR.type() == CV_64F)
+      {
+          //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
+          AnnoyIndex<unsigned int, double, Euclidean, RandRandom> index(descrR.cols);
 
-		  if (n_trees)
-			  index.build(n_trees);
-		  else
-			  index.build(10);
+          for (unsigned int i = 0; i < nrEntriesR; i++)
+          {
+              index.add_item(i, (double*)descrR.data + i * descrDim);
+          }
+          //index.verbose(true);
 
-		  for (unsigned int i = 0; i < nrEntriesL; i++)
-		  {
-			  vector<unsigned int> idxs;
-			  vector<double> distances;
-			  cv::DMatch match;
+          if (n_trees)
+              index.build(n_trees);
+          else
+              index.build(10);
 
-			  if (search_k)
-				  index.get_nns_by_vector((double*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
-			  else
-				  index.get_nns_by_vector((double*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
+          for (unsigned int i = 0; i < nrEntriesL; i++)
+          {
+              vector<unsigned int> idxs;
+              vector<double> distances;
+              cv::DMatch match;
 
-			  if (ratioTest && (idxs.size() > 1))
-			  {
-				  if (distances[0] < (0.75f * distances[1]))
-				  {
-					  match.distance = distances[0];
-					  match.queryIdx = (int)i;
-					  match.trainIdx = (int)idxs[0];
-					  matches.push_back(match);
-				  }
-			  }
-			  else if (!idxs.empty())
-			  {
-				  match.distance = distances[0];
-				  match.queryIdx = (int)i;
-				  match.trainIdx = (int)idxs[0];
-				  matches.push_back(match);
-			  }
-		  }
-	  }
-	  else
-	  {
-		  cout << "Wrong descriptor data type for ANNOY! Must be 32bit float or 64bit double." << endl;
-		  return -1;
-	  }
+              if (search_k)
+                  index.get_nns_by_vector((double*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
+              else
+                  index.get_nns_by_vector((double*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
+
+              if (ratioTest && (idxs.size() > 1))
+              {
+                  if (distances[0] < (0.75f * distances[1]))
+                  {
+                      match.distance = distances[0];
+                      match.queryIdx = (int)i;
+                      match.trainIdx = (int)idxs[0];
+                      matches.push_back(match);
+                  }
+              }
+              else if (!idxs.empty())
+              {
+                  match.distance = distances[0];
+                  match.queryIdx = (int)i;
+                  match.trainIdx = (int)idxs[0];
+                  matches.push_back(match);
+              }
+          }
+      }
+      else
+      {
+          cout << "Wrong descriptor data type for ANNOY! Must be 32bit float or 64bit double." << endl;
+          return -1;
+      }
 
 
-	  return 0;
+      return 0;
   }
 
   /* This function calculates the subpixel-position of matched keypoints by template matching. Be careful,
@@ -1170,24 +1171,24 @@ namespace matchinglib
       //  }
       //}
 
-	  Mat img_border[2];
-	  const int border_size = 100;
-	  copyMakeBorder(img1, img_border[0], border_size, border_size, border_size, border_size, BORDER_CONSTANT, Scalar(0, 0, 0));
-	  copyMakeBorder(img2, img_border[1], border_size, border_size, border_size, border_size, BORDER_CONSTANT, Scalar(0, 0, 0));
-	  if (rec2.x + rec2.width >= img2.cols || rec2.y + rec2.height >= img2.rows || rec2.x < 0 || rec2.y < 0 ||
-		  rec1.x + rec1.width >= img1.cols || rec1.y + rec1.height >= img1.rows || rec1.x < 0 || rec1.y < 0)
-	  {
-			cv::Rect rec2_tmp = rec2, rec1_tmp = rec1;
-			rec2_tmp.x += border_size;
-			rec2_tmp.y += border_size;
-			rec1_tmp.x += border_size;
-			rec1_tmp.y += border_size;
-			cv::matchTemplate((img_border[1])(rec2_tmp), (img_border[0])(rec1_tmp), results, CV_TM_SQDIFF);
-	  }
-	  else
-	  {
-		  cv::matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
-	  }
+      Mat img_border[2];
+      const int border_size = 100;
+      copyMakeBorder(img1, img_border[0], border_size, border_size, border_size, border_size, BORDER_CONSTANT, Scalar(0, 0, 0));
+      copyMakeBorder(img2, img_border[1], border_size, border_size, border_size, border_size, BORDER_CONSTANT, Scalar(0, 0, 0));
+      if (rec2.x + rec2.width >= img2.cols || rec2.y + rec2.height >= img2.rows || rec2.x < 0 || rec2.y < 0 ||
+          rec1.x + rec1.width >= img1.cols || rec1.y + rec1.height >= img1.rows || rec1.x < 0 || rec1.y < 0)
+      {
+            cv::Rect rec2_tmp = rec2, rec1_tmp = rec1;
+            rec2_tmp.x += border_size;
+            rec2_tmp.y += border_size;
+            rec1_tmp.x += border_size;
+            rec1_tmp.y += border_size;
+            cv::matchTemplate((img_border[1])(rec2_tmp), (img_border[0])(rec1_tmp), results, CV_TM_SQDIFF);
+      }
+      else
+      {
+          cv::matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
+      }
       cv::minMaxLoc(results,(double *)0,(double *)0,&minLoc);
 
       newKeyP = cv::Point2f((float)(rec2.x+minLoc.x+(featuresize1-1)/2), (float)(rec2.y+minLoc.y+(featuresize1-1)/2));
@@ -1261,78 +1262,78 @@ namespace matchinglib
   *                        -2:     Size of keypoint sets not equal
   */
   int getSubPixMatches_seperate_Imgs(cv::Mat &img1, cv::Mat &img2, std::vector<cv::KeyPoint> *keypoints1, std::vector<cv::KeyPoint> *keypoints2,
-	  std::vector<bool> *inliers)
+      std::vector<bool> *inliers)
   {
-	  unsigned int nrInliers = 0;
-	  vector<bool> InliersMask(keypoints1->size(), true);
-	  float minKeySize[2] = { FLT_MAX, FLT_MAX };
+      unsigned int nrInliers = 0;
+      vector<bool> InliersMask(keypoints1->size(), true);
+      float minKeySize[2] = { FLT_MAX, FLT_MAX };
 
-	  if (keypoints1->size() != keypoints2->size())
-	  {
-		  cout << "For subpixel-refinement the number of left and right keypoints must be the same as they must match!" << endl;
-		  return -2;
-	  }
+      if (keypoints1->size() != keypoints2->size())
+      {
+          cout << "For subpixel-refinement the number of left and right keypoints must be the same as they must match!" << endl;
+          return -2;
+      }
 
-	  size_t n = keypoints1->size();
-	  vector<cv::Point2f> p1s(keypoints1->size()), p2s(keypoints2->size());
-	  vector<cv::Point2f> p1s_old, p2s_old;
+      size_t n = keypoints1->size();
+      vector<cv::Point2f> p1s(keypoints1->size()), p2s(keypoints2->size());
+      vector<cv::Point2f> p1s_old, p2s_old;
 
-	  for (size_t i = 0; i < n; i++)
-	  {
-		  p1s[i] = keypoints1->at(i).pt;
-		  p2s[i] = keypoints2->at(i).pt;
-		  if ((keypoints1->at(i).size > 0) && (keypoints1->at(i).size < minKeySize[0]))
-			  minKeySize[0] = keypoints1->at(i).size;
-		  if ((keypoints2->at(i).size > 0) && (keypoints2->at(i).size < minKeySize[1]))
-			  minKeySize[1] = keypoints2->at(i).size;
-	  }
-	  p1s_old = p1s;
-	  p2s_old = p2s;
-	  minKeySize[0] = minKeySize[0] > 20.f ? 20.f : minKeySize[0];
-	  minKeySize[0] = minKeySize[0] < 6.f ? 6.f : minKeySize[0];
-	  minKeySize[0] /= 2.f;
-	  minKeySize[0] = std::ceilf(minKeySize[0]);
-	  minKeySize[1] = minKeySize[1] > 20.f ? 20.f : minKeySize[1];
-	  minKeySize[1] = minKeySize[1] < 6.f ? 6.f : minKeySize[1];
-	  minKeySize[1] /= 2.f;
-	  minKeySize[1] = std::ceilf(minKeySize[1]);
+      for (size_t i = 0; i < n; i++)
+      {
+          p1s[i] = keypoints1->at(i).pt;
+          p2s[i] = keypoints2->at(i).pt;
+          if ((keypoints1->at(i).size > 0) && (keypoints1->at(i).size < minKeySize[0]))
+              minKeySize[0] = keypoints1->at(i).size;
+          if ((keypoints2->at(i).size > 0) && (keypoints2->at(i).size < minKeySize[1]))
+              minKeySize[1] = keypoints2->at(i).size;
+      }
+      p1s_old = p1s;
+      p2s_old = p2s;
+      minKeySize[0] = minKeySize[0] > 20.f ? 20.f : minKeySize[0];
+      minKeySize[0] = minKeySize[0] < 6.f ? 6.f : minKeySize[0];
+      minKeySize[0] /= 2.f;
+      minKeySize[0] = std::ceil(minKeySize[0]);
+      minKeySize[1] = minKeySize[1] > 20.f ? 20.f : minKeySize[1];
+      minKeySize[1] = minKeySize[1] < 6.f ? 6.f : minKeySize[1];
+      minKeySize[1] /= 2.f;
+      minKeySize[1] = std::ceil(minKeySize[1]);
 
-	  TermCriteria criteria = TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+      TermCriteria criteria = TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
 
-	  cv::cornerSubPix(img1, p1s, cv::Size((int)minKeySize[0], (int)minKeySize[0]), cv::Size(-1, -1), criteria);
-	  cv::cornerSubPix(img2, p2s, cv::Size((int)minKeySize[1], (int)minKeySize[1]), cv::Size(-1, -1), criteria);
+      cv::cornerSubPix(img1, p1s, cv::Size((int)minKeySize[0], (int)minKeySize[0]), cv::Size(-1, -1), criteria);
+      cv::cornerSubPix(img2, p2s, cv::Size((int)minKeySize[1], (int)minKeySize[1]), cv::Size(-1, -1), criteria);
 
-	  cv::Point2f diff[2];
-	  float diffd[2];
-	  for (size_t i = 0; i < n; i++)
-	  {
-		  diff[0] = p1s_old[i] - p1s[i];
-		  diffd[0] = diff[0].x * diff[0].x + diff[0].y * diff[0].y;
-		  diff[1] = p2s_old[i] - p2s[i];
-		  diffd[1] = diff[1].x * diff[1].x + diff[1].y * diff[1].y;
-		  if (diffd[0] > 12 || diffd[1] > 12)
-		  {
-			  InliersMask[i] = false;
-		  }
-		  else
-		  {
-			  keypoints1->at(i).pt = p1s[i];
-			  keypoints2->at(i).pt = p2s[i];
-			  nrInliers++;
-		  }
-	  }
+      cv::Point2f diff[2];
+      float diffd[2];
+      for (size_t i = 0; i < n; i++)
+      {
+          diff[0] = p1s_old[i] - p1s[i];
+          diffd[0] = diff[0].x * diff[0].x + diff[0].y * diff[0].y;
+          diff[1] = p2s_old[i] - p2s[i];
+          diffd[1] = diff[1].x * diff[1].x + diff[1].y * diff[1].y;
+          if (diffd[0] > 12 || diffd[1] > 12)
+          {
+              InliersMask[i] = false;
+          }
+          else
+          {
+              keypoints1->at(i).pt = p1s[i];
+              keypoints2->at(i).pt = p2s[i];
+              nrInliers++;
+          }
+      }
 
-	  if (inliers != NULL)
-	  {
-		  *inliers = InliersMask;
-	  }
+      if (inliers != NULL)
+      {
+          *inliers = InliersMask;
+      }
 
-	  if ((nrInliers < n / 3) || (nrInliers < MIN_FINAL_MATCHES))
-	  {
-		  return -1;  //Subpixel refinement failed for too many keypoints
-	  }
+      if ((nrInliers < n / 3) || (nrInliers < MIN_FINAL_MATCHES))
+      {
+          return -1;  //Subpixel refinement failed for too many keypoints
+      }
 
-	  return 0;
+      return 0;
   }
 
   /* This function compares the weights of the matches to be able to sort them accordingly
