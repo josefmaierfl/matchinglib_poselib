@@ -125,6 +125,7 @@ set(headers
   ${include_path}/${target}/pose_estim.h
   ${include_path}/${target}/pose_helper.h
   ${include_path}/${target}/pose_linear_refinement.h
+  ${include_path}/${target}/stereo_pose_refinement.h
 
   ${include_path}/arrsac/arrsac.h
   ${include_path}/arrsac/estimator.h
@@ -170,6 +171,7 @@ set(sources
   ${source_path}/pose_estim.cpp
   ${source_path}/pose_helper.cpp
   ${source_path}/pose_linear_refinement.cpp
+  ${source_path}/stereo_pose_refinement.cpp
 
   ${source_path}/arrsac/sequential_probability_ratio.cc
 

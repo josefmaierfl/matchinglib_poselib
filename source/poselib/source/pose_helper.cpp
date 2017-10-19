@@ -2880,4 +2880,28 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 	temp_err = r*r / (x2E(0)*x2E(0) + x2E(1)*x2E(1) + rx*rx + ry*ry);
 	return temp_err;
 }
+
+/* Checks for a given vector of error values if they are inliers or not in respect to threshold th.
+*
+* vector<double> error		Input  -> Error values
+* double th					Input  -> Threshold
+* Mat inliers				Output -> Inlier mask
+*
+* Return value:		number of inliers
+*/
+unsigned int getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
+{
+	unsigned int n = error.size(), nr_inliers = 0;
+	mask = cv::Mat(n, 1, CV_8UC1, false);
+	for (unsigned int i = 0; i < n; i++)
+	{
+		if (error[i] < th)
+		{
+			mask.at<bool>(i) = true;
+			nr_inliers++;
+		}
+	}
+
+	return nr_inliers;
+}
 }

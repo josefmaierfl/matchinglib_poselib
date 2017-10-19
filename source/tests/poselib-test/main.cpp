@@ -49,7 +49,7 @@ int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::M
         return -1;
 
     string filenameGT;
-    if(filepath.back() == "/" || filepath.back() == "\\")
+    if(filepath.back() == '/' || filepath.back() == '\\')
         filenameGT = filepath + filename;
     else
         filenameGT = filepath + "/" + filename;
@@ -443,7 +443,7 @@ void startEvaluation(ArgvParser& cmd)
         th_pix_user = PIX_MIN_GOOD_TH;
 
     if ((subPixRef != 1) && (th_pix_user < 1.2))
-        th_pix_user *= 1.5;
+        th_pix_user = 1.2;
 
     if (cmd.foundOption("cfgUSAC"))
         cfgUSAC = cmd.optionValue("cfgUSAC");

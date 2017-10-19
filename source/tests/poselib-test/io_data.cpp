@@ -30,6 +30,7 @@
 #include "dirent.h"
 #endif
 #include <algorithm>
+#include <functional>
 
 //#include "PfeImgFileIO.h"
 //#include "PfeConv.h"
