@@ -20,6 +20,7 @@ DISCRIPTION: This file provides functions for pose refinement with multiple ster
 #include "poselib/pose_homography.h"
 #include "poselib/pose_linear_refinement.h"
 #include <iomanip>
+
 //#include "poselib/pose_helper.h"
 //#include <memory>
 //#include <numeric>      // std::accumulate
@@ -37,7 +38,7 @@ namespace poselib
 
 	/* --------------------- Function prototypes --------------------- */
 
-
+	double getWeightingValues(double value, double max_value, double min_value = 0);
 
 	/* --------------------- Functions --------------------- */
 
@@ -49,6 +50,7 @@ namespace poselib
 		}
 		cfg_pose = cfg_pose_;
 		th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold
+		th2 = th * th;
 		checkInlRatThresholds();
 		t_mea = 0;
 		t_oa = 0;
@@ -263,10 +265,11 @@ namespace poselib
 		else
 		{
 			cv::Mat mask;
+			std::vector<double> errorNew;
 			bool addToPool = false;
 			unsigned int nr_inliers_tmp = 0;
 			double inlier_ratio_new;
-			nr_inliers_tmp = getInliers(E_new, mask);
+			nr_inliers_tmp = getInliers(E_new, mask, errorNew);
 			inlier_ratio_new = (double)nr_inliers_tmp / (double)nr_corrs_new;
 			//check if the new inlier ratio is approximately equal to the old one as it is not likely that the image content changes completely from image pair to image pair
 			if (inlier_ratio_new < ((1.0 - cfg_pose.relInlRatThLast) * inlier_ratio_history.back()))
@@ -313,19 +316,24 @@ namespace poselib
 				{
 					//The new estimated pose seems to be similar to the old one, so add the correspondences to the pool and perform refinement on all availble correspondences
 					addToPool = true;
+					errorNew.clear();
+					computeReprojError2(points1newMat, points2newMat, E_new, errorNew);
 				}
 			}
 			else
 			{
 				//Add the new correspondences to the pool and perform refinement on all availble correspondences
 				addToPool = true;
+				mask_E_new.release();
+				mask.copyTo(mask_E_new);
+				nr_inliers_new = nr_inliers_tmp;
 			}
 
 			if (addToPool)
 			{
 				//Perform filtering of correspondences and refinement on all available correspondences
 				skipCount = 0;
-
+				filterNewCorrespondences(matches, kp1, kp2, errorNew);
 			}
 
 			if (skipCount > cfg_pose.maxSkipPairs)
@@ -347,6 +355,7 @@ namespace poselib
 		points1Cam.release();
 		points2Cam.release();
 		correspondencePool.clear();
+		correspondencePoolIdx.clear();
 		nrEstimation = 0;
 		skipCount = 0;
 		mask_E_old.release();
@@ -364,9 +373,11 @@ namespace poselib
 		unsigned int nrEntries = 0;
 		if (!points1Cam.empty())
 		{
-			nrEntries = points1Cam.rows;
-			points1Cam.reserve(nrEntries + nr_inliers_new);
-			points2Cam.reserve(nrEntries + nr_inliers_new);
+			nrEntries = (unsigned int)points1Cam.rows;
+			unsigned int reservesize = nrEntries + nr_inliers_new;
+			points1Cam.reserve(reservesize);
+			points2Cam.reserve(reservesize);
+			correspondencePoolIdx.reserve(reservesize);
 		}
 		
 		for (unsigned int i = 0, count = nrEntries; i < nr_corrs_new; i++)
@@ -377,8 +388,11 @@ namespace poselib
 				points2Cam.push_back(points2newMat.row(i));
 				tmp.age = 1;
 				tmp.descrDist = matches[i].distance;
+				if (descrDist_max < tmp.descrDist) descrDist_max = tmp.descrDist;
 				tmp.keyPResponses[0] = kp1[matches[i].queryIdx].response;
+				if (keyPRespons_max < tmp.keyPResponses[0]) keyPRespons_max = tmp.keyPResponses[0];
 				tmp.keyPResponses[1] = kp2[matches[i].trainIdx].response;
+				if (keyPRespons_max < tmp.keyPResponses[1]) keyPRespons_max = tmp.keyPResponses[1];
 				tmp.meanSampsonError = getSampsonL2Error(E_new, points1newMat.row(i), points2newMat.row(i));
 				tmp.SampsonErrors.push_back(tmp.meanSampsonError);
 				errors.push_back(tmp.meanSampsonError);
@@ -391,13 +405,39 @@ namespace poselib
 					tmp.Q = cv::Point3d(Q.row(i));
 					tmp.Q_tooFar = !mask_Q_new.at<bool>(i);
 				}
+				tmp.poolIdx = corrIdx;
 				correspondencePool.push_back(tmp);
+				correspondencePoolIdx.insert({ corrIdx, --correspondencePool.end() });
+				corrIdx++;
 				count++;
 			}
 		}
 		statVals err_stats;
 		getStatsfromVec(errors, &err_stats);
 		errorStatistic_history.push_back(err_stats);
+
+		//Initialize KD tree
+		if (!kdTreeLeft)
+		{
+			kdTreeLeft.reset(new keyPointTree(&correspondencePool, &correspondencePoolIdx));
+			kdTreeLeft->buildInitialTree();
+		}
+		else if((double)correspondencePool.size() / (double)corrIdx < 0.5)//Check if not too many items were detelted from the KD tree index
+		{
+			corrIdx = 0;
+			correspondencePoolIdx.clear();
+			std::list<CoordinateProps>::iterator it = correspondencePool.begin();
+			for (size_t i = 0; i < correspondencePool.size(); i++)
+			{
+				it->poolIdx = corrIdx;
+				correspondencePoolIdx.insert({ corrIdx++, it++ });
+			}
+			kdTreeLeft->resetTree(&correspondencePool, &correspondencePoolIdx);
+		}
+
+		//add coordinates to the KD tree
+		kdTreeLeft->addElements(corrIdx - nr_inliers_new, nr_inliers_new);
+
 	}
 
 	int StereoRefine::robustPoseEstimation()
@@ -662,12 +702,120 @@ namespace poselib
 		return 0;
 	}
 
-	unsigned int StereoRefine::getInliers(cv::Mat E, cv::Mat & mask)
+	unsigned int StereoRefine::getInliers(cv::Mat E, cv::Mat & mask, std::vector<double> & error)
 	{
-		std::vector<double> error;
-
+		error.clear();
 		computeReprojError2(points1newMat, points2newMat, E, error);
-		return getInlierMask(error, th, mask);
+		return getInlierMask(error, th2, mask);
+	}
+
+	void StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error)
+	{
+		std::vector<CoordinatePropsNew> corrProbsNew;
+
+		for (unsigned int i = 0; i < nr_corrs_new; i++)
+		{
+			if (mask_E_new.at<bool>(i))
+			{
+				corrProbsNew.push_back(CoordinatePropsNew(kp1[matches[i].queryIdx].pt,
+					kp2[matches[i].trainIdx].pt,
+					matches[i].distance,
+					kp1[matches[i].queryIdx].response,
+					kp2[matches[i].trainIdx].response,
+					error[i]));
+			}
+		}
+
+		std::vector<size_t> delete_list_new;
+		std::vector<size_t> delete_list_old;
+		for (unsigned int i = 0; i < nr_inliers_new; i++)
+		{
+			std::vector<std::pair<size_t, float>> result;
+			size_t nr_found = kdTreeLeft->radiusSearch(corrProbsNew[i].pt1, cfg_pose.minPtsDistance, result);
+			if (nr_found)
+			{
+				CoordinateProps corr_tmp = *correspondencePoolIdx[result[0].first];
+				//Check, if the new point is equal to the nearest (< 1 pix difference)
+				if (result[0].second < 1.0)
+				{
+					cv::Point2f diff = corr_tmp.pt2 - corrProbsNew[i].pt2;
+					double diff_dist = diff.x * diff.x + diff.y * diff.y;
+					if (diff_dist < 1.0)
+					{
+						if (diff_dist < 0.01 && result[0].second < 0.01)
+						{
+							delete_list_new.push_back(i);
+						}
+						else
+						{
+							if (compareCorrespondences(corrProbsNew[i], corr_tmp)) //new correspondence is better
+							{
+
+							}
+							else //old correspondence is better
+							{
+
+							}
+						}
+					}
+					else
+					{
+
+					}
+				}
+				else
+				{
+
+				}
+			}
+		}
+
+	}
+
+	bool StereoRefine::compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr)
+	{
+		double weight_error[2], weight_descrDist[2], weight_response[2];
+		const double weighting_terms[3] = {0.3, 0.5, 0.2};//Weights for weight_error, weight_descrDist, weight_response
+		double overall_weight[2];
+		int idx;
+		double rel_diff;
+		const double weight_th = 0.2;//If one of the resulting weights is more than e.g. 20% better
+		unsigned int max_age = 15;//If the quality of the old correspondence is slightly better but it is older (number of iterations) than this thershold, new new one is preferred
+
+		weight_error[0] = getWeightingValues(newCorr.sampsonError, th2);
+		weight_error[1] = getWeightingValues(oldCorr.SampsonErrors.back(), th2);
+		weight_descrDist[0] = getWeightingValues((double)newCorr.descrDist, (double)descrDist_max);
+		weight_descrDist[1] = getWeightingValues((double)oldCorr.descrDist, (double)descrDist_max);
+		weight_response[0] = (getWeightingValues((double)newCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)newCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
+		weight_response[1] = (getWeightingValues((double)oldCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)oldCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
+		overall_weight[0] = weighting_terms[0] * weight_error[0] + weighting_terms[1] * weight_descrDist[0] + weighting_terms[2] * weight_response[0];
+		overall_weight[1] = weighting_terms[0] * weight_error[1] + weighting_terms[1] * weight_descrDist[1] + weighting_terms[2] * weight_response[1];
+		idx = overall_weight[0] > overall_weight[1] ? 0 : 1;
+		if (idx)
+		{
+			rel_diff = (overall_weight[1] - overall_weight[0]) / overall_weight[1];
+			if ((rel_diff < 0.05) || (rel_diff > weight_th))
+			{
+				return false; //take the old correspondence
+			}
+			else if (oldCorr.age > max_age)
+			{
+				return true; //take the new correspondence
+			}
+			else
+			{
+				//Check if the error is increasing
+			}
+		}
+		else
+		{
+			rel_diff = (overall_weight[0] - overall_weight[1]) / overall_weight[0];
+		}
+	}
+
+	inline double getWeightingValues(double value, double max_value, double min_value)
+	{
+		return 1.0 - value / (max_value - min_value);
 	}
 
 }

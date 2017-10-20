@@ -90,6 +90,8 @@ endif()
 #  message(FATAL_ERROR "OpenGV not found!")
 #endif()
 
+SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
+
 add_subdirectory(thirdparty/opengv)
 
 
@@ -126,6 +128,7 @@ set(headers
   ${include_path}/${target}/pose_helper.h
   ${include_path}/${target}/pose_linear_refinement.h
   ${include_path}/${target}/stereo_pose_refinement.h
+  ${include_path}/${target}/nanoflannInterface.h
 
   ${include_path}/arrsac/arrsac.h
   ${include_path}/arrsac/estimator.h
@@ -258,6 +261,7 @@ target_include_directories(${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
     # ${EIGEN3_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
+	${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}

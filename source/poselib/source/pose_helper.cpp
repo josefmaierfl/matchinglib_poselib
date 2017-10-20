@@ -2884,7 +2884,7 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 /* Checks for a given vector of error values if they are inliers or not in respect to threshold th.
 *
 * vector<double> error		Input  -> Error values
-* double th					Input  -> Threshold
+* double th					Input  -> Threshold (should be squared beforehand to fit for L2)
 * Mat inliers				Output -> Inlier mask
 *
 * Return value:		number of inliers
