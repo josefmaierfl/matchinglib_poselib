@@ -40,17 +40,17 @@ namespace poselib
 
     /* --------------------- Function prototypes --------------------- */
     void findRefinementWeights(const opengv::relative_pose::CentralRelativeAdapter adapter, const opengv::essential_t & model, const std::vector<int>& inliers,
-        unsigned int numInliers, double* weights, int refineMethod, double th, double pseudoHuberThreshold_multiplier = 0.1);
+        size_t numInliers, double* weights, int refineMethod, double th, double pseudoHuberThreshold_multiplier = 0.1);
     bool refineModel(opengv::relative_pose::CentralRelativeAdapter & adapter,
         std::vector<int>& indices,
-        const unsigned int numPoints,
+        const size_t numPoints,
         opengv::essential_t & model,
         bool weighted,
         double* weights,
         int refineMethod,//a combination of poselib::RefinePostAlg
         opengv::rotation_t* R_inout = NULL,
         opengv::translation_t* t_out = NULL);
-    unsigned int evaluateModelE(const opengv::relative_pose::CentralRelativeAdapter adapter,
+    size_t evaluateModelE(const opengv::relative_pose::CentralRelativeAdapter adapter,
         const opengv::essential_t modelE,
         std::vector<double> & errors,
         std::vector<int> & inliers,
@@ -64,11 +64,11 @@ namespace poselib
         cv::InputOutputArray E,
         cv::InputOutputArray mask,
         int refineMethod,//a combination of poselib::RefinePostAlg
-        unsigned int & nr_inliers,
+        size_t & nr_inliers,
         cv::InputOutputArray R,
         cv::OutputArray t,
         double th,
-        unsigned int num_iterative_steps,
+        size_t num_iterative_steps,
         double threshold_multiplier,
         double pseudoHuberThreshold_multiplier,
         double maxRelativeInlierCntLoss )
@@ -147,11 +147,11 @@ namespace poselib
         // using weighting
         bool poseRefined = false;
         opengv::essential_t model_new = model;
-        for (unsigned int j = 0; j < num_iterative_steps; ++j)
+        for (size_t j = 0; j < num_iterative_steps; ++j)
         {
             std::vector<double> errors;
             std::vector<int> inlierVec_tmp;
-            unsigned int temp_inliers = 0;
+            size_t temp_inliers = 0;
             if((refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS)
                 findRefinementWeights(*adapter, model_new, inliers, num_inliers, weights, refineMethod, th, pseudoHuberThreshold_multiplier);
             if (poseRefined)
@@ -286,16 +286,16 @@ namespace poselib
     // findWeights: given model and points, compute weights to be used in refinement
     // ============================================================================================
     void findRefinementWeights(const opengv::relative_pose::CentralRelativeAdapter adapter, const opengv::essential_t & model, const std::vector<int>& inliers,
-        unsigned int numInliers, double* weights, int refineMethod, double th, double pseudoHuberThreshold_multiplier)
+        size_t numInliers, double* weights, int refineMethod, double th, double pseudoHuberThreshold_multiplier)
     {
         double rx, ry, ryc, rxc;
         double* pt;
-        unsigned int pt_index;
+        size_t pt_index;
         opengv::bearingVector_t f, fprime;
 
         if (((refineMethod & 0xF0) == RefinePostAlg::PR_TORR_WEIGHTS))
         {
-            for (unsigned int i = 0; i < numInliers; ++i)
+            for (size_t i = 0; i < numInliers; ++i)
             {
                 f = adapter.getBearingVector2(inliers[i]);
                 fprime = adapter.getBearingVector1(inliers[i]);
@@ -305,7 +305,7 @@ namespace poselib
         else if (((refineMethod & 0xF0) == RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS))
         {
             double pseudohuberth = th * pseudoHuberThreshold_multiplier;
-            for (unsigned int i = 0; i < numInliers; ++i)
+            for (size_t i = 0; i < numInliers; ++i)
             {
                 f = adapter.getBearingVector2(inliers[i]);
                 fprime = adapter.getBearingVector1(inliers[i]);
@@ -320,7 +320,7 @@ namespace poselib
     // ============================================================================================
     bool refineModel(opengv::relative_pose::CentralRelativeAdapter & adapter,
         std::vector<int>& indices,
-        const unsigned int numPoints,
+        const size_t numPoints,
         opengv::essential_t & model,
         bool weighted,
         double* weights,
@@ -338,7 +338,7 @@ namespace poselib
             bearingVectors1.reserve(numPoints);
             bearingVectors1.reserve(numPoints);
             weights_vec.reserve(numPoints);
-            for (unsigned int i = 0; i < numPoints; i++)
+            for (size_t i = 0; i < numPoints; i++)
             {
                 bearingVectors1.push_back(adapter.getBearingVector1(indices[i]));
                 bearingVectors2.push_back(adapter.getBearingVector2(indices[i]));
@@ -414,7 +414,7 @@ namespace poselib
                         for (size_t c = 0; c < 3; c++)
                             possible_models[j][r * 3 + c] = Es_eigen[j](r, c);
                 }
-                for (unsigned int i = 0; i < numPoints; ++i)
+                for (size_t i = 0; i < numPoints; ++i)
                 {
                     opengv::bearingVector_t p_tmp1 = adapter.getBearingVector2(indices[i]);
                     opengv::bearingVector_t p_tmp2 = adapter.getBearingVector1(indices[i]);
@@ -473,7 +473,7 @@ namespace poselib
                         for (size_t c = 0; c < 3; c++)
                             possible_models[j][r * 3 + c] = Es_eigen[j](r, c);
                 }
-                for (unsigned int i = 0; i < numPoints; ++i)
+                for (size_t i = 0; i < numPoints; ++i)
                 {
                     opengv::bearingVector_t p_tmp1 = adapter.getBearingVector2(indices[i]);
                     opengv::bearingVector_t p_tmp2 = adapter.getBearingVector1(indices[i]);
@@ -579,7 +579,7 @@ namespace poselib
     // ============================================================================================
     // evaluateModel: test model against all data points
     // ============================================================================================
-    unsigned int evaluateModelE(const opengv::relative_pose::CentralRelativeAdapter adapter,
+    size_t evaluateModelE(const opengv::relative_pose::CentralRelativeAdapter adapter,
         const opengv::essential_t modelE,
         std::vector<double> & errors,
         std::vector<int> & inliers,
@@ -595,8 +595,8 @@ namespace poselib
         inliers.clear();
         inliers.reserve(n);
 
-        unsigned int numInliers = 0;
-        unsigned int pt_index;
+        size_t numInliers = 0;
+        size_t pt_index;
 
         for (int i = 0; i < n; ++i)
         {

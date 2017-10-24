@@ -2892,7 +2892,7 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 unsigned int getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
 {
 	unsigned int n = error.size(), nr_inliers = 0;
-	mask = cv::Mat(n, 1, CV_8UC1, false);
+	mask = cv::Mat(1, n, CV_8UC1, false);
 	for (unsigned int i = 0; i < n; i++)
 	{
 		if (error[i] < th)

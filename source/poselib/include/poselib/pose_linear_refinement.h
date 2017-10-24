@@ -39,11 +39,11 @@ namespace poselib
 		cv::InputOutputArray E,
 		cv::InputOutputArray mask,
 		int refineMethod,//a combination of poselib::RefinePostAlg
-		unsigned int & nr_inliers,
+		size_t & nr_inliers,
 		cv::InputOutputArray R = cv::noArray(),
 		cv::OutputArray t = cv::noArray(),
 		double th = 0.8,
-		unsigned int num_iterative_steps = 4,
+		size_t num_iterative_steps = 4,
 		double threshold_multiplier = 2.0,
 		double pseudoHuberThreshold_multiplier = 0.1,
 		double maxRelativeInlierCntLoss = 0.15);

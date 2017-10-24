@@ -1102,7 +1102,7 @@ void startEvaluation(ArgvParser& cmd)
                 }
             }
         }
-        unsigned int nr_inliers = cv::countNonZero(mask);
+        size_t nr_inliers = (size_t)cv::countNonZero(mask);
         std::cout << "Number of inliers after robust estimation of E: " << nr_inliers << endl;
 
         //Get R & t
@@ -1342,7 +1342,7 @@ void showMatches(cv::Mat img1, cv::Mat img2,
             if(matches.size() > keepNMatches)
             {
                 size_t keepXthMatch = matches.size() / keepNMatches;
-                for (unsigned int i = 0; i < matches.size(); i++)
+                for (size_t i = 0; i < matches.size(); i++)
                 {
                     int idx = matches[i].queryIdx;
                     keypL_reduced.push_back(kp1[idx]);
@@ -1352,7 +1352,7 @@ void showMatches(cv::Mat img1, cv::Mat img2,
                     matches_reduced.back().trainIdx = i;
                 }
                 j = 0;
-                for (unsigned int i = 0; i < matches_reduced.size(); i++)
+                for (size_t i = 0; i < matches_reduced.size(); i++)
                 {
                     if((i % (int)keepXthMatch) == 0)
                     {

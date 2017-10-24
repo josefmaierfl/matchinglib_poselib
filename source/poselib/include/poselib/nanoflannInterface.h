@@ -42,7 +42,7 @@ namespace poselib
 	struct CoordinateInterface
 	{
 		std::list<CoordinateProps> *correspondencePool;
-		std::unordered_map<unsigned int, std::list<CoordinateProps>::iterator> *poolIdxIt;
+		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt;
 	};
 
 	// And this is the "dataset to kd-tree" adaptor class:
@@ -67,6 +67,8 @@ namespace poselib
 		//  "if/else's" are actually solved at compile time.
 		inline float kdtree_get_pt(const size_t idx, int dim) const
 		{
+			if((*(derived().poolIdxIt))[idx] == derived().correspondencePool->end())
+				throw "Invalid pool iterator";
 			if (dim == 0) return (*(derived().poolIdxIt))[idx]->pt1.x;
 			else return (*(derived().poolIdxIt))[idx]->pt1.y;
 		}
@@ -96,31 +98,67 @@ namespace poselib
 	public:
 
 		keyPointTree(std::list<CoordinateProps> *correspondencePool_, 
-			std::unordered_map<unsigned int, std::list<CoordinateProps>::iterator> *poolIdxIt_)
+			std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
 		{
 			coordInteraface.correspondencePool = correspondencePool_;
 			coordInteraface.poolIdxIt = poolIdxIt_;
 			pc2kd.reset( new PC2KD(coordInteraface));
 		}
 
-		void buildInitialTree()
+		int buildInitialTree()
 		{
-			index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+			try
+			{
+				index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+			}
+			catch (string e)
+			{
+				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Unable to build KD-tree!" << std::endl;
+				return -1;
+			}
+			return 0;
 		}
 
-		void resetTree(std::list<CoordinateProps> *correspondencePool_,
-			std::unordered_map<unsigned int, std::list<CoordinateProps>::iterator> *poolIdxIt_)
+		int resetTree(std::list<CoordinateProps> *correspondencePool_,
+			std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
 		{
 			coordInteraface.correspondencePool = correspondencePool_;
 			coordInteraface.poolIdxIt = poolIdxIt_;
 			pc2kd.reset(new PC2KD(coordInteraface));
-			index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+			try
+			{
+				index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+			}
+			catch (string e)
+			{
+				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Unable to build KD-tree!" << std::endl;
+				return -1;
+			}
+			return 0;
 		}
 
-		void addElements(size_t firstIdx, size_t length)
+		void killTree()
+		{
+			index.release();
+			pc2kd.release();
+		}
+
+		int addElements(size_t firstIdx, size_t length)
 		{
 			//The indices within this range must be continous and stored in the correspondence pool and the index map(poolIdxIt_) must be valid
-			index->addPoints(firstIdx, firstIdx + length - 1);
+			try
+			{
+				index->addPoints(firstIdx, firstIdx + length - 1);
+			}
+			catch (string e)
+			{
+				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Unable to add elements to the KD-tree!" << std::endl;
+				return -1;
+			}
+			return 0;
 		}
 
 		void removeElements(size_t idx)
@@ -139,7 +177,18 @@ namespace poselib
 			queryPt_[1] = queryPt.y;
 			KNNResultSet<float> resultSet(knn);
 			resultSet.init(indices, distances);
-			index->findNeighbors(resultSet, &queryPt_[0], nanoflann::SearchParams(10));
+			try
+			{
+				index->findNeighbors(resultSet, &queryPt_[0], nanoflann::SearchParams(10));
+			}
+			catch (string e)
+			{
+				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Unable to perform a knn search!" << std::endl;
+				delete[] indices;
+				delete[] distances;
+				return 0;
+			}
 			nr_results = resultSet.size();
 			result.reserve(nr_results);
 			for (size_t i = 0; i < nr_results; i++)
@@ -159,7 +208,16 @@ namespace poselib
 			float queryPt_[2];
 			queryPt_[0] = queryPt.x;
 			queryPt_[1] = queryPt.y;
-			index->findNeighbors(resultSet, queryPt_, nanoflann::SearchParams());
+			try
+			{
+				index->findNeighbors(resultSet, queryPt_, nanoflann::SearchParams());
+			}
+			catch (string e)
+			{
+				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Unable to perform a radius search!" << std::endl;
+				return 0;
+			}
 			//Sort
 			std::sort(result.begin(), result.end(), [](std::pair<size_t, float> const & first, std::pair<size_t, float> const & second)
 			{

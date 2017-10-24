@@ -38,6 +38,7 @@ namespace poselib
 
 	/* --------------------- Function prototypes --------------------- */
 
+	double getWeightingValuesInv(double value, double max_value, double min_value = 0);
 	double getWeightingValues(double value, double max_value, double min_value = 0);
 
 	/* --------------------- Functions --------------------- */
@@ -198,6 +199,11 @@ namespace poselib
 				cfg_pose.minInlierRatioReInit = 0.15;
 			}
 		}
+		if (cfg_pose.minPtsDistance < 1.5)
+		{
+			cout << std::setprecision(2) << "The search distance for correspondences of " << cfg_pose.minPtsDistance << " is too small. Setting it to the minimal value of 1.5" << endl;
+			cfg_pose.minPtsDistance = 1.5;
+		}
 	}
 
 	int StereoRefine::addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg)
@@ -235,6 +241,8 @@ namespace poselib
 		points2newMat.release();
 		cv::Mat(points1new).reshape(1).convertTo(points1newMat, CV_64FC1);
 		cv::Mat(points2new).reshape(1).convertTo(points2newMat, CV_64FC1);
+		points1newMat.copyTo(points1newMat_tmp);
+		points2newMat.copyTo(points2newMat_tmp);
 
 		if (cfg_pose.verbose > 5)
 		{
@@ -257,7 +265,8 @@ namespace poselib
 				cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
 				return 0;
 			}
-			addCorrespondencesToPool(matches, kp1, kp2);
+			if (addCorrespondencesToPool(matches, kp1, kp2))
+				return -2;
 			pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
 			inlier_ratio_history.push_back(inlier_ratio_new1);
 			nrEstimation++;
@@ -267,9 +276,9 @@ namespace poselib
 			cv::Mat mask;
 			std::vector<double> errorNew;
 			bool addToPool = false;
-			unsigned int nr_inliers_tmp = 0;
+			size_t nr_inliers_tmp = 0;
 			double inlier_ratio_new;
-			nr_inliers_tmp = getInliers(E_new, mask, errorNew);
+			nr_inliers_tmp = getInliers(E_new, points1newMat, points2newMat, mask, errorNew);
 			inlier_ratio_new = (double)nr_inliers_tmp / (double)nr_corrs_new;
 			//check if the new inlier ratio is approximately equal to the old one as it is not likely that the image content changes completely from image pair to image pair
 			if (inlier_ratio_new < ((1.0 - cfg_pose.relInlRatThLast) * inlier_ratio_history.back()))
@@ -287,7 +296,8 @@ namespace poselib
 					{
 						//It seems that the pose hase changed as the inlier ratio is quite good after robust estimation
 						clearHistoryAndPool();
-						addCorrespondencesToPool(matches, kp1, kp2);
+						if (addCorrespondencesToPool(matches, kp1, kp2))
+							return -2;
 						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
 						inlier_ratio_history.push_back(inlier_ratio_new1);
 						nrEstimation++;
@@ -333,14 +343,24 @@ namespace poselib
 			{
 				//Perform filtering of correspondences and refinement on all available correspondences
 				skipCount = 0;
-				filterNewCorrespondences(matches, kp1, kp2, errorNew);
+				if (filterNewCorrespondences(matches, kp1, kp2, errorNew))
+				{
+					//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+					clearHistoryAndPool();
+					if (addCorrespondencesToPool(matches, kp1, kp2))
+						return -2;
+					pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+					inlier_ratio_history.push_back(inlier_ratio_new1);
+					nrEstimation++;
+				}
 			}
 
 			if (skipCount > cfg_pose.maxSkipPairs)
 			{
 				//Reinitialize whole system
 				clearHistoryAndPool();
-				addCorrespondencesToPool(matches, kp1, kp2);
+				if (addCorrespondencesToPool(matches, kp1, kp2))
+					return -2;
 				pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
 				inlier_ratio_history.push_back(inlier_ratio_new1);
 				nrEstimation++;
@@ -356,6 +376,7 @@ namespace poselib
 		points2Cam.release();
 		correspondencePool.clear();
 		correspondencePoolIdx.clear();
+		corrIdx = 0;
 		nrEstimation = 0;
 		skipCount = 0;
 		mask_E_old.release();
@@ -366,21 +387,21 @@ namespace poselib
 		errorStatistic_history.clear();
 	}
 
-	void StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
+	int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
 	{
 		CoordinateProps tmp;
 		std::vector<double> errors;
-		unsigned int nrEntries = 0;
+		size_t nrEntries = 0;
 		if (!points1Cam.empty())
 		{
-			nrEntries = (unsigned int)points1Cam.rows;
-			unsigned int reservesize = nrEntries + nr_inliers_new;
+			nrEntries = (size_t)points1Cam.rows;
+			size_t reservesize = nrEntries + nr_inliers_new;
 			points1Cam.reserve(reservesize);
 			points2Cam.reserve(reservesize);
 			correspondencePoolIdx.reserve(reservesize);
 		}
 		
-		for (unsigned int i = 0, count = nrEntries; i < nr_corrs_new; i++)
+		for (size_t i = 0, count = nrEntries; i < nr_corrs_new; i++)
 		{
 			if (mask_E_new.at<bool>(i))
 			{
@@ -420,7 +441,11 @@ namespace poselib
 		if (!kdTreeLeft)
 		{
 			kdTreeLeft.reset(new keyPointTree(&correspondencePool, &correspondencePoolIdx));
-			kdTreeLeft->buildInitialTree();
+			if (kdTreeLeft->buildInitialTree())
+			{
+				clearHistoryAndPool();
+				return -1;
+			}
 		}
 		else if((double)correspondencePool.size() / (double)corrIdx < 0.5)//Check if not too many items were detelted from the KD tree index
 		{
@@ -432,12 +457,21 @@ namespace poselib
 				it->poolIdx = corrIdx;
 				correspondencePoolIdx.insert({ corrIdx++, it++ });
 			}
-			kdTreeLeft->resetTree(&correspondencePool, &correspondencePoolIdx);
+			if (kdTreeLeft->resetTree(&correspondencePool, &correspondencePoolIdx))
+			{
+				clearHistoryAndPool();
+				return -1;
+			}
 		}
 
 		//add coordinates to the KD tree
-		kdTreeLeft->addElements(corrIdx - nr_inliers_new, nr_inliers_new);
+		if (kdTreeLeft->addElements(corrIdx - nr_inliers_new, nr_inliers_new))
+		{
+			clearHistoryAndPool();
+			return -1;
+		}
 
+		return 0;
 	}
 
 	int StereoRefine::robustPoseEstimation()
@@ -702,74 +736,282 @@ namespace poselib
 		return 0;
 	}
 
-	unsigned int StereoRefine::getInliers(cv::Mat E, cv::Mat & mask, std::vector<double> & error)
+	size_t StereoRefine::getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error)
 	{
 		error.clear();
-		computeReprojError2(points1newMat, points2newMat, E, error);
+		computeReprojError2(p1, p2, E, error);
 		return getInlierMask(error, th2, mask);
 	}
 
-	void StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error)
+	int StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error)
 	{
 		std::vector<CoordinatePropsNew> corrProbsNew;
-
-		for (unsigned int i = 0; i < nr_corrs_new; i++)
+		cv::Mat points1newMatnew = cv::Mat(nr_inliers_new, 2, points1newMat.type());
+		cv::Mat points2newMatnew = cv::Mat(nr_inliers_new, 2, points2newMat.type());
+		std::vector<cv::Point2f> points1newnew(nr_inliers_new);
+		std::vector<cv::Point2f> points2newnew(nr_inliers_new);
+		std::vector<cv::DMatch> matchesnew(nr_inliers_new);
+		for (size_t i = 0, count = 0; i < nr_corrs_new; i++)
 		{
 			if (mask_E_new.at<bool>(i))
 			{
-				corrProbsNew.push_back(CoordinatePropsNew(kp1[matches[i].queryIdx].pt,
-					kp2[matches[i].trainIdx].pt,
+				const int queryidx = matches[i].queryIdx;
+				const int trainidx = matches[i].trainIdx;
+				corrProbsNew.push_back(CoordinatePropsNew(kp1[queryidx].pt,
+					kp2[trainidx].pt,
 					matches[i].distance,
-					kp1[matches[i].queryIdx].response,
-					kp2[matches[i].trainIdx].response,
+					kp1[queryidx].response,
+					kp2[trainidx].response,
 					error[i]));
+				points1newMat.row(i).copyTo(points1newMatnew.row(count));
+				points2newMat.row(i).copyTo(points2newMatnew.row(count));
+				points1newnew[count] = points1new[i];
+				points2newnew[count] = points2new[i];
+				matchesnew[count] = matches[i];
+				count++;
 			}
 		}
+		points1newMatnew.copyTo(points1newMat);
+		points2newMatnew.copyTo(points2newMat);
+		points1new = points1newnew;
+		points2new = points2newnew;
+		matches = matchesnew;
 
 		std::vector<size_t> delete_list_new;
 		std::vector<size_t> delete_list_old;
-		for (unsigned int i = 0; i < nr_inliers_new; i++)
+		for (size_t i = 0; i < nr_inliers_new; i++)
 		{
 			std::vector<std::pair<size_t, float>> result;
 			size_t nr_found = kdTreeLeft->radiusSearch(corrProbsNew[i].pt1, cfg_pose.minPtsDistance, result);
 			if (nr_found)
 			{
-				CoordinateProps corr_tmp = *correspondencePoolIdx[result[0].first];
-				//Check, if the new point is equal to the nearest (< 1 pix difference)
-				if (result[0].second < 1.0)
+				bool deletionMarked = false;
+				size_t j = 0;
+				for (; j < nr_found; j++)
 				{
-					cv::Point2f diff = corr_tmp.pt2 - corrProbsNew[i].pt2;
-					double diff_dist = diff.x * diff.x + diff.y * diff.y;
-					if (diff_dist < 1.0)
+					CoordinateProps corr_tmp = *correspondencePoolIdx[result[j].first];
+					//Check, if the new point is equal to the nearest (< sqrt(2) pix difference)
+					//If this is the case, only replace it (if it is better) and keep all in the surrounding
+					if (result[j].second < 1.42)
 					{
-						if (diff_dist < 0.01 && result[0].second < 0.01)
+						cv::Point2f diff = corr_tmp.pt2 - corrProbsNew[i].pt2;
+						double diff_dist = (double)diff.x * (double)diff.x + (double)diff.y * (double)diff.y;
+						if (diff_dist < 1.42)
 						{
-							delete_list_new.push_back(i);
-						}
-						else
-						{
-							if (compareCorrespondences(corrProbsNew[i], corr_tmp)) //new correspondence is better
+							if (diff_dist < 0.01 && result[j].second < 0.01f)
 							{
-
+								delete_list_new.push_back(i);
+								deletionMarked = true;
+								break;
 							}
-							else //old correspondence is better
+							else
 							{
-
+								if (compareCorrespondences(corrProbsNew[i], corr_tmp)) //new correspondence is better
+								{
+									delete_list_old.push_back(result[j].first);
+								}
+								else //old correspondence is better
+								{
+									delete_list_new.push_back(i);
+									deletionMarked = true;
+									break;
+								}
 							}
 						}
+						// else -> keep both as the second coordinate is different
 					}
 					else
 					{
-
+						break;
 					}
 				}
-				else
+				if (!deletionMarked && (j == 0))
 				{
-
+					//add the new correspondence only if it is the best within the old neighbors
+					for (; j < nr_found; j++)
+					{
+						if (!compareCorrespondences(corrProbsNew[i], *correspondencePoolIdx[result[j].first])) //old correspondence is better
+						{
+							delete_list_new.push_back(i);
+							break;
+						}
+					}
+					if (j >= nr_found)
+					{
+						for (j = 0; j < nr_found; j++)
+						{
+							delete_list_old.push_back(result[j].first);
+						}
+					}
 				}
 			}
 		}
 
+		//Remove new data elements
+		if (!delete_list_new.empty())
+		{
+			size_t n_del = delete_list_new.size();
+			if (n_del == nr_inliers_new)
+			{
+				points1newMat.release();
+				points2newMat.release();
+				points1new.clear();
+				points2new.clear();
+				matches.clear();
+				mask_E_new.release();
+				mask_Q_new.release();
+				nr_inliers_new = 0;
+				nr_corrs_new = 0;
+				Q.release();
+			}
+			else
+			{
+				size_t n_new = nr_inliers_new - n_del;
+				points1newMatnew = cv::Mat(n_new, 2, points1newMat.type());
+				points2newMatnew = cv::Mat(n_new, 2, points2newMat.type());
+				points1newnew.clear();
+				points2newnew.clear();
+				matchesnew.clear();
+				points1newnew.reserve(n_new);
+				points2newnew.reserve(n_new);
+				matchesnew.reserve(n_new);
+				size_t old_idx = 0;
+				int startRowNew = 0;
+				for (size_t i = 0; i < n_del; i++)
+				{
+					if (old_idx == delete_list_new[i])
+					{
+						old_idx = delete_list_new[i] + 1;
+						continue;
+					}
+					const int nr_new_cpy_elements = (int)delete_list_new[i] - (int)old_idx;
+					const int endRowNew = startRowNew + nr_new_cpy_elements;
+					points1newMat.rowRange((int)old_idx, (int)delete_list_new[i]).copyTo(points1newMatnew.rowRange(startRowNew, endRowNew));
+					points2newMat.rowRange((int)old_idx, (int)delete_list_new[i]).copyTo(points2newMatnew.rowRange(startRowNew, endRowNew));
+					points1newnew.insert(points1newnew.end(), points1new.begin() + old_idx, points1new.begin() + delete_list_new[i]);
+					points2newnew.insert(points2newnew.end(), points2new.begin() + old_idx, points2new.begin() + delete_list_new[i]);
+					matchesnew.insert(matchesnew.end(), matches.begin() + old_idx, matches.begin() + delete_list_new[i]);
+					startRowNew = endRowNew;
+					old_idx = delete_list_new[i] + 1;
+				}
+				points1newMat.rowRange((int)old_idx, points1newMat.rows).copyTo(points1newMatnew.rowRange(startRowNew, n_new));
+				points1newnew.insert(points1newnew.end(), points1new.begin() + old_idx, points1new.end());
+				points2newnew.insert(points2newnew.end(), points2new.begin() + old_idx, points2new.end());
+				matchesnew.insert(matchesnew.end(), matches.begin() + old_idx, matches.end());
+				points1newMatnew.copyTo(points1newMat);
+				points2newMatnew.copyTo(points2newMat);
+				points1new = points1newnew;
+				points2new = points2newnew;
+				matches = matchesnew;
+				mask_E_new = cv::Mat(1, n_new, CV_8UC1, true);
+				mask_Q_new.release();
+				nr_inliers_new = n_new;
+				nr_corrs_new = n_new;
+				Q.release();
+			}
+		}
+
+		//Remove old correspondences
+		if (!delete_list_old.empty())
+		{
+			if (poolCorrespondenceDelete(delete_list_old))
+				return -1;
+		}
+		return 0;
+	}
+
+	int StereoRefine::poolCorrespondenceDelete(std::vector<size_t> delete_list)
+	{
+		//kdTreeLeft, points1Cam, points2Cam, correspondencePool, correspondencePoolIdx
+		size_t nrToDel = delete_list.size();
+		size_t poolSize = correspondencePool.size();
+		if (nrToDel == poolSize)
+		{
+			kdTreeLeft->killTree();
+			kdTreeLeft.release();
+			points1Cam.release();
+			points2Cam.release();
+			correspondencePool.clear();
+			correspondencePoolIdx.clear();
+			corrIdx = 0;
+			mask_E_old.release();
+			mask_Q_old.release();
+		}
+		else
+		{
+			vector<size_t> ptsCamDelIdxs(nrToDel);
+			for (size_t i = 0; i < nrToDel; i++)
+			{
+				ptsCamDelIdxs[i] = correspondencePoolIdx[delete_list[i]]->ptIdx;
+			}
+			std::sort(ptsCamDelIdxs.begin(), ptsCamDelIdxs.end());
+
+			std::unordered_map<size_t, long long int> delDiffInfo;
+			for (size_t i = 0, count = 0; i < poolSize; i++)
+			{
+				if ((i < ptsCamDelIdxs[count]) || (i > ptsCamDelIdxs[count]))
+				{
+					delDiffInfo.insert({ i, -1 * (long long int)count });
+				}
+				else if ((i == ptsCamDelIdxs[count]) && (count < (nrToDel - 1)))
+				{
+					count++;
+				}
+			}
+
+			size_t n_new = poolSize - nrToDel;
+			cv::Mat points1CamNew(n_new, 2, points1Cam.type());
+			cv::Mat points2CamNew(n_new, 2, points2Cam.type());
+			size_t old_idx = 0;
+			int startRowNew = 0;
+			for (size_t i = 0; i < nrToDel; i++)
+			{
+				if (old_idx == ptsCamDelIdxs[i])
+				{
+					old_idx = ptsCamDelIdxs[i] + 1;
+					continue;
+				}
+				const int nr_new_cpy_elements = (int)ptsCamDelIdxs[i] - (int)old_idx;
+				const int endRowNew = startRowNew + nr_new_cpy_elements;
+				points1Cam.rowRange((int)old_idx, (int)ptsCamDelIdxs[i]).copyTo(points1CamNew.rowRange(startRowNew, endRowNew));
+				points2Cam.rowRange((int)old_idx, (int)ptsCamDelIdxs[i]).copyTo(points2CamNew.rowRange(startRowNew, endRowNew));
+				
+				startRowNew = endRowNew;
+				old_idx = ptsCamDelIdxs[i] + 1;
+			}
+			points1Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points1CamNew.rowRange(startRowNew, n_new));
+			points2Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points2CamNew.rowRange(startRowNew, n_new));
+			points1CamNew.copyTo(points1Cam);
+			points2CamNew.copyTo(points2Cam);
+
+			for (size_t i = 0; i < nrToDel; i++)
+			{
+				//Delete index elements from tree
+				kdTreeLeft->removeElements(delete_list[i]);
+
+				//Delete correspondences from pool
+				std::unordered_map<size_t, std::list<CoordinateProps>::iterator>::iterator it = correspondencePoolIdx.find(delete_list[i]);
+				try
+				{
+					if (it->second != correspondencePool.end())
+						correspondencePool.erase(it->second);
+					else
+						throw "Invalid pool iterator";
+					it->second = correspondencePool.end();
+				}
+				catch (string e)
+				{
+					cout << "Exception: " << e << endl;
+					cout << "Clearing the whole correspondence pool!" << endl;
+					return -1;
+				}
+			}
+			for (std::list<CoordinateProps>::iterator it = correspondencePool.begin(); it != correspondencePool.end(); ++it)
+			{
+				it->ptIdx = it->ptIdx + delDiffInfo[it->ptIdx];
+			}
+		}
+		return 0;
 	}
 
 	bool StereoRefine::compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr)
@@ -780,12 +1022,12 @@ namespace poselib
 		int idx;
 		double rel_diff;
 		const double weight_th = 0.2;//If one of the resulting weights is more than e.g. 20% better
-		unsigned int max_age = 15;//If the quality of the old correspondence is slightly better but it is older (number of iterations) than this thershold, new new one is preferred
+		size_t max_age = 15;//If the quality of the old correspondence is slightly better but it is older (number of iterations) than this thershold, the new new one is preferred
 
-		weight_error[0] = getWeightingValues(newCorr.sampsonError, th2);
-		weight_error[1] = getWeightingValues(oldCorr.SampsonErrors.back(), th2);
-		weight_descrDist[0] = getWeightingValues((double)newCorr.descrDist, (double)descrDist_max);
-		weight_descrDist[1] = getWeightingValues((double)oldCorr.descrDist, (double)descrDist_max);
+		weight_error[0] = getWeightingValuesInv(newCorr.sampsonError, th2);
+		weight_error[1] = getWeightingValuesInv(oldCorr.SampsonErrors.back(), th2);
+		weight_descrDist[0] = getWeightingValuesInv((double)newCorr.descrDist, (double)descrDist_max);
+		weight_descrDist[1] = getWeightingValuesInv((double)oldCorr.descrDist, (double)descrDist_max);
 		weight_response[0] = (getWeightingValues((double)newCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)newCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
 		weight_response[1] = (getWeightingValues((double)oldCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)oldCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
 		overall_weight[0] = weighting_terms[0] * weight_error[0] + weighting_terms[1] * weight_descrDist[0] + weighting_terms[2] * weight_response[0];
@@ -798,24 +1040,39 @@ namespace poselib
 			{
 				return false; //take the old correspondence
 			}
-			else if (oldCorr.age > max_age)
-			{
-				return true; //take the new correspondence
-			}
-			else
-			{
-				//Check if the error is increasing
-			}
 		}
 		else
 		{
 			rel_diff = (overall_weight[0] - overall_weight[1]) / overall_weight[0];
+			if (rel_diff < 0.05)
+			{
+				return false; //take the old correspondence
+			}
+			else if ((rel_diff > weight_th))
+			{
+				return true; //take the new correspondence
+			}
 		}
+		if (oldCorr.age > max_age)
+		{
+			return true; //take the new correspondence
+		}
+		else if (oldCorr.SampsonErrors.back() > oldCorr.SampsonErrors[oldCorr.SampsonErrors.size() - 2])//Check if the error is increasing
+		{
+			return true; //take the new correspondence
+		}
+
+		return false; //take the old correspondence
+	}
+
+	inline double getWeightingValuesInv(double value, double max_value, double min_value)
+	{
+		return 1.0 - value / (max_value - min_value);
 	}
 
 	inline double getWeightingValues(double value, double max_value, double min_value)
 	{
-		return 1.0 - value / (max_value - min_value);
+		return value / (max_value - min_value);
 	}
 
 }
