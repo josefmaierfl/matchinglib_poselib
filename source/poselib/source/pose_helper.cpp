@@ -2889,11 +2889,11 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 *
 * Return value:		number of inliers
 */
-unsigned int getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
+size_t getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
 {
-	unsigned int n = error.size(), nr_inliers = 0;
+	size_t n = error.size(), nr_inliers = 0;
 	mask = cv::Mat(1, n, CV_8UC1, false);
-	for (unsigned int i = 0; i < n; i++)
+	for (size_t i = 0; i < n; i++)
 	{
 		if (error[i] < th)
 		{

@@ -163,5 +163,5 @@ double POSELIB_API getSampsonL2Error(cv::InputArray E, cv::InputArray x1, cv::In
 //Calculates the Sampson L2 error for 1 correspondence
 double POSELIB_API getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d x2);
 //Checks for a given vector of error values if they are inliers or not in respect to threshold th.
-unsigned int POSELIB_API getInlierMask(std::vector<double> error, double th, cv::Mat & mask);
+size_t POSELIB_API getInlierMask(std::vector<double> error, double th, cv::Mat & mask);
 }

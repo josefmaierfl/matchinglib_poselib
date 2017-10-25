@@ -87,6 +87,10 @@ namespace poselib
 			refineRTold(false),
 			kneipInsteadBA(false),
 			BART(0),
+			refineMethod_CorrPool(poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS),
+			refineRTold_CorrPool(false),
+			kneipInsteadBA_CorrPool(false),
+			BART_CorrPool(0),
 			verbose(7),
 			minStartAggInlRat(0.2),
 			relInlRatThLast(0.35),
@@ -106,10 +110,14 @@ namespace poselib
 		bool autoTH;//If the essentila matrix should be estimated using an automatic threshold estimation and ARRSAC
 		int Halign;//If the essentila matrix should be estimated using homography alignment
 		std::string RobMethod;//USAC,RANSAC,ARRSAC,LMEDS
-		int refineMethod;//Choose the refinement algorithm (not necessary for USAC). For details see enum RefinePostAlg
-		bool refineRTold;//If true, the old refinement algorithm based on the 8pt algorithm and pseudo-huber weights
-		bool kneipInsteadBA;//If true, Kneips Eigen solver is used instead of bundle adjustment (no additional refinement beforehand)
-		int BART;//Optional bundle adjustment (BA): 0: no BA, 1: BA for extrinsics and structure only, 2: BA for intrinsics, extrinsics, and structure
+		int refineMethod;//Choose the refinement algorithm (not necessary for USAC) after robust estimation. For details see enum RefinePostAlg
+		bool refineRTold;//If true, the old refinement algorithm based on the 8pt algorithm and pseudo-huber weights is used after robust estimation.
+		bool kneipInsteadBA;//If true, Kneips Eigen solver is used instead of bundle adjustment (no additional refinement beforehand) after robust estimation.
+		int BART;//Optional bundle adjustment (BA) after robust estimation: 0: no BA, 1: BA for extrinsics and structure only, 2: BA for intrinsics, extrinsics, and structure
+		int refineMethod_CorrPool;//Choose the refinement algorithm (not necessary for USAC) for all correspondences. For details see enum RefinePostAlg
+		bool refineRTold_CorrPool;//If true, the old refinement algorithm based on the 8pt algorithm and pseudo-huber weights is used for all correspondences.
+		bool kneipInsteadBA_CorrPool;//If true, Kneips Eigen solver is used instead of bundle adjustment (no additional refinement beforehand) for all correspondences.
+		int BART_CorrPool;//Optional bundle adjustment (BA) for all correspondences: 0: no BA, 1: BA for extrinsics and structure only, 2: BA for intrinsics, extrinsics, and structure
 		int verbose;//Verbosity level (max:7)
 		double minStartAggInlRat;//Threshold on the inlier ratio for the first pose estimation. Below this threshold the correspondences will be discarded and not used in the next iteration.
 		double relInlRatThLast;//Relative threshold (th = (1 - relInlRatThLast) * last_inl_rat) on the inlier ratios to decide if a new robust estimation is necessary (for comparison, the inlier ratio of the last image pair "last_inl_rat" is used)
@@ -128,7 +136,7 @@ namespace poselib
 			ptIdx(0),
 			poolIdx(0),
 			Q(0,0,0),
-			Q_tooFar(true),
+			Q_tooFar(false),
 			age(0),
 			descrDist(0),
 			keyPResponses{0,0},
@@ -169,7 +177,7 @@ namespace poselib
 		std::vector<cv::Point2f> points1new, points2new;//Undistorted point correspondences in the camera coordinate system
 		cv::Mat points1newMat, points2newMat;//The same as points1new and points2new but double values in cv::Mat format
 		cv::Mat points1newMat_tmp, points2newMat_tmp;//The same as points1newMat and points2newMat but holds also the correspondences that were filtered out
-		cv::Mat points1Cam, points2Cam;//Undistorted point correspondences in the camera coordinate system of all vaild image pairs
+		cv::Mat points1Cam, points2Cam;//Undistorted point correspondences in the camera coordinate system of all valid image pairs
 		double th;//Inlier threshold
 		double th2;//Squared inlier threshold
 		double t_mea; //Time measurement
@@ -181,8 +189,8 @@ namespace poselib
 		cv::Mat mask_Q_new; //Newest mask using E and triangulated 3D points (excludes correspondences too far away) for the newest image pair
 		size_t nr_inliers_new;//Number of inliers for the newest image pair
 		size_t nr_corrs_new;//Number of initial correspondences of the newest image pair
-		cv::Mat mask_E_old; //Mask using E only for all corresponding keypoints of the preceding image pairs (excluding the newest)
-		cv::Mat mask_Q_old; //Mask using E and triangulated 3D points (excludes correspondences too far away) for all corresponding keypoints of the preceding image pairs (excluding the newest)
+		//cv::Mat mask_E_old; //Mask using E only for all corresponding keypoints of the preceding image pairs (excluding the newest)
+		//cv::Mat mask_Q_old; //Mask using E and triangulated 3D points (excludes correspondences too far away) for all corresponding keypoints of the preceding image pairs (excluding the newest)
 		cv::Mat Q;//3D points of latest image pair
 		cv::Mat R_new; //Newest rotation matrix
 		cv::Mat t_new; //Newest translation vector
@@ -191,7 +199,7 @@ namespace poselib
 		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
 		size_t corrIdx;//Continous index starting with 0 counting all correspondences that were ever inserted into correspondencePool. The index is resetted when the KD tree is resetted.
 		std::unique_ptr<keyPointTree> kdTreeLeft;//KD-tree using nanoflann holding the keypoint coordinates of the left valid keypoints
-		std::vector<size_t> deletionIdxs;//Holds indexes of point correspondences to be deleted
+		//std::vector<size_t> deletionIdxs;//Holds indexes of point correspondences to be deleted
 
 		struct CoordinatePropsNew
 		{
@@ -233,7 +241,7 @@ namespace poselib
 			skipCount = 0;
 			th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold
 			th2 = th * th;
-			checkInlRatThresholds();
+			checkInputParamters();
 			corrIdx = 0;
 			t_mea = 0;
 			t_oa = 0;
@@ -248,10 +256,11 @@ namespace poselib
 	private:
 
 		int robustPoseEstimation();
+		int refinePoseFromPool();
 		int addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2);
 		size_t getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error);
 		void clearHistoryAndPool();
-		void checkInlRatThresholds();
+		void checkInputParamters();
 		int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);
 		bool compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr);
 		int poolCorrespondenceDelete(std::vector<size_t> delete_list);
