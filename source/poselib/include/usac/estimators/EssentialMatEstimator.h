@@ -2357,7 +2357,7 @@ void EssentialMatEstimator::storeModel(unsigned int modelIndex, unsigned int num
         final_model_params_[i] = *(models_denorm_[modelIndex] + i);
     }
     R_eigen = R_eigen_new;
-    t_eigen = t_eigen_new;
+    t_eigen = t_eigen_new;	
 }
 
 #endif

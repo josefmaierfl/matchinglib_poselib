@@ -19,6 +19,7 @@ set(sources
 )
 
 #find_package(Clapack REQUIRED)
+#SET( Nanoflann_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/source/poselib/thirdparty/nanoflann-1.3.0/include")
 
 #
 # Create executable
@@ -54,6 +55,7 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
+	#${Nanoflann_INCLUDE_DIR}
 )
 
 

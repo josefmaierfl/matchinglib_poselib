@@ -64,6 +64,11 @@ ELSE()
       ${EIGEN3_INCLUDE_DIR}/unsupported )
 ENDIF()
 
+# compile with /bigobj under Windows
+IF(WIN32)
+	add_definitions( /bigobj )
+ENDIF()
+
 include_directories(${ADDITIONAL_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
 
 set( OPENGV_SOURCE_FILES

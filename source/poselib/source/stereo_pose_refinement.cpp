@@ -46,9 +46,11 @@ namespace poselib
 
 	void StereoRefine::setNewParameters(ConfigPoseEstimation cfg_pose_)
 	{
-		if (!poselib::nearZero(cfg_pose.th_pix_user - cfg_pose_.th_pix_user))
+		bool checkTh = false;
+		if (!poselib::nearZero(cfg_pose.th_pix_user - cfg_pose_.th_pix_user) && (cfg_pose_.th_pix_user < cfg_pose.th_pix_user) && !points1Cam.empty())
 		{
-			//use robust method to estimate E first to check if the new correspondences correspond to the old E
+			//check if the new threshold leads to a noticable reduction of the already found correspondences
+			checkTh = true;
 		}
 		cfg_pose = cfg_pose_;
 		th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold
@@ -56,6 +58,19 @@ namespace poselib
 		checkInputParamters();
 		t_mea = 0;
 		t_oa = 0;
+		if (checkTh)
+		{
+			std::vector<double> errors;
+			cv::Mat mask;
+			size_t nr_inliers_tmp = getInliers(E_new, points1Cam, points2Cam, mask, errors);
+			double inlRat_new = (double)nr_inliers_tmp / (double)points1Cam.rows;
+			if (inlRat_new < inlier_ratio_history.back() * (1 - cfg_pose.relInlRatThNew))
+			{
+				//Too many correspondences from the last image pairs are marked now as outliers ->reinitializing System
+				cout << std::setprecision(3) << "Due to changing the threshold, too many of the correspondences from the last image pairs are marked now as outliers. Reinitializing system!" << endl;
+				clearHistoryAndPool();
+			}
+		}
 	}
 
 	void StereoRefine::checkInputParamters()
@@ -261,7 +276,7 @@ namespace poselib
 		if (nrEstimation == 0)
 		{
 			//First estimation
-			if (!robustPoseEstimation())
+			if (robustPoseEstimation())
 			{
 				return -1;
 			}
@@ -290,7 +305,7 @@ namespace poselib
 			if (inlier_ratio_new < ((1.0 - cfg_pose.relInlRatThLast) * inlier_ratio_history.back()))
 			{
 				//Perform new robust estimation to check if the pose has changed
-				if (!robustPoseEstimation())
+				if (robustPoseEstimation())
 				{
 					return -1;
 				}
@@ -362,6 +377,8 @@ namespace poselib
 				}
 				if (addCorrespondencesToPool(matches, kp1, kp2))
 					return -2;
+
+				//Perform refinement using all available correspondences
 				cv::Mat E_old = E_new.clone();
 				cv::Mat R_old = R_new.clone();
 				cv::Mat t_old = t_new.clone();
@@ -392,7 +409,8 @@ namespace poselib
 					clearHistoryAndPool();
 					return -1;
 				}
-				//Calculate inliers of new image pair with the new E over all image pairs
+
+				//Calculate inliers of the new image pair with the new E from all image pairs
 				nr_inliers_tmp = getInliers(E_new, points1newMat_tmp, points2newMat_tmp, mask, errorNew);
 				inlier_ratio_new = (double)nr_inliers_tmp / (double)points1newMat_tmp.rows;
 				if (inlier_ratio_new < inlier_ratio_new1 * (1 - cfg_pose.relInlRatThNew))
@@ -406,8 +424,18 @@ namespace poselib
 				}
 				inlier_ratio_history.push_back(inlier_ratio_new);
 				pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-				nrEstimation++;
-				skipCount = 0;
+
+				//Get error statistic for the newest image pair
+				vector<double> errorNew_tmp(nr_inliers_tmp);
+				for (size_t i = 0, count = 0; i < nr_inliers_tmp; i++)
+				{
+					if (mask.at<bool>(i))
+						errorNew_tmp[count++] = errorNew[i];
+				}
+				statVals err_stats;
+				getStatsfromVec(errorNew_tmp, &err_stats);
+				errorStatistic_history.push_back(err_stats);
+
 				//Delete elements marked as outliers
 				if (nr_inliers_new < correspondencePool.size())
 				{
@@ -449,7 +477,9 @@ namespace poselib
 						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
 						inlier_ratio_history.push_back(inlier_ratio_new1);
 						nrEstimation++;
+						return -2;
 					}
+
 					//Calculate error values with new E, and add 3D points
 					std::vector<double> error;
 					computeReprojError2(points1Cam, points2Cam, E_new, error);
@@ -469,6 +499,9 @@ namespace poselib
 						}
 						it.meanSampsonError /= (double)it.SampsonErrors.size();
 					}
+
+					nrEstimation++;
+					skipCount = 0;
 				}
 			}
 
@@ -528,6 +561,16 @@ namespace poselib
 			points2Cam.reserve(reservesize);
 			correspondencePoolIdx.reserve(reservesize);
 		}
+		//Initialize KD tree
+		if (!kdTreeLeft)
+		{
+			kdTreeLeft.reset(new keyPointTreeInterface(&correspondencePool, &correspondencePoolIdx));
+			if (kdTreeLeft->buildInitialTree())
+			{
+				clearHistoryAndPool();
+				return -1;
+			}
+		}
 		
 		for (size_t i = 0, count = nrEntries; i < nr_corrs_new; i++)
 		{
@@ -559,6 +602,7 @@ namespace poselib
 				tmp.ptIdx = count;
 				tmp.poolIdx = corrIdx;
 				correspondencePool.push_back(tmp);
+				tmp.SampsonErrors.clear();
 				correspondencePoolIdx.insert({ corrIdx, --correspondencePool.end() });
 				corrIdx++;
 				count++;
@@ -570,18 +614,8 @@ namespace poselib
 			getStatsfromVec(errors, &err_stats);
 			errorStatistic_history.push_back(err_stats);
 		}
-
-		//Initialize KD tree
-		if (!kdTreeLeft)
-		{
-			kdTreeLeft.reset(new keyPointTree(&correspondencePool, &correspondencePoolIdx));
-			if (kdTreeLeft->buildInitialTree())
-			{
-				clearHistoryAndPool();
-				return -1;
-			}
-		}
-		else if((double)correspondencePool.size() / (double)corrIdx < 0.5)//Check if not too many items were detelted from the KD tree index
+		
+		if(kdTreeLeft && ((double)correspondencePool.size() / (double)corrIdx < 0.5))//Check if not too many items were detelted from the KD tree index
 		{
 			corrIdx = 0;
 			correspondencePoolIdx.clear();
@@ -875,7 +909,7 @@ namespace poselib
 	int StereoRefine::refinePoseFromPool()
 	{
 		cv::Mat E = E_new.clone();
-		cv::Mat mask = cv::Mat(1, points1Cam.rows, CV_8U, true);
+		cv::Mat mask = cv::Mat(1, points1Cam.rows, CV_8U, cv::Scalar((unsigned char)true));
 		nr_inliers_new = (size_t)points1Cam.rows;
 		Q.release();
 		
@@ -1092,11 +1126,11 @@ namespace poselib
 					CoordinateProps corr_tmp = *correspondencePoolIdx[result[j].first];
 					//Check, if the new point is equal to the nearest (< sqrt(2) pix difference)
 					//If this is the case, only replace it (if it is better) and keep all in the surrounding
-					if (result[j].second < 1.42)
+					if (result[j].second < 2.0)
 					{
 						cv::Point2f diff = corr_tmp.pt2 - corrProbsNew[i].pt2;
 						double diff_dist = (double)diff.x * (double)diff.x + (double)diff.y * (double)diff.y;
-						if (diff_dist < 1.42)
+						if (diff_dist < 2.0)
 						{
 							if (diff_dist < 0.01 && result[j].second < 0.01f)
 							{
@@ -1205,7 +1239,7 @@ namespace poselib
 				points1new = points1newnew;
 				points2new = points2newnew;
 				matches = matchesnew;
-				mask_E_new = cv::Mat(1, n_new, CV_8UC1, true);
+				mask_E_new = cv::Mat(1, n_new, CV_8UC1, cv::Scalar((unsigned char)true));
 				mask_Q_new.release();
 				nr_inliers_new = n_new;
 				nr_corrs_new = n_new;
@@ -1216,6 +1250,14 @@ namespace poselib
 		//Remove old correspondences
 		if (!delete_list_old.empty())
 		{
+			sort(delete_list_old.begin(), delete_list_old.end());
+			for (size_t i = delete_list_old.size() - 1; i >= 1; i--)
+			{
+				if (delete_list_old[i] == delete_list_old[i - 1])
+				{
+					delete_list_old.erase(delete_list_old.begin() + i);
+				}
+			}
 			if (poolCorrespondenceDelete(delete_list_old))
 				return -1;
 		}
@@ -1359,7 +1401,7 @@ namespace poselib
 		{
 			return true; //take the new correspondence
 		}
-		else if (oldCorr.SampsonErrors.back() > oldCorr.SampsonErrors[oldCorr.SampsonErrors.size() - 2])//Check if the error is increasing
+		else if ((oldCorr.SampsonErrors.size() > 1) && (oldCorr.SampsonErrors.back() > oldCorr.SampsonErrors[oldCorr.SampsonErrors.size() - 2]))//Check if the error is increasing
 		{
 			return true; //take the new correspondence
 		}

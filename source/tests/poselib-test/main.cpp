@@ -18,6 +18,7 @@ int main(int argc, char* argv[])
 #include "poselib/pose_helper.h"
 #include "poselib/pose_homography.h"
 #include "poselib/pose_linear_refinement.h"
+#include "poselib/stereo_pose_refinement.h"
 // ---------------------
 
 #include "opencv2/imgproc/imgproc.hpp"
@@ -28,6 +29,7 @@ int main(int argc, char* argv[])
 #include <opencv2/imgproc.hpp>
 
 #include <fstream>
+#include <memory>
 
 using namespace std;
 using namespace cv;
@@ -40,6 +42,16 @@ void showMatches(cv::Mat img1, cv::Mat img2,
                  bool drawAllKps = false);
 bool readCalibMat(std::ifstream& calibFile, std::string label, cv::Size matsize, cv::Mat& calibMat);
 int loadCalibFile(std::string filepath, std::string filename, cv::Mat& R0, cv::Mat& R1, cv::Mat& t0, cv::Mat& t1, cv::Mat& K0, cv::Mat& K1, cv::Mat& dist0, cv::Mat& dist1, int nrDist = 5);
+void cinfigureUSAC(poselib::ConfigUSAC &cfg,
+	int cfgUSACnr[6],
+	double USACdegenTh,
+	cv::Mat K0,
+	cv::Mat K1,
+	cv::Size imgSize,
+	std::vector<cv::KeyPoint> *kp1,
+	std::vector<cv::KeyPoint> *kp2,
+	std::vector<cv::DMatch> *finalMatches,
+	double th_pix_user);
 
 
 
@@ -260,6 +272,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "6th digit:\n 0\t Inner refinement alg: 8pt with Torr weights\n 1\t Inner refinement alg: 8pt with pseudo-huber weights\n 2\t Inner refinement alg: Kneip's Eigen solver\n 3\t Inner refinement alg: Kneip's Eigen solver with Torr weights\n 4\t Inner refinement alg: Stewenius\n 5\t Inner refinement alg: Stewenius with pseudo-huber weights\n 6\t Inner refinement alg: Nister\n 7\t Inner refinement alg: Nister with pseudo-huber weights>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("USACdegenTh", "<Decision threshold on the inlier ratios between Essential matrix and the degenerate configuration (only rotation) to decide if the solution is degenerate or not [Default=0.85]. It is only used for the internal degeneracy check of USAC (4th digit of option cfgUSAC = 2)>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("th", "<Inlier threshold to check if a match corresponds to a model. [Default=0.8]>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("stereoRef", "<If provided, the algorithm assums a stereo configuration and refines the pose using multiple image pairs.>", ArgvParser::NoOptionAttribute);
 
     /// finally parse and handle return codes (display help etc...)
     if(argc <= 1)
@@ -345,6 +358,7 @@ void startEvaluation(ArgvParser& cmd)
     int cfgUSACnr[6] = {3,1,1,2,2,5};
     int refineRTnr[2] = { 0,0};
     bool kneipInsteadBA = false;
+	bool stereoRef = false;
 
     noRatiot = cmd.foundOption("noRatiot");
     refineVFC = cmd.foundOption("refineVFC");
@@ -358,6 +372,8 @@ void startEvaluation(ArgvParser& cmd)
     absCoord = cmd.foundOption("absCoord");
 
     showRect = cmd.foundOption("showRect");
+
+	stereoRef = cmd.foundOption("stereoRef");
 
     if (cmd.foundOption("subPixRef"))
     {
@@ -686,6 +702,65 @@ void startEvaluation(ArgvParser& cmd)
         showNr = 50;
     }
 
+	cv::Mat R0, R1, t0, t1, K0, K1, dist0_5, dist1_5, dist0_8, dist1_8;
+	if (distcoeffNr == 5)
+	{
+		if (loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_5, dist1_5) != 0)
+		{
+			std::cout << "Format of calibration file not supported. Exiting." << endl;
+			exit(0);
+		}
+		dist0_8 = Mat::zeros(1, 8, dist0_5.type());
+		dist1_8 = Mat::zeros(1, 8, dist1_5.type());
+		if (dist0_5.rows > dist0_5.cols)
+		{
+			dist0_5 = dist0_5.t();
+			dist1_5 = dist1_5.t();
+		}
+		dist0_5.copyTo(dist0_8.colRange(0, 5));
+		dist1_5.copyTo(dist1_8.colRange(0, 5));
+	}
+	else
+	{
+		if (loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_8, dist1_8, distcoeffNr) != 0)
+		{
+			std::cout << "Format of calibration file not supported. Exiting." << endl;
+			exit(0);
+		}
+		if (dist0_8.rows > dist0_8.cols)
+		{
+			dist0_8 = dist0_8.t();
+			dist1_8 = dist1_8.t();
+		}
+	}
+	if (oneCam)
+	{
+		dist1_8 = dist0_8;
+		K1 = K0;
+	}
+
+	std::unique_ptr<poselib::StereoRefine> stereoObj;
+	if (stereoRef)
+	{
+		poselib::ConfigPoseEstimation cfg_stereo;
+
+		cfg_stereo.dist0_8 = &dist0_8;
+		cfg_stereo.dist1_8 = &dist1_8;
+		cfg_stereo.K0 = &K0;
+		cfg_stereo.K1 = &K1;
+		cfg_stereo.th_pix_user = th_pix_user;
+		cfg_stereo.verbose = verbose;
+		/*cfg_stereo.Halign = Halign;
+		cfg_stereo.autoTH = autoTH;
+		cfg_stereo.BART = BART;
+		cfg_stereo.kneipInsteadBA = kneipInsteadBA;
+		cfg_stereo.refineMethod = refineMethod;
+		cfg_stereo.refineRTold = refineRTold;
+		cfg_stereo.RobMethod = RobMethod;*/
+
+		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
+	}
+
     int failNr = 0;
   int step = 1;
     for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - step):(int)filenamesl.size()); i++)
@@ -743,518 +818,389 @@ void startEvaluation(ArgvParser& cmd)
 
         //Get calibration data from file
         double t_mea = 0, t_oa = 0;
-        cv::Mat R0, R1, t0, t1, K0, K1, dist0_5, dist1_5, dist0_8, dist1_8;
-        if (distcoeffNr == 5)
-        {
-            if (loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_5, dist1_5) != 0)
-            {
-                std::cout << "Format of calibration file not supported. Exiting." << endl;
-                exit(0);
-            }
-            dist0_8 = Mat::zeros(1, 8, dist0_5.type());
-            dist1_8 = Mat::zeros(1, 8, dist1_5.type());
-            if (dist0_5.rows > dist0_5.cols)
-            {
-                dist0_5 = dist0_5.t();
-                dist1_5 = dist1_5.t();
-            }
-            dist0_5.copyTo(dist0_8.colRange(0, 5));
-            dist1_5.copyTo(dist1_8.colRange(0, 5));
-        }
-        else
-        {
-            if (loadCalibFile(img_path, c_file, R0, R1, t0, t1, K0, K1, dist0_8, dist1_8, distcoeffNr) != 0)
-            {
-                std::cout << "Format of calibration file not supported. Exiting." << endl;
-                exit(0);
-            }
-            if (dist0_8.rows > dist0_8.cols)
-            {
-                dist0_8 = dist0_8.t();
-                dist1_8 = dist1_8.t();
-            }
-        }
-        if (oneCam)
-        {
-            dist1_8 = dist0_8;
-            K1 = K0;
-        }
+        
+        
 
-        //Extract coordinates from keypoints
-        vector<cv::Point2f> points1, points2;
-        for(size_t i = 0; i < finalMatches.size(); i++)
-        {
-            points1.push_back(kp1[finalMatches[i].queryIdx].pt);
-            points2.push_back(kp2[finalMatches[i].trainIdx].pt);
-        }
+		cv::Mat R, t;
+		if (!stereoRef)
+		{
 
-        if(verbose > 5)
-        {
-            t_mea = (double)getTickCount(); //Start time measurement
-        }
+			//Extract coordinates from keypoints
+			vector<cv::Point2f> points1, points2;
+			for (size_t i = 0; i < finalMatches.size(); i++)
+			{
+				points1.push_back(kp1[finalMatches[i].queryIdx].pt);
+				points2.push_back(kp2[finalMatches[i].trainIdx].pt);
+			}
 
-        //Transfer into camera coordinates
-        poselib::ImgToCamCoordTrans(points1, K0);
-        poselib::ImgToCamCoordTrans(points2, K1);
+			if (verbose > 5)
+			{
+				t_mea = (double)getTickCount(); //Start time measurement
+			}
 
-        //Undistort
-        if(!poselib::Remove_LensDist(points1, points2, dist0_8, dist1_8))
-        {
-            failNr++;
-            if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-            {
-                std::cout << "Undistortion failed! Trying next pair." << endl;
-                continue;
-            }
-            else
-            {
-                std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                exit(1);
-            }
-        }
+			//Transfer into camera coordinates
+			poselib::ImgToCamCoordTrans(points1, K0);
+			poselib::ImgToCamCoordTrans(points2, K1);
 
-        if(verbose > 5)
-        {
-            t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
-            std::cout << "Time for coordinate conversion & undistortion (2 imgs): " << t_mea << "ms" << endl;
-            t_oa = t_mea;
-        }
+			//Undistort
+			if (!poselib::Remove_LensDist(points1, points2, dist0_8, dist1_8))
+			{
+				failNr++;
+				if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+				{
+					std::cout << "Undistortion failed! Trying next pair." << endl;
+					continue;
+				}
+				else
+				{
+					std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+					exit(1);
+				}
+			}
 
-        if(verbose > 3)
-        {
-            t_mea = (double)getTickCount(); //Start time measurement
-        }
+			if (verbose > 5)
+			{
+				t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+				std::cout << "Time for coordinate conversion & undistortion (2 imgs): " << t_mea << "ms" << endl;
+				t_oa = t_mea;
+			}
 
-        //Set up USAC paramters
-        poselib::ConfigUSAC cfg;
-        if (!RobMethod.compare("USAC"))
-        {
-            switch (cfgUSACnr[0])
-            {
-            case(0):
-                cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
-                break;
-            case(1):
-                cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
-                break;
-            case(2):
-                cfg.automaticSprtInit = poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
-                break;
-            case(3):
-                cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT | poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
-                break;
-            default:
-                cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT | poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
-                break;
-            }
-            switch (cfgUSACnr[1])
-            {
-            case(0):
-                cfg.noAutomaticProsacParamters = true;
-                break;
-            case(1):
-                cfg.noAutomaticProsacParamters = false;
-                break;
-            default:
-                cfg.noAutomaticProsacParamters = false;
-                break;
-            }
-            switch (cfgUSACnr[2])
-            {
-            case(0):
-                cfg.prevalidateSample = false;
-                break;
-            case(1):
-                cfg.prevalidateSample = true;
-                break;
-            default:
-                cfg.prevalidateSample = true;
-                break;
-            }
-            switch (cfgUSACnr[3])
-            {
-            case(0):
-                cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_NO_CHECK;
-                break;
-            case(1):
-                cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_QDEGSAC;
-                break;
-            case(2):
-                cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_USAC_INTERNAL;
-                break;
-            default:
-                cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_USAC_INTERNAL;
-                break;
-            }
-            switch (cfgUSACnr[4])
-            {
-            case(0):
-                cfg.estimator = poselib::PoseEstimator::POSE_NISTER;
-                break;
-            case(1):
-                cfg.estimator = poselib::PoseEstimator::POSE_EIG_KNEIP;
-                break;
-            case(2):
-                cfg.estimator = poselib::PoseEstimator::POSE_STEWENIUS;
-                break;
-            default:
-                cfg.estimator = poselib::PoseEstimator::POSE_STEWENIUS;
-                break;
-            }
-            switch (cfgUSACnr[5])
-            {
-            case(0):
-                cfg.refinealg = poselib::RefineAlg::REF_WEIGHTS;
-                break;
-            case(1):
-                cfg.refinealg = poselib::RefineAlg::REF_8PT_PSEUDOHUBER;
-                break;
-            case(2):
-                cfg.refinealg = poselib::RefineAlg::REF_EIG_KNEIP;
-                break;
-            case(3):
-                cfg.refinealg = poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS;
-                break;
-            case(4):
-                cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS;
-                break;
-            case(5):
-                cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS_WEIGHTS;
-                break;
-            case(6):
-                cfg.refinealg = poselib::RefineAlg::REF_NISTER;
-                break;
-            case(7):
-                cfg.refinealg = poselib::RefineAlg::REF_NISTER_WEIGHTS;
-                break;
-            default:
-                cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS_WEIGHTS;
-                break;
-            }
-            cfg.degenDecisionTh = USACdegenTh;
-            cfg.focalLength = (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)) / 4;
-            cfg.imgSize = src[0].size();
-            cfg.keypoints1 = &kp1;
-            cfg.keypoints2 = &kp2;
-            cfg.matches = &finalMatches;
-            cfg.th_pixels = th_pix_user; //Threshold for checking degeneracy model inliers (like roation only)
+			if (verbose > 3)
+			{
+				t_mea = (double)getTickCount(); //Start time measurement
+			}
 
-            if (cfgUSACnr[0] > 1)
-            {
-                vector<cv::DMatch> vfcfilteredMatches;
+			//Set up USAC paramters
+			poselib::ConfigUSAC cfg;
+			if (!RobMethod.compare("USAC"))
+			{
+				cinfigureUSAC(cfg,
+					cfgUSACnr,
+					USACdegenTh,
+					K0,
+					K1,
+					src[0].size(),
+					&kp1,
+					&kp2,
+					&finalMatches,
+					th_pix_user);
+			}
 
-                if (!filterWithVFC(kp1, kp2, finalMatches, vfcfilteredMatches))
-                {
-                    if ((vfcfilteredMatches.size() > 8) || (finalMatches.size() < 24))
-                    {
-                        cfg.nrMatchesVfcFiltered = vfcfilteredMatches.size();
-                    }
-                    else
-                    {
-                        if (cfgUSACnr[0] == 2)
-                            cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
-                        else
-                            cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
-                    }
-                }
-                else
-                {
-                    if (cfgUSACnr[0] == 2)
-                        cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
-                    else
-                        cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
-                }
-            }
-        }
+			//Get essential matrix
+			cv::Mat E, mask, p1, p2;
+			cv::Mat R_kneip = cv::Mat::eye(3, 3, CV_64FC1), t_kneip = cv::Mat::zeros(3, 1, CV_64FC1);
+			p1 = cv::Mat((int)points1.size(), 2, CV_64FC1);
+			p2 = cv::Mat((int)points2.size(), 2, CV_64FC1);
+			for (int i = 0; i < (int)points1.size(); i++)
+			{
+				p1.at<double>(i, 0) = (double)points1[i].x;
+				p1.at<double>(i, 1) = (double)points1[i].y;
+				p2.at<double>(i, 0) = (double)points2[i].x;
+				p2.at<double>(i, 1) = (double)points2[i].y;
+			}
+			double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)));
+			double th = th_pix_user * pixToCamFact; //Inlier threshold
+			if (autoTH)
+			{
+				int inlierPoints;
+				poselib::AutoThEpi Eautoth(pixToCamFact);
+				if (Eautoth.estimateEVarTH(p1, p2, E, mask, &th, &inlierPoints) != 0)
+				{
+					failNr++;
+					if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+					{
+						std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+						continue;
+					}
+					else
+					{
+						std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+						exit(1);
+					}
+				}
 
-        //Get essential matrix
-        cv::Mat E, mask, p1, p2;
-        cv::Mat R, t;
-        cv::Mat R_kneip = cv::Mat::eye(3,3,CV_64FC1), t_kneip = cv::Mat::zeros(3,1,CV_64FC1);
-        p1 = cv::Mat((int)points1.size(), 2, CV_64FC1);
-        p2 = cv::Mat((int)points2.size(), 2, CV_64FC1);
-        for(int i = 0; i < (int)points1.size(); i++)
-        {
-            p1.at<double>(i, 0) = (double)points1[i].x;
-            p1.at<double>(i, 1) = (double)points1[i].y;
-            p2.at<double>(i, 0) = (double)points2[i].x;
-            p2.at<double>(i, 1) = (double)points2[i].y;
-        }
-        double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(0,0) + K0.at<double>(1,1) + K1.at<double>(0,0) + K1.at<double>(1,1)));
-        double th = th_pix_user * pixToCamFact; //Inlier threshold
-        if(autoTH)
-        {
-            int inlierPoints;
-            poselib::AutoThEpi Eautoth(pixToCamFact);
-            if(Eautoth.estimateEVarTH(p1, p2, E, mask, &th, &inlierPoints) != 0)
-            {
-                failNr++;
-                if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-                {
-                    std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
-                    continue;
-                }
-                else
-                {
-                    std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                    exit(1);
-                }
-            }
+				std::cout << "Estimated threshold: " << th / pixToCamFact << " pixels" << endl;
+			}
+			else if (Halign)
+			{
+				int inliers;
+				if (poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, Halign > 1 ? true : false) != 0)
+				{
+					failNr++;
+					if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+					{
+						std::cout << "Homography alignment failed! Trying next pair." << endl;
+						continue;
+					}
+					else
+					{
+						std::cout << "Pose estimation failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+						exit(1);
+					}
+				}
+			}
+			else
+			{
+				if (!RobMethod.compare("USAC"))
+				{
+					bool isDegenerate = false;
+					Mat R_degenerate, inliers_degenerate_R;
+					bool usacerror = false;
+					if (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
+					{
+						if (estimateEssentialOrPoseUSAC(p1,
+							p2,
+							E,
+							th,
+							cfg,
+							isDegenerate,
+							mask,
+							R_degenerate,
+							inliers_degenerate_R,
+							R_kneip,
+							t_kneip) != 0)
+						{
+							usacerror = true;
+						}
+					}
+					else
+					{
+						if (estimateEssentialOrPoseUSAC(p1,
+							p2,
+							E,
+							th,
+							cfg,
+							isDegenerate,
+							mask,
+							R_degenerate,
+							inliers_degenerate_R) != 0)
+						{
+							usacerror = true;
+						}
+					}
+					if (usacerror)
+					{
+						failNr++;
+						if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+						{
+							std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+							continue;
+						}
+						else
+						{
+							std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+							exit(1);
+						}
+					}
+					if (isDegenerate)
+					{
+						std::cout << "Camera configuration is degenerate and, thus, rotation only. Skipping further calculations! Rotation angles: " << endl;
+						double roll, pitch, yaw;
+						poselib::getAnglesRotMat(R_degenerate, roll, pitch, yaw);
+						std::cout << "roll: " << roll << char(248) << ", pitch: " << pitch << char(248) << ", yaw: " << yaw << char(248) << endl;
+						std::cout << "Trying next pair!" << endl;
+						continue;
+					}
+				}
+				else
+				{
+					if (!poselib::estimateEssentialMat(E, p1, p2, RobMethod, th, refineRTold, mask))
+					{
+						failNr++;
+						if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+						{
+							std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+							continue;
+						}
+						else
+						{
+							std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+							exit(1);
+						}
+					}
+				}
+			}
+			size_t nr_inliers = (size_t)cv::countNonZero(mask);
+			std::cout << "Number of inliers after robust estimation of E: " << nr_inliers << endl;
 
-            std::cout << "Estimated threshold: " << th / pixToCamFact << " pixels" << endl;
-        }
-        else if(Halign)
-        {
-            int inliers;
-            if(poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, Halign > 1 ? true:false) != 0)
-            {
-                failNr++;
-                if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-                {
-                    std::cout << "Homography alignment failed! Trying next pair." << endl;
-                    continue;
-                }
-                else
-                {
-                    std::cout << "Pose estimation failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                    exit(1);
-                }
-            }
-        }
-        else
-        {
-            if (!RobMethod.compare("USAC"))
-            {
-                bool isDegenerate = false;
-                Mat R_degenerate, inliers_degenerate_R;
-                bool usacerror = false;
-                if (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
-                {
-                    if (estimateEssentialOrPoseUSAC(p1,
-                        p2,
-                        E,
-                        th,
-                        cfg,
-                        isDegenerate,
-                        mask,
-                        R_degenerate,
-                        inliers_degenerate_R,
-                        R_kneip,
-                        t_kneip) != 0)
-                    {
-                        usacerror = true;
-                    }
-                }
-                else
-                {
-                    if (estimateEssentialOrPoseUSAC(p1,
-                        p2,
-                        E,
-                        th,
-                        cfg,
-                        isDegenerate,
-                        mask,
-                        R_degenerate,
-                        inliers_degenerate_R) != 0)
-                    {
-                        usacerror = true;
-                    }
-                }
-                if(usacerror)
-                {
-                    failNr++;
-                    if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-                    {
-                        std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
-                        continue;
-                    }
-                    else
-                    {
-                        std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                        exit(1);
-                    }
-                }
-                if (isDegenerate)
-                {
-                    std::cout << "Camera configuration is degenerate and, thus, rotation only. Skipping further calculations! Rotation angles: " << endl;
-                    double roll, pitch, yaw;
-                    poselib::getAnglesRotMat(R_degenerate, roll, pitch, yaw);
-                    std::cout << "roll: " << roll << char(248) << ", pitch: " << pitch << char(248) << ", yaw: " << yaw << char(248) << endl;
-                    std::cout << "Trying next pair!" << endl;
-                    continue;
-                }
-            }
-            else
-            {
-                if (!poselib::estimateEssentialMat(E, p1, p2, RobMethod, th, refineRTold, mask))
-                {
-                    failNr++;
-                    if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-                    {
-                        std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
-                        continue;
-                    }
-                    else
-                    {
-                        std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                        exit(1);
-                    }
-                }
-            }
-        }
-        size_t nr_inliers = (size_t)cv::countNonZero(mask);
-        std::cout << "Number of inliers after robust estimation of E: " << nr_inliers << endl;
+			//Get R & t
+			bool availableRT = false;
+			if (Halign)
+			{
+				R_kneip = R;
+				t_kneip = t;
+			}
+			if (Halign ||
+				(!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
+					cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)))
+			{
+				double sumt = 0;
+				for (int i = 0; i < 3; i++)
+				{
+					sumt += t_kneip.at<double>(i);
+				}
+				if (!poselib::nearZero(sumt) && poselib::isMatRoationMat(R_kneip))
+				{
+					availableRT = true;
+				}
+			}
+			cv::Mat Q;
+			if (Halign && ((refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
+			{
+				poselib::triangPts3D(R, t, p1, p2, Q, mask);
+			}
+			else
+			{
+				if (refineRTold)
+				{
+					poselib::robustEssentialRefine(p1, p2, E, E, th / 10.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
+					availableRT = false;
+				}
+				else if (((refineMethod & 0xF) != poselib::RefinePostAlg::PR_NO_REFINEMENT) && !kneipInsteadBA)
+				{
+					cv::Mat R_tmp, t_tmp;
+					if (availableRT)
+					{
+						R_kneip.copyTo(R_tmp);
+						t_kneip.copyTo(t_tmp);
 
-        //Get R & t
-        bool availableRT = false;
-        if (Halign)
-        {
-            R_kneip = R;
-            t_kneip = t;
-        }
-        if (Halign ||
-            (!RobMethod.compare("USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
-                cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)))
-        {
-            double sumt = 0;
-            for (int i = 0; i < 3; i++)
-            {
-                sumt += t_kneip.at<double>(i);
-            }
-            if (!poselib::nearZero(sumt) && poselib::isMatRoationMat(R_kneip))
-            {
-                availableRT = true;
-            }
-        }
-        cv::Mat Q;
-        if(Halign && ((refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
-        {
-            poselib::triangPts3D(R, t, p1, p2, Q, mask);
-        }
-        else
-        {
-            if (refineRTold)
-            {
-                poselib::robustEssentialRefine(p1, p2, E, E, th / 10.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
-                availableRT = false;
-            }
-            else if (((refineMethod & 0xF) != poselib::RefinePostAlg::PR_NO_REFINEMENT) && !kneipInsteadBA)
-            {
-                cv::Mat R_tmp, t_tmp;
-                if (availableRT)
-                {
-                    R_kneip.copyTo(R_tmp);
-                    t_kneip.copyTo(t_tmp);
+						if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+						{
+							if (!R_tmp.empty() && !t_tmp.empty())
+							{
+								R_tmp.copyTo(R_kneip);
+								t_tmp.copyTo(t_kneip);
+							}
+						}
+						else
+							std::cout << "Refinement failed!" << std::endl;
+					}
+					else if ((refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
+					{
 
-                    if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
-                    {
-                        if (!R_tmp.empty() && !t_tmp.empty())
-                        {
-                            R_tmp.copyTo(R_kneip);
-                            t_tmp.copyTo(t_kneip);
-                        }
-                    }
-                    else
-                        std::cout << "Refinement failed!" << std::endl;
-                }
-                else if ((refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
-                {
+						if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+						{
+							if (!R_tmp.empty() && !t_tmp.empty())
+							{
+								R_tmp.copyTo(R_kneip);
+								t_tmp.copyTo(t_kneip);
+								availableRT = true;
+							}
+							else
+								std::cout << "Refinement failed!" << std::endl;
+						}
+					}
+					else
+					{
+						if (!poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+							std::cout << "Refinement failed!" << std::endl;
+					}
+				}
 
-                    if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
-                    {
-                        if (!R_tmp.empty() && !t_tmp.empty())
-                        {
-                            R_tmp.copyTo(R_kneip);
-                            t_tmp.copyTo(t_kneip);
-                            availableRT = true;
-                        }
-                        else
-                            std::cout << "Refinement failed!" << std::endl;
-                    }
-                }
-                else
-                {
-                    if (!poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
-                        std::cout << "Refinement failed!" << std::endl;
-                }
-            }
+				if (!availableRT)
+					poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
+				else
+				{
+					R = R_kneip;
+					t = t_kneip;
+					if ((BART > 0) && !kneipInsteadBA)
+						poselib::triangPts3D(R, t, p1, p2, Q, mask);
+				}
+			}
 
-            if (!availableRT)
-                poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask);
-            else
-            {
-                R = R_kneip;
-                t = t_kneip;
-                if((BART > 0) && !kneipInsteadBA)
-                    poselib::triangPts3D(R, t, p1, p2, Q, mask);
-            }
-        }
+			if (verbose > 3)
+			{
+				t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+				std::cout << "Time for pose estimation (includes possible linear refinement): " << t_mea << "ms" << endl;
+				t_oa += t_mea;
+			}
 
-        if(verbose > 3)
-        {
-            t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
-            std::cout << "Time for pose estimation (includes possible linear refinement): " << t_mea << "ms" << endl;
-            t_oa += t_mea;
-        }
+			if (verbose > 4)
+			{
+				t_mea = (double)getTickCount(); //Start time measurement
+			}
 
-        if(verbose > 4)
-        {
-            t_mea = (double)getTickCount(); //Start time measurement
-        }
+			//Bundle adjustment
+			bool useBA = true;
+			if (kneipInsteadBA)
+			{
+				cv::Mat R_tmp, t_tmp;
+				R.copyTo(R_tmp);
+				t.copyTo(t_tmp);
+				if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+				{
+					if (!R_tmp.empty() && !t_tmp.empty())
+					{
+						R_tmp.copyTo(R);
+						t_tmp.copyTo(t);
+						useBA = false;
+					}
+				}
+				else
+				{
+					std::cout << "Refinement using Kneips Eigen solver instead of bundle adjustment (BA) failed!" << std::endl;
+					if (BART > 0)
+					{
+						std::cout << "Trying bundle adjustment instead!" << std::endl;
+						poselib::triangPts3D(R, t, p1, p2, Q, mask);
+					}
+				}
+			}
 
-        //Bundle adjustment
-        bool useBA = true;
-        if (kneipInsteadBA)
-        {
-            cv::Mat R_tmp, t_tmp;
-            R.copyTo(R_tmp);
-            t.copyTo(t_tmp);
-            if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
-            {
-                if (!R_tmp.empty() && !t_tmp.empty())
-                {
-                    R_tmp.copyTo(R);
-                    t_tmp.copyTo(t);
-                    useBA = false;
-                }
-            }
-            else
-            {
-                std::cout << "Refinement using Kneips Eigen solver instead of bundle adjustment (BA) failed!" << std::endl;
-                if (BART > 0)
-                {
-                    std::cout << "Trying bundle adjustment instead!" << std::endl;
-                    poselib::triangPts3D(R, t, p1, p2, Q, mask);
-                }
-            }
-        }
+			if (useBA)
+			{
+				if (BART == 1)
+				{
+					poselib::refineStereoBA(p1, p2, R, t, Q, K0, K1, false, mask);
+				}
+				else if (BART == 2)
+				{
+					poselib::CamToImgCoordTrans(p1, K0);
+					poselib::CamToImgCoordTrans(p2, K1);
+					poselib::refineStereoBA(p1, p2, R, t, Q, K0, K1, true, mask);
+				}
+			}
 
-        if (useBA)
-        {
-            if (BART == 1)
-            {
-                poselib::refineStereoBA(p1, p2, R, t, Q, K0, K1, false, mask);
-            }
-            else if (BART == 2)
-            {
-                poselib::CamToImgCoordTrans(p1, K0);
-                poselib::CamToImgCoordTrans(p2, K1);
-                poselib::refineStereoBA(p1, p2, R, t, Q, K0, K1, true, mask);
-            }
-        }
+			if (verbose > 4)
+			{
+				t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+				std::cout << "Time for bundle adjustment: " << t_mea << "ms" << endl;
+				t_oa += t_mea;
+			}
+			if (verbose > 5)
+			{
+				std::cout << "Overall pose estimation time: " << t_oa << "ms" << endl;
 
-        if(verbose > 4)
-        {
-            t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
-            std::cout << "Time for bundle adjustment: " << t_mea << "ms" << endl;
-            t_oa += t_mea;
-        }
-        if(verbose > 5)
-        {
-            std::cout << "Overall pose estimation time: " << t_oa << "ms" << endl;
+				std::cout << "Number of inliers after pose estimation and triangulation: " << cv::countNonZero(mask) << endl;
+			}
+		}
+		else
+		{
+			//Set up USAC paramters
+			poselib::ConfigUSAC cfg;
+			if (!RobMethod.compare("USAC"))
+			{
+				cinfigureUSAC(cfg,
+					cfgUSACnr,
+					USACdegenTh,
+					K0,
+					K1,
+					src[0].size(),
+					&kp1,
+					&kp2,
+					&finalMatches,
+					th_pix_user);
+			}
 
-            std::cout << "Number of inliers after pose estimation and triangulation: " << cv::countNonZero(mask) << endl;
-        }
+			if (!stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cfg))
+			{
+				R = stereoObj->R_new;
+				t = stereoObj->t_new;
+			}
+			
+
+
+		}
 
         //Calculate the relative pose between the cameras if an absolute pose was given
         if(absCoord)
@@ -1371,6 +1317,155 @@ void showMatches(cv::Mat img1, cv::Mat img2,
             }
         }
     }
+}
+
+void cinfigureUSAC(poselib::ConfigUSAC &cfg, 
+	int cfgUSACnr[6], 
+	double USACdegenTh, 
+	cv::Mat K0, 
+	cv::Mat K1, 
+	cv::Size imgSize, 
+	std::vector<cv::KeyPoint> *kp1, 
+	std::vector<cv::KeyPoint> *kp2, 
+	std::vector<cv::DMatch> *finalMatches,
+	double th_pix_user)
+{
+	switch (cfgUSACnr[0])
+	{
+	case(0):
+		cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
+		break;
+	case(1):
+		cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
+		break;
+	case(2):
+		cfg.automaticSprtInit = poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
+		break;
+	case(3):
+		cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT | poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
+		break;
+	default:
+		cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT | poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT;
+		break;
+	}
+	switch (cfgUSACnr[1])
+	{
+	case(0):
+		cfg.noAutomaticProsacParamters = true;
+		break;
+	case(1):
+		cfg.noAutomaticProsacParamters = false;
+		break;
+	default:
+		cfg.noAutomaticProsacParamters = false;
+		break;
+	}
+	switch (cfgUSACnr[2])
+	{
+	case(0):
+		cfg.prevalidateSample = false;
+		break;
+	case(1):
+		cfg.prevalidateSample = true;
+		break;
+	default:
+		cfg.prevalidateSample = true;
+		break;
+	}
+	switch (cfgUSACnr[3])
+	{
+	case(0):
+		cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_NO_CHECK;
+		break;
+	case(1):
+		cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_QDEGSAC;
+		break;
+	case(2):
+		cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_USAC_INTERNAL;
+		break;
+	default:
+		cfg.degeneracyCheck = poselib::UsacChkDegenType::DEGEN_USAC_INTERNAL;
+		break;
+	}
+	switch (cfgUSACnr[4])
+	{
+	case(0):
+		cfg.estimator = poselib::PoseEstimator::POSE_NISTER;
+		break;
+	case(1):
+		cfg.estimator = poselib::PoseEstimator::POSE_EIG_KNEIP;
+		break;
+	case(2):
+		cfg.estimator = poselib::PoseEstimator::POSE_STEWENIUS;
+		break;
+	default:
+		cfg.estimator = poselib::PoseEstimator::POSE_STEWENIUS;
+		break;
+	}
+	switch (cfgUSACnr[5])
+	{
+	case(0):
+		cfg.refinealg = poselib::RefineAlg::REF_WEIGHTS;
+		break;
+	case(1):
+		cfg.refinealg = poselib::RefineAlg::REF_8PT_PSEUDOHUBER;
+		break;
+	case(2):
+		cfg.refinealg = poselib::RefineAlg::REF_EIG_KNEIP;
+		break;
+	case(3):
+		cfg.refinealg = poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS;
+		break;
+	case(4):
+		cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS;
+		break;
+	case(5):
+		cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS_WEIGHTS;
+		break;
+	case(6):
+		cfg.refinealg = poselib::RefineAlg::REF_NISTER;
+		break;
+	case(7):
+		cfg.refinealg = poselib::RefineAlg::REF_NISTER_WEIGHTS;
+		break;
+	default:
+		cfg.refinealg = poselib::RefineAlg::REF_STEWENIUS_WEIGHTS;
+		break;
+	}
+	cfg.degenDecisionTh = USACdegenTh;
+	cfg.focalLength = (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)) / 4;
+	cfg.imgSize = imgSize;// src[0].size();
+	cfg.keypoints1 = kp1;
+	cfg.keypoints2 = kp2;
+	cfg.matches = finalMatches;
+	cfg.th_pixels = th_pix_user; //Threshold for checking degeneracy model inliers (like roation only)
+
+	if (cfgUSACnr[0] > 1)
+	{
+		vector<cv::DMatch> vfcfilteredMatches;
+
+		if (!filterWithVFC(*kp1, *kp2, *finalMatches, vfcfilteredMatches))
+		{
+			if ((vfcfilteredMatches.size() > 8) || (finalMatches->size() < 24))
+			{
+				cfg.nrMatchesVfcFiltered = vfcfilteredMatches.size();
+			}
+			else
+			{
+				if (cfgUSACnr[0] == 2)
+					cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
+				else
+					cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
+			}
+		}
+		else
+		{
+			if (cfgUSACnr[0] == 2)
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_DEFAULT_INIT;
+			else
+				cfg.automaticSprtInit = poselib::SprtInit::SPRT_DELTA_AUTOM_INIT;
+		}
+	}
 }
 
 /** @function main */

@@ -22,6 +22,7 @@ DISCRIPTION: This file provides functions for pose refinement with multiple ster
 #include "poselib/glob_includes.h"
 #include "poselib/pose_estim.h"
 #include "poselib/pose_helper.h"
+#include "poselib/stereo_pose_types.h"
 #include "poselib/nanoflannInterface.h"
 #include <list>
 #include <unordered_map>
@@ -72,7 +73,7 @@ namespace poselib
 		int verbose;	
 	};*/
 
-	// problem specific/data-related parameters: essential matrix
+	// problem specific/data-related parameters
 	struct POSELIB_API ConfigPoseEstimation
 	{
 		ConfigPoseEstimation() : dist0_8(NULL),
@@ -129,36 +130,6 @@ namespace poselib
 		float minPtsDistance;//Minimum distance between points for insertion into the correspondence pool
 	};
 
-	typedef struct CoordinateProps
-	{
-		CoordinateProps() : pt1(0,0),
-			pt2(0, 0),
-			ptIdx(0),
-			poolIdx(0),
-			Q(0,0,0),
-			Q_tooFar(false),
-			age(0),
-			descrDist(0),
-			keyPResponses{0,0},
-			nrFound(1),
-			meanSampsonError(DBL_MAX),
-			SampsonErrors(std::vector<double>())
-		{}
-
-		cv::Point2f pt1;//Keypoint position in first/left image
-		cv::Point2f pt2;//Keypoint position in second/right image
-		size_t ptIdx;//Index which points to the corresponding points in the camera coordinate system
-		size_t poolIdx;//Key of the map that holds the iterators to the list entries of this data structure
-		cv::Point3d Q;//Triangulated 3D point
-		bool Q_tooFar;//If the z-coordinate of Q is too large, this falue is true. Too far Q's should be excluded in BA to be more stable.
-		size_t age;//For how many estimation iterations is this correspondence alive
-		float descrDist;//Descriptor distance
-		float keyPResponses[2];//Response of corresponding keypoints in the first and second image
-		size_t nrFound;//How often the correspondence was found in different image pairs
-		double meanSampsonError;//Mean sampson Error over all available E within age
-		std::vector<double> SampsonErrors;//Sampson Error for every E this correspondence was used to calculate it
-	} CoordinateProps;
-
 	//typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;
 
 	/* --------------------- Function prototypes --------------------- */
@@ -184,21 +155,17 @@ namespace poselib
 		double t_oa; //Overall time
 		float descrDist_max;//Maximum observed descriptor distance in the data
 		float keyPRespons_max; //Maximum observed keypoint response in the data
-		cv::Mat E_new; //Newest essential matrix
 		cv::Mat mask_E_new; //Newest mask using E only for the newest image pair
 		cv::Mat mask_Q_new; //Newest mask using E and triangulated 3D points (excludes correspondences too far away) for the newest image pair
 		size_t nr_inliers_new;//Number of inliers for the newest image pair
 		size_t nr_corrs_new;//Number of initial correspondences of the newest image pair
 		//cv::Mat mask_E_old; //Mask using E only for all corresponding keypoints of the preceding image pairs (excluding the newest)
 		//cv::Mat mask_Q_old; //Mask using E and triangulated 3D points (excludes correspondences too far away) for all corresponding keypoints of the preceding image pairs (excluding the newest)
-		cv::Mat Q;//3D points of latest image pair
-		cv::Mat R_new; //Newest rotation matrix
-		cv::Mat t_new; //Newest translation vector
 
 		std::list<CoordinateProps> correspondencePool;//Holds all correspondences and their properties over the last valid image pairs
 		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
 		size_t corrIdx;//Continous index starting with 0 counting all correspondences that were ever inserted into correspondencePool. The index is resetted when the KD tree is resetted.
-		std::unique_ptr<keyPointTree> kdTreeLeft;//KD-tree using nanoflann holding the keypoint coordinates of the left valid keypoints
+		std::unique_ptr<keyPointTreeInterface> kdTreeLeft;//KD-tree using nanoflann holding the keypoint coordinates of the left valid keypoints
 		//std::vector<size_t> deletionIdxs;//Holds indexes of point correspondences to be deleted
 
 		struct CoordinatePropsNew
@@ -233,6 +200,11 @@ namespace poselib
 		std::vector<statVals> errorStatistic_history;//Holds statics of the Sampson errors for the last image pairs
 
 	public:
+
+		cv::Mat E_new; //Newest essential matrix
+		cv::Mat Q;//3D points of latest image pair
+		cv::Mat R_new; //Newest rotation matrix
+		cv::Mat t_new; //Newest translation vector
 		
 		StereoRefine(ConfigPoseEstimation cfg_pose_) :
 			cfg_pose(cfg_pose_)	{

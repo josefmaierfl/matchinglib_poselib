@@ -2854,11 +2854,40 @@ bool isMatRoationMat(Eigen::Matrix3d R)
 */
 double getSampsonL2Error(cv::InputArray E, cv::InputArray x1, cv::InputArray x2)
 {
+	CV_Assert(x1.rows() == x2.rows() && x1.cols() == x2.cols() && ((x1.cols() < 4 && x1.rows() == 1) || (x1.cols() == 1 && x1.rows() < 4)) && x1.type() == CV_64FC1 && x2.type() == CV_64FC1);
 	Eigen::Vector3d x1e, x2e;
 	Eigen::Matrix3d Ee;
+	cv::Mat x1_ = cv::Mat::ones(3, 1, CV_64FC1);
+	cv::Mat x2_ = cv::Mat::ones(3, 1, CV_64FC1);
+	if (x1.cols() > x1.rows())
+	{
+		if (x1.cols() == 2)
+		{
+			x1_.rowRange(0, 2) = x1.getMat().t();
+			x2_.rowRange(0, 2) = x2.getMat().t();
+		}
+		else
+		{
+			x1_ = x1.getMat().t();
+			x2_ = x2.getMat().t();
+		}
+	}
+	else
+	{
+		if (x1.rows() == 2)
+		{
+			x1_.rowRange(0, 2) = x1.getMat();
+			x2_.rowRange(0, 2) = x2.getMat();
+		}
+		else
+		{
+			x1_ = x1.getMat();
+			x2_ = x2.getMat();
+		}
+	}
 	cv::cv2eigen(E.getMat(), Ee);
-	cv::cv2eigen(x1.getMat(), x1e);
-	cv::cv2eigen(x2.getMat(), x2e);
+	cv::cv2eigen(x1_, x1e);
+	cv::cv2eigen(x2_, x2e);
 	return getSampsonL2Error(Ee, x1e, x2e);
 }
 
@@ -2876,7 +2905,7 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 	Eigen::Vector3d x2E = x2.transpose() * E;
 	r = x2E.dot(x1);
 	rx = E.row(0).dot(x1);
-	ry = E.row(2).dot(x1);
+	ry = E.row(1).dot(x1);
 	temp_err = r*r / (x2E(0)*x2E(0) + x2E(1)*x2E(1) + rx*rx + ry*ry);
 	return temp_err;
 }
@@ -2892,7 +2921,7 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 size_t getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
 {
 	size_t n = error.size(), nr_inliers = 0;
-	mask = cv::Mat(1, n, CV_8UC1, false);
+	mask = cv::Mat::zeros(1, n, CV_8UC1);
 	for (size_t i = 0; i < n; i++)
 	{
 		if (error[i] < th)
