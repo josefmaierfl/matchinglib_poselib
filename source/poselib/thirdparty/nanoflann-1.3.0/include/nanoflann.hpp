@@ -1841,8 +1841,11 @@ namespace nanoflann
 				treeIndex[pointCount]=pos;
 				for(int i = 0; i < pos; i++) {
 					for(int j = 0; j < index[i].vind.size(); j++) {
-						index[pos].vind.push_back(index[i].vind[j]);
-						treeIndex[index[i].vind[j]] = pos;
+						if (treeIndex[index[i].vind[j]] != -1)
+						{
+							index[pos].vind.push_back(index[i].vind[j]);
+							treeIndex[index[i].vind[j]] = pos;
+						}
 					}
 					index[i].vind.clear();
 					index[i].freeIndex(index[i]);

@@ -315,12 +315,13 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
  *
  * vector<double> vals		Input  -> Input vector from which the statistical parameters should be calculated
  * statVals* stats			Output -> Structure holding the statistical parameters
- * bool rejQuartiles		Input  -> If true, the lower and upper quartiles are rejected before calculating
+ * bool rejQuartiles		Input  -> If true [Default=false], the lower and upper quartiles are rejected before calculating
  *									  the parameters
+ * bool roundStd			Input  -> If true [Default], an standard deviation below 1e-6 is set to 0
  *
  * Return value:		 none
  */
-void getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles)
+void getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles, bool roundStd)
 {
 	if(vals.empty())
 	{
@@ -371,7 +372,7 @@ void getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQu
 
 	hlp = err2sum - (double)n * (stats->arithErr) * (stats->arithErr);
 
-	if(std::abs(hlp) < 1e-6)
+	if(roundStd && std::abs(hlp) < 1e-6)
 		stats->arithStd = 0.0;
 	else
 		stats->arithStd = std::sqrt(hlp/((double)n - 1.0));

@@ -58,7 +58,7 @@ inline bool POSELIB_API nearZero(double d)
     return (d<EPSILON) && (d>-EPSILON);
 }
 //Calculates statistical parameters for the given values in the vector
-void POSELIB_API getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles = false);
+void POSELIB_API getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles = false, bool roundStd = true);
 //Extracts the 3D translation vector from the translation essential matrix.
 cv::Mat POSELIB_API getTfromTransEssential(cv::Mat Et);
 //Calculates the vector norm.

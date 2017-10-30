@@ -19,6 +19,7 @@ DISCRIPTION: This file provides functions to search keypoint positions within a 
 #include "poselib/nanoflannInterface.h"
 #include "nanoflann.hpp"
 #include <memory>
+#include <stdexcept>
 
 using namespace nanoflann;
 
@@ -29,6 +30,12 @@ namespace poselib
 
 
 	/* ---------------------- Classes & Structs ---------------------- */
+
+	class InvalidPoolIteratorException : public std::runtime_error
+	{
+	public:
+		InvalidPoolIteratorException(std::string mess) : std::runtime_error(mess) {}
+	};
 
 	// Data structure for the tree
 	struct CoordinateInterface
@@ -60,7 +67,7 @@ namespace poselib
 		inline float kdtree_get_pt(const size_t idx, int dim) const
 		{
 			if ((*(derived().poolIdxIt))[idx] == derived().correspondencePool->end())
-				throw "Invalid pool iterator";
+				throw InvalidPoolIteratorException("Invalid pool iterator");
 			if (dim == 0) return (*(derived().poolIdxIt))[idx]->pt1.x;
 			else return (*(derived().poolIdxIt))[idx]->pt1.y;
 		}
@@ -103,11 +110,21 @@ namespace poselib
 			{
 				index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
 			}
-			catch (std::string e)
+			catch (InvalidPoolIteratorException const& ex)
 			{
-				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Exception: " << ex.what() << std::endl;
 				std::cout << "Unable to build KD-tree!" << std::endl;
 				return -1;
+			}
+			catch (std::exception const& ex)
+			{
+				std::cerr << "std::exception: " << ex.what() << std::endl;
+				throw;
+			}
+			catch (...)
+			{
+				std::cerr << "Unknown Exception!" << std::endl;
+				throw;
 			}
 			return 0;
 		}
@@ -122,11 +139,21 @@ namespace poselib
 			{
 				index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
 			}
-			catch (std::string e)
+			catch (InvalidPoolIteratorException const& ex)
 			{
-				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Exception: " << ex.what() << std::endl;
 				std::cout << "Unable to build KD-tree!" << std::endl;
 				return -1;
+			}
+			catch (std::exception const& ex)
+			{
+				std::cerr << "std::exception: " << ex.what() << std::endl;
+				throw;
+			}
+			catch (...)
+			{
+				std::cerr << "Unknown Exception!" << std::endl;
+				throw;
 			}
 			return 0;
 		}
@@ -144,11 +171,21 @@ namespace poselib
 			{
 				index->addPoints(firstIdx, firstIdx + length - 1);
 			}
-			catch (std::string e)
+			catch (InvalidPoolIteratorException const& ex)
 			{
-				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Exception: " << ex.what() << std::endl;
 				std::cout << "Unable to add elements to the KD-tree!" << std::endl;
 				return -1;
+			}
+			catch (std::exception const& ex)
+			{
+				std::cerr << "std::exception: " << ex.what() << std::endl;
+				throw;
+			}
+			catch (...)
+			{
+				std::cerr << "Unknown Exception!" << std::endl;
+				throw;
 			}
 			return 0;
 		}
@@ -173,13 +210,23 @@ namespace poselib
 			{
 				index->findNeighbors(resultSet, &queryPt_[0], nanoflann::SearchParams(10));
 			}
-			catch (std::string e)
+			catch (InvalidPoolIteratorException const& ex)
 			{
-				std::cout << "Exception: " << e << std::endl;
-				std::cout << "Unable to perform a knn search!" << std::endl;
+				std::cout << "Exception: " << ex.what() << std::endl;
+				std::cout << "Unable to perform a knn search!!" << std::endl;
 				delete[] indices;
 				delete[] distances;
 				return 0;
+			}
+			catch (std::exception const& ex)
+			{
+				std::cerr << "std::exception: " << ex.what() << std::endl;
+				throw;
+			}
+			catch (...)
+			{
+				std::cerr << "Unknown Exception!" << std::endl;
+				throw;
 			}
 			nr_results = resultSet.size();
 			result.reserve(nr_results);
@@ -204,11 +251,21 @@ namespace poselib
 			{
 				index->findNeighbors(resultSet, queryPt_, nanoflann::SearchParams());
 			}
-			catch (std::string e)
+			catch (InvalidPoolIteratorException const& ex)
 			{
-				std::cout << "Exception: " << e << std::endl;
+				std::cout << "Exception: " << ex.what() << std::endl;
 				std::cout << "Unable to perform a radius search!" << std::endl;
 				return 0;
+			}
+			catch (std::exception const& ex)
+			{
+				std::cerr << "std::exception: " << ex.what() << std::endl;
+				throw;
+			}
+			catch (...)
+			{
+				std::cerr << "Unknown Exception!" << std::endl;
+				throw;
 			}
 			//Sort
 			std::sort(result.begin(), result.end(), [](std::pair<size_t, float> const & first, std::pair<size_t, float> const & second)

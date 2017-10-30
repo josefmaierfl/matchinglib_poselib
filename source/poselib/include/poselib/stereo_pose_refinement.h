@@ -100,7 +100,8 @@ namespace poselib
 			relMinInlierRatSkip(0.7),
 			maxSkipPairs(5),
 			minInlierRatioReInit(0.55),
-			minPtsDistance(3.f)
+			minPtsDistance(3.f),
+			maxPoolCorrespondences(30000)
 		{}
 
 		cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
@@ -128,6 +129,7 @@ namespace poselib
 		size_t maxSkipPairs;//Maximum number of times the new Essential matrix E is discarded and restored by the old one (see minInlierRatSkip). If more E's are discarded, the whole system is reinitialized.
 		double minInlierRatioReInit;//If the new pose differs from the old, the whole system is reinitialized if the inlier ratio with the new pose is above this value
 		float minPtsDistance;//Minimum distance between points for insertion into the correspondence pool
+		size_t maxPoolCorrespondences;//Maximum number of correspondences in the correspondence pool after concatenating correspondences from multiple image pairs
 	};
 
 	//typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;
@@ -236,6 +238,8 @@ namespace poselib
 		int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);
 		bool compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr);
 		int poolCorrespondenceDelete(std::vector<size_t> delete_list);
+		int checkPoolSize();
+		double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2);
 	};
 	
 }

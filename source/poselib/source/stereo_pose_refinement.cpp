@@ -21,6 +21,7 @@ DISCRIPTION: This file provides functions for pose refinement with multiple ster
 #include "poselib/pose_linear_refinement.h"
 #include <iomanip>
 #include <unordered_set>
+#include "opencv2/imgproc.hpp"
 
 //#include "poselib/pose_helper.h"
 //#include <memory>
@@ -39,8 +40,8 @@ namespace poselib
 
 	/* --------------------- Function prototypes --------------------- */
 
-	double getWeightingValuesInv(double value, double max_value, double min_value = 0);
-	double getWeightingValues(double value, double max_value, double min_value = 0);
+	double getWeightingValuesInv(const double &value, const double &max_value, const double &min_value = 0);
+	double getWeightingValues(const double &value, const double &max_value, const double &min_value = 0);
 
 	/* --------------------- Functions --------------------- */
 
@@ -225,6 +226,11 @@ namespace poselib
 			cout << std::setprecision(2) << "The search distance for correspondences of " << cfg_pose.minPtsDistance << " is too small. Setting it to the minimal value of 1.5" << endl;
 			cfg_pose.minPtsDistance = 1.5;
 		}
+		if (cfg_pose.maxPoolCorrespondences > (size_t)INT_MAX)
+		{
+			cout << "The maximum number " << cfg_pose.maxPoolCorrespondences << " of pool correspondences is too large as cv::Mat uses int for indexing. Setting it to INT_MAX= " << INT_MAX << endl;
+			cfg_pose.maxPoolCorrespondences = (size_t)INT_MAX;
+		}
 	}
 
 	int StereoRefine::addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg)
@@ -374,9 +380,62 @@ namespace poselib
 					pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
 					inlier_ratio_history.push_back(inlier_ratio_new1);
 					nrEstimation++;
+					return -2;
 				}
+				if (((size_t)points1Cam.rows + matches.size()) > (size_t)INT_MAX)
+				{
+					cout << "Number of correspondences within correspondence pool is too large! Removing " << matches.size() << " elements!" << endl;
+					size_t n_new = matches.size();
+					vector<size_t> delIdxsOld(n_new);
+					size_t multiplicator = 1;
+					if ((corrIdx - 1) > RAND_MAX)
+						multiplicator = (size_t)std::ceil((double)(corrIdx - 1) / (double)RAND_MAX);
+					for (size_t i = 0; i < n_new; i++)
+					{
+						size_t idx;
+						do
+						{
+							idx = (multiplicator * (size_t)rand()) % (corrIdx - 1);
+						} while (correspondencePoolIdx[idx] == correspondencePool.end());
+						delIdxsOld.push_back(idx);
+					}
+					if (poolCorrespondenceDelete(delIdxsOld))
+					{
+						//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+						clearHistoryAndPool();
+						if (robustPoseEstimation())
+						{
+							return -1;
+						}
+						inlier_ratio_new1 = (double)nr_inliers_new / (double)nr_corrs_new;
+						if (inlier_ratio_new1 < cfg_pose.minStartAggInlRat)
+						{
+							cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
+							return 0;
+						}
+						if (addCorrespondencesToPool(matches, kp1, kp2))
+							return -2;
+						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+						inlier_ratio_history.push_back(inlier_ratio_new1);
+						nrEstimation++;
+						return -2;
+					}
+				}
+
 				if (addCorrespondencesToPool(matches, kp1, kp2))
 					return -2;
+
+				if (checkPoolSize())
+				{
+					//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+					clearHistoryAndPool();
+					if (addCorrespondencesToPool(matches, kp1, kp2))
+						return -2;
+					pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+					inlier_ratio_history.push_back(inlier_ratio_new1);
+					nrEstimation++;
+					return -2;
+				}
 
 				//Perform refinement using all available correspondences
 				cv::Mat E_old = E_new.clone();
@@ -433,13 +492,13 @@ namespace poselib
 						errorNew_tmp[count++] = errorNew[i];
 				}
 				statVals err_stats;
-				getStatsfromVec(errorNew_tmp, &err_stats);
+				getStatsfromVec(errorNew_tmp, &err_stats, false, false);
 				errorStatistic_history.push_back(err_stats);
 
 				//Delete elements marked as outliers
 				if (nr_inliers_new < correspondencePool.size())
 				{
-					cv::Mat mask_Q_tmp(1, nr_inliers_new, CV_8U, true);
+					cv::Mat mask_Q_tmp(1, nr_inliers_new, CV_8U, cv::Scalar((unsigned char)true));
 					cv::Mat Q_tmp(nr_inliers_new, 3, Q.type());
 					std::unordered_set<size_t> delIdxNew;
 					vector<size_t> delIdxPool;
@@ -611,7 +670,7 @@ namespace poselib
 		if (isInitMat)
 		{
 			statVals err_stats;
-			getStatsfromVec(errors, &err_stats);
+			getStatsfromVec(errors, &err_stats, false, false);
 			errorStatistic_history.push_back(err_stats);
 		}
 		
@@ -952,6 +1011,10 @@ namespace poselib
 					{
 						R_tmp.copyTo(R_new);
 						t_tmp.copyTo(t_new);
+					}
+					else
+					{
+						availableRT = false;
 					}
 				}
 				else
@@ -1360,22 +1423,24 @@ namespace poselib
 
 	bool StereoRefine::compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr)
 	{
-		double weight_error[2], weight_descrDist[2], weight_response[2];
-		const double weighting_terms[3] = {0.3, 0.5, 0.2};//Weights for weight_error, weight_descrDist, weight_response
+		//double weight_error[2], weight_descrDist[2], weight_response[2];
+		//const double weighting_terms[3] = {0.3, 0.5, 0.2};//Weights for weight_error, weight_descrDist, weight_response
 		double overall_weight[2];
 		int idx;
 		double rel_diff;
 		const double weight_th = 0.2;//If one of the resulting weights is more than e.g. 20% better
 		size_t max_age = 15;//If the quality of the old correspondence is slightly better but it is older (number of iterations) than this thershold, the new new one is preferred
 
-		weight_error[0] = getWeightingValuesInv(newCorr.sampsonError, th2);
+		/*weight_error[0] = getWeightingValuesInv(newCorr.sampsonError, th2);
 		weight_error[1] = getWeightingValuesInv(oldCorr.SampsonErrors.back(), th2);
 		weight_descrDist[0] = getWeightingValuesInv((double)newCorr.descrDist, (double)descrDist_max);
 		weight_descrDist[1] = getWeightingValuesInv((double)oldCorr.descrDist, (double)descrDist_max);
 		weight_response[0] = (getWeightingValues((double)newCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)newCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
 		weight_response[1] = (getWeightingValues((double)oldCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)oldCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
 		overall_weight[0] = weighting_terms[0] * weight_error[0] + weighting_terms[1] * weight_descrDist[0] + weighting_terms[2] * weight_response[0];
-		overall_weight[1] = weighting_terms[0] * weight_error[1] + weighting_terms[1] * weight_descrDist[1] + weighting_terms[2] * weight_response[1];
+		overall_weight[1] = weighting_terms[0] * weight_error[1] + weighting_terms[1] * weight_descrDist[1] + weighting_terms[2] * weight_response[1];*/
+		overall_weight[0] = computeCorrespondenceWeight(newCorr.sampsonError, (double)newCorr.descrDist, (double)newCorr.keyPResponses[0], (double)newCorr.keyPResponses[1]);
+		overall_weight[1] = computeCorrespondenceWeight(oldCorr.SampsonErrors.back(), (double)oldCorr.descrDist, (double)oldCorr.keyPResponses[0], (double)oldCorr.keyPResponses[1]);
 		idx = overall_weight[0] > overall_weight[1] ? 0 : 1;
 		if (idx)
 		{
@@ -1409,12 +1474,226 @@ namespace poselib
 		return false; //take the old correspondence
 	}
 
-	inline double getWeightingValuesInv(double value, double max_value, double min_value)
+	inline double StereoRefine::computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2)
+	{
+		double weight_error, weight_descrDist, weight_response;
+		const double weighting_terms[3] = { 0.3, 0.5, 0.2 };//Weights for weight_error, weight_descrDist, weight_response
+		double overall_weight;
+
+		weight_error = getWeightingValuesInv(error, th2);
+		weight_descrDist = getWeightingValuesInv(descrDist, (double)descrDist_max);
+		weight_response = (getWeightingValues(resp1, (double)keyPRespons_max) + getWeightingValues(resp2, (double)keyPRespons_max)) / 2.0;
+		overall_weight = weighting_terms[0] * weight_error + weighting_terms[1] * weight_descrDist + weighting_terms[2] * weight_response;
+		return overall_weight;
+	}
+
+	int StereoRefine::checkPoolSize()
+	{
+		size_t pool_Size = correspondencePool.size();
+		if (pool_Size <= cfg_pose.maxPoolCorrespondences)
+			return 0;
+
+		size_t n_del = pool_Size - cfg_pose.maxPoolCorrespondences;
+		vector<size_t> delIdx(n_del);
+		size_t delIdxIdx = 0;
+
+		//Check density of correspondences and delete correspondences from very dense areas
+
+		//First delete correspondences for which their position in the left image is the same (only their right positions differ)
+		vector<vector<vector<size_t>>> idxPos(cfg_usac.imgSize.height, vector<vector<size_t>>(cfg_usac.imgSize.width));
+		vector<cv::Point2i> posMultCorrs;
+		for (auto &i : correspondencePool)
+		{
+			int imgPos[2];
+			imgPos[0] = (int)std::round(i.pt1.y);
+			imgPos[1] = (int)std::round(i.pt1.x);
+			(idxPos[imgPos[0]])[imgPos[1]].push_back(i.poolIdx);
+			if ((idxPos[imgPos[0]])[imgPos[1]].size() == 2)
+			{
+				posMultCorrs.push_back(cv::Point2i(imgPos[1], imgPos[0]));
+			}
+		}
+		if (!posMultCorrs.empty())
+		{
+			vector<pair<size_t, size_t>> idx1;
+			std::vector<size_t> nr_entries(posMultCorrs.size());
+			for (size_t i = 0; i < posMultCorrs.size(); i++)
+			{
+				nr_entries[i] = (idxPos[posMultCorrs[i].y])[posMultCorrs[i].x].size();
+				for (size_t j = 0; j < nr_entries[i]; j++)
+				{
+					idx1.push_back(std::make_pair(i, j));
+				}
+			}
+			size_t n_multi = idx1.size() - posMultCorrs.size();
+
+			if (n_multi <= n_del)
+			{
+				for (size_t i = 0; i < posMultCorrs.size(); i++)
+				{
+					vector<pair<double, size_t>> weightIdx1;
+					int imgPos[2];
+					imgPos[0] = posMultCorrs[i].y;
+					imgPos[1] = posMultCorrs[i].x;
+					for (size_t j = 0; j < (idxPos[imgPos[0]])[imgPos[1]].size(); j++)
+					{
+						list<CoordinateProps>::iterator it = correspondencePoolIdx[((idxPos[imgPos[0]])[imgPos[1]])[j]];
+						weightIdx1.push_back(make_pair(computeCorrespondenceWeight(
+							it->SampsonErrors.back(),
+							it->descrDist, 
+							it->keyPResponses[0], 
+							it->keyPResponses[1]), j));
+					}
+					std::sort(weightIdx1.begin(), weightIdx1.end(),
+						[](pair<double, size_t> const &first, pair<double, size_t> const &second)
+					{
+						return first.first > second.first;
+					});
+					for (size_t j = 1; j < weightIdx1.size(); j++)
+					{
+						delIdx[delIdxIdx++] = ((idxPos[imgPos[0]])[imgPos[1]])[weightIdx1[j].second];
+					}
+
+					size_t idxP_tmp = ((idxPos[imgPos[0]])[imgPos[1]])[weightIdx1[0].second];
+					(idxPos[imgPos[0]])[imgPos[1]].clear();
+					(idxPos[imgPos[0]])[imgPos[1]].push_back(idxP_tmp);
+				}
+				n_del -= n_multi;
+			}
+			else
+			{
+				vector<pair<double, size_t>> weightIdx1(idx1.size());
+				for (size_t i = 0; i < idx1.size(); i++)
+				{
+					int imgPos[2];
+					imgPos[0] = posMultCorrs[idx1[i].first].y;
+					imgPos[1] = posMultCorrs[idx1[i].first].x;
+					list<CoordinateProps>::iterator it = correspondencePoolIdx[((idxPos[imgPos[0]])[imgPos[1]])[idx1[i].second]];
+					weightIdx1.push_back(make_pair(computeCorrespondenceWeight(
+						it->SampsonErrors.back(),
+						it->descrDist,
+						it->keyPResponses[0],
+						it->keyPResponses[1]), i));
+				}
+				std::sort(weightIdx1.begin(), weightIdx1.end(),
+					[](pair<double, size_t> const &first, pair<double, size_t> const &second)
+				{
+					return first.first < second.first;
+				});
+				for (size_t i = 0, count = 0; i < weightIdx1.size(); i++)
+				{
+					if (nr_entries[idx1[weightIdx1[i].second].first] > 1)
+					{
+						int imgPos[2];
+						imgPos[0] = posMultCorrs[idx1[weightIdx1[i].second].first].y;
+						imgPos[1] = posMultCorrs[idx1[weightIdx1[i].second].first].x;
+						delIdx[delIdxIdx++] = ((idxPos[imgPos[0]])[imgPos[1]])[idx1[weightIdx1[i].second].second];
+						nr_entries[idx1[weightIdx1[i].second].first]--;
+						count++;
+					}
+					if (count >= n_del)
+						break;
+				}
+				n_del = 0;
+			}
+		}
+
+		if (n_del)
+		{
+			cv::Mat densityImg(cfg_usac.imgSize, CV_8UC1, cv::Scalar(0));
+			Mat densityImg_init;
+			for (auto &i : correspondencePool)
+			{
+				cv::Point2i imgPos;
+				imgPos.y = (int)std::round(i.pt1.y);
+				imgPos.x = (int)std::round(i.pt1.x);
+				densityImg.at<unsigned char>(imgPos) = 255;
+			}
+			densityImg.copyTo(densityImg_init);
+			int erosion_size;
+			if (nearZero((double)cfg_pose.minPtsDistance - (double)ceil(cfg_pose.minPtsDistance)))
+				erosion_size = (int)ceil(cfg_pose.minPtsDistance) + 1;
+			else
+				erosion_size = (int)ceil(cfg_pose.minPtsDistance);
+
+			do
+			{
+				cv::Mat struct_elem = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size, erosion_size));
+				cv::dilate(densityImg, densityImg, struct_elem);
+				cv::imshow("out1", densityImg);
+				cv::waitKey(0);
+				cv::erode(densityImg, densityImg, struct_elem);
+				cv::imshow("out1", densityImg);
+				cv::waitKey(0);
+				cv::bitwise_and(densityImg, densityImg_init, densityImg);
+				cv::imshow("out1", densityImg);
+				cv::waitKey(0);
+				cv::destroyWindow("out1");
+
+				vector<cv::Point2i> locations;
+				cv::findNonZero(densityImg, locations);
+				size_t n_loc = locations.size();
+				if (n_loc <= n_del)
+				{
+					for (auto &i : locations)
+					{
+						delIdx[delIdxIdx++] = ((idxPos[i.y])[i.x])[0];
+					}
+					n_del -= n_loc;
+					if (n_del)
+					{
+						cv::bitwise_not(densityImg, densityImg);
+						cv::imshow("out1", densityImg);
+						cv::waitKey(0);
+						cv::bitwise_and(densityImg, densityImg_init, densityImg);
+						cv::imshow("out1", densityImg);
+						cv::waitKey(0);
+						cv::destroyWindow("out1");
+						erosion_size++;
+					}
+				}
+				else
+				{
+					vector<pair<double,size_t>> weightIdx1(n_loc);
+					size_t count = 0;
+					for (auto &i : locations)
+					{
+						list<CoordinateProps>::iterator it = correspondencePoolIdx[((idxPos[i.y])[i.x])[0]];
+						weightIdx1[count] = make_pair(computeCorrespondenceWeight(
+							it->SampsonErrors.back(),
+							it->descrDist,
+							it->keyPResponses[0],
+							it->keyPResponses[1]), count);
+						count++;
+					}
+					std::sort(weightIdx1.begin(), weightIdx1.end(),
+						[](pair<double, size_t> const &first, pair<double, size_t> const &second)
+					{
+						return first.first < second.first;
+					});
+					for (size_t i = 0; i < n_del; i++)
+					{
+						cv::Point2i imgPos;
+						imgPos = locations[weightIdx1[i].second];
+						delIdx[delIdxIdx++] = ((idxPos[imgPos.y])[imgPos.x])[0];
+					}
+					n_del = 0;
+				}
+			} while (n_del);		
+		}
+
+		if (poolCorrespondenceDelete(delIdx))
+			return -1;
+
+		return 0;
+	}
+
+	inline double getWeightingValuesInv(const double &value, const double &max_value, const double &min_value)
 	{
 		return 1.0 - value / (max_value - min_value);
 	}
 
-	inline double getWeightingValues(double value, double max_value, double min_value)
+	inline double getWeightingValues(const double &value, const double &max_value, const double &min_value)
 	{
 		return value / (max_value - min_value);
 	}
