@@ -296,9 +296,6 @@ namespace poselib
 	int keyPointTreeInterface::resetTree(std::list<CoordinateProps> *correspondencePool_,
 		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
 	{
-		std::list<CoordinateProps> correspondencePool_tmp;
-		correspondencePool_tmp = *correspondencePool_;
-		correspondencePool_->clear();
 		if (!treePtr)
 		{
 			treePtr = new keyPointTree(correspondencePool_, poolIdxIt_);
@@ -307,7 +304,7 @@ namespace poselib
 		{
 			return ((keyPointTree*)treePtr)->resetTree(correspondencePool_, poolIdxIt_);
 		}
-		*correspondencePool_ = correspondencePool_tmp;
+
 		return 0;
 	}
 

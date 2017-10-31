@@ -422,20 +422,25 @@ namespace poselib
 					}
 				}
 
+				if ((matches.size() + correspondencePool.size()) > cfg_pose.maxPoolCorrespondences)
+				{
+					//size_t maxPoolCorrespondences_tmp = cfg_pose.maxPoolCorrespondences - (matches.size() + correspondencePool.size() - cfg_pose.maxPoolCorrespondences);
+					size_t maxPoolCorrespondences_tmp = cfg_pose.maxPoolCorrespondences - matches.size();
+					if (checkPoolSize(maxPoolCorrespondences_tmp))
+					{
+						//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+						clearHistoryAndPool();
+						if (addCorrespondencesToPool(matches, kp1, kp2))
+							return -2;
+						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+						inlier_ratio_history.push_back(inlier_ratio_new1);
+						nrEstimation++;
+						return -2;
+					}
+				}
+
 				if (addCorrespondencesToPool(matches, kp1, kp2))
 					return -2;
-
-				if (checkPoolSize())
-				{
-					//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
-					clearHistoryAndPool();
-					if (addCorrespondencesToPool(matches, kp1, kp2))
-						return -2;
-					pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-					inlier_ratio_history.push_back(inlier_ratio_new1);
-					nrEstimation++;
-					return -2;
-				}
 
 				//Perform refinement using all available correspondences
 				cv::Mat E_old = E_new.clone();
@@ -678,13 +683,23 @@ namespace poselib
 		{
 			corrIdx = 0;
 			correspondencePoolIdx.clear();
+			std::list<CoordinateProps> correspondencePool_tmp;
+			std::swap(correspondencePool_tmp, correspondencePool);
+			if (kdTreeLeft->resetTree(&correspondencePool, &correspondencePoolIdx))
+			{
+				clearHistoryAndPool();
+				return -1;
+			}
+			std::swap(correspondencePool_tmp, correspondencePool);
+
 			std::list<CoordinateProps>::iterator it = correspondencePool.begin();
 			for (size_t i = 0; i < correspondencePool.size(); i++)
 			{
 				it->poolIdx = corrIdx;
 				correspondencePoolIdx.insert({ corrIdx++, it++ });
 			}
-			if (kdTreeLeft->resetTree(&correspondencePool, &correspondencePoolIdx))
+			//add old coordinates to the KD tree
+			if (kdTreeLeft->addElements(0, corrIdx - nr_inliers_new))
 			{
 				clearHistoryAndPool();
 				return -1;
@@ -1293,10 +1308,13 @@ namespace poselib
 					startRowNew = endRowNew;
 					old_idx = delete_list_new[i] + 1;
 				}
-				points1newMat.rowRange((int)old_idx, points1newMat.rows).copyTo(points1newMatnew.rowRange(startRowNew, n_new));
-				points1newnew.insert(points1newnew.end(), points1new.begin() + old_idx, points1new.end());
-				points2newnew.insert(points2newnew.end(), points2new.begin() + old_idx, points2new.end());
-				matchesnew.insert(matchesnew.end(), matches.begin() + old_idx, matches.end());
+				if (old_idx < points1newMat.rows)
+				{
+					points1newMat.rowRange((int)old_idx, points1newMat.rows).copyTo(points1newMatnew.rowRange(startRowNew, n_new));
+					points1newnew.insert(points1newnew.end(), points1new.begin() + old_idx, points1new.end());
+					points2newnew.insert(points2newnew.end(), points2new.begin() + old_idx, points2new.end());
+					matchesnew.insert(matchesnew.end(), matches.begin() + old_idx, matches.end());
+				}
 				points1newMatnew.copyTo(points1newMat);
 				points2newMatnew.copyTo(points2newMat);
 				points1new = points1newnew;
@@ -1329,6 +1347,16 @@ namespace poselib
 
 	int StereoRefine::poolCorrespondenceDelete(std::vector<size_t> delete_list)
 	{
+		//sort(delete_list.begin(), delete_list.end());
+		//vector<size_t> toerase;
+		//for (size_t i = delete_list.size() - 1; i >= 1; i--)
+		//{
+		//	if (delete_list[i] == delete_list[i - 1])
+		//	{
+		//		//delete_list.erase(delete_list.begin() + i);
+		//		toerase.push_back(i);
+		//	}
+		//}
 		//kdTreeLeft, points1Cam, points2Cam, correspondencePool, correspondencePoolIdx
 		size_t nrToDel = delete_list.size();
 		size_t poolSize = correspondencePool.size();
@@ -1353,15 +1381,17 @@ namespace poselib
 			}
 			std::sort(ptsCamDelIdxs.begin(), ptsCamDelIdxs.end());
 
-			std::unordered_map<size_t, long long int> delDiffInfo;
-			for (size_t i = 0, count = 0; i < poolSize; i++)
+			std::unordered_map<size_t, size_t> delDiffInfo;
+			for (size_t i = 0, count = 0, count1 = 0; i < poolSize; i++)
 			{
-				if ((i < ptsCamDelIdxs[count]) || (i > ptsCamDelIdxs[count]))
+				if ((i < ptsCamDelIdxs[count1]) || (i > ptsCamDelIdxs[count1]))
 				{
-					delDiffInfo.insert({ i, -1 * (long long int)count });
+					delDiffInfo.insert({ i, count });
 				}
-				else if ((i == ptsCamDelIdxs[count]) && (count < (nrToDel - 1)))
+				else if (i == ptsCamDelIdxs[count1])
 				{
+					if (count < (nrToDel - 1))
+						count1++;
 					count++;
 				}
 			}
@@ -1386,8 +1416,11 @@ namespace poselib
 				startRowNew = endRowNew;
 				old_idx = ptsCamDelIdxs[i] + 1;
 			}
-			points1Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points1CamNew.rowRange(startRowNew, n_new));
-			points2Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points2CamNew.rowRange(startRowNew, n_new));
+			if (old_idx < points1Cam.rows)
+			{
+				points1Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points1CamNew.rowRange(startRowNew, n_new));
+				points2Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points2CamNew.rowRange(startRowNew, n_new));
+			}
 			points1CamNew.copyTo(points1Cam);
 			points2CamNew.copyTo(points2Cam);
 
@@ -1415,7 +1448,18 @@ namespace poselib
 			}
 			for (std::list<CoordinateProps>::iterator it = correspondencePool.begin(); it != correspondencePool.end(); ++it)
 			{
-				it->ptIdx = it->ptIdx + delDiffInfo[it->ptIdx];
+				try
+				{
+					if (delDiffInfo.find(it->ptIdx) == delDiffInfo.end())
+						throw "Invalid iterator for changing indexes";
+				}
+				catch (string e)
+				{
+					cout << "Exception: " << e << endl;
+					cout << "Clearing the whole correspondence pool!" << endl;
+					return -1;
+				}
+				it->ptIdx = it->ptIdx - delDiffInfo[it->ptIdx];
 			}
 		}
 		return 0;
@@ -1487,15 +1531,17 @@ namespace poselib
 		return overall_weight;
 	}
 
-	int StereoRefine::checkPoolSize()
+	int StereoRefine::checkPoolSize(size_t maxPoolSize)
 	{
 		size_t pool_Size = correspondencePool.size();
-		if (pool_Size <= cfg_pose.maxPoolCorrespondences)
+		if (pool_Size <= maxPoolSize)
 			return 0;
 
-		size_t n_del = pool_Size - cfg_pose.maxPoolCorrespondences;
+		size_t n_del = pool_Size - maxPoolSize;
 		vector<size_t> delIdx(n_del);
 		size_t delIdxIdx = 0;
+
+		//vector<size_t> delIdx_hlp;
 
 		//Check density of correspondences and delete correspondences from very dense areas
 
@@ -1559,6 +1605,10 @@ namespace poselib
 					(idxPos[imgPos[0]])[imgPos[1]].push_back(idxP_tmp);
 				}
 				n_del -= n_multi;
+				/*for (size_t i = 0; i < n_multi; i++)
+				{
+					delIdx_hlp.push_back(delIdx[i]);
+				}*/
 			}
 			else
 			{
@@ -1618,17 +1668,20 @@ namespace poselib
 
 			do
 			{
-				cv::Mat struct_elem = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size, erosion_size));
-				cv::dilate(densityImg, densityImg, struct_elem);
-				cv::imshow("out1", densityImg);
-				cv::waitKey(0);
-				cv::erode(densityImg, densityImg, struct_elem);
-				cv::imshow("out1", densityImg);
-				cv::waitKey(0);
+				cv::Mat struct_elem1 = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size, erosion_size));
+				cv::Mat struct_elem2 = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size + 1, erosion_size + 1));
+				/*cv::imshow("out1", densityImg);
+				cv::waitKey(0);*/
+				cv::dilate(densityImg, densityImg, struct_elem1, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+				/*cv::imshow("out2", densityImg);
+				cv::waitKey(0);*/
+				cv::erode(densityImg, densityImg, struct_elem2, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+				/*cv::imshow("out2", densityImg);
+				cv::waitKey(0);*/
 				cv::bitwise_and(densityImg, densityImg_init, densityImg);
-				cv::imshow("out1", densityImg);
-				cv::waitKey(0);
-				cv::destroyWindow("out1");
+				/*cv::imshow("out2", densityImg);
+				cv::waitKey(0);*/
+				//cv::destroyWindow("out1");
 
 				vector<cv::Point2i> locations;
 				cv::findNonZero(densityImg, locations);
@@ -1643,12 +1696,13 @@ namespace poselib
 					if (n_del)
 					{
 						cv::bitwise_not(densityImg, densityImg);
-						cv::imshow("out1", densityImg);
-						cv::waitKey(0);
+						/*cv::imshow("out3", densityImg);
+						cv::waitKey(0);*/
 						cv::bitwise_and(densityImg, densityImg_init, densityImg);
-						cv::imshow("out1", densityImg);
-						cv::waitKey(0);
-						cv::destroyWindow("out1");
+						densityImg.copyTo(densityImg_init);
+						/*cv::imshow("out4", densityImg);
+						cv::waitKey(0);*/
+						//cv::destroyWindow("out1");
 						erosion_size++;
 					}
 				}
@@ -1679,8 +1733,20 @@ namespace poselib
 					}
 					n_del = 0;
 				}
+				//cv::destroyAllWindows();
 			} while (n_del);		
 		}
+
+		//sort(delIdx.begin(), delIdx.end());
+		//vector<size_t> toerase;
+		//for (size_t i = delIdx.size() - 1; i >= 1; i--)
+		//{
+		//	if (delIdx[i] == delIdx[i - 1])
+		//	{
+		//		//delIdx.erase(delIdx.begin() + i);
+		//		toerase.push_back(i);
+		//	}
+		//}
 
 		if (poolCorrespondenceDelete(delIdx))
 			return -1;

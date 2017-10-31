@@ -238,7 +238,7 @@ namespace poselib
 		int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);
 		bool compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr);
 		int poolCorrespondenceDelete(std::vector<size_t> delete_list);
-		int checkPoolSize();
+		int checkPoolSize(size_t maxPoolSize);
 		double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2);
 	};
 	
