@@ -757,7 +757,7 @@ void startEvaluation(ArgvParser& cmd)
 		cfg_stereo.refineMethod = refineMethod;
 		cfg_stereo.refineRTold = refineRTold;
 		cfg_stereo.RobMethod = RobMethod;*/
-		cfg_stereo.maxPoolCorrespondences = 6000;
+		cfg_stereo.maxPoolCorrespondences = 20000;
 
 		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
 	}

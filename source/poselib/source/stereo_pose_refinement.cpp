@@ -59,6 +59,7 @@ namespace poselib
 		checkInputParamters();
 		t_mea = 0;
 		t_oa = 0;
+		poseIsStable = false;
 		if (checkTh)
 		{
 			std::vector<double> errors;
@@ -424,7 +425,6 @@ namespace poselib
 
 				if ((matches.size() + correspondencePool.size()) > cfg_pose.maxPoolCorrespondences)
 				{
-					//size_t maxPoolCorrespondences_tmp = cfg_pose.maxPoolCorrespondences - (matches.size() + correspondencePool.size() - cfg_pose.maxPoolCorrespondences);
 					size_t maxPoolCorrespondences_tmp = cfg_pose.maxPoolCorrespondences - matches.size();
 					if (checkPoolSize(maxPoolCorrespondences_tmp))
 					{
@@ -563,10 +563,12 @@ namespace poselib
 						}
 						it.meanSampsonError /= (double)it.SampsonErrors.size();
 					}
-
-					nrEstimation++;
-					skipCount = 0;
 				}
+				nrEstimation++;
+				skipCount = 0;
+
+				//Check if the last poses are stable
+				checkPoseStability();
 			}
 
 			if (skipCount > cfg_pose.maxSkipPairs)
@@ -598,12 +600,10 @@ namespace poselib
 		corrIdx = 0;
 		nrEstimation = 0;
 		skipCount = 0;
-		/*mask_E_old.release();
-		mask_Q_old.release();*/
-		//deletionIdxs.clear();
 		pose_history.clear();
 		inlier_ratio_history.clear();
 		errorStatistic_history.clear();
+		maxPoolSizeReached = false;
 	}
 
 	int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
@@ -963,6 +963,8 @@ namespace poselib
 		R.copyTo(R_new);
 		t.copyTo(t_new);
 		mask.copyTo(mask_Q_new);
+		double t_norm = cv::norm(t_new);
+		t_new /= t_norm;
 
 		if (cfg_pose.verbose > 4)
 		{
@@ -1129,6 +1131,9 @@ namespace poselib
 			}
 			E = poselib::getEfromRT(R_new, t_new);
 		}
+
+		double t_norm = cv::norm(t_new);
+		t_new /= t_norm;
 
 		E.copyTo(E_new);
 		mask.copyTo(mask_Q_new);
@@ -1347,17 +1352,6 @@ namespace poselib
 
 	int StereoRefine::poolCorrespondenceDelete(std::vector<size_t> delete_list)
 	{
-		//sort(delete_list.begin(), delete_list.end());
-		//vector<size_t> toerase;
-		//for (size_t i = delete_list.size() - 1; i >= 1; i--)
-		//{
-		//	if (delete_list[i] == delete_list[i - 1])
-		//	{
-		//		//delete_list.erase(delete_list.begin() + i);
-		//		toerase.push_back(i);
-		//	}
-		//}
-		//kdTreeLeft, points1Cam, points2Cam, correspondencePool, correspondencePoolIdx
 		size_t nrToDel = delete_list.size();
 		size_t poolSize = correspondencePool.size();
 		if (nrToDel == poolSize)
@@ -1369,8 +1363,6 @@ namespace poselib
 			correspondencePool.clear();
 			correspondencePoolIdx.clear();
 			corrIdx = 0;
-			/*mask_E_old.release();
-			mask_Q_old.release();*/
 		}
 		else
 		{
@@ -1467,22 +1459,12 @@ namespace poselib
 
 	bool StereoRefine::compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr)
 	{
-		//double weight_error[2], weight_descrDist[2], weight_response[2];
-		//const double weighting_terms[3] = {0.3, 0.5, 0.2};//Weights for weight_error, weight_descrDist, weight_response
 		double overall_weight[2];
 		int idx;
 		double rel_diff;
 		const double weight_th = 0.2;//If one of the resulting weights is more than e.g. 20% better
 		size_t max_age = 15;//If the quality of the old correspondence is slightly better but it is older (number of iterations) than this thershold, the new new one is preferred
 
-		/*weight_error[0] = getWeightingValuesInv(newCorr.sampsonError, th2);
-		weight_error[1] = getWeightingValuesInv(oldCorr.SampsonErrors.back(), th2);
-		weight_descrDist[0] = getWeightingValuesInv((double)newCorr.descrDist, (double)descrDist_max);
-		weight_descrDist[1] = getWeightingValuesInv((double)oldCorr.descrDist, (double)descrDist_max);
-		weight_response[0] = (getWeightingValues((double)newCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)newCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
-		weight_response[1] = (getWeightingValues((double)oldCorr.keyPResponses[0], (double)keyPRespons_max) + getWeightingValues((double)oldCorr.keyPResponses[1], (double)keyPRespons_max)) / 2.0;
-		overall_weight[0] = weighting_terms[0] * weight_error[0] + weighting_terms[1] * weight_descrDist[0] + weighting_terms[2] * weight_response[0];
-		overall_weight[1] = weighting_terms[0] * weight_error[1] + weighting_terms[1] * weight_descrDist[1] + weighting_terms[2] * weight_response[1];*/
 		overall_weight[0] = computeCorrespondenceWeight(newCorr.sampsonError, (double)newCorr.descrDist, (double)newCorr.keyPResponses[0], (double)newCorr.keyPResponses[1]);
 		overall_weight[1] = computeCorrespondenceWeight(oldCorr.SampsonErrors.back(), (double)oldCorr.descrDist, (double)oldCorr.keyPResponses[0], (double)oldCorr.keyPResponses[1]);
 		idx = overall_weight[0] > overall_weight[1] ? 0 : 1;
@@ -1540,8 +1522,6 @@ namespace poselib
 		size_t n_del = pool_Size - maxPoolSize;
 		vector<size_t> delIdx(n_del);
 		size_t delIdxIdx = 0;
-
-		//vector<size_t> delIdx_hlp;
 
 		//Check density of correspondences and delete correspondences from very dense areas
 
@@ -1605,10 +1585,6 @@ namespace poselib
 					(idxPos[imgPos[0]])[imgPos[1]].push_back(idxP_tmp);
 				}
 				n_del -= n_multi;
-				/*for (size_t i = 0; i < n_multi; i++)
-				{
-					delIdx_hlp.push_back(delIdx[i]);
-				}*/
 			}
 			else
 			{
@@ -1670,18 +1646,9 @@ namespace poselib
 			{
 				cv::Mat struct_elem1 = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size, erosion_size));
 				cv::Mat struct_elem2 = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size + 1, erosion_size + 1));
-				/*cv::imshow("out1", densityImg);
-				cv::waitKey(0);*/
 				cv::dilate(densityImg, densityImg, struct_elem1, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
-				/*cv::imshow("out2", densityImg);
-				cv::waitKey(0);*/
 				cv::erode(densityImg, densityImg, struct_elem2, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
-				/*cv::imshow("out2", densityImg);
-				cv::waitKey(0);*/
 				cv::bitwise_and(densityImg, densityImg_init, densityImg);
-				/*cv::imshow("out2", densityImg);
-				cv::waitKey(0);*/
-				//cv::destroyWindow("out1");
 
 				vector<cv::Point2i> locations;
 				cv::findNonZero(densityImg, locations);
@@ -1696,13 +1663,8 @@ namespace poselib
 					if (n_del)
 					{
 						cv::bitwise_not(densityImg, densityImg);
-						/*cv::imshow("out3", densityImg);
-						cv::waitKey(0);*/
 						cv::bitwise_and(densityImg, densityImg_init, densityImg);
 						densityImg.copyTo(densityImg_init);
-						/*cv::imshow("out4", densityImg);
-						cv::waitKey(0);*/
-						//cv::destroyWindow("out1");
 						erosion_size++;
 					}
 				}
@@ -1733,23 +1695,402 @@ namespace poselib
 					}
 					n_del = 0;
 				}
-				//cv::destroyAllWindows();
 			} while (n_del);		
 		}
 
-		//sort(delIdx.begin(), delIdx.end());
-		//vector<size_t> toerase;
-		//for (size_t i = delIdx.size() - 1; i >= 1; i--)
-		//{
-		//	if (delIdx[i] == delIdx[i - 1])
-		//	{
-		//		//delIdx.erase(delIdx.begin() + i);
-		//		toerase.push_back(i);
-		//	}
-		//}
-
 		if (poolCorrespondenceDelete(delIdx))
 			return -1;
+
+		maxPoolSizeReached = true;
+
+		return 0;
+	}
+
+	int StereoRefine::getNearToMeanPose()
+	{
+		size_t n_p = pose_history.size();
+		if (n_p < 5)
+			return -1;
+
+		cv::Mat point = (Mat_<double>(3, 1) << 0.5, 0.5, 0.5);//A 3D point to compare poses
+		vector<Mat> resPoints(n_p);
+		vector<pair<double, size_t>> x(n_p);
+		vector<pair<double, size_t>> y(n_p);
+		vector<pair<double, size_t>> z(n_p);
+		vector<size_t> x_idx;
+		vector<size_t> y_idx;
+		vector<size_t> z_idx;
+		vector<pair<double, size_t>> dist2;
+		vector<size_t> valid_idx;
+		size_t q_idx[2];
+		bool statFilterPossible[3] = { true, true, true };
+		double arith[3] = { 0.0, 0.0, 0.0 };
+		double coord2sum[3] = { 0.0, 0.0, 0.0 };
+		double arith_u[3] = { 0.0, 0.0, 0.0 };
+		double coord2sum_u[3] = { 0.0, 0.0, 0.0 };
+		double arith_o[3] = { 0.0, 0.0, 0.0 };
+		double coord2sum_o[3] = { 0.0, 0.0, 0.0 };
+		double artithStd[3] = { 0.0, 0.0, 0.0 };
+		double medianXYZ[3];
+		double rangeXYZ[3];
+		double thXYZ[3][2];
+		const double range_th = 0.05; //Threshold for the range
+		const double medArithDiffAbsRel[2] = { 0.02, 1.33 }; //Threshold for the difference in mean value and median in the order absolute change, relative change
+		const double stdDevMult = 3.0; //Multiplication facor for the standard deviation to generate a threshold (mu + stdDevMult * stdDev)
+		q_idx[0] = (size_t)floor((double)n_p * 0.25 + 0.5);
+		q_idx[1] = n_p - q_idx[0];
+
+		for (size_t i = 0; i < n_p; i++)
+		{
+			resPoints[i] = pose_history[i].R * point + pose_history[i].t;
+			x[i] = std::make_pair(resPoints[i].at<double>(0), i);
+			y[i] = std::make_pair(resPoints[i].at<double>(1), i);
+			z[i] = std::make_pair(resPoints[i].at<double>(2), i);
+		}
+
+		//Calculate a robust centre of gravity of the rotated translations
+		std::sort(x.begin(), x.end(), [](pair<double, size_t> const & first, pair<double, size_t> const & second) {
+			return first.first < second.first; });
+		std::sort(y.begin(), y.end(), [](pair<double, size_t> const & first, pair<double, size_t> const & second) {
+			return first.first < second.first; });
+		std::sort(z.begin(), z.end(), [](pair<double, size_t> const & first, pair<double, size_t> const & second) {
+			return first.first < second.first; });
+
+		/*rangeXYZ[0] = std::abs(x[q_idx[1] - 1].first - x[q_idx[0]].first);
+		rangeXYZ[1] = std::abs(y[q_idx[1] - 1].first - y[q_idx[0]].first);
+		rangeXYZ[2] = std::abs(z[q_idx[1] - 1].first - z[q_idx[0]].first);*/
+		rangeXYZ[0] = std::abs(x[n_p - 1].first - x[0].first);
+		rangeXYZ[1] = std::abs(y[n_p - 1].first - y[0].first);
+		rangeXYZ[2] = std::abs(z[n_p - 1].first - z[0].first);
+		bool overRangeTh = false;
+		if ((rangeXYZ[0] > range_th) || (rangeXYZ[1] > range_th) || (rangeXYZ[2] > range_th))
+			overRangeTh = true;
+
+		if (n_p % 2)
+		{
+			medianXYZ[0] = x[(n_p - 1) / 2].first;
+			medianXYZ[1] = y[(n_p - 1) / 2].first;
+			medianXYZ[2] = z[(n_p - 1) / 2].first;
+		}
+		else
+		{
+			medianXYZ[0] = (x[n_p / 2].first + x[n_p / 2 - 1].first) / 2.0;
+			medianXYZ[1] = (y[n_p / 2].first + y[n_p / 2 - 1].first) / 2.0;
+			medianXYZ[2] = (z[n_p / 2].first + z[n_p / 2 - 1].first) / 2.0;
+		}
+
+		size_t nq = n_p - 2 * q_idx[0];
+		for (size_t i = 0; i < q_idx[0]; i++)
+		{
+			arith_u[0] += x[i].first;
+			arith_u[1] += y[i].first;
+			arith_u[2] += z[i].first;
+
+			coord2sum_u[0] += x[i].first * x[i].first;
+			coord2sum_u[1] += y[i].first * y[i].first;
+			coord2sum_u[2] += z[i].first * z[i].first;
+		}
+		for (size_t i = q_idx[0]; i < q_idx[1]; i++)
+		{
+			arith[0] += x[i].first;
+			arith[1] += y[i].first;
+			arith[2] += z[i].first;
+
+			coord2sum[0] += x[i].first * x[i].first;
+			coord2sum[1] += y[i].first * y[i].first;
+			coord2sum[2] += z[i].first * z[i].first;
+		}
+		for (size_t i = q_idx[1]; i < n_p; i++)
+		{
+			arith_o[0] += x[i].first;
+			arith_o[1] += y[i].first;
+			arith_o[2] += z[i].first;
+
+			coord2sum_o[0] += x[i].first * x[i].first;
+			coord2sum_o[1] += y[i].first * y[i].first;
+			coord2sum_o[2] += z[i].first * z[i].first;
+		}
+		arith_o[0] += arith_u[0] + arith[0];
+		arith_o[1] += arith_u[1] + arith[1];
+		arith_o[2] += arith_u[2] + arith[2];
+		arith_o[0] /= (double)n_p;
+		arith_o[1] /= (double)n_p;
+		arith_o[2] /= (double)n_p;
+		arith[0] /= (double)nq;
+		arith[1] /= (double)nq;
+		arith[2] /= (double)nq;
+
+		if (overRangeTh)
+		{
+			artithStd[0] = std::sqrt((coord2sum[0] - (double)nq * arith[0] * arith[0]) / ((double)nq - 1.0));
+			artithStd[1] = std::sqrt((coord2sum[1] - (double)nq * arith[1] * arith[1]) / ((double)nq - 1.0));
+			artithStd[2] = std::sqrt((coord2sum[2] - (double)nq * arith[2] * arith[2]) / ((double)nq - 1.0));
+
+			thXYZ[0][0] = arith[0] - stdDevMult * artithStd[0];
+			thXYZ[0][1] = arith[0] + stdDevMult * artithStd[0];
+			thXYZ[1][0] = arith[1] - stdDevMult * artithStd[1];
+			thXYZ[1][1] = arith[1] + stdDevMult * artithStd[1];
+			thXYZ[2][0] = arith[2] - stdDevMult * artithStd[2];
+			thXYZ[2][1] = arith[2] + stdDevMult * artithStd[2];
+		}
+		else
+		{
+			coord2sum[0] += coord2sum_u[0] + coord2sum_o[0];
+			coord2sum[1] += coord2sum_u[1] + coord2sum_o[1];
+			coord2sum[2] += coord2sum_u[2] + coord2sum_o[2];
+			artithStd[0] = std::sqrt((coord2sum[0] - (double)n_p * arith_o[0] * arith_o[0]) / ((double)n_p - 1.0));
+			artithStd[1] = std::sqrt((coord2sum[1] - (double)n_p * arith_o[1] * arith_o[1]) / ((double)n_p - 1.0));
+			artithStd[2] = std::sqrt((coord2sum[2] - (double)n_p * arith_o[2] * arith_o[2]) / ((double)n_p - 1.0));
+
+			thXYZ[0][0] = arith_o[0] - stdDevMult * artithStd[0];
+			thXYZ[0][1] = arith_o[0] + stdDevMult * artithStd[0];
+			thXYZ[1][0] = arith_o[1] - stdDevMult * artithStd[1];
+			thXYZ[1][1] = arith_o[1] + stdDevMult * artithStd[1];
+			thXYZ[2][0] = arith_o[2] - stdDevMult * artithStd[2];
+			thXYZ[2][1] = arith_o[2] + stdDevMult * artithStd[2];
+		}
+
+		for (size_t i = 0; i < 3; i++)
+		{
+			if (((arith_o[i] > 0) && (medianXYZ[i] > 0)) || ((arith_o[i] < 0) && (medianXYZ[i] < 0)))
+			{
+				if (((arith_o[i] / medianXYZ[i] > medArithDiffAbsRel[1]) || (medianXYZ[i] / arith_o[i] > medArithDiffAbsRel[1])) ||
+					(std::abs(arith_o[i] - medianXYZ[i]) > medArithDiffAbsRel[0]))
+					statFilterPossible[i] = false;
+			}
+			else if (nearZero(arith_o[i]) || nearZero(medianXYZ[i]))
+			{
+				if(std::abs(arith_o[i] - medianXYZ[i]) > medArithDiffAbsRel[0])
+					statFilterPossible[i] = false;
+			}
+			else
+			{
+				statFilterPossible[i] = false;
+			}
+		}
+
+		if (!statFilterPossible[0] && !statFilterPossible[1] && !statFilterPossible[2])
+		{
+			for (size_t i = q_idx[0]; i < q_idx[1]; i++)
+			{
+				for (size_t j = q_idx[0]; j < q_idx[1]; j++)
+				{
+					if (x[i].second == y[j].second)
+					{
+						for (size_t k = q_idx[0]; k < q_idx[1]; k++)
+						{
+							if (x[i].second == z[k].second)
+							{
+								valid_idx.push_back(x[i].second);
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			if (statFilterPossible[0])
+			{
+				for (size_t i = 0; i < n_p; i++)
+					if ((x[i].first > thXYZ[0][0]) && (x[i].first < thXYZ[0][1]))
+						x_idx.push_back(x[i].second);
+			}
+			else
+			{
+				for (size_t i = q_idx[0]; i < q_idx[1]; i++)
+					x_idx.push_back(x[i].second);
+			}
+			if (statFilterPossible[1])
+			{
+				for (size_t i = 0; i < n_p; i++)
+					if ((y[i].first > thXYZ[1][0]) && (y[i].first < thXYZ[1][1]))
+						y_idx.push_back(y[i].second);
+			}
+			else
+			{
+				for (size_t i = q_idx[0]; i < q_idx[1]; i++)
+					y_idx.push_back(y[i].second);
+			}
+			if (statFilterPossible[2])
+			{
+				for (size_t i = 0; i < n_p; i++)
+					if ((z[i].first > thXYZ[2][0]) && (z[i].first < thXYZ[2][1]))
+						z_idx.push_back(z[i].second);
+			}
+			else
+			{
+				for (size_t i = q_idx[0]; i < q_idx[1]; i++)
+					z_idx.push_back(z[i].second);
+			}
+
+			for (size_t i = 0; i < x_idx.size(); i++)
+			{
+				for (size_t j = 0; j < y_idx.size(); j++)
+				{
+					if (x_idx[i] == y_idx[j])
+					{
+						for (size_t k = 0; k < z_idx.size(); k++)
+						{
+							if (x_idx[i] == z_idx[k])
+							{
+								valid_idx.push_back(x[i].second);
+								break;
+							}
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		if (valid_idx.size() < 3)
+			return -2; //The poses are too different
+
+		Mat RtcG = Mat::zeros(3, 1, CV_64FC1);
+		for (size_t i = 0; i < valid_idx.size(); i++)
+		{
+			RtcG.at<double>(0) += resPoints[valid_idx[i]].at<double>(0);
+			RtcG.at<double>(1) += resPoints[valid_idx[i]].at<double>(1);
+			RtcG.at<double>(2) += resPoints[valid_idx[i]].at<double>(2);
+		}
+		RtcG /= (double)valid_idx.size();
+
+		//Calculate the distance to the center of gravity
+		for (size_t i = 0; i < n_p; i++)
+		{
+			Mat tmp = resPoints[i] - RtcG;
+			dist2.push_back(make_pair(cv::norm(tmp), i));
+		}
+
+		//Take the index from R and t, which are nearest and farthest to the center of gravity
+		auto index = minmax_element(dist2.begin(), dist2.end(), [](pair<double, size_t> const & first, pair<double, size_t> const & second)
+		{
+			return first.first < second.first; 
+		});
+		
+		R_mostLikely = pose_history[index.first->second].R.clone();
+		t_mostLikely = pose_history[index.first->second].t.clone();
+		E_mostLikely = pose_history[index.first->second].E.clone();
+
+		pose_history_rating.clear();
+		pose_history_rating.resize(n_p);
+		double max_dist = index.second->first;
+		for (size_t i = 0; i < n_p; i++)
+		{
+			pose_history_rating[i] = 1.0 - dist2[i].first / max_dist;
+		}
+
+		return 0;
+	}
+
+	int StereoRefine::checkPoseStability()
+	{
+		CV_Assert(nrEstimation == pose_history.size());
+
+		static size_t nr_tries = 0;
+		int err = getNearToMeanPose();
+		if (err)
+		{
+			poseIsStable = false;
+			if(err != -2)
+				nr_tries = 0;
+			return -1;
+		}
+
+		if (nrEstimation < cfg_pose.minContStablePoses)
+		{
+			poseIsStable = false;
+			nr_tries = 0;
+			return -1;
+		}
+
+		size_t count = 2, stable_poses = 2;
+		double act_rating_th[2];
+		act_rating_th[0] = pose_history_rating.back() - cfg_pose.absThRankingStable;
+		act_rating_th[1] = pose_history_rating.back() + cfg_pose.absThRankingStable;
+		while (count <= cfg_pose.minContStablePoses)
+		{
+			if ((pose_history_rating[nrEstimation - count] > act_rating_th[0]) && (pose_history_rating[nrEstimation - count] < act_rating_th[1]))
+			{
+				stable_poses++;
+			}
+			else
+			{
+				stable_poses--;
+				break;
+			}
+			count++;
+		}
+
+		if (stable_poses == count)
+		{
+			poseIsStable = true;
+			if(nr_tries)
+				nr_tries--;
+			return 0;
+		}
+		else
+		{
+			poseIsStable = false;
+			nr_tries++;
+		}
+
+		if ((nr_tries > cfg_pose.minContStablePoses) && maxPoolSizeReached)
+		{
+			//Check overlap of error ranges
+			const double minOverlap = 0.75;
+			vector<pair<double, double>> err_ranges(cfg_pose.minContStablePoses);
+			double mean_error = 0;
+			for(count = 0; count < cfg_pose.minContStablePoses; count++)
+			{
+				const size_t idx = nrEstimation - count - 1;
+				err_ranges[count] = make_pair(errorStatistic_history[idx].arithErr - 3.0 * errorStatistic_history[idx].arithStd,
+					errorStatistic_history[idx].arithErr + 3.0 * errorStatistic_history[idx].arithStd);
+				mean_error += errorStatistic_history[idx].arithErr;
+			}
+			mean_error /= (double)count;
+
+			//Check if there are non-overlapping regions
+			auto idx1 = std::minmax_element(err_ranges.begin(), err_ranges.end(), [](pair<double, double> const & first, pair<double, double> const & second)
+			{
+				return first.first < second.first;
+			});
+			auto idx2 = std::minmax_element(err_ranges.begin(), err_ranges.end(), [](pair<double, double> const & first, pair<double, double> const & second)
+			{
+				return first.second < second.second;
+			});
+			
+			if ((idx2.first->second <= idx1.first->first) || //if smallest right border is smaller than smallest left border
+				(idx1.second->first >= idx2.second->second)) //if largest left border is larger than largest right border
+			{
+				poseIsStable = false;
+				return 0;
+			}
+			
+			//Get percentage of overlap on the left and right sides of the mean error
+			double err_range[2], err_full_range, err_range_percentage[2];
+			vector<double> overall_overlap(cfg_pose.minContStablePoses);
+			err_range[0] = mean_error - idx1.first->first;
+			err_range[1] = idx2.second->second - mean_error;
+			err_full_range = err_range[0] + err_range[1];
+			err_range_percentage[0] = err_range[0] / err_full_range;
+			err_range_percentage[1] = err_range[1] / err_full_range;
+			for (count = 0; count < cfg_pose.minContStablePoses; count++)
+			{
+				const double right_overlap = err_range_percentage[1] * (err_ranges[count].second - mean_error) / err_range[1];
+				const double left_overlap = err_range_percentage[0] * (mean_error - err_ranges[count].first) / err_range[0];
+				overall_overlap[count] = right_overlap + left_overlap;
+				if (overall_overlap[count] < minOverlap)
+				{
+					poseIsStable = false;
+					return 0;
+				}
+			}
+			poseIsStable = true;
+		}
 
 		return 0;
 	}

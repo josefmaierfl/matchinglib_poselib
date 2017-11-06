@@ -101,7 +101,9 @@ namespace poselib
 			maxSkipPairs(5),
 			minInlierRatioReInit(0.55),
 			minPtsDistance(3.f),
-			maxPoolCorrespondences(30000)
+			maxPoolCorrespondences(30000),
+			minContStablePoses(3),
+			absThRankingStable(0.05)
 		{}
 
 		cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
@@ -130,6 +132,8 @@ namespace poselib
 		double minInlierRatioReInit;//If the new pose differs from the old, the whole system is reinitialized if the inlier ratio with the new pose is above this value
 		float minPtsDistance;//Minimum distance between points for insertion into the correspondence pool
 		size_t maxPoolCorrespondences;//Maximum number of correspondences in the correspondence pool after concatenating correspondences from multiple image pairs
+		size_t minContStablePoses;//Number of consecutive estimated poses that must be stable based on a pose distance ranking
+		double absThRankingStable;//Threshold on the ranking over the last minContStablePoses poses to decide if the pose is stable (actual_ranking +/- absThRankingStable)
 	};
 
 	//typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;
@@ -145,7 +149,7 @@ namespace poselib
 		ConfigPoseEstimation cfg_pose;
 		poselib::ConfigUSAC cfg_usac;
 		double pixToCamFact;
-		int nrEstimation;
+		size_t nrEstimation;
 		size_t skipCount;
 		std::vector<cv::Point2f> points1new, points2new;//Undistorted point correspondences in the camera coordinate system
 		cv::Mat points1newMat, points2newMat;//The same as points1new and points2new but double values in cv::Mat format
@@ -161,14 +165,12 @@ namespace poselib
 		cv::Mat mask_Q_new; //Newest mask using E and triangulated 3D points (excludes correspondences too far away) for the newest image pair
 		size_t nr_inliers_new;//Number of inliers for the newest image pair
 		size_t nr_corrs_new;//Number of initial correspondences of the newest image pair
-		//cv::Mat mask_E_old; //Mask using E only for all corresponding keypoints of the preceding image pairs (excluding the newest)
-		//cv::Mat mask_Q_old; //Mask using E and triangulated 3D points (excludes correspondences too far away) for all corresponding keypoints of the preceding image pairs (excluding the newest)
+		bool maxPoolSizeReached;//Is true if the maximum pool size was reached
 
 		std::list<CoordinateProps> correspondencePool;//Holds all correspondences and their properties over the last valid image pairs
 		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
 		size_t corrIdx;//Continous index starting with 0 counting all correspondences that were ever inserted into correspondencePool. The index is resetted when the KD tree is resetted.
 		std::unique_ptr<keyPointTreeInterface> kdTreeLeft;//KD-tree using nanoflann holding the keypoint coordinates of the left valid keypoints
-		//std::vector<size_t> deletionIdxs;//Holds indexes of point correspondences to be deleted
 
 		struct CoordinatePropsNew
 		{
@@ -198,6 +200,7 @@ namespace poselib
 			cv::Mat t;
 		};
 		std::vector<poseHist> pose_history;//Holds all valid poses over the last estimations
+		std::vector<double> pose_history_rating;//Holds a rating for every pose in the history based on the distance to the centre of gravity of all poses
 		std::vector<double> inlier_ratio_history;//Holds the inlier ratios for the last image pairs
 		std::vector<statVals> errorStatistic_history;//Holds statics of the Sampson errors for the last image pairs
 
@@ -207,6 +210,10 @@ namespace poselib
 		cv::Mat Q;//3D points of latest image pair
 		cv::Mat R_new; //Newest rotation matrix
 		cv::Mat t_new; //Newest translation vector
+		cv::Mat E_mostLikely;//Essential matrix that is most likely the best over all stored in the history
+		cv::Mat R_mostLikely; //Rotation matrix that is most likely the best over all stored in the history
+		cv::Mat t_mostLikely; //Translation vector that is most likely the best over all stored in the history
+		bool poseIsStable;
 		
 		StereoRefine(ConfigPoseEstimation cfg_pose_) :
 			cfg_pose(cfg_pose_)	{
@@ -221,6 +228,8 @@ namespace poselib
 			t_oa = 0;
 			descrDist_max = 0;
 			keyPRespons_max = 0;
+			poseIsStable = false;
+			maxPoolSizeReached = false;
 		}
 
 		void setNewParameters(ConfigPoseEstimation cfg_pose_);
@@ -240,6 +249,8 @@ namespace poselib
 		int poolCorrespondenceDelete(std::vector<size_t> delete_list);
 		int checkPoolSize(size_t maxPoolSize);
 		double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2);
+		int getNearToMeanPose();
+		int checkPoseStability();
 	};
 	
 }
