@@ -106,7 +106,7 @@ namespace poselib
 			maxPoolCorrespondences(30000),
 			minContStablePoses(3),
 			absThRankingStable(0.075),
-			useRANSAC_fewMatches(true)
+			useRANSAC_fewMatches(false)
 		{}
 
 		cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
@@ -161,6 +161,7 @@ namespace poselib
 		cv::Mat points1newMat, points2newMat;//The same as points1new and points2new but double values in cv::Mat format
 		cv::Mat points1newMat_tmp, points2newMat_tmp;//The same as points1newMat and points2newMat but holds also the correspondences that were filtered out
 		cv::Mat points1Cam, points2Cam;//Undistorted point correspondences in the camera coordinate system of all valid image pairs
+		size_t newAddedPoolCorrs;//Number of newly added correspondences
 		double th;//Inlier threshold
 		double th2;//Squared inlier threshold
 		double t_mea; //Time measurement
