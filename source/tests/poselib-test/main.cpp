@@ -748,6 +748,8 @@ void startEvaluation(ArgvParser& cmd)
 		cfg_stereo.dist1_8 = &dist1_8;
 		cfg_stereo.K0 = &K0;
 		cfg_stereo.K1 = &K1;
+		cfg_stereo.keypointType = f_detect;
+		cfg_stereo.descriptorType = d_extr;
 		cfg_stereo.th_pix_user = th_pix_user;
 		cfg_stereo.verbose = verbose;
 		/*cfg_stereo.Halign = Halign;
@@ -757,7 +759,7 @@ void startEvaluation(ArgvParser& cmd)
 		cfg_stereo.refineMethod = refineMethod;
 		cfg_stereo.refineRTold = refineRTold;
 		cfg_stereo.RobMethod = RobMethod;*/
-		cfg_stereo.maxPoolCorrespondences = 20000;
+		//cfg_stereo.maxPoolCorrespondences = 20000;
 
 		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
 	}
@@ -1193,10 +1195,15 @@ void startEvaluation(ArgvParser& cmd)
 					th_pix_user);
 			}
 
-			if (!stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cfg))
+			if (stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cfg) != -1)
 			{
 				R = stereoObj->R_new;
 				t = stereoObj->t_new;
+			}
+			else
+			{
+				cout << "Pose estimation failed!" << endl;
+				continue;
 			}
 			
 

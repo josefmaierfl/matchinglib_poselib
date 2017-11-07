@@ -80,6 +80,8 @@ namespace poselib
 			dist1_8(NULL),
 			K0(NULL),
 			K1(NULL),
+			keypointType("FAST"),
+			descriptorType("FREAK"),
 			th_pix_user(0.8),
 			autoTH(false),
 			Halign(0),
@@ -103,13 +105,16 @@ namespace poselib
 			minPtsDistance(3.f),
 			maxPoolCorrespondences(30000),
 			minContStablePoses(3),
-			absThRankingStable(0.05)
+			absThRankingStable(0.075),
+			useRANSAC_fewMatches(true)
 		{}
 
 		cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
 		cv::Mat* dist1_8;//Distortion paramters in OpenCV format with 8 parameters for the second/right image
 		cv::Mat* K0;//Camera matrix of the first/left camera
 		cv::Mat* K1;//Camera matrix of the second/right camera
+		std::string keypointType;//Name of the used keypoints
+		std::string descriptorType;//Name of the used descriptor
 		double th_pix_user;//Threshold for robust refinement in pixels
 		bool autoTH;//If the essentila matrix should be estimated using an automatic threshold estimation and ARRSAC
 		int Halign;//If the essentila matrix should be estimated using homography alignment
@@ -134,6 +139,7 @@ namespace poselib
 		size_t maxPoolCorrespondences;//Maximum number of correspondences in the correspondence pool after concatenating correspondences from multiple image pairs
 		size_t minContStablePoses;//Number of consecutive estimated poses that must be stable based on a pose distance ranking
 		double absThRankingStable;//Threshold on the ranking over the last minContStablePoses poses to decide if the pose is stable (actual_ranking +/- absThRankingStable)
+		bool useRANSAC_fewMatches;//If true, RANSAC is used for the robust estimation if the number of provided matches is below 150
 	};
 
 	//typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;
@@ -201,6 +207,7 @@ namespace poselib
 		};
 		std::vector<poseHist> pose_history;//Holds all valid poses over the last estimations
 		std::vector<double> pose_history_rating;//Holds a rating for every pose in the history based on the distance to the centre of gravity of all poses
+		std::vector<size_t> mostLikelyPoseIdxs;//Holds the indexes over the last chosen poses within the history that are most likely the best
 		std::vector<double> inlier_ratio_history;//Holds the inlier ratios for the last image pairs
 		std::vector<statVals> errorStatistic_history;//Holds statics of the Sampson errors for the last image pairs
 
@@ -213,7 +220,8 @@ namespace poselib
 		cv::Mat E_mostLikely;//Essential matrix that is most likely the best over all stored in the history
 		cv::Mat R_mostLikely; //Rotation matrix that is most likely the best over all stored in the history
 		cv::Mat t_mostLikely; //Translation vector that is most likely the best over all stored in the history
-		bool poseIsStable;
+		bool poseIsStable;//True, if the difference of the last poses or their error ranges is very small
+		bool mostLikelyPose_stable;//True, if the chosen most likely best pose is the same over the last minContStablePoses iterations
 		
 		StereoRefine(ConfigPoseEstimation cfg_pose_) :
 			cfg_pose(cfg_pose_)	{
@@ -230,6 +238,7 @@ namespace poselib
 			keyPRespons_max = 0;
 			poseIsStable = false;
 			maxPoolSizeReached = false;
+			mostLikelyPose_stable = false;
 		}
 
 		void setNewParameters(ConfigPoseEstimation cfg_pose_);

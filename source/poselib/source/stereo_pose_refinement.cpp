@@ -53,6 +53,14 @@ namespace poselib
 			//check if the new threshold leads to a noticable reduction of the already found correspondences
 			checkTh = true;
 		}
+		if (cfg_pose_.keypointType.compare(cfg_pose.keypointType) || cfg_pose_.descriptorType.compare(cfg_pose.descriptorType))
+		{
+			//If the keypoint or descriptoir type is changed, the system must be reinitialized as the respons and descriptor distance
+			//values depend on the type and the filtering procedures of this stereo algorithm depend on these values. Thus, the range
+			//of the values must be equal!
+			cout << "Change of descriptor type or keypoint type requested. Reinitializing system!" << endl;
+			clearHistoryAndPool();
+		}
 		cfg_pose = cfg_pose_;
 		th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold
 		th2 = th * th;
@@ -60,6 +68,7 @@ namespace poselib
 		t_mea = 0;
 		t_oa = 0;
 		poseIsStable = false;
+		mostLikelyPose_stable = false;
 		if (checkTh)
 		{
 			std::vector<double> errors;
@@ -231,6 +240,24 @@ namespace poselib
 		{
 			cout << "The maximum number " << cfg_pose.maxPoolCorrespondences << " of pool correspondences is too large as cv::Mat uses int for indexing. Setting it to INT_MAX= " << INT_MAX << endl;
 			cfg_pose.maxPoolCorrespondences = (size_t)INT_MAX;
+		}
+		if (cfg_pose.minContStablePoses <= 2)
+		{
+			cout << "The minimum number " << cfg_pose.minContStablePoses << " of minimal stable poses is too small! Setting it to the minimal number of 3." << endl;
+			cfg_pose.minContStablePoses = 3;
+		}
+		if (cfg_pose.absThRankingStable < 0.01)
+		{
+			cout << std::setprecision(3) << "The threshold on the ranking of " << cfg_pose.absThRankingStable << " to detect a stable pose is too small! "
+				"Setting it to 0.01 which might be still to small. "
+				"It is unlikely that a stability in the pose based on the poses alone will be detected!" << endl;
+			cfg_pose.absThRankingStable = 0.01;
+		}
+		else if (cfg_pose.absThRankingStable > 0.9)
+		{
+			cout << std::setprecision(3) << "The threshold on the ranking of " << cfg_pose.absThRankingStable << " to detect a stable pose is too high!"
+				" Setting it to 0.6. It is very likely that stability is detected even if the pose is not stable!" << endl;
+			cfg_pose.absThRankingStable = 0.6;
 		}
 	}
 
@@ -454,14 +481,37 @@ namespace poselib
 					R_old.copyTo(R_new);
 					t_old.copyTo(t_new);
 					skipCount++;
-					if (failed_refinements > 2)
+					if (failed_refinements > 1)
 					{
 						failed_refinements = 0;
 						cout << "Reinitializing system!" << endl;
 						clearHistoryAndPool();
 					}
-					failed_refinements++;
-					return -1;
+					else
+					{
+						mask_Q_new = cv::Mat(1, points1Cam.rows, CV_8U, cv::Scalar((unsigned char)true));
+						poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask_Q_new);
+						std::vector<double> error;
+						computeReprojError2(points1Cam, points2Cam, E_new, error);
+						size_t count = 0;
+						for (auto &it : correspondencePool)
+						{
+							if (!Q.empty())
+							{
+								it.Q = cv::Point3d(Q.row(count));
+								it.Q_tooFar = !mask_Q_new.at<bool>(count);
+							}
+							it.SampsonErrors.push_back(error[count++]);
+							it.meanSampsonError = 0;
+							for (auto &e : it.SampsonErrors)
+							{
+								it.meanSampsonError += e;
+							}
+							it.meanSampsonError /= (double)it.SampsonErrors.size();
+						}
+						failed_refinements++;
+					}
+					return -3;
 				}
 				failed_refinements = 0;
 				if ((double)nr_inliers_new < 0.75 * (double)correspondencePool.size())
@@ -471,7 +521,7 @@ namespace poselib
 					R_old.copyTo(R_new);
 					t_old.copyTo(t_new);
 					clearHistoryAndPool();
-					return -1;
+					return -3;
 				}
 
 				//Calculate inliers of the new image pair with the new E from all image pairs
@@ -484,7 +534,7 @@ namespace poselib
 					R_old.copyTo(R_new);
 					t_old.copyTo(t_new);
 					clearHistoryAndPool();
-					return -1;
+					return -3;
 				}
 				inlier_ratio_history.push_back(inlier_ratio_new);
 				pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
@@ -543,27 +593,28 @@ namespace poselib
 						nrEstimation++;
 						return -2;
 					}
-
-					//Calculate error values with new E, and add 3D points
-					std::vector<double> error;
-					computeReprojError2(points1Cam, points2Cam, E_new, error);
-					size_t count = 0;
-					for (auto &it : correspondencePool)
-					{
-						if (!Q.empty())
-						{
-							it.Q = cv::Point3d(Q.row(count));
-							it.Q_tooFar = !mask_Q_new.at<bool>(count);
-						}
-						it.SampsonErrors.push_back(error[count++]);
-						it.meanSampsonError = 0;
-						for (auto &e : it.SampsonErrors)
-						{
-							it.meanSampsonError += e;
-						}
-						it.meanSampsonError /= (double)it.SampsonErrors.size();
-					}
 				}
+
+				//Calculate error values with new E, and add 3D points
+				std::vector<double> error;
+				computeReprojError2(points1Cam, points2Cam, E_new, error);
+				size_t count = 0;
+				for (auto &it : correspondencePool)
+				{
+					if (!Q.empty())
+					{
+						it.Q = cv::Point3d(Q.row(count));
+						it.Q_tooFar = !mask_Q_new.at<bool>(count);
+					}
+					it.SampsonErrors.push_back(error[count++]);
+					it.meanSampsonError = 0;
+					for (auto &e : it.SampsonErrors)
+					{
+						it.meanSampsonError += e;
+					}
+					it.meanSampsonError /= (double)it.SampsonErrors.size();
+				}
+
 				nrEstimation++;
 				skipCount = 0;
 
@@ -601,9 +652,14 @@ namespace poselib
 		nrEstimation = 0;
 		skipCount = 0;
 		pose_history.clear();
+		pose_history_rating.clear();
 		inlier_ratio_history.clear();
 		errorStatistic_history.clear();
+		mostLikelyPoseIdxs.clear();
 		maxPoolSizeReached = false;
+		poseIsStable = false;
+		mostLikelyPose_stable = false;
+
 	}
 
 	int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
@@ -725,6 +781,45 @@ namespace poselib
 		Q.release();
 		//double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)));
 		//double th = cfg_pose.th_pix_user * pixToCamFact; //Inlier threshold
+
+		struct saveRobMethod {
+			saveRobMethod() : oldMethod(false),
+				autoTH(false),
+				Halign(0),
+				robMethod("")
+			{}
+			
+			bool oldMethod;
+			bool autoTH;
+			int Halign;
+			string robMethod;
+		} originalRobMethod;
+		bool methodChanged = false;
+		if (cfg_pose.useRANSAC_fewMatches && (points1newMat.rows < 150) && (cfg_pose.RobMethod.compare("RANSAC") || cfg_pose.autoTH || cfg_pose.Halign))
+		{
+			cout << "The number of provided matches is very low (<150) and your chosen robust method is ";
+			if (cfg_pose.autoTH)
+			{
+				originalRobMethod.autoTH = true;
+				originalRobMethod.oldMethod = true;
+				cout << "ARRSAC with automatic threshold estimation";
+			}
+			else if (cfg_pose.Halign)
+			{
+				originalRobMethod.Halign = cfg_pose.Halign;
+				originalRobMethod.oldMethod = true;
+				cout << "Homography alignment";
+			}
+			else
+			{
+				cout << cfg_pose.RobMethod;
+			}
+			originalRobMethod.robMethod = cfg_pose.RobMethod;
+			 cout << ". Switching to RANSAC for only this estimation "
+				"as RANSAC has no speed disadvantage for this small number of matches and might deliver the best results!" << endl;
+			methodChanged = true;
+			cfg_pose.RobMethod = "RANSAC";
+		}
 
 		if (cfg_pose.verbose > 3)
 		{
@@ -859,7 +954,7 @@ namespace poselib
 					R_kneip.copyTo(R_tmp);
 					t_kneip.copyTo(t_tmp);
 
-					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
 					{
 						if (!R_tmp.empty() && !t_tmp.empty())
 						{
@@ -873,7 +968,7 @@ namespace poselib
 				else if ((cfg_pose.refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
 				{
 
-					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
 					{
 						if (!R_tmp.empty() && !t_tmp.empty())
 						{
@@ -887,7 +982,7 @@ namespace poselib
 				}
 				else
 				{
-					if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+					if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.25))
 						std::cout << "Refinement failed!" << std::endl;
 				}
 			}
@@ -922,7 +1017,7 @@ namespace poselib
 			cv::Mat R_tmp, t_tmp;
 			R.copyTo(R_tmp);
 			t.copyTo(t_tmp);
-			if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+			if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
 			{
 				if (!R_tmp.empty() && !t_tmp.empty())
 				{
@@ -979,6 +1074,16 @@ namespace poselib
 			std::cout << "Number of inliers after pose estimation and triangulation: " << cv::countNonZero(mask) << endl;
 		}
 
+		if (methodChanged)
+		{
+			if (originalRobMethod.oldMethod)
+			{
+				cfg_pose.autoTH = originalRobMethod.autoTH;
+				cfg_pose.Halign = originalRobMethod.Halign;
+			}
+			cfg_pose.RobMethod = originalRobMethod.robMethod;
+		}
+
 		return 0;
 	}
 
@@ -1022,7 +1127,7 @@ namespace poselib
 				R_new.copyTo(R_tmp);
 				t_new.copyTo(t_tmp);
 
-				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
 				{
 					if (!R_tmp.empty() && !t_tmp.empty())
 					{
@@ -1043,7 +1148,7 @@ namespace poselib
 			else if ((cfg_pose.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
 			{
 
-				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
 				{
 					if (!R_tmp.empty() && !t_tmp.empty())
 					{
@@ -1060,7 +1165,7 @@ namespace poselib
 			}
 			else
 			{
-				if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+				if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.25))
 				{
 					std::cout << "Refinement failed!" << std::endl;
 					return -1;
@@ -1095,7 +1200,7 @@ namespace poselib
 			cv::Mat R_tmp, t_tmp;
 			R_new.copyTo(R_tmp);
 			t_new.copyTo(t_tmp);
-			if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+			if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
 			{
 				if (!R_tmp.empty() && !t_tmp.empty())
 				{
@@ -1331,6 +1436,14 @@ namespace poselib
 				nr_corrs_new = n_new;
 				Q.release();
 			}
+		}
+		else
+		{
+			nr_corrs_new = matches.size();
+			nr_inliers_new = nr_corrs_new;
+			mask_E_new = cv::Mat(1, nr_corrs_new, CV_8UC1, cv::Scalar((unsigned char)true));
+			mask_Q_new.release();
+			Q.release();
 		}
 
 		//Remove old correspondences
@@ -1957,6 +2070,7 @@ namespace poselib
 			RtcG.at<double>(2) += resPoints[valid_idx[i]].at<double>(2);
 		}
 		RtcG /= (double)valid_idx.size();
+		double point_norm = cv::norm(RtcG);
 
 		//Calculate the distance to the center of gravity
 		for (size_t i = 0; i < n_p; i++)
@@ -1974,10 +2088,12 @@ namespace poselib
 		R_mostLikely = pose_history[index.first->second].R.clone();
 		t_mostLikely = pose_history[index.first->second].t.clone();
 		E_mostLikely = pose_history[index.first->second].E.clone();
+		mostLikelyPoseIdxs.push_back(index.first->second);
 
 		pose_history_rating.clear();
 		pose_history_rating.resize(n_p);
-		double max_dist = index.second->first;
+		double add_term = point_norm * 0.0075;
+		double max_dist = index.second->first + add_term;
 		for (size_t i = 0; i < n_p; i++)
 		{
 			pose_history_rating[i] = 1.0 - dist2[i].first / max_dist;
@@ -1995,6 +2111,7 @@ namespace poselib
 		if (err)
 		{
 			poseIsStable = false;
+			mostLikelyPose_stable = false;
 			if(err != -2)
 				nr_tries = 0;
 			return -1;
@@ -2003,6 +2120,7 @@ namespace poselib
 		if (nrEstimation < cfg_pose.minContStablePoses)
 		{
 			poseIsStable = false;
+			mostLikelyPose_stable = false;
 			nr_tries = 0;
 			return -1;
 		}
@@ -2025,6 +2143,29 @@ namespace poselib
 			count++;
 		}
 
+		if (mostLikelyPoseIdxs.size() >= cfg_pose.minContStablePoses)
+		{
+			if (mostLikelyPoseIdxs.size() < INT_MAX)
+			{
+				int min_idx = (int)(mostLikelyPoseIdxs.size() - cfg_pose.minContStablePoses);
+				const size_t last_idx = mostLikelyPoseIdxs.back();
+				int cnt = (int)mostLikelyPoseIdxs.size() - 2;
+				for (; cnt >= min_idx; cnt--)
+				{
+					if (mostLikelyPoseIdxs[cnt] != last_idx)
+						break;
+				}
+				if (cnt < min_idx)
+				{
+					mostLikelyPose_stable = true;
+				}
+				else
+				{
+					mostLikelyPose_stable = false;
+				}
+			}
+		}
+
 		if (stable_poses == count)
 		{
 			poseIsStable = true;
@@ -2041,14 +2182,14 @@ namespace poselib
 		if ((nr_tries > cfg_pose.minContStablePoses) && maxPoolSizeReached)
 		{
 			//Check overlap of error ranges
-			const double minOverlap = 0.75;
+			const double minOverlap = 0.8;
 			vector<pair<double, double>> err_ranges(cfg_pose.minContStablePoses);
 			double mean_error = 0;
 			for(count = 0; count < cfg_pose.minContStablePoses; count++)
 			{
 				const size_t idx = nrEstimation - count - 1;
-				err_ranges[count] = make_pair(errorStatistic_history[idx].arithErr - 3.0 * errorStatistic_history[idx].arithStd,
-					errorStatistic_history[idx].arithErr + 3.0 * errorStatistic_history[idx].arithStd);
+				err_ranges[count] = make_pair(errorStatistic_history[idx].arithErr - 2.0 * errorStatistic_history[idx].arithStd,
+					errorStatistic_history[idx].arithErr + 2.0 * errorStatistic_history[idx].arithStd);//the multiplication factor of 2.0 corresponds approx. 95.45% of the error values
 				mean_error += errorStatistic_history[idx].arithErr;
 			}
 			mean_error /= (double)count;
