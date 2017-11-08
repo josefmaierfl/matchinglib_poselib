@@ -106,7 +106,8 @@ namespace poselib
 			maxPoolCorrespondences(30000),
 			minContStablePoses(3),
 			absThRankingStable(0.075),
-			useRANSAC_fewMatches(false)
+			useRANSAC_fewMatches(false),
+			checkPoolPoseRobust(3)
 		{}
 
 		cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
@@ -140,6 +141,7 @@ namespace poselib
 		size_t minContStablePoses;//Number of consecutive estimated poses that must be stable based on a pose distance ranking
 		double absThRankingStable;//Threshold on the ranking over the last minContStablePoses poses to decide if the pose is stable (actual_ranking +/- absThRankingStable)
 		bool useRANSAC_fewMatches;//If true, RANSAC is used for the robust estimation if the number of provided matches is below 150
+		size_t checkPoolPoseRobust;//If not 0, the pose is robustly (RANSAC, ...) estimated from the pool correspondences after reaching checkPoolPoseRobust times the number of initial inliers. A value of 1 means robust estimation is used instead of refinement. For a value >1, the value is exponetially increased after every robust estimation from the pool.
 	};
 
 	//typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;
@@ -173,6 +175,8 @@ namespace poselib
 		size_t nr_inliers_new;//Number of inliers for the newest image pair
 		size_t nr_corrs_new;//Number of initial correspondences of the newest image pair
 		bool maxPoolSizeReached;//Is true if the maximum pool size was reached
+		size_t checkPoolPoseRobust_tmp;//After approximately this number multiplied by the initial number of inliers, a robust estimation is performed on the pool correspondences instead of refinement
+		size_t initNumberInliers;//Initial number of inliers after robust estimation
 
 		std::list<CoordinateProps> correspondencePool;//Holds all correspondences and their properties over the last valid image pairs
 		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
@@ -240,6 +244,7 @@ namespace poselib
 			poseIsStable = false;
 			maxPoolSizeReached = false;
 			mostLikelyPose_stable = false;
+			initNumberInliers = 0;
 		}
 
 		void setNewParameters(ConfigPoseEstimation cfg_pose_);
@@ -261,6 +266,10 @@ namespace poselib
 		double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2);
 		int getNearToMeanPose();
 		int checkPoseStability();
+		int robustInitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
+		bool reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
+		bool initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
+		int robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
 	};
 	
 }

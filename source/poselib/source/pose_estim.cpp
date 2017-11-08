@@ -1233,8 +1233,8 @@ bool refineStereoBA(cv::InputArray p1,
 	return true;
 }
 
-int estimateEssentialOrPoseUSAC(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray E,
 	double th,
 	ConfigUSAC & cfg,
@@ -1591,7 +1591,7 @@ int estimateEssentialOrPoseUSAC(cv::InputArray p1,
 			if (t.needed() && !t.empty())
 				t.clear();
 		}
-		fraction_inliers = (double)nrInliers / (double)p1.rows();
+		fraction_inliers = (double)nrInliers / (double)p1.rows;
 		if (cfg.degenDecisionTh * fraction_inliers < fraction_degen_inliers_R)
 		{
 			isDegenerate = true;

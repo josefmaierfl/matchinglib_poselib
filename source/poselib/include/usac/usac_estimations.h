@@ -46,8 +46,8 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	std::vector<unsigned int> sortedMatchIdx = {});
 
 //Robustly estimates an essential matrix using the USAC framework and checks for degenerate configurations.
-int estimateEssentialMatUsac(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateEssentialMatUsac(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray E,
 	double & sprt_delta_result,
 	double & sprt_epsilon_result,
@@ -78,8 +78,8 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	cv::OutputArray t_E = cv::noArray());
 
 //Robustly estimates a rotation matrix using the USAC framework
-int estimateRotationMatUsac(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateRotationMatUsac(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray R,
 	double & sprt_delta_result,
 	double & sprt_epsilon_result,
@@ -93,8 +93,8 @@ int estimateRotationMatUsac(cv::InputArray p1,
 	std::vector<unsigned int> sortedMatchIdx = {});
 
 //If a degenerate model (rotation only) was detected and it is quasi-degenerate in reality, this function tries to upgrade to an essential matrix
-int upgradeEssentialMatDegenUsac(cv::InputArray p1,
-	cv::InputArray p2,
+int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::InputArray inliers_degen,
 	cv::OutputArray E,
 	double & sprt_delta_result,
@@ -112,8 +112,8 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	cv::OutputArray t = cv::noArray());
 
 //Estimation of the Essential matrix or rotation matrix (degenerate case) using QDEGSAC and multiple USACs. Degeneracy is detected robustly.
-int estimateEssentialQDEGSAC(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateEssentialQDEGSAC(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray E,
 	double & sprt_delta_result,
 	double & sprt_epsilon_result,

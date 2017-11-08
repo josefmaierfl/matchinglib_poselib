@@ -257,8 +257,8 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	return(EXIT_SUCCESS);
 }
 
-int estimateEssentialMatUsac(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateEssentialMatUsac(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray E,
 	double & sprt_delta_result,
 	double & sprt_epsilon_result,
@@ -288,10 +288,10 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	cv::OutputArray R_E, 
 	cv::OutputArray t_E)
 {
-	CV_Assert((p1.cols() == 2) && (p2.cols() == 2) && (p1.rows() == p2.rows()) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
-	CV_Assert(sortedMatchIdx.empty() || (p1.rows() == (int)sortedMatchIdx.size()));
-	cv::Mat p1_ = p1.getMat();
-	cv::Mat p2_ = p2.getMat();
+	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
+	CV_Assert(sortedMatchIdx.empty() || (p1.rows == (int)sortedMatchIdx.size()));
+	const cv::Mat p1_ = p1;// .getMat();
+	const cv::Mat p2_ = p2;// .getMat();
 	unsigned int numPts = p1_.rows;
 	unsigned int nr_inliers_ = 0;
 	static unsigned int numhyps = 0;
@@ -696,8 +696,8 @@ int estimateEssentialMatUsac(cv::InputArray p1,
 	return(EXIT_SUCCESS);
 }
 
-int estimateRotationMatUsac(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateRotationMatUsac(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray R,
 	double & sprt_delta_result,
 	double & sprt_epsilon_result,
@@ -710,10 +710,10 @@ int estimateRotationMatUsac(cv::InputArray p1,
 	unsigned int *nr_inliers,
 	std::vector<unsigned int> sortedMatchIdx)
 {
-	CV_Assert((p1.cols() == 2) && (p2.cols() == 2) && (p1.rows() == p2.rows()) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
-	CV_Assert(sortedMatchIdx.empty() || (p1.rows() == (int)sortedMatchIdx.size()));
-	cv::Mat p1_ = p1.getMat();
-	cv::Mat p2_ = p2.getMat();
+	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
+	CV_Assert(sortedMatchIdx.empty() || (p1.rows == (int)sortedMatchIdx.size()));
+	const cv::Mat p1_ = p1;// .getMat();
+	const cv::Mat p2_ = p2;// .getMat();
 	unsigned int numPts = p1_.rows;
 	unsigned int nr_inliers_ = 0;
 
@@ -855,8 +855,8 @@ int estimateRotationMatUsac(cv::InputArray p1,
 }
 
 
-int upgradeEssentialMatDegenUsac(cv::InputArray p1,
-	cv::InputArray p2,
+int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::InputArray inliers_degen,
 	cv::OutputArray E,
 	double & sprt_delta_result,
@@ -873,9 +873,9 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 	cv::OutputArray R,
 	cv::OutputArray t)
 {
-	CV_Assert((p1.cols() == 2) && (p2.cols() == 2) && (p1.rows() == p2.rows()) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
-	cv::Mat p1_ = p1.getMat();
-	cv::Mat p2_ = p2.getMat();
+	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
+	const cv::Mat p1_ = p1;// .getMat();
+	const cv::Mat p2_ = p2;// .getMat();
 	cv::Mat inl_degen = inliers_degen.getMat();
 	unsigned int numPts = p1_.rows;
 	unsigned int degenInlCnt = 0;
@@ -1120,8 +1120,8 @@ int upgradeEssentialMatDegenUsac(cv::InputArray p1,
 }
 
 
-int estimateEssentialQDEGSAC(cv::InputArray p1,
-	cv::InputArray p2,
+int estimateEssentialQDEGSAC(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray E,
 	double & sprt_delta_result,
 	double & sprt_epsilon_result,
@@ -1143,9 +1143,9 @@ int estimateEssentialQDEGSAC(cv::InputArray p1,
 	cv::OutputArray R_E, 
 	cv::OutputArray t_E)
 {
-	CV_Assert((p1.cols() == 2) && (p2.cols() == 2) && (p1.rows() == p2.rows()) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
-	cv::Mat p1_ = p1.getMat();
-	cv::Mat p2_ = p2.getMat();
+	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
+	const cv::Mat p1_ = p1;// .getMat();
+	const cv::Mat p2_ = p2;// .getMat();
 	cv::Mat E_, E_upgrade, inliers_init, inliers_degen, inliers_degen_all_out, inliers_upgrade, R_kneip, t_kneip, R_kneip_upgr, t_kneip_upgr, R_, p1_inl, p2_inl;
 	cv::Mat E_res, R_kneip_res, t_kneip_res, inliers_res;
 	unsigned int nr_inliers_init = 0, nr_inliers_deg = 0, nr_inliers_upgrade = 0, nr_inliers_res = 0;

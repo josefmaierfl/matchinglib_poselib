@@ -180,8 +180,8 @@ int POSELIB_API triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _
 //Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework.
 bool POSELIB_API estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p2, std::string method = "ARRSAC", double threshold = PIX_MIN_GOOD_TH, bool refine = true, cv::OutputArray mask = cv::noArray());
 //Estimation of the Essential matrix and/or pose using the USAC framework
-int POSELIB_API estimateEssentialOrPoseUSAC(cv::InputArray p1,
-	cv::InputArray p2,
+int POSELIB_API estimateEssentialOrPoseUSAC(const cv::Mat & p1,
+	const cv::Mat & p2,
 	cv::OutputArray E,
 	double th,
 	ConfigUSAC & cfg,

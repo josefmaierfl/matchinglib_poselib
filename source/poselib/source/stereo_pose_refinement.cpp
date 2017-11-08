@@ -310,21 +310,16 @@ namespace poselib
 		if (nrEstimation == 0)
 		{
 			//First estimation
-			if (robustPoseEstimation())
+			int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+			if (err)
 			{
-				return -1;
+				if (err == -1)
+					return -1;
+				else if (err == -2)
+					return -2;
+				else if (err == -3)
+					return 0;
 			}
-			inlier_ratio_new1 = (double)nr_inliers_new / (double)nr_corrs_new;
-			if (inlier_ratio_new1 < cfg_pose.minStartAggInlRat)
-			{
-				cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
-				return 0;
-			}
-			if (addCorrespondencesToPool(matches, kp1, kp2))
-				return -2;
-			pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-			inlier_ratio_history.push_back(inlier_ratio_new1);
-			nrEstimation++;
 		}
 		else
 		{
@@ -350,12 +345,8 @@ namespace poselib
 					if (inlier_ratio_new1 >= cfg_pose.minInlierRatioReInit)
 					{
 						//It seems that the pose hase changed as the inlier ratio is quite good after robust estimation
-						clearHistoryAndPool();
-						if (addCorrespondencesToPool(matches, kp1, kp2))
+						if(!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
 							return -2;
-						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-						inlier_ratio_history.push_back(inlier_ratio_new1);
-						nrEstimation++;
 						cout << "The pose has changed! System is reinitialized!" << endl;
 						return 0;
 					}
@@ -371,9 +362,20 @@ namespace poselib
 						}
 						else
 						{
-							//We are not sure if the pose has changed or if the image pair is too bad -> taking new pose values but keeping history and 
+							//We are not sure if the pose has changed or if the image pair is too bad -> taking pose from robustly refined pool but keeping history and 
 							//do not add this correspondences to the pool or anything to the history
-							cout << "Either the pose has changed or the image pair has bad quality! Taking new pose which might be wrong!" << endl;
+							cout << "Either the pose has changed or the image pair has bad quality! Robustly estimating new pose from pool which might be wrong!" << endl;
+							cv::Mat E_old = E_new.clone();
+							cv::Mat R_old = R_new.clone();
+							cv::Mat t_old = t_new.clone();
+							if (robustEstimationOnPool(matches, kp1, kp2))
+							{
+								//Reinitialize whole system
+								cout << "Robust estimation on pool correspondences failed!" << endl;
+								E_old.copyTo(E_new);
+								R_old.copyTo(R_new);
+								t_old.copyTo(t_new);
+							}
 						}
 						skipCount++;
 					}
@@ -414,12 +416,7 @@ namespace poselib
 				if (filterNewCorrespondences(matches, kp1, kp2, errorNew))
 				{
 					//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
-					clearHistoryAndPool();
-					if (addCorrespondencesToPool(matches, kp1, kp2))
-						return -2;
-					pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-					inlier_ratio_history.push_back(inlier_ratio_new1);
-					nrEstimation++;
+					reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
 					return -2;
 				}
 				if (((size_t)points1Cam.rows + matches.size()) > (size_t)INT_MAX)
@@ -443,21 +440,13 @@ namespace poselib
 					{
 						//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
 						clearHistoryAndPool();
-						if (robustPoseEstimation())
-						{
+						cfg_usac.matches = &matches;
+						cfg_usac.nrMatchesVfcFiltered = (unsigned int)matches.size();
+						int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+						if (err == -1)
 							return -1;
-						}
-						inlier_ratio_new1 = (double)nr_inliers_new / (double)nr_corrs_new;
-						if (inlier_ratio_new1 < cfg_pose.minStartAggInlRat)
-						{
-							cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
+						else if (err == -3)
 							return 0;
-						}
-						if (addCorrespondencesToPool(matches, kp1, kp2))
-							return -2;
-						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-						inlier_ratio_history.push_back(inlier_ratio_new1);
-						nrEstimation++;
 						return -2;
 					}
 				}
@@ -468,12 +457,7 @@ namespace poselib
 					if (checkPoolSize(maxPoolCorrespondences_tmp))
 					{
 						//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
-						clearHistoryAndPool();
-						if (addCorrespondencesToPool(matches, kp1, kp2))
-							return -2;
-						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-						inlier_ratio_history.push_back(inlier_ratio_new1);
-						nrEstimation++;
+						reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
 						return -2;
 					}
 				}
@@ -485,79 +469,109 @@ namespace poselib
 				cv::Mat E_old = E_new.clone();
 				cv::Mat R_old = R_new.clone();
 				cv::Mat t_old = t_new.clone();
+				double minRelRemainingCorrsRef = 0.75;
 				static size_t failed_refinements = 0;
-				if (refinePoseFromPool())
+				static size_t nr_since_robust = 0;
+				if ((cfg_pose.checkPoolPoseRobust == 1) || 
+					(nr_since_robust > checkPoolPoseRobust_tmp) || 
+					(!maxPoolSizeReached && (checkPoolPoseRobust_tmp * initNumberInliers < correspondencePool.size())))
 				{
-					cout << "Taking old pose!" << endl;
-					E_old.copyTo(E_new);
-					R_old.copyTo(R_new);
-					t_old.copyTo(t_new);
-					skipCount++;
-					if (failed_refinements > 0)
+					if (robustEstimationOnPool(matches, kp1, kp2))
 					{
-						failed_refinements = 0;
-						cout << "Reinitializing system!" << endl;
-						clearHistoryAndPool();
-					}
-					else
-					{
-#if 1
-						vector<size_t> newAddedPoolCorrsIdx(newAddedPoolCorrs);
-						size_t poolIdxNew = corrIdx - 1;
-						for (size_t i = 0; i < newAddedPoolCorrs; i++)
-						{
-							newAddedPoolCorrsIdx[i] = poolIdxNew - i;
-						}
-						if (poolCorrespondenceDelete(newAddedPoolCorrsIdx))
-						{
-							//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
-							clearHistoryAndPool();
-							failed_refinements = 0;
-							if (robustPoseEstimation())
-							{
-								return -1;
-							}
-							inlier_ratio_new1 = (double)nr_inliers_new / (double)nr_corrs_new;
-							if (inlier_ratio_new1 < cfg_pose.minStartAggInlRat)
-							{
-								cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
-								return 0;
-							}
-							if (addCorrespondencesToPool(matches, kp1, kp2))
-								return -2;
-							pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-							inlier_ratio_history.push_back(inlier_ratio_new1);
-							nrEstimation++;
+						//Reinitialize whole system
+						cout << "Robust estimation on pool correspondences failed! Reinitializing system with last pose!" << endl;
+						E_old.copyTo(E_new);
+						R_old.copyTo(R_new);
+						t_old.copyTo(t_new);
+						if (!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
 							return -2;
-						}
-#else
-						mask_Q_new = cv::Mat(1, points1Cam.rows, CV_8U, cv::Scalar((unsigned char)true));
-						poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask_Q_new);
-						std::vector<double> error;
-						computeReprojError2(points1Cam, points2Cam, E_new, error);
-						size_t count = 0;
-						for (auto &it : correspondencePool)
-						{
-							if (!Q.empty())
-							{
-								it.Q = cv::Point3d(Q.row(count));
-								it.Q_tooFar = !mask_Q_new.at<bool>(count);
-							}
-							it.SampsonErrors.push_back(error[count++]);
-							it.meanSampsonError = 0;
-							for (auto &e : it.SampsonErrors)
-							{
-								it.meanSampsonError += e;
-							}
-							it.meanSampsonError /= (double)it.SampsonErrors.size();
-						}
-#endif
-						failed_refinements++;
+						return -3;
 					}
-					return -3;
+					if (cfg_pose.checkPoolPoseRobust > 1)
+					{
+						if (maxPoolSizeReached)
+							checkPoolPoseRobust_tmp = cfg_pose.checkPoolPoseRobust > 10 ? cfg_pose.checkPoolPoseRobust : 10;
+						else if (checkPoolPoseRobust_tmp > 50)
+							checkPoolPoseRobust_tmp = cfg_pose.maxPoolCorrespondences / initNumberInliers + 2;
+						else
+							checkPoolPoseRobust_tmp = (size_t)std::round((double)cfg_pose.checkPoolPoseRobust + std::exp(0.8 + (double)checkPoolPoseRobust_tmp / 6.0));
+					}
+					nr_since_robust = 0;
+					minRelRemainingCorrsRef = 0.6;
 				}
-				failed_refinements = 0;
-				if ((double)nr_inliers_new < 0.75 * (double)correspondencePool.size())
+				else
+				{
+					if (maxPoolSizeReached)
+						nr_since_robust++;
+					else
+						nr_since_robust = 0;
+
+					if (refinePoseFromPool())
+					{
+						cout << "Taking old pose!" << endl;
+						E_old.copyTo(E_new);
+						R_old.copyTo(R_new);
+						t_old.copyTo(t_new);
+						skipCount++;
+						if (failed_refinements > 0)
+						{
+							failed_refinements = 0;
+							cout << "Reinitializing system!" << endl;
+							clearHistoryAndPool();
+						}
+						else
+						{
+#if 1
+							vector<size_t> newAddedPoolCorrsIdx(newAddedPoolCorrs);
+							size_t poolIdxNew = corrIdx - 1;
+							for (size_t i = 0; i < newAddedPoolCorrs; i++)
+							{
+								newAddedPoolCorrsIdx[i] = poolIdxNew - i;
+							}
+							if (poolCorrespondenceDelete(newAddedPoolCorrsIdx))
+							{
+								//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+								clearHistoryAndPool();
+								failed_refinements = 0;
+								cfg_usac.matches = &matches;
+								cfg_usac.nrMatchesVfcFiltered = (unsigned int)matches.size();
+								int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+								if (err == -1)
+									return -1;
+								else if (err == -3)
+									return 0;
+								return -2;
+							}
+#else
+							mask_Q_new = cv::Mat(1, points1Cam.rows, CV_8U, cv::Scalar((unsigned char)true));
+							poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask_Q_new);
+							std::vector<double> error;
+							computeReprojError2(points1Cam, points2Cam, E_new, error);
+							size_t count = 0;
+							for (auto &it : correspondencePool)
+							{
+								if (!Q.empty())
+								{
+									it.Q = cv::Point3d(Q.row(count));
+									it.Q_tooFar = !mask_Q_new.at<bool>(count);
+								}
+								it.SampsonErrors.push_back(error[count++]);
+								it.meanSampsonError = 0;
+								for (auto &e : it.SampsonErrors)
+								{
+									it.meanSampsonError += e;
+								}
+								it.meanSampsonError /= (double)it.SampsonErrors.size();
+							}
+#endif
+							failed_refinements++;
+						}
+						return -3;
+					}
+					failed_refinements = 0;
+				}
+
+				if ((double)nr_inliers_new < minRelRemainingCorrsRef * (double)correspondencePool.size())
 				{
 					cout << "Too less inliers (<75%) after refinement! Reinitializing system and taking old pose!" << endl;
 					E_old.copyTo(E_new);
@@ -628,12 +642,7 @@ namespace poselib
 					if (poolCorrespondenceDelete(delIdxPool))
 					{
 						//Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
-						clearHistoryAndPool();
-						if (addCorrespondencesToPool(matches, kp1, kp2))
-							return -2;
-						pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-						inlier_ratio_history.push_back(inlier_ratio_new1);
-						nrEstimation++;
+						reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
 						return -2;
 					}
 				}
@@ -668,16 +677,46 @@ namespace poselib
 			if (skipCount > cfg_pose.maxSkipPairs)
 			{
 				//Reinitialize whole system
-				clearHistoryAndPool();
-				if (addCorrespondencesToPool(matches, kp1, kp2))
+				if(!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
 					return -2;
-				pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
-				inlier_ratio_history.push_back(inlier_ratio_new1);
-				nrEstimation++;
 			}
 		}
 
 		return 0;
+	}
+
+	int StereoRefine::robustInitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+	{
+		checkPoolPoseRobust_tmp = cfg_pose.checkPoolPoseRobust;
+		if (robustPoseEstimation())
+		{
+			return -1;
+		}
+		initNumberInliers = nr_inliers_new;
+		inlier_ratio = (double)nr_inliers_new / (double)nr_corrs_new;
+		if (inlier_ratio < cfg_pose.minStartAggInlRat)
+		{
+			cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
+			return -3;
+		}
+		if (!initDataAfterReinitialization(inlier_ratio, matches, kp1, kp2))
+			return -2;
+	}
+
+	bool StereoRefine::initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+	{
+		if (addCorrespondencesToPool(matches, kp1, kp2))
+			return false;
+		pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+		inlier_ratio_history.push_back(inlier_ratio);
+		nrEstimation++;
+		return true;
+	}
+	
+	bool StereoRefine::reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+	{
+		clearHistoryAndPool();
+		return initDataAfterReinitialization(inlier_ratio, matches, kp1, kp2);
 	}
 
 	void StereoRefine::clearHistoryAndPool()
@@ -702,7 +741,60 @@ namespace poselib
 		maxPoolSizeReached = false;
 		poseIsStable = false;
 		mostLikelyPose_stable = false;
+	}
 
+	int StereoRefine::robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+	{
+		//Reconstruct matches from pool
+		unsigned int nrMatchesVfcFiltered_save = cfg_usac.nrMatchesVfcFiltered;
+		size_t coorPoolSize = correspondencePool.size();
+		vector<cv::DMatch> pool_matches(coorPoolSize);
+		vector<cv::KeyPoint> kp1_tmp(coorPoolSize), kp2_tmp(coorPoolSize);
+		std::list<CoordinateProps>::iterator it = correspondencePool.begin();
+		for (size_t i = 0; i < coorPoolSize; i++)
+		{
+			pool_matches[i] = cv::DMatch(i, i, it->descrDist);
+			kp1_tmp[i] = cv::KeyPoint(it->pt1, 10.f, -1.f, it->keyPResponses[0]);
+			kp2_tmp[i] = cv::KeyPoint(it->pt2, 10.f, -1.f, it->keyPResponses[1]);
+			it++;
+		}
+		cfg_usac.matches = &pool_matches;
+		cfg_usac.keypoints1 = &kp1_tmp;
+		cfg_usac.keypoints1 = &kp2_tmp;
+		if (coorPoolSize > UINT_MAX)
+		{
+			cfg_usac.nrMatchesVfcFiltered = UINT_MAX;
+		}
+		else
+		{
+			cfg_usac.nrMatchesVfcFiltered = (unsigned int)coorPoolSize;
+		}
+
+		/*cv::Mat points1newMat_tmp, points2newMat_tmp;
+		points1newMat_tmp = points1newMat;
+		points2newMat_tmp = points2newMat;
+		points1newMat = points1Cam;
+		points2newMat = points2Cam;*/
+		cv::swap(points1Cam, points1newMat);
+		cv::swap(points2Cam, points2newMat);
+		if (robustPoseEstimation())
+		{
+			/*points1newMat = points1newMat_tmp;
+			points2newMat = points2newMat_tmp;*/
+			cv::swap(points1Cam, points1newMat);
+			cv::swap(points2Cam, points2newMat);
+			return -1;
+		}
+		/*points1newMat = points1newMat_tmp;
+		points2newMat = points2newMat_tmp;*/
+		cv::swap(points1Cam, points1newMat);
+		cv::swap(points2Cam, points2newMat);
+		cfg_usac.matches = &matches;
+		cfg_usac.keypoints1 = &kp1;
+		cfg_usac.keypoints1 = &kp2;
+		cfg_usac.nrMatchesVfcFiltered = nrMatchesVfcFiltered_save;
+
+		return 0;
 	}
 
 	int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
@@ -840,9 +932,9 @@ namespace poselib
 			string robMethod;
 		} originalRobMethod;
 		bool methodChanged = false;
-		if (cfg_pose.useRANSAC_fewMatches && (points1newMat.rows < 150) && (cfg_pose.RobMethod.compare("RANSAC") || cfg_pose.autoTH || cfg_pose.Halign))
+		if (cfg_pose.useRANSAC_fewMatches && (points1newMat.rows < 100) && (cfg_pose.RobMethod.compare("RANSAC") || cfg_pose.autoTH || cfg_pose.Halign))
 		{
-			cout << "The number of provided matches is very low (<150) and your chosen robust method is ";
+			cout << "The number of provided matches is very low (<100) and your chosen robust method is ";
 			if (cfg_pose.autoTH)
 			{
 				originalRobMethod.autoTH = true;
@@ -861,7 +953,7 @@ namespace poselib
 			}
 			originalRobMethod.robMethod = cfg_pose.RobMethod;
 			 cout << ". Switching to RANSAC for only this estimation "
-				"as RANSAC has no speed disadvantage for this small number of matches and might deliver the best results!" << endl;
+				"as RANSAC has no speed disadvantage for this small number of matches and might deliver the best results (except if degeneracies are present)!" << endl;
 			methodChanged = true;
 			cfg_pose.RobMethod = "RANSAC";
 		}
@@ -999,7 +1091,7 @@ namespace poselib
 					R_kneip.copyTo(R_tmp);
 					t_kneip.copyTo(t_tmp);
 
-					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
+					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 					{
 						if (!R_tmp.empty() && !t_tmp.empty())
 						{
@@ -1013,7 +1105,7 @@ namespace poselib
 				else if ((cfg_pose.refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
 				{
 
-					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
+					if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 					{
 						if (!R_tmp.empty() && !t_tmp.empty())
 						{
@@ -1027,7 +1119,7 @@ namespace poselib
 				}
 				else
 				{
-					if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.25))
+					if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
 						std::cout << "Refinement failed!" << std::endl;
 				}
 			}
@@ -1062,7 +1154,7 @@ namespace poselib
 			cv::Mat R_tmp, t_tmp;
 			R.copyTo(R_tmp);
 			t.copyTo(t_tmp);
-			if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
+			if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 			{
 				if (!R_tmp.empty() && !t_tmp.empty())
 				{
@@ -1172,7 +1264,7 @@ namespace poselib
 				R_new.copyTo(R_tmp);
 				t_new.copyTo(t_tmp);
 
-				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
+				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 				{
 					if (!R_tmp.empty() && !t_tmp.empty())
 					{
@@ -1193,7 +1285,7 @@ namespace poselib
 			else if ((cfg_pose.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
 			{
 
-				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
+				if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 				{
 					if (!R_tmp.empty() && !t_tmp.empty())
 					{
@@ -1210,7 +1302,7 @@ namespace poselib
 			}
 			else
 			{
-				if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.25))
+				if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
 				{
 					std::cout << "Refinement failed!" << std::endl;
 					return -1;
@@ -1245,7 +1337,7 @@ namespace poselib
 			cv::Mat R_tmp, t_tmp;
 			R_new.copyTo(R_tmp);
 			t_new.copyTo(t_tmp);
-			if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.25))
+			if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 			{
 				if (!R_tmp.empty() && !t_tmp.empty())
 				{
