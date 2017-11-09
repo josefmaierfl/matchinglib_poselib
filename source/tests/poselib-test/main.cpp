@@ -760,7 +760,10 @@ void startEvaluation(ArgvParser& cmd)
 		cfg_stereo.refineRTold = refineRTold;
 		cfg_stereo.RobMethod = RobMethod;*/
 		//cfg_stereo.maxPoolCorrespondences = 20000;
-		cfg_stereo.checkPoolPoseRobust = 1;
+		cfg_stereo.checkPoolPoseRobust = 2;
+		cfg_stereo.BART = 1;
+		cfg_stereo.BART_CorrPool = 1;
+		//cfg_stereo.kneipInsteadBA_CorrPool = true;
 
 		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
 	}

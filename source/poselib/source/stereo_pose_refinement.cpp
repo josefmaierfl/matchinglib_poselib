@@ -91,6 +91,16 @@ namespace poselib
 			cout << "No refinement algorithm for estimating the pose with all correspondences is set. Taking default values!" << endl;
 			cfg_pose.refineMethod_CorrPool = poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
 		}
+		if (cfg_pose.kneipInsteadBA && ((cfg_pose.refineMethod & 0xF) != poselib::RefinePostAlg::PR_KNEIP))
+		{
+			cout << "You selected Kneips Eigen solver instead BA but specified a different solver. Changing the solver to Kneips Eigen solver." << endl;
+			cfg_pose.refineMethod = (cfg_pose.refineMethod & 0xF0) | poselib::RefinePostAlg::PR_KNEIP;
+		}
+		if (cfg_pose.kneipInsteadBA_CorrPool && ((cfg_pose.refineMethod_CorrPool & 0xF) != poselib::RefinePostAlg::PR_KNEIP))
+		{
+			cout << "You selected Kneips Eigen solver instead BA but specified a different solver. Changing the solver to Kneips Eigen solver." << endl;
+			cfg_pose.refineMethod_CorrPool = (cfg_pose.refineMethod_CorrPool & 0xF0) | poselib::RefinePostAlg::PR_KNEIP;
+		}
 		if (cfg_pose.minStartAggInlRat < 0.08)
 		{
 			cout << std::setprecision(4) << "The minimum inlier ratio treshold minStartAggInlRat = " << cfg_pose.minStartAggInlRat <<
@@ -760,7 +770,7 @@ namespace poselib
 		}
 		cfg_usac.matches = &pool_matches;
 		cfg_usac.keypoints1 = &kp1_tmp;
-		cfg_usac.keypoints1 = &kp2_tmp;
+		cfg_usac.keypoints2 = &kp2_tmp;
 		if (coorPoolSize > UINT_MAX)
 		{
 			cfg_usac.nrMatchesVfcFiltered = UINT_MAX;
@@ -791,7 +801,7 @@ namespace poselib
 		cv::swap(points2Cam, points2newMat);
 		cfg_usac.matches = &matches;
 		cfg_usac.keypoints1 = &kp1;
-		cfg_usac.keypoints1 = &kp2;
+		cfg_usac.keypoints2 = &kp2;
 		cfg_usac.nrMatchesVfcFiltered = nrMatchesVfcFiltered_save;
 
 		return 0;
@@ -1154,22 +1164,45 @@ namespace poselib
 			cv::Mat R_tmp, t_tmp;
 			R.copyTo(R_tmp);
 			t.copyTo(t_tmp);
+			bool kneipSuccess = true;
 			if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 			{
 				if (!R_tmp.empty() && !t_tmp.empty())
 				{
 					R_tmp.copyTo(R);
 					t_tmp.copyTo(t);
+					mask.copyTo(mask_E_new);
+					poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask);
 					useBA = false;
 				}
+				else
+					kneipSuccess = false;
 			}
 			else
+				kneipSuccess = false;
+
+			if(!kneipSuccess)
 			{
 				std::cout << "Refinement using Kneips Eigen solver instead of bundle adjustment (BA) failed!" << std::endl;
 				if (cfg_pose.BART > 0)
 				{
 					std::cout << "Trying bundle adjustment instead!" << std::endl;
 					poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask);
+				}
+				else
+				{
+					cout << "Trying refinement with weighted (Pseudo-Huber) Stewenius instead!" << endl;
+					int refineMethod_save = cfg_pose.refineMethod;
+					cfg_pose.refineMethod = poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
+					if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+					{
+						mask.copyTo(mask_E_new);
+						Q.release();
+						poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask);
+					}
+					else
+						std::cout << "Refinement failed!" << std::endl;
+					cfg_pose.refineMethod = refineMethod_save;
 				}
 			}
 		}
@@ -1178,7 +1211,8 @@ namespace poselib
 		{
 			if (cfg_pose.BART == 1)
 			{
-				poselib::refineStereoBA(points1newMat, points2newMat, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask);
+				if(!poselib::refineStereoBA(points1newMat, points2newMat, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask))
+					cout << "Bundle adjustment failed!" << endl;
 			}
 			else if (cfg_pose.BART == 2)
 			{
@@ -1186,7 +1220,8 @@ namespace poselib
 				cv::Mat points2newMat_tmp = points2newMat.clone();
 				poselib::CamToImgCoordTrans(points1newMat_tmp, *cfg_pose.K0);
 				poselib::CamToImgCoordTrans(points2newMat_tmp, *cfg_pose.K1);
-				poselib::refineStereoBA(points1newMat_tmp, points2newMat_tmp, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask);
+				if(!poselib::refineStereoBA(points1newMat_tmp, points2newMat_tmp, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask))
+					cout << "Bundle adjustment failed!" << endl;
 			}
 			E = poselib::getEfromRT(R, t);
 		}
@@ -1337,22 +1372,51 @@ namespace poselib
 			cv::Mat R_tmp, t_tmp;
 			R_new.copyTo(R_tmp);
 			t_new.copyTo(t_tmp);
+			bool kneipSuccess = true;
 			if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 			{
 				if (!R_tmp.empty() && !t_tmp.empty())
 				{
 					R_tmp.copyTo(R_new);
 					t_tmp.copyTo(t_new);
+					mask.copyTo(mask_E_new);
+					poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask);
 					useBA = false;
+				}
+				else
+				{
+					kneipSuccess = false;
 				}
 			}
 			else
+				kneipSuccess = false;
+
+			if(!kneipSuccess)
 			{
 				std::cout << "Refinement using Kneips Eigen solver instead of bundle adjustment (BA) failed!" << std::endl;
 				if (cfg_pose.BART_CorrPool > 0)
 				{
 					std::cout << "Trying bundle adjustment instead!" << std::endl;
 					poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask);
+				}
+				else
+				{
+					cout << "Trying refinement with weighted (Pseudo-Huber) Stewenius instead!" << endl;
+					int refineMethod_save = cfg_pose.refineMethod_CorrPool;
+					cfg_pose.refineMethod_CorrPool = poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
+					if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+					{
+						mask.copyTo(mask_E_new);
+						Q.release();
+						poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask);
+					}
+					else
+					{
+						std::cout << "Refinement failed!" << std::endl;
+						cfg_pose.refineMethod_CorrPool = refineMethod_save;
+						return -1;
+					}
+					cfg_pose.refineMethod_CorrPool = refineMethod_save;
 				}
 			}
 		}
@@ -1361,7 +1425,8 @@ namespace poselib
 		{
 			if (cfg_pose.BART_CorrPool == 1)
 			{
-				poselib::refineStereoBA(points1Cam, points2Cam, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask);
+				if (!poselib::refineStereoBA(points1Cam, points2Cam, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask))
+					cout << "Bundle adjustment failed!" << endl;
 			}
 			else if (cfg_pose.BART_CorrPool == 2)
 			{
@@ -1369,7 +1434,8 @@ namespace poselib
 				cv::Mat points2Cam_tmp = points2Cam.clone();
 				poselib::CamToImgCoordTrans(points1Cam_tmp, *cfg_pose.K0);
 				poselib::CamToImgCoordTrans(points2Cam_tmp, *cfg_pose.K1);
-				poselib::refineStereoBA(points1Cam_tmp, points2Cam_tmp, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask);
+				if(!poselib::refineStereoBA(points1Cam_tmp, points2Cam_tmp, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask))
+					cout << "Bundle adjustment failed!" << endl;
 			}
 			E = poselib::getEfromRT(R_new, t_new);
 		}
@@ -1558,6 +1624,7 @@ namespace poselib
 				if (old_idx < points1newMat.rows)
 				{
 					points1newMat.rowRange((int)old_idx, points1newMat.rows).copyTo(points1newMatnew.rowRange(startRowNew, n_new));
+					points2newMat.rowRange((int)old_idx, points2newMat.rows).copyTo(points2newMatnew.rowRange(startRowNew, n_new));
 					points1newnew.insert(points1newnew.end(), points1new.begin() + old_idx, points1new.end());
 					points2newnew.insert(points2newnew.end(), points2new.begin() + old_idx, points2new.end());
 					matchesnew.insert(matchesnew.end(), matches.begin() + old_idx, matches.end());
