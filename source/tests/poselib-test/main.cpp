@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
 // ideal case
 #include "matchinglib/matchinglib.h"
 #include "matchinglib/vfcMatches.h"
+#include "matchinglib/gms.h"
 #include "poselib/pose_estim.h"
 #include "poselib/pose_helper.h"
 #include "poselib/pose_homography.h"
@@ -51,7 +52,8 @@ void cinfigureUSAC(poselib::ConfigUSAC &cfg,
 	std::vector<cv::KeyPoint> *kp1,
 	std::vector<cv::KeyPoint> *kp2,
 	std::vector<cv::DMatch> *finalMatches,
-	double th_pix_user);
+	double th_pix_user,
+	int USACInlratFilt);
 
 
 
@@ -232,6 +234,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("noRatiot", "<If provided, ratio test is disabled for the matchers for which it is possible.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("refineVFC", "<If provided, the result from the matching algorithm is refined with VFC>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("refineSOF", "<If provided, the result from the matching algorithm is refined with SOF>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("refineGMS", "<If provided, the result from the matching algorithm is refined with GMS>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("DynKeyP", "<If provided, the keypoints are detected dynamically to limit the number of keypoints approximately to the maximum number but are limited using response values. CURRENTLY NOT WORKING with OpenCV 3.0.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=8000] that should be used for matching.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("subPixRef", "<If provided, the feature positions of the final matches are refined by either template matching or OpenCV's corner refinement (cv::cornerSubPix) to get sub-pixel accuracy. Be careful, if there are large rotations, changes in scale or other feature deformations between the matches, template matching option should not be set. The following options are possible:\n 0\t No refinement.\n 1\t Refinement using template matching.\n >1\t Refinement using the OpenCV function cv::cornerSubPix seperately for both images.>", ArgvParser::OptionRequiresValue);
@@ -271,8 +274,12 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "5th digit:\n 0\t Estimator: Nister\n 1\t Estimator: Kneip's Eigen solver\n 2\t Estimator: Stewenius\n "
         "6th digit:\n 0\t Inner refinement alg: 8pt with Torr weights\n 1\t Inner refinement alg: 8pt with pseudo-huber weights\n 2\t Inner refinement alg: Kneip's Eigen solver\n 3\t Inner refinement alg: Kneip's Eigen solver with Torr weights\n 4\t Inner refinement alg: Stewenius\n 5\t Inner refinement alg: Stewenius with pseudo-huber weights\n 6\t Inner refinement alg: Nister\n 7\t Inner refinement alg: Nister with pseudo-huber weights>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("USACdegenTh", "<Decision threshold on the inlier ratios between Essential matrix and the degenerate configuration (only rotation) to decide if the solution is degenerate or not [Default=0.85]. It is only used for the internal degeneracy check of USAC (4th digit of option cfgUSAC = 2)>", ArgvParser::NoOptionAttribute);
-    cmd.defineOption("th", "<Inlier threshold to check if a match corresponds to a model. [Default=0.8]>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("USACInlratFilt", "<Specifies which filter is used on the matches to estimate an initial inlier ratio for USAC. Choose 0 for GMS and 1 for VFC [Default].>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("th", "<Inlier threshold to check if a match corresponds to a model. [Default=0.8]>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("stereoRef", "<If provided, the algorithm assums a stereo configuration and refines the pose using multiple image pairs.>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("evStepStereoStable", "<If the option stereoRef is provided and the estimated pose is stable, this option specifies the number of image pairs that are skipped until a new evaluation is performed. A value of 0 disables this feature [Default].>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("useOnlyStablePose", "<If provided, and the option stereoRef is enabled, only a stable pose is used for rectification after the first stable pose is available. For estimations which do not produce a stable pose, the last stable pose is used. If the real pose is expected to change often, this option should not be used.>", ArgvParser::NoOptionAttribute);
+	cmd.defineOption("useMostLikelyPose", "<If provided, the most likely correct pose over the last poses is preferred (if it is stable) instead of the actual pose.>", ArgvParser::NoOptionAttribute);
 
     /// finally parse and handle return codes (display help etc...)
     if(argc <= 1)
@@ -340,9 +347,10 @@ void startEvaluation(ArgvParser& cmd)
     string refineRT;
     double th_pix_user;
     int showNr, f_nr;
-    bool noRatiot, refineVFC, refineSOF, DynKeyP, drawSingleKps;
+    bool noRatiot, refineVFC, refineSOF, refineGMS, DynKeyP, drawSingleKps;
     int subPixRef = 0;
     bool noPoseDiff, autoTH, absCoord, histEqual, refineRTold = false;
+	int USACInlratFilt = 1;
     bool showRect;
     int Halign;
     int BART = 0;
@@ -359,10 +367,14 @@ void startEvaluation(ArgvParser& cmd)
     int refineRTnr[2] = { 0,0};
     bool kneipInsteadBA = false;
 	bool stereoRef = false;
+	int evStepStereoStable = 0;
+	bool useOnlyStablePose = false;
+	bool useMostLikelyPose = false;
 
     noRatiot = cmd.foundOption("noRatiot");
     refineVFC = cmd.foundOption("refineVFC");
     refineSOF = cmd.foundOption("refineSOF");
+	refineGMS = cmd.foundOption("refineGMS");
     DynKeyP = cmd.foundOption("DynKeyP");
     histEqual = cmd.foundOption("histEqual");
 
@@ -374,6 +386,20 @@ void startEvaluation(ArgvParser& cmd)
     showRect = cmd.foundOption("showRect");
 
 	stereoRef = cmd.foundOption("stereoRef");
+	useOnlyStablePose = cmd.foundOption("useOnlyStablePose");
+	useMostLikelyPose = cmd.foundOption("useMostLikelyPose");
+
+	if (cmd.foundOption("evStepStereoStable"))
+	{
+		evStepStereoStable = atoi(cmd.optionValue("evStepStereoStable").c_str());
+		if (evStepStereoStable < 0 || evStepStereoStable > 1000)
+		{
+			std::cout << "The number of image pairs skipped " << evStepStereoStable << " before estimating a new pose is out of range. Using default value of 0." << std::endl;
+			evStepStereoStable = 0;
+		}
+	}
+	else
+		evStepStereoStable = 0;
 
     if (cmd.foundOption("subPixRef"))
     {
@@ -424,6 +450,18 @@ void startEvaluation(ArgvParser& cmd)
         RobMethod = cmd.optionValue("RobMethod");
     else
         RobMethod = "USAC";
+
+	if (cmd.foundOption("USACInlratFilt"))
+	{
+		USACInlratFilt = atoi(cmd.optionValue("USACInlratFilt").c_str());
+		if (USACInlratFilt < 0 || USACInlratFilt > 1)
+		{
+			std::cout << "The specified option forUSACInlratFilt is not available. Changing to default: VFC filtering" << std::endl;
+			USACInlratFilt = 1;
+		}
+	}
+	else
+		USACInlratFilt = 1;
 
     if(RobMethod.compare("ARRSAC") && autoTH)
     {
@@ -763,13 +801,16 @@ void startEvaluation(ArgvParser& cmd)
 		cfg_stereo.checkPoolPoseRobust = 2;
 		cfg_stereo.BART = 1;
 		cfg_stereo.BART_CorrPool = 1;
-		//cfg_stereo.kneipInsteadBA_CorrPool = true;
+		cfg_stereo.kneipInsteadBA_CorrPool = true;
 
 		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
 	}
 
     int failNr = 0;
-  int step = 1;
+	int step = 1;
+	const int evStepStereoStable_tmp = evStepStereoStable + 1;
+	int evStepStereoStable_cnt = evStepStereoStable_tmp;
+	cv::Mat R_stable, t_stable;
     for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - step):(int)filenamesl.size()); i++)
     {
         if(oneCam)
@@ -783,42 +824,45 @@ void startEvaluation(ArgvParser& cmd)
             src[1] = cv::imread(filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
         }
 
-        if (histEqual)
-        {
-            equalizeHist(src[0], src[0]);
-            equalizeHist(src[1], src[1]);
-        }
+		if (!stereoRef || (evStepStereoStable_cnt == evStepStereoStable_tmp) || (evStepStereoStable_cnt == 0))
+		{
+			if (histEqual)
+			{
+				equalizeHist(src[0], src[0]);
+				equalizeHist(src[1], src[1]);
+			}
 
-        //Matching
-        err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC, !noRatiot, refineSOF, subPixRef, ((verbose < 4) || (verbose > 5)) ? verbose:0, nmsIdx, nmsQry);
-        if(err)
-        {
-            if((err == -5) || (err == -6))
-            {
-                std::cout << "Exiting!" << endl;
-                exit(1);
-            }
-            failNr++;
-            if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-            {
-                std::cout << "Matching failed! Trying next pair." << endl;
-                continue;
-            }
-            else
-            {
-                std::cout << "Matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                exit(1);
-            }
-        }
+			//Matching
+			err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC, refineGMS, !noRatiot, refineSOF, subPixRef, ((verbose < 4) || (verbose > 5)) ? verbose : 0, nmsIdx, nmsQry);
+			if (err)
+			{
+				if ((err == -5) || (err == -6))
+				{
+					std::cout << "Exiting!" << endl;
+					exit(1);
+				}
+				failNr++;
+				if ((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+				{
+					std::cout << "Matching failed! Trying next pair." << endl;
+					continue;
+				}
+				else
+				{
+					std::cout << "Matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+					exit(1);
+				}
+			}
 
-        //Sort matches according to their query index
-        /*std::sort(finalMatches.begin(), finalMatches.end(), [](cv::DMatch const & first, cv::DMatch const & second) {
-            return first.queryIdx < second.queryIdx; });*/
+			//Sort matches according to their query index
+			/*std::sort(finalMatches.begin(), finalMatches.end(), [](cv::DMatch const & first, cv::DMatch const & second) {
+				return first.queryIdx < second.queryIdx; });*/
 
-        if(verbose >= 7)
-        {
-            showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);
-        }
+			if (verbose >= 7)
+			{
+				showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);
+			}
+		}
 
         //Pose estimation
         //-------------------------------
@@ -890,7 +934,8 @@ void startEvaluation(ArgvParser& cmd)
 					&kp1,
 					&kp2,
 					&finalMatches,
-					th_pix_user);
+					th_pix_user,
+					USACInlratFilt);
 			}
 
 			//Get essential matrix
@@ -1183,35 +1228,65 @@ void startEvaluation(ArgvParser& cmd)
 		}
 		else
 		{
-			//Set up USAC paramters
-			poselib::ConfigUSAC cfg;
-			if (!RobMethod.compare("USAC"))
+			if ((evStepStereoStable_cnt == evStepStereoStable_tmp) || (evStepStereoStable_cnt == 0))
 			{
-				cinfigureUSAC(cfg,
-					cfgUSACnr,
-					USACdegenTh,
-					K0,
-					K1,
-					src[0].size(),
-					&kp1,
-					&kp2,
-					&finalMatches,
-					th_pix_user);
-			}
+				//Set up USAC paramters
+				poselib::ConfigUSAC cfg;
+				if (!RobMethod.compare("USAC"))
+				{
+					cinfigureUSAC(cfg,
+						cfgUSACnr,
+						USACdegenTh,
+						K0,
+						K1,
+						src[0].size(),
+						&kp1,
+						&kp2,
+						&finalMatches,
+						th_pix_user,
+						USACInlratFilt);
+				}
 
-			if (stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cfg) != -1)
-			{
-				R = stereoObj->R_new;
-				t = stereoObj->t_new;
+				static bool poseWasStable = false;
+				if (stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cfg) != -1)
+				{
+					R = stereoObj->R_new;
+					t = stereoObj->t_new;
+				}
+				else
+				{
+					cout << "Pose estimation failed!" << endl;
+					continue;
+				}
+
+				if(evStepStereoStable_cnt == 0)
+					evStepStereoStable_cnt = evStepStereoStable_tmp;
+
+				if (useMostLikelyPose && stereoObj->mostLikelyPose_stable)
+				{
+					R = stereoObj->R_mostLikely;
+					t = stereoObj->t_mostLikely;
+				}
+
+				if (stereoObj->poseIsStable)
+				{
+					evStepStereoStable_cnt--;
+					poseWasStable = true;
+					R.copyTo(R_stable);
+					t.copyTo(t_stable);
+				}
+				else if (poseWasStable && useOnlyStablePose && !(useMostLikelyPose && stereoObj->mostLikelyPose_stable))
+				{
+					R_stable.copyTo(R);
+					t_stable.copyTo(t);
+				}
 			}
 			else
 			{
-				cout << "Pose estimation failed!" << endl;
-				continue;
+				evStepStereoStable_cnt--;
+				R = R_stable;
+				t = t_stable;
 			}
-			
-
-
 		}
 
         //Calculate the relative pose between the cameras if an absolute pose was given
@@ -1340,7 +1415,8 @@ void cinfigureUSAC(poselib::ConfigUSAC &cfg,
 	std::vector<cv::KeyPoint> *kp1, 
 	std::vector<cv::KeyPoint> *kp2, 
 	std::vector<cv::DMatch> *finalMatches,
-	double th_pix_user)
+	double th_pix_user,
+	int USACInlratFilt)
 {
 	switch (cfgUSACnr[0])
 	{
@@ -1455,12 +1531,25 @@ void cinfigureUSAC(poselib::ConfigUSAC &cfg,
 	if (cfgUSACnr[0] > 1)
 	{
 		vector<cv::DMatch> vfcfilteredMatches;
-
-		if (!filterWithVFC(*kp1, *kp2, *finalMatches, vfcfilteredMatches))
+		int err = 0;
+		unsigned int n_f = 0;
+		if (USACInlratFilt == 0)
 		{
-			if ((vfcfilteredMatches.size() > 8) || (finalMatches->size() < 24))
+			n_f = (unsigned int)filterMatchesGMS(*kp1, imgSize, *kp2, imgSize, *finalMatches, vfcfilteredMatches);
+			if (n_f == 0)
+				err = -1;
+		}
+		else
+		{
+			err = filterWithVFC(*kp1, *kp2, *finalMatches, vfcfilteredMatches);
+			n_f = (unsigned int)vfcfilteredMatches.size();
+		}
+
+		if (!err)
+		{
+			if ((n_f > 8) || (finalMatches->size() < 24))
 			{
-				cfg.nrMatchesVfcFiltered = vfcfilteredMatches.size();
+				cfg.nrMatchesVfcFiltered = n_f;
 			}
 			else
 			{

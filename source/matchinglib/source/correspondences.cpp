@@ -21,6 +21,7 @@
 #include "matchinglib_imagefeatures.h"
 #include "matchinglib_matchers.h"
 #include "match_statOptFlow.h"
+#include "gms.h"
 
 //#include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -132,6 +133,7 @@ namespace matchinglib
                          bool dynamicKeypDet,
                          int limitNrfeatures,
                          bool VFCrefine,
+						 bool GMSrefine,
                          bool ratioTest,
                          bool SOFrefine,
                          int subPixRefine,
@@ -349,6 +351,43 @@ namespace matchinglib
         }
       }
     }
+
+	if (GMSrefine)
+	{
+		if (verbose > 1)
+		{
+			t_mea = (double)getTickCount(); //Start time measurement
+		}
+
+		std::vector<bool> inlierMask;
+		int n_gms = filterMatchesGMS(keypoints1, imgSi,	keypoints2, imgSi, finalMatches, inlierMask, false, false);
+
+		if (n_gms >= MIN_FINAL_MATCHES)
+		{
+			std::vector<cv::DMatch> matches_tmp(n_gms);
+			for (size_t i = 0, j = 0; i < inlierMask.size(); i++)
+			{
+				if (inlierMask[i])
+					matches_tmp[j++] = finalMatches[i];
+			}
+			finalMatches = matches_tmp;
+		}
+
+		if (verbose > 1)
+		{
+			t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
+			cout << "Time GMS refinement: " << t_mea << "ms" << endl;
+			t_oa += t_mea;
+			cout << "Overall time with GMS refinement: " << t_oa << "ms" << endl;
+
+			if (verbose > 2)
+			{
+				cout << "# of matches after GMS refinement: " << finalMatches.size() << endl;
+			}
+		}
+
+
+	}
 
     if(SOFrefine)
     {

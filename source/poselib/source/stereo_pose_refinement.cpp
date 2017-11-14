@@ -386,6 +386,8 @@ namespace poselib
 								R_old.copyTo(R_new);
 								t_old.copyTo(t_new);
 							}
+							poseIsStable = false;
+							mostLikelyPose_stable = false;
 						}
 						skipCount++;
 					}
@@ -507,7 +509,7 @@ namespace poselib
 							checkPoolPoseRobust_tmp = (size_t)std::round((double)cfg_pose.checkPoolPoseRobust + std::exp(0.8 + (double)checkPoolPoseRobust_tmp / 6.0));
 					}
 					nr_since_robust = 0;
-					minRelRemainingCorrsRef = 0.6;
+					minRelRemainingCorrsRef = 0.7;
 				}
 				else
 				{
@@ -2310,6 +2312,7 @@ namespace poselib
 	{
 		CV_Assert(nrEstimation == pose_history.size());
 
+		const size_t minPoolSizeToBeStable = 1000;//Minimal number of correspondences that must be within the correspondence pool to eveluate if stability is present.
 		static size_t nr_tries = 0;
 		int err = getNearToMeanPose();
 		if (err)
@@ -2321,7 +2324,7 @@ namespace poselib
 			return -1;
 		}
 
-		if (nrEstimation < cfg_pose.minContStablePoses)
+		if ((nrEstimation < cfg_pose.minContStablePoses) || (correspondencePool.size() < minPoolSizeToBeStable))
 		{
 			poseIsStable = false;
 			mostLikelyPose_stable = false;
@@ -2335,7 +2338,9 @@ namespace poselib
 		act_rating_th[1] = pose_history_rating.back() + cfg_pose.absThRankingStable;
 		while (count <= cfg_pose.minContStablePoses)
 		{
-			if ((pose_history_rating[nrEstimation - count] > act_rating_th[0]) && (pose_history_rating[nrEstimation - count] < act_rating_th[1]))
+			if ((pose_history_rating[nrEstimation - count] > act_rating_th[0]) && 
+				(pose_history_rating[nrEstimation - count] < act_rating_th[1]) && 
+				(pose_history_rating[nrEstimation - count] > cfg_pose.minNormDistStable))
 			{
 				stable_poses++;
 			}
@@ -2353,20 +2358,25 @@ namespace poselib
 			{
 				int min_idx = (int)(mostLikelyPoseIdxs.size() - cfg_pose.minContStablePoses);
 				const size_t last_idx = mostLikelyPoseIdxs.back();
-				int cnt = (int)mostLikelyPoseIdxs.size() - 2;
-				for (; cnt >= min_idx; cnt--)
+				if (pose_history_rating[last_idx] > cfg_pose.minNormDistStable)
 				{
-					if (mostLikelyPoseIdxs[cnt] != last_idx)
-						break;
-				}
-				if (cnt < min_idx)
-				{
-					mostLikelyPose_stable = true;
+					int cnt = (int)mostLikelyPoseIdxs.size() - 2;
+					for (; cnt >= min_idx; cnt--)
+					{
+						if (mostLikelyPoseIdxs[cnt] != last_idx)
+							break;
+					}
+					if (cnt < min_idx)
+					{
+						mostLikelyPose_stable = true;
+					}
+					else
+					{
+						mostLikelyPose_stable = false;
+					}
 				}
 				else
-				{
 					mostLikelyPose_stable = false;
-				}
 			}
 		}
 

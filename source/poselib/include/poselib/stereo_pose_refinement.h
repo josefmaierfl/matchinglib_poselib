@@ -97,17 +97,18 @@ namespace poselib
 			verbose(7),
 			minStartAggInlRat(0.2),
 			relInlRatThLast(0.35),
-			relInlRatThNew(0.15),
+			relInlRatThNew(0.20),
 			minInlierRatSkip(0.38),
 			relMinInlierRatSkip(0.7),
 			maxSkipPairs(5),
-			minInlierRatioReInit(0.55),
+			minInlierRatioReInit(0.6),
 			minPtsDistance(3.f),
 			maxPoolCorrespondences(30000),
 			minContStablePoses(3),
 			absThRankingStable(0.075),
 			useRANSAC_fewMatches(false),
-			checkPoolPoseRobust(3)
+			checkPoolPoseRobust(3),
+			minNormDistStable(0.5)
 		{}
 
 		cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
@@ -142,6 +143,7 @@ namespace poselib
 		double absThRankingStable;//Threshold on the ranking over the last minContStablePoses poses to decide if the pose is stable (actual_ranking +/- absThRankingStable)
 		bool useRANSAC_fewMatches;//If true, RANSAC is used for the robust estimation if the number of provided matches is below 150
 		size_t checkPoolPoseRobust;//If not 0, the pose is robustly (RANSAC, ...) estimated from the pool correspondences after reaching checkPoolPoseRobust times the number of initial inliers. A value of 1 means robust estimation is used instead of refinement. For a value >1, the value is exponetially increased after every robust estimation from the pool.
+		double minNormDistStable;//Minimum normalized distance of a stable pose to the center of gravity of all stored poses
 	};
 
 	//typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;

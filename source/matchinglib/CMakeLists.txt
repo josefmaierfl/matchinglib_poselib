@@ -54,6 +54,9 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+#SET( GMS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gms-1.0/include")
+add_subdirectory(thirdparty/gms-1.0)
+
 add_subdirectory(similarity_search)
 
 #
@@ -92,6 +95,7 @@ set(headers
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matchinglib_correspondences.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/vfcMatches.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/glob_includes.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/gms.h"
 )
 
 set(sources
@@ -104,6 +108,7 @@ set(sources
     ${source_path}/vfc.cpp
     ${source_path}/vfcMatches.cpp
     ${source_path}/ratioMatches_Flann.cpp
+	${source_path}/gms.cpp
 
     ${source_path}/CascadeHash/BucketBuilder.cc
     ${source_path}/CascadeHash/CasHashMatcher.cc
@@ -181,6 +186,8 @@ target_include_directories(${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${EIGEN3_INCLUDE_DIR}
     ${Nanoflann_INCLUDE_DIR}
+	#${GMS_INCLUDE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gms-1.0/include
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
@@ -202,6 +209,7 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
     NonMetricSpaceLib
+	gms-feature-matching
 
     PUBLIC
 

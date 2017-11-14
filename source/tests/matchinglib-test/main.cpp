@@ -112,6 +112,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                    ArgvParser::NoOptionAttribute);
   cmd.defineOption("refineVFC", "<If provided, the result from the matching algorithm is refined with VFC>", ArgvParser::NoOptionAttribute);
   cmd.defineOption("refineSOF", "<If provided, the result from the matching algorithm is refined with SOF>", ArgvParser::NoOptionAttribute);
+  cmd.defineOption("refineGMS", "<If provided, the result from the matching algorithm is refined with GMS>", ArgvParser::NoOptionAttribute);
   cmd.defineOption("DynKeyP",
                    "<If provided, the keypoints are detected dynamically to limit the number of keypoints approximately to the maximum number but are limited using response values. CURRENTLY NOT WORKING with OpenCV 3.0.>",
                    ArgvParser::NoOptionAttribute);
@@ -187,7 +188,7 @@ void startEvaluation(ArgvParser& cmd)
   string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry;
   string show_str;
   int showNr, f_nr;
-  bool noRatiot, refineVFC, refineSOF, DynKeyP, drawSingleKps = false;
+  bool noRatiot, refineVFC, refineSOF, refineGMS, DynKeyP, drawSingleKps = false;
   int subPixRef = 0;
   bool oneCam = false;
   int err, verbose;
@@ -200,6 +201,7 @@ void startEvaluation(ArgvParser& cmd)
   noRatiot = cmd.foundOption("noRatiot");
   refineVFC = cmd.foundOption("refineVFC");
   refineSOF = cmd.foundOption("refineSOF");
+  refineGMS = cmd.foundOption("refineGMS");
   DynKeyP = cmd.foundOption("DynKeyP");
   
   if (cmd.foundOption("subPixRef"))
@@ -356,7 +358,7 @@ void startEvaluation(ArgvParser& cmd)
       src[1] = cv::imread(img_path + "//" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
     }
 
-    err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC,
+    err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC, refineGMS,
                                           !noRatiot, refineSOF, subPixRef, verbose, nmsIdx, nmsQry);
 
     if(err)
