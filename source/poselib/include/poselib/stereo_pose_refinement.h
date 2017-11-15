@@ -247,31 +247,31 @@ namespace poselib
 			maxPoolSizeReached = false;
 			mostLikelyPose_stable = false;
 			initNumberInliers = 0;
-		}
+		}//Constructor
 
-		void setNewParameters(ConfigPoseEstimation cfg_pose_);
+		void setNewParameters(ConfigPoseEstimation cfg_pose_);//Set new parameters for the stereo pose estimation.
 
-		int addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg);
+		int addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg);//Add new correspondences for estimating a new pose and estimate the pose.
 
 	private:
 
-		int robustPoseEstimation();
-		int refinePoseFromPool();
-		int addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2);
-		size_t getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error);
-		void clearHistoryAndPool();
-		void checkInputParamters();
-		int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);
-		bool compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr);
-		int poolCorrespondenceDelete(std::vector<size_t> delete_list);
-		int checkPoolSize(size_t maxPoolSize);
-		double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2);
-		int getNearToMeanPose();
-		int checkPoseStability();
-		int robustInitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
-		bool reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
-		bool initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
-		int robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);
+		int robustPoseEstimation();//Robust pose estimation with optional refinement and Bundle Adjustment
+		int refinePoseFromPool();//Refinement of E using all correspondences from the pool
+		int addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2);//Adds new correspondences and their properties to the pool
+		size_t getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error);//Get the inlier mask and error values for a given set of correspondences and an Essential matrix E
+		void clearHistoryAndPool();//Clears all stored correspondences, data, and history necessary to reinitialize the whole system.
+		void checkInputParamters();//Checks if the input paramters are in the correct range.
+		int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);//Filters the correspondences of the newest image pair and from the pool.
+		bool compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr);//Compares the properties of correspondences from a new image pair and the pool which are within the search radius "minPtsDistance"
+		int poolCorrespondenceDelete(std::vector<size_t> delete_list);//Delets correspondences from the correspondence pool and KD-tree.
+		int checkPoolSize(size_t maxPoolSize);//Check if the number of correspondences within the pool ("correspondencePool") is too large.
+		double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2);//Compute a weight between 0 and 1 for a correspondence given its keypoint responses (left and right img), descriptor distance, and Sampson error
+		int getNearToMeanPose();//Function for rating poses.
+		int checkPoseStability();//Checks the stability of poses within the history.
+		int robustInitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Estimate a pose using robust estimation on the correspondences of the newest image pair.
+		bool reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Clears all stored correspondences, data, and history and adds the new inliers to the correspondence pool and updates the history.
+		bool initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Adds the new inliers after robust estimation to the correspondence pool and updates the history.
+		int robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Estimate a pose using robust estimation on all stored pool correspondences
 	};
 	
 }

@@ -40,11 +40,20 @@ namespace poselib
 
 	/* --------------------- Function prototypes --------------------- */
 
+	//Compute an inverted weight between 0 and 1 for a specific property of a correspondence like descriptor distance or Sampson Error
 	double getWeightingValuesInv(const double &value, const double &max_value, const double &min_value = 0);
+	//Compute a weight between 0 and 1 for a specific property of a correspondence like Keypoint response
 	double getWeightingValues(const double &value, const double &max_value, const double &min_value = 0);
 
 	/* --------------------- Functions --------------------- */
 
+	/* Set new parameters for the stereo pose estimation. If the keypoint type or descriptor are changend,
+	* the whole system is reinitialized. If the threshold is changed the system might also be reinitialized.
+	*
+	* ConfigPoseEstimation cfg_pose_				Input  -> Parameter struct.
+	*
+	* Return value:									none
+	*/
 	void StereoRefine::setNewParameters(ConfigPoseEstimation cfg_pose_)
 	{
 		bool checkTh = false;
@@ -84,6 +93,10 @@ namespace poselib
 		}
 	}
 
+	/* Checks if the input paramters are in the correct range.
+	*
+	* Return value:									none
+	*/
 	void StereoRefine::checkInputParamters()
 	{
 		if ((cfg_pose.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT)
@@ -271,6 +284,20 @@ namespace poselib
 		}
 	}
 
+	/* Add new correspondences for estimating a new pose and estimate the pose. The first call of this function estimates the pose robustly. Further
+	* calls trigger the pose refinement of all stored and new correspondences. Moreover, this function checks if the pose has changend. See the code
+	* for further details.
+	*
+	* vector<DMatch> matches						Input  -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	* ConfigUSAC cfg								Input  -> Configuration struct for the robust estimation with USAC
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	Robust estimation failed
+	*												-2:	An invalid iterator within the pool correpondences was detected leading to reinitialization
+	*												-3: A too low inlier ratio was detected either after robust estimation or after refinement (which should not happen)
+	*/
 	int StereoRefine::addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg)
 	{
 		cfg_usac = cfg;
@@ -697,6 +724,18 @@ namespace poselib
 		return 0;
 	}
 
+	/* Estimate a pose using robust estimation on the correspondences of the newest image pair
+	*
+	* double inlier_ratio							Output -> Inlier ratio
+	* vector<DMatch> matches						Input  -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	Robust estimation failed
+	*												-2:	An invalid iterator within the pool correpondences was detected leading to reinitialization
+	*												-3: A too low inlier ratio was detected either after robust estimation or after refinement (which should not happen)
+	*/
 	int StereoRefine::robustInitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
 	{
 		checkPoolPoseRobust_tmp = cfg_pose.checkPoolPoseRobust;
@@ -713,8 +752,19 @@ namespace poselib
 		}
 		if (!initDataAfterReinitialization(inlier_ratio, matches, kp1, kp2))
 			return -2;
+		return 0;
 	}
 
+	/* Adds the new inliers after robust estimation to the correspondence pool and updates the history.
+	*
+	* double inlier_ratio							Input  -> Inlier ratio
+	* vector<DMatch> matches						Input  -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	*
+	* Return value:									true:	Success
+	*												false:	Failed
+	*/
 	bool StereoRefine::initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
 	{
 		if (addCorrespondencesToPool(matches, kp1, kp2))
@@ -725,12 +775,26 @@ namespace poselib
 		return true;
 	}
 	
+	/* Clears all stored correspondences, data, and history and adds the new inliers to the correspondence pool and updates the history.
+	*
+	* double inlier_ratio							Input  -> Inlier ratio
+	* vector<DMatch> matches						Input  -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	*
+	* Return value:									true:	Success
+	*												false:	Failed
+	*/
 	bool StereoRefine::reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
 	{
 		clearHistoryAndPool();
 		return initDataAfterReinitialization(inlier_ratio, matches, kp1, kp2);
 	}
 
+	/* Clears all stored correspondences, data, and history necessary to reinitialize the whole system.
+	*
+	* Return value:									none
+	*/
 	void StereoRefine::clearHistoryAndPool()
 	{
 		points1Cam.release();
@@ -755,6 +819,15 @@ namespace poselib
 		mostLikelyPose_stable = false;
 	}
 
+	/* Estimate a pose using robust estimation on all stored pool correspondences
+	*
+	* vector<DMatch> matches						Input  -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	Robust estimation failed
+	*/
 	int StereoRefine::robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
 	{
 		//Reconstruct matches from pool
@@ -809,6 +882,17 @@ namespace poselib
 		return 0;
 	}
 
+	/* Adds new correspondences and their properties to the pool where all correspondences (only inliers) of the last
+	* of the last valid image pairs are stored. Moreover, a dynamic KD-tree is built from the corresponding
+	* keypoint locations to filter correspondences that are to near to each other.
+	*
+	* vector<DMatch> matches						Input  -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	An invalid iterator within the pool correpondences was detected leading to reinitialization
+	*/
 	int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
 	{
 		CoordinateProps tmp;
@@ -921,6 +1005,18 @@ namespace poselib
 		return 0;
 	}
 
+	/* Robust pose estimation using RANSAC, USAC (see struct ConfigUSAC and enums UsacChkDegenType, PoseEstimator, RefineAlg, and SprtInit 
+	* in pose_estim.h for details about USAC options), LMEDS, ARRSAC, ARRSAC with automatic threshold estimation, or homography alignment using the 
+	* correspondences of the newest image pair. Optionally, additional refinement using Nister, Stewenius, 8pt, or Kneip's Eigen solver
+	* with or without different weighting functions like Pseudo-Huber or Torr is performed on the result of the robust estimation. Additionally,
+	* bundle adjustment (BA) can be performed on the results. If Kneip's Eigen solver is specified instead of BA, his method is used without 
+	* a refinement step beforehand. If Kneip's Eigen solver fails and BA is enabled, refinement using Stewenius with Pseudo-Huber weights followed
+	* by BA is performed.
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	Estimation of Essential matrix failed
+	*												-2: Only if USAC with degeneracy check is used: Detected degeneracy (rotation only)
+	*/
 	int StereoRefine::robustPoseEstimation()
 	{
 		//Get essential matrix
@@ -1261,6 +1357,16 @@ namespace poselib
 		return 0;
 	}
 
+	/* Refinement using Nister, Stewenius, 8pt, or Kneip's Eigen solver with or without different weighting functions like Pseudo-Huber or Torr 
+	* is performed on all available correspondences within the pool using the last estimated Essential matrix as a starting point. Additionally,
+	* bundle adjustment (BA) can be performed on the results. If Kneip's Eigen solver is specified instead of BA, his method is used without
+	* a refinement step beforehand. If Kneip's Eigen solver fails and BA is enabled, refinement using Stewenius with Pseudo-Huber weights followed
+	* by BA is performed.
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	Estimation of Essential matrix failed
+	*												-2: Only if USAC with degeneracy check is used: Detected degeneracy (rotation only)
+	*/
 	int StereoRefine::refinePoseFromPool()
 	{
 		cv::Mat E = E_new.clone();
@@ -1463,6 +1569,15 @@ namespace poselib
 		return 0;
 	}
 
+	/* Get the inlier mask and error values for a given set of correspondences and an Essential matrix E
+	*
+	* Mat E											Input  -> Essential matrix
+	* Mat p1										Input  -> Keypoint locations in the camera coordinate system of the left camera
+	* Mat p2										Input  -> Keypoint locations in the camera coordinate system of the right camera
+	* vector<double> error							Output -> Reprojection error (Sampson error) of the given correspondences p1 and p2
+	*
+	* Return value:									Number of inliers
+	*/
 	size_t StereoRefine::getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error)
 	{
 		error.clear();
@@ -1470,6 +1585,21 @@ namespace poselib
 		return getInlierMask(error, th2, mask);
 	}
 
+	/* Filters the correspondences of the newest image pair and from the pool. For every new correspondence, it is checked if it is unique
+	* within a user specified radius and the correspondences in the pool using the keypoint coordinates. A correspondence is also considered as
+	* unique, if the corresponding coordinates in the right image differ while they are nearly equal in the left image. For correspondences found
+	* not to be unique, the keypoint response, descriptor distance, Samspon error and lifetime of the correspondences (number of iterations or 
+	* image pairs since it was detected) are used to decide if the old correspondence from the pool or the new correspondence will be kept.
+	* This function also deletes correspondences from the KD-tree.
+	*
+	* vector<DMatch> matches						Input/Output -> Matches of the new image pair
+	* vector<KeyPoint> kp1							Input  -> Keypoints of the newest left image
+	* vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
+	* vector<double> error							Input  -> Reprojection error (Sampson error) of the new correspondences calculated with the last E
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	An invalid iterator within the pool correpondences was detected
+	*/
 	int StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error)
 	{
 		std::vector<CoordinatePropsNew> corrProbsNew;
@@ -1669,6 +1799,14 @@ namespace poselib
 		return 0;
 	}
 
+	/* Delets correspondences from the correspondence pool and KD-tree.
+	*
+	* vector<size_t> delete_list					Input  -> Indices of the pool correspondences to be deleted. They must be conform to the indices stored
+	*														  in "correspondencePoolIdx" and "poolIdx" of the CoordinateProps structs within "correspondencePool"
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	An invalid iterator within the pool correpondences was detected leading to reinitialization
+	*/
 	int StereoRefine::poolCorrespondenceDelete(std::vector<size_t> delete_list)
 	{
 		size_t nrToDel = delete_list.size();
@@ -1776,6 +1914,14 @@ namespace poselib
 		return 0;
 	}
 
+	/* Compares the properties of correspondences from a new image pair and the pool which are within the search radius "minPtsDistance" (struct "ConfigPoseEstimation")
+	*
+	* CoordinatePropsNew newCorr					Input  -> Properties of the new correspondence
+	* CoordinateProps oldCorr						Input  -> Properties of the correspondence from the pool
+	*
+	* Return value:									true:	Keep the new correspondence
+	*												false:	Keep the correspondence from the pool
+	*/
 	bool StereoRefine::compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr)
 	{
 		double overall_weight[2];
@@ -1819,6 +1965,14 @@ namespace poselib
 		return false; //take the old correspondence
 	}
 
+	/* Compute a weight between 0 and 1 for a correspondence given its keypoint responses (left and right img), descriptor distance, and Sampson error
+	*
+	* CoordinatePropsNew newCorr					Input  -> Properties of the new correspondence
+	* CoordinateProps oldCorr						Input  -> Properties of the correspondence from the pool
+	*
+	* Return value:									true:	Keep the new correspondence
+	*												false:	Keep the correspondence from the pool
+	*/
 	inline double StereoRefine::computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2)
 	{
 		double weight_error, weight_descrDist, weight_response;
@@ -1832,6 +1986,15 @@ namespace poselib
 		return overall_weight;
 	}
 
+	/* Check if the number of correspondences within the pool ("correspondencePool") is too large. If true, correspondences within areas of high
+	* correspondence density are rejected. If only a portion of these correspondences in high density areas have to be deleted, correspondences
+	* with lower quality (based on keypoint responses (left and right img), descriptor distance, and Sampson error)  are deleted first.
+	*
+	* size_t maxPoolSize							Input  -> Number of correspondences that should be kept in the correspondence pool
+	*
+	* Return value:									0 :	Everything ok
+	*												-1:	An invalid iterator within the pool correpondences was detected
+	*/
 	int StereoRefine::checkPoolSize(size_t maxPoolSize)
 	{
 		size_t pool_Size = correspondencePool.size();
@@ -2025,6 +2188,16 @@ namespace poselib
 		return 0;
 	}
 
+	/* Function for rating poses. The rating is based on the normalized distance to the center of gravity of all available 
+	* poses using an arbitrary 3D point rotated and translated by each pose (p_new_i = R_i * p + t_i, 
+	* dist_i = 1 - ||p_center_gravity - p_new_i|| / (dist_max + 0.0075 * ||p_center_gravity||), dist_max = max(dist_1, dist_2, ..., dist_n) ). 
+	* The center of gravity is estimated based on poses statistically near to each other (by filtering poses that are statistically not near) 
+	* using an arbitrary 3D point ( now p=[0.5 0.5 0.5]) rotated and translated by each pose (p_new_i = R_i * p + t_i).
+	*
+	* Return value:									0 :	Rating successful
+	*												-1:	Too less poses available
+	*												-2: The poses are too different to calculate a center of gravity
+	*/
 	int StereoRefine::getNearToMeanPose()
 	{
 		size_t n_p = pose_history.size();
@@ -2308,6 +2481,17 @@ namespace poselib
 		return 0;
 	}
 
+	/* Checks the stability of poses within the history. The stability is based on the normalized distances of the poses
+	* to a center of gravity computed using all available poseses (see getNearToMeanPose() for details). To be stable, the last
+	* "minContStablePoses" poses must be within a distance treshold "absThRankingStable" defined in the struct "ConfigPoseEstimation".
+	* Moreover, the function checks, if the pose nearest to the center of gravity remains the same for "minContStablePoses". If no stable
+	* pose was found for "minContStablePoses" and the maximum number of correspondences "maxPoolSizeReached" is reached, the fall-back
+	* solution for detecting stability is triggered by comparing the Sampson error statistics of the last "minContStablePoses". For comparison,
+	* error ranges based on the mean error and standard deviation of the errors are used.
+	*
+	* Return value:									0 :	Checking pose stability successful
+	*												-1:	It is not possible to check the stability now
+	*/
 	int StereoRefine::checkPoseStability()
 	{
 		CV_Assert(nrEstimation == pose_history.size());
@@ -2450,11 +2634,27 @@ namespace poselib
 		return 0;
 	}
 
+	/* Compute an inverted weight between 0 and 1 for a specific property of a correspondence like descriptor distance or Sampson Error
+	*
+	* double value									Input  -> Input value of the property (like descriptor distance)
+	* double max_value								Input  -> Maximum value that is possible for this property
+	* double max_value								Input  -> Minimum value that is possible for this property
+	*
+	* Return value:									Weight between 0 and 1
+	*/
 	inline double getWeightingValuesInv(const double &value, const double &max_value, const double &min_value)
 	{
 		return 1.0 - value / (max_value - min_value);
 	}
 
+	/* Compute a weight between 0 and 1 for a specific property of a correspondence like Keypoint response
+	*
+	* double value									Input  -> Input value of the property (like Keypoint response)
+	* double max_value								Input  -> Maximum value that is possible for this property
+	* double max_value								Input  -> Minimum value that is possible for this property
+	*
+	* Return value:									Weight between 0 and 1
+	*/
 	inline double getWeightingValues(const double &value, const double &max_value, const double &min_value)
 	{
 		return value / (max_value - min_value);

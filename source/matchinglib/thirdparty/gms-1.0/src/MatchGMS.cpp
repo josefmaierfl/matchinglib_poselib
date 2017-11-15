@@ -155,7 +155,9 @@ int MatchGMS::run(std::vector<bool>& inlierIndices, int rotationType)
         // Mark inliers
         for (size_t i = 0; i < numMatches; i++)
         {
-            if (cellPairs[matchPairs[i].first] == matchPairs[i].second)
+            if (matchPairs[i].first == -1 && matchPairs[i].second == -1)
+                continue;
+            else if (cellPairs[matchPairs[i].first] == matchPairs[i].second)
             {
                 inlierIndices[i] = true;
             }
@@ -184,7 +186,10 @@ void MatchGMS::assignMatchPairs(int gridType)
         }
 
         if (leftGridIdx < 0 || rightGridIdx < 0)
+        {
+            matchPairs[i].first = matchPairs[i].second = -1;
             continue;
+        }
 
         motionStatistics.at<int>(leftGridIdx, rightGridIdx)++;
         numPointsInCellLeft[leftGridIdx]++;
