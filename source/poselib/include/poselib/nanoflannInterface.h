@@ -26,43 +26,43 @@ DISCRIPTION: This file provides functions to search keypoint positions within a 
 namespace poselib
 {
 
-	/* --------------------------- Defines --------------------------- */
+    /* --------------------------- Defines --------------------------- */
 
 
-	/* --------------------- Function prototypes --------------------- */
+    /* --------------------- Function prototypes --------------------- */
 
 
-	/* ---------------------- Classes & Structs ---------------------- */
-	
-	
-
-	class keyPointTreeInterface
-	{
-	private:
-		void *treePtr;
-	public:
-		keyPointTreeInterface(std::list<CoordinateProps> *correspondencePool_,
-			std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_);
-
-		~keyPointTreeInterface();
-
-		int buildInitialTree();
-
-		int resetTree(std::list<CoordinateProps> *correspondencePool_,
-			std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_);
-
-		void killTree();
-
-		int addElements(size_t firstIdx, size_t length);
-
-		void removeElements(size_t idx);
-
-		size_t knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result);
-
-		size_t radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result);
-	};
+    /* ---------------------- Classes & Structs ---------------------- */
 
 
-	/* -------------------------- Functions -------------------------- */
+
+    class keyPointTreeInterface
+    {
+    private:
+        void *treePtr;
+    public:
+        keyPointTreeInterface(std::list<CoordinateProps> *correspondencePool_,
+            std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_);
+
+        virtual ~keyPointTreeInterface();
+
+        int buildInitialTree();
+
+        int resetTree(std::list<CoordinateProps> *correspondencePool_,
+            std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_);
+
+        void killTree();
+
+        int addElements(size_t firstIdx, size_t length);
+
+        void removeElements(size_t idx);
+
+        size_t knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result);
+
+        size_t radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result);
+    };
+
+
+    /* -------------------------- Functions -------------------------- */
 
 }

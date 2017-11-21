@@ -14,7 +14,7 @@
  VERSION: 1.0
 
  DISCRIPTION: This file provides helper functions for the estimation and optimization of poses between
-			  two camera views (images).
+              two camera views (images).
 **********************************************************************************************************/
 
 #pragma once
@@ -39,7 +39,7 @@ namespace poselib
  * medStd ... standard deviation of the reprojection errors masked as inliers using the median instead of the mean value -> median absolute deviation (MAD)
 */
 typedef struct statVals {
-		double medErr, arithErr, arithStd, medStd;
+        double medErr, arithErr, arithStd, medStd;
 } statVals;
 
 /* --------------------- Function prototypes --------------------- */
@@ -67,14 +67,14 @@ double POSELIB_API normFromVec(cv::Mat vec);
 double POSELIB_API normFromVec(std::vector<double> vec);
 //Calculates the reprojection errors for all correspondences and/or their statistics
 void POSELIB_API getReprojErrors(cv::Mat Essential,
-					 cv::InputArray p1,
-					 cv::InputArray p2,
-					 bool takeImageCoords,
-					 statVals* qp = NULL,
-					 std::vector<double> *repErr = NULL,
-					 cv::InputArray K1 = cv::noArray(),
-					 cv::InputArray K2 = cv::noArray(),
-					 bool EisF = false);
+                     cv::InputArray p1,
+                     cv::InputArray p2,
+                     bool takeImageCoords,
+                     statVals* qp = NULL,
+                     std::vector<double> *repErr = NULL,
+                     cv::InputArray K1 = cv::noArray(),
+                     cv::InputArray K2 = cv::noArray(),
+                     bool EisF = false);
 //Computes the Sampson distance (first-order geometric error) for the provided point correspondences in the form 2 rows x n columns.
 void POSELIB_API computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> & error, double *error1 = NULL);
 //Computes the Sampson distance (first-order geometric error) for the provided point correspondences in the form n rows x 2 columns.
@@ -82,8 +82,11 @@ void POSELIB_API computeReprojError2(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vec
 //Calculates the euler angles from a given rotation matrix.
 void POSELIB_API getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & yaw, bool useDegrees = true);
 //Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors.
+void POSELIB_API getRTQuality(cv::Mat & R, cv::Mat & Rcalib, cv::Mat & T,
+                  cv::Mat & Tcalib, double* rdiff, double* tdiff);
+//Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors.
 void POSELIB_API getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d & T,
-				  Eigen::Vector3d & Tcalib, double* rdiff, double* tdiff);
+                  Eigen::Vector3d & Tcalib, double* rdiff, double* tdiff);
 //Calculates the essential matrix from the rotation matrix R and the translation
 cv::Mat POSELIB_API getEfromRT(cv::Mat R, cv::Mat t);
 //Generates a 3x3 skew-symmetric matrix from a 3-vector
@@ -122,26 +125,26 @@ bool POSELIB_API Remove_LensDist(std::vector<cv::Point2f>& points1, std::vector<
 void POSELIB_API compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff = false);
 //Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters.
 int POSELIB_API getRectificationParameters(cv::InputArray R,
-							  cv::InputArray t,
-							  cv::InputArray K1,
-							  cv::InputArray K2,
-							  cv::InputArray distcoeffs1,
-							  cv::InputArray distcoeffs2,
-							  cv::Size imageSize,
-							  cv::OutputArray Rect1,
-							  cv::OutputArray Rect2,
-							  cv::OutputArray K1new,
-							  cv::OutputArray K2new,
-							  double alpha = -1,
-							  bool globRectFunct = true,
-							  cv::Size newImgSize = cv::Size(),
-							  cv::Rect *roi1 = NULL,
-							  cv::Rect *roi2 = NULL,
-							  cv::OutputArray P1new = cv::noArray(),
-							  cv::OutputArray P2new = cv::noArray());
+                              cv::InputArray t,
+                              cv::InputArray K1,
+                              cv::InputArray K2,
+                              cv::InputArray distcoeffs1,
+                              cv::InputArray distcoeffs2,
+                              cv::Size imageSize,
+                              cv::OutputArray Rect1,
+                              cv::OutputArray Rect2,
+                              cv::OutputArray K1new,
+                              cv::OutputArray K2new,
+                              double alpha = -1,
+                              bool globRectFunct = true,
+                              cv::Size newImgSize = cv::Size(),
+                              cv::Rect *roi1 = NULL,
+                              cv::Rect *roi2 = NULL,
+                              cv::OutputArray P1new = cv::noArray(),
+                              cv::OutputArray P2new = cv::noArray());
 //Estimates the optimal scale for the focal length of the virtuel camera.
 double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2,
-								 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize);
+                                 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize);
 //Estimates the vergence (shift of starting point) for correspondence search in the stereo engine.
 int POSELIB_API estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2);
 //This function shows the rectified images.

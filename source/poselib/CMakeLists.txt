@@ -263,7 +263,7 @@ target_include_directories(${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
     # ${EIGEN3_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
-	${Nanoflann_INCLUDE_DIR}
+  ${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}

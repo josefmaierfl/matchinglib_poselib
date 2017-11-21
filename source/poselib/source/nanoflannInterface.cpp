@@ -26,321 +26,321 @@ using namespace nanoflann;
 namespace poselib
 {
 
-	/* --------------------------- Defines --------------------------- */
+    /* --------------------------- Defines --------------------------- */
 
 
-	/* ---------------------- Classes & Structs ---------------------- */
+    /* ---------------------- Classes & Structs ---------------------- */
 
-	class InvalidPoolIteratorException : public std::runtime_error
-	{
-	public:
-		InvalidPoolIteratorException(std::string mess) : std::runtime_error(mess) {}
-	};
+    class InvalidPoolIteratorException : public std::runtime_error
+    {
+    public:
+        InvalidPoolIteratorException(std::string mess) : std::runtime_error(mess) {}
+    };
 
-	// Data structure for the tree
-	struct CoordinateInterface
-	{
-		std::list<CoordinateProps> *correspondencePool;
-		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt;
-	};
+    // Data structure for the tree
+    struct CoordinateInterface
+    {
+        std::list<CoordinateProps> *correspondencePool;
+        std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt;
+    };
 
-	// And this is the "dataset to kd-tree" adaptor class:
-	template <typename Derived>
-	struct PointCloudAdaptor
-	{
-		//typedef typename Derived::coord_t coord_t;
+    // And this is the "dataset to kd-tree" adaptor class:
+    template <typename Derived>
+    struct PointCloudAdaptor
+    {
+        //typedef typename Derived::coord_t coord_t;
 
-		const Derived &obj; //!< A const ref to the data set origin
+        const Derived &obj; //!< A const ref to the data set origin
 
-							/// The constructor that sets the data set source
-		PointCloudAdaptor(const Derived &obj_) : obj(obj_) { }
+                            /// The constructor that sets the data set source
+        PointCloudAdaptor(const Derived &obj_) : obj(obj_) { }
 
-		/// CRTP helper method
-		inline const Derived& derived() const { return obj; }
+        /// CRTP helper method
+        inline const Derived& derived() const { return obj; }
 
-		// Must return the number of data points
-		inline size_t kdtree_get_point_count() const { return derived().correspondencePool->size(); }
+        // Must return the number of data points
+        inline size_t kdtree_get_point_count() const { return derived().correspondencePool->size(); }
 
-		// Returns the dim'th component of the idx'th point in the class:
-		// Since this is inlined and the "dim" argument is typically an immediate value, the
-		//  "if/else's" are actually solved at compile time.
-		inline float kdtree_get_pt(const size_t idx, int dim) const
-		{
-			if ((*(derived().poolIdxIt))[idx] == derived().correspondencePool->end())
-				throw InvalidPoolIteratorException("Invalid pool iterator");
-			if (dim == 0) return (*(derived().poolIdxIt))[idx]->pt1.x;
-			else return (*(derived().poolIdxIt))[idx]->pt1.y;
-		}
+        // Returns the dim'th component of the idx'th point in the class:
+        // Since this is inlined and the "dim" argument is typically an immediate value, the
+        //  "if/else's" are actually solved at compile time.
+        inline float kdtree_get_pt(const size_t idx, int dim) const
+        {
+            if ((*(derived().poolIdxIt))[idx] == derived().correspondencePool->end())
+                throw InvalidPoolIteratorException("Invalid pool iterator");
+            if (dim == 0) return (*(derived().poolIdxIt))[idx]->pt1.x;
+            else return (*(derived().poolIdxIt))[idx]->pt1.y;
+        }
 
-		// Optional bounding-box computation: return false to default to a standard bbox computation loop.
-		//   Return true if the BBOX was already computed by the class and returned in "bb" so it can be avoided to redo it again.
-		//   Look at bb.size() to find out the expected dimensionality (e.g. 2 or 3 for point clouds)
-		template <class BBOX>
-		bool kdtree_get_bbox(BBOX& /*bb*/) const { return false; }
+        // Optional bounding-box computation: return false to default to a standard bbox computation loop.
+        //   Return true if the BBOX was already computed by the class and returned in "bb" so it can be avoided to redo it again.
+        //   Look at bb.size() to find out the expected dimensionality (e.g. 2 or 3 for point clouds)
+        template <class BBOX>
+        bool kdtree_get_bbox(BBOX& /*bb*/) const { return false; }
 
-	}; // end of PointCloudAdaptor
+    }; // end of PointCloudAdaptor
 
-	class keyPointTree
-	{
-	private:
-		CoordinateInterface coordInteraface;
+    class keyPointTree
+    {
+    private:
+        CoordinateInterface coordInteraface;
 
-		typedef PointCloudAdaptor<CoordinateInterface > PC2KD;
-		std::unique_ptr<PC2KD> pc2kd; // The adaptor
-									  // construct a kd-tree index:
-		typedef KDTreeSingleIndexDynamicAdaptor<
-			L2_Simple_Adaptor<float, PC2KD >,
-			PC2KD,
-			2 /* dim */
-		> coordinateKDTree;
-		std::unique_ptr<coordinateKDTree> index;
-	public:
+        typedef PointCloudAdaptor<CoordinateInterface > PC2KD;
+        std::unique_ptr<PC2KD> pc2kd; // The adaptor
+                                      // construct a kd-tree index:
+        typedef KDTreeSingleIndexDynamicAdaptor<
+            L2_Simple_Adaptor<float, PC2KD >,
+            PC2KD,
+            2 /* dim */
+        > coordinateKDTree;
+        std::unique_ptr<coordinateKDTree> index;
+    public:
 
-		keyPointTree(std::list<CoordinateProps> *correspondencePool_,
-			std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
-		{
-			coordInteraface.correspondencePool = correspondencePool_;
-			coordInteraface.poolIdxIt = poolIdxIt_;
-			pc2kd.reset(new PC2KD(coordInteraface));
-		}
+        keyPointTree(std::list<CoordinateProps> *correspondencePool_,
+            std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
+        {
+            coordInteraface.correspondencePool = correspondencePool_;
+            coordInteraface.poolIdxIt = poolIdxIt_;
+            pc2kd.reset(new PC2KD(coordInteraface));
+        }
 
-		int buildInitialTree()
-		{
-			try
-			{
-				index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
-			}
-			catch (InvalidPoolIteratorException const& ex)
-			{
-				std::cout << "Exception: " << ex.what() << std::endl;
-				std::cout << "Unable to build KD-tree!" << std::endl;
-				return -1;
-			}
-			catch (std::exception const& ex)
-			{
-				std::cerr << "std::exception: " << ex.what() << std::endl;
-				throw;
-			}
-			catch (...)
-			{
-				std::cerr << "Unknown Exception!" << std::endl;
-				throw;
-			}
-			return 0;
-		}
+        int buildInitialTree()
+        {
+            try
+            {
+                index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+            }
+            catch (InvalidPoolIteratorException const& ex)
+            {
+                std::cout << "Exception: " << ex.what() << std::endl;
+                std::cout << "Unable to build KD-tree!" << std::endl;
+                return -1;
+            }
+            catch (std::exception const& ex)
+            {
+                std::cerr << "std::exception: " << ex.what() << std::endl;
+                throw;
+            }
+            catch (...)
+            {
+                std::cerr << "Unknown Exception!" << std::endl;
+                throw;
+            }
+            return 0;
+        }
 
-		int resetTree(std::list<CoordinateProps> *correspondencePool_,
-			std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
-		{
-			coordInteraface.correspondencePool = correspondencePool_;
-			coordInteraface.poolIdxIt = poolIdxIt_;
-			pc2kd.reset(new PC2KD(coordInteraface));
-			try
-			{
-				index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
-			}
-			catch (InvalidPoolIteratorException const& ex)
-			{
-				std::cout << "Exception: " << ex.what() << std::endl;
-				std::cout << "Unable to build KD-tree!" << std::endl;
-				return -1;
-			}
-			catch (std::exception const& ex)
-			{
-				std::cerr << "std::exception: " << ex.what() << std::endl;
-				throw;
-			}
-			catch (...)
-			{
-				std::cerr << "Unknown Exception!" << std::endl;
-				throw;
-			}
-			return 0;
-		}
+        int resetTree(std::list<CoordinateProps> *correspondencePool_,
+            std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
+        {
+            coordInteraface.correspondencePool = correspondencePool_;
+            coordInteraface.poolIdxIt = poolIdxIt_;
+            pc2kd.reset(new PC2KD(coordInteraface));
+            try
+            {
+                index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+            }
+            catch (InvalidPoolIteratorException const& ex)
+            {
+                std::cout << "Exception: " << ex.what() << std::endl;
+                std::cout << "Unable to build KD-tree!" << std::endl;
+                return -1;
+            }
+            catch (std::exception const& ex)
+            {
+                std::cerr << "std::exception: " << ex.what() << std::endl;
+                throw;
+            }
+            catch (...)
+            {
+                std::cerr << "Unknown Exception!" << std::endl;
+                throw;
+            }
+            return 0;
+        }
 
-		void killTree()
-		{
-			index.release();
-			pc2kd.release();
-		}
+        void killTree()
+        {
+            index.release();
+            pc2kd.release();
+        }
 
-		int addElements(size_t firstIdx, size_t length)
-		{
-			//The indices within this range must be continous and stored in the correspondence pool and the index map(poolIdxIt_) must be valid
-			try
-			{
-				index->addPoints(firstIdx, firstIdx + length - 1);
-			}
-			catch (InvalidPoolIteratorException const& ex)
-			{
-				std::cout << "Exception: " << ex.what() << std::endl;
-				std::cout << "Unable to add elements to the KD-tree!" << std::endl;
-				return -1;
-			}
-			catch (std::exception const& ex)
-			{
-				std::cerr << "std::exception: " << ex.what() << std::endl;
-				throw;
-			}
-			catch (...)
-			{
-				std::cerr << "Unknown Exception!" << std::endl;
-				throw;
-			}
-			return 0;
-		}
+        int addElements(size_t firstIdx, size_t length)
+        {
+            //The indices within this range must be continous and stored in the correspondence pool and the index map(poolIdxIt_) must be valid
+            try
+            {
+                index->addPoints(firstIdx, firstIdx + length - 1);
+            }
+            catch (InvalidPoolIteratorException const& ex)
+            {
+                std::cout << "Exception: " << ex.what() << std::endl;
+                std::cout << "Unable to add elements to the KD-tree!" << std::endl;
+                return -1;
+            }
+            catch (std::exception const& ex)
+            {
+                std::cerr << "std::exception: " << ex.what() << std::endl;
+                throw;
+            }
+            catch (...)
+            {
+                std::cerr << "Unknown Exception!" << std::endl;
+                throw;
+            }
+            return 0;
+        }
 
-		void removeElements(size_t idx)
-		{
-			index->removePoint(idx);
-		}
+        void removeElements(size_t idx)
+        {
+            index->removePoint(idx);
+        }
 
-		size_t knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
-		{
-			result.clear();
-			size_t *indices = new size_t[knn];
-			float *distances = new float[knn];
-			float queryPt_[2];
-			size_t nr_results = 0;
-			queryPt_[0] = queryPt.x;
-			queryPt_[1] = queryPt.y;
-			KNNResultSet<float> resultSet(knn);
-			resultSet.init(indices, distances);
-			try
-			{
-				index->findNeighbors(resultSet, &queryPt_[0], nanoflann::SearchParams(10));
-			}
-			catch (InvalidPoolIteratorException const& ex)
-			{
-				std::cout << "Exception: " << ex.what() << std::endl;
-				std::cout << "Unable to perform a knn search!!" << std::endl;
-				delete[] indices;
-				delete[] distances;
-				return 0;
-			}
-			catch (std::exception const& ex)
-			{
-				std::cerr << "std::exception: " << ex.what() << std::endl;
-				throw;
-			}
-			catch (...)
-			{
-				std::cerr << "Unknown Exception!" << std::endl;
-				throw;
-			}
-			nr_results = resultSet.size();
-			result.reserve(nr_results);
-			for (size_t i = 0; i < nr_results; i++)
-			{
-				result.push_back(std::make_pair(indices[i], distances[i]));
-			}
-			delete[] indices;
-			delete[] distances;
-			return nr_results;
-		}
+        size_t knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
+        {
+            result.clear();
+            size_t *indices = new size_t[knn];
+            float *distances = new float[knn];
+            float queryPt_[2];
+            size_t nr_results = 0;
+            queryPt_[0] = queryPt.x;
+            queryPt_[1] = queryPt.y;
+            KNNResultSet<float> resultSet(knn);
+            resultSet.init(indices, distances);
+            try
+            {
+                index->findNeighbors(resultSet, &queryPt_[0], nanoflann::SearchParams(10));
+            }
+            catch (InvalidPoolIteratorException const& ex)
+            {
+                std::cout << "Exception: " << ex.what() << std::endl;
+                std::cout << "Unable to perform a knn search!!" << std::endl;
+                delete[] indices;
+                delete[] distances;
+                return 0;
+            }
+            catch (std::exception const& ex)
+            {
+                std::cerr << "std::exception: " << ex.what() << std::endl;
+                throw;
+            }
+            catch (...)
+            {
+                std::cerr << "Unknown Exception!" << std::endl;
+                throw;
+            }
+            nr_results = resultSet.size();
+            result.reserve(nr_results);
+            for (size_t i = 0; i < nr_results; i++)
+            {
+                result.push_back(std::make_pair(indices[i], distances[i]));
+            }
+            delete[] indices;
+            delete[] distances;
+            return nr_results;
+        }
 
-		size_t radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
-		{
-			// Unsorted radius search:
-			result.clear();
-			RadiusResultSet<float, size_t> resultSet(radius, result);
-			float queryPt_[2];
-			queryPt_[0] = queryPt.x;
-			queryPt_[1] = queryPt.y;
-			try
-			{
-				index->findNeighbors(resultSet, queryPt_, nanoflann::SearchParams());
-			}
-			catch (InvalidPoolIteratorException const& ex)
-			{
-				std::cout << "Exception: " << ex.what() << std::endl;
-				std::cout << "Unable to perform a radius search!" << std::endl;
-				return 0;
-			}
-			catch (std::exception const& ex)
-			{
-				std::cerr << "std::exception: " << ex.what() << std::endl;
-				throw;
-			}
-			catch (...)
-			{
-				std::cerr << "Unknown Exception!" << std::endl;
-				throw;
-			}
-			//Sort
-			std::sort(result.begin(), result.end(), [](std::pair<size_t, float> const & first, std::pair<size_t, float> const & second)
-			{
-				return first.second < second.second;
-			});
-			return result.size();
-		}
-	};
+        size_t radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
+        {
+            // Unsorted radius search:
+            result.clear();
+            RadiusResultSet<float, size_t> resultSet(radius, result);
+            float queryPt_[2];
+            queryPt_[0] = queryPt.x;
+            queryPt_[1] = queryPt.y;
+            try
+            {
+                index->findNeighbors(resultSet, queryPt_, nanoflann::SearchParams());
+            }
+            catch (InvalidPoolIteratorException const& ex)
+            {
+                std::cout << "Exception: " << ex.what() << std::endl;
+                std::cout << "Unable to perform a radius search!" << std::endl;
+                return 0;
+            }
+            catch (std::exception const& ex)
+            {
+                std::cerr << "std::exception: " << ex.what() << std::endl;
+                throw;
+            }
+            catch (...)
+            {
+                std::cerr << "Unknown Exception!" << std::endl;
+                throw;
+            }
+            //Sort
+            std::sort(result.begin(), result.end(), [](std::pair<size_t, float> const & first, std::pair<size_t, float> const & second)
+            {
+                return first.second < second.second;
+            });
+            return result.size();
+        }
+    };
 
-	/* --------------------- Function prototypes --------------------- */
+    /* --------------------- Function prototypes --------------------- */
 
 
-	/* -------------------------- Functions -------------------------- */
+    /* -------------------------- Functions -------------------------- */
 
-	keyPointTreeInterface::keyPointTreeInterface(std::list<CoordinateProps> *correspondencePool_,
-		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
-	{
-		treePtr = new keyPointTree(correspondencePool_, poolIdxIt_);
-	}
+    keyPointTreeInterface::keyPointTreeInterface(std::list<CoordinateProps> *correspondencePool_,
+        std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
+    {
+        treePtr = new keyPointTree(correspondencePool_, poolIdxIt_);
+    }
 
-	int keyPointTreeInterface::buildInitialTree()
-	{
-		return ((keyPointTree*)treePtr)->buildInitialTree();
-		//static_cast<keyPointTree*>(treePtr)->buildInitialTree();
-	}
+    int keyPointTreeInterface::buildInitialTree()
+    {
+        return ((keyPointTree*)treePtr)->buildInitialTree();
+        //static_cast<keyPointTree*>(treePtr)->buildInitialTree();
+    }
 
-	int keyPointTreeInterface::resetTree(std::list<CoordinateProps> *correspondencePool_,
-		std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
-	{
-		if (!treePtr)
-		{
-			treePtr = new keyPointTree(correspondencePool_, poolIdxIt_);
-		}
-		else
-		{
-			return ((keyPointTree*)treePtr)->resetTree(correspondencePool_, poolIdxIt_);
-		}
+    int keyPointTreeInterface::resetTree(std::list<CoordinateProps> *correspondencePool_,
+        std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt_)
+    {
+        if (!treePtr)
+        {
+            treePtr = new keyPointTree(correspondencePool_, poolIdxIt_);
+        }
+        else
+        {
+            return ((keyPointTree*)treePtr)->resetTree(correspondencePool_, poolIdxIt_);
+        }
 
-		return 0;
-	}
+        return 0;
+    }
 
-	void keyPointTreeInterface::killTree()
-	{
-		((keyPointTree*)treePtr)->killTree();
-		if (treePtr)
-		{
-			delete treePtr;
-			treePtr = NULL;
-		}
-	}
+    void keyPointTreeInterface::killTree()
+    {
+        ((keyPointTree*)treePtr)->killTree();
+        if (treePtr)
+        {
+            delete treePtr;
+            treePtr = NULL;
+        }
+    }
 
-	int keyPointTreeInterface::addElements(size_t firstIdx, size_t length)
-	{
-		return ((keyPointTree*)treePtr)->addElements(firstIdx, length);
-	}
+    int keyPointTreeInterface::addElements(size_t firstIdx, size_t length)
+    {
+        return ((keyPointTree*)treePtr)->addElements(firstIdx, length);
+    }
 
-	void keyPointTreeInterface::removeElements(size_t idx)
-	{
-		((keyPointTree*)treePtr)->removeElements(idx);
-	}
+    void keyPointTreeInterface::removeElements(size_t idx)
+    {
+        ((keyPointTree*)treePtr)->removeElements(idx);
+    }
 
-	size_t keyPointTreeInterface::knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
-	{
-		return ((keyPointTree*)treePtr)->knnSearch(queryPt, knn, result);
-	}
+    size_t keyPointTreeInterface::knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
+    {
+        return ((keyPointTree*)treePtr)->knnSearch(queryPt, knn, result);
+    }
 
-	size_t keyPointTreeInterface::radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
-	{
-		return ((keyPointTree*)treePtr)->radiusSearch(queryPt, radius, result);
-	}
+    size_t keyPointTreeInterface::radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
+    {
+        return ((keyPointTree*)treePtr)->radiusSearch(queryPt, radius, result);
+    }
 
-	keyPointTreeInterface::~keyPointTreeInterface()
-	{
-		killTree();
-	}
+    keyPointTreeInterface::~keyPointTreeInterface()
+    {
+        killTree();
+    }
 
 }

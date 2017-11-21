@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 project(gms-feature-matching)
 
+
 set(USE_GPU TRUE CACHE BOOL "use cuda for feature matching")
 
 if(USE_GPU)
@@ -13,6 +14,9 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 # Target name
 set(target gms-feature-matching)
+
+
+
 
 #
 # Sources
@@ -43,7 +47,7 @@ source_group_by_path(${include_path} "\\\\.h$|\\\\.hpp$"
     ${header_group} ${headers})
 source_group_by_path(${source_path}  "\\\\.cpp$|\\\\.c$|\\\\.h$|\\\\.hpp$"
     ${source_group} ${sources})
-	
+
 #
 # Create library
 #
@@ -53,6 +57,15 @@ add_library(${target} STATIC
     ${sources}
     ${headers}
     ${header_files}
+)
+
+#
+# Project options
+#
+
+set_target_properties(${target}
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
 )
 
 # Create namespaced alias
@@ -72,8 +85,8 @@ if(USE_GPU)
     add_definitions(-DUSE_GPU)
 endif()
 
-target_link_libraries(${target} 
-	${OpenCV_LIBS}
+target_link_libraries(${target}
+  ${OpenCV_LIBS}
 )
 
 
