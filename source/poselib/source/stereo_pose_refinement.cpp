@@ -450,10 +450,13 @@ namespace poselib
                             if (robustEstimationOnPool(matches, kp1, kp2))
                             {
                                 //Reinitialize whole system
-                                cout << "Robust estimation on pool correspondences failed!" << endl;
+                                cout << "Robust estimation on pool correspondences failed! Reinitializing system!" << endl;
                                 E_old.copyTo(E_new);
                                 R_old.copyTo(R_new);
                                 t_old.copyTo(t_new);
+                                if(!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
+                                    return -2;
+                                return 0;
                             }
                             poseIsStable = false;
                             mostLikelyPose_stable = false;
@@ -1175,7 +1178,7 @@ namespace poselib
                 }
                 if (usacerror)
                 {
-                    std::cout << "Estimation of essential matrix using USAC!" << endl;
+                    std::cout << "Estimation of essential matrix using USAC failed!" << endl;
                     return -1;
                 }
                 if (isDegenerate)
