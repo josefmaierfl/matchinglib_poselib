@@ -56,6 +56,48 @@ namespace poselib
     */
     void StereoRefine::setNewParameters(ConfigPoseEstimation cfg_pose_)
     {
+        CV_Assert((cfg_pose_.K0 != NULL) && (cfg_pose_.K1 != NULL) && (cfg_pose_.dist0_8 != NULL) && (cfg_pose_.dist1_8 != NULL));
+
+        //Check if the intrinsics remain the same
+        bool checkIntr = false;
+        for(int i = 0; i < 3; i++)
+        {
+            for(int j = 0; j < 3; j++)
+            {
+                if(!poselib::nearZero(cfg_pose_.K0->at<double>(i,j) - cfg_pose.K0->at<double>(i,j)))
+                {
+                    checkIntr = true;
+                    break;
+                }
+                if(!poselib::nearZero(cfg_pose_.K1->at<double>(i,j) - cfg_pose.K1->at<double>(i,j)))
+                {
+                    checkIntr = true;
+                    break;
+                }
+            }
+            if(checkIntr)
+                break;
+        }
+        for(int i = 0; i < 8; i++)
+        {
+            if(!poselib::nearZero(cfg_pose_.dist0_8->at<double>(i) - cfg_pose.dist0_8->at<double>(i)))
+            {
+                checkIntr = true;
+                break;
+            }
+            if(!poselib::nearZero(cfg_pose_.dist1_8->at<double>(i) - cfg_pose.dist1_8->at<double>(i)))
+            {
+                checkIntr = true;
+                break;
+            }
+        }
+        if(checkIntr)
+        {
+            cout << "The camera intrinsics changed. Reinitializing system!" << endl;
+            pixToCamFact = 4.0 / (std::sqrt(2.0) * (cfg_pose_.K0->at<double>(0, 0) + cfg_pose_.K0->at<double>(1, 1) + cfg_pose_.K1->at<double>(0, 0) + cfg_pose_.K1->at<double>(1, 1)));
+            clearHistoryAndPool();
+        }
+
         bool checkTh = false;
         if (!poselib::nearZero(cfg_pose.th_pix_user - cfg_pose_.th_pix_user) && (cfg_pose_.th_pix_user < cfg_pose.th_pix_user) && !points1Cam.empty())
         {
