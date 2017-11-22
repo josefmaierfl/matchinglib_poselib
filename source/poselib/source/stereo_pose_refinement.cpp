@@ -336,7 +336,7 @@ namespace poselib
     * ConfigUSAC cfg								Input  -> Configuration struct for the robust estimation with USAC
     *
     * Return value:									0 :	Everything ok
-    *												-1:	Robust estimation failed
+    *												-1:	Robust estimation failed or too less matches
     *												-2:	An invalid iterator within the pool correpondences was detected leading to reinitialization
     *												-3: A too low inlier ratio was detected either after robust estimation or after refinement (which should not happen)
     */
@@ -368,7 +368,7 @@ namespace poselib
         if (!poselib::Remove_LensDist(points1new, points2new, *cfg_pose.dist0_8, *cfg_pose.dist1_8))
         {
             std::cout << "Removing lens distortion failed!" << endl;
-            exit(1);
+            return -1;
         }
         //Convert into cv::Mat format
         points1newMat.release();
