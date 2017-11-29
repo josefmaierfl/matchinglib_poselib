@@ -111,6 +111,7 @@ namespace poselib
             //of the values must be equal!
             cout << "Change of descriptor type or keypoint type requested. Reinitializing system!" << endl;
             clearHistoryAndPool();
+            checkTh = false;
         }
         cfg_pose = cfg_pose_;
         th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold
@@ -120,7 +121,7 @@ namespace poselib
         t_oa = 0;
         poseIsStable = false;
         mostLikelyPose_stable = false;
-        if (checkTh)
+        if (checkTh && !checkIntr)
         {
             std::vector<double> errors;
             cv::Mat mask;
@@ -367,7 +368,7 @@ namespace poselib
         //Undistort
         if (!poselib::Remove_LensDist(points1new, points2new, *cfg_pose.dist0_8, *cfg_pose.dist1_8))
         {
-            std::cout << "Removing lens distortion failed!" << endl;
+            std::cout << "Removing lens distortion failed or too less matches!" << endl;
             return -1;
         }
         //Convert into cv::Mat format
@@ -447,6 +448,10 @@ namespace poselib
                             cv::Mat E_old = E_new.clone();
                             cv::Mat R_old = R_new.clone();
                             cv::Mat t_old = t_new.clone();
+                            cv::Mat mask_E_new_old = mask_E_new.clone();
+                            cv::Mat mask_Q_new_old = mask_Q_new.clone();
+                            cv::Mat Q_old = Q.clone();
+                            size_t nr_inliers_new_old = nr_inliers_new;
                             if (robustEstimationOnPool(matches, kp1, kp2))
                             {
                                 //Reinitialize whole system
@@ -454,10 +459,18 @@ namespace poselib
                                 E_old.copyTo(E_new);
                                 R_old.copyTo(R_new);
                                 t_old.copyTo(t_new);
+                                mask_E_new_old.copyTo(mask_E_new);
+                                mask_Q_new_old.copyTo(mask_Q_new);
+                                Q_old.copyTo(Q);
+                                nr_inliers_new = nr_inliers_new_old;
                                 if(!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
                                     return -2;
                                 return 0;
                             }
+                            mask_E_new_old.copyTo(mask_E_new);
+                            mask_Q_new_old.copyTo(mask_Q_new);
+                            Q_old.copyTo(Q);
+                            nr_inliers_new = nr_inliers_new_old;
                             poseIsStable = false;
                             mostLikelyPose_stable = false;
                         }
@@ -472,6 +485,7 @@ namespace poselib
                     mask_Q_new.release();
                     mask_E_new.release();
                     mask.copyTo(mask_E_new);
+                    Q.release();
                     nr_inliers_new = nr_inliers_tmp;
                     inlier_ratio_new1 = inlier_ratio_new;
                     E_new = pose_history.back().E.clone();
@@ -560,6 +574,10 @@ namespace poselib
                     (nr_since_robust > checkPoolPoseRobust_tmp) ||
                     (!maxPoolSizeReached && (checkPoolPoseRobust_tmp * initNumberInliers < correspondencePool.size())))
                 {
+                    cv::Mat mask_E_new_old = mask_E_new.clone();
+                    mask_Q_new.release();
+                    Q.release();
+                    size_t nr_inliers_new_old = nr_inliers_new;
                     if (robustEstimationOnPool(matches, kp1, kp2))
                     {
                         //Reinitialize whole system
@@ -567,6 +585,8 @@ namespace poselib
                         E_old.copyTo(E_new);
                         R_old.copyTo(R_new);
                         t_old.copyTo(t_new);
+                        mask_E_new_old.copyTo(mask_E_new);
+                        nr_inliers_new = nr_inliers_new_old;
                         if (!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
                             return -2;
                         return -3;
@@ -956,7 +976,7 @@ namespace poselib
             size_t reservesize = nrEntries + nr_inliers_new;
             points1Cam.reserve(reservesize);
             points2Cam.reserve(reservesize);
-            correspondencePoolIdx.reserve(reservesize);
+            correspondencePoolIdx.reserve(correspondencePoolIdx.size() + nrEntries);
         }
         //Initialize KD tree
         if (!kdTreeLeft)
@@ -1092,13 +1112,11 @@ namespace poselib
             {
                 originalRobMethod.autoTH = true;
                 originalRobMethod.oldMethod = true;
-                cout << "ARRSAC with automatic threshold estimation";
             }
             else if (cfg_pose.Halign)
             {
                 originalRobMethod.Halign = cfg_pose.Halign;
                 originalRobMethod.oldMethod = true;
-                cout << "Homography alignment";
             }
             else
             {
@@ -1510,7 +1528,7 @@ namespace poselib
         if (cfg_pose.verbose > 3)
         {
             t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
-            std::cout << "Time for pose estimation (includes possible linear refinement): " << t_mea << "ms" << endl;
+            std::cout << "Time for linear refinement: " << t_mea << "ms" << endl;
             t_oa += t_mea;
         }
         if (cfg_pose.verbose > 4)
