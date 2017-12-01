@@ -108,7 +108,10 @@ namespace poselib
             absThRankingStable(0.075),
             useRANSAC_fewMatches(false),
             checkPoolPoseRobust(3),
-            minNormDistStable(0.5)
+            minNormDistStable(0.5),
+			raiseSkipCnt(0),
+			maxRat3DPtsFar(0.5),
+			maxDist3DPtsZ(50.0)
         {}
 
         cv::Mat* dist0_8;//Distortion paramters in OpenCV format with 8 parameters for the first/left image
@@ -140,10 +143,13 @@ namespace poselib
         float minPtsDistance;//Minimum distance between points for insertion into the correspondence pool
         size_t maxPoolCorrespondences;//Maximum number of correspondences in the correspondence pool after concatenating correspondences from multiple image pairs
         size_t minContStablePoses;//Number of consecutive estimated poses that must be stable based on a pose distance ranking
-        double absThRankingStable;//Threshold on the ranking over the last minContStablePoses poses to decide if the pose is stable (actual_ranking +/- absThRankingStable)
+        double absThRankingStable;//Threshold on the ranking over the last minContStablePoses poses to decide if the pose is stable (actual_ranking +/- absThRankingStable). Is only used if no stability is recognized using only the pose.
         bool useRANSAC_fewMatches;//If true, RANSAC is used for the robust estimation if the number of provided matches is below 150
         size_t checkPoolPoseRobust;//If not 0, the pose is robustly (RANSAC, ...) estimated from the pool correspondences after reaching checkPoolPoseRobust times the number of initial inliers. A value of 1 means robust estimation is used instead of refinement. For a value >1, the value is exponetially increased after every robust estimation from the pool.
         double minNormDistStable;//Minimum normalized distance of a stable pose to the center of gravity of all stored poses
+		int raiseSkipCnt;//If not 0, the value of maxSkipPairs is increased to std::ceil(maxSkipPairs * (1.0 + (raiseSkipCnt & 0xF) * 0.25)) if a stable pose was detected. Thus, the first 4 bits define the multiplication factor. The 2nd 4bits define, how many consecutive estimated poses must be stable to perform the multiplication (nr = ((raiseSkipCnt & 0xF0) >> 4) + 1).
+		double maxRat3DPtsFar;//Maximum ratio of 3D points for which their z-value is very large (e.g. 50 x baseline) compared to the number of all 3D points. Above this threshold, a pose cannot be marked as stable using only a threshold on the Sampson error ranges (see absThRankingStable)
+		double maxDist3DPtsZ;//Maximum value for the z-coordinates of 3D points to be included into BA. Moreover, this value influences the decision if a pose is marked as stable during stereo refinement (see maxRat3DPtsFar).
     };
 
     //typedef Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor> EMatDouble2;
@@ -179,6 +185,8 @@ namespace poselib
         bool maxPoolSizeReached;//Is true if the maximum pool size was reached
         size_t checkPoolPoseRobust_tmp;//After approximately this number multiplied by the initial number of inliers, a robust estimation is performed on the pool correspondences instead of refinement
         size_t initNumberInliers;//Initial number of inliers after robust estimation
+		size_t nrConsecStablePoses;//Number of consecutive stable poses
+		size_t maxSkipPairsNew;//Maximum number of times the new Essential matrix E is discarded and restored by the old one (see minInlierRatSkip). If more E's are discarded, the whole system is reinitialized. This value may change if stability of the pose is reached.
 
         std::list<CoordinateProps> correspondencePool;//Holds all correspondences and their properties over the last valid image pairs
         std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
@@ -217,6 +225,8 @@ namespace poselib
         std::vector<size_t> mostLikelyPoseIdxs;//Holds the indexes over the last chosen poses within the history that are most likely the best
         std::vector<double> inlier_ratio_history;//Holds the inlier ratios for the last image pairs
         std::vector<statVals> errorStatistic_history;//Holds statics of the Sampson errors for the last image pairs
+		size_t nr_Q_tooFar;//Holds the number of 3D points for which their z-coordinate is too far away for calculating a reliable translation vector
+		size_t nr_Qs;//Number of 3D points stored
 
     public:
 
@@ -249,6 +259,10 @@ namespace poselib
             maxPoolSizeReached = false;
             mostLikelyPose_stable = false;
             initNumberInliers = 0;
+			nrConsecStablePoses = 0;
+			maxSkipPairsNew = cfg_pose_.maxSkipPairs;
+			nr_Q_tooFar = 0;
+			nr_Qs = 0;
         }//Constructor
 
         void setNewParameters(ConfigPoseEstimation cfg_pose_);//Set new parameters for the stereo pose estimation.
@@ -274,6 +288,7 @@ namespace poselib
         bool reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Clears all stored correspondences, data, and history and adds the new inliers to the correspondence pool and updates the history.
         bool initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Adds the new inliers after robust estimation to the correspondence pool and updates the history.
         int robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2);//Estimate a pose using robust estimation on all stored pool correspondences
+		void updateMaxSkipPairs();//Performs an update on maxSkipPairsNew if cfg_pose.raiseSkipCnt was configured to increase cfg_pose.maxSkipPairs after pose stability
     };
 
 }

@@ -2964,4 +2964,28 @@ size_t getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
 
     return nr_inliers;
 }
+
+/* Calculates the angle between two vectors
+*
+* Mat v1					Input  -> First vector
+* Mat v1					Input  -> Second vector
+* bool degree				Input  -> If true [Default], the angle is returned in degrees. Otherwise in rad.
+*
+* Return value:				Angle
+*/
+double getAnglesBetwVectors(cv::Mat v1, cv::Mat v2, bool degree)
+{
+	CV_Assert(v1.type() == v2.type());
+	if (v1.cols > v1.rows)
+		v1 = v1.t();
+	if (v2.cols > v2.rows)
+		v2 = v2.t();
+	CV_Assert((v1.cols == v2.cols) && (v1.rows == v2.rows));
+	double angle = v1.dot(v2);// std::acos(v1.dot(v2) / (cv::norm(v1) * cv::norm(v2)));
+	angle /= cv::norm(v1) * cv::norm(v2);
+	angle = std::acos(angle);
+	if (degree)
+		angle *= 180.0 / PI;
+	return angle;
+}
 }

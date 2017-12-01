@@ -113,7 +113,16 @@ namespace poselib
             clearHistoryAndPool();
             checkTh = false;
         }
-        cfg_pose = cfg_pose_;
+		
+		if ((cfg_pose.maxSkipPairs != cfg_pose_.maxSkipPairs) || (cfg_pose.raiseSkipCnt != cfg_pose_.raiseSkipCnt))
+		{
+			cfg_pose = cfg_pose_;
+			updateMaxSkipPairs();
+		}
+		else
+		{
+			cfg_pose = cfg_pose_;
+		}
         th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold
         th2 = th * th;
         checkInputParamters();
@@ -648,7 +657,7 @@ namespace poselib
                             }
 #else
                             mask_Q_new = cv::Mat(1, points1Cam.rows, CV_8U, cv::Scalar((unsigned char)true));
-                            poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask_Q_new);
+                            poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask_Q_new, cfg_pose.maxDist3DPtsZ);
                             std::vector<double> error;
                             computeReprojError2(points1Cam, points2Cam, E_new, error);
                             size_t count = 0;
@@ -658,6 +667,12 @@ namespace poselib
                                 {
                                     it.Q = cv::Point3d(Q.row(count));
                                     it.Q_tooFar = !mask_Q_new.at<bool>(count);
+									if (it.age <= 1)
+									{
+										nr_Qs++;
+										if (it.Q_tooFar)
+											nr_Q_tooFar++;
+									}
                                 }
                                 it.SampsonErrors.push_back(error[count++]);
                                 it.meanSampsonError = 0;
@@ -761,6 +776,12 @@ namespace poselib
                     {
                         it.Q = cv::Point3d(Q.row(count));
                         it.Q_tooFar = !mask_Q_new.at<bool>(count);
+						if (it.age <= 1)
+						{
+							nr_Qs++;
+							if (it.Q_tooFar)
+								nr_Q_tooFar++;
+						}
                     }
                     it.SampsonErrors.push_back(error[count++]);
                     it.meanSampsonError = 0;
@@ -778,7 +799,7 @@ namespace poselib
                 checkPoseStability();
             }
 
-            if (skipCount > cfg_pose.maxSkipPairs)
+            if (skipCount > maxSkipPairsNew)
             {
                 //Reinitialize whole system
                 if(!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
@@ -882,6 +903,10 @@ namespace poselib
         maxPoolSizeReached = false;
         poseIsStable = false;
         mostLikelyPose_stable = false;
+		nrConsecStablePoses = 0;
+		maxSkipPairsNew = cfg_pose.maxSkipPairs;
+		nr_Q_tooFar = 0;
+		nr_Qs = 0;
     }
 
     /* Estimate a pose using robust estimation on all stored pool correspondences
@@ -1011,6 +1036,9 @@ namespace poselib
                     {
                         tmp.Q = cv::Point3d(Q.row(i));
                         tmp.Q_tooFar = !mask_Q_new.at<bool>(i);
+						nr_Qs++;
+						if (tmp.Q_tooFar)
+							nr_Q_tooFar++;
                     }
                 }
                 tmp.nrFound = 1;
@@ -1245,7 +1273,7 @@ namespace poselib
 
         if (cfg_pose.Halign && ((cfg_pose.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
         {
-            poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask);
+            poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
         }
         else
         {
@@ -1297,13 +1325,13 @@ namespace poselib
             mask.copyTo(mask_E_new);
 
             if (!availableRT)
-                poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask);
+                poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ);
             else
             {
                 R = R_kneip;
                 t = t_kneip;
                 if ((cfg_pose.BART > 0) && !cfg_pose.kneipInsteadBA)
-                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask);
+                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
             }
         }
 
@@ -1333,7 +1361,7 @@ namespace poselib
                     R_tmp.copyTo(R);
                     t_tmp.copyTo(t);
                     mask.copyTo(mask_E_new);
-                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask);
+                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
                     useBA = false;
                 }
                 else
@@ -1348,7 +1376,7 @@ namespace poselib
                 if (cfg_pose.BART > 0)
                 {
                     std::cout << "Trying bundle adjustment instead!" << std::endl;
-                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask);
+                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
                 }
                 else
                 {
@@ -1359,7 +1387,7 @@ namespace poselib
                     {
                         mask.copyTo(mask_E_new);
                         Q.release();
-                        poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask);
+                        poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ);
                     }
                     else
                         std::cout << "Refinement failed!" << std::endl;
@@ -1518,11 +1546,11 @@ namespace poselib
         mask.copyTo(mask_E_new);
 
         if (!availableRT)
-            poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask);
+            poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ);
         else
         {
             if ((cfg_pose.BART_CorrPool > 0) && !cfg_pose.kneipInsteadBA_CorrPool)
-                poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask);
+                poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
         }
 
         if (cfg_pose.verbose > 3)
@@ -1551,7 +1579,7 @@ namespace poselib
                     R_tmp.copyTo(R_new);
                     t_tmp.copyTo(t_new);
                     mask.copyTo(mask_E_new);
-                    poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask);
+                    poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
                     useBA = false;
                 }
                 else
@@ -1568,7 +1596,7 @@ namespace poselib
                 if (cfg_pose.BART_CorrPool > 0)
                 {
                     std::cout << "Trying bundle adjustment instead!" << std::endl;
-                    poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask);
+                    poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
                 }
                 else
                 {
@@ -1579,7 +1607,7 @@ namespace poselib
                     {
                         mask.copyTo(mask_E_new);
                         Q.release();
-                        poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask);
+                        poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ);
                     }
                     else
                     {
@@ -1876,13 +1904,18 @@ namespace poselib
         size_t poolSize = correspondencePool.size();
         if (nrToDel == poolSize)
         {
-            kdTreeLeft->killTree();
-            kdTreeLeft.release();
+			if (kdTreeLeft)
+			{
+				kdTreeLeft->killTree();
+				kdTreeLeft.release();
+			}
             points1Cam.release();
             points2Cam.release();
             correspondencePool.clear();
             correspondencePoolIdx.clear();
             corrIdx = 0;
+			nr_Q_tooFar = 0;
+			nr_Qs = 0;
         }
         else
         {
@@ -1945,8 +1978,19 @@ namespace poselib
                 std::unordered_map<size_t, std::list<CoordinateProps>::iterator>::iterator it = correspondencePoolIdx.find(delete_list[i]);
                 try
                 {
-                    if (it->second != correspondencePool.end())
-                        correspondencePool.erase(it->second);
+					if (it->second != correspondencePool.end())
+					{
+						if (!nearZero(100.0 * (it->second->Q.x + it->second->Q.y + it->second->Q.z)))
+						{
+							if (nr_Qs)
+							{
+								nr_Qs--;
+								if (it->second->Q_tooFar && nr_Q_tooFar)
+									nr_Q_tooFar--;
+							}
+						}
+						correspondencePool.erase(it->second);
+					}
                     else
                         throw "Invalid pool iterator";
                     it->second = correspondencePool.end();
@@ -2627,9 +2671,19 @@ namespace poselib
             }
         }
 
-        if (stable_poses == count)
+		//Calculate portion of 3D points too far away
+		double ratio3DPtsFar = 0;
+		if (nr_Qs)
+		{
+			ratio3DPtsFar = (double)nr_Q_tooFar / (double)nr_Qs;
+		}
+
+        if ((stable_poses == count) && (ratio3DPtsFar < 0.95))
         {
             poseIsStable = true;
+			nrConsecStablePoses++;
+			if (maxSkipPairsNew <= cfg_pose.maxSkipPairs)
+				updateMaxSkipPairs();
             if(nr_tries)
                 nr_tries--;
             return 0;
@@ -2640,7 +2694,7 @@ namespace poselib
             nr_tries++;
         }
 
-        if ((nr_tries > cfg_pose.minContStablePoses) && maxPoolSizeReached)
+        if ((nr_tries > cfg_pose.minContStablePoses) && maxPoolSizeReached && (ratio3DPtsFar < cfg_pose.maxRat3DPtsFar))
         {
             //Check overlap of error ranges
             const double minOverlap = 0.8;
@@ -2669,6 +2723,7 @@ namespace poselib
                 (idx1.second->first >= idx2.second->second)) //if largest left border is larger than largest right border
             {
                 poseIsStable = false;
+				nrConsecStablePoses = 0;
                 return 0;
             }
 
@@ -2688,14 +2743,44 @@ namespace poselib
                 if (overall_overlap[count] < minOverlap)
                 {
                     poseIsStable = false;
+					nrConsecStablePoses = 0;
                     return 0;
                 }
             }
             poseIsStable = true;
+			nrConsecStablePoses++;
         }
+		else
+		{
+			nrConsecStablePoses = 0;
+		}
+
+		if (poseIsStable && (maxSkipPairsNew <= cfg_pose.maxSkipPairs))
+		{
+			updateMaxSkipPairs();
+		}
 
         return 0;
     }
+
+	/* Performs an update on maxSkipPairsNew if cfg_pose.raiseSkipCnt was configured to increase cfg_pose.maxSkipPairs after pose stability
+	*
+	* Return value:									none
+	*/
+	void StereoRefine::updateMaxSkipPairs()
+	{
+		if ((cfg_pose.raiseSkipCnt & 0xF) && ((((cfg_pose.raiseSkipCnt & 0xF0) >> 4) + 1) <= nrConsecStablePoses))
+		{
+			size_t maxSkipPairsNew_tmp = maxSkipPairsNew;
+			maxSkipPairsNew = (size_t)std::ceil((double)cfg_pose.maxSkipPairs * (1.0 + (double)(cfg_pose.raiseSkipCnt & 0xF) * 0.25));
+			if (maxSkipPairsNew_tmp != maxSkipPairsNew)
+				cout << "maxSkipPairs changed to " << maxSkipPairsNew << endl;
+		}
+		else
+		{
+			maxSkipPairsNew = cfg_pose.maxSkipPairs;
+		}
+	}
 
     /* Compute an inverted weight between 0 and 1 for a specific property of a correspondence like descriptor distance or Sampson Error
     *
