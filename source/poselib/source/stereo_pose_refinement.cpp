@@ -2074,13 +2074,16 @@ namespace poselib
 
     /* Compute a weight between 0 and 1 for a correspondence given its keypoint responses (left and right img), descriptor distance, and Sampson error
     *
-    * CoordinatePropsNew newCorr					Input  -> Properties of the new correspondence
-    * CoordinateProps oldCorr						Input  -> Properties of the correspondence from the pool
+    * double error									Input  -> Sampson error
+    * double descrDist								Input  -> Descriptor distance
+	* double resp1									Input  -> Keypoint response in the left image
+	* double resp2									Input  -> Keypoint response in the right image
+	* bool z3DtooFar								Input  -> Optional [Default=false]. True, if the 3D coordinate's z-value of the correspondence is too large
+	* double zValue3D								Input  -> Optional [Default=0]. If z3DtooFar=true, the z-value of the 3D coordinate is used for weighting
     *
-    * Return value:									true:	Keep the new correspondence
-    *												false:	Keep the correspondence from the pool
+    * Return value:									Weighting term for the correspondence
     */
-    inline double StereoRefine::computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2)
+    inline double StereoRefine::computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2, const bool &z3DtooFar, const double &zValue3D)
     {
         double weight_error, weight_descrDist, weight_response;
         const double weighting_terms[3] = { 0.3, 0.5, 0.2 };//Weights for weight_error, weight_descrDist, weight_response
@@ -2090,6 +2093,15 @@ namespace poselib
         weight_descrDist = getWeightingValuesInv(descrDist, (double)descrDist_max);
         weight_response = (getWeightingValues(resp1, (double)keyPRespons_max) + getWeightingValues(resp2, (double)keyPRespons_max)) / 2.0;
         overall_weight = weighting_terms[0] * weight_error + weighting_terms[1] * weight_descrDist + weighting_terms[2] * weight_response;
+		if (z3DtooFar)
+		{
+			double z_weight = 1.0;
+			if (zValue3D > 0)
+				z_weight = 0.5 + 0.9 * cfg_pose.maxDist3DPtsZ / (2.0 * zValue3D);		
+			else if (zValue3D < 0)
+				z_weight = 0.25;
+			overall_weight *= z_weight;
+		}
         return overall_weight;
     }
 
@@ -2157,7 +2169,9 @@ namespace poselib
                             it->SampsonErrors.back(),
                             it->descrDist,
                             it->keyPResponses[0],
-                            it->keyPResponses[1]), j));
+                            it->keyPResponses[1],
+							it->Q_tooFar,
+							it->Q.z), j));
                     }
                     std::sort(weightIdx1.begin(), weightIdx1.end(),
                         [](pair<double, size_t> const &first, pair<double, size_t> const &second)
@@ -2188,7 +2202,9 @@ namespace poselib
                         it->SampsonErrors.back(),
                         it->descrDist,
                         it->keyPResponses[0],
-                        it->keyPResponses[1]), i));
+                        it->keyPResponses[1],
+						it->Q_tooFar,
+						it->Q.z), i));
                 }
                 std::sort(weightIdx1.begin(), weightIdx1.end(),
                     [](pair<double, size_t> const &first, pair<double, size_t> const &second)
@@ -2268,7 +2284,9 @@ namespace poselib
                             it->SampsonErrors.back(),
                             it->descrDist,
                             it->keyPResponses[0],
-                            it->keyPResponses[1]), count);
+                            it->keyPResponses[1],
+							it->Q_tooFar,
+							it->Q.z), count);
                         count++;
                     }
                     std::sort(weightIdx1.begin(), weightIdx1.end(),
