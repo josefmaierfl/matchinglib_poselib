@@ -25,6 +25,8 @@ overlap area ratio between the views and some restrictions on the camera paramte
 #include <stdexcept>
 #include <random>
 
+#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
+
 /* --------------------------- Defines --------------------------- */
 
 #define PI 3.14159265
@@ -37,9 +39,12 @@ public:
 	InvalidDataStructureException(std::string mess) : std::runtime_error(mess) {}
 };
 
-class GenStereoPars
+class GENERATEVIRTUALSEQUENCELIB_API GenStereoPars
 {
 public:
+	//Ranges must be in the signed form [lower_bound, upper_bound] or [single_value]:
+	//e.g.: [-5, -1] or [1, 5] or [3]
+	//For tx and ty: the largest absolute value must be negative
 	GenStereoPars(std::vector<std::vector<double>> tx, 
 		std::vector<std::vector<double>> ty, 
 		std::vector<std::vector<double>> tz, 
@@ -50,6 +55,13 @@ public:
 
 	int optimizeRtf(int verbose = 0);
 	void setLMTolerance(double rollTol, double pitchTol, double txTol, double tyTol, double fTol);
+	bool getCamPars(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2);
+	bool getEulerAngles(std::vector<double>& roll, std::vector<double>& pitch, std::vector<double>& yaw);
+
+public:
+	std::vector<cv::Mat> Ris;//Final Rotation matrizes
+	std::vector<cv::Mat> tis;//Final translation vectors
+	cv::Mat K1, K2;//Camera matrices
 
 private:
 	std::default_random_engine rand_generator;
@@ -83,7 +95,6 @@ private:
 	const double angView[2] = { 45.0 * PI / 180.0, 120.0 * PI / 180.0 };//Min and max viewing angles of the cameras
 
 	std::vector<double> virtWidth;
-	cv::Mat K1, K2;
 	bool horizontalCamAlign = true;
 	bool aliChange = true;
 

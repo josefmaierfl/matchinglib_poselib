@@ -94,7 +94,7 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 		if (tx_[i].size() > 1)
 		{
 			if (((tx_[i][0] >= 0) && (tx_[i][1] > 0)) ||
-				(abs(tx_[i][1]) > abs(tx_[i][1])))
+				(abs(tx_[i][1]) > abs(tx_[i][0])))
 			{
 				maxX = tx_[i][1];
 			}
@@ -110,7 +110,7 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 		if (ty_[i].size() > 1)
 		{
 			if (((ty[i][0] >= 0) && (ty[i][1] > 0)) ||
-				(abs(ty[i][1]) > abs(ty[i][1])))
+				(abs(ty[i][1]) > abs(ty[i][0])))
 			{
 				maxY = ty[i][1];
 			}
@@ -189,13 +189,13 @@ void GenStereoPars::checkEqualRanges(std::vector<std::vector<double>> par, bool&
 	}
 	const bool fixedPar = (par[0].size() == 1) ? true : false;
 	double minPar = par[0][0];
-	double maxPar = par[0][1];
+	double maxPar = fixedPar ? minPar : par[0][1];
 	for (size_t i = 1; i < nrConditions; i++)
 	{
 		bool fixedPar1 = (par[i].size() == 1) ? true : false;
 		if ((fixedPar ^ fixedPar1) ||
 			!nearZero(minPar - par[i][0]) ||
-			!nearZero(maxPar - par[i][1]))
+			!nearZero(maxPar - ((par[i].size() == 1) ? par[i][0] : par[i][1])))
 		{
 			areEqual = false;
 			return;
@@ -222,7 +222,14 @@ void GenStereoPars::initRandPars(std::vector<std::vector<double>>& parIn, bool& 
 	{
 		for (size_t i = 0; i < nrConditions; i++)
 		{
-			parOut.push_back(getRandDoubleVal(parIn[i][0], parIn[i][1]));
+			if (parIn[i].size() == 1)
+			{
+				parOut.push_back(parIn[i][0]);
+			}
+			else
+			{
+				parOut.push_back(getRandDoubleVal(parIn[i][0], parIn[i][1]));
+			}
 		}
 	}
 }
@@ -402,7 +409,7 @@ int GenStereoPars::optParLM(int verbose)
 
 	//Generate parameter vector and tolerance vectors
 	Mat p = Mat(nrConditions * 4 + 1, 1, CV_64FC1);
-	Mat xTol = Mat(p.size(), 1, CV_64FC1);
+	Mat xTol = Mat(p.size(), CV_64FC1);
 	Mat funcTol = Mat::ones(nrConditions * nr_residualsPCond, 1, CV_64FC1) * 1e-4;
 	const double fixedFuncTol[] = { 1e-3, 0.05, 0.05, 0.05, 0.05, 1e-4, 0.35, 0.5, 0.5 };
 	for (size_t i = 0; i < nrConditions; i++)
@@ -529,9 +536,51 @@ int GenStereoPars::optParLM(int verbose)
 	K1.at<double>(1, 1) = f;
 	K1.copyTo(K2);
 
+	//Generate rotation matrizes and translation vectors
+	for (size_t i = 0; i < nrConditions; i++)
+	{
+		Mat R = eulerAnglesToRotationMatrix(roll_use[i] * PI / 180.0, pitch_use[i] * PI / 180.0, yaw_use[i] * PI / 180.0);
+		Mat t = (Mat_<double>(3, 1) << tx_use[i], ty_use[i], tz_use[i]);
+		Ris.push_back(R.clone());
+		tis.push_back(t.clone());
+	}
+
 	return err;
 }
 
+bool GenStereoPars::getCamPars(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2)
+{
+	if (Ris.empty())
+	{
+		return false;
+	}
+
+	Rv = Ris;
+	tv = tis;
+	K_1 = K1.clone();
+	K_2 = K2.clone();
+
+	return true;
+}
+
+bool GenStereoPars::getEulerAngles(std::vector<double>& roll, std::vector<double>& pitch, std::vector<double>& yaw)
+{
+	if (Ris.empty())
+	{
+		return false;
+	}
+
+	roll = roll_use;
+	pitch = pitch_use;
+	yaw = yaw_use;
+
+	return true;
+}
+
+/*Set the tolerance for the parameters estimated by the Levengergh Marquardt algorithm. It is used to escape the
+* optimization loop if the change of all paramters is smaller than these thresholds. Moreover, they are used to 
+* calculate the step size for numerical differentiation (for calculating the partial derivatives of the Jacobi matrix).
+*/
 void GenStereoPars::setLMTolerance(double rollTol, double pitchTol, double txTol, double tyTol, double fTol)
 {
 	rollTol_ = rollTol;
@@ -1514,7 +1563,7 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 	{
 		/*Mat cax;
 		Mat cay;*/
-		vector<Point2d> contour;
+		vector<Point2f> contour;
 		if (nearZero(round((phi + yaw_angle) * 100.0) / 100.0))
 		{
 			Mat c1 = tl1;
@@ -1523,10 +1572,10 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			Mat c3 = br1;
 			Mat c4 = lb1.cross(lb2);
 			c4 /= c4.at<double>(2);
-			contour.push_back(Point2d(c1.at<double>(0), c1.at<double>(1)));
-			contour.push_back(Point2d(c2.at<double>(0), c2.at<double>(1)));
-			contour.push_back(Point2d(c3.at<double>(0), c3.at<double>(1)));
-			contour.push_back(Point2d(c4.at<double>(0), c4.at<double>(1)));
+			contour.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour.push_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
+			contour.push_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
+			contour.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			//cax = (Mat_<double>(1, 4) << c1.at<double>(0), c2.at<double>(0), c3.at<double>(0), c4.at<double>(0));
 			//cay = (Mat_<double>(1, 4) << c1.at<double>(1), c2.at<double>(1), c3.at<double>(1), c4.at<double>(1));
 			//Calc virtual remaining image width
@@ -1556,14 +1605,14 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			
 			//cax = (Mat_<double>(1, 8) << c1.at<double>(0), c2.at<double>(0), c3.at<double>(0), c4.at<double>(0), c5.at<double>(0), c6.at<double>(0), c7.at<double>(0), c8.at<double>(0));
 			//cay = (Mat_<double>(1, 8) << c1.at<double>(1), c2.at<double>(1), c3.at<double>(1), c4.at<double>(1), c5.at<double>(1), c6.at<double>(1), c7.at<double>(1), c8.at<double>(1));
-			contour.push_back(Point2d(c1.at<double>(0), c1.at<double>(1)));
-			contour.push_back(Point2d(c2.at<double>(0), c2.at<double>(1)));
-			contour.push_back(Point2d(c3.at<double>(0), c3.at<double>(1)));
-			contour.push_back(Point2d(c4.at<double>(0), c4.at<double>(1)));
-			contour.push_back(Point2d(c5.at<double>(0), c5.at<double>(1)));
-			contour.push_back(Point2d(c6.at<double>(0), c6.at<double>(1)));
-			contour.push_back(Point2d(c7.at<double>(0), c7.at<double>(1)));
-			contour.push_back(Point2d(c8.at<double>(0), c8.at<double>(1)));
+			contour.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour.push_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
+			contour.push_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
+			contour.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
+			contour.push_back(Point2f((float)c5.at<double>(0), (float)c5.at<double>(1)));
+			contour.push_back(Point2f((float)c6.at<double>(0), (float)c6.at<double>(1)));
+			contour.push_back(Point2f((float)c7.at<double>(0), (float)c7.at<double>(1)));
+			contour.push_back(Point2f((float)c8.at<double>(0), (float)c8.at<double>(1)));
 			//Calc virtual remaining image width
 			double h1 = norm(c1.rowRange(0, 2) - bl1.rowRange(0, 2));
 			double h2 = norm(tl1.rowRange(0, 2) - c2.rowRange(0, 2));
@@ -1586,16 +1635,16 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			c4 /= c4.at<double>(2);
 			//cax = (Mat_<double>(1, 4) << c1.at<double>(0), c2.at<double>(0), c3.at<double>(0), c4.at<double>(0));
 			//cay = (Mat_<double>(1, 4) << c1.at<double>(1), c2.at<double>(1), c3.at<double>(1), c4.at<double>(1));
-			contour.push_back(Point2d(c1.at<double>(0), c1.at<double>(1)));
-			contour.push_back(Point2d(c2.at<double>(0), c2.at<double>(1)));
-			contour.push_back(Point2d(c3.at<double>(0), c3.at<double>(1)));
-			contour.push_back(Point2d(c4.at<double>(0), c4.at<double>(1)));
+			contour.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour.push_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
+			contour.push_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
+			contour.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			//Calc virtual remaining image width
-			vector<Point2d> contour1;
-			contour1.push_back(Point2d(bl1.at<double>(0), bl1.at<double>(1)));
-			contour1.push_back(Point2d(tl1.at<double>(0), tl1.at<double>(1)));
-			contour1.push_back(Point2d(c1.at<double>(0), c1.at<double>(1)));
-			contour1.push_back(Point2d(c4.at<double>(0), c4.at<double>(1)));
+			vector<Point2f> contour1;
+			contour1.push_back(Point2f((float)bl1.at<double>(0), (float)bl1.at<double>(1)));
+			contour1.push_back(Point2f((float)tl1.at<double>(0), (float)tl1.at<double>(1)));
+			contour1.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour1.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			double loss_area = cv::contourArea(contour1);
 			double reduceW = 2.0 * loss_area / (double)imgSize_.height;
 			virtWidth = (double)imgSize_.width - reduceW;

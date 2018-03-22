@@ -19,7 +19,7 @@ DISCRIPTION: This file provides functionalities for loading the GTMs.
 #pragma once
 
 #include "glob_includes.h"
-#include "matchtestlib\matchtestlib_api.h"
+#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 
-int MATCHTESTLIB_API showGTM(std::string img_path, std::string l_img_pref, std::string r_img_pref,
+int GENERATEVIRTUALSEQUENCELIB_API showGTM(std::string img_path, std::string l_img_pref, std::string r_img_pref,
 	std::string gtm_path, std::string gtm_postfix);

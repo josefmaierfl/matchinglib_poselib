@@ -519,95 +519,95 @@ int loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vecto
  * Return value:				 0:		  Everything ok
  *								-1:		  Error reading flow file
  */
-int convertImageFlowFile(std::string filepath, std::string filename, cv::Mat* flow3, const float precision, 
-						 bool useBoolValidity, const float validityPrecision, const float minConfidence)
-{
-	Mat intflow;
-	PfePixImgStruct imgPfe = {0};
-	//intflow = imread(filepath + "\\" + filename,CV_LOAD_IMAGE_COLOR);
-	string pathfile = filepath + "/" + filename;
-	PfeStatus stat;
-	PfeChar *pfepathfile = (PfeChar*)pathfile.c_str();
-	stat = PfeReadFileUIC(pfepathfile, &imgPfe, NULL, NULL);
-
-	if(stat != pfeOK)
-	{
-		perror("Error reading flow file");
-		return -1;
-	}
-	intflow = PfeConvToMat(&imgPfe);
-	if(intflow.data  == NULL)
-	{
-		perror("Error reading flow file");
-		return -1;
-	}
-	intflow = intflow.clone();
-	PfeFreeImgBuf(&imgPfe, 0);
-
-	//flow3->create(intflow.rows, intflow.cols, CV_32FC3);
-
-	vector<Mat> channels(3), channels_fin;
-	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
-	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
-	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
-	cv::split(intflow, channels);
-	if(useBoolValidity)
-	{
-		for(size_t u = 0; u < intflow.rows; u++)
-		{
-			for( size_t v = 0; v < intflow.cols; v++)
-			{
-				if(channels[2].at<uint16_t>(u,v) > 0)
-				{
-					channels_fin[0].at<float>(u,v) = ((float)channels[0].at<uint16_t>(u,v) - 32768.0f) / precision;
-					channels_fin[1].at<float>(u,v) = ((float)channels[1].at<uint16_t>(u,v) - 32768.0f) / precision;
-					channels_fin[2].at<float>(u,v) = (float)channels[2].at<uint16_t>(u,v);
-				}
-				else
-				{
-					channels_fin[0].at<float>(u,v) = 0.0f;
-					channels_fin[1].at<float>(u,v) = 0.0f;
-					channels_fin[2].at<float>(u,v) = 0.0f;
-				}
-			}
-		}
-	}
-	else
-	{
-		for(size_t u = 0; u < intflow.rows; u++)
-		{
-			for( size_t v = 0; v < intflow.cols; v++)
-			{
-				if(channels[2].at<uint16_t>(u,v) > 0)
-				{
-					float conf = (float)channels[2].at<uint16_t>(u,v) / validityPrecision;
-					if(conf >= minConfidence)
-					{
-						channels_fin[0].at<float>(u,v) = ((float)channels[0].at<uint16_t>(u,v) - 32768.0f) / precision;
-						channels_fin[1].at<float>(u,v) = ((float)channels[1].at<uint16_t>(u,v) - 32768.0f) / precision;
-						channels_fin[2].at<float>(u,v) = 1.0f;
-					}
-					else
-					{
-						channels_fin[0].at<float>(u,v) = 0.0f;
-						channels_fin[1].at<float>(u,v) = 0.0f;
-						channels_fin[2].at<float>(u,v) = 0.0f;
-					}
-				}
-				else
-				{
-					channels_fin[0].at<float>(u,v) = 0.0f;
-					channels_fin[1].at<float>(u,v) = 0.0f;
-					channels_fin[2].at<float>(u,v) = 0.0f;
-				}
-			}
-		}
-	}
-
-	cv::merge(channels_fin,*flow3); 
-
-	return 0;
-}
+//int convertImageFlowFile(std::string filepath, std::string filename, cv::Mat* flow3, const float precision, 
+//						 bool useBoolValidity, const float validityPrecision, const float minConfidence)
+//{
+//	Mat intflow;
+//	PfePixImgStruct imgPfe = {0};
+//	//intflow = imread(filepath + "\\" + filename,CV_LOAD_IMAGE_COLOR);
+//	string pathfile = filepath + "/" + filename;
+//	PfeStatus stat;
+//	PfeChar *pfepathfile = (PfeChar*)pathfile.c_str();
+//	stat = PfeReadFileUIC(pfepathfile, &imgPfe, NULL, NULL);
+//
+//	if(stat != pfeOK)
+//	{
+//		perror("Error reading flow file");
+//		return -1;
+//	}
+//	intflow = PfeConvToMat(&imgPfe);
+//	if(intflow.data  == NULL)
+//	{
+//		perror("Error reading flow file");
+//		return -1;
+//	}
+//	intflow = intflow.clone();
+//	PfeFreeImgBuf(&imgPfe, 0);
+//
+//	//flow3->create(intflow.rows, intflow.cols, CV_32FC3);
+//
+//	vector<Mat> channels(3), channels_fin;
+//	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
+//	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
+//	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
+//	cv::split(intflow, channels);
+//	if(useBoolValidity)
+//	{
+//		for(size_t u = 0; u < intflow.rows; u++)
+//		{
+//			for( size_t v = 0; v < intflow.cols; v++)
+//			{
+//				if(channels[2].at<uint16_t>(u,v) > 0)
+//				{
+//					channels_fin[0].at<float>(u,v) = ((float)channels[0].at<uint16_t>(u,v) - 32768.0f) / precision;
+//					channels_fin[1].at<float>(u,v) = ((float)channels[1].at<uint16_t>(u,v) - 32768.0f) / precision;
+//					channels_fin[2].at<float>(u,v) = (float)channels[2].at<uint16_t>(u,v);
+//				}
+//				else
+//				{
+//					channels_fin[0].at<float>(u,v) = 0.0f;
+//					channels_fin[1].at<float>(u,v) = 0.0f;
+//					channels_fin[2].at<float>(u,v) = 0.0f;
+//				}
+//			}
+//		}
+//	}
+//	else
+//	{
+//		for(size_t u = 0; u < intflow.rows; u++)
+//		{
+//			for( size_t v = 0; v < intflow.cols; v++)
+//			{
+//				if(channels[2].at<uint16_t>(u,v) > 0)
+//				{
+//					float conf = (float)channels[2].at<uint16_t>(u,v) / validityPrecision;
+//					if(conf >= minConfidence)
+//					{
+//						channels_fin[0].at<float>(u,v) = ((float)channels[0].at<uint16_t>(u,v) - 32768.0f) / precision;
+//						channels_fin[1].at<float>(u,v) = ((float)channels[1].at<uint16_t>(u,v) - 32768.0f) / precision;
+//						channels_fin[2].at<float>(u,v) = 1.0f;
+//					}
+//					else
+//					{
+//						channels_fin[0].at<float>(u,v) = 0.0f;
+//						channels_fin[1].at<float>(u,v) = 0.0f;
+//						channels_fin[2].at<float>(u,v) = 0.0f;
+//					}
+//				}
+//				else
+//				{
+//					channels_fin[0].at<float>(u,v) = 0.0f;
+//					channels_fin[1].at<float>(u,v) = 0.0f;
+//					channels_fin[2].at<float>(u,v) = 0.0f;
+//				}
+//			}
+//		}
+//	}
+//
+//	cv::merge(channels_fin,*flow3); 
+//
+//	return 0;
+//}
 
 /* This function takes an 16Bit 1-channel integer image (grey values) and converts it to a 3-channel (RGB) float flow matrix 
  * where R specifies the disparity, G is always 0 (as the disparity only represents the flow in x-direction) and B specifies 
@@ -630,123 +630,123 @@ int convertImageFlowFile(std::string filepath, std::string filename, cv::Mat* fl
  * Return value:				 0:		  Everything ok
  *								-1:		  Error reading disparity file
  */
-int convertImageDisparityFile(std::string filepath, std::string filename, cv::Mat* flow3, const bool useFLowStyle, const float precision, const bool use0Invalid)
-{
-	Mat intflow;
-	PfePixImgStruct imgPfe = {0};
-	string pathfile = filepath + "/" + filename;
-	PfeStatus stat;
-	PfeChar *pfepathfile = (PfeChar*)pathfile.c_str();
-	stat = PfeReadFileUIC(pfepathfile, &imgPfe, NULL, NULL);
-
-	if(stat != pfeOK)
-	{
-		perror("Error reading flow file");
-		return -1;
-	}
-	intflow = PfeConvToMat(&imgPfe);
-	if(intflow.data  == NULL)
-	{
-		perror("Error reading flow file");
-		return -1;
-	}
-	//intflow = intflow.rowRange(0,375).colRange(0,1242).clone();
-	intflow = intflow.clone();
-	PfeFreeImgBuf(&imgPfe, 0);
-
-
-	vector<Mat> channels(3), channels_fin;
-	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
-	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
-	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
-	if(useFLowStyle)
-	{
-		cv::split(intflow, channels);
-		//namedWindow( "Channel 1", WINDOW_AUTOSIZE );// Create a window for display.
-		//imshow( "Channel 1", channels[0] );
-		//namedWindow( "Channel 2", WINDOW_AUTOSIZE );// Create a window for display.
-		//imshow( "Channel 2", channels[1] );
-		//namedWindow( "Channel 3", WINDOW_AUTOSIZE );// Create a window for display.
-		//imshow( "Channel 3", channels[2] );
-		//cv::waitKey(0);
-	}
-	if(intflow.data  == NULL)
-	{
-		perror("Error reading disparity file");
-		return -1;
-	}
-
-	if(useFLowStyle)
-	{
-		for(size_t u = 0; u < intflow.rows; u++)
-		{
-			for( size_t v = 0; v < intflow.cols; v++)
-			{
-				if(channels[2].at<uint16_t>(u,v) > 0)
-				{
-					channels_fin[0].at<float>(u,v) = -1.0f * (float)channels[0].at<uint16_t>(u,v) / precision;
-					channels_fin[1].at<float>(u,v) = 0.0f;
-					channels_fin[2].at<float>(u,v) = (float)channels[2].at<uint16_t>(u,v);
-				}
-				else
-				{
-					channels_fin[0].at<float>(u,v) = 0.0f;
-					channels_fin[1].at<float>(u,v) = 0.0f;
-					channels_fin[2].at<float>(u,v) = 0.0f;
-				}
-			}
-		}
-	}
-	else
-	{
-		if(use0Invalid)
-		{
-			for(size_t u = 0; u < intflow.rows; u++)
-			{
-				for( size_t v = 0; v < intflow.cols; v++)
-				{
-					if(intflow.at<uint16_t>(u,v) > 0)
-					{
-						channels_fin[0].at<float>(u,v) = -1.0f * (float)intflow.at<uint16_t>(u,v) / precision;
-						channels_fin[1].at<float>(u,v) = 0.0f;
-						channels_fin[2].at<float>(u,v) = 1.0f;
-					}
-					else
-					{
-						channels_fin[0].at<float>(u,v) = 0.0f;
-						channels_fin[1].at<float>(u,v) = 0.0f;
-						channels_fin[2].at<float>(u,v) = 0.0f;
-					}
-				}
-			}
-		}
-		else
-		{
-			for(size_t u = 0; u < intflow.rows; u++)
-			{
-				for( size_t v = 0; v < intflow.cols; v++)
-				{
-					if(intflow.at<uint16_t>(u,v) == 0xFFFF)
-					{
-						channels_fin[0].at<float>(u,v) = 0.0f;
-						channels_fin[1].at<float>(u,v) = 0.0f;
-						channels_fin[2].at<float>(u,v) = 0.0f;
-					}
-					else
-					{
-						channels_fin[0].at<float>(u,v) = -1.0f * (float)intflow.at<uint16_t>(u,v) / precision;
-						channels_fin[1].at<float>(u,v) = 0.0f;
-						channels_fin[2].at<float>(u,v) = 1.0f;
-					}
-				}
-			}
-		}
-	}
-
-	cv::merge(channels_fin,*flow3);
-
-	return 0;
-}
+//int convertImageDisparityFile(std::string filepath, std::string filename, cv::Mat* flow3, const bool useFLowStyle, const float precision, const bool use0Invalid)
+//{
+//	Mat intflow;
+//	PfePixImgStruct imgPfe = {0};
+//	string pathfile = filepath + "/" + filename;
+//	PfeStatus stat;
+//	PfeChar *pfepathfile = (PfeChar*)pathfile.c_str();
+//	stat = PfeReadFileUIC(pfepathfile, &imgPfe, NULL, NULL);
+//
+//	if(stat != pfeOK)
+//	{
+//		perror("Error reading flow file");
+//		return -1;
+//	}
+//	intflow = PfeConvToMat(&imgPfe);
+//	if(intflow.data  == NULL)
+//	{
+//		perror("Error reading flow file");
+//		return -1;
+//	}
+//	//intflow = intflow.rowRange(0,375).colRange(0,1242).clone();
+//	intflow = intflow.clone();
+//	PfeFreeImgBuf(&imgPfe, 0);
+//
+//
+//	vector<Mat> channels(3), channels_fin;
+//	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
+//	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
+//	channels_fin.push_back(Mat(intflow.rows, intflow.cols, CV_32FC1));
+//	if(useFLowStyle)
+//	{
+//		cv::split(intflow, channels);
+//		//namedWindow( "Channel 1", WINDOW_AUTOSIZE );// Create a window for display.
+//		//imshow( "Channel 1", channels[0] );
+//		//namedWindow( "Channel 2", WINDOW_AUTOSIZE );// Create a window for display.
+//		//imshow( "Channel 2", channels[1] );
+//		//namedWindow( "Channel 3", WINDOW_AUTOSIZE );// Create a window for display.
+//		//imshow( "Channel 3", channels[2] );
+//		//cv::waitKey(0);
+//	}
+//	if(intflow.data  == NULL)
+//	{
+//		perror("Error reading disparity file");
+//		return -1;
+//	}
+//
+//	if(useFLowStyle)
+//	{
+//		for(size_t u = 0; u < intflow.rows; u++)
+//		{
+//			for( size_t v = 0; v < intflow.cols; v++)
+//			{
+//				if(channels[2].at<uint16_t>(u,v) > 0)
+//				{
+//					channels_fin[0].at<float>(u,v) = -1.0f * (float)channels[0].at<uint16_t>(u,v) / precision;
+//					channels_fin[1].at<float>(u,v) = 0.0f;
+//					channels_fin[2].at<float>(u,v) = (float)channels[2].at<uint16_t>(u,v);
+//				}
+//				else
+//				{
+//					channels_fin[0].at<float>(u,v) = 0.0f;
+//					channels_fin[1].at<float>(u,v) = 0.0f;
+//					channels_fin[2].at<float>(u,v) = 0.0f;
+//				}
+//			}
+//		}
+//	}
+//	else
+//	{
+//		if(use0Invalid)
+//		{
+//			for(size_t u = 0; u < intflow.rows; u++)
+//			{
+//				for( size_t v = 0; v < intflow.cols; v++)
+//				{
+//					if(intflow.at<uint16_t>(u,v) > 0)
+//					{
+//						channels_fin[0].at<float>(u,v) = -1.0f * (float)intflow.at<uint16_t>(u,v) / precision;
+//						channels_fin[1].at<float>(u,v) = 0.0f;
+//						channels_fin[2].at<float>(u,v) = 1.0f;
+//					}
+//					else
+//					{
+//						channels_fin[0].at<float>(u,v) = 0.0f;
+//						channels_fin[1].at<float>(u,v) = 0.0f;
+//						channels_fin[2].at<float>(u,v) = 0.0f;
+//					}
+//				}
+//			}
+//		}
+//		else
+//		{
+//			for(size_t u = 0; u < intflow.rows; u++)
+//			{
+//				for( size_t v = 0; v < intflow.cols; v++)
+//				{
+//					if(intflow.at<uint16_t>(u,v) == 0xFFFF)
+//					{
+//						channels_fin[0].at<float>(u,v) = 0.0f;
+//						channels_fin[1].at<float>(u,v) = 0.0f;
+//						channels_fin[2].at<float>(u,v) = 0.0f;
+//					}
+//					else
+//					{
+//						channels_fin[0].at<float>(u,v) = -1.0f * (float)intflow.at<uint16_t>(u,v) / precision;
+//						channels_fin[1].at<float>(u,v) = 0.0f;
+//						channels_fin[2].at<float>(u,v) = 1.0f;
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	cv::merge(channels_fin,*flow3);
+//
+//	return 0;
+//}
 
 /* This function reads all homography file names from a given directory and stores their names into a vector.
  *
