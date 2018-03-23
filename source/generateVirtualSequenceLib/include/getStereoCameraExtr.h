@@ -125,7 +125,7 @@ private:
 	inline double getRandDoubleVal(double lowerBound, double upperBound);
 	void initRandPars(std::vector<std::vector<double>>& parIn, bool& rangeEqual, std::vector<double>& parOut);
 	void getRotRectDiffArea(double yaw_angle, double& perc, double& virtWidth);
-	bool helpNewRandEquRangeVals(int& idx, const int maxit);
+	bool helpNewRandEquRangeVals(int& idx, const int maxit, int align);
 	void setCoordsForOpti();
 	int LMFsolve(cv::Mat p,
 		cv::Mat& xf,

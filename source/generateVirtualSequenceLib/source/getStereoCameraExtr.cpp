@@ -279,11 +279,11 @@ int GenStereoPars::optimizeRtf(int verbose)
 			(cnt < maxit))
 		{
 			tx_use.clear();
-			ty_use.clear();
 			initRandPars(tx_, txRangeEqual, tx_use);
 			if (((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
 				((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0)))
 			{
+				ty_use.clear();
 				initRandPars(ty_, tyRangeEqual, ty_use);
 			}
 			cnt++;
@@ -306,7 +306,7 @@ int GenStereoPars::optimizeRtf(int verbose)
 				((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
 				(cnt < maxit))
 			{
-				if(!helpNewRandEquRangeVals(i_tmp, maxit))
+				if(!helpNewRandEquRangeVals(i_tmp, maxit, 0))
 					return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
 				cnt++;
 			}
@@ -347,14 +347,14 @@ int GenStereoPars::optimizeRtf(int verbose)
 					((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (alignCnt > 0))) &&
 					(cnt < maxit))
 				{
-					if (!helpNewRandEquRangeVals(i_tmp[0], maxit))
+					if (!helpNewRandEquRangeVals(i_tmp[0], maxit, alignCnt))
 						return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
 					size_t cnt1 = 0;
 					while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
 						((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
 						(cnt1 < maxit))
 					{
-						if (!helpNewRandEquRangeVals(i_tmp[1], maxit))
+						if (!helpNewRandEquRangeVals(i_tmp[1], maxit, alignCnt))
 							return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
 						cnt1++;
 					}
@@ -394,8 +394,9 @@ int GenStereoPars::optimizeRtf(int verbose)
 	fRange[0] = (double)imgSize_.width / (2.0 * tan(angView[1] / 2.0));
 	fRange[1] = (double)imgSize_.width / (2.0 * tan(angView[0] / 2.0));
 
-	if (optParLM(verbose))
-		return -2; //Not able to reach desired result
+	int err = optParLM(verbose);
+	if (err)
+		return err-1; //Not able to reach desired result (-2) or paramters are not usable (-3)
 
 	return 0;	
 }
@@ -512,7 +513,7 @@ int GenStereoPars::optParLM(int verbose)
 	double meanOvLapError = 0;
 	for (size_t i = 0; i < nrConditions; i++)
 	{
-		meanOvLapError += residuals.at<double>(i*(size_t)nr_residualsPCond + 5);
+		meanOvLapError += std::abs(residuals.at<double>(i*(size_t)nr_residualsPCond + 5));
 	}
 	meanOvLapError /= (double)nrConditions;
 	cout << "Approx. overlap error: " << meanOvLapError << endl;
@@ -521,6 +522,11 @@ int GenStereoPars::optParLM(int verbose)
 	{
 		cout << "Unable to reach desired result! Try different ranges and/or parameters." << endl;
 		err = -1;
+	}
+	if (ssq_history.back() > 10.0)
+	{
+		cout << "Resulting paramters are not usable! Sum of squared residuals: " << ssq_history.back() << endl;
+		err = -2;
 	}
 
 	//Store parameters back to vectors
@@ -686,12 +692,14 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 	Mat deltaValid = Mat::ones(x.size(), x.type());
 	Mat xd_old = x.clone();
 	Mat r_old = Mat::ones(r.size(), r.type()) * 100.0;
+	size_t sameXdCnt[2] = { 0, 0};
 
 	//MAIN ITERATION CYCLE
 	while ((cnt < maxIter) &&
 		any_vec_cv(cv::abs(d.mul(deltaValid)) >= xTol_) &&
 		any_vec_cv(cv::abs(r) >= funcTol_) && 
-		!nearZero(cv::sum(cv::abs(r_old - r))[0]))
+		!nearZero(cv::sum(cv::abs(r_old - r))[0]) &&
+		(sameXdCnt[1] < 4))
 	{
 		Mat A1 = A + lamda * D;
 		bool solA = solveLinEqu(A1, v, d);
@@ -715,7 +723,10 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 			xd = x - d;
 			adaptParVec(xd, xd, deltaValid);
 			randVec = true;
+			sameXdCnt[0]++;
 		}
+		if (sameXdCnt[0] > 2)
+			sameXdCnt[1]++;
 		xd.copyTo(xd_old);
 		Mat rd = LMfunc(xd);
 
@@ -769,8 +780,12 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 				double maxAid;
 				Mat Aida = cv::abs(Ai.diag(0));
 				cv::minMaxLoc(Aida, NULL, &maxAid);
+				if (!isfinite(maxAid))
+					maxAid = 1.5;
 				if (nearZero(100.0 * maxAid))
 					maxAid = getRandDoubleVal(0, 1.5);
+				if (maxAid > (1.0 / DBL_EPSILON))
+					maxAid = 1.0 / DBL_EPSILON;
 				lc = 1.0 / maxAid;
 				lamda = lc;
 				nu = nu / 2.0;
@@ -814,7 +829,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 	if (verbose)
 	{
 		cout << endl;
-		printit(verbose, cnt, nfJ, Sd, xf, d, lamda, lc);
+		printit(verbose < 0 ? -1:1, (cnt < 0) ? -cnt:cnt, nfJ, Sd, xf, d, lamda, lc);
 	}
 
 	return cnt;
@@ -852,7 +867,7 @@ void GenStereoPars::printit(int ipr, int cnt, size_t nfJ, double ss, cv::Mat x, 
 			}
 			cout << endl;
 		}
-		else if((cnt % abs(ipr)) == 0)
+		else if(((cnt % abs(ipr)) == 0) || (cnt==1))
 		{
 			if (ipr > 0)
 			{
@@ -1297,11 +1312,19 @@ double GenStereoPars::getLineIntersect(cv::Mat b1, cv::Mat a2, cv::Mat b2)
 	if (nearZero(ld))
 	{
 		Mat A, x;
-		hconcat(b1, -b2, A);
-		if (!solveLinEqu(A, a2, x))
+		hconcat(b1, -b2, A); 
+		if (!cv::solve(A, a2, x, DECOMP_NORMAL))
 			return 0;
 		Mat S = x.at<double>(0)*b1;
 		return S.at<double>(2);
+	}
+
+	//Check, if they are parallel
+	s = b1.at<double>(0) / b2.at<double>(0);
+	x0 = s * b2 - b1;
+	if (nearZero(100.0 * sum(x0)[0]))
+	{
+		return 1000000.0;
 	}
 
 	//Get mean z - distance to the perpendicular between the 2 skew lines
@@ -1426,26 +1449,26 @@ void GenStereoPars::setCoordsForOpti()
 	}
 }
 
-bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit)
+bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit, int align)
 {
 	size_t cnt = 0;
 	int idx_tmp = idx;
 	bool additionalAdaption = true;
-	if (txRangeEqual)
+	if (txRangeEqual && (tx_[0].size() > 1))
 	{
 		//Check if the tx value must be changed as changing the ty values has no effect (tx value out of range compared to ty value range)
-		while ((((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && (tx_use[idx_tmp] > 0) &&
-			((tx_use[idx_tmp] >= std::abs(ty_[idx_tmp][0])) ||
-			(tx_use[idx_tmp] >= std::abs(ty_[idx_tmp][1])))) ||
-				((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && (ty_use[idx_tmp] > 0) &&
+		while ((((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0)) &&
+			((std::abs(tx_use[idx_tmp]) >= std::abs(ty_[idx_tmp][0])) ||
+			(std::abs(tx_use[idx_tmp]) >= std::abs(ty_[idx_tmp][1])))) ||
+				((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0)) &&
 			((std::abs(tx_use[idx_tmp]) < std::abs(ty_[idx_tmp][0])) ||
 					(std::abs(tx_use[idx_tmp]) < std::abs(ty_[idx_tmp][1]))))) &&
 				(cnt < maxit))
 		{
 			tx_use.clear();
 			initRandPars(tx_, txRangeEqual, tx_use);
-			if (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && (tx_use[idx_tmp] > 0)) ||
-				((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && (ty_use[idx_tmp] > 0)))
+			if (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
+				((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0))))
 			{
 				ty_use[idx_tmp] = getRandDoubleVal(ty_[idx_tmp][0], ty_[idx_tmp][1]);
 			}
@@ -1458,11 +1481,11 @@ bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit)
 		}
 		additionalAdaption = false;
 	}
-	else
+	else if(tx_[idx].size() > 1)
 	{
 		tx_use[idx] = getRandDoubleVal(tx_[idx][0], tx_[idx][1]);
-		if (!(((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && (tx_use[idx_tmp] > 0)) ||
-			((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && (ty_use[idx_tmp] > 0))))
+		if (!(((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
+			((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0)))))
 		{
 			additionalAdaption = false;
 		}
@@ -1470,22 +1493,22 @@ bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit)
 
 	if (additionalAdaption)
 	{
-		if (tyRangeEqual)
+		if (tyRangeEqual && (ty_[idx].size() > 1))
 		{
 			cnt = 0;
 			//Check if the ty value must be changed as changing the tx values has no effect (ty value out of range compared to tx value range)
-			while ((((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && (tx_use[idx_tmp] > 0) &&
+			while ((((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0)) &&
 				((std::abs(tx_[idx_tmp][0]) >= std::abs(ty_use[idx_tmp])) ||
 				(std::abs(tx_[idx_tmp][1]) >= std::abs(ty_use[idx_tmp])))) ||
-					((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && (ty_use[idx_tmp] > 0) &&
-				((std::abs(tx_[idx_tmp][0]) < ty_use[idx_tmp]) ||
-						(std::abs(tx_[idx_tmp][1]) < ty_use[idx_tmp])))) &&
+					((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0)) &&
+				((std::abs(tx_[idx_tmp][0]) < std::abs(ty_use[idx_tmp])) ||
+						(std::abs(tx_[idx_tmp][1]) < std::abs(ty_use[idx_tmp]))))) &&
 					(cnt < maxit))
 			{
 				ty_use.clear();
 				initRandPars(ty_, tyRangeEqual, ty_use);
-				if (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && (tx_use[idx_tmp] > 0)) ||
-					((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && (ty_use[idx_tmp] > 0)))
+				if (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
+					((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0))))
 				{
 					tx_use[idx_tmp] = getRandDoubleVal(tx_[idx_tmp][0], tx_[idx_tmp][1]);
 				}
@@ -1497,7 +1520,7 @@ bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit)
 				return false;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
 			}
 		}
-		else
+		else if (ty_[idx].size() > 1)
 		{
 			ty_use[idx_tmp] = getRandDoubleVal(ty_[idx_tmp][0], ty_[idx_tmp][1]);
 		}

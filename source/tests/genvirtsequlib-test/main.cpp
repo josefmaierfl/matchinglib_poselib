@@ -379,7 +379,7 @@ int main( int argc, char* argv[])
 	SetupCommandlineParser(cmd, argc, argv);
 	startEvaluation(cmd);*/
 
-	testStereoCamGeneration(2);
+	testStereoCamGeneration(-100);
 
 
 	return 0;
@@ -387,9 +387,9 @@ int main( int argc, char* argv[])
 
 void testStereoCamGeneration(int verbose)
 {
-	//srand(time(NULL));
-	//unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-	std::default_random_engine rand_generator;// (seed);
+	srand(time(NULL));
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine rand_generator(seed);
 
 	const bool testGenericAlignment = false;
 
@@ -410,17 +410,24 @@ void testStereoCamGeneration(int verbose)
 
 	CV_Assert(txy_relmax < 1.0);
 
-	for (size_t j = 0; j < 1; j++)
+	for (size_t j = 0; j < 1000; j++)
 	{
 		double tx_minmax[2] = { 0.1, 5.0 };
 		double ty_minmax[2] = { 0, 5.0 };
 
-		int nrCams = std::rand() % 10 + 1;
+		int nrCams = std::rand() % 10 + 1;//1
+
+		int roll_equRanges = (std::rand() % 2) & (std::rand() % 2);
+		int pitch_equRanges = (std::rand() % 2) & (std::rand() % 2);
+		int yaw_equRanges = (std::rand() % 2) & (std::rand() % 2);
+		int tx_equRanges = (std::rand() % 2) & (std::rand() % 2);
+		int ty_equRanges = (std::rand() % 2) & (std::rand() % 2);
+		int tz_equRanges = (std::rand() % 2) & (std::rand() % 2);
 
 		vector<double> txi_start, tyi_start, tzi_start, rolli_start, pitchi_start, yawi_start;
 		if (!testGenericAlignment)
 		{
-			int align = rand() % 2;
+			int align = rand() % 2;//0
 			if (align)
 			{
 				initStarVal(rand_generator, ty_minmax, tyi_start);
@@ -444,12 +451,17 @@ void testStereoCamGeneration(int verbose)
 			else
 			{
 				initStarVal(rand_generator, tx_minmax, txi_start);
+				//txi_start.push_back(0.9);//REMOVE
+
 				ty_minmax[0] = -txy_relmax * txi_start.back();
 				ty_minmax[1] = txy_relmax * txi_start.back();
 				double tmp = -tx_minmax[0];
 				tx_minmax[0] = -tx_minmax[1];
 				tx_minmax[1] = tmp;
 				initStarVal(rand_generator, ty_minmax, tyi_start);
+				//tyi_start.push_back(-0.5);//REMOVE
+				//tyi_start.push_back(0.5);//REMOVE
+
 				if (txi_start.size() == 1)
 				{
 					txi_start[0] = -txi_start[0];
@@ -479,6 +491,13 @@ void testStereoCamGeneration(int verbose)
 		initStarVal(rand_generator, pitch_minmax, pitchi_start);
 		initStarVal(rand_generator, yaw_minmax, yawi_start);
 
+		//tzi_start.push_back(0.02);//REMOVE
+		//rolli_start.push_back(-15.0);//REMOVE
+		//rolli_start.push_back(15.0);//REMOVE
+		//pitchi_start.push_back(-15.0);//REMOVE
+		//pitchi_start.push_back(15.0);//REMOVE
+		//yawi_start.push_back(-0.2);//REMOVE
+
 		std::vector<std::vector<double>> tx;
 		std::vector<std::vector<double>> ty;
 		std::vector<std::vector<double>> tz;
@@ -496,12 +515,84 @@ void testStereoCamGeneration(int verbose)
 		for (int i = 1; i < nrCams; i++)
 		{
 			vector<double> txi, tyi, tzi, rolli, pitchi, yawi;
-			initRangeVals(rand_generator, tx_minmax, tx_minmax_change, txi_start, txi);
-			initRangeVals(rand_generator, ty_minmax, ty_minmax_change, tyi_start, tyi);
-			initRangeVals(rand_generator, tz_minmax, tz_minmax_change, tzi_start, tzi);
-			initRangeVals(rand_generator, roll_minmax, roll_minmax_change, rolli_start, rolli);
-			initRangeVals(rand_generator, pitch_minmax, pitch_minmax_change, pitchi_start, pitchi);
-			initRangeVals(rand_generator, yaw_minmax, yaw_minmax_change, yawi_start, yawi);
+			size_t wrongsignCnt = 0;
+			bool cngTxy = false;
+			while (txi.empty() || ((wrongsignCnt < 100) && cngTxy))
+			{
+				if (tx_equRanges)
+					txi = txi_start;
+				else
+					initRangeVals(rand_generator, tx_minmax, tx_minmax_change, txi_start, txi);
+				if (ty_equRanges)
+					tyi = tyi_start;
+				else
+					initRangeVals(rand_generator, ty_minmax, ty_minmax_change, tyi_start, tyi);
+
+				double maxX, maxY;
+				if (txi.size() > 1)
+				{
+					if (((txi[0] >= 0) && (txi[1] > 0)) ||
+						(abs(txi[1]) > abs(txi[0])))
+					{
+						maxX = txi[1];
+					}
+					else
+					{
+						maxX = txi[0];
+					}
+				}
+				else
+				{
+					maxX = txi[0];
+				}
+				if (tyi.size() > 1)
+				{
+					if (((tyi[0] >= 0) && (tyi[1] > 0)) ||
+						(abs(tyi[1]) > abs(tyi[0])))
+					{
+						maxY = tyi[1];
+					}
+					else
+					{
+						maxY = tyi[0];
+					}
+				}
+				else
+				{
+					maxY = tyi[0];
+				}
+
+				if (((abs(maxX) >= abs(maxY)) && (maxX > 0)) ||
+					((abs(maxY) >= abs(maxX)) && (maxY > 0)))
+				{
+					cngTxy = true;
+					txi.clear();
+					tyi.clear();
+				}
+				else
+				{
+					cngTxy = false;
+				}
+				wrongsignCnt++;
+			}
+			if (cngTxy)
+				break;
+			if (tz_equRanges)
+				tzi = tzi_start;
+			else
+				initRangeVals(rand_generator, tz_minmax, tz_minmax_change, tzi_start, tzi);
+			if (roll_equRanges)
+				rolli = rolli_start;
+			else
+				initRangeVals(rand_generator, roll_minmax, roll_minmax_change, rolli_start, rolli);
+			if (pitch_equRanges)
+				pitchi = pitchi_start;
+			else
+				initRangeVals(rand_generator, pitch_minmax, pitch_minmax_change, pitchi_start, pitchi);
+			if (yaw_equRanges)
+				yawi = yawi_start;
+			else
+				initRangeVals(rand_generator, yaw_minmax, yaw_minmax_change, yawi_start, yawi);
 
 			tx.push_back(txi);
 			ty.push_back(tyi);
@@ -511,7 +602,10 @@ void testStereoCamGeneration(int verbose)
 			yaw.push_back(yawi);
 		}
 
-		double approxImgOverlap = getRandDoubleVal(rand_generator, 0.2, 1.0);
+		if (tx.size() < nrCams)
+			continue;
+
+		double approxImgOverlap = getRandDoubleVal(rand_generator, 0.2, 1.0);//0.1;
 		cv::Size imgSize = cv::Size(1280, 720);
 
 		GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw, approxImgOverlap, imgSize);
@@ -525,6 +619,7 @@ void testStereoCamGeneration(int verbose)
 		K = newStereoPars.K1;
 		cout << endl;
 		cout << "**************************************************************************" << endl;
+		cout << "User specified image overlap = " << std::setprecision(3) << approxImgOverlap << endl;
 		cout << "f= " << std::setprecision(2) << K.at<double>(0, 0) << " cx= " << K.at<double>(0, 2) << " cy= " << K.at<double>(1, 2) << endl;
 		for (size_t i = 0; i < roll_new.size(); i++)
 		{
@@ -537,13 +632,18 @@ void testStereoCamGeneration(int verbose)
 
 double getRandDoubleVal(std::default_random_engine rand_generator, double lowerBound, double upperBound)
 {
+	rand_generator = std::default_random_engine((unsigned int)std::rand());
 	std::uniform_real_distribution<double> distribution(lowerBound, upperBound);
 	return distribution(rand_generator);
 }
 
 void initStarVal(default_random_engine rand_generator, double *range, vector<double>& startVec)
 {
-	int isRange = (int)((((size_t)abs(std::rand()-RAND_MAX/2)) * ((size_t)abs(std::rand() - RAND_MAX / 2))) % 2);
+	int isRange = std::rand() % 2;
+	for (size_t i = 0; i < 1; i++)
+	{
+		isRange |= std::rand() % 2;
+	}
 	startVec.push_back(getRandDoubleVal(rand_generator, range[0], range[1]));
 	if (isRange)
 		startVec.push_back(getRandDoubleVal(rand_generator, startVec.back(), range[1]));
