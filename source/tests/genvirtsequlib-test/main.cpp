@@ -379,7 +379,7 @@ int main( int argc, char* argv[])
 	SetupCommandlineParser(cmd, argc, argv);
 	startEvaluation(cmd);*/
 
-	testStereoCamGeneration(-100);
+	testStereoCamGeneration(0);
 
 
 	return 0;

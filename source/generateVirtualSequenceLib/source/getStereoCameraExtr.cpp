@@ -443,7 +443,7 @@ int GenStereoPars::optParLM(int verbose)
 	while (aliChange && (cnt < lmCntMax))
 	{
 		aliChange = false;
-		int cntit = LMFsolve(p, p_new, residuals, funcTol, xTol, 200, verbose);
+		int cntit = LMFsolve(p, p_new, residuals, funcTol, xTol, 100, verbose);
 
 		double ssq = residuals.dot(residuals);
 		if (cntit < 0)
@@ -498,16 +498,47 @@ int GenStereoPars::optParLM(int verbose)
 			p_new.copyTo(p);
 			horizontalCamAlign = !horizontalCamAlign;
 			setCoordsForOpti();
+			//Store last valid parameters to history before alignment changed
+			ssq_history.pop_back();
+			ssq_history.push_back(r_before_aliC.dot(r_before_aliC));
+			p_history.pop_back();
+			p_history.push_back(x_before_aliC);
+			r_history.pop_back();
+			r_history.push_back(r_before_aliC);
 		}		
 		cnt++;
 	}
 
+	int err = 0;
+	double ssq = ssq_history.back();
 	if (cnt >= lmCntMax)
 	{
 		//Get configuration with smallest error
 		size_t idxMin = std::distance(ssq_history.begin(), min_element(ssq_history.begin(), ssq_history.end()));
 		p_history[idxMin].copyTo(p_new);
 		r_history[idxMin].copyTo(residuals);
+		ssq = ssq_history[idxMin];
+		cout << "Taking best result over the last 10 minimizations with changing alignments. Sum of squared residuals: " << ssq << endl;
+		int aliSum = 0;
+		for (int i = 0; i < (int)nrConditions; i++)
+		{
+			if (std::abs(p_new.at<double>(i * 4 + 2)) >= std::abs(p_new.at<double>(i * 4 + 3)))
+				aliSum++;
+			else
+				aliSum--;
+		}
+
+		double alihelp = (double)aliSum / (double)nrConditions;
+		if (!nearZero(1.0 - std::abs(alihelp)))
+		{
+			cout << "Camera alignment not consistent but best solution so far!" << endl;
+			err = -2;
+		}
+		if (((alihelp > 0) && !horizontalCamAlign) ||
+			((alihelp < 0) && horizontalCamAlign))
+		{
+			horizontalCamAlign = !horizontalCamAlign;
+		}
 	}
 
 	double meanOvLapError = 0;
@@ -517,15 +548,14 @@ int GenStereoPars::optParLM(int verbose)
 	}
 	meanOvLapError /= (double)nrConditions;
 	cout << "Approx. overlap error: " << meanOvLapError << endl;
-	int err = 0;
 	if (meanOvLapError > 0.05)
 	{
 		cout << "Unable to reach desired result! Try different ranges and/or parameters." << endl;
 		err = -1;
 	}
-	if (ssq_history.back() > 10.0)
+	if (ssq > 10.0)
 	{
-		cout << "Resulting paramters are not usable! Sum of squared residuals: " << ssq_history.back() << endl;
+		cout << "Resulting paramters are not usable! Sum of squared residuals: " << ssq << endl;
 		err = -2;
 	}
 
@@ -693,6 +723,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 	Mat xd_old = x.clone();
 	Mat r_old = Mat::ones(r.size(), r.type()) * 100.0;
 	size_t sameXdCnt[2] = { 0, 0};
+	bool noAliChange = true;
 
 	//MAIN ITERATION CYCLE
 	while ((cnt < maxIter) &&
@@ -729,6 +760,10 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 			sameXdCnt[1]++;
 		xd.copyTo(xd_old);
 		Mat rd = LMfunc(xd);
+		if (nearZero(100.0 * cv::sum(cv::abs(rd))[0]))//If the alignment changed, all residuals are zero. This breaks the while-loop. But the last residuals not zero should be returned.
+		{
+			noAliChange = false;
+		}
 
 		nfJ++;
 		double Sd = rd.dot(rd);
@@ -766,7 +801,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 				nu = 10.0;
 			}
 			if (nearZero(lamda))
-			{	
+			{
 				double detA = cv::determinant(A);
 				Mat Ai;
 				if (nearZero(detA))//Check if matrix A is singular or near singular
@@ -803,6 +838,11 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 
 		if (Sd < S)
 		{
+			if (!noAliChange)
+			{
+				x.copyTo(x_before_aliC);
+				r.copyTo(r_before_aliC);
+			}
 			S = Sd;
 			x = xd.clone();
 			r.copyTo(r_old);
@@ -810,7 +850,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 			J = finjac(r, x, xTol_);
 			//       ~~~~~~~~~~~~~~~~~~~~~~~~~
 			nfJ++;
-			A = J.t() * J;       
+			A = J.t() * J;
 			v = J.t() * r;
 			D = getD(A.diag(0), x, lamda);
 		}
@@ -822,9 +862,10 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 	{
 		cnt *= -1;
 	}
-	Mat rd = LMfunc(xf);
+	Mat rd = LMfunc(xf, true);
 	rd.copyTo(residuals);
 	nfJ++;
+
 	double Sd = rd.dot(rd);
 	if (verbose)
 	{
@@ -1107,7 +1148,7 @@ cv::Mat GenStereoPars::finjac(cv::Mat& residuals, cv::Mat& x, cv::Mat& xTol)
 }
 
 //Calculate residuals
-cv::Mat GenStereoPars::LMfunc(cv::Mat p)
+cv::Mat GenStereoPars::LMfunc(cv::Mat p, bool noAlignCheck)
 {
 	//Check if the alignment has changend
 	int aliSum = 0;
@@ -1121,7 +1162,7 @@ cv::Mat GenStereoPars::LMfunc(cv::Mat p)
 
 	double alihelp = (double)aliSum / (double)nrConditions;
 	//Only abort the optimization (to start a new one with changed alignment) if more than the half of alignments have changed
-	if ((((alihelp > 0) && !horizontalCamAlign) ||
+	if (!noAlignCheck && (((alihelp > 0) && !horizontalCamAlign) ||
 		((alihelp < 0) && horizontalCamAlign)) &&
 		!nearZero(alihelp))
 	{
@@ -1142,11 +1183,11 @@ cv::Mat GenStereoPars::LMfunc(cv::Mat p)
 		//Evaluate function to achieve the same orientation for all camera configurations
 		if (horizontalCamAlign)
 		{
-			r.at<double>(i * nr_residualsPCond + 8) = alignFunctionHori(p.at<double>(i * 4 + 2), p.at<double>(i * 4 + 3));
+			r.at<double>(i * nr_residualsPCond + 8) = 0.1 * alignFunctionHori(p.at<double>(i * 4 + 2), p.at<double>(i * 4 + 3));
 		}
 		else
 		{
-			r.at<double>(i * nr_residualsPCond + 8) = alignFunctionVert(p.at<double>(i * 4 + 2), p.at<double>(i * 4 + 3));
+			r.at<double>(i * nr_residualsPCond + 8) = 0.1 * alignFunctionVert(p.at<double>(i * 4 + 2), p.at<double>(i * 4 + 3));
 		}
 
 		//Calculate extrinsics
@@ -1467,8 +1508,8 @@ bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit, int align
 		{
 			tx_use.clear();
 			initRandPars(tx_, txRangeEqual, tx_use);
-			if (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
-				((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0))))
+			if ((ty_[idx_tmp].size() > 1) && (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
+				((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0)))))
 			{
 				ty_use[idx_tmp] = getRandDoubleVal(ty_[idx_tmp][0], ty_[idx_tmp][1]);
 			}
@@ -1507,8 +1548,8 @@ bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit, int align
 			{
 				ty_use.clear();
 				initRandPars(ty_, tyRangeEqual, ty_use);
-				if (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
-					((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0))))
+				if ((tx_[idx_tmp].size() > 1) && (((std::abs(tx_use[idx_tmp]) >= std::abs(ty_use[idx_tmp])) && ((tx_use[idx_tmp] > 0) || (align < 0))) ||
+					((std::abs(tx_use[idx_tmp]) < std::abs(ty_use[idx_tmp])) && ((ty_use[idx_tmp] > 0) || (align > 0)))))
 				{
 					tx_use[idx_tmp] = getRandDoubleVal(tx_[idx_tmp][0], tx_[idx_tmp][1]);
 				}

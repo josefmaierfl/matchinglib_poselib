@@ -118,6 +118,9 @@ private:
 	double tyTol_ = 1e-6;
 	double fTol_ = 1e-3;
 
+	//Save optimization result before alignment changes
+	cv::Mat r_before_aliC, x_before_aliC;
+
 private:
 	void checkParameterFormat(std::vector<std::vector<double>> par, std::string name);
 	void checkEqualRanges(std::vector<std::vector<double>> par, bool& areEqual);
@@ -134,7 +137,7 @@ private:
 		cv::InputArray xTol = cv::noArray(),
 		size_t maxIter = 100,
 		int verbose = 0);
-	cv::Mat LMfunc(cv::Mat p);
+	cv::Mat LMfunc(cv::Mat p, bool noAlignCheck = false);
 	double alignFunctionNoLargePos(double tx, double ty);
 	double alignFunctionHori(double tx, double ty);
 	double alignFunctionVert(double tx, double ty);
