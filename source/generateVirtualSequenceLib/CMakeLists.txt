@@ -106,6 +106,9 @@ file(GLOB_RECURSE header_files
 )
 set(headers
 #    ${include_path}/test.h
+	${include_path}/getStereoCameraExtr.h
+	${include_path}/generateSequence.h
+	${include_path}/helper_funcs.h
 )
 
 set(sources
@@ -116,6 +119,10 @@ set(sources
     #${source_path}/main.cpp
 
 	${source_path}/loadGTMfiles.cpp
+	
+	${source_path}/getStereoCameraExtr.cpp
+	${source_path}/generateSequence.cpp
+	${source_path}/helper_funcs.cpp
 
 )
 

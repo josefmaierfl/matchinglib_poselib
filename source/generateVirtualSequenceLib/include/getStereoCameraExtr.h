@@ -7,14 +7,14 @@ CODE: C++
 
 AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
-DATE: Bebruary 2018
+DATE: February 2018
 
 LOCATION: TechGate Vienna, Donau-City-Straﬂe 1, 1220 Vienna
 
 VERSION: 1.0
 
 DISCRIPTION: This file provides functionalities for generating optimal camera paramters given a disired
-overlap area ratio between the views and some restrictions on the camera paramters
+overlap area ratio between the views and some restrictions on the camera parameters
 **********************************************************************************************************/
 
 #pragma once
@@ -142,10 +142,6 @@ private:
 	double alignFunctionHori(double tx, double ty);
 	double alignFunctionVert(double tx, double ty);
 	void CalcExtrFromPar(double roll, double pitch, double tx, double ty, int cnf, cv::Mat& t, cv::Mat& R);
-	cv::Mat getLineCam1(cv::Mat K, cv::Mat x);
-	void getLineCam2(cv::Mat R, cv::Mat t, cv::Mat K, cv::Mat x, cv::Mat& a, cv::Mat& b);
-	double getLineIntersect(cv::Mat b1, cv::Mat a2, cv::Mat b2);
-	bool solveLinEqu(cv::Mat& A, cv::Mat& b, cv::Mat& x);
 	inline void pow2mult(double& val, size_t num);
 	double getDistance2LinesPlane(cv::Mat a1, cv::Mat b1, cv::Mat a2, cv::Mat b2, double z);
 	cv::Mat finjac(cv::Mat& residuals, cv::Mat& x, cv::Mat& xTol);
@@ -159,16 +155,4 @@ private:
 
 /* --------------------- Function prototypes --------------------- */
 
-cv::Mat eulerAnglesToRotationMatrix(double x, double y, double z);
-bool any_vec_cv(cv::Mat bin);
-bool isfinite_vec_cv(cv::Mat bin);
-
 /* -------------------------- Functions -------------------------- */
-
-//Checks, if determinants, etc. are too close to 0
-inline bool nearZero(double d)
-{
-	//Decide if determinants, etc. are too close to 0 to bother with
-	const double EPSILON = 1e-4;
-	return (d<EPSILON) && (d>-EPSILON);
-}
