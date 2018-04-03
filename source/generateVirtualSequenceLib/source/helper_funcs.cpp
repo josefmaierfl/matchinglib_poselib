@@ -18,7 +18,6 @@ DISCRIPTION: This file provides some helper functions.
 
 #include "helper_funcs.h"
 #include <chrono>
-#include <random>
 #include <time.h>
 
 using namespace std;

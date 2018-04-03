@@ -21,6 +21,7 @@ a view restrictions like depth ranges, moving objects, ...
 
 #include "glob_includes.h"
 #include "opencv2/highgui/highgui.hpp"
+#include <random>
 
 #include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 
@@ -30,12 +31,34 @@ struct depthPortion
 {
 	depthPortion()
 	{
-		near = 0.5;
-		mid = 0.5;
-		far = 0.5;
+		near = 1.0 / 3.0;
+		mid = 1.0 / 3.0;
+		far = 1.0 / 3.0;
 	}
 
-	depthPortion(double near_, double mid_, double far_): near(near_), mid(mid_), far(far_)	{}
+	depthPortion(double near_, double mid_, double far_): near(near_), mid(mid_), far(far_)	
+	{
+		sumTo1();
+	}
+
+	void sumTo1()
+	{
+		checkCorrectValidity();
+		double dsum = near + mid + far;
+		near /= dsum;
+		mid /= dsum;
+		far /= dsum;
+	}
+
+	void checkCorrectValidity()
+	{
+		if (nearZero(near + mid + far))
+		{
+			near = 1.0 / 3.0;
+			mid = 1.0 / 3.0;
+			far = 1.0 / 3.0;
+		}
+	}
 
 	double near;
 	double mid;
@@ -54,7 +77,9 @@ struct StereoSequParameters
 	StereoSequParameters(std::vector<cv::Mat> camTrack_,
 		size_t nFramesPerCamConf_ = 5,
 		std::pair<double, double> inlRatRange_ = std::make_pair(0.1, 1.0),
+		double inlRatChanges_ = 0,
 		std::pair<size_t, size_t> truePosRange_ = std::make_pair(100, 2000),
+		double truePosChanges_ = 0,
 		bool keypPosErrType_ = false,
 		std::pair<double, double> keypErrDistr_ = std::make_pair(0, 0.5),
 		std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
@@ -79,7 +104,9 @@ struct StereoSequParameters
 		): 
 	nFramesPerCamConf(nFramesPerCamConf_), 
 		inlRatRange(inlRatRange_),
+		inlRatChanges(inlRatChanges_),
 		truePosRange(truePosRange_),
+		truePosChanges(truePosChanges_),
 		keypPosErrType(keypPosErrType_),
 		keypErrDistr(keypErrDistr_),
 		imgIntNoise(imgIntNoise_),
@@ -105,11 +132,14 @@ struct StereoSequParameters
 	{
 		CV_Assert(nFramesPerCamConf > 0);
 		CV_Assert((inlRatRange.first < 1.0) && (inlRatRange.first >= 0) && (inlRatRange.second <= 1.0) && (inlRatRange.second > 0));
+		CV_Assert((inlRatChanges <= 100.0) && (inlRatChanges >= 0));
 		CV_Assert((truePosRange.first > 0) && (truePosRange.second > 0) && (truePosRange.second >= truePosRange.first));
+		CV_Assert((truePosChanges <= 100.0) && (truePosChanges >= 0));
 		CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first > -5.0) && (keypErrDistr.first < 5.0) && (keypErrDistr.second > -5.0) && (keypErrDistr.second < 5.0)));
 		CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) && (imgIntNoise.second < 25.0));
 		CV_Assert((minKeypDist > 0) && (minKeypDist < 100.0));
-		CV_Assert((corrsPerDepth.near >= 0) && (corrsPerDepth.near <= 1.0) && (corrsPerDepth.mid >= 0) && (corrsPerDepth.mid <= 1.0) && (corrsPerDepth.far >= 0) && (corrsPerDepth.far <= 1.0));
+		//CV_Assert((corrsPerDepth.near >= 0) && (corrsPerDepth.near <= 1.0) && (corrsPerDepth.mid >= 0) && (corrsPerDepth.mid <= 1.0) && (corrsPerDepth.far >= 0) && (corrsPerDepth.far <= 1.0));
+		CV_Assert((corrsPerDepth.near >= 0) && (corrsPerDepth.mid >= 0) && (corrsPerDepth.far >= 0));
 		CV_Assert(corrsPerRegion.empty() || ((corrsPerRegion[0].rows == 3) && (corrsPerRegion[0].cols == 3) && (corrsPerRegion[0].type() == CV_64FC1)));
 		CV_Assert(depthsPerRegion.empty() || ((depthsPerRegion.size() == 3) && (depthsPerRegion[0].size() == 3) && (depthsPerRegion[1].size() == 3) && (depthsPerRegion[2].size() == 3)));
 		CV_Assert(nrDepthAreasPReg.empty() || ((nrDepthAreasPReg.size() == 3) && (nrDepthAreasPReg[0].size() == 3) && (nrDepthAreasPReg[1].size() == 3) && (nrDepthAreasPReg[2].size() == 3)));
@@ -130,7 +160,9 @@ struct StereoSequParameters
 	//Parameters for generating correspondences
 	size_t nFramesPerCamConf;//# of Frames per camera configuration
 	std::pair<double, double> inlRatRange;//Inlier ratio range
+	double inlRatChanges;//Inlier ratio change rate from pair to pair. If 0, the inlier ratio within the given range is always the same for every image pair. If 100, the inlier ratio is chosen completely random within the given range.For values between 0 and 100, the inlier ratio selected is not allowed to change more than this factor from the last inlier ratio.
 	std::pair<size_t, size_t> truePosRange;//# true positives range
+	double truePosChanges;//True positives change rate from pair to pair. If 0, the true positives within the given range are always the same for every image pair. If 100, the true positives are chosen completely random within the given range.For values between 0 and 100, the true positives selected are not allowed to change more than this factor from the true positives.
 	bool keypPosErrType;//Keypoint detector error (true) or error normal distribution (false)
 	std::pair<double, double> keypErrDistr;//Keypoint error distribution (mean, std)
 	std::pair<double, double> imgIntNoise;//Noise (mean, std) on the image intensity for descriptor calculation
@@ -138,7 +170,7 @@ struct StereoSequParameters
 	depthPortion corrsPerDepth;//portion of correspondences at depths
 	bool randDepth;//Random depth definition of image regions? True: completely random; false: random by definition
 	std::vector<cv::Mat> corrsPerRegion;//List of portions of image correspondences at regions (Matrix must be 3x3). Maybe doesnt hold: Also depends on 3D-points from prior frames.
-	size_t corrsPerRegRepRate;//Repeat rate of portion of correspondences at regions. If more than one matrix of portions of correspondences at regions is provided, this number specifies the number of frames for which such a matrix is valid. After all matrices are used, the first one is used again.
+	size_t corrsPerRegRepRate;//Repeat rate of portion of correspondences at regions. If more than one matrix of portions of correspondences at regions is provided, this number specifies the number of frames for which such a matrix is valid. After all matrices are used, the first one is used again. If 0 and no matrix of portions of correspondences at regions is provided, as many random matrizes as frames are randomly generated.
 	std::vector<std::vector<depthPortion>> depthsPerRegion;//Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, the portion of near, mid, and far depths can be specified. If the overall depth definition is not met, this tensor is adapted.Maybe doesnt hold: Also depends on 3D - points from prior frames.
 	std::vector<std::vector<std::pair<double, double>>> nrDepthAreasPReg;//Min and Max number of connected depth areas per region (must be 3x3). The minimum number (first) must be larger 0. The maximum number is bounded by the minimum area which is 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
 	double lostCorrPor;//Portion of lost correspondences from frame to frame. It corresponds to the portion of 3D-points that would be visible in the next frame.
@@ -176,8 +208,16 @@ private:
 	void constructCamPath();
 	cv::Mat getTrackRot(cv::Mat tdiff);
 	bool getDepthRanges();
+	void adaptDepthsPerRegion();
+	void combineDepthMaps();
+	void updDepthReg(bool isNear, std::vector<std::vector<depthPortion>> &depthPerRegion, cv::Mat &cpr);
+	void genInlierRatios();
+	void genNrCorrsImg();
+	void initFracCorrImgReg();
 
 private:
+	std::default_random_engine rand_gen;
+
 	cv::Size imgSize;
 	cv::Mat K1;
 	cv::Mat K2;
@@ -190,12 +230,22 @@ private:
 	double absCamVelocity;//in baselines from frame to frame
 	std::vector<Poses> absCamCoordinates;
 
+	std::vector<double> inlRat;
+	std::vector<size_t> nrTruePos;
+	std::vector<size_t> nrCorrs;
+	std::vector<size_t> nrTrueNeg;
+	//std::vector<
+
 	cv::Mat depthMapNear;
 	cv::Mat depthMapMid;
 	cv::Mat depthMapFar;
-	std::vector<double> depthNear;
-	std::vector<double> depthMid;
-	std::vector<double> depthFar;
+	std::vector<double> depthNear;//Lower border of near depths for every camera configuration
+	std::vector<double> depthMid;//Upper border of near and lower border of mid depths for every camera configuration
+	std::vector<double> depthFar;//Upper border of far depths for every camera configuration
+	std::vector<std::vector<std::vector<depthPortion>>> depthsPerRegion;
+
+	std::vector<cv::Point3d> actImgPointCloud;
+	size_t actFrameCnt = 0;
 };
 
 

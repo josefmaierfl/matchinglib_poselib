@@ -20,6 +20,7 @@ DISCRIPTION: This file provides some helper functions.
 
 #include "glob_includes.h"
 #include "opencv2/highgui/highgui.hpp"
+#include <random>
 
 //#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 

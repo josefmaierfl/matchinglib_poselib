@@ -35,9 +35,165 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 	CV_Assert((K1.rows == 3) && (K2.rows == 3) && (K1.cols == 3) && (K2.cols == 3) && (K1.type() == CV_64FC1) && (K2.type() == CV_64FC1));
 	CV_Assert((imgSize.area() > 0) && (R.size() == t.size()) && (R.size() > 0));
 
+	randSeed(rand_gen);
+
+	//Number of stereo configurations
 	nrStereoConfs = R.size();
+
+	//Construct the camera path
+	constructCamPath();
+
+	//Calculate the thresholds for the depths near, mid, and far for every camera configuration
+	getDepthRanges();
+
+	//Used inlier ratios
+	genInlierRatios();
+
+	//Number of correspondences per image
+	genNrCorrsImg();
+
+	//Correspondences per image regions
+	initFracCorrImgReg();
+
+	
+	adaptDepthsPerRegion();
 }
 
+//Initialize fraction of correspondences per image region
+void genStereoSequ::initFracCorrImgReg()
+{
+	if ((pars.corrsPerRegRepRate == 0) && pars.corrsPerRegion.empty())
+	{
+		for (size_t i = 0; i < totalNrFrames; i++)
+		{
+			Mat newCorrsPerRegion(3, 3, CV_64FC1);
+			cv::randu(newCorrsPerRegion, Scalar(0), Scalar(1.0));
+			newCorrsPerRegion /= sum(newCorrsPerRegion)[0];
+			pars.corrsPerRegion.push_back(newCorrsPerRegion.clone());
+		}
+		pars.corrsPerRegRepRate = 1;
+	}
+	else if (pars.corrsPerRegRepRate == 0)
+	{
+		pars.corrsPerRegRepRate = totalNrFrames / pars.corrsPerRegion.size();
+	}
+	else if (pars.corrsPerRegion.empty())
+	{
+		//Randomly initialize the fractions
+		size_t nrMats = totalNrFrames / pars.corrsPerRegRepRate;
+		for (size_t i = 0; i < nrMats; i++)
+		{
+			Mat newCorrsPerRegion(3, 3, CV_64FC1);
+			cv::randu(newCorrsPerRegion, Scalar(0), Scalar(1.0));
+			newCorrsPerRegion /= sum(newCorrsPerRegion)[0];
+			pars.corrsPerRegion.push_back(newCorrsPerRegion.clone());
+		}
+	}
+
+	//Generate absolute number of correspondences per image region and frame
+
+}
+
+//Generate number of correspondences
+void genStereoSequ::genNrCorrsImg()
+{
+	nrCorrs.resize(totalNrFrames);
+	nrTrueNeg.resize(totalNrFrames);
+	if ((pars.truePosRange.second - pars.truePosRange.first) == 0)
+	{
+		nrTruePos.resize(totalNrFrames, pars.truePosRange.first);
+		for (size_t i = 0; i < totalNrFrames; i++)
+		{
+			nrCorrs[i] = (size_t)round((double)pars.truePosRange.first / inlRat[i]);
+			nrTrueNeg[i] = nrCorrs[i] - pars.truePosRange.first;
+		}
+	}
+	else
+	{
+		size_t initTruePos = (size_t)round(getRandDoubleValRng((double)pars.truePosRange.first, (double)pars.truePosRange.second));
+		if (nearZero(pars.truePosChanges))
+		{
+			nrTruePos.resize(totalNrFrames, initTruePos);
+			for (size_t i = 0; i < totalNrFrames; i++)
+			{
+				nrCorrs[i] = (size_t)round((double)initTruePos / inlRat[i]);
+				nrTrueNeg[i] = nrCorrs[i] - initTruePos;
+			}
+		}
+		else if (nearZero(pars.truePosChanges - 100.0))
+		{
+			nrTruePos.resize(totalNrFrames);
+			std::uniform_real_distribution<size_t> distribution(pars.truePosRange.first, pars.truePosRange.second);
+			for (size_t i = 0; i < totalNrFrames; i++)
+			{
+				nrTruePos[i] = distribution(rand_gen);
+				nrCorrs[i] = (size_t)round((double)nrTruePos[i] / inlRat[i]);
+				nrTrueNeg[i] = nrCorrs[i] - nrTruePos[i];
+			}
+		}
+		else
+		{
+			nrTruePos.resize(totalNrFrames);
+			nrTruePos[0] = initTruePos;
+			nrCorrs[0] = (size_t)round((double)nrTruePos[0] / inlRat[0]);
+			nrTrueNeg[0] = nrCorrs[0] - nrTruePos[0];
+			for (size_t i = 1; i < totalNrFrames; i++)
+			{
+				size_t rangeVal = (size_t)round(pars.truePosChanges * (double)nrTruePos[i - 1]);
+				size_t maxTruePos = nrTruePos[i - 1] + rangeVal;
+				maxTruePos = maxTruePos > pars.truePosRange.second ? pars.truePosRange.second : maxTruePos;
+				size_t minTruePos = nrTruePos[i - 1] - rangeVal;
+				minTruePos = minTruePos < pars.truePosRange.first ? pars.truePosRange.first : minTruePos;
+				std::uniform_real_distribution<size_t> distribution(minTruePos, maxTruePos);
+				nrTruePos[i] = distribution(rand_gen);
+				nrCorrs[i] = (size_t)round((double)nrTruePos[i] / inlRat[i]);
+				nrTrueNeg[i] = nrCorrs[i] - nrTruePos[i];
+			}
+		}
+	}
+}
+
+//Generate the inlier ratio for every frame
+void genStereoSequ::genInlierRatios()
+{
+	if (nearZero(pars.inlRatRange.first - pars.inlRatRange.second))
+	{
+		inlRat.resize(totalNrFrames, pars.inlRatRange.first);
+	}
+	else
+	{
+		double initInlRat = getRandDoubleValRng(pars.inlRatRange.first, pars.inlRatRange.second, rand_gen);
+		if (nearZero(pars.inlRatChanges))
+		{
+			inlRat.resize(totalNrFrames, initInlRat);
+		}
+		else if (nearZero(pars.inlRatChanges - 100.0))
+		{
+			inlRat.resize(totalNrFrames);
+			std::uniform_real_distribution<double> distribution(pars.inlRatRange.first, pars.inlRatRange.second);
+			for (size_t i = 0; i < totalNrFrames; i++)
+			{
+				inlRat[i] = distribution(rand_gen);
+			}
+		}
+		else
+		{
+			inlRat.resize(totalNrFrames);
+			inlRat[0] = initInlRat;
+			for (size_t i = 1; i < totalNrFrames; i++)
+			{
+				double maxInlrat = inlRat[i - 1] + pars.inlRatChanges * inlRat[i - 1];
+				maxInlrat = maxInlrat > pars.inlRatRange.second ? pars.inlRatRange.second : maxInlrat;
+				double minInlrat = inlRat[i - 1] - pars.inlRatChanges * inlRat[i - 1];
+				minInlrat = minInlrat < pars.inlRatRange.first ? pars.inlRatRange.first : minInlrat;
+				inlRat[i] = getRandDoubleValRng(minInlrat, maxInlrat);
+			}
+		}
+	}
+}
+
+/* Constructs an absolute camera path including the position and rotation of the stereo rig (left/lower camera centre)
+*/
 void genStereoSequ::constructCamPath()
 {
 	//Calculate the absolute velocity of the cameras
@@ -56,7 +212,11 @@ void genStereoSequ::constructCamPath()
 	size_t nrTracks = pars.camTrack.size();
 
 	absCamCoordinates = vector<Poses>(totalNrFrames);
-	Mat R0 = pars.R.getMat();
+	Mat R0;
+	if (pars.R.empty())
+		R0 = Mat::eye(3, 3, CV_64FC1);
+	else
+		R0 = pars.R.getMat();
 	Mat t1 = Mat::zeros(3, 1, CV_64FC1);
 	if (nrTracks == 1)
 	{
@@ -221,8 +381,252 @@ bool genStereoSequ::getDepthRanges()
 	return true;
 }
 
+/* As the user can specify portions of different depths (neaer, mid, far) globally for the whole image and also for regions within the image,
+these fractions typically do not match. As a result, the depth range fractions per region must be adapted to match the overall fractions of the
+whole image. Moreover, the fraction of correspondences per region have an impact on the effective depth portions that must be considered when
+adapting the fractions in the image regions.
+*/
+void genStereoSequ::adaptDepthsPerRegion()
+{
+	//Check if the sum of fractions is 1.0
+	for (size_t i = 0; i < 3; i++)
+	{
+		for (size_t j = 0; j < 3; j++)
+		{
+			pars.depthsPerRegion[i][j].sumTo1();
+		}
+	}
+	pars.corrsPerDepth.sumTo1();
+	
+	depthsPerRegion = std::vector<std::vector<std::vector<depthPortion>>>(pars.corrsPerRegion.size(), pars.depthsPerRegion);
+
+	for (size_t k = 0; k < pars.corrsPerRegion.size(); k++)
+	{
+		double regSum = sum(pars.corrsPerRegion[k])[0];
+		if (!nearZero(regSum) && !nearZero(regSum - 1.0))
+			pars.corrsPerRegion[k] /= regSum;
+		else if (nearZero(regSum))
+		{
+			pars.corrsPerRegion[k] = Mat::ones(3, 3, CV_64FC1) / 9.0;
+		}
+	}
+
+	//Correct the portion of depths per region so that they meet the global depth range requirement per image
+	for (size_t k = 0; k < pars.corrsPerRegion.size(); k++)
+	{
+		//Adapt the fractions of near depths of every region to match the global requirement of the near depth fraction
+		updDepthReg(true, depthsPerRegion[k], pars.corrsPerRegion[k]);
+
+		//Update the mid and far depth fractions of each region according to the new near depth fractions
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				double splitrem = 1.0 - depthsPerRegion[k][i][j].near;
+				if (!nearZero(splitrem))
+				{
+					if (!nearZero(depthsPerRegion[k][i][j].mid) && !nearZero(depthsPerRegion[k][i][j].far))
+					{
+						double fmsum = depthsPerRegion[k][i][j].mid + depthsPerRegion[k][i][j].far;
+						depthsPerRegion[k][i][j].mid = splitrem * depthsPerRegion[k][i][j].mid / fmsum;
+						depthsPerRegion[k][i][j].far = splitrem * depthsPerRegion[k][i][j].far / fmsum;
+					}
+					else if (nearZero(depthsPerRegion[k][i][j].mid) && nearZero(depthsPerRegion[k][i][j].far))
+					{
+						depthsPerRegion[k][i][j].mid = splitrem / 2.0;
+						depthsPerRegion[k][i][j].far = splitrem / 2.0;
+					}
+					else if (nearZero(depthsPerRegion[k][i][j].mid))
+					{
+						depthsPerRegion[k][i][j].far = splitrem;
+					}
+					else
+					{
+						depthsPerRegion[k][i][j].mid = splitrem;
+					}
+				}
+				else
+				{
+					depthsPerRegion[k][i][j].mid = 0;
+					depthsPerRegion[k][i][j].far = 0;
+				}
+			}
+		}
+
+		//Adapt the fractions of far depths of every region to match the global requirement of the far depth fraction
+		updDepthReg(false, depthsPerRegion[k], pars.corrsPerRegion[k]);
+
+		//Update the mid depth fractions of each region according to the new near & far depth fractions
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				depthsPerRegion[k][i][j].mid = 1.0 - (depthsPerRegion[k][i][j].near + depthsPerRegion[k][i][j].far);
+			}
+		}
+
+#if 1
+		//Now, the sum of mid depth regions should correspond to the global requirement
+		double portSum = 0;
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				portSum += depthsPerRegion[k][i][j].mid * pars.corrsPerRegion[k].at<double>(i, j);
+			}
+		}
+		double c1 = pars.corrsPerDepth.mid - portSum;
+		if (!nearZero(c1))
+		{
+			cout << "Adaption of depth fractions in regions failed!" << endl;
+		}
+#endif
+	}
+}
+
+//Only adapt the fraction of near or far depths per region to the global requirement
+void genStereoSequ::updDepthReg(bool isNear, std::vector<std::vector<depthPortion>> &depthPerRegion, cv::Mat &cpr)
+{
+	//If isNear=false, it is assumed that the fractions of near depths are already fixed
+	std::vector<std::vector<double>> oneDepthPerRegion(3, std::vector<double>(3));
+	std::vector<std::vector<double>> oneDepthPerRegionMaxVal(3, std::vector<double>(3, 1.0));
+	if (isNear)
+	{
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				oneDepthPerRegion[i][j] = depthPerRegion[i][j].near;
+			}
+		}
+	}
+	else
+	{
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				oneDepthPerRegion[i][j] = depthPerRegion[i][j].far;
+				oneDepthPerRegionMaxVal[i][j] = 1.0 - depthPerRegion[i][j].near;
+			}
+		}
+	}
+
+	double portSum = 0, c1 = 1.0, dsum = 0, dsum1 = 0;
+	size_t cnt = 0;
+	//Mat cpr = pars.corrsPerRegion[k];
+	while (!nearZero(c1))
+	{
+		cnt++;
+		portSum = 0;
+		dsum = 0;
+		dsum1 = 0;
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				portSum += oneDepthPerRegion[i][j] * cpr.at<double>(i, j);
+				dsum += oneDepthPerRegion[i][j];
+				dsum1 += 1.0 - oneDepthPerRegion[i][j];
+			}
+		}
+		if (isNear)
+			c1 = pars.corrsPerDepth.near - portSum;
+		else
+			c1 = pars.corrsPerDepth.far - portSum;
+
+		bool breakit = false;
+		if (!nearZero(c1))
+		{
+			double c12 = 0, c1sum = 0;
+			for (size_t i = 0; i < 3; i++)
+			{
+				for (size_t j = 0; j < 3; j++)
+				{
+					double newval;
+					if (cnt < 3)
+					{
+						newval = oneDepthPerRegion[i][j] + c1 * cpr.at<double>(i, j) * oneDepthPerRegion[i][j] / dsum;
+					}
+					else
+					{
+						c12 = c1 * cpr.at<double>(i, j) * (0.75 * oneDepthPerRegion[i][j] / dsum + 0.25 * (1.0 - oneDepthPerRegion[i][j]) / dsum1);
+						double c1diff = c1 - (c1sum + c12);
+						if ((c1 > 0) && (c1diff < 0) ||
+							(c1 < 0) && (c1diff > 0))
+						{
+							c12 = c1 - c1sum;
+						}
+						newval = oneDepthPerRegion[i][j] + c12;
+					}
+					if (newval > oneDepthPerRegionMaxVal[i][j])
+					{
+						c1sum += oneDepthPerRegionMaxVal[i][j] - oneDepthPerRegion[i][j];
+						oneDepthPerRegion[i][j] = oneDepthPerRegionMaxVal[i][j];
+
+					}
+					else if (newval < 0)
+					{
+						c1sum -= oneDepthPerRegion[i][j];
+						oneDepthPerRegion[i][j] = 0;
+					}
+					else
+					{
+						c1sum += newval - oneDepthPerRegion[i][j];
+						oneDepthPerRegion[i][j] = newval;
+					}
+					if (nearZero(c1sum - c1))
+					{
+						breakit = true;
+						break;
+					}
+				}
+				if (breakit) break;
+			}
+			if (breakit) break;
+		}
+	}
+
+	if (isNear)
+	{
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				depthPerRegion[i][j].near = oneDepthPerRegion[i][j];
+			}
+		}
+	}
+	else
+	{
+		for (size_t i = 0; i < 3; i++)
+		{
+			for (size_t j = 0; j < 3; j++)
+			{
+				depthPerRegion[i][j].far = oneDepthPerRegion[i][j];
+			}
+		}
+	}
+}
+
+
+
+void genStereoSequ::combineDepthMaps()
+{
+	std::vector<std::vector<depthPortion>> actDepthsPerRegion;
+	if (actImgPointCloud.empty())
+	{
+
+	}
+	else
+	{
+
+	}
+}
+
 void genDepthMaps(cv::Mat map, std::vector<cv::Point3d> mapSeed, bool noSeedOrder, cv::InputArray mask)
 {
+	//mapSeed: x,y image coordinates and 3D distance
 	if (mapSeed.empty())
 	{
 		//Generate depth seeds
