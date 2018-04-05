@@ -85,11 +85,11 @@ struct StereoSequParameters
 		std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
 		double minKeypDist_ = 3.0,
 		depthPortion corrsPerDepth_ = depthPortion(),
-		bool randDepth_ = true,
+		//bool randDepth_ = true,
 		std::vector<cv::Mat> corrsPerRegion_ = std::vector<cv::Mat>(),
 		size_t corrsPerRegRepRate_ = 1,
 		std::vector<std::vector<depthPortion>> depthsPerRegion_ = std::vector<std::vector<depthPortion>>(),
-		std::vector<std::vector<std::pair<double, double>>> nrDepthAreasPReg_ = std::vector<std::vector<std::pair<double, double>>>(),
+		std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg_ = std::vector<std::vector<std::pair<size_t, size_t>>>(),
 		double lostCorrPor_ = 0,
 		double relCamVelocity_ = 0.5,
 		cv::InputArray R_ = cv::noArray(),
@@ -112,7 +112,7 @@ struct StereoSequParameters
 		imgIntNoise(imgIntNoise_),
 		minKeypDist(minKeypDist_),
 		corrsPerDepth(corrsPerDepth_),
-		randDepth(randDepth_),
+		//randDepth(randDepth_),
 		corrsPerRegion(corrsPerRegion_),
 		corrsPerRegRepRate(corrsPerRegRepRate_),
 		depthsPerRegion(depthsPerRegion_),
@@ -168,11 +168,11 @@ struct StereoSequParameters
 	std::pair<double, double> imgIntNoise;//Noise (mean, std) on the image intensity for descriptor calculation
 	double minKeypDist;//min. distance between keypoints
 	depthPortion corrsPerDepth;//portion of correspondences at depths
-	bool randDepth;//Random depth definition of image regions? True: completely random; false: random by definition
+	//bool randDepth;//Random depth definition of image regions? True: completely random; false: random by definition
 	std::vector<cv::Mat> corrsPerRegion;//List of portions of image correspondences at regions (Matrix must be 3x3). Maybe doesnt hold: Also depends on 3D-points from prior frames.
 	size_t corrsPerRegRepRate;//Repeat rate of portion of correspondences at regions. If more than one matrix of portions of correspondences at regions is provided, this number specifies the number of frames for which such a matrix is valid. After all matrices are used, the first one is used again. If 0 and no matrix of portions of correspondences at regions is provided, as many random matrizes as frames are randomly generated.
 	std::vector<std::vector<depthPortion>> depthsPerRegion;//Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, the portion of near, mid, and far depths can be specified. If the overall depth definition is not met, this tensor is adapted.Maybe doesnt hold: Also depends on 3D - points from prior frames.
-	std::vector<std::vector<std::pair<double, double>>> nrDepthAreasPReg;//Min and Max number of connected depth areas per region (must be 3x3). The minimum number (first) must be larger 0. The maximum number is bounded by the minimum area which is 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
+	std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg;//Min and Max number of connected depth areas per region (must be 3x3). The minimum number (first) must be larger 0. The maximum number is bounded by the minimum area which is 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
 	double lostCorrPor;//Portion of lost correspondences from frame to frame. It corresponds to the portion of 3D-points that would be visible in the next frame.
 
 	//Paramters for camera and object movements
@@ -214,6 +214,10 @@ private:
 	void genInlierRatios();
 	void genNrCorrsImg();
 	void initFracCorrImgReg();
+	void checkDepthAreas();
+	void calcPixAreaPerDepth();
+	void checkDepthSeeds();
+	void backProject3D();
 
 private:
 	std::default_random_engine rand_gen;
@@ -224,17 +228,19 @@ private:
 	std::vector<cv::Mat> R;
 	std::vector<cv::Mat> t;
 	StereoSequParameters pars;
-	size_t nrStereoConfs;
+	size_t nrStereoConfs;//Number of different stereo camera configurations
 
-	size_t totalNrFrames;
+	size_t totalNrFrames;//Total number of frames
 	double absCamVelocity;//in baselines from frame to frame
-	std::vector<Poses> absCamCoordinates;
+	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame
 
-	std::vector<double> inlRat;
-	std::vector<size_t> nrTruePos;
-	std::vector<size_t> nrCorrs;
-	std::vector<size_t> nrTrueNeg;
-	//std::vector<
+	std::vector<double> inlRat;//Inlier ratio for every frame
+	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
+	std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame
+	std::vector<size_t> nrTrueNeg;//Absolute number of true negative correspondences per frame
+	std::vector<cv::Mat> nrTruePosRegs;//Absolute number of true positive correspondences per image region and frame; Type CV_32SC1
+	std::vector<cv::Mat> nrCorrsRegs;//Absolute number of correspondences (TP+TN) per image region and frame; Type CV_32SC1
+	std::vector<cv::Mat> nrTrueNegRegs;//Absolute number of true negative correspondences per image region and frame; Type CV_32SC1
 
 	cv::Mat depthMapNear;
 	cv::Mat depthMapMid;
@@ -242,10 +248,36 @@ private:
 	std::vector<double> depthNear;//Lower border of near depths for every camera configuration
 	std::vector<double> depthMid;//Upper border of near and lower border of mid depths for every camera configuration
 	std::vector<double> depthFar;//Upper border of far depths for every camera configuration
-	std::vector<std::vector<std::vector<depthPortion>>> depthsPerRegion;
+	std::vector<std::vector<std::vector<depthPortion>>> depthsPerRegion;//same size as pars.corrsPerRegion
+	std::vector<cv::Mat> nrDepthAreasPRegNear;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> nrDepthAreasPRegMid;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> nrDepthAreasPRegFar;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> areaPRegNear;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> areaPRegMid;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> areaPRegFar;//Type CV_32SC1, same size as depthsPerRegion
 
-	std::vector<cv::Point3d> actImgPointCloud;
+	std::vector<cv::Point3d> actImgPointCloudFromLast;//3D coordiantes that were generated with a different frame. Coordinates are in the camera coordinate system.
+	std::vector<cv::Point3d> actImgPointCloud;//All newly generated 3D coordiantes excluding actImgPointCloudFromLast. Coordinates are in the camera coordinate system.
+	cv::Mat actCorrsImg1TPFromLast, actCorrsImg2TPFromLast;//TP correspondences in the stereo rig from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+	std::vector<size_t> actCorrsImg12TPFromLast_Idx;//Index to the corresponding 3D point within actImgPointCloudFromLast of correspondences in actCorrsImg1TPFromLast and actCorrsImg2TPFromLast
+	cv::Mat actCorrsImg1TP, actCorrsImg2TP;//TP orrespondences in the stereo rig from actImgPointCloud in homogeneous image coordinates. Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+	cv::Mat actCorrsImg1TNFromLast;//TN keypoint in the first stereo rig image from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
+	std::vector<size_t> actCorrsImg1TNFromLast_Idx;//Index to the corresponding 3D point within actImgPointCloudFromLast of actCorrsImg1TNFromLast
+	cv::Mat actCorrsImg2TNFromLast;//TN keypoint in the second stereo rig image from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
+	std::vector<size_t> actCorrsImg2TNFromLast_Idx;//Index to the corresponding 3D point within actImgPointCloudFromLast of actCorrsImg2TNFromLast
+	cv::Mat actCorrsImg1TN;//Newly created TN keypoint in the first stereo rig image (no 3D points were created for them)
+	cv::Mat actCorrsImg2TN;//Newly created TN keypoint in the second stereo rig image (no 3D points were created for them)
+
+	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
+	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
 	size_t actFrameCnt = 0;
+	double actDepthNear;//Lower border of near depths for the actual camera configuration
+	double actDepthMid;//Upper border of near and lower border of mid depths for the actual camera configuration
+	double actDepthFar;//Upper border of far depths for the actual camera configuration
+
+	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsNear;//Holds the actual near seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
+	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsMid;//Holds the actual mid seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
+	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsFar;//Holds the actual far seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
 };
 
 
