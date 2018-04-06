@@ -723,7 +723,11 @@ void genStereoSequ::updDepthReg(bool isNear, std::vector<std::vector<depthPortio
 
 void genStereoSequ::checkDepthAreas()
 {
-	size_t maxElems = 3 * imgSize.area() / (9 * (16 + 2 * 4));//3 -> from (near, mid, far) depths, 9 is the nr of regions, 16 is the min area and 2*4 = 2*sqrt(16) is the gap between areas;
+	//
+	//Below: 9 is the nr of regions, minDArea is the min area and 2*sqrt(minDArea) is the gap between areas;
+	//size_t maxElems = imgSize.area() / (9 * ((size_t)minDArea + 2 * (size_t)sqrt(minDArea)));
+	//Below: 9 is the nr of regions; 4 * (minDArea + sqrt(minDArea)) + 1 corresponds to the area using the side length 2*sqrt(minDArea)+1
+	size_t maxElems = (size_t)std::max(imgSize.area() / (9 * (int)(4 * (minDArea + sqrt(minDArea)) + 1)), 1);
 	if (pars.nrDepthAreasPReg.empty())
 	{
 		pars.nrDepthAreasPReg = std::vector<std::vector<std::pair<size_t, size_t>>>(3, std::vector<std::pair<size_t, size_t>>(3));
@@ -955,18 +959,18 @@ void genStereoSequ::calcPixAreaPerDepth()
 			for (size_t x = 0; x < 3; x++)
 			{
 				int32_t tmp = (int32_t)round(depthsPerRegion[i][y][x].near * (double)regArea);
-				if ((tmp != 0) && (tmp < 16))
-					tmp = 16;
+				if ((tmp != 0) && (tmp < minDArea))
+					tmp = minDArea;
 				areaPRegNear[i].at<int32_t>(y, x) = tmp;
 
 				tmp = (int32_t)round(depthsPerRegion[i][y][x].mid * (double)regArea);
-				if ((tmp != 0) && (tmp < 16))
-					tmp = 16;
+				if ((tmp != 0) && (tmp < minDArea))
+					tmp = minDArea;
 				areaPRegMid[i].at<int32_t>(y, x) = tmp;
 
 				tmp = (int32_t)round(depthsPerRegion[i][y][x].far * (double)regArea);
-				if ((tmp != 0) && (tmp < 16))
-					tmp = 16;
+				if ((tmp != 0) && (tmp < minDArea))
+					tmp = minDArea;
 				areaPRegFar[i].at<int32_t>(y, x) = tmp;
 			}
 		}
@@ -1076,8 +1080,16 @@ void genStereoSequ::checkDepthSeeds()
 	seedsNear = std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>>(3, std::vector<std::vector<cv::Point3_<int32_t>>>(3));
 	seedsMid = std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>>(3, std::vector<std::vector<cv::Point3_<int32_t>>>(3));
 	seedsFar = std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>>(3, std::vector<std::vector<cv::Point3_<int32_t>>>(3));
+
+	int posadd1 = max((int)floor(pars.minKeypDist), (int)sqrt(minDArea));
+	int sqrSi1 = 2 * posadd1;
+	cv::Mat filtInitPts = Mat::zeros(imgSize.width + sqrSi1, imgSize.height + sqrSi1, CV_8UC1);
+	sqrSi1++;
+	Mat csurr1 = Mat::ones(sqrSi1, sqrSi1, CV_8UC1);
+	int maxSum1 = sqrSi1 * sqrSi1;
 	
-	if (!actCorrsImg1TPFromLast.empty())//Take seeding postions from backprojected coordinates
+	cv::Size regSi = Size(imgSize.width / 3, imgSize.height / 3);
+	if (!actCorrsImg1TPFromLast.empty())//Take seeding positions from backprojected coordinates
 	{
 		std::vector<cv::Point3_<int32_t>> seedsNear_tmp, seedsNear_tmp1;
 		std::vector<cv::Point3_<int32_t>> seedsMid_tmp, seedsMid_tmp1;
@@ -1100,18 +1112,21 @@ void genStereoSequ::checkDepthSeeds()
 		}
 
 		//Check if the seeds are too near to each other
-		int posadd = (int)floor(pars.minKeypDist);
+		int posadd = max((int)floor(pars.minKeypDist), 1);
 		int sqrSi = 2 * posadd;
-		cv::Mat filtInitPts = Mat::zeros(imgSize.width + sqrSi, imgSize.height + sqrSi, CV_8UC1);
+		//cv::Mat filtInitPts = Mat::zeros(imgSize.width + sqrSi, imgSize.height + sqrSi, CV_8UC1);
 		sqrSi++;//sqrSi = 2 * (int)floor(pars.minKeypDist) + 1;
 		Mat csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
 		int maxSum = sqrSi * sqrSi;
+		int sqrSiDiff2 = (sqrSi1 - sqrSi) / 2;
+		int hlp2 = sqrSi + sqrSiDiff2;
+
 		vector<size_t> delListCorrs, delList3D;
 		if (!seedsNear_tmp.empty())
 		{
 			for (size_t i = 0; i < seedsNear_tmp.size(); i++)
 			{
-				Mat s_tmp = filtInitPts(Range(seedsNear_tmp[i].y, seedsNear_tmp[i].y + sqrSi), Range(seedsNear_tmp[i].x, seedsNear_tmp[i].x + sqrSi));
+				Mat s_tmp = filtInitPts(Range(seedsNear_tmp[i].y + sqrSiDiff2, seedsNear_tmp[i].y + hlp2), Range(seedsNear_tmp[i].x + sqrSiDiff2, seedsNear_tmp[i].x + hlp2));
 				s_tmp += csurr;
 				if (sum(s_tmp)[0] > maxSum)
 				{
@@ -1127,7 +1142,7 @@ void genStereoSequ::checkDepthSeeds()
 		{
 			for (size_t i = 0; i < seedsMid_tmp.size(); i++)
 			{
-				Mat s_tmp = filtInitPts(Range(seedsMid_tmp[i].y, seedsMid_tmp[i].y + sqrSi), Range(seedsMid_tmp[i].x, seedsMid_tmp[i].x + sqrSi));
+				Mat s_tmp = filtInitPts(Range(seedsMid_tmp[i].y + sqrSiDiff2, seedsMid_tmp[i].y + hlp2), Range(seedsMid_tmp[i].x + sqrSiDiff2, seedsMid_tmp[i].x + hlp2));
 				s_tmp += csurr;
 				if (sum(s_tmp)[0] > maxSum)
 				{
@@ -1143,7 +1158,7 @@ void genStereoSequ::checkDepthSeeds()
 		{
 			for (size_t i = 0; i < seedsFar_tmp.size(); i++)
 			{
-				Mat s_tmp = filtInitPts(Range(seedsFar_tmp[i].y, seedsFar_tmp[i].y + sqrSi), Range(seedsFar_tmp[i].x, seedsFar_tmp[i].x + sqrSi));
+				Mat s_tmp = filtInitPts(Range(seedsFar_tmp[i].y + sqrSiDiff2, seedsFar_tmp[i].y + hlp2), Range(seedsFar_tmp[i].x + sqrSiDiff2, seedsFar_tmp[i].x + hlp2));
 				s_tmp += csurr;
 				if (sum(s_tmp)[0] > maxSum)
 				{
@@ -1155,71 +1170,482 @@ void genStereoSequ::checkDepthSeeds()
 				seedsFar_tmp1.push_back(seedsFar_tmp[i]);
 			}
 		}
+		
+		//Delete correspondences and 3D points that were to near to each other in the image
 		if (!delListCorrs.empty())
 		{
 			std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
 			cv::Mat actCorrsImg1TPFromLast_tmp, actCorrsImg2TPFromLast_tmp;
-			std::vector<size_t> actCorrsImg12TPFromLast_Idx_tmp;
-			//Correct actCorrsImg1TNFromLast_Idx and actCorrsImg2TNFromLast_Idx
 
-			sort(delList3D.begin(), delList3D.end(), [](size_t first, size_t second) {return first > second; });
+			sort(delList3D.begin(), delList3D.end(), [](size_t first, size_t second) {return first < second; });//Ascending order
 
-			std::vector<pair<size_t, size_t>> actCorrsImg1TNFromLast_Idx_tmp(actCorrsImg1TNFromLast_Idx.size());
-			for (size_t i = 0; i < actCorrsImg1TNFromLast_Idx.size(); i++)
+			if (!actCorrsImg1TNFromLast_Idx.empty())//Adapt the indices for TN (single keypoints without a match)
 			{
-				actCorrsImg1TNFromLast_Idx_tmp[i] = make_pair(actCorrsImg1TNFromLast_Idx[i], i);
+				adaptIndicesNoDel(actCorrsImg1TNFromLast_Idx, delList3D);
 			}
-			sort(actCorrsImg1TNFromLast_Idx_tmp.begin(), actCorrsImg1TNFromLast_Idx_tmp.end(), [](pair<size_t, size_t> first, pair<size_t, size_t> second) {return first.first > second.first; });
-			size_t idx = 0;
-			for (size_t i = 0; i < actCorrsImg1TNFromLast_Idx_tmp.size(); i++)
+			if (!actCorrsImg2TNFromLast_Idx.empty())//Adapt the indices for TN (single keypoints without a match)
 			{
-				if (actCorrsImg1TNFromLast_Idx_tmp[i].first > delList3D[idx])
+				adaptIndicesNoDel(actCorrsImg2TNFromLast_Idx, delList3D);
+			}
+			adaptIndicesNoDel(actCorrsImg12TPFromLast_Idx, delList3D);
+			deleteVecEntriesbyIdx(actImgPointCloudFromLast, delList3D);
+
+			sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) {return first < second; });
+			if (!seedsNear_tmp1.empty())
+				adaptIndicesCVPtNoDel(seedsNear_tmp1, delListCorrs);
+			if (!seedsMid_tmp1.empty())
+				adaptIndicesCVPtNoDel(seedsMid_tmp1, delListCorrs);
+			if (!seedsFar_tmp1.empty())
+				adaptIndicesCVPtNoDel(seedsFar_tmp1, delListCorrs);
+			deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_Idx, delListCorrs);
+			deleteMatEntriesByIdx(actCorrsImg1TPFromLast, delListCorrs, false);
+			deleteMatEntriesByIdx(actCorrsImg2TPFromLast, delListCorrs, false);
+		}
+
+		//Add the seeds to their regions
+		for (size_t i = 0; i < seedsNear_tmp1.size(); i++)
+		{
+			int32_t ix = seedsNear_tmp1[i].x / regSi.width;
+			int32_t iy = seedsNear_tmp1[i].y / regSi.height;
+			seedsNear[iy][ix].push_back(seedsNear_tmp1[i]);
+		}
+		
+		//Add the seeds to their regions
+		for (size_t i = 0; i < seedsMid_tmp1.size(); i++)
+		{
+			int32_t ix = seedsMid_tmp1[i].x / regSi.width;
+			int32_t iy = seedsMid_tmp1[i].y / regSi.height;
+			seedsMid[iy][ix].push_back(seedsMid_tmp1[i]);
+		}
+
+		//Add the seeds to their regions
+		for (size_t i = 0; i < seedsFar_tmp1.size(); i++)
+		{
+			int32_t ix = seedsFar_tmp1[i].x / regSi.width;
+			int32_t iy = seedsFar_tmp1[i].y / regSi.height;
+			seedsFar[iy][ix].push_back(seedsFar_tmp1[i]);
+		}
+	}
+
+	//Generate new seeds
+	Point3_<int32_t> pt;
+	pt.z = -1;
+	for (int32_t y = 0; y < 3; y++)
+	{
+		int32_t mmy[2];
+		mmy[0] = y * regSi.height;
+		mmy[1] += regSi.height;
+		std::uniform_real_distribution<int32_t> distributionY(mmy[0], mmy[1]);
+		for (int32_t x = 0; x < 3; x++)
+		{				
+			int32_t mmx[2];
+			mmx[0] = x * regSi.width;
+			mmx[1] += regSi.width;
+			std::uniform_real_distribution<int32_t> distributionX(mmx[0], mmx[1]);
+			int32_t diffNr = nrDepthAreasPRegNear[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t)seedsNear[y][x].size();
+			while (diffNr > 0)//Generate seeds for near depth areas
+			{
+				pt.x = distributionX(rand_gen);
+				pt.y = distributionY(rand_gen);
+				Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
+				s_tmp += csurr1;
+				if (sum(s_tmp)[0] > maxSum1)
 				{
-					actCorrsImg1TNFromLast_Idx_tmp[i].first -= idx;
+					s_tmp -= csurr1;
+					continue;
 				}
 				else
 				{
-					while (actCorrsImg1TNFromLast_Idx_tmp[i].first > delList3D[idx])
-					{
-						idx++;///////////////////////////////
-					}
+					seedsNear[y][x].push_back(pt);
+					diffNr--;
+				}
+			}
+			diffNr = nrDepthAreasPRegMid[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t)seedsMid[y][x].size();
+			while (diffNr > 0)//Generate seeds for mid depth areas
+			{
+				pt.x = distributionX(rand_gen);
+				pt.y = distributionY(rand_gen);
+				Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
+				s_tmp += csurr1;
+				if (sum(s_tmp)[0] > maxSum1)
+				{
+					s_tmp -= csurr1;
+					continue;
+				}
+				else
+				{
+					seedsMid[y][x].push_back(pt);
+					diffNr--;
+				}
+			}
+			diffNr = nrDepthAreasPRegFar[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t)seedsFar[y][x].size();
+			while (diffNr > 0)//Generate seeds for far depth areas
+			{
+				pt.x = distributionX(rand_gen);
+				pt.y = distributionY(rand_gen);
+				Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
+				s_tmp += csurr1;
+				if (sum(s_tmp)[0] > maxSum1)
+				{
+					s_tmp -= csurr1;
+					continue;
+				}
+				else
+				{
+					seedsFar[y][x].push_back(pt);
+					diffNr--;
 				}
 			}
 		}
 	}
 }
 
-
-
-void genStereoSequ::combineDepthMaps()
+//Deletes some entries within a vector using a vector with indices that point to the entries to delete.
+//The deletion vector containing the indices must be sorted in ascending order.
+template<typename T, typename A, typename T1, typename A1>
+void deleteVecEntriesbyIdx(std::vector<T, A> const& editVec, std::vector<T1, A1> const& delVec)
 {
-	std::vector<std::vector<depthPortion>> actDepthsPerRegion;
-	if (actImgPointCloud.empty())
+	size_t nrToDel = delVec.size();
+	CV_Assert(nrToDel <= editVec.size());
+	size_t n_new = editVec.size() - nrToDel;
+	std::vector<T, A> editVecNew(n_new);
+	T1 old_idx = 0;
+	int startRowNew = 0;
+	for (size_t i = 0; i < nrToDel; i++)
 	{
+		if (old_idx == delVec[i])
+		{
+			old_idx = delVec[i] + 1;
+			continue;
+		}
+		const int nr_new_cpy_elements = (int)delVec[i] - (int)old_idx;
+		const int endRowNew = startRowNew + nr_new_cpy_elements;
+		std::copy(editVec.begin() + old_idx, editVec.begin() + delVec[i], editVecNew.begin() + startRowNew);
 
+		startRowNew = endRowNew;
+		old_idx = delVec[i] + 1;
 	}
-	else
+	if (old_idx < editVec.size())
 	{
+		std::copy(editVec.begin() + old_idx, editVec.end(), editVecNew.begin() + startRowNew);
+	}
+	editVec = editVecNew;
+}
 
+//Deletes some entries within a Mat using a vector with indices that point to the entries to delete.
+//The deletion vector containing the indices must be sorted in ascending order.
+//It can be specified if the entries in Mat are colum ordered (rowOrder=false) or row ordered (rowOrder=true).
+template<typename T, typename A>
+void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const& delVec, bool rowOrder)
+{
+	size_t nrToDel = delVec.size();
+	size_t nrData;
+	if (rowOrder)
+		nrData = (size_t)editMat.rows;
+	else
+		nrData = (size_t)editMat.cols;
+
+	CV_Assert(nrToDel <= nrData);
+
+	size_t n_new = nrData - nrToDel;
+	cv::Mat editMatNew;
+	if (rowOrder)
+		editMatNew = (n_new, editMat.cols, editMat.type());
+	else
+		editMatNew = (editMat.rows, n_new, editMat.type());
+
+	T old_idx = 0;
+	int startRowNew = 0;
+	for (size_t i = 0; i < nrToDel; i++)
+	{
+		if (old_idx == delVec[i])
+		{
+			old_idx = delVec[i] + 1;
+			continue;
+		}
+		const int nr_new_cpy_elements = (int)delVec[i] - (int)old_idx;
+		const int endRowNew = startRowNew + nr_new_cpy_elements;
+		if (rowOrder)
+			editMat.rowRange((int)old_idx, (int)delVec[i]).copyTo(editMatNew.rowRange(startRowNew, endRowNew));
+		else
+			editMat.colRange((int)old_idx, (int)delVec[i]).copyTo(editMatNew.colRange(startRowNew, endRowNew));
+
+		startRowNew = endRowNew;
+		old_idx = delVec[i] + 1;
+	}
+	if ((size_t)old_idx < nrData)
+	{
+		if (rowOrder)
+			editMat.rowRange((int)old_idx, editMat.rows).copyTo(editMatNew.rowRange(startRowNew, n_new));
+		else
+			editMat.colRange((int)old_idx, editMat.rows).copyTo(editMatNew.colRange(startRowNew, n_new));
+	}
+	editMatNew.copyTo(editMat);
+}
+
+void genStereoSequ::adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec, std::vector<size_t> &delListSortedAsc)
+{
+	std::vector<size_t> seedVecIdx;
+	seedVecIdx.reserve(seedVec.size());
+	for (auto sV : seedVec)
+	{
+		seedVecIdx.push_back((size_t)sV.z);
+	}
+	adaptIndicesNoDel(seedVecIdx, delListSortedAsc);
+	for (size_t i = 0; i < seedVecIdx.size(); i++)
+	{
+		seedVec[i].z = seedVecIdx[i];
 	}
 }
 
-void genDepthMaps(cv::Mat map, std::vector<cv::Point3d> mapSeed, bool noSeedOrder, cv::InputArray mask)
+//Adapt the indices of a not continious vector for which a part of the target data where the indices point to was deleted (no data points the indices point to were deleted).
+void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<size_t> &delListSortedAsc)
 {
-	//mapSeed: x,y image coordinates and 3D distance
-	if (mapSeed.empty())
+	std::vector<pair<size_t, size_t>> idxVec_tmp(idxVec.size());
+	for (size_t i = 0; i < idxVec.size(); i++)
 	{
-		//Generate depth seeds
+		idxVec_tmp[i] = make_pair(idxVec[i], i);
 	}
-	else
+	sort(idxVec_tmp.begin(), idxVec_tmp.end(), [](pair<size_t, size_t> first, pair<size_t, size_t> second) {return first.first < second.first; });
+	size_t idx = 0;
+	size_t maxIdx = delListSortedAsc.size() - 1;
+	for (size_t i = 0; i < idxVec_tmp.size(); i++)
 	{
-		if (noSeedOrder)
+		if (idxVec_tmp[i].first < delListSortedAsc[idx])
 		{
-
+			idxVec_tmp[i].first -= idx;
 		}
 		else
 		{
+			while ((idxVec_tmp[i].first > delListSortedAsc[idx]) && (idx < maxIdx))
+			{
+				idx++;
+			}
+			idxVec_tmp[i].first -= idx;
+		}
+	}
+	sort(idxVec_tmp.begin(), idxVec_tmp.end(), [](pair<size_t, size_t> first, pair<size_t, size_t> second) {return first.second < second.second; });
+	for (size_t i = 0; i < idxVec_tmp.size(); i++)
+	{
+		idxVec[i] = idxVec_tmp[i].first;
+	}
+}
 
+void genStereoSequ::genDepthMaps()
+{
+	/*
+	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsNear;//Holds the actual near seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
+	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsMid;//Holds the actual mid seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
+	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsFar*/
+	/*
+	std::vector<cv::Mat> areaPRegNear;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> areaPRegMid;//Type CV_32SC1, same size as depthsPerRegion
+	std::vector<cv::Mat> areaPRegFar;//Type CV_32SC1, same size as depthsPerRegion*/
+	//actCorrsPRIdx
+
+	int minSi = (int)sqrt(minDArea);
+	cv::Mat noGenMaskB = Mat::ones(imgSize.height + 2 * minSi, imgSize.width + 2 * minSi, CV_8UC1);
+	Mat noGenMaskB2 = noGenMaskB.clone();
+	cv::Mat noGenMask = noGenMaskB(Range(minSi, imgSize.height + minSi), Range(minSi, imgSize.width + minSi));
+	Mat noGenMask2 = noGenMaskB2(Range(minSi, imgSize.height + minSi), Range(minSi, imgSize.width + minSi));
+	minSi = 2 * minSi + 1;
+	Mat minArea = Mat::zeros(minSi, minSi, CV_8UC1);
+
+	//Get an ordering of the different depth area sizes for every region
+	cv::Mat beginDepth = cv::Mat(3, 3, CV_32SC3);
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			int32_t maxAPReg[3];
+			maxAPReg[0] = areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x);
+			maxAPReg[1] = areaPRegMid[actCorrsPRIdx].at<int32_t>(y, x);
+			maxAPReg[2] = areaPRegFar[actCorrsPRIdx].at<int32_t>(y, x);
+			std::ptrdiff_t pdiff = min_element(maxAPReg, maxAPReg + 2) - maxAPReg;
+			beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[0] = pdiff;
+			if (maxAPReg[(pdiff + 1) % 3] < maxAPReg[(pdiff + 2) % 3])
+			{
+				beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[1] = (pdiff + 1) % 3;
+				beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] = (pdiff + 2) % 3;
+			}
+			else
+			{
+				beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] = (pdiff + 1) % 3;
+				beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[1] = (pdiff + 2) % 3;
+			}
+		}
+	}
+
+	//Reserve a little bit of space for depth areas generated later on (as they are larger)
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			for (int i = 2; i >= 1; i--)
+			{
+				switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[i])
+				{
+				case 0:
+					for (auto pt : seedsNear[y][x])
+					{
+						Mat part;
+						if(i == 2)
+							part = noGenMaskB(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+						else
+							part = noGenMaskB2(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+						part &= minArea;
+					}
+					break;
+				case 1:
+					for (auto pt : seedsMid[y][x])
+					{
+						Mat part;
+						if (i == 2)
+							part = noGenMaskB(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+						else
+							part = noGenMaskB2(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+						part &= minArea;
+					}
+					break;
+				case 2:
+					for (auto pt : seedsFar[y][x])
+					{
+						Mat part;
+						if (i == 2)
+							part = noGenMaskB(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+						else
+							part = noGenMaskB2(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+						part &= minArea;
+					}
+					break;
+				default:
+					break;
+				}
+			}
+			noGenMaskB &= noGenMaskB2;
+		}
+	}
+
+	//Construct valid areas for every region
+	vector<vector<Mat>> regmasks(3, vector<Mat>(3, Mat::zeros(imgSize, CV_8UC1)));
+	Size imgSi13 = Size(imgSize.width / 3, imgSize.height / 3);
+	Mat validRect = Mat::ones(imgSize, CV_8UC1);
+	for (size_t y = 0; y < 3; y++)
+	{
+		int32_t mmy[2];
+		mmy[0] = y * imgSi13.height;
+		if (y < 2)
+			mmy[1] += imgSi13.height;
+		else
+			mmy[1] = imgSize.height;
+		for (size_t x = 0; x < 3; x++)
+		{
+			int32_t mmx[2];
+			mmx[0] = x * imgSi13.width;
+			if (x < 2)
+				mmx[1] += imgSi13.width;
+			else
+				mmy[1] = imgSize.width;
+			regmasks[y][x](Range(mmy[0], mmy[1]), Range(mmx[0], mmx[1])) |= validRect(Range(mmy[0], mmy[1]), Range(mmx[0], mmx[1]));
+		}
+	}
+
+	//Create first layer of depth areas
+	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsNear(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
+	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsMid(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
+	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsFar(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
+	std::vector<std::vector<int32_t>> actAreaNear(3, vector<int32_t>(3, 0));
+	std::vector<std::vector<int32_t>> actAreaMid(3, vector<int32_t>(3, 0));
+	std::vector<std::vector<int32_t>> actAreaFar(3, vector<int32_t>(3, 0));
+	Mat actUsedAreas = Mat::zeros(imgSize, CV_8UC1);
+	//Init actual positions
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			if (!seedsNear[y][x].empty())
+			{
+				actPosSeedsNear[y][x].resize(seedsNear[y][x].size());
+				for (size_t i = 0; i < seedsNear[y][x].size(); i++)
+				{
+					int ix = seedsNear[y][x][i].x;
+					int iy = seedsNear[y][x][i].y;
+					actPosSeedsNear[y][x][i].x = ix;
+					actPosSeedsNear[y][x][i].y = iy;
+					actUsedAreas.at<unsigned char>(iy, ix) = 1;
+					actAreaNear[y][x]++;
+				}
+			}
+			if (!seedsMid[y][x].empty())
+			{
+				actPosSeedsMid[y][x].resize(seedsMid[y][x].size());
+				for (size_t i = 0; i < seedsMid[y][x].size(); i++)
+				{
+					int ix = seedsMid[y][x][i].x;
+					int iy = seedsMid[y][x][i].y;
+					actPosSeedsMid[y][x][i].x = ix;
+					actPosSeedsMid[y][x][i].y = iy;
+					actUsedAreas.at<unsigned char>(iy, ix) = 2;
+					actAreaMid[y][x]++;
+				}
+			}
+			if (!seedsFar[y][x].empty())
+			{
+				actPosSeedsFar[y][x].resize(seedsFar[y][x].size());
+				for (size_t i = 0; i < seedsFar[y][x].size(); i++)
+				{
+					int ix = seedsFar[y][x][i].x;
+					int iy = seedsFar[y][x][i].y;
+					actPosSeedsFar[y][x][i].x = ix;
+					actPosSeedsFar[y][x][i].y = iy;
+					actUsedAreas.at<unsigned char>(iy, ix) = 3;
+					actAreaFar[y][x]++;
+				}
+			}
+		}
+	}
+
+
+	bool areasNFinish[3][3] = { true, true, true, true, true, true, true, true, true };
+	while (areasNFinish[0][0] || areasNFinish[0][1] || areasNFinish[0][2] || 
+		areasNFinish[1][0] || areasNFinish[1][1] || areasNFinish[1][2] || 
+		areasNFinish[2][0] || areasNFinish[2][1] || areasNFinish[2][2] )
+	{
+		for (size_t y = 0; y < 3; y++)
+		{
+			for (size_t x = 0; x < 3; x++)
+			{
+				if (!areasNFinish[y][x]) continue;
+				switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[0])
+				{
+				case 0:
+					if (!actPosSeedsNear[y][x].empty())
+					{
+
+					}
+					else
+						areasNFinish[y][x] = false;
+					break;
+				case 1:
+					if (!actPosSeedsMid[y][x].empty())
+					{
+
+					}
+					else
+						areasNFinish[y][x] = false;
+					break;
+				case 2:
+					if (!actPosSeedsFar[y][x].empty())
+					{
+
+					}
+					else
+						areasNFinish[y][x] = false;
+					break;
+				default:
+					break;
+				}
+			}
 		}
 	}
 }

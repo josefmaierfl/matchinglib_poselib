@@ -209,7 +209,6 @@ private:
 	cv::Mat getTrackRot(cv::Mat tdiff);
 	bool getDepthRanges();
 	void adaptDepthsPerRegion();
-	void combineDepthMaps();
 	void updDepthReg(bool isNear, std::vector<std::vector<depthPortion>> &depthPerRegion, cv::Mat &cpr);
 	void genInlierRatios();
 	void genNrCorrsImg();
@@ -218,9 +217,14 @@ private:
 	void calcPixAreaPerDepth();
 	void checkDepthSeeds();
 	void backProject3D();
+	void adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<size_t> &delListSortedAsc);
+	void adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec, std::vector<size_t> &delListSortedAsc);
+	void genDepthMaps();
 
 private:
 	std::default_random_engine rand_gen;
+
+	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
 
 	cv::Size imgSize;
 	cv::Mat K1;
@@ -271,6 +275,7 @@ private:
 	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
 	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
 	size_t actFrameCnt = 0;
+	size_t actCorrsPRIdx = 0;//actual index (corresponding to the actual frame) for pars.corrsPerRegion, depthsPerRegion, nrDepthAreasPRegNear, ...
 	double actDepthNear;//Lower border of near depths for the actual camera configuration
 	double actDepthMid;//Upper border of near and lower border of mid depths for the actual camera configuration
 	double actDepthFar;//Upper border of far depths for the actual camera configuration
@@ -283,5 +288,10 @@ private:
 
 /* --------------------- Function prototypes --------------------- */
 
+template<typename T, typename A, typename T1, typename A1>
+void deleteVecEntriesbyIdx(std::vector<T, A> const& editVec, std::vector<T1, A1> const& delVec);
+
+template<typename T, typename A>
+void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const& delVec, bool rowOrder);
 
 /* -------------------------- Functions -------------------------- */
