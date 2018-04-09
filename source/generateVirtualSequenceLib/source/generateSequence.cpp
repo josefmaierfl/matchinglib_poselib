@@ -19,6 +19,7 @@ a view restrictions like depth ranges, moving objects, ...
 
 #include "generateSequence.h"
 #include "helper_funcs.h"
+#include "opencv2/imgproc/imgproc.hpp"
 
 using namespace std;
 using namespace cv;
@@ -1528,25 +1529,44 @@ void genStereoSequ::genDepthMaps()
 
 	//Construct valid areas for every region
 	vector<vector<Mat>> regmasks(3, vector<Mat>(3, Mat::zeros(imgSize, CV_8UC1)));
+	vector<vector<cv::Rect>> regmasksROIs(3, vector<cv::Rect>(3));
 	Size imgSi13 = Size(imgSize.width / 3, imgSize.height / 3);
 	Mat validRect = Mat::ones(imgSize, CV_8UC1);
+	const float overSi = 1.25f;//Allows the expension of created areas outside its region by a given percentage
 	for (size_t y = 0; y < 3; y++)
 	{
-		int32_t mmy[2];
-		mmy[0] = y * imgSi13.height;
+		cv::Point2i pl1, pr1;
+		pl1.y = y * imgSi13.height;
 		if (y < 2)
-			mmy[1] += imgSi13.height;
+		{
+			pr1.y = pl1.y + (int)(overSi * (float)imgSi13.height);
+		}
 		else
-			mmy[1] = imgSize.height;
+		{
+			pr1.y = imgSize.height;
+		}
+		if (y > 0)
+		{
+			pl1.y -= (int)((overSi - 1.f) * (float)imgSi13.height);
+		}
 		for (size_t x = 0; x < 3; x++)
 		{
-			int32_t mmx[2];
-			mmx[0] = x * imgSi13.width;
+			pl1.x = x * imgSi13.width;
 			if (x < 2)
-				mmx[1] += imgSi13.width;
+			{
+				pr1.x = pl1.x + (int)(overSi * (float)imgSi13.width);
+			}
 			else
-				mmy[1] = imgSize.width;
-			regmasks[y][x](Range(mmy[0], mmy[1]), Range(mmx[0], mmx[1])) |= validRect(Range(mmy[0], mmy[1]), Range(mmx[0], mmx[1]));
+			{
+				pr1.x = imgSize.width;
+			}
+			if (x > 0)
+			{
+				pl1.x -= (int)((overSi - 1.f) * (float)imgSi13.width);
+			}
+			Rect vROI = Rect(pl1, pr1);
+			regmasksROIs[y][x] = vROI;
+			regmasks[y][x](vROI) |= validRect(vROI);
 		}
 	}
 
@@ -1554,10 +1574,22 @@ void genStereoSequ::genDepthMaps()
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsNear(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsMid(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsFar(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
+	std::vector<std::vector<std::vector<size_t>>> nrIterPerSeedNear(3, std::vector<std::vector<size_t>>(3));
+	std::vector<std::vector<std::vector<size_t>>> nrIterPerSeedMid(3, std::vector<std::vector<size_t>>(3));
+	std::vector<std::vector<std::vector<size_t>>> nrIterPerSeedFar(3, std::vector<std::vector<size_t>>(3));
+	/*std::vector<std::vector<std::vector<int32_t>>> areaPerSeedNear(3, std::vector<std::vector<int32_t>>(3));
+	std::vector<std::vector<std::vector<int32_t>>> areaPerSeedMid(3, std::vector<std::vector<int32_t>>(3));
+	std::vector<std::vector<std::vector<int32_t>>> areaPerSeedFar(3, std::vector<std::vector<int32_t>>(3));*/
 	std::vector<std::vector<int32_t>> actAreaNear(3, vector<int32_t>(3, 0));
 	std::vector<std::vector<int32_t>> actAreaMid(3, vector<int32_t>(3, 0));
 	std::vector<std::vector<int32_t>> actAreaFar(3, vector<int32_t>(3, 0));
+	std::vector<std::vector<unsigned char>> dilateOpNear(3, vector<unsigned char>(3, 0));
+	std::vector<std::vector<unsigned char>> dilateOpMid(3, vector<unsigned char>(3, 0));
+	std::vector<std::vector<unsigned char>> dilateOpFar(3, vector<unsigned char>(3, 0));
 	Mat actUsedAreas = Mat::zeros(imgSize, CV_8UC1);
+	Mat actUsedAreaNear = Mat::zeros(imgSize, CV_8UC1);
+	Mat actUsedAreaMid = Mat::zeros(imgSize, CV_8UC1);
+	Mat actUsedAreaFar = Mat::zeros(imgSize, CV_8UC1);
 	//Init actual positions
 	for (size_t y = 0; y < 3; y++)
 	{
@@ -1566,6 +1598,8 @@ void genStereoSequ::genDepthMaps()
 			if (!seedsNear[y][x].empty())
 			{
 				actPosSeedsNear[y][x].resize(seedsNear[y][x].size());
+				nrIterPerSeedNear[y][x].resize(seedsNear[y][x].size(), 0);
+				//areaPerSeedNear[y][x].resize(seedsNear[y][x].size(), 0);
 				for (size_t i = 0; i < seedsNear[y][x].size(); i++)
 				{
 					int ix = seedsNear[y][x][i].x;
@@ -1573,12 +1607,15 @@ void genStereoSequ::genDepthMaps()
 					actPosSeedsNear[y][x][i].x = ix;
 					actPosSeedsNear[y][x][i].y = iy;
 					actUsedAreas.at<unsigned char>(iy, ix) = 1;
+					actUsedAreaNear.at<unsigned char>(iy, ix) = 1;
 					actAreaNear[y][x]++;
 				}
 			}
 			if (!seedsMid[y][x].empty())
 			{
 				actPosSeedsMid[y][x].resize(seedsMid[y][x].size());
+				nrIterPerSeedMid[y][x].resize(seedsMid[y][x].size(), 0);
+				//areaPerSeedMid[y][x].resize(seedsMid[y][x].size(), 0);
 				for (size_t i = 0; i < seedsMid[y][x].size(); i++)
 				{
 					int ix = seedsMid[y][x][i].x;
@@ -1586,12 +1623,15 @@ void genStereoSequ::genDepthMaps()
 					actPosSeedsMid[y][x][i].x = ix;
 					actPosSeedsMid[y][x][i].y = iy;
 					actUsedAreas.at<unsigned char>(iy, ix) = 2;
+					actUsedAreaMid.at<unsigned char>(iy, ix) = 2;
 					actAreaMid[y][x]++;
 				}
 			}
 			if (!seedsFar[y][x].empty())
 			{
 				actPosSeedsFar[y][x].resize(seedsFar[y][x].size());
+				nrIterPerSeedFar[y][x].resize(seedsFar[y][x].size(), 0);
+				//areaPerSeedFar[y][x].resize(seedsFar[y][x].size(), 0);
 				for (size_t i = 0; i < seedsFar[y][x].size(); i++)
 				{
 					int ix = seedsFar[y][x][i].x;
@@ -1599,13 +1639,14 @@ void genStereoSequ::genDepthMaps()
 					actPosSeedsFar[y][x][i].x = ix;
 					actPosSeedsFar[y][x][i].y = iy;
 					actUsedAreas.at<unsigned char>(iy, ix) = 3;
+					actUsedAreaFar.at<unsigned char>(iy, ix) = 3;
 					actAreaFar[y][x]++;
 				}
 			}
 		}
 	}
 
-
+	Size imgSiM1 = Size(imgSi13.width - 1, imgSiM1.height - 1);
 	bool areasNFinish[3][3] = { true, true, true, true, true, true, true, true, true };
 	while (areasNFinish[0][0] || areasNFinish[0][1] || areasNFinish[0][2] || 
 		areasNFinish[1][0] || areasNFinish[1][1] || areasNFinish[1][2] || 
@@ -1621,7 +1662,32 @@ void genStereoSequ::genDepthMaps()
 				case 0:
 					if (!actPosSeedsNear[y][x].empty())
 					{
+						for (size_t i = 0; i < actPosSeedsNear[y][x].size(); i++)
+						{
+							//Calc # of possible dilations for actual area
+							float nrDil = 2.f;
+							if (actAreaNear[y][x] > 1)
+							{
+								const float h = sqrt((float)actAreaNear[y][x] / (2.f * (float)actPosSeedsNear[y][x].size())) + 1.f;
+								float Ad = 2.f * (float)actPosSeedsNear[y][x].size() *h * h;
+								nrDil = (float)areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x) / Ad;
+							}							
 
+							addAdditionalDepth(1,
+								actUsedAreas,
+								actUsedAreaNear,
+								noGenMaskB,
+								regmasks[y][x],
+								actPosSeedsNear[y][x][i],
+								actPosSeedsNear[y][x][i],
+								actAreaNear[y][x],
+								areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x),
+								imgSiM1,
+								cv::Point_<int32_t>(seedsNear[y][x][i].x, seedsNear[y][x][i].y),
+								regmasksROIs[y][x],
+								nrIterPerSeedNear[y][x][i],
+								dilateOpNear[y][x]);
+						}
 					}
 					else
 						areasNFinish[y][x] = false;
@@ -1629,7 +1695,10 @@ void genStereoSequ::genDepthMaps()
 				case 1:
 					if (!actPosSeedsMid[y][x].empty())
 					{
+						for (size_t i = 0; i < actPosSeedsMid[y][x].size(); i++)
+						{
 
+						}
 					}
 					else
 						areasNFinish[y][x] = false;
@@ -1637,7 +1706,10 @@ void genStereoSequ::genDepthMaps()
 				case 2:
 					if (!actPosSeedsFar[y][x].empty())
 					{
+						for (size_t i = 0; i < actPosSeedsFar[y][x].size(); i++)
+						{
 
+						}
 					}
 					else
 						areasNFinish[y][x] = false;
@@ -1648,4 +1720,288 @@ void genStereoSequ::genDepthMaps()
 			}
 		}
 	}
+}
+
+/* Adds a few random depth pixels near a given position
+unsigned char pixVal	Value assigned to the random pixel positions
+cv::Mat &imgD			Image holding all depth ranges where the new random depth pixels should be added
+cv::Mat &imgSD			Image holding only one specific depth range where the new random depth pixels should be added
+cv::Mat &mask			Mask for imgD and imgSD
+cv::Point_<int32_t> &startpos		Start position (excluding this single location) from where to start adding new depth pixels
+cv::Point_<int32_t> &endpos			End position where the last depth pixel was set
+int32_t &addArea		Adds the number of newly inserted pixels to the given number
+int32_t &maxAreaReg		Maximum number of specific depth pixels per image region (9x9)
+cv::Size &siM1			Image size -1
+cv::Point_<int32_t> &initSeed	Initial position of the seed
+cv::Rect &vROI			ROI were it is actually allowed to add new pixels
+size_t &nrAdds			Number of pixels that were added to this depth area (including preceding calls to this function)
+*/
+bool genStereoSequ::addAdditionalDepth(unsigned char pixVal, 
+	cv::Mat &imgD, 
+	cv::Mat &imgSD, 
+	cv::Mat &mask, 
+	cv::Mat &regMask, 
+	cv::Point_<int32_t> &startpos, 
+	cv::Point_<int32_t> &endpos, 
+	int32_t &addArea, 
+	int32_t &maxAreaReg,
+	cv::Size &siM1,
+	cv::Point_<int32_t> initSeed,
+	cv::Rect &vROI,
+	size_t &nrAdds,
+	unsigned char &usedDilate)
+{
+	const size_t max_iter = 100;
+	vector<int32_t> directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1);
+	if (directions.empty() || (nrAdds > max_iter) || usedDilate)
+	{
+		Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+		Mat imgSDdilate;
+		dilate(imgSD(vROI), imgSDdilate, element);
+		imgSDdilate &= mask(vROI) & ((imgD(vROI) == 0) | imgSD(vROI));
+		int siAfterDil = sum(imgSDdilate)[0];
+		if (siAfterDil > maxAreaReg)
+		{
+			int diff = siAfterDil - maxAreaReg;
+			imgSDdilate ^= imgSD(vROI);
+			for (int y = 0; y < vROI.height; y++)
+			{
+				for (int x = 0; x < vROI.width; x++)
+				{
+					if (imgSDdilate.at<unsigned char>(y, x))
+					{
+						imgSDdilate.at<unsigned char>(y, x) = 0;
+						//////////
+					}
+				}
+			}
+		}
+		else
+		{
+			imgSDdilate.copyTo(imgSD(vROI));
+			imgSDdilate *= pixVal;
+			imgSDdilate.copyTo(imgD(vROI));
+			addArea += siAfterDil;
+		}
+		usedDilate = 1;
+		nrAdds++;
+	}
+	else
+	{
+		//Get a random direction where to add a pixel
+		int diri = rand() % (int)directions.size();
+		endpos = startpos;
+		switch (directions[diri])
+		{
+		case 0://direction left up
+			endpos.x--;
+			endpos.y--;
+			break;
+		case 1://direction up
+			endpos.y--;
+			break;
+		case 2://direction right up
+			endpos.x++;
+			endpos.y--;
+			break;
+		case 3://direction right
+			endpos.x++;
+			break;
+		case 4://direction right down
+			endpos.x++;
+			endpos.y++;
+			break;
+		case 5://direction down
+			endpos.y++;
+			break;
+		case 6://direction left down
+			endpos.x--;
+			endpos.y++;
+			break;
+		case 7://direction left
+			endpos.x--;
+			break;
+		default:
+			break;
+		}
+		imgD.at<unsigned char>(endpos) = pixVal;
+		imgSD.at<unsigned char>(endpos) = 1;
+		addArea++;
+		nrAdds++;
+		vector<int32_t> extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1);
+		if (extension.size() > 1)//Check if we can add addition pixels without blocking the way for the next iteration
+		{
+			int32_t noExt[3];
+			noExt[0] = (directions[diri] + 1) % 8;
+			noExt[1] = directions[diri];
+			noExt[2] = (directions[diri] + 7) % 8;
+			//Prevent adding additional pixels to the main direction and its immediate neighbor directions
+			for (int i = extension.size()-1; i >= 0; i--)
+			{
+				if ((extension[i] == noExt[0]) ||
+					(extension[i] == noExt[1]) || 
+					(extension[i] == noExt[2]))
+				{
+					extension.erase(extension.begin() + i);
+					if(i > 0)
+						i++;
+				}
+			}
+			if (extension.size() > 1)
+			{
+				//Choose a random number of additional pixels to add
+				const int addsi = rand() % ((int)extension.size() + 1);
+				if (addsi)
+				{
+					const int beginExt = rand() % (int)extension.size();
+					for (int i = 0; i < addsi; i++)
+					{
+						cv::Point_<int32_t> singleExt = endpos;
+						const int pos = (beginExt + i) % (int)extension.size();
+						switch (extension[pos])
+						{
+						case 0://direction left up
+							singleExt.x--;
+							singleExt.y--;
+							break;
+						case 1://direction up
+							singleExt.y--;
+							break;
+						case 2://direction right up
+							singleExt.x++;
+							singleExt.y--;
+							break;
+						case 3://direction right
+							singleExt.x++;
+							break;
+						case 4://direction right down
+							singleExt.x++;
+							singleExt.y++;
+							break;
+						case 5://direction down
+							singleExt.y++;
+							break;
+						case 6://direction left down
+							singleExt.x--;
+							singleExt.y++;
+							break;
+						case 7://direction left
+							singleExt.x--;
+							break;
+						default:
+							break;
+						}
+						imgD.at<unsigned char>(singleExt) = pixVal;
+						imgSD.at<unsigned char>(singleExt) = 1;
+						addArea++;
+					}
+				}
+			}
+		}
+	}
+}
+
+//Get valid directions to expand the depth area given a start position
+std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1)
+{
+	Mat directions = Mat::ones(3, 3, CV_8UC1);
+	unsigned char atBorderX = 0, atBorderY = 0;
+	if (startpos.x <= 0)
+	{
+		directions.col(0) = Mat::zeros(3, 1, CV_8UC1);
+		atBorderX = 0x1;
+	}
+	if (startpos.x >= siM1.width)
+	{
+		directions.col(2) = Mat::zeros(3, 1, CV_8UC1);
+		atBorderX = 0x2;
+	}
+	if (startpos.y <= 0)
+	{
+		directions.row(0) = Mat::zeros(1, 3, CV_8UC1);
+		atBorderY = 0x1;
+	}
+	if (startpos.y >= siM1.height)
+	{
+		directions.row(2) = Mat::zeros(1, 3, CV_8UC1);
+		atBorderY = 0x2;
+	}
+
+	Range irx, iry, drx, dry;
+	if (atBorderX)
+	{
+		const unsigned char atBorderXn = ~atBorderX;
+		const unsigned char v1 = (atBorderXn & 0x1);
+		const unsigned char v2 = (atBorderXn & 0x2) + ((atBorderX & 0x2) >> 1);
+		irx = Range(startpos.x - (int32_t)v1, startpos.x + (int32_t)v2);
+		drx = Range((int32_t)(~v1), 1 + (int32_t)v2);
+		if (atBorderY)
+		{ 
+			const unsigned char atBorderYn = ~atBorderY;
+			const unsigned char v3 = (atBorderYn & 0x1);
+			const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
+			iry = Range(startpos.y - (int32_t)v3, startpos.y + (int32_t)v4);
+			dry = Range((int32_t)(~v3), 1 + (int32_t)v4);
+		}
+		else
+		{
+			iry = Range(startpos.y - 1, startpos.y + 2);
+			dry = Range::all();
+		}
+	}
+	else if (atBorderY)
+	{
+		unsigned char atBorderYn = ~atBorderY;
+		iry = Range(startpos.y - (atBorderYn & 0x1), startpos.y + (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1));
+		irx = Range(startpos.x - 1, startpos.x + 2);
+		drx = Range::all();
+	}
+	else
+	{
+		irx = Range(startpos.x - 1, startpos.x + 2);
+		iry = Range(startpos.y - 1, startpos.y + 2);
+		drx = Range::all();
+		dry = Range::all();
+	}
+
+	directions(dry, drx) &= (imgD(iry, irx) == 0) & mask(iry, irx) & regMask(iry, irx);
+
+	vector<int32_t> dirs;
+	for (int32_t i = 0; i < 9; i++)
+	{
+		if (directions.at<bool>(i))
+		{
+			switch (i)
+			{
+			case 0:
+				dirs.push_back(0);
+				break;
+			case 1:
+				dirs.push_back(1);
+				break;
+			case 2:
+				dirs.push_back(2);
+				break;
+			case 3:
+				dirs.push_back(7);
+				break;
+			case 5:
+				dirs.push_back(3);
+				break;
+			case 6:
+				dirs.push_back(6);
+				break;
+			case 7:
+				dirs.push_back(5);
+				break;
+			case 8:
+				dirs.push_back(4);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return dirs;
 }

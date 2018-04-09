@@ -220,6 +220,21 @@ private:
 	void adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<size_t> &delListSortedAsc);
 	void adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec, std::vector<size_t> &delListSortedAsc);
 	void genDepthMaps();
+	bool addAdditionalDepth(unsigned char pixVal,
+		cv::Mat &imgD,
+		cv::Mat &imgSD,
+		cv::Mat &mask,
+		cv::Mat &regMask,
+		cv::Point_<int32_t> &startpos,
+		cv::Point_<int32_t> &endpos,
+		int32_t &addArea,
+		int32_t &maxAreaReg,
+		cv::Size &siM1,
+		cv::Point_<int32_t> initSeed,
+		cv::Rect &vROI,
+		size_t &nrAdds,
+		unsigned char &usedDilate);
+	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1);
 
 private:
 	std::default_random_engine rand_gen;
