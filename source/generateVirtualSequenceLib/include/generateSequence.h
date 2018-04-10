@@ -235,11 +235,16 @@ private:
 		size_t &nrAdds,
 		unsigned char &usedDilate);
 	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1);
+	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars, size_t n_pars);
+	void getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
+	inline double getDepthFuncVal(std::vector<double> &pars, double x, double y);
+	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds);
 
 private:
 	std::default_random_engine rand_gen;
 
 	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
+	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is 
 
 	cv::Size imgSize;
 	cv::Mat K1;
@@ -261,9 +266,7 @@ private:
 	std::vector<cv::Mat> nrCorrsRegs;//Absolute number of correspondences (TP+TN) per image region and frame; Type CV_32SC1
 	std::vector<cv::Mat> nrTrueNegRegs;//Absolute number of true negative correspondences per image region and frame; Type CV_32SC1
 
-	cv::Mat depthMapNear;
-	cv::Mat depthMapMid;
-	cv::Mat depthMapFar;
+	cv::Mat depthMap;
 	std::vector<double> depthNear;//Lower border of near depths for every camera configuration
 	std::vector<double> depthMid;//Upper border of near and lower border of mid depths for every camera configuration
 	std::vector<double> depthFar;//Upper border of far depths for every camera configuration
@@ -293,7 +296,7 @@ private:
 	size_t actCorrsPRIdx = 0;//actual index (corresponding to the actual frame) for pars.corrsPerRegion, depthsPerRegion, nrDepthAreasPRegNear, ...
 	double actDepthNear;//Lower border of near depths for the actual camera configuration
 	double actDepthMid;//Upper border of near and lower border of mid depths for the actual camera configuration
-	double actDepthFar;//Upper border of far depths for the actual camera configuration
+	double actDepthFar;//Upper border of mid and lower border of far depths for the actual camera configuration
 
 	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsNear;//Holds the actual near seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
 	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsMid;//Holds the actual mid seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).

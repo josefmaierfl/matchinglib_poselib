@@ -1009,7 +1009,7 @@ void genStereoSequ::backProject3D()
 	} dimgWH;
 	dimgWH.width = (double)(imgSize.width - 1);
 	dimgWH.height = (double)(imgSize.height - 1);
-	dimgWH.maxDist = 100.0 * actDepthFar;
+	dimgWH.maxDist = maxFarDistMultiplier * actDepthFar;
 
 	std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
 	size_t idx1 = 0;
@@ -1530,20 +1530,24 @@ void genStereoSequ::genDepthMaps()
 	//Construct valid areas for every region
 	vector<vector<Mat>> regmasks(3, vector<Mat>(3, Mat::zeros(imgSize, CV_8UC1)));
 	vector<vector<cv::Rect>> regmasksROIs(3, vector<cv::Rect>(3));
+	vector<vector<cv::Rect>> regROIs(3, vector<cv::Rect>(3));
 	Size imgSi13 = Size(imgSize.width / 3, imgSize.height / 3);
 	Mat validRect = Mat::ones(imgSize, CV_8UC1);
 	const float overSi = 1.25f;//Allows the expension of created areas outside its region by a given percentage
 	for (size_t y = 0; y < 3; y++)
 	{
-		cv::Point2i pl1, pr1;
+		cv::Point2i pl1, pr1, pl2, pr2;
 		pl1.y = y * imgSi13.height;
+		pl2.y = pl1.y;
 		if (y < 2)
 		{
 			pr1.y = pl1.y + (int)(overSi * (float)imgSi13.height);
+			pr2.y = pl2.y + imgSi13.height;
 		}
 		else
 		{
 			pr1.y = imgSize.height;
+			pr2.y = imgSize.height;
 		}
 		if (y > 0)
 		{
@@ -1552,13 +1556,16 @@ void genStereoSequ::genDepthMaps()
 		for (size_t x = 0; x < 3; x++)
 		{
 			pl1.x = x * imgSi13.width;
+			pl2.x = pl1.x;
 			if (x < 2)
 			{
 				pr1.x = pl1.x + (int)(overSi * (float)imgSi13.width);
+				pr2.x = pl2.x + imgSi13.width;
 			}
 			else
 			{
 				pr1.x = imgSize.width;
+				pr2.x = imgSize.width;
 			}
 			if (x > 0)
 			{
@@ -1567,6 +1574,8 @@ void genStereoSequ::genDepthMaps()
 			Rect vROI = Rect(pl1, pr1);
 			regmasksROIs[y][x] = vROI;
 			regmasks[y][x](vROI) |= validRect(vROI);
+			Rect vROIo = Rect(pl2, pr2);
+			regROIs[y][x] = vROIo;
 		}
 	}
 
@@ -1646,79 +1655,370 @@ void genStereoSequ::genDepthMaps()
 		}
 	}
 
+	//Create depth areas beginning with the smallest areas (near, mid, or far) per region
+	//Also create depth areas for the second smallest areas
 	Size imgSiM1 = Size(imgSi13.width - 1, imgSiM1.height - 1);
-	bool areasNFinish[3][3] = { true, true, true, true, true, true, true, true, true };
-	while (areasNFinish[0][0] || areasNFinish[0][1] || areasNFinish[0][2] || 
-		areasNFinish[1][0] || areasNFinish[1][1] || areasNFinish[1][2] || 
-		areasNFinish[2][0] || areasNFinish[2][1] || areasNFinish[2][2] )
+	for (int j = 0; j < 2; j++)
 	{
-		for (size_t y = 0; y < 3; y++)
+		if (j > 0)
 		{
-			for (size_t x = 0; x < 3; x++)
+			noGenMask = noGenMask2;
+		}
+		bool areasNFinish[3][3] = { true, true, true, true, true, true, true, true, true };
+		while (areasNFinish[0][0] || areasNFinish[0][1] || areasNFinish[0][2] ||
+			areasNFinish[1][0] || areasNFinish[1][1] || areasNFinish[1][2] ||
+			areasNFinish[2][0] || areasNFinish[2][1] || areasNFinish[2][2])
+		{
+			for (size_t y = 0; y < 3; y++)
 			{
-				if (!areasNFinish[y][x]) continue;
-				switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[0])
+				for (size_t x = 0; x < 3; x++)
 				{
-				case 0:
-					if (!actPosSeedsNear[y][x].empty())
+					if (!areasNFinish[y][x]) continue;
+					switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[j])
 					{
-						for (size_t i = 0; i < actPosSeedsNear[y][x].size(); i++)
+					case 0:
+						if (!actPosSeedsNear[y][x].empty())
 						{
-							//Calc # of possible dilations for actual area
-							float nrDil = 2.f;
-							if (actAreaNear[y][x] > 1)
+							for (size_t i = 0; i < actPosSeedsNear[y][x].size(); i++)
 							{
-								const float h = sqrt((float)actAreaNear[y][x] / (2.f * (float)actPosSeedsNear[y][x].size())) + 1.f;
-								float Ad = 2.f * (float)actPosSeedsNear[y][x].size() *h * h;
-								nrDil = (float)areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x) / Ad;
-							}							
-
-							addAdditionalDepth(1,
-								actUsedAreas,
-								actUsedAreaNear,
-								noGenMaskB,
-								regmasks[y][x],
-								actPosSeedsNear[y][x][i],
-								actPosSeedsNear[y][x][i],
-								actAreaNear[y][x],
-								areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x),
-								imgSiM1,
-								cv::Point_<int32_t>(seedsNear[y][x][i].x, seedsNear[y][x][i].y),
-								regmasksROIs[y][x],
-								nrIterPerSeedNear[y][x][i],
-								dilateOpNear[y][x]);
+								areasNFinish[y][x] = addAdditionalDepth(1,
+									actUsedAreas,
+									actUsedAreaNear,
+									noGenMask,
+									regmasks[y][x],
+									actPosSeedsNear[y][x][i],
+									actPosSeedsNear[y][x][i],
+									actAreaNear[y][x],
+									areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x),
+									imgSiM1,
+									cv::Point_<int32_t>(seedsNear[y][x][i].x, seedsNear[y][x][i].y),
+									regmasksROIs[y][x],
+									nrIterPerSeedNear[y][x][i],
+									dilateOpNear[y][x]);
+							}
 						}
-					}
-					else
-						areasNFinish[y][x] = false;
-					break;
-				case 1:
-					if (!actPosSeedsMid[y][x].empty())
-					{
-						for (size_t i = 0; i < actPosSeedsMid[y][x].size(); i++)
+						else
+							areasNFinish[y][x] = false;
+						break;
+					case 1:
+						if (!actPosSeedsMid[y][x].empty())
 						{
-
+							for (size_t i = 0; i < actPosSeedsMid[y][x].size(); i++)
+							{
+								areasNFinish[y][x] = addAdditionalDepth(2,
+									actUsedAreas,
+									actUsedAreaMid,
+									noGenMask,
+									regmasks[y][x],
+									actPosSeedsMid[y][x][i],
+									actPosSeedsMid[y][x][i],
+									actAreaMid[y][x],
+									areaPRegMid[actCorrsPRIdx].at<int32_t>(y, x),
+									imgSiM1,
+									cv::Point_<int32_t>(seedsMid[y][x][i].x, seedsMid[y][x][i].y),
+									regmasksROIs[y][x],
+									nrIterPerSeedMid[y][x][i],
+									dilateOpMid[y][x]);
+							}
 						}
-					}
-					else
-						areasNFinish[y][x] = false;
-					break;
-				case 2:
-					if (!actPosSeedsFar[y][x].empty())
-					{
-						for (size_t i = 0; i < actPosSeedsFar[y][x].size(); i++)
+						else
+							areasNFinish[y][x] = false;
+						break;
+					case 2:
+						if (!actPosSeedsFar[y][x].empty())
 						{
-
+							for (size_t i = 0; i < actPosSeedsFar[y][x].size(); i++)
+							{
+								areasNFinish[y][x] = addAdditionalDepth(3,
+									actUsedAreas,
+									actUsedAreaFar,
+									noGenMask,
+									regmasks[y][x],
+									actPosSeedsFar[y][x][i],
+									actPosSeedsFar[y][x][i],
+									actAreaFar[y][x],
+									areaPRegFar[actCorrsPRIdx].at<int32_t>(y, x),
+									imgSiM1,
+									cv::Point_<int32_t>(seedsFar[y][x][i].x, seedsFar[y][x][i].y),
+									regmasksROIs[y][x],
+									nrIterPerSeedFar[y][x][i],
+									dilateOpFar[y][x]);
+							}
 						}
+						else
+							areasNFinish[y][x] = false;
+						break;
+					default:
+						break;
 					}
-					else
-						areasNFinish[y][x] = false;
-					break;
-				default:
-					break;
 				}
 			}
 		}
+	}
+
+	//Fill the remaining areas
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			Mat fillMask = (actUsedAreas(regROIs[y][x]) == 0) & Mat::ones(regROIs[y][x].height, regROIs[y][x].width, CV_8UC1);
+			switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2])
+			{
+			case 0:
+				actUsedAreaNear(regROIs[y][x]) |= fillMask;
+				//actUsedAreas(regROIs[y][x]) |= fillMask;
+				break;
+			case 1:
+				actUsedAreaMid(regROIs[y][x]) |= fillMask;
+				/*fillMask *= 2;
+				actUsedAreas(regROIs[y][x]) |= fillMask;*/
+				break;
+			case 2:
+				actUsedAreaMid(regROIs[y][x]) |= fillMask;
+				/*fillMask *= 3;
+				actUsedAreas(regROIs[y][x]) |= fillMask;*/
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	//Get final depth values for each depth region
+	Mat depthMapNear, depthMapMid, depthMapFar;
+	getDepthMaps(depthMapNear, actUsedAreaNear, actDepthNear, actDepthMid, seedsNear);
+	getDepthMaps(depthMapMid, actUsedAreaMid, actDepthMid, actDepthFar, seedsMid);
+	getDepthMaps(depthMapFar, actUsedAreaFar, actDepthFar, maxFarDistMultiplier * actDepthFar, seedsFar);
+
+	//Combine the 3 depth maps to a single depth map
+	depthMap = depthMapNear + depthMapMid + depthMapFar;
+}
+
+//Generate depth values (for every pixel) for the given areas of depth regions taking into account the depth values from backprojected 3D points
+void genStereoSequ::getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds)
+{
+	std::vector<cv::Point3_<int32_t>> initSeedInArea;
+	//Check, if there are depth seeds available that were already backprojected from 3D
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			for (size_t i = 0; i < initSeeds[y][x].size(); i++)
+			{
+				if (initSeeds[y][x][i].z >= 0)
+					initSeedInArea.push_back(initSeeds[y][x][i]);
+			}
+		}
+	}
+	getDepthVals(dout, din, dmin, dmax, initSeedInArea);
+}
+
+//Generate depth values (for every pixel) for the given areas of depth regions
+void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea)
+{
+	Mat actUsedAreaLabel;
+	Mat actUsedAreaStats;
+	Mat actUsedAreaCentroids;
+	int nrLabels;
+	vector<std::vector<double>> funcPars;
+	uint16_t nL = 0;
+
+	//Get connected areas
+	nrLabels = connectedComponentsWithStats(din, actUsedAreaLabel, actUsedAreaStats, actUsedAreaCentroids, 4, CV_16U);
+	nL = (uint16_t)(nrLabels + 1);
+	getRandDepthFuncPars(funcPars, (size_t)nL);
+	cv::ConnectedComponentsTypes::CC_STAT_HEIGHT;
+
+	dout.release();
+	dout = Mat::zeros(imgSize, CV_64FC1);
+	for (uint16_t i = 0; i < nL; i++)
+	{
+		Rect labelBB = Rect(actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_LEFT),
+			actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_TOP),
+			actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_WIDTH),
+			actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT));
+		Mat laMat = actUsedAreaLabel(labelBB);
+		Mat doutSlice = dout(labelBB);
+
+		double dmin_tmp = getRandDoubleValRng(dmin, dmin + 0.6 * (dmax - dmin));
+		double dmax_tmp = getRandDoubleValRng(dmin_tmp + 0.1 * (dmax - dmin), dmax);
+		double drange = dmax_tmp - dmin_tmp;
+		double rXr = getRandDoubleValRng(1.5, 3.0);
+		double rYr = getRandDoubleValRng(1.5, 3.0);
+		double h2 = (double)actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT);
+		h2 *= h2;
+		double w2 = (double)actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_WIDTH);
+		w2 *= w2;
+		double scale = sqrt(h2 + w2) / 2.0;
+		double rXrSc = rXr / scale;
+		double rYrSc = rYr / scale;
+		double cx = actUsedAreaCentroids.at<double>(i, 0) - (double)actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_LEFT);
+		double cy = actUsedAreaCentroids.at<double>(i, 1) - (double)actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_TOP);
+
+		//If an initial seed was backprojected from 3D to this component, the depth range of the current component must be similar
+		if (!initSeedInArea.empty())
+		{
+			int32_t minX = labelBB.x;
+			int32_t maxX = minX + labelBB.width;
+			int32_t minY = labelBB.y;
+			int32_t maxY = minY + labelBB.height;
+			vector<double> initDepths;
+			for (size_t j = 0; j < initSeedInArea.size(); j++)
+			{
+				if ((initSeedInArea[j].x >= minX) && (initSeedInArea[j].x < maxX) &&
+					(initSeedInArea[j].y >= minY) && (initSeedInArea[j].y < maxY))
+				{
+					if (actUsedAreaLabel.at<uint16_t>(initSeedInArea[j].y, initSeedInArea[j].x) == i)
+					{
+						initDepths.push_back(actImgPointCloudFromLast[initSeedInArea[j].z].z);
+					}
+				}
+			}
+			if (!initDepths.empty())
+			{
+				if (initDepths.size() == 1)
+				{
+					double tmp = getRandDoubleValRng(0.05, 0.5);
+					dmin_tmp = initDepths[0] - tmp * (dmax - dmin);
+					dmax_tmp = initDepths[0] + tmp * (dmax - dmin);
+				}
+				else
+				{
+					auto minMaxD = std::minmax_element(initDepths.begin(), initDepths.end());
+					double range1 = *minMaxD.second - *minMaxD.first;
+					if (range1 < 0.05 * (dmax - dmin))
+					{
+						double dmid_tmp = *minMaxD.first + range1 / 2.0;
+						double tmp = getRandDoubleValRng(0.05, 0.5);
+						dmin_tmp = dmid_tmp - tmp * (dmax - dmin);
+						dmax_tmp = dmid_tmp + tmp * (dmax - dmin);
+					}
+					else
+					{
+						dmin_tmp = *minMaxD.first - range1 / 2.0;
+						dmax_tmp = *minMaxD.second + range1 / 2.0;
+					}
+				}
+				dmin_tmp = std::max(dmin_tmp, dmin);
+				dmax_tmp = std::min(dmax_tmp, dmax);
+				drange = dmax_tmp - dmin_tmp;
+			}
+		}
+
+		double minVal = DBL_MAX, maxVal = -DBL_MAX;
+		int32_t lareaCnt = 0, lareaNCnt = 2 * labelBB.width;
+		for (int y = 0; y < labelBB.height; y++)
+		{
+			for (int x = 0; x < labelBB.width; x++)
+			{
+				if (laMat.at<uint16_t>(y, x) == i)
+				{
+					if (din.at<unsigned char>(y, x) == 0)
+					{
+						lareaNCnt--;
+						if ((lareaCnt == 0) && (lareaNCnt < 0))
+						{
+							lareaCnt = -1;
+							y = labelBB.height;
+							break;
+						}
+						continue;
+					}
+					lareaCnt++;
+					double val = getDepthFuncVal(funcPars[i], ((double)x - cx) * rXrSc, ((double)y - cy) * rYrSc);
+					doutSlice.at<double>(y, x) = val;
+					if (val > maxVal)
+						maxVal = val;
+					if (val < minVal)
+						minVal = val;
+				}
+			}
+		}
+		if (lareaCnt > 0)
+		{
+			double ra = maxVal - minVal;
+			scale = drange / ra;
+			for (int y = 0; y < labelBB.height; y++)
+			{
+				for (int x = 0; x < labelBB.width; x++)
+				{
+					if (laMat.at<uint16_t>(y, x) == i)
+					{
+						double val = doutSlice.at<double>(y, x);
+						val -= minVal;
+						val *= scale;
+						val += dmin_tmp;
+						doutSlice.at<double>(y, x) = val;
+					}
+				}
+			}
+		}
+	}
+}
+
+/*Calculates a depth value using the function
+z = p1 * (p2 - x)^2 * e^(-x^2 - (y - p3)^2) - 10 * (x / p4 - x^p5 - y^p6) * e^(-x^2 - y^2) - p7 / 3 * e^(-(x + 1)^2 - y^2)
+*/
+inline double genStereoSequ::getDepthFuncVal(std::vector<double> &pars, double x, double y)
+{
+	double tmp = pars[1] - x;
+	tmp *= tmp;
+	double z = pars[0] * tmp;
+	tmp = y - pars[2];
+	tmp *= -tmp;
+	tmp -= x * x;
+	z *= exp(tmp);
+	z -= 10.0 * (x / pars[3] - std::pow(x, pars[4]) - std::pow(y, pars[5])) * exp(-x * x - y * y);
+	tmp = x + 1.0;
+	tmp *= -tmp;
+	z -= pars[6] / 3.0 * exp(tmp - y * y);
+	return z;
+}
+
+/*Calculate random parameters for the function generating depth values
+There are 7 random paramters p:
+z = p1 * (p2 - x)^2 * e^(-x^2 - (y - p3)^2) - 10 * (x / p4 - x^p5 - y^p6) * e^(-x^2 - y^2) - p7 / 3 * e^(-(x + 1)^2 - y^2)
+*/
+void genStereoSequ::getRandDepthFuncPars(std::vector<std::vector<double>> &pars, size_t n_pars)
+{
+	pars = std::vector<std::vector<double>>(n_pars, std::vector<double>(7, 0));
+
+	//p1:
+	std::uniform_real_distribution<double> distribution(0, 10.0);
+	for (size_t i = 0; i < n_pars; i++)
+	{
+		pars[i][0] = distribution(rand_gen);
+	}
+	//p2:
+	distribution = std::uniform_real_distribution<double>(0, 2.0);
+	for (size_t i = 0; i < n_pars; i++)
+	{
+		pars[i][1] = distribution(rand_gen);
+	}
+	//p3:
+	distribution = std::uniform_real_distribution<double>(0, 4.0);
+	for (size_t i = 0; i < n_pars; i++)
+	{
+		pars[i][2] = distribution(rand_gen);
+	}
+	//p4:
+	distribution = std::uniform_real_distribution<double>(0.5, 5.0);
+	for (size_t i = 0; i < n_pars; i++)
+	{
+		pars[i][3] = distribution(rand_gen);
+	}
+	//p5 & p6:
+	distribution = std::uniform_real_distribution<double>(2.0, 7.0);
+	for (size_t i = 0; i < n_pars; i++)
+	{
+		pars[i][4] = distribution(rand_gen);
+		pars[i][5] = distribution(rand_gen);
+	}
+	//p7:
+	distribution = std::uniform_real_distribution<double>(1.0, 40.0);
+	for (size_t i = 0; i < n_pars; i++)
+	{
+		pars[i][6] = distribution(rand_gen);
 	}
 }
 
@@ -1755,36 +2055,60 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 	vector<int32_t> directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1);
 	if (directions.empty() || (nrAdds > max_iter) || usedDilate)
 	{
-		Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-		Mat imgSDdilate;
-		dilate(imgSD(vROI), imgSDdilate, element);
-		imgSDdilate &= mask(vROI) & ((imgD(vROI) == 0) | imgSD(vROI));
-		int siAfterDil = sum(imgSDdilate)[0];
-		if (siAfterDil > maxAreaReg)
+		int siAfterDil = 0, strElmSi = 3, cnt = 0, maxCnt = 20;
+		while ((siAfterDil == 0) && (cnt < maxCnt))
 		{
-			int diff = siAfterDil - maxAreaReg;
-			imgSDdilate ^= imgSD(vROI);
-			for (int y = 0; y < vROI.height; y++)
+			cnt++;
+			Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi, strElmSi));
+			strElmSi++;
+			Mat imgSDdilate;
+			dilate(imgSD(vROI), imgSDdilate, element);
+			imgSDdilate &= mask(vROI) & ((imgD(vROI) == 0) | imgSD(vROI));
+			siAfterDil = sum(imgSDdilate)[0];
+			if (siAfterDil > maxAreaReg)
 			{
-				for (int x = 0; x < vROI.width; x++)
+				int diff = siAfterDil - maxAreaReg;
+				imgSDdilate ^= imgSD(vROI);
+				for (int y = 0; y < vROI.height; y++)
 				{
-					if (imgSDdilate.at<unsigned char>(y, x))
+					for (int x = 0; x < vROI.width; x++)
 					{
-						imgSDdilate.at<unsigned char>(y, x) = 0;
-						//////////
+						if (imgSDdilate.at<unsigned char>(y, x))
+						{
+							imgSDdilate.at<unsigned char>(y, x) = 0;
+							diff--;
+							if (diff <= 0)
+								break;
+						}
 					}
+					if (diff <= 0)
+						break;
 				}
+				imgSD(vROI) |= imgSDdilate;
+				imgSDdilate *= pixVal;
+				imgD(vROI) |= imgSDdilate;
+				addArea = maxAreaReg;
+				nrAdds++;
+				usedDilate = 1;
+
+				return false;
+			}
+			else if (siAfterDil > 0)
+			{
+				imgSDdilate.copyTo(imgSD(vROI));
+				imgSDdilate *= pixVal;
+				imgSDdilate.copyTo(imgD(vROI));
+				addArea += siAfterDil;
+				nrAdds++;
+				usedDilate = 1;
+
+				return true;
 			}
 		}
-		else
+		if (cnt >= maxCnt)
 		{
-			imgSDdilate.copyTo(imgSD(vROI));
-			imgSDdilate *= pixVal;
-			imgSDdilate.copyTo(imgD(vROI));
-			addArea += siAfterDil;
+			return false;
 		}
-		usedDilate = 1;
-		nrAdds++;
 	}
 	else
 	{
@@ -1828,6 +2152,10 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 		imgSD.at<unsigned char>(endpos) = 1;
 		addArea++;
 		nrAdds++;
+		if (addArea >= maxAreaReg)
+		{
+			return false;
+		}
 		vector<int32_t> extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1);
 		if (extension.size() > 1)//Check if we can add addition pixels without blocking the way for the next iteration
 		{
@@ -1850,9 +2178,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 			if (extension.size() > 1)
 			{
 				//Choose a random number of additional pixels to add
-				const int addsi = rand() % ((int)extension.size() + 1);
+				int addsi = rand() % ((int)extension.size() + 1);
 				if (addsi)
 				{
+					if ((addsi + addArea) > maxAreaReg)
+					{
+						addsi = maxAreaReg - addArea;
+					}
 					const int beginExt = rand() % (int)extension.size();
 					for (int i = 0; i < addsi; i++)
 					{
@@ -1896,9 +2228,15 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 						addArea++;
 					}
 				}
+				if (addArea >= maxAreaReg)
+				{
+					return false;
+				}
 			}
 		}
 	}
+
+	return true;
 }
 
 //Get valid directions to expand the depth area given a start position
