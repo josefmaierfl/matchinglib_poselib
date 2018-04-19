@@ -65,8 +65,16 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 
 	//Calculate the area in pixels for every depth and region
 	calcPixAreaPerDepth();
+
+	//Initialize region ROIs and masks
+	genRegMasks();
+
+	//Calculate the initial number, size, and positions of moving objects in the image
+	getNrSizePosMovObj();
 }
 
+//Get number of correspondences per image and Correspondences per image regions
+//Check if there are too many correspondences per region as every correspondence needs a minimum distance to its neighbor. If yes, the minimum distance and/or number of correspondences are adapted.
 void genStereoSequ::initNrCorrespondences()
 {
 	//Number of correspondences per image
@@ -519,6 +527,7 @@ cv::Mat genStereoSequ::getTrackRot(cv::Mat tdiff)
 	return Rt_W2C.t();//return rotation from camera to world
 }
 
+//Calculate the thresholds for the depths near, mid, and far for every camera configuration
 bool genStereoSequ::getDepthRanges()
 {
 	depthFar = vector<double>(nrStereoConfs);
@@ -573,7 +582,7 @@ bool genStereoSequ::getDepthRanges()
 	return true;
 }
 
-/* As the user can specify portions of different depths (neaer, mid, far) globally for the whole image and also for regions within the image,
+/* As the user can specify portions of different depths (near, mid, far) globally for the whole image and also for regions within the image,
 these fractions typically do not match. As a result, the depth range fractions per region must be adapted to match the overall fractions of the
 whole image. Moreover, the fraction of correspondences per region have an impact on the effective depth portions that must be considered when
 adapting the fractions in the image regions.
@@ -805,6 +814,7 @@ void genStereoSequ::updDepthReg(bool isNear, std::vector<std::vector<depthPortio
 	}
 }
 
+//Check if the given ranges of connected depth areas per image region are correct and initialize them for every definition of depths per image region
 void genStereoSequ::checkDepthAreas()
 {
 	//
@@ -1159,6 +1169,7 @@ void genStereoSequ::backProject3D()
 	}
 }
 
+//Generate seeds for generating depth areas and include the seeds found by backprojection of the 3D points of the last frames
 void genStereoSequ::checkDepthSeeds()
 {
 	seedsNear = std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>>(3, std::vector<std::vector<cv::Point3_<int32_t>>>(3));
@@ -1468,6 +1479,7 @@ void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const& delVec, bo
 	editMatNew.copyTo(editMat);
 }
 
+//Wrapper function for function adaptIndicesNoDel
 void genStereoSequ::adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec, std::vector<size_t> &delListSortedAsc)
 {
 	std::vector<size_t> seedVecIdx;
@@ -1516,6 +1528,63 @@ void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<s
 	}
 }
 
+//Initialize region ROIs and masks
+void genStereoSequ::genRegMasks()
+{
+	//Construct valid areas for every region
+	regmasks = vector<vector<Mat>>(3, vector<Mat>(3, Mat::zeros(imgSize, CV_8UC1)));
+	regmasksROIs = vector<vector<cv::Rect>>(3, vector<cv::Rect>(3));
+	regROIs = vector<vector<cv::Rect>>(3, vector<cv::Rect>(3));
+	Size imgSi13 = Size(imgSize.width / 3, imgSize.height / 3);
+	Mat validRect = Mat::ones(imgSize, CV_8UC1);
+	const float overSi = 1.25f;//Allows the expension of created areas outside its region by a given percentage
+	for (size_t y = 0; y < 3; y++)
+	{
+		cv::Point2i pl1, pr1, pl2, pr2;
+		pl1.y = y * imgSi13.height;
+		pl2.y = pl1.y;
+		if (y < 2)
+		{
+			pr1.y = pl1.y + (int)(overSi * (float)imgSi13.height);
+			pr2.y = pl2.y + imgSi13.height;
+		}
+		else
+		{
+			pr1.y = imgSize.height;
+			pr2.y = imgSize.height;
+		}
+		if (y > 0)
+		{
+			pl1.y -= (int)((overSi - 1.f) * (float)imgSi13.height);
+		}
+		for (size_t x = 0; x < 3; x++)
+		{
+			pl1.x = x * imgSi13.width;
+			pl2.x = pl1.x;
+			if (x < 2)
+			{
+				pr1.x = pl1.x + (int)(overSi * (float)imgSi13.width);
+				pr2.x = pl2.x + imgSi13.width;
+			}
+			else
+			{
+				pr1.x = imgSize.width;
+				pr2.x = imgSize.width;
+			}
+			if (x > 0)
+			{
+				pl1.x -= (int)((overSi - 1.f) * (float)imgSi13.width);
+			}
+			Rect vROI = Rect(pl1, pr1);
+			regmasksROIs[y][x] = vROI;
+			regmasks[y][x](vROI) |= validRect(vROI);
+			Rect vROIo = Rect(pl2, pr2);
+			regROIs[y][x] = vROIo;
+		}
+	}
+}
+
+//Generates a depth map with the size of the image where each pixel value corresponds to the depth
 void genStereoSequ::genDepthMaps()
 {
 	int minSi = (int)sqrt(minDArea);
@@ -1601,58 +1670,6 @@ void genStereoSequ::genDepthMaps()
 		}
 	}
 
-	//Construct valid areas for every region
-	vector<vector<Mat>> regmasks(3, vector<Mat>(3, Mat::zeros(imgSize, CV_8UC1)));
-	vector<vector<cv::Rect>> regmasksROIs(3, vector<cv::Rect>(3));
-	regROIs = vector<vector<cv::Rect>>(3, vector<cv::Rect>(3));
-	Size imgSi13 = Size(imgSize.width / 3, imgSize.height / 3);
-	Mat validRect = Mat::ones(imgSize, CV_8UC1);
-	const float overSi = 1.25f;//Allows the expension of created areas outside its region by a given percentage
-	for (size_t y = 0; y < 3; y++)
-	{
-		cv::Point2i pl1, pr1, pl2, pr2;
-		pl1.y = y * imgSi13.height;
-		pl2.y = pl1.y;
-		if (y < 2)
-		{
-			pr1.y = pl1.y + (int)(overSi * (float)imgSi13.height);
-			pr2.y = pl2.y + imgSi13.height;
-		}
-		else
-		{
-			pr1.y = imgSize.height;
-			pr2.y = imgSize.height;
-		}
-		if (y > 0)
-		{
-			pl1.y -= (int)((overSi - 1.f) * (float)imgSi13.height);
-		}
-		for (size_t x = 0; x < 3; x++)
-		{
-			pl1.x = x * imgSi13.width;
-			pl2.x = pl1.x;
-			if (x < 2)
-			{
-				pr1.x = pl1.x + (int)(overSi * (float)imgSi13.width);
-				pr2.x = pl2.x + imgSi13.width;
-			}
-			else
-			{
-				pr1.x = imgSize.width;
-				pr2.x = imgSize.width;
-			}
-			if (x > 0)
-			{
-				pl1.x -= (int)((overSi - 1.f) * (float)imgSi13.width);
-			}
-			Rect vROI = Rect(pl1, pr1);
-			regmasksROIs[y][x] = vROI;
-			regmasks[y][x](vROI) |= validRect(vROI);
-			Rect vROIo = Rect(pl2, pr2);
-			regROIs[y][x] = vROIo;
-		}
-	}
-
 	//Create first layer of depth areas
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsNear(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsMid(3, std::vector<std::vector<cv::Point_<int32_t>>>(3));
@@ -1731,7 +1748,7 @@ void genStereoSequ::genDepthMaps()
 
 	//Create depth areas beginning with the smallest areas (near, mid, or far) per region
 	//Also create depth areas for the second smallest areas
-	Size imgSiM1 = Size(imgSi13.width - 1, imgSiM1.height - 1);
+	Size imgSiM1 = Size(imgSize.width - 1, imgSize.height - 1);
 	for (int j = 0; j < 2; j++)
 	{
 		if (j > 0)
@@ -2128,19 +2145,19 @@ void genStereoSequ::getRandDepthFuncPars(std::vector<std::vector<double>> &pars,
 	}
 }
 
-/* Adds a few random depth pixels near a given position
-unsigned char pixVal	Value assigned to the random pixel positions
-cv::Mat &imgD			Image holding all depth ranges where the new random depth pixels should be added
-cv::Mat &imgSD			Image holding only one specific depth range where the new random depth pixels should be added
-cv::Mat &mask			Mask for imgD and imgSD
-cv::Point_<int32_t> &startpos		Start position (excluding this single location) from where to start adding new depth pixels
-cv::Point_<int32_t> &endpos			End position where the last depth pixel was set
-int32_t &addArea		Adds the number of newly inserted pixels to the given number
-int32_t &maxAreaReg		Maximum number of specific depth pixels per image region (9x9)
-cv::Size &siM1			Image size -1
-cv::Point_<int32_t> &initSeed	Initial position of the seed
-cv::Rect &vROI			ROI were it is actually allowed to add new pixels
-size_t &nrAdds			Number of pixels that were added to this depth area (including preceding calls to this function)
+/* Adds a few random depth pixels near a given position (no actual depth value, but a part of a mask indicating the depth range (near, mid, far)
+unsigned char pixVal	In: Value assigned to the random pixel positions
+cv::Mat &imgD			In/Out: Image holding all depth ranges where the new random depth pixels should be added
+cv::Mat &imgSD			In/Out: Image holding only one specific depth range where the new random depth pixels should be added
+cv::Mat &mask			In: Mask for imgD and imgSD
+cv::Point_<int32_t> &startpos		In: Start position (excluding this single location) from where to start adding new depth pixels
+cv::Point_<int32_t> &endpos			Out: End position where the last depth pixel was set
+int32_t &addArea		In/Out: Adds the number of newly inserted pixels to the given number
+int32_t &maxAreaReg		In: Maximum number of specific depth pixels per image region (9x9)
+cv::Size &siM1			In: Image size -1
+cv::Point_<int32_t> &initSeed	In: Initial position of the seed
+cv::Rect &vROI			In: ROI were it is actually allowed to add new pixels
+size_t &nrAdds			In/Out: Number of times this function was called for this depth area (including preceding calls to this function)
 */
 bool genStereoSequ::addAdditionalDepth(unsigned char pixVal, 
 	cv::Mat &imgD, 
@@ -2450,6 +2467,7 @@ std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &s
 	return dirs;
 }
 
+//Generates correspondences and 3D points in the camera coordinate system (including false matches)
 void genStereoSequ::getKeypoints()
 {
 	int32_t kSi = csurr.rows;
@@ -2723,7 +2741,7 @@ void genStereoSequ::getKeypoints()
 				x1TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
 				int max_try = 10;
 				double perfDist = 50.0;
-				if (!checkLKPInlier(pt, pt2, pCam))
+				if (!checkLKPInlier(pt, pt2, pCam))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
 				{
 					while (max_try > 0)
 					{
@@ -2740,7 +2758,7 @@ void genStereoSequ::getKeypoints()
 					}
 					pt2 = Point2d((double)pt.x, (double)pt.y);
 				}
-				else
+				else//Distort the reprojection in the second image to get a TN
 				{
 					Point2d ptd;
 					while (max_try > 0)
@@ -2830,6 +2848,8 @@ void genStereoSequ::getKeypoints()
 
 }
 
+//Check, if the given point in the first camera is also visible in the second camera
+//Calculates the 3D-point in the camera coordinate system and the corresponding point in the second image
 bool genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam)
 {
 	Mat x = (Mat_<double>(3, 1) << (double)pt.x, (double)pt.y, 1.0);
@@ -2850,4 +2870,436 @@ bool genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv:
 	}
 
 	return true;
+}
+
+//Calculate the initial number, size, and positions of moving objects in the image
+void genStereoSequ::getNrSizePosMovObj()
+{
+	//size_t nrMovObjs;//Number of moving objects in the scene
+	//cv::InputArray startPosMovObjs;//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
+	//std::pair<double, double> relAreaRangeMovObjs;//Relative area range of moving objects. Area range relative to the image area at the beginning.
+
+	if (pars.startPosMovObjs.empty())
+	{
+		startPosMovObjs = Mat::zeros(3, 3, CV_8UC1);
+		for (size_t y = 0; y < 3; y++)
+		{
+			for (size_t x = 0; x < 3; x++)
+			{
+				startPosMovObjs.at<unsigned char>(y, x) = (unsigned char)(rand() % 2);
+			}
+		}
+	}
+	else
+	{
+		startPosMovObjs = pars.startPosMovObjs.getMat();
+	}
+
+	//Check, if the input paramters are valid and if not, adapt them
+	int nrStartA = 0;
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			if (startPosMovObjs.at<unsigned char>(y,x))
+			{
+				nrStartA++;
+			}
+		}
+	}
+
+	int imgArea = imgSize.area();
+	int maxOPerReg = (int)ceil((float)pars.nrMovObjs / (float)nrStartA);
+	int area23 = 2 * imgArea / 3;//The moving objects should
+	minOArea = (int)round(pars.relAreaRangeMovObjs.first * (double)imgArea);
+	maxOArea = (int)round(pars.relAreaRangeMovObjs.second * (double)imgArea);
+
+	//The maximum image area coverd with moving objects should not exeed 2/3 of the image
+	if (minOArea * (int)pars.nrMovObjs > area23)
+	{
+		pars.nrMovObjs = (size_t)(area23 / minOArea);
+		maxOArea = minOArea;
+		minOArea = minOArea / 2;
+	}
+
+	//If more than 2 seeds for moving objects are within an image region (9x9), then the all moving objects in a region should cover not more than 2/3 of the region
+	//This helps to reduce the propability that during the generation of the moving objects (beginning at the seed positions) one objects blocks the generation of an other
+	//For less than 3 objects per region, there shouldnt be a problem as they can grow outside an image region and the propability of blocking a different moving object is not that high
+	if (maxOPerReg > 2)
+	{
+		int areaPerReg23 = area23 / 9;
+		if (maxOPerReg * minOArea > areaPerReg23)
+		{
+			if (minOArea > areaPerReg23)
+			{
+				maxOArea = areaPerReg23;
+				minOArea = maxOArea / 2;
+				maxOPerReg = 1;
+			}
+			else
+			{
+				maxOPerReg = areaPerReg23 / minOArea;
+				maxOArea = minOArea;
+				minOArea = minOArea / 2;
+			}
+			pars.nrMovObjs = (size_t)(maxOPerReg * nrStartA);
+		}
+	}
+	else
+	{
+		maxOPerReg = 2;
+	}
+
+	//Get the number of moving object seeds per region
+	int nrMovObjs_tmp = (int)pars.nrMovObjs;
+	Mat nrPerReg = Mat::zeros(3, 3, CV_8UC1);
+	while (nrMovObjs_tmp > 0)
+	{
+		for (int y = 0; y < 3; y++)
+		{
+			for (int x = 0; x < 3; x++)
+			{
+				if (startPosMovObjs.at<unsigned char>(y, x) && (maxOPerReg > (int)nrPerReg.at<unsigned char>(y, x)))
+				{
+					int addit = rand() % 2;
+					if (addit)
+					{
+						nrPerReg.at<unsigned char>(y, x)++;
+						nrMovObjs_tmp--;
+						if (nrMovObjs_tmp == 0)
+							break;
+					}
+				}
+			}
+			if (nrMovObjs_tmp == 0)
+				break;
+		}
+	}
+
+	//Get the area for each moving object
+	int maxObjsArea = min(area23, maxOArea * (int)pars.nrMovObjs);
+	maxOArea = maxObjsArea / (int)pars.nrMovObjs;
+	std::uniform_real_distribution<int32_t> distribution((int32_t)minOArea, (int32_t)maxOArea);
+	movObjAreas = vector<vector<vector<int32_t>>>(3, vector<vector<int32_t>>(3));
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			int nr_tmp = (int)nrPerReg.at<unsigned char>(y, x);
+			for(int i = 0; i < nr_tmp; i++)
+			{
+				movObjAreas[y][x].push_back(distribution(rand_gen));
+			}
+		}
+	}
+
+	//Get seed positions
+	minODist = imgSize.height / (3 * (maxOPerReg + 1));
+	movObjSeeds = vector<vector<vector<cv::Point_<int32_t>>>>(3, vector<vector<cv::Point_<int32_t>>>(3));
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			int nr_tmp = (int)nrPerReg.at<unsigned char>(y, x);
+			if (nr_tmp > 0)
+			{
+				rand_gen = std::default_random_engine((unsigned int)std::rand());//Prevent getting the same starting positions for equal ranges
+				std::uniform_real_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
+				std::uniform_real_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+				movObjSeeds[y][x].push_back(cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen)));
+				nr_tmp--;
+				if (nr_tmp > 0)
+				{
+					vector<int> xposes, yposes;
+					xposes.push_back(movObjSeeds[y][x].back().x);
+					yposes.push_back(movObjSeeds[y][x].back().y);
+					while (nr_tmp > 0)
+					{
+						sort(xposes.begin(), xposes.end());
+						sort(yposes.begin(), yposes.end());
+						vector<int> xInterVals, yInterVals;
+						vector<double> xWeights, yWeights;
+
+						//Get possible selection ranges for x-values
+						int start = max(xposes[0] - minODist, regROIs[y][x].x);
+						int maxEnd = regROIs[y][x].x + regROIs[y][x].width;
+						int xyend = min(xposes[0] + minODist, maxEnd);
+						if (start == regROIs[y][x].x)
+						{
+							xInterVals.push_back(start);
+							xInterVals.push_back(xposes[0] + minODist);
+							xWeights.push_back(0);
+						}
+						else
+						{
+							xInterVals.push_back(regROIs[y][x].x);
+							xInterVals.push_back(start);
+							xWeights.push_back(1.0);
+							if (xyend != maxEnd)
+							{
+								xInterVals.push_back(xyend);
+								xWeights.push_back(0);
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							for (size_t i = 1; i < xposes.size(); i++)
+							{
+								start = max(xposes[i] - minODist, xInterVals.back());
+								if (start != xInterVals.back())
+								{
+									xInterVals.push_back(xposes[i] - minODist);
+									xWeights.push_back(1.0);
+								}								
+								xyend = min(xposes[i] + minODist, maxEnd);
+								if (xyend != maxEnd)
+								{
+									xInterVals.push_back(xyend);
+									xWeights.push_back(0);
+								}
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							xInterVals.push_back(maxEnd);
+							xWeights.push_back(1.0);
+						}
+
+						//Get possible selection ranges for y-values
+						start = max(yposes[0] - minODist, regROIs[y][x].y);
+						maxEnd = regROIs[y][x].y + regROIs[y][x].height;
+						int xyend = min(yposes[0] + minODist, maxEnd);
+						if (start == regROIs[y][x].y)
+						{
+							yInterVals.push_back(start);
+							yInterVals.push_back(yposes[0] + minODist);
+							yWeights.push_back(0);
+						}
+						else
+						{
+							yInterVals.push_back(regROIs[y][x].y);
+							yInterVals.push_back(start);
+							yWeights.push_back(1.0);
+							if (xyend != maxEnd)
+							{
+								yInterVals.push_back(xyend);
+								yWeights.push_back(0);
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							for (size_t i = 1; i < yposes.size(); i++)
+							{
+								start = max(yposes[i] - minODist, yInterVals.back());
+								if (start != yInterVals.back())
+								{
+									yInterVals.push_back(yposes[i] - minODist);
+									yWeights.push_back(1.0);
+								}
+								xyend = min(yposes[i] + minODist, maxEnd);
+								if (xyend != maxEnd)
+								{
+									yInterVals.push_back(xyend);
+									yWeights.push_back(0);
+								}
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							yInterVals.push_back(maxEnd);
+							yWeights.push_back(1.0);
+						}
+
+						//Create piecewise uniform distribution and get a random seed
+						piecewise_constant_distribution<int> distrPieceX(xInterVals.begin(), xInterVals.end(), xWeights.begin());
+						piecewise_constant_distribution<int> distrPieceY(yInterVals.begin(), yInterVals.end(), yWeights.begin());
+						movObjSeeds[y][x].push_back(cv::Point_<int32_t>(distrPieceX(rand_gen), distrPieceY(rand_gen)));
+						xposes.push_back(movObjSeeds[y][x].back().x);
+						yposes.push_back(movObjSeeds[y][x].back().y);
+						nr_tmp--;
+					}
+				}
+			}
+		}
+	}
+}
+
+//Generates labels of moving objects within the image and calculates the percentage of overlap for each region
+//mask is used to exclude areas from generating labels and must have the same size as the image
+//seeds must hold the seeding positions for generating the labels
+//areas must hold the desired area for every label
+void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas)
+{
+	CV_Assert(seeds.size() == areas.size());
+
+	size_t nr_movObj = areas.size();
+
+	movObjLabels.clear();
+	movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
+	Mat combLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+	//Set seeding positions in mov. obj. label images
+	for (size_t i = 0; i < nr_movObj; i++)
+	{
+		movObjLabels[i].at<unsigned char>(seeds[i]) = 1;
+		combLabels.at<unsigned char>(seeds[i]) = (unsigned char)i;
+	}
+	Size siM1(imgSize.width - 1, imgSize.height - 1);
+	Rect imgArea = Rect(Point(0, 0), imgSize);
+	Mat regMask = cv::Mat::ones(imgSize, CV_8UC1);
+	std::vector<cv::Point_<int32_t>> startposes = seeds;
+	vector<int32_t> actArea(nr_movObj, 1);
+	vector<size_t> nrIterations(nr_movObj, 0);
+	vector<unsigned char> dilateOps(nr_movObj, 0);
+	vector<bool> objNFinished(nr_movObj, true);
+	int remainObj = (int)nr_movObj;
+
+	//Generate labels
+	while (remainObj > 0)
+	{
+		for (size_t i = 0; i < nr_movObj; i++)
+		{
+			if (objNFinished[i])
+			{
+				if (!addAdditionalDepth((unsigned char)i,
+					combLabels,
+					movObjLabels[i],
+					mask,
+					regMask,
+					startposes[i],
+					startposes[i],
+					actArea[i],
+					areas[i],
+					siM1,
+					seeds[i],
+					imgArea,
+					nrIterations[i],
+					dilateOps[i]))
+				{
+					objNFinished[i] = false;
+					remainObj--;
+				}
+			}
+		}
+	}
+
+	//Get overlap of regions and the portion of correspondences that is covered by the moving objects
+	vector<vector<double>> movObjOverlap(3, vector<double>(3, 0));
+	vector<vector<bool>> movObjHasArea(3, vector<bool>(3, false));
+	vector<vector<int32_t>> movObjCorrsFromStatic(3, vector<int32_t>(3, 0));
+	vector<vector<int32_t>> movObjCorrsFromStaticInv(3, vector<int32_t>(3, 0));
+	int32_t absNrCorrsFromStatic = 0;
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			movObjOverlap[y][x] = (double)cv::countNonZero(combLabels(regROIs[y][x])) / (double)(regROIs[y][x].area());
+			if (movObjOverlap[y][x] > 0.9)
+			{
+				movObjHasArea[y][x] = true;
+				movObjCorrsFromStatic[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+				movObjCorrsFromStaticInv[y][x] = 0;
+				absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
+			}
+			else
+			{
+				movObjCorrsFromStatic[y][x] = (int32_t)round((double)nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
+				movObjCorrsFromStaticInv[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) - movObjCorrsFromStatic[y][x];
+				absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
+			}
+		}
+	}
+
+	double areaFracStaticCorrs = (double)absNrCorrsFromStatic / (double)nrCorrs[actFrameCnt];
+	double r_CorrMovObjPort = round(pars.CorrMovObjPort * 100.0) / 100.0;
+	double r_areaFracStaticCorrs = round(areaFracStaticCorrs * 100.0) / 100.0;
+	Mat statCorrsPRegNew = Mat::zeros(3, 3, CV_32SC1);
+	int32_t actCorrsOnMovObj = (int32_t)round(pars.CorrMovObjPort * (double)nrCorrs[actFrameCnt]);
+	if (r_CorrMovObjPort > r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
+	{
+		int32_t remStat = actCorrsOnMovObj - absNrCorrsFromStatic;
+		int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+		int32_t remStatrem = remStat;
+		for (size_t y = 0; y < 3; y++)
+		{
+			for (size_t x = 0; x < 3; x++)
+			{
+				if (!movObjHasArea[y][x] && (remStatrem > 0))
+				{
+					int32_t val = (int32_t)round((double)movObjCorrsFromStaticInv[y][x] / (double)actStatCorrs * (double)remStat);
+					int32_t newval = movObjCorrsFromStaticInv[y][x] - val;
+					if (newval > 0)
+					{
+						remStatrem -= val;
+						if (remStatrem < 0)
+						{
+							val += remStatrem;
+							newval = movObjCorrsFromStaticInv[y][x] - val;
+							remStatrem = 0;
+						}
+						statCorrsPRegNew.at<int32_t>(y, x) = newval;
+					}
+					else
+					{
+						remStatrem -= val + newval;
+						if (remStatrem < 0)
+						{
+							statCorrsPRegNew.at<int32_t>(y, x) = -remStatrem;
+							remStatrem = 0;
+						}
+					}
+				}
+			}
+		}
+		if (remStatrem > 0)
+		{
+			vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+			for (size_t y = 0; y < 3; y++)
+			{
+				for (size_t x = 0; x < 3; x++)
+				{
+					const size_t idx = y * 3 + x;
+					movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x));
+				}
+			}
+			sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(), [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {return first.second > second.second; });
+			while (remStatrem > 0)
+			{
+				for (size_t i = 0; i < 9; i++)
+				{
+					if (movObjCorrsFromStaticInv_tmp[i].second > 0)
+					{
+						size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+						size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+						statCorrsPRegNew.at<int32_t>(y, x)--;
+						remStatrem--;
+						movObjCorrsFromStaticInv_tmp[i].second--;
+						if (remStatrem == 0)
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (r_CorrMovObjPort < r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
+	{
+		int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObj;
+	}
+
+	//Set new static correspondences
+	for (size_t y = 0; y < 3; y++)
+	{
+		for (size_t x = 0; x < 3; x++)
+		{
+			if (nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) > 0)
+			{
+				int32_t TPnew = (int32_t)round((double)statCorrsPRegNew.at<int32_t>(y, x) * (double)nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) / (double)nrCorrsRegs[actFrameCnt].at<int32_t>(y, x));
+				int32_t TNnew = statCorrsPRegNew.at<int32_t>(y, x) - TPnew;
+				nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = TNnew;
+				nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) = TPnew;
+				nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
+			}
+		}
+	}
 }

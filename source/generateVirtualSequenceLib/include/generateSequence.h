@@ -96,11 +96,12 @@ struct StereoSequParameters
 		size_t nrMovObjs_ = 0,
 		cv::InputArray startPosMovObjs_ =  cv::noArray(),
 		std::pair<double, double> relAreaRangeMovObjs_ = std::make_pair(0.01, 0.1),
-		depthClass movObjDepth_ = depthClass::MID,
+		std::vector<depthClass> movObjDepth_ = std::vector<depthClass>(),
 		cv::InputArray movObjDir_ = cv::noArray(),
 		std::pair<double, double> relMovObjVelRange_ = std::make_pair(0.5, 1.5),
 		std::pair<double, double> relMinMaxDMovObj_ = std::make_pair(0.1, 2.0),
-		double CorrMovObjPort_ = 0.25
+		double CorrMovObjPort_ = 0.25,
+		size_t minNrMovObjs_ = 0
 		): 
 	nFramesPerCamConf(nFramesPerCamConf_), 
 		inlRatRange(inlRatRange_),
@@ -128,7 +129,8 @@ struct StereoSequParameters
 		movObjDir(movObjDir_),
 		relMovObjVelRange(relMovObjVelRange_),
 		relMinMaxDMovObj(relMinMaxDMovObj_),
-		CorrMovObjPort(CorrMovObjPort_)
+		CorrMovObjPort(CorrMovObjPort_),
+		minNrMovObjs(minNrMovObjs_)
 	{
 		CV_Assert(nFramesPerCamConf > 0);
 		CV_Assert((inlRatRange.first < 1.0) && (inlRatRange.first >= 0) && (inlRatRange.second <= 1.0) && (inlRatRange.second > 0));
@@ -155,6 +157,7 @@ struct StereoSequParameters
 		CV_Assert((relMovObjVelRange.first < 100.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 100.0) && (relAreaRangeMovObjs.second > 0));
 		CV_Assert((relMinMaxDMovObj.first < 10.0) && (relMinMaxDMovObj.first >= 0) && (relMinMaxDMovObj.second <= 10.0) && (relMinMaxDMovObj.second > 0));
 		CV_Assert((CorrMovObjPort > 0) && (CorrMovObjPort <= 1.0));
+		CV_Assert(minNrMovObjs <= nrMovObjs);
 	}
 
 	//Parameters for generating correspondences
@@ -182,11 +185,12 @@ struct StereoSequParameters
 	size_t nrMovObjs;//Number of moving objects in the scene
 	cv::InputArray startPosMovObjs;//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 	std::pair<double, double> relAreaRangeMovObjs;//Relative area range of moving objects. Area range relative to the image area at the beginning.
-	depthClass movObjDepth;//Depth of moving objects. Moving objects are always visible and not covered by other static objects.
+	std::vector<depthClass> movObjDepth;//Depth of moving objects. Moving objects are always visible and not covered by other static objects. If the number of paramters is equal "nrMovObjs", the corresponding depth is used for every object. If the number of parameters is smaller and between 2 and 3, the depths for the moving objects are selected uniformly distributed from the given depths. For a number of paramters larger 3 and unequal to "nrMovObjs", a portion for every depth that should be used can be defined (e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
 	cv::InputArray movObjDir;//Movement direction of moving objects relative to camera movementm (must be 3x1). The movement direction is linear and does not change if the movement direction of the camera changes.The moving object is removed, if it is no longer visible in both stereo cameras.
 	std::pair<double, double> relMovObjVelRange;//Relative velocity range of moving objects based on relative camera velocity. Values between 0 and 100; Must be larger 0;
 	std::pair<double, double> relMinMaxDMovObj;//Relative min and max depth based on z_max for moving objects to disappear (Values between 0 and 10; Must be larger 0). This value is relative to th max. usable depth depending on the camera configuration. If at least one 3D point of a moving object reaches one of these thresholds, the object is removed.
 	double CorrMovObjPort;//Portion of correspondences on moving object (compared to static objects). It is limited by the size of the objects visible in the images and the minimal distance between correspondences.
+	size_t minNrMovObjs;//Minimum number of moving objects over the whole track. If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached. If 0, no new moving objects are inserted if every preceding object is out of sight.
 };
 
 struct Poses
@@ -220,6 +224,7 @@ private:
 	void backProject3D();
 	void adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<size_t> &delListSortedAsc);
 	void adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec, std::vector<size_t> &delListSortedAsc);
+	void genRegMasks();
 	void genDepthMaps();
 	bool addAdditionalDepth(unsigned char pixVal,
 		cv::Mat &imgD,
@@ -242,6 +247,8 @@ private:
 	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
 	void getKeypoints();
 	bool checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam);
+	void getNrSizePosMovObj();
+	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
 
 private:
 	std::default_random_engine rand_gen;
@@ -269,6 +276,9 @@ private:
 	std::vector<cv::Mat> nrTruePosRegs;//Absolute number of true positive correspondences per image region and frame; Type CV_32SC1
 	std::vector<cv::Mat> nrCorrsRegs;//Absolute number of correspondences (TP+TN) per image region and frame; Type CV_32SC1
 	std::vector<cv::Mat> nrTrueNegRegs;//Absolute number of true negative correspondences per image region and frame; Type CV_32SC1
+
+	std::vector<std::vector<cv::Mat>> regmasks;//Mask for every of the 3x3 regions with the same size as the image and aspecific percentage of validity outside every region (overlap areas). Used for generating depth maps. See genRegMasks() for details on the overlap area.
+	std::vector<std::vector<cv::Rect>> regmasksROIs;//ROIs used to generate regmasks.
 
 	cv::Mat depthMap;//Mat of the same size as the image holding a depth value for every pixel (double)
 	cv::Mat depthAreaMap;//Type CV_8UC1 and same size as image; Near depth areas are marked with 1, mid with 2 and far with 3
@@ -313,6 +323,16 @@ private:
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsNearFromLast;//Holds the actual near seeds of backprojected 3D points for every region; Size 3x3xn;
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsMidFromLast;//Holds the actual mid seeds of backprojected 3D points for every region; Size 3x3xn;
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsFarFromLast;//Holds the actual far seeds of backprojected 3D points for every region; Size 3x3xn;
+
+	cv::Mat startPosMovObjs; //Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
+	int minOArea, maxOArea;//Minimum and maximum area of single moving objects in the image
+	int minODist;//Minimum distance between seeding positions (for areas) of moving objects
+	std::vector<std::vector<std::vector<int32_t>>> movObjAreas;//Area for every moving object within the first frame per image region (must be 3x3xn)
+	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> movObjSeeds;//Seeding positions for every moving object within the first frame per image region (must be 3x3xn and the same size as movObjAreas)
+	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
+	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in camera coordinates
+	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in world coordinates
+	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object
 };
 
 
