@@ -1118,6 +1118,10 @@ void genStereoSequ::backProject3D()
 		Mat x1 = K1 * X;
 		x1 /= x1.at<double>(2);
 
+		//Check if the point is within the area of a moving object
+		if (movObjMaskFromLast.at<unsigned char>((int)round(x1.at<double>(1)), (int)round(x1.at<double>(0))) > 0)
+			continue;
+
 		bool outOfR[2] = { false, false };
 		if ((x1.at<double>(0) < 0) || (x1.at<double>(0) > dimgWH.width) ||
 			(x1.at<double>(1) < 0) || (x1.at<double>(0) > dimgWH.height))//Not visible in first image
@@ -1133,6 +1137,10 @@ void genStereoSequ::backProject3D()
 		{
 			outOfR[1] = true;
 		}
+
+		//Check if the point is within the area of a moving object in the second image
+		if (movObjMaskFromLast2.at<unsigned char>((int)round(x2.at<double>(1)), (int)round(x2.at<double>(0))) > 0)
+			outOfR[1] = true;
 
 		if (outOfR[0] && outOfR[1])
 		{
@@ -2467,7 +2475,7 @@ std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &s
 	return dirs;
 }
 
-//Generates correspondences and 3D points in the camera coordinate system (including false matches)
+//Generates correspondences and 3D points in the camera coordinate system (including false matches) from static scene elements
 void genStereoSequ::getKeypoints()
 {
 	int32_t kSi = csurr.rows;
@@ -3125,23 +3133,27 @@ void genStereoSequ::getNrSizePosMovObj()
 }
 
 //Generates labels of moving objects within the image and calculates the percentage of overlap for each region
-//mask is used to exclude areas from generating labels and must have the same size as the image
+//Moreover, the number of static correspondences per region is adapted and the number of correspondences on the moving objects is calculated
+//mask is used to exclude areas from generating labels and must have the same size as the image; mask holds the areas from backprojected moving objects
 //seeds must hold the seeding positions for generating the labels
 //areas must hold the desired area for every label
-void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas)
+//corrsOnMovObjLF must hold the number of correspondences on moving objects that were backprojected (thus the objects were created one or more frames beforehand)
+//					from 3D (including TN calculated using the inlier ratio).
+void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF)
 {
 	CV_Assert(seeds.size() == areas.size());
 
 	size_t nr_movObj = areas.size();
 
 	movObjLabels.clear();
-	movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
-	Mat combLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+	if(nr_movObj)
+		movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
+	combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
 	//Set seeding positions in mov. obj. label images
 	for (size_t i = 0; i < nr_movObj; i++)
 	{
 		movObjLabels[i].at<unsigned char>(seeds[i]) = 1;
-		combLabels.at<unsigned char>(seeds[i]) = (unsigned char)i;
+		combMovObjLabels.at<unsigned char>(seeds[i]) = (unsigned char)i;
 	}
 	Size siM1(imgSize.width - 1, imgSize.height - 1);
 	Rect imgArea = Rect(Point(0, 0), imgSize);
@@ -3161,7 +3173,7 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 			if (objNFinished[i])
 			{
 				if (!addAdditionalDepth((unsigned char)i,
-					combLabels,
+					combMovObjLabels,
 					movObjLabels[i],
 					mask,
 					regMask,
@@ -3184,15 +3196,16 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 
 	//Get overlap of regions and the portion of correspondences that is covered by the moving objects
 	vector<vector<double>> movObjOverlap(3, vector<double>(3, 0));
-	vector<vector<bool>> movObjHasArea(3, vector<bool>(3, false));
+	movObjHasArea = vector<vector<bool>>(3, vector<bool>(3, false));
 	vector<vector<int32_t>> movObjCorrsFromStatic(3, vector<int32_t>(3, 0));
 	vector<vector<int32_t>> movObjCorrsFromStaticInv(3, vector<int32_t>(3, 0));
 	int32_t absNrCorrsFromStatic = 0;
+	Mat statCorrsPRegNew = Mat::zeros(3, 3, CV_32SC1);
 	for (size_t y = 0; y < 3; y++)
 	{
 		for (size_t x = 0; x < 3; x++)
 		{
-			movObjOverlap[y][x] = (double)cv::countNonZero(combLabels(regROIs[y][x])) / (double)(regROIs[y][x].area());
+			movObjOverlap[y][x] = (double)(cv::countNonZero(combMovObjLabels(regROIs[y][x])) + cv::countNonZero(mask(regROIs[y][x]))) / (double)(regROIs[y][x].area());
 			if (movObjOverlap[y][x] > 0.9)
 			{
 				movObjHasArea[y][x] = true;
@@ -3200,21 +3213,65 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 				movObjCorrsFromStaticInv[y][x] = 0;
 				absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
 			}
+			else if (nearZero(movObjOverlap[y][x]))
+			{
+				statCorrsPRegNew.at<int32_t>(y, x) = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+			}
 			else
 			{
 				movObjCorrsFromStatic[y][x] = (int32_t)round((double)nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
 				movObjCorrsFromStaticInv[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) - movObjCorrsFromStatic[y][x];
 				absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
+				statCorrsPRegNew.at<int32_t>(y, x) = movObjCorrsFromStaticInv[y][x];
 			}
 		}
 	}
 
-	double areaFracStaticCorrs = (double)absNrCorrsFromStatic / (double)nrCorrs[actFrameCnt];
-	double r_CorrMovObjPort = round(pars.CorrMovObjPort * 100.0) / 100.0;
+	////Get area of backprojected moving objects
+	//double moAreaOld = 0;
+	//for (size_t i = 0; i < convhullPtsObj.size; i++)
+	//{
+	//	moAreaOld += cv::contourArea(convhullPtsObj[i]);
+	//}
+	
+	if (nr_movObj == 0)
+		actCorrsOnMovObj = corrsOnMovObjLF;
+	else
+		actCorrsOnMovObj = (int32_t)round(pars.CorrMovObjPort * (double)nrCorrs[actFrameCnt]);// -corrsOnMovObjLF;
+	//actCorrsOnMovObj = actCorrsOnMovObj > 0 ? actCorrsOnMovObj : 0;
+	if (actCorrsOnMovObj == 0)
+	{
+		seeds.clear();
+		areas.clear();
+		movObjLabels.clear();
+		//movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
+		combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+		actCorrsOnMovObj = 0;
+		actTruePosOnMovObj = 0;
+		actTrueNegOnMovObj = 0;
+		return;
+	}
+	//Check if there are too many correspondences on the moving objects
+	int32_t maxCorrs = 0;
+	if (nr_movObj > 0)
+	{
+		int32_t areassum = 0;
+		for (auto i : actArea)
+		{
+			areassum += i;
+		}
+		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);//reduce the initial area by reducing the radius of a circle with corresponding area by 1: are_new = area - 2*sqrt(pi)*sqrt(area)+pi
+		if ((actCorrsOnMovObj - corrsOnMovObjLF) > maxCorrs)
+		{
+			actCorrsOnMovObj = maxCorrs + corrsOnMovObjLF;
+		}
+	}
+
+	double areaFracStaticCorrs = (double)absNrCorrsFromStatic / (double)nrCorrs[actFrameCnt];//Fraction of correspondences which the moving objects should take because of their area
+	//double r_CorrMovObjPort = round(pars.CorrMovObjPort * 100.0) / 100.0;//Fraction of correspondences the user specified for the moving objects
 	double r_areaFracStaticCorrs = round(areaFracStaticCorrs * 100.0) / 100.0;
-	Mat statCorrsPRegNew = Mat::zeros(3, 3, CV_32SC1);
-	int32_t actCorrsOnMovObj = (int32_t)round(pars.CorrMovObjPort * (double)nrCorrs[actFrameCnt]);
-	if (r_CorrMovObjPort > r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
+	double r_effectiveFracMovObj = round((double)actCorrsOnMovObj / (double)nrCorrs[actFrameCnt] * 100.0) / 100.0;//Effective not changable fraction of correspondences on moving objects
+	if (r_effectiveFracMovObj > r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
 	{
 		int32_t remStat = actCorrsOnMovObj - absNrCorrsFromStatic;
 		int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
@@ -3262,7 +3319,8 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 				}
 			}
 			sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(), [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {return first.second > second.second; });
-			while (remStatrem > 0)
+			int maxIt = remStatrem;
+			while ((remStatrem > 0) && (maxIt > 0))
 			{
 				for (size_t i = 0; i < 9; i++)
 				{
@@ -3279,12 +3337,86 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 						}
 					}
 				}
+				maxIt--;
 			}
 		}
 	}
-	else if (r_CorrMovObjPort < r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
+	else if (r_effectiveFracMovObj < r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
 	{
 		int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObj;
+
+		int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+		int32_t remMovrem = remMov;
+		vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
+		for (size_t y = 0; y < 3; y++)
+		{
+			for (size_t x = 0; x < 3; x++)
+			{
+				if (!movObjHasArea[y][x] && (remMovrem > 0))
+				{
+					int32_t val = (int32_t)round((double)movObjCorrsFromStaticInv[y][x] / (double)actStatCorrs * (double)remMov);
+					int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
+					//Get the maximum # of correspondences per area using the minimum distance between keypoints
+					cmaxreg[y][x] = (int32_t)((double)((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) * (1.0 - movObjOverlap[y][x]) / (1.5 * pars.minKeypDist * pars.minKeypDist));
+					if (newval <= cmaxreg[y][x])
+					{
+						remMovrem -= val;
+						if (remMovrem < 0)
+						{
+							val += remMovrem;
+							newval = movObjCorrsFromStaticInv[y][x] + val;
+							remMovrem = 0;
+						}
+						statCorrsPRegNew.at<int32_t>(y, x) = newval;
+						cmaxreg[y][x] -= newval;
+					}
+					else
+					{
+						statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
+						remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
+						if (remMovrem < 0)
+						{
+							statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
+							remMovrem = 0;							
+						}
+						cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
+					}
+				}
+			}
+		}
+		if (remMovrem > 0)
+		{
+			vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+			for (size_t y = 0; y < 3; y++)
+			{
+				for (size_t x = 0; x < 3; x++)
+				{
+					const size_t idx = y * 3 + x;
+					movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, cmaxreg[y][x]);
+				}
+			}
+			sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(), [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {return first.second > second.second; });
+			int maxIt = remMovrem;
+			while ((remMovrem > 0) && (maxIt > 0))
+			{
+				for (size_t i = 0; i < 9; i++)
+				{
+					size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+					size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+					if ((movObjCorrsFromStaticInv_tmp[i].second > 0) && (statCorrsPRegNew.at<int32_t>(y, x) > 0))
+					{					
+						statCorrsPRegNew.at<int32_t>(y, x)++;
+						remMovrem--;
+						movObjCorrsFromStaticInv_tmp[i].second--;
+						if (remMovrem == 0)
+						{
+							break;
+						}
+					}
+				}
+				maxIt--;
+			}
+		}
 	}
 
 	//Set new static correspondences
@@ -3302,4 +3434,51 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 			}
 		}
 	}
+
+	//Calculate correspondences on newly created moving objects
+	if (nr_movObj > 0)
+	{
+		actCorrsOnMovObj -= corrsOnMovObjLF;
+		actTruePosOnMovObj = (int32_t)round(inlRat[actFrameCnt] * (double)actCorrsOnMovObj);
+		actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj;
+	}
+}
+
+
+void genStereoSequ::getNewCorrs()
+{
+	/* Calculate the following:
+	cv::Mat actR;//actu
+	cv::Mat actT;//actu
+	size_t actFrameCnt
+	size_t actCorrsPRId
+	double actDepthNear
+	double actDepthMid;
+	double actDepthFar;
+	*/
+
+	//Generate maps (masks) of moving objects by backprojection from 3D for the first and second stereo camera: movObjMaskFromLast, movObjMaskFromLast2; create convex hulls: convhullPtsObj
+
+	//Generate new moving objects and adapt the number of static correspondences per region
+	generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);//TODO: Make a own function for adapting the number of static correspondences per region as this must also be done when no new moving objects are generated
+
+	//Generate correspondences and 3D points for new moving objects including depth maps
+
+	//Check if some moving objects should be deleted
+																																	   
+	//Get 3D points of static elements and store them to actImgPointCloudFromLast
+
+	//Backproject static 3D points
+	backProject3D();
+
+	//Generate seeds for generating depth areas and include the seeds found by backprojection of the 3D points of the last frames
+	checkDepthSeeds();
+
+	//Generate depth areas for the current image and static elements
+	genDepthMaps();
+
+	//Generates correspondences and 3D points in the camera coordinate system (including false matches) from static scene elements
+	getKeypoints();//TODO: Use mask to prevent generating correspondences in areas of moving objects
+
+	//Insert new 3D coordinates into the world coordinate system
 }

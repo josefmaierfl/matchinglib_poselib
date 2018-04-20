@@ -248,7 +248,8 @@ private:
 	void getKeypoints();
 	bool checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam);
 	void getNrSizePosMovObj();
-	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
+	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
+	void getNewCorrs();
 
 private:
 	std::default_random_engine rand_gen;
@@ -333,6 +334,13 @@ private:
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in world coordinates
 	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object
+	cv::Mat combMovObjLabels;//Combination of all masks stored in movObjLabels. Every label has a different value.
+	int32_t actCorrsOnMovObj;//Actual number of new correspondences on moving objects (excluding backprojected correspondences from moving objects that were created one or more frames ago) including true negatives
+	int32_t actTruePosOnMovObj;//Number of new true positive correspondences on moving objects: actTruePosOnMovObj = actCorrsOnMovObj - actTrueNegOnMovObj
+	int32_t actTrueNegOnMovObj;//Number of new true negative correspondences on moving objects: actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj
+	cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
+	cv::Mat movObjMaskFromLast2;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for second stereo image)
+	std::vector<std::vector<bool>> movObjHasArea;//Indicates for every region if it is completely occupied by a moving object
 };
 
 
