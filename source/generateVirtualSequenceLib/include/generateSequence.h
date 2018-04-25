@@ -99,7 +99,7 @@ struct StereoSequParameters
 		std::vector<depthClass> movObjDepth_ = std::vector<depthClass>(),
 		cv::InputArray movObjDir_ = cv::noArray(),
 		std::pair<double, double> relMovObjVelRange_ = std::make_pair(0.5, 1.5),
-		std::pair<double, double> relMinMaxDMovObj_ = std::make_pair(0.1, 2.0),
+		double minMovObjCorrPortion_ = 0.5,
 		double CorrMovObjPort_ = 0.25,
 		size_t minNrMovObjs_ = 0
 		): 
@@ -128,7 +128,7 @@ struct StereoSequParameters
 		movObjDepth(movObjDepth_),
 		movObjDir(movObjDir_),
 		relMovObjVelRange(relMovObjVelRange_),
-		relMinMaxDMovObj(relMinMaxDMovObj_),
+		minMovObjCorrPortion(minMovObjCorrPortion_),
 		CorrMovObjPort(CorrMovObjPort_),
 		minNrMovObjs(minNrMovObjs_)
 	{
@@ -155,7 +155,7 @@ struct StereoSequParameters
 		CV_Assert((relAreaRangeMovObjs.first <= 1.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 1.0) && (relAreaRangeMovObjs.second > 0));
 		CV_Assert(movObjDir.empty() || ((movObjDir.rows == 3) && (movObjDir.cols == 1) && (movObjDir.type() == CV_64FC1)));
 		CV_Assert((relMovObjVelRange.first < 100.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 100.0) && (relAreaRangeMovObjs.second > 0));
-		CV_Assert((relMinMaxDMovObj.first < 10.0) && (relMinMaxDMovObj.first >= 0) && (relMinMaxDMovObj.second <= 10.0) && (relMinMaxDMovObj.second > 0));
+		CV_Assert((minMovObjCorrPortion <= 1.0) && (minMovObjCorrPortion >= 0));
 		CV_Assert((CorrMovObjPort > 0) && (CorrMovObjPort <= 1.0));
 		CV_Assert(minNrMovObjs <= nrMovObjs);
 	}
@@ -188,7 +188,7 @@ struct StereoSequParameters
 	std::vector<depthClass> movObjDepth;//Depth of moving objects. Moving objects are always visible and not covered by other static objects. If the number of paramters is equal "nrMovObjs", the corresponding depth is used for every object. If the number of parameters is smaller and between 2 and 3, the depths for the moving objects are selected uniformly distributed from the given depths. For a number of paramters larger 3 and unequal to "nrMovObjs", a portion for every depth that should be used can be defined (e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
 	cv::InputArray movObjDir;//Movement direction of moving objects relative to camera movementm (must be 3x1). The movement direction is linear and does not change if the movement direction of the camera changes.The moving object is removed, if it is no longer visible in both stereo cameras.
 	std::pair<double, double> relMovObjVelRange;//Relative velocity range of moving objects based on relative camera velocity. Values between 0 and 100; Must be larger 0;
-	std::pair<double, double> relMinMaxDMovObj;//Relative min and max depth based on z_max for moving objects to disappear (Values between 0 and 10; Must be larger 0). This value is relative to th max. usable depth depending on the camera configuration. If at least one 3D point of a moving object reaches one of these thresholds, the object is removed.
+	double minMovObjCorrPortion;//Minimal portion of correspondences on moving objects for removing them. If the portion of visible correspondences drops below this value, the whole moving object is removed. Zero means, that the moving object is only removed if there is no visible correspondence in the stereo pair. One means, that a single missing correspondence leads to deletion. Values between 0 and 1;
 	double CorrMovObjPort;//Portion of correspondences on moving object (compared to static objects). It is limited by the size of the objects visible in the images and the minimal distance between correspondences.
 	size_t minNrMovObjs;//Minimum number of moving objects over the whole track. If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached. If 0, no new moving objects are inserted if every preceding object is out of sight.
 };
@@ -246,9 +246,23 @@ private:
 	inline double getDepthFuncVal(std::vector<double> &pars, double x, double y);
 	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
 	void getKeypoints();
+	int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
+		std::uniform_real_distribution<int32_t> &distributionX,
+		std::uniform_real_distribution<int32_t> &distributionY,
+		std::uniform_real_distribution<int32_t> &distributionX2,
+		std::uniform_real_distribution<int32_t> &distributionY2,
+		std::vector<cv::Point2d> &x1TN,
+		std::vector<cv::Point2d> &x2TN,
+		std::vector<double> &x2TNdistCorr,
+		cv::Mat &img1Mask,
+		cv::Mat &img2Mask);
 	bool checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam);
 	void getNrSizePosMovObj();
 	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
+	void genNewDepthMovObj();
+	void backProjectMovObj();
+	void genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask);
+	void genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull);
 	void getNewCorrs();
 
 private:
@@ -333,14 +347,32 @@ private:
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in world coordinates
+	/*movObjDepthClassNew hinzufügen*/std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object
+	std::vector<cv::Rect> movObjLabelsROIs;////Every vector element (size corresponds to number of newly to add moving objects) holds a bounding rectangle of the new labels stored in movObjLabels
+	std::vector<depthClass> movObjDepthClassNew;//Every vector element (size corresponds to number of newly to add moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	cv::Mat combMovObjLabels;//Combination of all masks stored in movObjLabels. Every label has a different value.
+	cv::Mat combMovObjDepths;//Every position marked by combMovObjLabels holds an individual depth value
+	//cv::Mat combMovObjLabelsAll;//Combination of all masks marking moving objects (New generated elements (combMovObjLabels) and existing elements (movObjMaskFromLast)). Every label has a different value.
 	int32_t actCorrsOnMovObj;//Actual number of new correspondences on moving objects (excluding backprojected correspondences from moving objects that were created one or more frames ago) including true negatives
 	int32_t actTruePosOnMovObj;//Number of new true positive correspondences on moving objects: actTruePosOnMovObj = actCorrsOnMovObj - actTrueNegOnMovObj
 	int32_t actTrueNegOnMovObj;//Number of new true negative correspondences on moving objects: actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj
+	//int32_t actCorrsOnMovObjFromLast;//Actual number of backprojected correspondences on moving objects (from moving objects that were created one or more frames ago)  including true negatives
+	//int32_t actTruePosOnMovObjFromLast;//Number of backprojected true positive correspondences on moving objects: actTruePosOnMovObjFromLast = actCorrsOnMovObjFromLast - actTrueNegOnMovObjFromLast
+	//int32_t actTrueNegOnMovObjFromLast;//Number of backprojected true negative correspondences on moving objects: actTrueNegOnMovObjFromLast = actCorrsOnMovObjFromLast - actTruePosOnMovObjFromLast
+	std::vector<int32_t> actTPPerMovObj;//Number of true positive correspondences on every single moving object (size corresponds to number of newly to add moving objects)
+	std::vector<int32_t> actTNPerMovObj;//Number of true negative correspondences on every single moving object (size corresponds to number of newly to add moving objects)
+	std::vector<int32_t> actTNPerMovObjFromLast;//Number of true negative correspondences for every single backprojected moving object (size corresponds to number of already existing moving objects)
+	std::vector<cv::Mat> movObjLabelsFromLast;//Every vector element (size corresponds to number of backprojected moving objects) holds a mask with the size of the image marking the area of the moving object
 	cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
-	cv::Mat movObjMaskFromLast2;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for second stereo image)
+	cv::Mat movObjMaskFromLast2;//Mask with the same size as the image masking correspondences of moving objects that were backprojected (mask for second stereo image)
 	std::vector<std::vector<bool>> movObjHasArea;//Indicates for every region if it is completely occupied by a moving object
+	std::vector<cv::Mat> movObjCorrsImg1TPFromLast, movObjCorrsImg2TPFromLast;//Every vector element (size corresponds to number of moving objects) holds correspondences within a moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
+	std::vector<cv::Mat> movObjCorrsImg1TNFromLast;//Every vector element (size corresponds to number of moving objects) holds TN correspondences within a moving object. Every vector element: TN keypoint in the first stereo rig image from movObj3DPtsCam in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
+	std::vector<cv::Mat> movObjCorrsImg2TNFromLast;//Every vector element (size corresponds to number of moving objects) holds TN correspondences within a moving object. Every vector element: TN keypoint in the second stereo rig image from movObj3DPtsCam in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
+	std::vector<cv::Mat> movObjCorrsImg1TP, movObjCorrsImg2TP;//Every vector element (size corresponds to number of newly to add moving objects) holds correspondences within a new moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
+	std::vector<cv::Mat> movObjCorrsImg1TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the first stereo rig image (no 3D points were created for them)
+	std::vector<cv::Mat> movObjCorrsImg2TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the second stereo rig image (no 3D points were created for them)
 };
 
 

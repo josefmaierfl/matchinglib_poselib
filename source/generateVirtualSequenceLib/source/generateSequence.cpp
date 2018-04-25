@@ -20,6 +20,7 @@ a view restrictions like depth ranges, moving objects, ...
 #include "generateSequence.h"
 #include "helper_funcs.h"
 #include "opencv2/imgproc/imgproc.hpp"
+#include <array>
 
 using namespace std;
 using namespace cv;
@@ -37,6 +38,13 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 	CV_Assert((imgSize.area() > 0) && (R.size() == t.size()) && (R.size() > 0));
 
 	randSeed(rand_gen);
+
+	//Generate a mask with the minimal distance between keypoints
+	int sqrSi = 2 * max((int)ceil(pars.minKeypDist), 1) + 1;
+	csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
+
+	//Generate a mask for marking used areas in the first stereo image
+	corrsIMG = Mat::zeros(imgSize.width + sqrSi - 1, imgSize.height + sqrSi - 1, CV_8UC1);
 
 	//Calculate inverse of camera matrices
 	K1i = K1.inv();
@@ -1167,13 +1175,13 @@ void genStereoSequ::backProject3D()
 	}
 	actImgPointCloudFromLast = actImgPointCloudFromLast_tmp;
 	if (!actCorrsImg1TNFromLast.empty())
-		actCorrsImg1TNFromLast.t();
+		actCorrsImg1TNFromLast = actCorrsImg1TNFromLast.t();
 	if (!actCorrsImg2TNFromLast.empty())
-		actCorrsImg2TNFromLast.t();
+		actCorrsImg2TNFromLast = actCorrsImg2TNFromLast.t();
 	if (!actCorrsImg1TPFromLast.empty())
 	{
-		actCorrsImg1TPFromLast.t();
-		actCorrsImg2TPFromLast.t();
+		actCorrsImg1TPFromLast = actCorrsImg1TPFromLast.t();
+		actCorrsImg2TPFromLast = actCorrsImg2TPFromLast.t();
 	}
 }
 
@@ -1189,7 +1197,7 @@ void genStereoSequ::checkDepthSeeds()
 	cv::Mat filtInitPts = Mat::zeros(imgSize.width + sqrSi1, imgSize.height + sqrSi1, CV_8UC1);
 	sqrSi1++;
 	Mat csurr1 = Mat::ones(sqrSi1, sqrSi1, CV_8UC1);
-	int maxSum1 = sqrSi1 * sqrSi1;
+	//int maxSum1 = sqrSi1 * sqrSi1;
 	
 	cv::Size regSi = Size(imgSize.width / 3, imgSize.height / 3);
 	if (!actCorrsImg1TPFromLast.empty())//Take seeding positions from backprojected coordinates
@@ -1219,8 +1227,8 @@ void genStereoSequ::checkDepthSeeds()
 		int sqrSi = 2 * posadd;
 		//cv::Mat filtInitPts = Mat::zeros(imgSize.width + sqrSi, imgSize.height + sqrSi, CV_8UC1);
 		sqrSi++;//sqrSi = 2 * (int)floor(pars.minKeypDist) + 1;
-		csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
-		int maxSum = sqrSi * sqrSi;
+		//csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
+		//int maxSum = sqrSi * sqrSi;
 		int sqrSiDiff2 = (sqrSi1 - sqrSi) / 2;
 		int hlp2 = sqrSi + sqrSiDiff2;
 
@@ -1230,14 +1238,13 @@ void genStereoSequ::checkDepthSeeds()
 			for (size_t i = 0; i < seedsNear_tmp.size(); i++)
 			{
 				Mat s_tmp = filtInitPts(Range(seedsNear_tmp[i].y + sqrSiDiff2, seedsNear_tmp[i].y + hlp2), Range(seedsNear_tmp[i].x + sqrSiDiff2, seedsNear_tmp[i].x + hlp2));
-				s_tmp += csurr;
-				if (sum(s_tmp)[0] > maxSum)
+				if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 				{
-					s_tmp -= csurr;
 					delListCorrs.push_back((size_t)seedsNear_tmp[i].z);
 					delList3D.push_back(actCorrsImg12TPFromLast_Idx[delListCorrs.back()]);
 					continue;
 				}
+				csurr.copyTo(s_tmp);
 				seedsNear_tmp1.push_back(seedsNear_tmp[i]);
 			}
 		}
@@ -1246,14 +1253,13 @@ void genStereoSequ::checkDepthSeeds()
 			for (size_t i = 0; i < seedsMid_tmp.size(); i++)
 			{
 				Mat s_tmp = filtInitPts(Range(seedsMid_tmp[i].y + sqrSiDiff2, seedsMid_tmp[i].y + hlp2), Range(seedsMid_tmp[i].x + sqrSiDiff2, seedsMid_tmp[i].x + hlp2));
-				s_tmp += csurr;
-				if (sum(s_tmp)[0] > maxSum)
+				if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 				{
-					s_tmp -= csurr;
 					delListCorrs.push_back((size_t)seedsMid_tmp[i].z);
 					delList3D.push_back(actCorrsImg12TPFromLast_Idx[delListCorrs.back()]);
 					continue;
 				}
+				csurr.copyTo(s_tmp);
 				seedsMid_tmp1.push_back(seedsMid_tmp[i]);
 			}
 		}
@@ -1262,14 +1268,13 @@ void genStereoSequ::checkDepthSeeds()
 			for (size_t i = 0; i < seedsFar_tmp.size(); i++)
 			{
 				Mat s_tmp = filtInitPts(Range(seedsFar_tmp[i].y + sqrSiDiff2, seedsFar_tmp[i].y + hlp2), Range(seedsFar_tmp[i].x + sqrSiDiff2, seedsFar_tmp[i].x + hlp2));
-				s_tmp += csurr;
-				if (sum(s_tmp)[0] > maxSum)
+				if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 				{
-					s_tmp -= csurr;
 					delListCorrs.push_back((size_t)seedsFar_tmp[i].z);
 					delList3D.push_back(actCorrsImg12TPFromLast_Idx[delListCorrs.back()]);
 					continue;
 				}
+				csurr.copyTo(s_tmp);
 				seedsFar_tmp1.push_back(seedsFar_tmp[i]);
 			}
 		}
@@ -1352,14 +1357,13 @@ void genStereoSequ::checkDepthSeeds()
 				pt.x = distributionX(rand_gen);
 				pt.y = distributionY(rand_gen);
 				Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
-				s_tmp += csurr1;
-				if (sum(s_tmp)[0] > maxSum1)
+				if (s_tmp.at<unsigned char>(posadd1, posadd1) > 0)
 				{
-					s_tmp -= csurr1;
 					continue;
 				}
 				else
 				{
+					csurr1.copyTo(s_tmp);
 					seedsNear[y][x].push_back(pt);
 					diffNr--;
 				}
@@ -1370,14 +1374,13 @@ void genStereoSequ::checkDepthSeeds()
 				pt.x = distributionX(rand_gen);
 				pt.y = distributionY(rand_gen);
 				Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
-				s_tmp += csurr1;
-				if (sum(s_tmp)[0] > maxSum1)
+				if (s_tmp.at<unsigned char>(posadd1, posadd1) > 0)
 				{
-					s_tmp -= csurr1;
 					continue;
 				}
 				else
 				{
+					csurr1.copyTo(s_tmp);
 					seedsMid[y][x].push_back(pt);
 					diffNr--;
 				}
@@ -1388,14 +1391,13 @@ void genStereoSequ::checkDepthSeeds()
 				pt.x = distributionX(rand_gen);
 				pt.y = distributionY(rand_gen);
 				Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
-				s_tmp += csurr1;
-				if (sum(s_tmp)[0] > maxSum1)
+				if (s_tmp.at<unsigned char>(posadd1, posadd1) > 0)
 				{
-					s_tmp -= csurr1;
 					continue;
 				}
 				else
 				{
+					csurr1.copyTo(s_tmp);
 					seedsFar[y][x].push_back(pt);
 					diffNr--;
 				}
@@ -2479,6 +2481,7 @@ std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &s
 void genStereoSequ::getKeypoints()
 {
 	int32_t kSi = csurr.rows;
+	int32_t posadd = (kSi - 1) / 2;
 	
 	//Mark used areas (by correspondences and TN) in the second image
 	Mat cImg2 = Mat::zeros(imgSize.width + kSi - 1, imgSize.height + kSi - 1, CV_8UC1);
@@ -2486,13 +2489,15 @@ void genStereoSequ::getKeypoints()
 	{
 		Point_<int32_t> pt((int32_t)round(actCorrsImg2TPFromLast.at<double>(0, i)), (int32_t)round(actCorrsImg2TPFromLast.at<double>(1, i)));
 		Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
-		s_tmp += csurr;
+		csurr.copyTo(s_tmp);
 	}
-	for (int i = 0; i < actCorrsImg2TNFromLast.cols; i++)
+	const int nrBPTN2 = actCorrsImg2TNFromLast.cols;
+	int nrBPTN2cnt = 0;
+	for (int i = 0; i < nrBPTN2; i++)
 	{
 		Point_<int32_t> pt((int32_t)round(actCorrsImg2TNFromLast.at<double>(0, i)), (int32_t)round(actCorrsImg2TNFromLast.at<double>(1, i)));
 		Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
-		s_tmp += csurr;
+		csurr.copyTo(s_tmp);
 	}
 
 	//Get regions of backprojected TN in first image and mark their positions
@@ -2502,7 +2507,7 @@ void genStereoSequ::getKeypoints()
 	{
 		Point_<int32_t> pt((int32_t)round(actCorrsImg1TNFromLast.at<double>(0, i)), (int32_t)round(actCorrsImg1TNFromLast.at<double>(1, i)));
 		Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-		s_tmp += csurr;
+		csurr.copyTo(s_tmp);
 
 		x1pTN[pt.y / rSl.height][pt.x / rSl.width].push_back(pt);
 	}
@@ -2569,7 +2574,7 @@ void genStereoSequ::getKeypoints()
 					if ((nrNear <= 0) && (maxSelect >= 0)) continue;
 					//Check if coordinate is too near to existing keypoint
 					Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-					if (sum(s_tmp)[0] > 0)
+					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 					{
 						maxSelect++;
 						maxSelect2--;
@@ -2605,7 +2610,7 @@ void genStereoSequ::getKeypoints()
 					if ((nrMid <= 0) && (maxSelect >= 0)) continue;
 					//Check if coordinate is too near to existing keypoint
 					Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-					if (sum(s_tmp)[0] > 0)
+					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 					{
 						maxSelect++;
 						maxSelect2--;
@@ -2641,7 +2646,7 @@ void genStereoSequ::getKeypoints()
 					if ((nrFar <= 0) && (maxSelect >= 0)) continue;
 					//Check if coordinate is too near to existing keypoint
 					Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-					if (sum(s_tmp)[0] > 0)
+					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 					{
 						maxSelect++;
 						maxSelect2--;
@@ -2701,108 +2706,90 @@ void genStereoSequ::getKeypoints()
 			
 
 			//Select for true negatives in image 1 true negatives in image 2
+			size_t selTN2 = 0;
+			if (nrBPTN2cnt < nrBPTN2)//First take backprojected TN from the second image
+			{
+				for (size_t i = 0; i < x1TN[y][x].size(); i++)
+				{
+					pt2.x = actCorrsImg2TNFromLast.at<double>(0, nrBPTN2cnt);
+					pt2.y = actCorrsImg2TNFromLast.at<double>(1, nrBPTN2cnt);
+					x2TN[y][x].push_back(pt2);
+					x2TNdistCorr[y][x].push_back(50.0);
+					nrBPTN2cnt++;
+					selTN2++;
+					if (nrBPTN2cnt >= nrBPTN2)
+						break;
+				}
+			}
 			std::uniform_real_distribution<int32_t> distributionX2(0, imgSize.width);
 			std::uniform_real_distribution<int32_t> distributionY2(0, imgSize.height);
-			for (size_t i = 0; i < x1TN[y][x].size(); i++)
+			if (selTN2 < x1TN[y][x].size())//Select the rest randomly
 			{
-				int max_try = 10;
-				while (max_try > 0)
+				for (size_t i = selTN2; i < x1TN[y][x].size(); i++)
 				{
-					pt.x = distributionX2(rand_gen);
-					pt.y = distributionY2(rand_gen);
-					Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
-					if (sum(s_tmp)[0] > 0)
-					{
-						max_try--;
-						continue;
-					}
-					s_tmp += csurr;
-					x2TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
-					x2TNdistCorr[y][x].push_back(50.0);
-					break;
-				}
-			}
-			while (x1TN[y][x].size() > x2TN[y][x].size())
-			{
-				x1TN[y][x].pop_back();
-				nrTN++;
-			}
-			
-			//Get the rest of TN correspondences
-			std::normal_distribution<double> distributionNX2(0, max(imgSize.width / 48, 10));
-			std::normal_distribution<double> distributionNY2(0, max(imgSize.width / 48, 10));
-			maxSelect2 = 50;
-			maxSelect3 = max(3 * nrTN, 500);
-			while ((nrTN > 0) && (maxSelect2 > 0) && (maxSelect3 > 0))
-			{
-				pt.x = distributionX(rand_gen);
-				pt.y = distributionY(rand_gen);
-
-				Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-				if (sum(s_tmp)[0] > 0)
-				{
-					maxSelect2--;
-					continue;
-				}
-				maxSelect2 = 50;
-				s_tmp += csurr;
-				x1TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
-				int max_try = 10;
-				double perfDist = 50.0;
-				if (!checkLKPInlier(pt, pt2, pCam))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
-				{
+					int max_try = 10;
 					while (max_try > 0)
 					{
 						pt.x = distributionX2(rand_gen);
 						pt.y = distributionY2(rand_gen);
-						Mat s_tmp1 = cImg2(Rect(pt, Size(kSi, kSi)));
-						if (sum(s_tmp1)[0] > 0)
+						Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
+						if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
 						{
 							max_try--;
 							continue;
 						}
-						s_tmp1 += csurr;
-						break;
-					}
-					pt2 = Point2d((double)pt.x, (double)pt.y);
-				}
-				else//Distort the reprojection in the second image to get a TN
-				{
-					Point2d ptd;
-					while (max_try > 0)
-					{						
-						do
-						{
-							ptd.x = distributionNX2(rand_gen);
-							ptd.x += 0.75 * ptd.x / abs(ptd.x);
-							ptd.x *= 1.5;
-							ptd.y = distributionNY2(rand_gen);
-							ptd.y += 0.75 * ptd.y / abs(ptd.y);
-							ptd.y *= 1.5;
-						} while ((abs(ptd.x) < 1.5) && (abs(ptd.y) < 1.5));
-						pt2 += ptd;
-						
-						Mat s_tmp1 = cImg2(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
-						if (sum(s_tmp1)[0] > 0)
-						{
-							max_try--;
-							continue;
-						}
-						s_tmp1 += csurr;
-						perfDist = norm(ptd);
+						csurr.copyTo(s_tmp);
+						x2TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
+						x2TNdistCorr[y][x].push_back(50.0);
 						break;
 					}
 				}
-				if (max_try <= 0)
+				while (x1TN[y][x].size() > x2TN[y][x].size())
 				{
-					maxSelect3--;
 					x1TN[y][x].pop_back();
-					s_tmp -= csurr;
-					continue;
+					nrTN++;
 				}
-				x2TN[y][x].push_back(pt2);
-				x2TNdistCorr[y][x].push_back(perfDist);
-				nrTN--;
+			}
+			if ((nrTN > 0) && (nrBPTN2cnt < nrBPTN2))//Take backprojected TN from the second image if available
+			{
+				int32_t nrTN_tmp = nrTN;
+				for (int32_t i = 0; i < nrTN_tmp; i++)
+				{
+					int max_try = 10;
+					while (max_try > 0)
+					{
+						pt.x = distributionX(rand_gen);
+						pt.y = distributionY(rand_gen);
+						Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
+						if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+						{
+							max_try--;
+							continue;
+						}
+						csurr.copyTo(s_tmp);
+						x1TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
+						pt2.x = actCorrsImg2TNFromLast.at<double>(0, nrBPTN2cnt);
+						pt2.y = actCorrsImg2TNFromLast.at<double>(1, nrBPTN2cnt);
+						nrBPTN2cnt++;
+						x2TN[y][x].push_back(pt2);
+						x2TNdistCorr[y][x].push_back(50.0);
+						nrTN--;
+						break;
+					}
+					if (nrBPTN2cnt >= nrBPTN2)
+						break;
+				}
+			}
+			
+			//Get the rest of TN correspondences
+			std::vector<Point2d> x1TN_tmp, x2TN_tmp;
+			std::vector<double> x2TNdistCorr_tmp;
+			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, corrsIMG, cImg2);
+			if (!x1TN_tmp.empty())
+			{
+				copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN[y][x].end());
+				copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN[y][x].end());
+				copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), x2TNdistCorr[y][x].end());
 			}
 		}
 	}
@@ -2856,6 +2843,118 @@ void genStereoSequ::getKeypoints()
 
 }
 
+/*Generates a number of nrTN true negative correspondences with a given x- & y- distribution (including the range) in both
+images. True negative correspondences are only created in areas where the values around the selected locations in the masks 
+for images 1 and 2 (img1Mask and img2Mask) are zero (indicates that there is no near neighboring correspondence).
+nrTN			In: Number of true negative correspondences to create
+distributionX	In: x-distribution and value range in the first image
+distributionY	In: y-distribution and value range in the first image
+distributionX2	In: x-distribution and value range in the second image
+distributionY2	In: y-distribution and value range in the second image
+x1TN			Out: True negative keypoints in the first image
+x2TN			Out: True negative keypoints in the second image
+x2TNdistCorr	Out: Distance of a TN keypoint in the second image to its true positive location. If the value is larger 50.0, the TN was generated completely random.
+img1Mask		In/Out: Mask marking not usable regions / areas around already selected correspondences in camera 1
+img2Mask		In/Out: Mask marking not usable regions / areas around already selected correspondences in camera 2
+
+Return value: Number of true negatives that could not be selected due to area restrictions.
+*/
+int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN, 
+	std::uniform_real_distribution<int32_t> &distributionX,
+	std::uniform_real_distribution<int32_t> &distributionY,
+	std::uniform_real_distribution<int32_t> &distributionX2,
+	std::uniform_real_distribution<int32_t> &distributionY2,
+	std::vector<cv::Point2d> &x1TN,
+	std::vector<cv::Point2d> &x2TN,
+	std::vector<double> &x2TNdistCorr,
+	cv::Mat &img1Mask,
+	cv::Mat &img2Mask)
+{
+	int32_t kSi = csurr.rows;
+	int32_t posadd = (kSi - 1) / 2;
+	std::normal_distribution<double> distributionNX2(0, max(imgSize.width / 48, 10));
+	std::normal_distribution<double> distributionNY2(0, max(imgSize.width / 48, 10));
+	int maxSelect2 = 50;
+	int maxSelect3 = max(3 * nrTN, 500);
+	Point pt;
+	Point2d pt2;
+	Point3d pCam;
+
+	while ((nrTN > 0) && (maxSelect2 > 0) && (maxSelect3 > 0))
+	{
+		pt.x = distributionX(rand_gen);
+		pt.y = distributionY(rand_gen);
+
+		Mat s_tmp = img1Mask(Rect(pt, Size(kSi, kSi)));
+		if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+		{
+			maxSelect2--;
+			continue;
+		}
+		maxSelect2 = 50;
+		s_tmp += csurr;
+		x1TN.push_back(Point2d((double)pt.x, (double)pt.y));
+		int max_try = 10;
+		double perfDist = 50.0;
+		if (!checkLKPInlier(pt, pt2, pCam))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
+		{
+			while (max_try > 0)
+			{
+				pt.x = distributionX2(rand_gen);
+				pt.y = distributionY2(rand_gen);
+				Mat s_tmp1 = img2Mask(Rect(pt, Size(kSi, kSi)));
+				if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
+				{
+					max_try--;
+					continue;
+				}
+				s_tmp1 += csurr;
+				break;
+			}
+			pt2 = Point2d((double)pt.x, (double)pt.y);
+		}
+		else//Distort the reprojection in the second image to get a TN
+		{
+			Point2d ptd;
+			while (max_try > 0)
+			{
+				do
+				{
+					ptd.x = distributionNX2(rand_gen);
+					ptd.x += 0.75 * ptd.x / abs(ptd.x);
+					ptd.x *= 1.5;
+					ptd.y = distributionNY2(rand_gen);
+					ptd.y += 0.75 * ptd.y / abs(ptd.y);
+					ptd.y *= 1.5;
+				} while ((abs(ptd.x) < 1.5) && (abs(ptd.y) < 1.5));
+				pt2 += ptd;
+
+				Mat s_tmp1 = img2Mask(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
+				if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
+				{
+					max_try--;
+					continue;
+				}
+				s_tmp1 += csurr;
+				perfDist = norm(ptd);
+				break;
+			}
+		}
+		if (max_try <= 0)
+		{
+			maxSelect3--;
+			x1TN.pop_back();
+			s_tmp -= csurr;
+			continue;
+		}
+		x2TN.push_back(pt2);
+		x2TNdistCorr.push_back(perfDist);
+		nrTN--;
+	}
+
+	return nrTN;
+}
+
 //Check, if the given point in the first camera is also visible in the second camera
 //Calculates the 3D-point in the camera coordinate system and the corresponding point in the second image
 bool genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam)
@@ -2886,6 +2985,11 @@ void genStereoSequ::getNrSizePosMovObj()
 	//size_t nrMovObjs;//Number of moving objects in the scene
 	//cv::InputArray startPosMovObjs;//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 	//std::pair<double, double> relAreaRangeMovObjs;//Relative area range of moving objects. Area range relative to the image area at the beginning.
+
+	if (pars.nrMovObjs == 0)
+	{
+		return;
+	}
 
 	if (pars.startPosMovObjs.empty())
 	{
@@ -3172,7 +3276,7 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 		{
 			if (objNFinished[i])
 			{
-				if (!addAdditionalDepth((unsigned char)i,
+				if (!addAdditionalDepth((unsigned char)(i + convhullPtsObj.size() + 1),
 					combMovObjLabels,
 					movObjLabels[i],
 					mask,
@@ -3191,6 +3295,20 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 					remainObj--;
 				}
 			}
+		}
+	}
+
+	//Get bounding rectangles for the areas
+	if (nr_movObj > 0)
+	{
+		movObjLabelsROIs.resize(nr_movObj);
+		for (size_t i = 0; i < nr_movObj; i++)
+		{
+			Mat mask_tmp = movObjLabels[i].clone();
+			vector<vector<Point> > contours;
+			vector<Vec4i> hierarchy;
+			cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+			movObjLabelsROIs[i] = cv::boundingRect(contours[0]);
 		}
 	}
 
@@ -3253,9 +3371,9 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 	}
 	//Check if there are too many correspondences on the moving objects
 	int32_t maxCorrs = 0;
+	int32_t areassum = 0;
 	if (nr_movObj > 0)
 	{
-		int32_t areassum = 0;
 		for (auto i : actArea)
 		{
 			areassum += i;
@@ -3419,7 +3537,7 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 		}
 	}
 
-	//Set new static correspondences
+	//Set new number of static correspondences
 	for (size_t y = 0; y < 3; y++)
 	{
 		for (size_t x = 0; x < 3; x++)
@@ -3435,13 +3553,735 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 		}
 	}
 
-	//Calculate correspondences on newly created moving objects
+	//Calculate number of correspondences on newly created moving objects
 	if (nr_movObj > 0)
 	{
 		actCorrsOnMovObj -= corrsOnMovObjLF;
 		actTruePosOnMovObj = (int32_t)round(inlRat[actFrameCnt] * (double)actCorrsOnMovObj);
 		actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj;
+		actTPPerMovObj.resize(nr_movObj, 0);
+		actTNPerMovObj.resize(nr_movObj, 0);
+		if (nr_movObj > 1)
+		{
+			//First sort the areas and begin with the smallest as rounding for the number of TP and TN for every area can lead to a larger rest of correspondences that must be taken from the last area. Thus, it should be the largest.
+			vector<pair<size_t, int32_t>> actAreaIdx(nr_movObj);
+			for (size_t i = 0; i < nr_movObj; i++)
+			{
+				actAreaIdx[i] = make_pair(i, actArea[i]);
+			}
+			sort(actAreaIdx.begin(), actAreaIdx.end(), [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {return first.second < second.second; });
+			int32_t sumTP = 0, sumTN = 0;
+			for (size_t i = 0; i < nr_movObj - 1; i++)
+			{
+				int32_t actTP = (int32_t)round((double)actTruePosOnMovObj * (double)actAreaIdx[i].second / (double)areassum);
+				int32_t actTN = (int32_t)round((double)actTrueNegOnMovObj * (double)actAreaIdx[i].second / (double)areassum);
+				actTPPerMovObj[actAreaIdx[i].first] = actTP;
+				actTNPerMovObj[actAreaIdx[i].first] = actTN;
+				sumTP += actTP;
+				sumTN += actTN;
+			}
+			int32_t restTP = actTruePosOnMovObj - sumTP;
+			int32_t restTN = actTrueNegOnMovObj - sumTN;
+			bool isValid = true;
+			if (restTP <= 0)
+			{
+				int idx = 0;
+				while ((restTP <= 0) && (idx < nr_movObj - 1))
+				{
+					if (actTPPerMovObj[actAreaIdx[idx].first] > 1)
+					{
+						actTPPerMovObj[actAreaIdx[idx].first]--;
+						restTP++;
+					}
+				}
+				if (restTP <= 0)
+				{
+					seeds.erase(seeds.begin() + actAreaIdx[nr_movObj - 1].first);
+					areas.erase(areas.begin() + actAreaIdx[nr_movObj - 1].first);
+					movObjLabels.erase(movObjLabels.begin() + actAreaIdx[nr_movObj - 1].first);
+					actTPPerMovObj.erase(actTPPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
+					actTNPerMovObj.erase(actTNPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
+					movObjLabelsROIs.erase(movObjLabelsROIs.begin() + actAreaIdx[nr_movObj - 1].first);
+					nr_movObj--;
+					isValid = false;
+				}
+				else
+				{
+					actTPPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTP;
+				}
+			}
+			else
+			{
+				actTPPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTP;
+			}
+			if (isValid)
+			{
+				if (restTN <= 0)
+				{
+					int idx = 0;
+					while ((restTN <= 0) && (idx < nr_movObj - 1))
+					{
+						if (actTNPerMovObj[actAreaIdx[idx].first] > 1)
+						{
+							actTNPerMovObj[actAreaIdx[idx].first]--;
+							restTN++;
+						}
+					}
+					if (restTN <= 0)
+					{
+						seeds.erase(seeds.begin() + actAreaIdx[nr_movObj - 1].first);
+						areas.erase(areas.begin() + actAreaIdx[nr_movObj - 1].first);
+						movObjLabels.erase(movObjLabels.begin() + actAreaIdx[nr_movObj - 1].first);
+						actTPPerMovObj.erase(actTPPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
+						actTNPerMovObj.erase(actTNPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
+						movObjLabelsROIs.erase(movObjLabelsROIs.begin() + actAreaIdx[nr_movObj - 1].first);
+						nr_movObj--;
+					}
+					else
+					{
+						actTNPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTN;
+					}
+				}
+				else
+				{
+					actTNPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTN;
+				}
+			}
+		}
+		else
+		{
+			actTPPerMovObj[0] = actTruePosOnMovObj;
+			actTNPerMovObj[0] = actTrueNegOnMovObj;
+		}
 	}
+	else
+	{
+		actCorrsOnMovObj = 0;
+		actTruePosOnMovObj = 0;
+		actTrueNegOnMovObj = 0;
+		actTPPerMovObj.clear();
+		actTNPerMovObj.clear();
+		movObjLabels.clear();
+		combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+		movObjLabelsROIs.clear();
+	}
+}
+
+//Assign a depth category to each new object label and calculate all depth values for each label
+void genStereoSequ::genNewDepthMovObj()
+{
+	//Get the depth classes that should be used for the new generated moving objects
+	if (pars.movObjDepth.size() == pars.nrMovObjs)//Take for every moving object its corresponding depth
+	{
+		if ((movObjDepthClass.size() > 0) && (movObjDepthClass.size() < pars.nrMovObjs))
+		{
+			vector<bool> usedDepths(pars.movObjDepth.size(), false);
+			for (size_t i = 0; i < pars.movObjDepth.size(); i++)
+			{
+				for (size_t j = 0; j < movObjDepthClass.size(); j++)
+				{
+					if ((pars.movObjDepth[i] == movObjDepthClass[j]) && !usedDepths[i])
+					{
+						usedDepths[i] = true;
+						break;
+					}
+				}
+			}
+			movObjDepthClassNew.resize(movObjLabels.size());
+			for (size_t i = 0; i < movObjLabels.size(); i++)
+			{
+				for (size_t j = 0; j < usedDepths.size(); j++)
+				{
+					if (!usedDepths[j])
+					{
+						usedDepths[j] = true;
+						movObjDepthClassNew[i] = pars.movObjDepth[j];
+						break;
+					}
+				}
+			}
+		}
+		else if (movObjDepthClass.size() == 0)
+		{
+			movObjDepthClassNew.clear();
+			copy(pars.movObjDepth.begin(), pars.movObjDepth.begin() + movObjLabels.size(), movObjDepthClassNew.begin());
+		}
+		else
+		{
+			cout << "No new moving objects! This should not happen!" << endl;
+			return;
+		}
+	}
+	else if ((pars.movObjDepth.size() == 1))//Always take this depth class
+	{
+		movObjDepthClassNew.clear();
+		movObjDepthClassNew.resize(movObjLabels.size(), pars.movObjDepth[0]);
+	}
+	else if ((pars.movObjDepth.size() < pars.nrMovObjs) && (pars.movObjDepth.size() > 1) && (pars.movObjDepth.size() < 4))//Randomly choose a depth for every single object
+	{
+		movObjDepthClassNew.clear();
+		movObjDepthClassNew.resize(movObjLabels.size());
+		for (size_t i = 0; i < movObjLabels.size(); i++)
+		{
+			int rval = rand() % (int)pars.movObjDepth.size();
+			movObjDepthClassNew[i] = pars.movObjDepth[rval];
+		}
+	}
+	else//Use the given distribution of depth classes based on the number of given depth classes
+	{
+		movObjDepthClassNew.clear();
+		movObjDepthClassNew.resize(movObjLabels.size());
+		std::array<double, 3> depthDist = { 0,0,0 };
+		for (size_t i = 0; i < pars.movObjDepth.size(); i++)
+		{
+			switch (pars.movObjDepth[i])
+			{
+			case depthClass::NEAR:
+				depthDist[0]++;
+				break;
+			case depthClass::MID:
+				depthDist[1]++;
+				break;
+			case depthClass::FAR:
+				depthDist[2]++;
+				break;
+			default:
+				break;
+			}
+		}
+		std::discrete_distribution<int> distribution(depthDist.begin(), depthDist.end());
+		for (size_t i = 0; i < movObjLabels.size(); i++)
+		{
+			int usedDepthClass = distribution(rand_gen);
+			switch (usedDepthClass)
+			{
+			case 0:
+				movObjDepthClassNew[i] = depthClass::NEAR;
+				break;
+			case 1:
+				movObjDepthClassNew[i] = depthClass::MID;
+				break;
+			case 2:
+				movObjDepthClassNew[i] = depthClass::FAR;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	//Get random parameters for the depth function
+	std::vector<std::vector<double>> depthFuncPars;
+	getRandDepthFuncPars(depthFuncPars, movObjDepthClassNew.size());
+
+	//Get depth values for every pixel position inside the new labels
+	combMovObjDepths = Mat::zeros(imgSize, CV_64FC1);
+	for (size_t i = 0; i < movObjDepthClassNew.size(); i++)
+	{
+		double dmin, dmax;
+		switch (movObjDepthClassNew[i])
+		{
+		case depthClass::NEAR:
+			dmin = actDepthNear;
+			dmax = actDepthMid;
+			break;
+		case depthClass::MID:
+			dmin = actDepthMid;
+			dmax = actDepthFar;
+			break;
+		case depthClass::FAR:
+			dmin = actDepthFar;
+			dmax = maxFarDistMultiplier * actDepthFar;
+			break;
+		default:
+			break;
+		}
+		
+		double dmin_tmp = getRandDoubleValRng(dmin, dmin + 0.6 * (dmax - dmin));
+		double dmax_tmp = getRandDoubleValRng(dmin_tmp + 0.1 * (dmax - dmin), dmax);
+		double drange = dmax_tmp - dmin_tmp;
+		double rXr = getRandDoubleValRng(1.5, 3.0);
+		double rYr = getRandDoubleValRng(1.5, 3.0);
+		double h2 = (double)movObjLabelsROIs[i].height;
+		h2 *= h2;
+		double w2 = (double)movObjLabelsROIs[i].width;
+		w2 *= w2;
+		double scale = sqrt(h2 + w2) / 2.0;
+		double rXrSc = rXr / scale;
+		double rYrSc = rYr / scale;
+		double cx = (double)movObjLabelsROIs[i].width / 2.0;
+		double cy = (double)movObjLabelsROIs[i].height / 2.0;
+
+		double minVal = DBL_MAX, maxVal = -DBL_MAX;
+		Mat objArea = movObjLabels[i](movObjLabelsROIs[i]);
+		Mat objAreaDepths = combMovObjDepths(movObjLabelsROIs[i]);
+		for (int y = 0; y < movObjLabelsROIs[i].height; y++)
+		{
+			for (int x = 0; x < movObjLabelsROIs[i].width; x++)
+			{
+				if (objArea.at<unsigned char>(y, x) != 0)
+				{
+					double val = getDepthFuncVal(depthFuncPars[i], ((double)x - cx) * rXrSc, ((double)y - cy) * rYrSc);
+					objAreaDepths.at<double>(y, x) = val;
+					if (val > maxVal)
+						maxVal = val;
+					if (val < minVal)
+						minVal = val;
+				}
+			}
+		}
+		double ra = maxVal - minVal;
+		scale = drange / ra;
+		for (int y = 0; y < movObjLabelsROIs[i].height; y++)
+		{
+			for (int x = 0; x < movObjLabelsROIs[i].width; x++)
+			{
+				if (objArea.at<unsigned char>(y, x) != 0)
+				{
+					double val = objAreaDepths.at<double>(y, x);
+					val -= minVal;
+					val *= scale;
+					val += dmin_tmp;
+					objAreaDepths.at<double>(y, x) = val;
+				}
+			}
+		}
+	}
+}
+
+//Generate (backproject) correspondences from existing moving objects and generate hulls of the objects in the image
+//Moreover, as many true negatives as needed by the inlier ratio are generated
+void genStereoSequ::backProjectMovObj()
+{
+	/*
+	ok: cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
+	ok: cv::Mat movObjMaskFromLast2;
+	ok: std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;;
+	ok: std::vector<std::vector<cv::Point>> convhullPtsObj;
+	//int32_t actCorrsOnMovObjFromLast;//
+	//int32_t actTruePosOnMovObjFromLast;
+	//int32_t actTrueNegOnMovObjFromLast;
+	std::vector<int32_t> actTNPerMovObjFromLast;
+	std::vector<cv::Mat> movObjLabelsFromLast;
+	std::vector<cv::Mat> movObjCorrsImg1TPFromLast, movObjCorrsImg2TPFromLast;
+	std::vector<cv::Mat> movObjCorrsImg1TNFromLast;
+	std::vector<cv::Mat> movObjCorrsImg2TNFromLast;
+	*/
+
+	convhullPtsObj.clear();
+	actTNPerMovObjFromLast.clear();
+	movObjLabelsFromLast.clear();
+	movObjCorrsImg1TPFromLast.clear();
+	movObjCorrsImg2TPFromLast.clear();
+	movObjCorrsImg1TNFromLast.clear();
+	movObjCorrsImg2TNFromLast.clear();
+	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
+	movObjMaskFromLast2 = Mat::zeros(imgSize, CV_8UC1);
+	//actCorrsOnMovObjFromLast = 0;
+	//actTruePosOnMovObjFromLast = 0;
+	//actTrueNegOnMovObjFromLast = 0;
+
+	if (pars.nrMovObjs == 0)
+	{
+		return;
+	}
+
+	vector<size_t> delList;
+	size_t actNrMovObj = movObj3DPtsCam.size();
+
+	if (movObj3DPtsCam.empty())
+		return;
+
+	movObjCorrsImg1TPFromLast.resize(actNrMovObj);
+	movObjCorrsImg2TPFromLast.resize(actNrMovObj);
+	movObjCorrsImg1TNFromLast.resize(actNrMovObj);
+	movObjCorrsImg2TNFromLast.resize(actNrMovObj);
+
+	struct imgWH {
+		double width;
+		double height;
+		double maxDist;
+	} dimgWH;
+	dimgWH.width = (double)(imgSize.width - 1);
+	dimgWH.height = (double)(imgSize.height - 1);
+	dimgWH.maxDist = maxFarDistMultiplier * actDepthFar;
+	int sqrSi = csurr.rows;
+	int posadd = (sqrSi - 1) / 2;
+	std::vector<Mat> movObjMaskFromLastLarge(actNrMovObj);
+	std::vector<Mat> movObjMaskFromLastLarge2(actNrMovObj);
+	std::vector<std::vector<cv::Point>> movObjPt1(actNrMovObj), movObjPt2(actNrMovObj);
+
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		movObjMaskFromLastLarge[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
+		movObjMaskFromLastLarge2[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
+		size_t oor = 0;
+		for (auto pt : movObj3DPtsCam[i])
+		{
+			if ((pt.z < actDepthNear) ||
+				(pt.z > dimgWH.maxDist))
+			{
+				oor++;
+				continue;
+			}
+
+			Mat X = Mat(pt).reshape(1, 3);
+			Mat x1 = K1 * X;
+			x1 /= x1.at<double>(2);
+
+			bool outOfR[2] = { false, false };
+			if ((x1.at<double>(0) < 0) || (x1.at<double>(0) > dimgWH.width) ||
+				(x1.at<double>(1) < 0) || (x1.at<double>(0) > dimgWH.height))//Not visible in first image
+			{
+				outOfR[0] = true;
+			}
+
+			Mat x2 = K2 * (actR * X + actT);
+			x2 /= x2.at<double>(2);
+
+			if ((x2.at<double>(0) < 0) || (x2.at<double>(0) > dimgWH.width) ||
+				(x2.at<double>(1) < 0) || (x2.at<double>(0) > dimgWH.height))//Not visible in second image
+			{
+				outOfR[1] = true;
+			}
+
+			if (outOfR[0] || outOfR[1])
+				oor++;
+
+			Point ptr1 = Point((int)round(x1.at<double>(0)), (int)round(x1.at<double>(1)));
+			Point ptr2 = Point((int)round(x2.at<double>(0)), (int)round(x2.at<double>(1)));
+
+			//Check if the point is too near to an other correspondence of a moving object
+			if (movObjMaskFromLast.at<unsigned char>(ptr1) > 0)
+				outOfR[0] = true;
+
+			//Check if the point is too near to an other correspondence of a moving object in the second image
+			if (movObjMaskFromLast2.at<unsigned char>(ptr2) > 0)
+				outOfR[1] = true;
+
+			//Check if the point is too near to an other correspondence of this moving object
+			if (!outOfR[0])
+			{
+				Mat s_tmp = movObjMaskFromLastLarge[i](Rect(ptr1, Size(sqrSi, sqrSi)));
+				if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+					outOfR[0] = true;
+				else
+					csurr.copyTo(s_tmp);
+			}
+			//Check if the point is too near to an other correspondence of this moving object in the second image
+			if (!outOfR[1])
+			{
+				Mat s_tmp = movObjMaskFromLastLarge2[i](Rect(ptr2, Size(sqrSi, sqrSi)));
+				if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+					outOfR[1] = true;
+				else
+					csurr.copyTo(s_tmp);
+			}
+
+			if (outOfR[0] && outOfR[1])
+			{
+				continue;
+			}
+			else if (outOfR[0])
+			{
+				if (movObjCorrsImg2TNFromLast[i].empty())
+				{
+					movObjCorrsImg2TNFromLast[i] = x2.t();
+				}
+				else
+				{
+					movObjCorrsImg2TNFromLast[i].push_back(x2.t());
+				}
+				movObjPt2[i].push_back(ptr2);
+			}
+			else if (outOfR[1])
+			{
+				if (movObjCorrsImg1TNFromLast[i].empty())
+				{
+					movObjCorrsImg1TNFromLast[i] = x1.t();
+				}
+				else
+				{
+					movObjCorrsImg1TNFromLast[i].push_back(x1.t());
+				}
+				movObjPt1[i].push_back(ptr1);
+			}
+			else
+			{
+				if (movObjCorrsImg1TPFromLast[i].empty())
+				{
+					movObjCorrsImg1TPFromLast[i] = x1.t();
+					movObjCorrsImg2TPFromLast[i] = x2.t();
+				}
+				else
+				{
+					movObjCorrsImg1TPFromLast[i].push_back(x1.t());
+					movObjCorrsImg2TPFromLast[i].push_back(x2.t());
+				}
+				movObjPt1[i].push_back(ptr1);
+				movObjPt2[i].push_back(ptr2);
+			}
+		}
+
+		double actGoodPortion = (double)(movObj3DPtsCam[i].size() - oor) / (double)movObj3DPtsCam[i].size();
+		if ((actGoodPortion < pars.minMovObjCorrPortion) || nearZero(actGoodPortion))
+		{
+			delList.push_back(i);
+		}
+		else
+		{
+			if (!movObjCorrsImg1TNFromLast[i].empty())
+				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
+			if (!movObjCorrsImg2TNFromLast[i].empty())
+				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
+			if (!movObjCorrsImg1TPFromLast[i].empty())
+			{
+				movObjCorrsImg1TPFromLast[i] = movObjCorrsImg1TPFromLast[i].t();
+				movObjCorrsImg2TPFromLast[i] = movObjCorrsImg2TPFromLast[i].t();
+			}
+			movObjMaskFromLast |= movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
+			movObjMaskFromLast2 |= movObjMaskFromLastLarge2[i](Rect(Point(posadd, posadd), imgSize));
+		}
+	}
+
+	if (!delList.empty())
+	{
+		for (int i = (int)delList.size() - 1; i >= 0; i--)
+		{
+			movObjCorrsImg1TNFromLast.erase(movObjCorrsImg1TNFromLast.begin() + delList[i]);
+			movObjCorrsImg2TNFromLast.erase(movObjCorrsImg2TNFromLast.begin() + delList[i]);
+			movObjCorrsImg1TPFromLast.erase(movObjCorrsImg1TPFromLast.begin() + delList[i]);
+			movObjCorrsImg2TPFromLast.erase(movObjCorrsImg2TPFromLast.begin() + delList[i]);
+			movObjMaskFromLastLarge.erase(movObjMaskFromLastLarge.begin() + delList[i]);
+			movObjMaskFromLastLarge2.erase(movObjMaskFromLastLarge2.begin() + delList[i]);
+			movObjPt1.erase(movObjPt1.begin() + delList[i]);
+			movObjPt2.erase(movObjPt2.begin() + delList[i]);
+
+			movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
+			movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+			movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
+		}
+		actNrMovObj = movObj3DPtsCam.size();
+	}
+
+	//Generate hulls of the objects in the image
+	movObjLabelsFromLast.resize(actNrMovObj);
+	convhullPtsObj.resize(actNrMovObj);
+	Mat movObjMaskFromLastOld = movObjMaskFromLast.clone();
+	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
+	vector<double> actAreaMovObj(actNrMovObj, 0);
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		genMovObjHulls(movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize)), movObjPt1[i], movObjLabelsFromLast[i]);
+		movObjMaskFromLast |= movObjLabelsFromLast[i];
+	}
+
+	//Enlarge the object areas if they are too small
+	Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+	const int maxCnt = 20;
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
+		int cnt = 0;
+		while ((areaMO < minOArea) && (cnt < maxCnt))
+		{
+			Mat imgSDdilate;
+			dilate(movObjLabelsFromLast[i], imgSDdilate, element);
+			imgSDdilate &= ((movObjMaskFromLast == 0) | movObjLabelsFromLast[i]);
+			int areaMO2 = cv::countNonZero(imgSDdilate);
+			if (areaMO2 > areaMO)
+			{
+				areaMO = areaMO2;
+				imgSDdilate.copyTo(movObjLabelsFromLast[i]);
+			}
+			else
+			{
+				break;
+			}
+			cnt++;
+		}
+	}
+
+	//Get missing TN correspondences in second image for found TN keypoints in first image using found TN keypoints in second image
+	vector<int> missingCImg2(actNrMovObj, 0);
+	vector<int> missingCImg1(actNrMovObj, 0);
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		if (!movObjCorrsImg1TNFromLast[i].empty() && !movObjCorrsImg1TNFromLast[i].empty())
+		{
+			if (movObjCorrsImg1TNFromLast[i].cols > movObjCorrsImg2TNFromLast[i].cols)
+			{
+				missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols - movObjCorrsImg2TNFromLast[i].cols;
+			}
+			else if (movObjCorrsImg1TNFromLast[i].cols < movObjCorrsImg2TNFromLast[i].cols)
+			{
+				missingCImg1[i] = movObjCorrsImg2TNFromLast[i].cols - movObjCorrsImg1TNFromLast[i].cols;
+			}
+		}
+		else if (!movObjCorrsImg1TNFromLast[i].empty())
+		{
+			missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols;
+		}
+		else if (!movObjCorrsImg2TNFromLast[i].empty())
+		{
+			missingCImg1[i] = movObjCorrsImg2TNFromLast[i].cols;
+		}
+	}
+
+	//Additionally add TN using the inlier ratio ------------------------------------------------------------------------------------------------
+
+	//Get ROIs of moving objects
+	vector<Rect> objROIs(actNrMovObj);
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		vector<Point> hull;
+		genHullFromMask(movObjLabelsFromLast[i], hull);
+		objROIs[i] = boundingRect(hull);
+	}
+
+	//Get missing TN correspondences for found keypoints
+	std::uniform_real_distribution<int32_t> distributionX2(0, imgSize.width);
+	std::uniform_real_distribution<int32_t> distributionY2(0, imgSize.height);
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		if (missingCImg2[i] > 0)
+		{
+			//Enlarge mask
+			Mat movObjMaskFromLast2Border(movObjMaskFromLastLarge2[i].size(), movObjMaskFromLastLarge2[i].type());
+			cv::copyMakeBorder(movObjMaskFromLast2, movObjMaskFromLast2Border, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
+			Mat elemnew = Mat::ones(missingCImg2[i], 3, CV_64FC1);
+			int cnt1 = 0;
+			for (int j = 0; j < missingCImg2[i]; j++)
+			{
+				int cnt = 0;
+				while (cnt < maxCnt)
+				{
+					Point_<int32_t> pt = Point_<int32_t>(distributionX2(rand_gen), distributionY2(rand_gen));
+					Mat s_tmp = movObjMaskFromLast2Border(Rect(pt, Size(sqrSi, sqrSi)));
+					if (s_tmp.at<unsigned char>(posadd, posadd) == 0)
+					{
+						csurr.copyTo(s_tmp);
+						elemnew.at<double>(j, 0) = (double)pt.x;
+						elemnew.at<double>(j, 1) = (double)pt.y;
+					}
+					cnt++;
+				}
+				if (cnt == maxCnt)
+					break;
+				cnt1++;
+			}
+			if (cnt1 > 0)
+			{
+				movObjMaskFromLast2 |= movObjMaskFromLast2Border(Rect(Point(posadd, posadd), imgSize));
+				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
+				movObjCorrsImg2TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
+				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
+				missingCImg2[i] -= cnt1;
+			}
+		}
+		else if (missingCImg1[i] > 0)
+		{
+			Mat elemnew = Mat::ones(missingCImg1[i], 3, CV_64FC1);
+			int cnt1 = 0;
+			std::uniform_real_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
+			std::uniform_real_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
+			//Enlarge mask
+			Mat movObjMaskFromLastBorder(movObjMaskFromLastLarge[i].size(), movObjMaskFromLastLarge[i].type());
+			cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
+			for (int j = 0; j < missingCImg1[i]; j++)
+			{
+				int cnt = 0;
+				while (cnt < maxCnt)
+				{
+					Point_<int32_t> pt = Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen));
+					Mat s_tmp = movObjMaskFromLastBorder(Rect(pt, Size(sqrSi, sqrSi)));
+					if ((s_tmp.at<unsigned char>(posadd, posadd) == 0) && (movObjLabelsFromLast[i].at<unsigned char>(pt) > 0))
+					{
+						csurr.copyTo(s_tmp);
+						elemnew.at<double>(j, 0) = (double)pt.x;
+						elemnew.at<double>(j, 1) = (double)pt.y;
+					}
+					cnt++;
+				}
+				if (cnt == maxCnt)
+					break;
+				cnt1++;
+			}
+			if (cnt1 > 0)
+			{
+				movObjMaskFromLastOld |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
+				movObjLabelsFromLast[i] |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
+				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
+				movObjCorrsImg1TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
+				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
+				missingCImg1[i] -= cnt1;
+			}
+			//If not all elements could be selected, try to enlarge the area -------------------------------------------------------------------------------------------
+		}
+	}
+
+
+	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		genHullFromMask(movObjLabelsFromLast[i], convhullPtsObj[i]);
+		movObjMaskFromLast |= movObjLabelsFromLast[i];
+		actAreaMovObj[i] = contourArea(convhullPtsObj[i]);
+	}
+}
+
+void genStereoSequ::genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull)
+{
+	//Get the contour of the mask
+	vector<vector<Point>> contours;
+	Mat finalMcopy = mask.clone();
+	findContours(finalMcopy, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+	//Simplify the contour
+	double epsilon = 0.01 * cv::arcLength(contours[0], true);//1% of the overall contour length
+	approxPolyDP(contours[0], finalHull, epsilon, true);
+}
+
+void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask)
+{
+	int sqrSi = csurr.rows;
+
+	//Invert the mask
+	Mat ncm = (corrMask == 0);
+
+	//Get the convex hull of the keypoints
+	vector<vector<Point>> hull(1);
+	convexHull(kps, hull[0]);
+
+	//draw the filled convex hull with enlarged borders
+	Mat hullMat1 = Mat::zeros(imgSize, CV_8UC3);
+	vector<Mat> hullMat1C;
+	//with filled contour:
+	drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), CV_FILLED);
+	//enlarge borders:
+	drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), sqrSi);
+	split(hullMat1, hullMat1C);
+	hullMat1 = hullMat1C[0];
+
+	//Combine convex hull and inverted mask
+	Mat icm = ncm & hullMat1;
+
+	//Apply distance transform algorithm
+	Mat distImg;
+	distanceTransform(icm, distImg, DIST_L2, DIST_MASK_PRECISE, CV_32FC1);
+
+	//Get the largest distance from white pixels to black pixels
+	double minVal, maxVal;
+	minMaxLoc(distImg, &minVal, &maxVal);
+
+	//Calculate the kernel size for closing
+	int kSize = (int)ceil(maxVal) * 2 + 1;
+
+	//Get structering element
+	Mat element = getStructuringElement(MORPH_RECT, Size(kSize, kSize));
+
+	//Perform closing to generate the final mask
+	morphologyEx(corrMask, finalMask, MORPH_CLOSE, element);
 }
 
 
@@ -3460,9 +4300,12 @@ void genStereoSequ::getNewCorrs()
 	//Generate maps (masks) of moving objects by backprojection from 3D for the first and second stereo camera: movObjMaskFromLast, movObjMaskFromLast2; create convex hulls: convhullPtsObj
 
 	//Generate new moving objects and adapt the number of static correspondences per region
-	generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);//TODO: Make a own function for adapting the number of static correspondences per region as this must also be done when no new moving objects are generated
+	generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
 
-	//Generate correspondences and 3D points for new moving objects including depth maps
+	//Assign a depth category to each new object label and calculate all depth values for each label
+	genNewDepthMovObj();
+
+	//Generate correspondences and 3D points for new moving objects
 
 	//Check if some moving objects should be deleted
 																																	   
