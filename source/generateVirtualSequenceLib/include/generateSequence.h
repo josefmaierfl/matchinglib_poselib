@@ -263,6 +263,9 @@ private:
 	void backProjectMovObj();
 	void genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask);
 	void genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull);
+	void getSeedsAreasMovObj();
+	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
+	bool getNewMovObjs();
 	void getNewCorrs();
 
 private:
@@ -342,8 +345,9 @@ private:
 	cv::Mat startPosMovObjs; //Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 	int minOArea, maxOArea;//Minimum and maximum area of single moving objects in the image
 	int minODist;//Minimum distance between seeding positions (for areas) of moving objects
-	std::vector<std::vector<std::vector<int32_t>>> movObjAreas;//Area for every moving object within the first frame per image region (must be 3x3xn)
-	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> movObjSeeds;//Seeding positions for every moving object within the first frame per image region (must be 3x3xn and the same size as movObjAreas)
+	int maxOPerReg;//Maximum number of moving objects or seeds per region
+	std::vector<std::vector<std::vector<int32_t>>> movObjAreas;//Area for every new moving object per image region (must be 3x3xn)
+	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> movObjSeeds;//Seeding positions for every new moving object per image region (must be 3x3xn and the same size as movObjAreas)
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in world coordinates
@@ -357,9 +361,9 @@ private:
 	int32_t actCorrsOnMovObj;//Actual number of new correspondences on moving objects (excluding backprojected correspondences from moving objects that were created one or more frames ago) including true negatives
 	int32_t actTruePosOnMovObj;//Number of new true positive correspondences on moving objects: actTruePosOnMovObj = actCorrsOnMovObj - actTrueNegOnMovObj
 	int32_t actTrueNegOnMovObj;//Number of new true negative correspondences on moving objects: actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj
-	//int32_t actCorrsOnMovObjFromLast;//Actual number of backprojected correspondences on moving objects (from moving objects that were created one or more frames ago)  including true negatives
-	//int32_t actTruePosOnMovObjFromLast;//Number of backprojected true positive correspondences on moving objects: actTruePosOnMovObjFromLast = actCorrsOnMovObjFromLast - actTrueNegOnMovObjFromLast
-	//int32_t actTrueNegOnMovObjFromLast;//Number of backprojected true negative correspondences on moving objects: actTrueNegOnMovObjFromLast = actCorrsOnMovObjFromLast - actTruePosOnMovObjFromLast
+	int32_t actCorrsOnMovObjFromLast;//Actual number of backprojected correspondences on moving objects (from moving objects that were created one or more frames ago)  including true negatives
+	int32_t actTruePosOnMovObjFromLast;//Number of backprojected true positive correspondences on moving objects: actTruePosOnMovObjFromLast = actCorrsOnMovObjFromLast - actTrueNegOnMovObjFromLast
+	int32_t actTrueNegOnMovObjFromLast;//Number of backprojected true negative correspondences on moving objects: actTrueNegOnMovObjFromLast = actCorrsOnMovObjFromLast - actTruePosOnMovObjFromLast
 	std::vector<int32_t> actTPPerMovObj;//Number of true positive correspondences on every single moving object (size corresponds to number of newly to add moving objects)
 	std::vector<int32_t> actTNPerMovObj;//Number of true negative correspondences on every single moving object (size corresponds to number of newly to add moving objects)
 	std::vector<int32_t> actTNPerMovObjFromLast;//Number of true negative correspondences for every single backprojected moving object (size corresponds to number of already existing moving objects)
@@ -373,6 +377,7 @@ private:
 	std::vector<cv::Mat> movObjCorrsImg1TP, movObjCorrsImg2TP;//Every vector element (size corresponds to number of newly to add moving objects) holds correspondences within a new moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
 	std::vector<cv::Mat> movObjCorrsImg1TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the first stereo rig image (no 3D points were created for them)
 	std::vector<cv::Mat> movObjCorrsImg2TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the second stereo rig image (no 3D points were created for them)
+	std::vector<std::vector<double>> movObjDistTNtoReal;//Distance values of the TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
 };
 
 

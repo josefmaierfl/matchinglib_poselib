@@ -3021,8 +3021,8 @@ void genStereoSequ::getNrSizePosMovObj()
 	}
 
 	int imgArea = imgSize.area();
-	int maxOPerReg = (int)ceil((float)pars.nrMovObjs / (float)nrStartA);
-	int area23 = 2 * imgArea / 3;//The moving objects should
+	maxOPerReg = (int)ceil((float)pars.nrMovObjs / (float)nrStartA);
+	int area23 = 2 * imgArea / 3;//The moving objects should not be larger than that
 	minOArea = (int)round(pars.relAreaRangeMovObjs.first * (double)imgArea);
 	maxOArea = (int)round(pars.relAreaRangeMovObjs.second * (double)imgArea);
 
@@ -3853,21 +3853,6 @@ void genStereoSequ::genNewDepthMovObj()
 //Moreover, as many true negatives as needed by the inlier ratio are generated
 void genStereoSequ::backProjectMovObj()
 {
-	/*
-	ok: cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
-	ok: cv::Mat movObjMaskFromLast2;
-	ok: std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;;
-	ok: std::vector<std::vector<cv::Point>> convhullPtsObj;
-	//int32_t actCorrsOnMovObjFromLast;//
-	//int32_t actTruePosOnMovObjFromLast;
-	//int32_t actTrueNegOnMovObjFromLast;
-	std::vector<int32_t> actTNPerMovObjFromLast;
-	std::vector<cv::Mat> movObjLabelsFromLast;
-	std::vector<cv::Mat> movObjCorrsImg1TPFromLast, movObjCorrsImg2TPFromLast;
-	std::vector<cv::Mat> movObjCorrsImg1TNFromLast;
-	std::vector<cv::Mat> movObjCorrsImg2TNFromLast;
-	*/
-
 	convhullPtsObj.clear();
 	actTNPerMovObjFromLast.clear();
 	movObjLabelsFromLast.clear();
@@ -3875,11 +3860,12 @@ void genStereoSequ::backProjectMovObj()
 	movObjCorrsImg2TPFromLast.clear();
 	movObjCorrsImg1TNFromLast.clear();
 	movObjCorrsImg2TNFromLast.clear();
+	movObjDistTNtoReal.clear();
 	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
 	movObjMaskFromLast2 = Mat::zeros(imgSize, CV_8UC1);
-	//actCorrsOnMovObjFromLast = 0;
-	//actTruePosOnMovObjFromLast = 0;
-	//actTrueNegOnMovObjFromLast = 0;
+	actCorrsOnMovObjFromLast = 0;
+	actTruePosOnMovObjFromLast = 0;
+	actTrueNegOnMovObjFromLast = 0;
 
 	if (pars.nrMovObjs == 0)
 	{
@@ -4063,13 +4049,14 @@ void genStereoSequ::backProjectMovObj()
 		}
 		actNrMovObj = movObj3DPtsCam.size();
 	}
+	movObjDistTNtoReal.resize(actNrMovObj);
 
 	//Generate hulls of the objects in the image
 	movObjLabelsFromLast.resize(actNrMovObj);
 	convhullPtsObj.resize(actNrMovObj);
 	Mat movObjMaskFromLastOld = movObjMaskFromLast.clone();
 	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
-	vector<double> actAreaMovObj(actNrMovObj, 0);
+	//vector<double> actAreaMovObj(actNrMovObj, 0);
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
 		genMovObjHulls(movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize)), movObjPt1[i], movObjLabelsFromLast[i]);
@@ -4128,8 +4115,6 @@ void genStereoSequ::backProjectMovObj()
 		}
 	}
 
-	//Additionally add TN using the inlier ratio ------------------------------------------------------------------------------------------------
-
 	//Get ROIs of moving objects
 	vector<Rect> objROIs(actNrMovObj);
 	for (size_t i = 0; i < actNrMovObj; i++)
@@ -4163,6 +4148,7 @@ void genStereoSequ::backProjectMovObj()
 						csurr.copyTo(s_tmp);
 						elemnew.at<double>(j, 0) = (double)pt.x;
 						elemnew.at<double>(j, 1) = (double)pt.y;
+						break;
 					}
 					cnt++;
 				}
@@ -4177,6 +4163,11 @@ void genStereoSequ::backProjectMovObj()
 				movObjCorrsImg2TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
 				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
 				missingCImg2[i] -= cnt1;
+				movObjDistTNtoReal[i] = vector<double>(cnt1, 50.0);
+			}
+			if (missingCImg2[i] > 0)
+			{
+				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].colRange(0, movObjCorrsImg1TNFromLast[i].cols - missingCImg2[i]);
 			}
 		}
 		else if (missingCImg1[i] > 0)
@@ -4187,7 +4178,7 @@ void genStereoSequ::backProjectMovObj()
 			std::uniform_real_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
 			//Enlarge mask
 			Mat movObjMaskFromLastBorder(movObjMaskFromLastLarge[i].size(), movObjMaskFromLastLarge[i].type());
-			cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
+			cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));			
 			for (int j = 0; j < missingCImg1[i]; j++)
 			{
 				int cnt = 0;
@@ -4200,6 +4191,7 @@ void genStereoSequ::backProjectMovObj()
 						csurr.copyTo(s_tmp);
 						elemnew.at<double>(j, 0) = (double)pt.x;
 						elemnew.at<double>(j, 1) = (double)pt.y;
+						break;
 					}
 					cnt++;
 				}
@@ -4215,19 +4207,129 @@ void genStereoSequ::backProjectMovObj()
 				movObjCorrsImg1TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
 				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
 				missingCImg1[i] -= cnt1;
+				movObjDistTNtoReal[i] = vector<double>(cnt1, 50.0);
 			}
-			//If not all elements could be selected, try to enlarge the area -------------------------------------------------------------------------------------------
+			if (missingCImg1[i] > 0)
+			{
+				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].colRange(0, movObjCorrsImg2TNFromLast[i].cols - missingCImg1[i]);
+			}
 		}
 	}
 
+	//Additionally add TN using the inlier ratio
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		if (missingCImg2[i] == 0)//Skip adding TN if adding TN in the second image failed already before
+		{
+			missingCImg2[i] = (int)round((double)movObjCorrsImg1TPFromLast[i].cols * (1.0 - inlRat[actFrameCnt])) - movObjCorrsImg1TNFromLast[i].cols;
+		}
+		else
+		{
+			missingCImg2[i] = -1;
+		}
+	}
+	element = cv::getStructuringElement(MORPH_RECT, Size(sqrSi, sqrSi));
+	//Enlarge mask for image 2
+	Mat movObjMaskFromLast2Border(movObjMaskFromLastLarge2[0].size(), movObjMaskFromLastLarge2[0].type());
+	cv::copyMakeBorder(movObjMaskFromLast2, movObjMaskFromLast2Border, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
+	//Enlarge mask for image 1
+	Mat movObjMaskFromLastBorder(movObjMaskFromLastLarge[0].size(), movObjMaskFromLastLarge[0].type());
+	cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
+	for (size_t i = 0; i < actNrMovObj; i++)
+	{
+		std::uniform_real_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
+		std::uniform_real_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
+		int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
+		int cnt2 = 0;
+		while (((areaMO < maxOArea) || (cnt2 == 0)) && (missingCImg2[i] > 0) && (cnt2 < maxCnt))//If not all elements could be selected, try to enlarge the area
+		{
+			//Generate label mask for image 1
+			Mat movObjLabelsFromLastN;
+			cv::copyMakeBorder(movObjLabelsFromLast[i], movObjLabelsFromLastN, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
+			movObjLabelsFromLastN = (movObjLabelsFromLastN == 0);
+			movObjLabelsFromLastN |= movObjMaskFromLastBorder;
+
+			std::vector<cv::Point2d> x1TN;
+			std::vector<cv::Point2d> x2TN;
+			int32_t remainingTN = genTrueNegCorrs(missingCImg2[i],
+				distributionX,
+				distributionY,
+				distributionX2,
+				distributionY2,
+				x1TN,
+				x2TN,
+				movObjDistTNtoReal[i],
+				movObjLabelsFromLastN,
+				movObjMaskFromLast2Border);
+
+			cnt2++;
+			if (remainingTN != missingCImg2[i])
+			{
+				movObjLabelsFromLastN(Rect(Point(posadd, posadd), imgSize)) &= movObjLabelsFromLast[i];
+				movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize)) |= movObjLabelsFromLastN(Rect(Point(posadd, posadd), imgSize));
+
+				int32_t nelem = (int32_t)x1TN.size();
+				Mat elemnew = Mat::ones(nelem, 3, CV_64FC1);
+				Mat elemnew2 = Mat::ones(nelem, 3, CV_64FC1);
+				for (int32_t j = 0; j < nelem; j++)
+				{
+					elemnew.at<double>(j, 0) = x1TN[j].x;
+					elemnew.at<double>(j, 1) = x1TN[j].y;
+					elemnew2.at<double>(j, 0) = x2TN[j].x;
+					elemnew2.at<double>(j, 1) = x2TN[j].y;
+				}
+				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
+				movObjCorrsImg1TNFromLast[i].push_back(elemnew);
+				movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
+				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
+				movObjCorrsImg2TNFromLast[i].push_back(elemnew2);
+				movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
+			}
+			if (remainingTN > 0)
+			{			
+				//Perform dilation
+				Mat imgSDdilate;
+				dilate(movObjLabelsFromLast[i], imgSDdilate, element);
+				imgSDdilate &= ((movObjMaskFromLast == 0) | movObjLabelsFromLast[i]);
+				int areaMO2 = cv::countNonZero(imgSDdilate);
+				if (areaMO2 > areaMO)
+				{
+					areaMO = areaMO2;
+					if (areaMO < maxOArea)
+					{
+						imgSDdilate.copyTo(movObjLabelsFromLast[i]);
+						objROIs[i] = Rect(max(objROIs[i].x - sqrSi, 0), max(objROIs[i].y - sqrSi, 0), objROIs[i].width + 2 * sqrSi, objROIs[i].height + 2 * sqrSi);
+						objROIs[i] = Rect(objROIs[i].x, objROIs[i].y, (objROIs[i].x + objROIs[i].width) > imgSize.width ? (imgSize.width - objROIs[i].x) : objROIs[i].width, (objROIs[i].y + objROIs[i].height) > imgSize.height ? (imgSize.height - objROIs[i].y) : objROIs[i].height);
+					}
+					else
+					{
+						break;
+					}
+				}
+				else
+				{
+					break;
+				}				
+			}
+			missingCImg2[i] = remainingTN;
+		}
+	}
+	movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize)).copyTo(movObjMaskFromLastOld);	
 
 	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
+	actTNPerMovObjFromLast.resize(actNrMovObj);
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
 		genHullFromMask(movObjLabelsFromLast[i], convhullPtsObj[i]);
-		movObjMaskFromLast |= movObjLabelsFromLast[i];
-		actAreaMovObj[i] = contourArea(convhullPtsObj[i]);
+		movObjMaskFromLast |= (unsigned char)(i + 1) *  movObjLabelsFromLast[i];
+		//actAreaMovObj[i] = contourArea(convhullPtsObj[i]);
+
+		actTNPerMovObjFromLast[i] = movObjCorrsImg1TNFromLast[i].cols;
+		
+		actTruePosOnMovObjFromLast += movObjCorrsImg1TPFromLast[i].cols;
+		actTrueNegOnMovObjFromLast += actTNPerMovObjFromLast[i];
 	}
+	actCorrsOnMovObjFromLast = actTrueNegOnMovObjFromLast + actTruePosOnMovObjFromLast;
 }
 
 void genStereoSequ::genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull)
@@ -4246,12 +4348,17 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
 {
 	int sqrSi = csurr.rows;
 
-	//Invert the mask
-	Mat ncm = (corrMask == 0);
-
 	//Get the convex hull of the keypoints
 	vector<vector<Point>> hull(1);
 	convexHull(kps, hull[0]);
+
+	//Get bounding box
+	Rect hullBB = boundingRect(hull[0]);
+	hullBB = Rect(max(hullBB.x - sqrSi, 0), max(hullBB.y - sqrSi, 0), hullBB.width + 2 * sqrSi, hullBB.height + 2 * sqrSi);
+	hullBB = Rect(hullBB.x, hullBB.y, (hullBB.x + hullBB.width) > imgSize.width ? (imgSize.width - hullBB.x) : hullBB.width, (hullBB.y + hullBB.height) > imgSize.height ? (imgSize.height - hullBB.y) : hullBB.height);
+
+	//Invert the mask
+	Mat ncm = (corrMask(hullBB) == 0);
 
 	//draw the filled convex hull with enlarged borders
 	Mat hullMat1 = Mat::zeros(imgSize, CV_8UC3);
@@ -4261,7 +4368,7 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
 	//enlarge borders:
 	drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), sqrSi);
 	split(hullMat1, hullMat1C);
-	hullMat1 = hullMat1C[0];
+	hullMat1 = hullMat1C[0](hullBB);
 
 	//Combine convex hull and inverted mask
 	Mat icm = ncm & hullMat1;
@@ -4284,6 +4391,296 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
 	morphologyEx(corrMask, finalMask, MORPH_CLOSE, element);
 }
 
+//Calculate the seeding position and area for every new moving object
+//This function should not be called for the first frame
+void genStereoSequ::getSeedsAreasMovObj()
+{
+	//Get number of possible seeds per region
+	Mat nrPerRegMax = Mat::zeros(3, 3, CV_8UC1);
+	int minOArea23 = 2 * min(minOArea, maxOArea - minOArea) / 3;
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			if (startPosMovObjs.at<unsigned char>(y, x) == 0)
+				continue;
+			int moarea = countNonZero(movObjMaskFromLast(regROIs[y][x]));
+			if (moarea < minOArea23)
+			{
+				nrPerRegMax.at<unsigned char>(y, x) = (unsigned char)maxOPerReg;
+			}
+			else if ((moarea <= maxOArea) && (maxOPerReg > 1))
+			{
+				nrPerRegMax.at<unsigned char>(y, x) = (unsigned char)(maxOPerReg - 1);
+			}
+			else if(moarea <= (maxOPerReg - 1) * maxOArea)
+			{
+				Mat actUsedAreaLabel;
+				int nrLabels = connectedComponents(movObjMaskFromLast(regROIs[y][x]), actUsedAreaLabel, 4, CV_16U);
+				if (nrLabels < maxOPerReg)
+					nrPerRegMax.at<unsigned char>(y, x) = (unsigned char)(maxOPerReg - nrLabels);
+			}
+		}
+	}
+
+	//Get the number of moving object seeds per region
+	int nrMovObjs_tmp = (int)pars.nrMovObjs - (int)movObj3DPtsWorld.size();
+	Mat nrPerReg = Mat::zeros(3, 3, CV_8UC1);
+	while (nrMovObjs_tmp > 0)
+	{
+		for (int y = 0; y < 3; y++)
+		{
+			for (int x = 0; x < 3; x++)
+			{
+				if (nrPerRegMax.at<unsigned char>(y, x) > 0)
+				{
+					int addit = rand() % 2;
+					if (addit)
+					{
+						nrPerReg.at<unsigned char>(y, x)++;
+						nrPerRegMax.at<unsigned char>(y, x)--;
+						nrMovObjs_tmp--;
+						if (nrMovObjs_tmp == 0)
+							break;
+					}
+				}
+			}
+			if (nrMovObjs_tmp == 0)
+				break;
+		}
+	}
+
+	//Get the area for each moving object
+	std::uniform_real_distribution<int32_t> distribution((int32_t)minOArea, (int32_t)maxOArea);
+	movObjAreas.clear();
+	movObjAreas = vector<vector<vector<int32_t>>>(3, vector<vector<int32_t>>(3));
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			int nr_tmp = (int)nrPerReg.at<unsigned char>(y, x);
+			for (int i = 0; i < nr_tmp; i++)
+			{
+				movObjAreas[y][x].push_back(distribution(rand_gen));
+			}
+		}
+	}
+
+	//Get seed positions
+	minODist = imgSize.height / (3 * (maxOPerReg + 1));
+	movObjSeeds.clear();
+	movObjSeeds = vector<vector<vector<cv::Point_<int32_t>>>>(3, vector<vector<cv::Point_<int32_t>>>(3));
+	int maxIt = 20;
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			int nr_tmp = (int)nrPerReg.at<unsigned char>(y, x);
+			if (nr_tmp > 0)
+			{
+				rand_gen = std::default_random_engine((unsigned int)std::rand());//Prevent getting the same starting positions for equal ranges
+				std::uniform_real_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
+				std::uniform_real_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+				cv::Point_<int32_t> pt;
+				int cnt = 0;
+				while (cnt < maxIt)
+				{
+					pt = cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen));
+					if (movObjMaskFromLast.at<unsigned char>(pt) == 0)
+					{
+						break;
+					}
+					cnt++;
+				}
+				if (cnt == maxIt)
+				{
+					movObjAreas[y][x].clear();
+					nrPerReg.at<unsigned char>(y, x) = 0;
+					break;
+				}
+				movObjSeeds[y][x].push_back(pt);
+				nr_tmp--;
+				if (nr_tmp > 0)
+				{
+					vector<int> xposes, yposes;
+					xposes.push_back(movObjSeeds[y][x].back().x);
+					yposes.push_back(movObjSeeds[y][x].back().y);
+					while (nr_tmp > 0)
+					{
+						sort(xposes.begin(), xposes.end());
+						sort(yposes.begin(), yposes.end());
+						vector<int> xInterVals, yInterVals;
+						vector<double> xWeights, yWeights;
+
+						//Get possible selection ranges for x-values
+						int start = max(xposes[0] - minODist, regROIs[y][x].x);
+						int maxEnd = regROIs[y][x].x + regROIs[y][x].width;
+						int xyend = min(xposes[0] + minODist, maxEnd);
+						if (start == regROIs[y][x].x)
+						{
+							xInterVals.push_back(start);
+							xInterVals.push_back(xposes[0] + minODist);
+							xWeights.push_back(0);
+						}
+						else
+						{
+							xInterVals.push_back(regROIs[y][x].x);
+							xInterVals.push_back(start);
+							xWeights.push_back(1.0);
+							if (xyend != maxEnd)
+							{
+								xInterVals.push_back(xyend);
+								xWeights.push_back(0);
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							for (size_t i = 1; i < xposes.size(); i++)
+							{
+								start = max(xposes[i] - minODist, xInterVals.back());
+								if (start != xInterVals.back())
+								{
+									xInterVals.push_back(xposes[i] - minODist);
+									xWeights.push_back(1.0);
+								}
+								xyend = min(xposes[i] + minODist, maxEnd);
+								if (xyend != maxEnd)
+								{
+									xInterVals.push_back(xyend);
+									xWeights.push_back(0);
+								}
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							xInterVals.push_back(maxEnd);
+							xWeights.push_back(1.0);
+						}
+
+						//Get possible selection ranges for y-values
+						start = max(yposes[0] - minODist, regROIs[y][x].y);
+						maxEnd = regROIs[y][x].y + regROIs[y][x].height;
+						int xyend = min(yposes[0] + minODist, maxEnd);
+						if (start == regROIs[y][x].y)
+						{
+							yInterVals.push_back(start);
+							yInterVals.push_back(yposes[0] + minODist);
+							yWeights.push_back(0);
+						}
+						else
+						{
+							yInterVals.push_back(regROIs[y][x].y);
+							yInterVals.push_back(start);
+							yWeights.push_back(1.0);
+							if (xyend != maxEnd)
+							{
+								yInterVals.push_back(xyend);
+								yWeights.push_back(0);
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							for (size_t i = 1; i < yposes.size(); i++)
+							{
+								start = max(yposes[i] - minODist, yInterVals.back());
+								if (start != yInterVals.back())
+								{
+									yInterVals.push_back(yposes[i] - minODist);
+									yWeights.push_back(1.0);
+								}
+								xyend = min(yposes[i] + minODist, maxEnd);
+								if (xyend != maxEnd)
+								{
+									yInterVals.push_back(xyend);
+									yWeights.push_back(0);
+								}
+							}
+						}
+						if (xyend != maxEnd)
+						{
+							yInterVals.push_back(maxEnd);
+							yWeights.push_back(1.0);
+						}
+
+						//Create piecewise uniform distribution and get a random seed
+						piecewise_constant_distribution<int> distrPieceX(xInterVals.begin(), xInterVals.end(), xWeights.begin());
+						piecewise_constant_distribution<int> distrPieceY(yInterVals.begin(), yInterVals.end(), yWeights.begin());
+
+						cnt = 0;
+						while (cnt < maxIt)
+						{
+							pt = cv::Point_<int32_t>(distrPieceX(rand_gen), distrPieceY(rand_gen));
+							if (movObjMaskFromLast.at<unsigned char>(pt) == 0)
+							{
+								break;
+							}
+							cnt++;
+						}
+						if (cnt == maxIt)
+						{
+							for (size_t i = 0; i < (movObjAreas[y][x].size() - movObjSeeds[y][x].size()); i++)
+							{
+								movObjAreas[y][x].pop_back();
+							}
+							nrPerReg.at<unsigned char>(y, x) = (unsigned char)movObjSeeds[y][x].size();
+							break;
+						}
+
+						movObjSeeds[y][x].push_back(pt);
+						xposes.push_back(movObjSeeds[y][x].back().x);
+						yposes.push_back(movObjSeeds[y][x].back().y);
+						nr_tmp--;
+					}
+				}
+			}
+		}
+	}
+}
+
+//Extracts the areas and seeding positions for new moving objects from the region structure
+bool genStereoSequ::getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas)
+{
+	seeds.clear();
+	areas.clear();
+	for (int y = 0; y < 3; y++)
+	{
+		for (int x = 0; x < 3; x++)
+		{
+			if (!movObjAreas[y][x].empty())
+			{
+				copy(movObjAreas[y][x].begin(), movObjAreas[y][x].end(), areas.end());
+			}
+			if (!movObjSeeds[y][x].empty())
+			{
+				copy(movObjSeeds[y][x].begin(), movObjSeeds[y][x].end(), seeds.end());
+			}
+		}
+	}
+
+	CV_Assert(seeds.size() == areas.size());
+	if (seeds.empty())
+		return false;
+
+	return true;
+}
+
+//Check, if it is necessary to calculate new moving objects
+//This function should not be called during the first frame
+//The function backProjectMovObj() must be called before
+bool genStereoSequ::getNewMovObjs()
+{
+	if (pars.minNrMovObjs == 0)
+	{
+		return false;
+	}
+	if (movObj3DPtsWorld.size() >= pars.minNrMovObjs)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 
 void genStereoSequ::getNewCorrs()
 {
@@ -4297,17 +4694,47 @@ void genStereoSequ::getNewCorrs()
 	double actDepthFar;
 	*/
 
-	//Generate maps (masks) of moving objects by backprojection from 3D for the first and second stereo camera: movObjMaskFromLast, movObjMaskFromLast2; create convex hulls: convhullPtsObj
+	if (pars.nrMovObjs > 0)
+	{
+		cv::Mat movObjMask;
+		int32_t corrsOnMovObjLF = 0;
+		bool calcNewMovObj = true;
+		if (actFrameCnt == 0)
+		{
+			movObjMask = Mat::zeros(imgSize, CV_8UC1);
+		}
+		else
+		{
+			//Calculate movObj3DPtsCam from movObj3DPtsWorld and update the 3D world coordinates based on direction and velocity
 
-	//Generate new moving objects and adapt the number of static correspondences per region
-	generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
+			//Generate maps (masks) of moving objects by backprojection from 3D for the first and second stereo camera: movObjMaskFromLast, movObjMaskFromLast2; create convex hulls: convhullPtsObj; and
+			//Check if some moving objects should be deleted
+			backProjectMovObj();
+			movObjMask = movObjMaskFromLast;
+			corrsOnMovObjLF = actCorrsOnMovObjFromLast;
 
-	//Assign a depth category to each new object label and calculate all depth values for each label
-	genNewDepthMovObj();
+			//Generate seeds and areas for new moving objects
+			calcNewMovObj = getNewMovObjs();
+			if (calcNewMovObj)
+			{
+				getSeedsAreasMovObj();
+			}
+		}
+		if (calcNewMovObj)
+		{
+			std::vector<cv::Point_<int32_t>> seeds, std::vector<int32_t> areas;
+			if (getSeedAreaListFromReg(seeds, areas))
+			{
+				//Generate new moving objects and adapt the number of static correspondences per region
+				generateMovObjLabels(movObjMask, seeds, areas, corrsOnMovObjLF);
 
-	//Generate correspondences and 3D points for new moving objects
+				//Assign a depth category to each new moving object label and calculate all depth values for each label
+				genNewDepthMovObj();
 
-	//Check if some moving objects should be deleted
+				//Generate correspondences and 3D points for new moving objects
+			}
+		}
+	}
 																																	   
 	//Get 3D points of static elements and store them to actImgPointCloudFromLast
 
@@ -4322,6 +4749,8 @@ void genStereoSequ::getNewCorrs()
 
 	//Generates correspondences and 3D points in the camera coordinate system (including false matches) from static scene elements
 	getKeypoints();//TODO: Use mask to prevent generating correspondences in areas of moving objects
+
+	//Combine correspondences of static and moving objects
 
 	//Insert new 3D coordinates into the world coordinate system
 }
