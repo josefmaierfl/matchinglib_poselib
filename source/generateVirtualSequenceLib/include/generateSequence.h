@@ -266,6 +266,7 @@ private:
 	void getSeedsAreasMovObj();
 	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
 	bool getNewMovObjs();
+	void getMovObjCorrs();
 	void getNewCorrs();
 
 private:
@@ -351,13 +352,13 @@ private:
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in world coordinates
-	/*movObjDepthClassNew hinzufügen*/std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
+	std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object
 	std::vector<cv::Rect> movObjLabelsROIs;////Every vector element (size corresponds to number of newly to add moving objects) holds a bounding rectangle of the new labels stored in movObjLabels
 	std::vector<depthClass> movObjDepthClassNew;//Every vector element (size corresponds to number of newly to add moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	cv::Mat combMovObjLabels;//Combination of all masks stored in movObjLabels. Every label has a different value.
 	cv::Mat combMovObjDepths;//Every position marked by combMovObjLabels holds an individual depth value
-	//cv::Mat combMovObjLabelsAll;//Combination of all masks marking moving objects (New generated elements (combMovObjLabels) and existing elements (movObjMaskFromLast)). Every label has a different value.
+	cv::Mat combMovObjLabelsAll;//Combination of all masks marking moving objects (New generated elements (combMovObjLabels) and existing elements (movObjMaskFromLast)). Every label has a different value.
 	int32_t actCorrsOnMovObj;//Actual number of new correspondences on moving objects (excluding backprojected correspondences from moving objects that were created one or more frames ago) including true negatives
 	int32_t actTruePosOnMovObj;//Number of new true positive correspondences on moving objects: actTruePosOnMovObj = actCorrsOnMovObj - actTrueNegOnMovObj
 	int32_t actTrueNegOnMovObj;//Number of new true negative correspondences on moving objects: actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj
@@ -370,6 +371,8 @@ private:
 	std::vector<cv::Mat> movObjLabelsFromLast;//Every vector element (size corresponds to number of backprojected moving objects) holds a mask with the size of the image marking the area of the moving object
 	cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
 	cv::Mat movObjMaskFromLast2;//Mask with the same size as the image masking correspondences of moving objects that were backprojected (mask for second stereo image)
+	/*noch nicht angelegt*/cv::Mat movObjMask2;//Mask with the same size as the image masking correspondences of new moving objects (mask for second stereo image)
+	/*noch nicht angelegt*/cv::Mat movObjMask2All;//Combination of movObjMaskFromLast2 and movObjMask2. Mask with the same size as the image masking correspondences of moving objects (mask for second stereo image)
 	std::vector<std::vector<bool>> movObjHasArea;//Indicates for every region if it is completely occupied by a moving object
 	std::vector<cv::Mat> movObjCorrsImg1TPFromLast, movObjCorrsImg2TPFromLast;//Every vector element (size corresponds to number of moving objects) holds correspondences within a moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
 	std::vector<cv::Mat> movObjCorrsImg1TNFromLast;//Every vector element (size corresponds to number of moving objects) holds TN correspondences within a moving object. Every vector element: TN keypoint in the first stereo rig image from movObj3DPtsCam in homogeneous image coordinates. Size: 3xn; Last row should be 1.0

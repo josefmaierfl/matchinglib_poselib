@@ -77,6 +77,15 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 	//Initialize region ROIs and masks
 	genRegMasks();
 
+	//Reset variables for the moving objects
+	combMovObjLabelsAll = Mat::zeros(imgSize, CV_8UC1);
+	movObjMask2All = Mat::zeros(imgSize, CV_8UC1);
+	movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
+	movObjMaskFromLast2 = Mat::zeros(imgSize, CV_8UC1);
+	movObjHasArea = std::vector<std::vector<bool>>(3, std::vector<bool>(3, false));
+	actCorrsOnMovObj = 0;
+	actCorrsOnMovObjFromLast = 0;
+
 	//Calculate the initial number, size, and positions of moving objects in the image
 	getNrSizePosMovObj();
 }
@@ -1127,7 +1136,7 @@ void genStereoSequ::backProject3D()
 		x1 /= x1.at<double>(2);
 
 		//Check if the point is within the area of a moving object
-		if (movObjMaskFromLast.at<unsigned char>((int)round(x1.at<double>(1)), (int)round(x1.at<double>(0))) > 0)
+		if (combMovObjLabelsAll.at<unsigned char>((int)round(x1.at<double>(1)), (int)round(x1.at<double>(0))) > 0)
 			continue;
 
 		bool outOfR[2] = { false, false };
@@ -1147,7 +1156,7 @@ void genStereoSequ::backProject3D()
 		}
 
 		//Check if the point is within the area of a moving object in the second image
-		if (movObjMaskFromLast2.at<unsigned char>((int)round(x2.at<double>(1)), (int)round(x2.at<double>(0))) > 0)
+		if (movObjMask2All.at<unsigned char>((int)round(x2.at<double>(1)), (int)round(x2.at<double>(0))) > 0)
 			outOfR[1] = true;
 
 		if (outOfR[0] && outOfR[1])
@@ -2483,7 +2492,7 @@ void genStereoSequ::getKeypoints()
 	int32_t kSi = csurr.rows;
 	int32_t posadd = (kSi - 1) / 2;
 	
-	//Mark used areas (by correspondences and TN) in the second image
+	//Mark used areas (by correspondences, TN, and moving objects) in the second image
 	Mat cImg2 = Mat::zeros(imgSize.width + kSi - 1, imgSize.height + kSi - 1, CV_8UC1);
 	for (int i = 0; i < actCorrsImg2TPFromLast.cols; i++)
 	{
@@ -2499,6 +2508,7 @@ void genStereoSequ::getKeypoints()
 		Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
 		csurr.copyTo(s_tmp);
 	}
+	cImg2(Rect(Point(posadd, posadd), imgSize)) |= movObjMask2All;
 
 	//Get regions of backprojected TN in first image and mark their positions
 	vector<vector<vector<Point_<int32_t>>>> x1pTN(3, vector<vector<Point_<int32_t>>>(3));
@@ -2525,6 +2535,9 @@ void genStereoSequ::getKeypoints()
 	{
 		for (size_t x = 0; x < 3; x++)
 		{
+			if (movObjHasArea[y][x])
+				continue;
+
 			int32_t nrNear = (int32_t)floor(depthsPerRegion[actCorrsPRIdx][y][x].near * (double)nrTruePosRegs[actFrameCnt].at<int32_t>(y, x));
 			int32_t nrFar = (int32_t)floor(depthsPerRegion[actCorrsPRIdx][y][x].far * (double)nrTruePosRegs[actFrameCnt].at<int32_t>(y, x));
 			int32_t nrMid = nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) - nrNear - nrFar;
@@ -2574,7 +2587,7 @@ void genStereoSequ::getKeypoints()
 					if ((nrNear <= 0) && (maxSelect >= 0)) continue;
 					//Check if coordinate is too near to existing keypoint
 					Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+					if ((s_tmp.at<unsigned char>(posadd, posadd) > 0) || (combMovObjLabelsAll.at<unsigned char>(pt) > 0))
 					{
 						maxSelect++;
 						maxSelect2--;
@@ -2610,7 +2623,7 @@ void genStereoSequ::getKeypoints()
 					if ((nrMid <= 0) && (maxSelect >= 0)) continue;
 					//Check if coordinate is too near to existing keypoint
 					Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+					if ((s_tmp.at<unsigned char>(posadd, posadd) > 0) || (combMovObjLabelsAll.at<unsigned char>(pt) > 0))
 					{
 						maxSelect++;
 						maxSelect2--;
@@ -2646,7 +2659,7 @@ void genStereoSequ::getKeypoints()
 					if ((nrFar <= 0) && (maxSelect >= 0)) continue;
 					//Check if coordinate is too near to existing keypoint
 					Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+					if ((s_tmp.at<unsigned char>(posadd, posadd) > 0) || (combMovObjLabelsAll.at<unsigned char>(pt) > 0))
 					{
 						maxSelect++;
 						maxSelect2--;
@@ -2761,7 +2774,7 @@ void genStereoSequ::getKeypoints()
 						pt.x = distributionX(rand_gen);
 						pt.y = distributionY(rand_gen);
 						Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-						if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+						if ((s_tmp.at<unsigned char>(posadd, posadd) > 0) || (combMovObjLabelsAll.at<unsigned char>(pt) > 0))
 						{
 							max_try--;
 							continue;
@@ -2782,14 +2795,19 @@ void genStereoSequ::getKeypoints()
 			}
 			
 			//Get the rest of TN correspondences
-			std::vector<Point2d> x1TN_tmp, x2TN_tmp;
-			std::vector<double> x2TNdistCorr_tmp;
-			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, corrsIMG, cImg2);
-			if (!x1TN_tmp.empty())
+			if (nrTN > 0)
 			{
-				copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN[y][x].end());
-				copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN[y][x].end());
-				copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), x2TNdistCorr[y][x].end());
+				std::vector<Point2d> x1TN_tmp, x2TN_tmp;
+				std::vector<double> x2TNdistCorr_tmp;
+				Mat maskImg1 = corrsIMG | combMovObjLabelsAll;
+				nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, cImg2);
+				if (!x1TN_tmp.empty())
+				{
+					corrsIMG |= maskImg1 & (combMovObjLabelsAll == 0);
+					copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN[y][x].end());
+					copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN[y][x].end());
+					copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), x2TNdistCorr[y][x].end());
+				}
 			}
 		}
 	}
@@ -3665,6 +3683,9 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 		combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
 		movObjLabelsROIs.clear();
 	}
+
+	//Combine existing and new labels of moving objects
+	combMovObjLabelsAll = combMovObjLabels | movObjMaskFromLast;
 }
 
 //Assign a depth category to each new object label and calculate all depth values for each label
@@ -3847,6 +3868,68 @@ void genStereoSequ::genNewDepthMovObj()
 			}
 		}
 	}
+	//Add new depth classes to existing ones
+	copy(movObjDepthClassNew.begin(), movObjDepthClassNew.end(), movObjDepthClass.end());
+}
+
+//Generate correspondences and TN for newly generated moving objects
+void genStereoSequ::getMovObjCorrs()
+{
+	/*actTPPerMovObj
+	actTNPerMovObj
+	std::vector<cv::Mat> movObjCorrsImg1TP, movObjCorrsImg2TP;//Every vector element (size corresponds to number of newly to add moving objects) holds correspondences within a new moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
+	std::vector<cv::Mat> movObjCorrsImg1TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the first stereo rig image (no 3D points were created for them)
+	std::vector<cv::Mat> movObjCorrsImg2TN;
+	std::vector<cv::Rect> movObjLabelsROIs
+	std::vector<cv::Mat> movObjLabels;
+	*/
+
+	//size_t nr_movObj = actTPPerMovObj.size();
+	//int32_t kSi = csurr.rows;
+	//int32_t posadd = (kSi - 1) / 2;
+	//for (size_t i = 0; i < nr_movObj; i++)
+	//{
+	//	std::uniform_real_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width);
+	//	std::uniform_real_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height);
+
+
+	//	pt.x = distributionX(rand_gen);
+	//	pt.y = distributionY(rand_gen);
+	//	maxSelect--;
+	//	if ((nrNear <= 0) && (maxSelect >= 0)) continue;
+	//	//Check if coordinate is too near to existing keypoint
+	//	Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
+	//	if ((s_tmp.at<unsigned char>(posadd, posadd) > 0) || (combMovObjLabelsAll.at<unsigned char>(pt) > 0))
+	//	{
+	//		maxSelect++;
+	//		maxSelect2--;
+	//		continue;
+	//	}
+	//	maxSelect2 = 50;
+	//	s_tmp += csurr;
+	//	//Check if it is also an inlier in the right image
+	//	if (!checkLKPInlier(pt, pt2, pCam))
+	//	{
+	//		if (nrTN > 0)
+	//		{
+	//			x1TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
+	//			nrTN--;
+	//		}
+	//		else
+	//		{
+	//			maxSelect++;
+	//			maxSelect3--;
+	//			s_tmp -= csurr;
+	//		}
+	//		continue;
+	//	}
+	//	maxSelect3 = 50;
+	//	nrNear--;
+	//	corrsNearR.push_back(pt);
+	//	corrsNearR2.push_back(pt2);
+	//	p3DTPnewRNear.push_back(pCam);
+
+	//}
 }
 
 //Generate (backproject) correspondences from existing moving objects and generate hulls of the objects in the image
@@ -4734,6 +4817,12 @@ void genStereoSequ::getNewCorrs()
 				//Generate correspondences and 3D points for new moving objects
 			}
 		}
+		else
+		{
+			//Set the global mask for moving objects
+			combMovObjLabelsAll = movObjMaskFromLast;
+			movObjMask2All = movObjMaskFromLast2;
+		}
 	}
 																																	   
 	//Get 3D points of static elements and store them to actImgPointCloudFromLast
@@ -4748,7 +4837,7 @@ void genStereoSequ::getNewCorrs()
 	genDepthMaps();
 
 	//Generates correspondences and 3D points in the camera coordinate system (including false matches) from static scene elements
-	getKeypoints();//TODO: Use mask to prevent generating correspondences in areas of moving objects
+	getKeypoints();
 
 	//Combine correspondences of static and moving objects
 
