@@ -267,6 +267,8 @@ private:
 	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
 	bool getNewMovObjs();
 	void getMovObjCorrs();
+	void combineCorrespondences();
+	void updateFrameParameters();
 	void getNewCorrs();
 
 private:
@@ -350,8 +352,9 @@ private:
 	std::vector<std::vector<std::vector<int32_t>>> movObjAreas;//Area for every new moving object per image region (must be 3x3xn)
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> movObjSeeds;//Seeding positions for every new moving object per image region (must be 3x3xn and the same size as movObjAreas)
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
-	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in camera coordinates
-	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of moving objects) holds the 3D-points from a moving object in world coordinates
+	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in camera coordinates
+	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in world coordinates
+	std::vector<std::vector<cv::Point3d>> movObj3DPtsCamNew;//Every vector element (size corresponds to number of new generated moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object
 	std::vector<cv::Rect> movObjLabelsROIs;////Every vector element (size corresponds to number of newly to add moving objects) holds a bounding rectangle of the new labels stored in movObjLabels
@@ -380,7 +383,13 @@ private:
 	std::vector<cv::Mat> movObjCorrsImg1TP, movObjCorrsImg2TP;//Every vector element (size corresponds to number of newly to add moving objects) holds correspondences within a new moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
 	std::vector<cv::Mat> movObjCorrsImg1TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the first stereo rig image (no 3D points were created for them)
 	std::vector<cv::Mat> movObjCorrsImg2TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the second stereo rig image (no 3D points were created for them)
-	std::vector<std::vector<double>> movObjDistTNtoReal;//Distance values of the TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
+	std::vector<std::vector<double>> movObjDistTNtoReal;//Distance values of the TN keypoint locations for the already existing moving objects in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
+	std::vector<std::vector<double>> movObjDistTNtoRealNew;//Distance values of the TN keypoint locations for new generated moving objects in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
+
+	cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+	cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+	int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
+	std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
 };
 
 

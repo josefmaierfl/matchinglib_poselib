@@ -2510,7 +2510,7 @@ void genStereoSequ::getKeypoints()
 	}
 	cImg2(Rect(Point(posadd, posadd), imgSize)) |= movObjMask2All;
 
-	//Get regions of backprojected TN in first image and mark their positions
+	//Get regions of backprojected TN in first image and mark their positions; add true negatives from backprojection to the new outlier data
 	vector<vector<vector<Point_<int32_t>>>> x1pTN(3, vector<vector<Point_<int32_t>>>(3));
 	Size rSl(imgSize.width / 3, imgSize.height / 3);
 	for (int i = 0; i < actCorrsImg1TNFromLast.cols; i++)
@@ -4047,16 +4047,20 @@ void genStereoSequ::getMovObjCorrs()
 		//Store correspondences
 		if (!x1TP.empty())
 		{
-			movObjCorrsImg1TP[i] = Mat(x1TP).reshape(1).t();
-			movObjCorrsImg2TP[i] = Mat(x2TP).reshape(1).t();
+			movObjCorrsImg1TP[i] = Mat::ones(3, (int)x1TP.size(), CV_64FC1);
+			movObjCorrsImg2TP[i] = Mat::ones(3, (int)x1TP.size(), CV_64FC1);
+			movObjCorrsImg1TP[i].rowRange(0, 2) = Mat(x1TP).reshape(1).t();
+			movObjCorrsImg2TP[i].rowRange(0, 2) = Mat(x2TP).reshape(1).t();
 		}
 		if (!x1TN.empty())
 		{
-			movObjCorrsImg1TN[i] = Mat(x1TN).reshape(1).t();
+			movObjCorrsImg1TN[i] = Mat::ones(3, (int)x1TN.size(), CV_64FC1);
+			movObjCorrsImg1TN[i].rowRange(0, 2) = Mat(x1TN).reshape(1).t();
 		}
 		if (!x2TN.empty())
 		{
-			movObjCorrsImg2TN[i] = Mat(x2TN).reshape(1).t();
+			movObjCorrsImg2TN[i] = Mat::ones(3, (int)x2TN.size(), CV_64FC1);
+			movObjCorrsImg2TN[i].rowRange(0, 2) = Mat(x2TN).reshape(1).t();
 		}
 	}
 	movObjMask2All = movObjMask2All(Rect(Point(posadd, posadd), imgSize));
@@ -4894,18 +4898,152 @@ bool genStereoSequ::getNewMovObjs()
 	return true;
 }
 
+//Combines correspondences from static and moving objects
+void genStereoSequ::combineCorrespondences()
+{
+	//Get number of TP correspondences
+	combNrCorrsTP = actCorrsImg1TPFromLast.cols + actCorrsImg1TP.cols;
+	for (auto i : movObjCorrsImg1TPFromLast)
+	{
+		combNrCorrsTP += i.cols;
+	}
+	for (auto i : movObjCorrsImg1TP)
+	{
+		combNrCorrsTP += i.cols;
+	}
+	//Get number of TN correspondences
+	combNrCorrsTN = actCorrsImg1TN.cols;
+	for (auto i : movObjCorrsImg1TNFromLast)
+	{
+		combNrCorrsTN += i.cols;
+	}
+	for (auto i : movObjCorrsImg1TN)
+	{
+		combNrCorrsTN += i.cols;
+	}
+
+	combCorrsImg1TP = Mat(3, combNrCorrsTP, CV_64FC1);
+	combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
+
+	//Copy all TP keypoints of first image
+	int actColNr = 0;
+	int actColNr2 = actCorrsImg1TPFromLast.cols;
+	actCorrsImg1TPFromLast.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+	actColNr = actColNr2;
+	actColNr2 = actColNr + actCorrsImg1TP.cols;
+	actCorrsImg1TP.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+	for (auto i : movObjCorrsImg1TPFromLast)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+	}
+	for (auto i : movObjCorrsImg1TP)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+	}
+
+	//Copy all TP keypoints of second image
+	actColNr = 0;
+	actColNr2 = actCorrsImg2TPFromLast.cols;
+	actCorrsImg2TPFromLast.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+	actColNr = actColNr2;
+	actColNr2 = actColNr + actCorrsImg2TP.cols;
+	actCorrsImg2TP.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+	for (auto i : movObjCorrsImg2TPFromLast)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+	}
+	for (auto i : movObjCorrsImg2TP)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+	}
+
+	combCorrsImg1TN = Mat(3, combNrCorrsTN, CV_64FC1);
+	combCorrsImg2TN = Mat(3, combNrCorrsTN, CV_64FC1);
+
+	//Copy all TN keypoints of first image
+	actColNr = 0;
+	actColNr2 = actCorrsImg1TN.cols;
+	actCorrsImg1TN.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+	for (auto i : movObjCorrsImg1TNFromLast)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+	}
+	for (auto i : movObjCorrsImg1TN)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+	}
+
+	//Copy all TN keypoints of second image
+	actColNr = 0;
+	actColNr2 = actCorrsImg2TN.cols;
+	actCorrsImg2TN.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+	for (auto i : movObjCorrsImg2TNFromLast)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+	}
+	for (auto i : movObjCorrsImg2TN)
+	{
+		actColNr = actColNr2;
+		actColNr2 = actColNr + i.cols;
+		i.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+	}
+
+	//Copy distances of TN locations to their real matching position
+	combDistTNtoReal.reserve(combNrCorrsTN);
+	copy(distTNtoReal.begin(), distTNtoReal.end(), combDistTNtoReal.end());
+	for (auto i : movObjDistTNtoReal)
+	{
+		copy(i.begin(), i.end(), combDistTNtoReal.end());
+	}
+	for (auto i : movObjDistTNtoRealNew)
+	{
+		copy(i.begin(), i.end(), combDistTNtoReal.end());
+	}
+
+	CV_Assert((size_t)combCorrsImg1TN.cols == combDistTNtoReal.size());
+}
+
+//Get the paramters and indices for the actual frame. This function must be called before simulating a new stereo frame
+void genStereoSequ::updateFrameParameters()
+{
+	if (((actFrameCnt % (pars.nFramesPerCamConf)) == 0) && (actFrameCnt > 0))
+	{
+		actStereoCIdx++;
+	}
+	actR = R[actStereoCIdx];
+	actT = t[actStereoCIdx];
+	actDepthNear = depthNear[actStereoCIdx];
+	actDepthMid = depthMid[actStereoCIdx];
+	actDepthFar = depthFar[actStereoCIdx];
+	
+	if (((actFrameCnt % (pars.corrsPerRegRepRate)) == 0) && (actFrameCnt > 0))
+	{
+		actCorrsPRIdx++;
+		if (actCorrsPRIdx >= pars.corrsPerRegion.size())
+		{
+			actCorrsPRIdx = 0;
+		}
+	}
+}
+
 
 void genStereoSequ::getNewCorrs()
 {
-	/* Calculate the following:
-	cv::Mat actR;//actu
-	cv::Mat actT;//actu
-	size_t actFrameCnt
-	size_t actCorrsPRId
-	double actDepthNear
-	double actDepthMid;
-	double actDepthFar;
-	*/
+	updateFrameParameters();
 
 	if (pars.nrMovObjs > 0)
 	{
@@ -4946,6 +5084,9 @@ void genStereoSequ::getNewCorrs()
 
 				//Generate correspondences and 3D points for new moving objects
 				getMovObjCorrs();
+
+				//Insert new 3D points into world coordinate system
+
 			}
 		}
 		else
@@ -4971,6 +5112,21 @@ void genStereoSequ::getNewCorrs()
 	getKeypoints();
 
 	//Combine correspondences of static and moving objects
+	combineCorrespondences();
 
 	//Insert new 3D coordinates into the world coordinate system
+}
+
+//Start calculating the whole sequence
+void genStereoSequ::startCalc()
+{
+	actFrameCnt = 0;
+	actCorrsPRIdx = 0;
+	actStereoCIdx = 0;
+
+	while(actFrameCnt < totalNrFrames)
+	{
+		getNewCorrs();
+		actFrameCnt++;
+	}
 }
