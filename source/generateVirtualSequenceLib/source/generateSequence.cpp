@@ -2547,6 +2547,7 @@ void genStereoSequ::getKeypoints()
 			int32_t maxSelect = max(3 * nrTruePosRegs[actFrameCnt].at<int32_t>(y, x), 1000);
 			int32_t maxSelect2 = 50;
 			int32_t maxSelect3 = 50;
+			int32_t maxSelect4 = 50;
 			std::uniform_real_distribution<int32_t> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
 			std::uniform_real_distribution<int32_t> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
 
@@ -2576,7 +2577,7 @@ void genStereoSequ::getKeypoints()
 			if (nrFar < 0)
 				nrMid += nrFar;
 
-			while (((nrNear > 0) || (nrFar > 0) || (nrMid > 0)) && (maxSelect2 > 0) && (maxSelect3 > 0))
+			while (((nrNear > 0) || (nrFar > 0) || (nrMid > 0)) && (maxSelect2 > 0) && (maxSelect3 > 0) && (maxSelect4 > 0))
 			{
 				pt.x = distributionX(rand_gen);
 				pt.y = distributionY(rand_gen);
@@ -2594,9 +2595,19 @@ void genStereoSequ::getKeypoints()
 						continue;
 					}
 					maxSelect2 = 50;
-					s_tmp += csurr;
 					//Check if it is also an inlier in the right image
-					if (!checkLKPInlier(pt, pt2, pCam))
+					bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
+					Mat s_tmp1 = cImg2(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
+					if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
+					{
+						maxSelect++;
+						maxSelect4--;
+						continue;
+					}
+					s_tmp1.at<unsigned char>(posadd, posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
+					maxSelect4 = 50;
+					s_tmp += csurr;
+					if (!isInl)
 					{
 						if (nrTN > 0)
 						{
@@ -2630,9 +2641,19 @@ void genStereoSequ::getKeypoints()
 						continue;
 					}
 					maxSelect2 = 50;
-					s_tmp += csurr;
 					//Check if it is also an inlier in the right image
-					if (!checkLKPInlier(pt, pt2, pCam))
+					bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
+					Mat s_tmp1 = cImg2(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
+					if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
+					{
+						maxSelect++;
+						maxSelect4--;
+						continue;
+					}
+					s_tmp1.at<unsigned char>(posadd, posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
+					maxSelect4 = 50;
+					s_tmp += csurr;
+					if (!isInl)
 					{
 						if (nrTN > 0)
 						{
@@ -2666,9 +2687,19 @@ void genStereoSequ::getKeypoints()
 						continue;
 					}
 					maxSelect2 = 50;
-					s_tmp += csurr;
 					//Check if it is also an inlier in the right image
-					if (!checkLKPInlier(pt, pt2, pCam))
+					bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
+					Mat s_tmp1 = cImg2(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
+					if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
+					{
+						maxSelect++;
+						maxSelect4--;
+						continue;
+					}
+					s_tmp1.at<unsigned char>(posadd, posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
+					maxSelect4 = 50;
+					s_tmp += csurr;
+					if (!isInl)
 					{
 						if (nrTN > 0)
 						{
@@ -2799,11 +2830,13 @@ void genStereoSequ::getKeypoints()
 			{
 				std::vector<Point2d> x1TN_tmp, x2TN_tmp;
 				std::vector<double> x2TNdistCorr_tmp;
-				Mat maskImg1 = corrsIMG | combMovObjLabelsAll;
+				Mat maskImg1;
+				copyMakeBorder(combMovObjLabelsAll, maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));
+				maskImg1 |= corrsIMG;
 				nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, cImg2);
 				if (!x1TN_tmp.empty())
 				{
-					corrsIMG |= maskImg1 & (combMovObjLabelsAll == 0);
+					corrsIMG(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (combMovObjLabelsAll == 0);
 					copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN[y][x].end());
 					copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN[y][x].end());
 					copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), x2TNdistCorr[y][x].end());
@@ -2914,7 +2947,7 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 		x1TN.push_back(Point2d((double)pt.x, (double)pt.y));
 		int max_try = 10;
 		double perfDist = 50.0;
-		if (!checkLKPInlier(pt, pt2, pCam))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
+		if (!checkLKPInlier(pt, pt2, pCam, depthMap))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
 		{
 			while (max_try > 0)
 			{
@@ -2975,11 +3008,11 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 
 //Check, if the given point in the first camera is also visible in the second camera
 //Calculates the 3D-point in the camera coordinate system and the corresponding point in the second image
-bool genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam)
+bool genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam, cv::Mat &usedDepthMap)
 {
 	Mat x = (Mat_<double>(3, 1) << (double)pt.x, (double)pt.y, 1.0);
 
-	double depth = depthMap.at<double>(pt);
+	double depth = usedDepthMap.at<double>(pt);
 	x = K1i * x;
 	x *= depth / x.at<double>(2);
 	pCam = Point3d(x);
@@ -3875,61 +3908,158 @@ void genStereoSequ::genNewDepthMovObj()
 //Generate correspondences and TN for newly generated moving objects
 void genStereoSequ::getMovObjCorrs()
 {
-	/*actTPPerMovObj
-	actTNPerMovObj
-	std::vector<cv::Mat> movObjCorrsImg1TP, movObjCorrsImg2TP;//Every vector element (size corresponds to number of newly to add moving objects) holds correspondences within a new moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
-	std::vector<cv::Mat> movObjCorrsImg1TN;//Every vector element (size corresponds to number of newly to add moving objects) holds TN correspondences within a new moving object. Every vector element: Newly created TN keypoint in the first stereo rig image (no 3D points were created for them)
-	std::vector<cv::Mat> movObjCorrsImg2TN;
-	std::vector<cv::Rect> movObjLabelsROIs
-	std::vector<cv::Mat> movObjLabels;
-	*/
-
-	//size_t nr_movObj = actTPPerMovObj.size();
-	//int32_t kSi = csurr.rows;
-	//int32_t posadd = (kSi - 1) / 2;
-	//for (size_t i = 0; i < nr_movObj; i++)
-	//{
-	//	std::uniform_real_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width);
-	//	std::uniform_real_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height);
+	size_t nr_movObj = actTPPerMovObj.size();
+	int32_t kSi = csurr.rows;
+	int32_t posadd = (kSi - 1) / 2;
+	Point_<int32_t> pt;
+	Point2d pt2;
+	Point3d pCam;
+	Mat corrsSet = Mat::zeros(imgSize.height + kSi - 1, imgSize.width + kSi - 1, CV_8UC1);
+	cv::copyMakeBorder(movObjMaskFromLast2, movObjMask2All, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));//movObjMask2All must be reduced to image size at the end
+	int maxIt = 20;
 
 
-	//	pt.x = distributionX(rand_gen);
-	//	pt.y = distributionY(rand_gen);
-	//	maxSelect--;
-	//	if ((nrNear <= 0) && (maxSelect >= 0)) continue;
-	//	//Check if coordinate is too near to existing keypoint
-	//	Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-	//	if ((s_tmp.at<unsigned char>(posadd, posadd) > 0) || (combMovObjLabelsAll.at<unsigned char>(pt) > 0))
-	//	{
-	//		maxSelect++;
-	//		maxSelect2--;
-	//		continue;
-	//	}
-	//	maxSelect2 = 50;
-	//	s_tmp += csurr;
-	//	//Check if it is also an inlier in the right image
-	//	if (!checkLKPInlier(pt, pt2, pCam))
-	//	{
-	//		if (nrTN > 0)
-	//		{
-	//			x1TN[y][x].push_back(Point2d((double)pt.x, (double)pt.y));
-	//			nrTN--;
-	//		}
-	//		else
-	//		{
-	//			maxSelect++;
-	//			maxSelect3--;
-	//			s_tmp -= csurr;
-	//		}
-	//		continue;
-	//	}
-	//	maxSelect3 = 50;
-	//	nrNear--;
-	//	corrsNearR.push_back(pt);
-	//	corrsNearR2.push_back(pt2);
-	//	p3DTPnewRNear.push_back(pCam);
+	//Generate TP correspondences
+	movObjCorrsImg1TP.clear();
+	movObjCorrsImg1TP.resize(nr_movObj);
+	movObjCorrsImg2TP.clear();
+	movObjCorrsImg2TP.resize(nr_movObj);
+	movObjCorrsImg1TN.clear();
+	movObjCorrsImg1TN.resize(nr_movObj);
+	movObjCorrsImg2TN.clear();
+	movObjCorrsImg2TN.resize(nr_movObj);
+	movObj3DPtsCamNew.clear();
+	movObj3DPtsCamNew.resize(nr_movObj);
+	movObjDistTNtoRealNew.clear();
+	movObjDistTNtoRealNew.resize(nr_movObj);
+	for (size_t i = 0; i < nr_movObj; i++)
+	{
+		std::uniform_real_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width);
+		std::uniform_real_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height);
+		int cnt1 = 0;
+		int nrTN = actTNPerMovObj[i];
+		int nrTP = actTPPerMovObj[i];
+		vector<Point2d> x1TN, x2TN;
+		vector<Point2d> x1TP, x2TP;
+		int32_t maxSelect = 50;
+		int32_t maxSelect2 = 50;
+		int32_t maxSelect3 = 50;
 
-	//}
+		while ((nrTP > 0) && (maxSelect > 0) && (maxSelect2 > 0) && (maxSelect3 > 0))
+		{
+			pt.x = distributionX(rand_gen);
+			pt.y = distributionY(rand_gen);
+
+			Mat s_tmp = corrsSet(Rect(pt, Size(kSi, kSi)));
+			if ((movObjLabels[i].at<unsigned char>(pt) == 0) || (s_tmp.at<unsigned char>(posadd, posadd) > 0))
+			{
+				maxSelect--;
+				continue;
+			}
+			maxSelect = 50;
+
+			//Check if it is also an inlier in the right image
+			bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
+			Mat s_tmp1 = movObjMask2All(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
+			if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
+			{
+				maxSelect2--;
+				continue;
+			}
+			s_tmp1.at<unsigned char>(posadd, posadd) = 1;//The minimum distance between keypoints in the second image is fixed to approx. 1 for new correspondences
+			maxSelect2 = 50;
+			s_tmp += csurr;
+			if (!isInl)
+			{
+				if (nrTN > 0)
+				{
+					x1TN.push_back(Point2d((double)pt.x, (double)pt.y));
+					nrTN--;
+				}
+				else
+				{
+					maxSelect3--;
+					s_tmp -= csurr;
+				}
+				continue;
+			}
+			maxSelect3 = 50;
+			nrTP--;
+			x1TP.push_back(Point2d((double)pt.x, (double)pt.y));
+			x2TP.push_back(pt2);
+			movObj3DPtsCamNew[i].push_back(pCam);
+		}
+		//If there are still correspondences missing, try to use them in the next object
+		if ((nrTP > 0) && (i < (nr_movObj - 1)))
+		{
+			actTPPerMovObj[i + 1] += nrTP;
+		}
+
+		std::uniform_real_distribution<int32_t> distributionX2(0, imgSize.width);
+		std::uniform_real_distribution<int32_t> distributionY2(0, imgSize.height);
+		//Find TN keypoints in the second image for already found TN in the first image
+		if (!x1TN.empty())
+		{
+			for (size_t i = 0; i < x1TN.size(); i++)
+			{
+				int max_try = 10;
+				while (max_try > 0)
+				{
+					pt.x = distributionX2(rand_gen);
+					pt.y = distributionY2(rand_gen);
+					Mat s_tmp = movObjMask2All(Rect(pt, Size(kSi, kSi)));
+					if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+					{
+						max_try--;
+						continue;
+					}
+					csurr.copyTo(s_tmp);
+					x2TN.push_back(Point2d((double)pt.x, (double)pt.y));
+					movObjDistTNtoRealNew[i].push_back(50.0);
+					break;
+				}
+			}
+			while (x1TN.size() > x2TN.size())
+			{
+				x1TN.pop_back();
+				nrTN++;
+			}
+		}
+
+		//Get the rest of TN correspondences
+		if (nrTN > 0)
+		{
+			std::vector<Point2d> x1TN_tmp, x2TN_tmp;
+			std::vector<double> x2TNdistCorr_tmp;
+			Mat maskImg1;
+			copyMakeBorder(movObjLabels[i], maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));
+			maskImg1 |= corrsSet;
+			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, movObjMask2All);
+			if (!x1TN_tmp.empty())
+			{
+				corrsSet(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (movObjLabels[i] == 0);
+				copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN.end());
+				copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN.end());
+				copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), movObjDistTNtoRealNew[i].end());
+			}
+		}
+
+		//Store correspondences
+		if (!x1TP.empty())
+		{
+			movObjCorrsImg1TP[i] = Mat(x1TP).reshape(1).t();
+			movObjCorrsImg2TP[i] = Mat(x2TP).reshape(1).t();
+		}
+		if (!x1TN.empty())
+		{
+			movObjCorrsImg1TN[i] = Mat(x1TN).reshape(1).t();
+		}
+		if (!x2TN.empty())
+		{
+			movObjCorrsImg2TN[i] = Mat(x2TN).reshape(1).t();
+		}
+	}
+	movObjMask2All = movObjMask2All(Rect(Point(posadd, posadd), imgSize));
 }
 
 //Generate (backproject) correspondences from existing moving objects and generate hulls of the objects in the image
@@ -4815,6 +4945,7 @@ void genStereoSequ::getNewCorrs()
 				genNewDepthMovObj();
 
 				//Generate correspondences and 3D points for new moving objects
+				getMovObjCorrs();
 			}
 		}
 		else
