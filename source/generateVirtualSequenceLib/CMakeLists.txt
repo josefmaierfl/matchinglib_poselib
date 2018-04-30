@@ -15,12 +15,13 @@ endif()
 include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 endif()
 
-if(WIN32)
-  find_package(Eigen REQUIRED)
-else()
-  find_package(PkgConfig)
-  pkg_search_module(EIGEN REQUIRED eigen3)
-endif()
+#Eigen is included in PCL:
+#if(WIN32)
+  #find_package(Eigen REQUIRED)
+#else()
+  #find_package(PkgConfig)
+  #pkg_search_module(EIGEN REQUIRED eigen3)
+#endif()
 
 find_package(Eigen REQUIRED)
 
@@ -38,6 +39,17 @@ else()
     find_package(OpenCV 3.2 REQUIRED)
 endif()
 
+if(WIN32)
+	set(PCL_DIR "C:/work/THIRDPARTY/pcl-1.8.1/pcl-1.8.1-dl/PCL 1.8.1/cmake/")
+	find_package(PCL 1.8 REQUIRED)# COMPONENTS common filters)
+else()
+	find_package(PCL 1.8 REQUIRED)
+endif()
+#message(STATUS ${PCL_VERSION})
+if(PCL_FOUND)
+	message(STATUS "Found PCL lib!")
+	message(STATUS "PCL Version: ${PCL_VERSION}")
+endif()
 
 find_package(Nanoflann REQUIRED)
 #find_package(Flann REQUIRED)
@@ -96,7 +108,7 @@ set(export_macro "${target_upper}_API")
 # Sources
 #
 
-set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}")
+set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")#/${target}")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 file(GLOB_RECURSE header_files
@@ -196,9 +208,10 @@ target_include_directories(${target}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
-    ${EIGEN3_INCLUDE_DIR}
+    #${EIGEN3_INCLUDE_DIR}
 	#${MATCHINGLIB_INCLUDE_DIRS}
 	#${PFELIB_INCLUDE_DIR}
+	${PCL_INCLUDE_DIRS}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -221,6 +234,16 @@ target_link_libraries(${target}
 	#${MATCHINGLIB_LIBRARIES}
 	#${PFELIB_LIBRARIES}
 	#matching::matchinglib
+	
+	${PCL_LIBRARY_DIRS}
+	${PCL_COMMON_LIBRARIES}
+	${PCL_OCTREE_LIBRARIES}
+	${PCL_IO_LIBRARIES}
+	${PCL_KDTREE_LIBRARIES}
+	${PCL_SEARCH_LIBRARIES}
+	${PCL_FILTERS_LIBRARIES}
+	${PCL_GEOMETRY_LIBRARIES}
+	${PCL_SEGMENTATION_LIBRARIES}
 
     INTERFACE
 )
@@ -238,6 +261,7 @@ target_compile_definitions(${target}
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
     #${FLANN_DEFINITIONS}
+	${PCL_DEFINITIONS}
 
     INTERFACE
 )

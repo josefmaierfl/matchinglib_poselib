@@ -188,3 +188,67 @@ bool solveLinEqu(cv::Mat& A, cv::Mat& b, cv::Mat& x)
 	}
 	return true;
 }
+
+/* Converts a (Rotation) matrix to a (Rotation) quaternion
+*
+* Matrix3d rot						Input  -> 3x3 Rotation matrix
+* Vector4d quat					Output -> Quaternion vector of the form [w,x,y,z]
+*
+* Return value:					none
+*/
+void MatToQuat(const Eigen::Matrix3d & rot, Eigen::Vector4d & quat) {
+	/*    double trace = rot.trace();
+
+	MAT_TO_QUAT(ACCESS_EIGENMAT_AS_MAT)
+
+	normalise();
+	lengthOk();
+
+	BROKEN -- try this from boost instead
+	*/
+
+	double fTrace = rot.trace();
+	double fRoot;
+
+	//From http://www.geometrictools.com/LibFoundation/Mathematics/Wm4Quaternion.inl
+	double m_afTuple[4];
+	if (fTrace > (double) 0.0) //0 is w
+	{
+		// |w| > 1/2, may as well choose w > 1/2
+		fRoot = sqrt(fTrace + (double) 1.0); // 2w
+		m_afTuple[0] = ((double) 0.5) * fRoot;
+		fRoot = ((double) 0.5) / fRoot; // 1/(4w)
+		m_afTuple[1] = (rot(2, 1) - rot(1, 2)) * fRoot;
+		m_afTuple[2] = (rot(0, 2) - rot(2, 0)) * fRoot;
+		m_afTuple[3] = (rot(1, 0) - rot(0, 1)) * fRoot;
+	}
+	else {
+		// |w| <= 1/2
+		int i = 0;
+		if (rot(1, 1) > rot(0, 0)) {
+			i = 1;
+		}
+		if (rot(2, 2) > rot(i, i)) {
+			i = 2;
+		}
+		//        int j = ms_iNext[i];
+		//        int k = ms_iNext[j];
+		int j = (i + 1);
+		j %= 3;
+		int k = (j + 1);
+		k %= 3;
+
+		fRoot = sqrt(rot(i, i) - rot(j, j) - rot(k, k) + (double) 1.0);
+		//double* apfQuat[3] = { &m_afTuple[1], &m_afTuple[2], &m_afTuple[3] };
+		m_afTuple[i + 1] = ((double) 0.5) * fRoot;
+		fRoot = ((double) 0.5) / fRoot;
+		m_afTuple[0] = (rot(k, j) - rot(j, k)) * fRoot;
+		m_afTuple[j + 1] = (rot(j, i) + rot(i, j)) * fRoot;
+		m_afTuple[k + 1] = (rot(k, i) + rot(i, k)) * fRoot;
+	}
+
+	quat(0) = m_afTuple[0];
+	quat(1) = m_afTuple[1];
+	quat(2) = m_afTuple[2];
+	quat(3) = m_afTuple[3];
+}

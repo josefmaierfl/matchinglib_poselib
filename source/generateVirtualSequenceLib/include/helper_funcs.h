@@ -22,6 +22,8 @@ DISCRIPTION: This file provides some helper functions.
 #include "opencv2/highgui/highgui.hpp"
 #include <random>
 
+#include <Eigen/Dense>
+
 //#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
@@ -56,6 +58,9 @@ double getLineIntersect(cv::Mat b1, cv::Mat a2, cv::Mat b2);
 
 //Solves a linear equation of th form Ax=b
 bool solveLinEqu(cv::Mat& A, cv::Mat& b, cv::Mat& x);
+
+//Converts a (Rotation) matrix to a (Rotation) quaternion
+void MatToQuat(const Eigen::Matrix3d & rot, Eigen::Vector4d & quat);
 
 /* -------------------------- Functions -------------------------- */
 

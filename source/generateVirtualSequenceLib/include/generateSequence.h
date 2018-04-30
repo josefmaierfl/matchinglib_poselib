@@ -23,6 +23,8 @@ a view restrictions like depth ranges, moving objects, ...
 #include "opencv2/highgui/highgui.hpp"
 #include <random>
 
+#include "pcl/point_cloud.h"
+
 #include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
@@ -206,7 +208,9 @@ struct Poses
 
 class genStereoSequ
 {
+public:
 	genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::vector<cv::Mat> R_, std::vector<cv::Mat> t_, StereoSequParameters pars_);
+	void startCalc();
 
 private:
 	void constructCamPath();
@@ -221,6 +225,7 @@ private:
 	void checkDepthAreas();
 	void calcPixAreaPerDepth();
 	void checkDepthSeeds();
+	void checkMovObjDirection();
 	void backProject3D();
 	void adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<size_t> &delListSortedAsc);
 	void adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec, std::vector<size_t> &delListSortedAsc);
@@ -270,6 +275,12 @@ private:
 	void combineCorrespondences();
 	void updateFrameParameters();
 	void getNewCorrs();
+	void transPtsToWorld();
+	void transMovObjPtsToWorld();
+	void updateMovObjPositions();
+	void getActEigenCamPose();
+	bool getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut);
+	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut);
 
 private:
 	std::default_random_engine rand_gen;
@@ -285,9 +296,9 @@ private:
 	StereoSequParameters pars;
 	size_t nrStereoConfs;//Number of different stereo camera configurations
 
-	size_t totalNrFrames;//Total number of frames
+	size_t totalNrFrames = 0;//Total number of frames
 	double absCamVelocity;//in baselines from frame to frame
-	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame
+	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world (not the translation vector): C=-R^T * t -> t = -R * C
 
 	std::vector<double> inlRat;//Inlier ratio for every frame
 	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
@@ -315,6 +326,7 @@ private:
 	std::vector<cv::Mat> areaPRegFar;//Area in pixels per region that should hold far depth values; Type CV_32SC1, same size as depthsPerRegion
 	std::vector<std::vector<cv::Rect>> regROIs;//ROIs of every of the 9x9 image regions
 
+	pcl::PointCloud<pcl::PointXYZ> staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
 	std::vector<cv::Point3d> actImgPointCloudFromLast;//3D coordiantes that were generated with a different frame. Coordinates are in the camera coordinate system.
 	std::vector<cv::Point3d> actImgPointCloud;//All newly generated 3D coordiantes excluding actImgPointCloudFromLast. Coordinates are in the camera coordinate system.
 	cv::Mat actCorrsImg1TPFromLast, actCorrsImg2TPFromLast;//TP correspondences in the stereo rig from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
@@ -334,9 +346,12 @@ private:
 	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
 	size_t actFrameCnt = 0;
 	size_t actCorrsPRIdx = 0;//actual index (corresponding to the actual frame) for pars.corrsPerRegion, depthsPerRegion, nrDepthAreasPRegNear, ...
+	size_t actStereoCIdx = 0;//actual index (corresponding to the actual frame) for R, t, depthNear, depthMid, depthFar
 	double actDepthNear;//Lower border of near depths for the actual camera configuration
 	double actDepthMid;//Upper border of near and lower border of mid depths for the actual camera configuration
 	double actDepthFar;//Upper border of mid and lower border of far depths for the actual camera configuration
+	Eigen::Matrix4f actCamPose;//actual camera pose in camera coordinates in a different camera coordinate system (X forward, Y is up, and Z is right) to use the PCL filter FrustumCulling
+	Eigen::Quaternionf actCamRot;//actual camerea rotation from world to camera (rotation w.r.t the origin)
 
 	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsNear;//Holds the actual near seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
 	std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> seedsMid;//Holds the actual mid seeds for every region; Size 3x3xn; Point3 holds the seed coordinate (x,y) and a possible index (=z) to actCorrsImg12TPFromLast_Idx if the seed was generated from an existing 3D point (otherwise z=-1).
@@ -346,6 +361,7 @@ private:
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsFarFromLast;//Holds the actual far seeds of backprojected 3D points for every region; Size 3x3xn;
 
 	cv::Mat startPosMovObjs; //Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
+	cv::Mat movObjDir;//Movement direction of moving objects relative to camera movementm (must be 3x1 double). The movement direction is linear and does not change if the movement direction of the camera changes.
 	int minOArea, maxOArea;//Minimum and maximum area of single moving objects in the image
 	int minODist;//Minimum distance between seeding positions (for areas) of moving objects
 	int maxOPerReg;//Maximum number of moving objects or seeds per region
@@ -353,7 +369,8 @@ private:
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> movObjSeeds;//Seeding positions for every new moving object per image region (must be 3x3xn and the same size as movObjAreas)
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in camera coordinates
-	std::vector<std::vector<cv::Point3d>> movObj3DPtsWorld;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in world coordinates
+	std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in world coordinates
+	std::vector<cv::Mat> movObjWorldMovement;//Holds the absolute 3x1 movement vector scaled by velocity for every moving object 
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCamNew;//Every vector element (size corresponds to number of new generated moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object

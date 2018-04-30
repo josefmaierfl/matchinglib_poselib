@@ -20,7 +20,13 @@ a view restrictions like depth ranges, moving objects, ...
 #include "generateSequence.h"
 #include "helper_funcs.h"
 #include "opencv2/imgproc/imgproc.hpp"
+#include <opencv2/core/eigen.hpp>
 #include <array>
+
+#include "pcl/filters/frustum_culling.h"
+#include "pcl/common/transforms.h"
+#include "pcl/filters/voxel_grid_occlusion_estimation.h"
+
 
 using namespace std;
 using namespace cv;
@@ -88,6 +94,9 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 
 	//Calculate the initial number, size, and positions of moving objects in the image
 	getNrSizePosMovObj();
+
+	//Get the relative movement direction (comperd to the camera movement) for every moving object
+	checkMovObjDirection();
 }
 
 //Get number of correspondences per image and Correspondences per image regions
@@ -520,21 +529,23 @@ cv::Mat genStereoSequ::getTrackRot(cv::Mat tdiff)
 
 	tdiff /= norm(tdiff);
 
+	//Calculate a rotation to tranform into the yz-plane
 	double cy2 = tdiff.at<double>(0) * tdiff.at<double>(0) + tdiff.at<double>(2) * tdiff.at<double>(2);
 	double cy = sqrt(cy2);
 	double cosy = tdiff.at<double>(0) / cy;
 	double siny = tdiff.at<double>(2) / cy;
 
-	Mat Ry = (Mat_<double>(3, 3) <<
+	Mat Ry = (Mat_<double>(3, 3) <<//Rotation about y-axis
 		cosy, 0, siny,
 		0, 1.0, 0,
 		-siny, 0, cosy);
 
+	//Calculate a rotation to get aligned with the z-axis
 	double cz = sqrt(cy2 + tdiff.at<double>(1) * tdiff.at<double>(1));
 	double cosz = cy / cz;
 	double sinz = -1.0 * tdiff.at<double>(1) / cz;
 
-	Mat Rz = (Mat_<double>(3, 3) <<
+	Mat Rz = (Mat_<double>(3, 3) <<//Rotation about z-axis
 		cosz, -sinz, 0,
 		sinz, cosz, 0,
 		0, 0, 1.0);
@@ -4262,6 +4273,7 @@ void genStereoSequ::backProjectMovObj()
 
 			movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
 			movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+			movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
 			movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
 		}
 		actNrMovObj = movObj3DPtsCam.size();
@@ -5040,10 +5052,196 @@ void genStereoSequ::updateFrameParameters()
 	}
 }
 
+//Insert new generated 3D points into the world coordinate point cloud
+void genStereoSequ::transPtsToWorld()
+{
+	if (actImgPointCloud.empty())
+	{
+		return;
+	}
 
+	size_t nrPts = actImgPointCloud.size();
+
+	staticWorld3DPts.reserve(staticWorld3DPts.size() + nrPts);
+
+	for (size_t i = 0; i < nrPts; i++)
+	{
+		Mat ptm = absCamCoordinates[actFrameCnt].R * Mat(actImgPointCloud[i]).reshape(1).t() + absCamCoordinates[actFrameCnt].t;
+		staticWorld3DPts.push_back(pcl::PointXYZ((float)ptm.at<double>(0), (float)ptm.at<double>(1), (float)ptm.at<double>(2)));
+	}
+}
+
+//Transform new generated 3D points from new generated moving objects into world coordinates
+void genStereoSequ::transMovObjPtsToWorld()
+{
+	if (movObj3DPtsCamNew.empty())
+	{
+		return;
+	}
+
+	size_t nrNewObjs = movObj3DPtsCamNew.size();
+	size_t nrOldObjs = movObj3DPtsWorld.size();
+	movObj3DPtsWorld.resize(nrOldObjs + nrNewObjs);
+	movObjWorldMovement.resize(nrOldObjs + nrNewObjs);
+	//Mat trans_c2w;//Translation vector for transferring 3D points from camera to world coordinates
+	//trans_c2w = -1.0 * absCamCoordinates[actFrameCnt].R * absCamCoordinates[actFrameCnt].t;//Get the C2W-translation from the position of the camera centre in world coordinates
+	for (size_t i = 0; i < nrNewObjs; i++)
+	{
+		size_t idx = nrOldObjs + i;
+		movObj3DPtsWorld[idx].reserve(movObj3DPtsCamNew[i].size());
+		for (size_t j = 0; j < movObj3DPtsCamNew[i].size(); j++)
+		{
+			Mat ptm = absCamCoordinates[actFrameCnt].R * Mat(movObj3DPtsCamNew[i][j]).reshape(1).t() + absCamCoordinates[actFrameCnt].t;
+			movObj3DPtsWorld[idx].push_back(pcl::PointXYZ((float)ptm.at<double>(0), (float)ptm.at<double>(1), (float)ptm.at<double>(2)));
+		}
+		double velocity = 0;
+		if (nearZero(pars.relMovObjVelRange.first - pars.relMovObjVelRange.second))
+		{
+			velocity = absCamVelocity * pars.relMovObjVelRange.first;
+		}
+		else
+		{
+			double relV = getRandDoubleValRng(pars.relMovObjVelRange.first, pars.relMovObjVelRange.second);
+			velocity = absCamVelocity * relV;
+		}
+		Mat tdiff;
+		if ((actFrameCnt + 1) < totalNrFrames)
+		{
+			//Get direction of camera from actual to next frame
+			tdiff = absCamCoordinates[actFrameCnt + 1].t - absCamCoordinates[actFrameCnt].t;
+		}
+		else
+		{
+			//Get direction of camera from last to actual frame
+			tdiff = absCamCoordinates[actFrameCnt].t - absCamCoordinates[actFrameCnt - 1].t;
+		}
+		tdiff /= norm(tdiff);
+		//Add the movement direction of the moving object
+		tdiff += movObjDir;
+		tdiff /= norm(tdiff);
+		tdiff *= velocity;
+		movObjWorldMovement[i] = tdiff.clone();
+	}
+}
+
+//Get the relative movement direction (comperd to the camera movement) for every moving object
+void genStereoSequ::checkMovObjDirection()
+{
+	if (pars.movObjDir.empty())
+	{
+		Mat newMovObjDir(3, 1, CV_64FC1);
+		cv::randu(newMovObjDir, Scalar(0), Scalar(1.0));
+		newMovObjDir /= norm(newMovObjDir);
+		newMovObjDir.copyTo(movObjDir);
+	}
+	else
+	{
+		movObjDir = pars.movObjDir.getMat();
+		movObjDir /= norm(movObjDir);
+	}
+}
+
+//Updates the actual position of moving objects and their corresponding 3D points according to their moving direction and velocity.
+void genStereoSequ::updateMovObjPositions()
+{
+	if (movObj3DPtsWorld.empty())
+	{
+		return;
+	}
+
+	for (size_t i = 0; i < movObj3DPtsWorld.size(); i++)
+	{
+		Eigen::Affine3f obj_transform = Eigen::Affine3f::Identity();
+		obj_transform.translation() << (float)movObjWorldMovement[i].at<double>(0),
+			(float)movObjWorldMovement[i].at<double>(1),
+			(float)movObjWorldMovement[i].at<double>(2);
+		pcl::transformPointCloud(movObj3DPtsWorld[i], movObj3DPtsWorld[i], obj_transform);
+	}
+}
+
+//Calculates the actual camera pose in camera coordinates in a different camera coordinate system (X forward, Y is up, and Z is right) to use the PCL filter FrustumCulling
+void genStereoSequ::getActEigenCamPose()
+{
+	//Get actual camera pose in Eigen representation (code below could be much shorter, but this is a kind of docu for using this functions)
+	Eigen::Vector3d trans;
+	Eigen::Matrix3d rot;
+	Eigen::Vector4d quat;
+	//Mat trans_c2w;//Translation vector for transferring 3D points from camera to world coordinates
+	//trans_c2w = -1.0 * absCamCoordinates[actFrameCnt].R * absCamCoordinates[actFrameCnt].t;//Get the C2W-translation from the position of the camera centre in world coordinates
+	cv::cv2eigen(absCamCoordinates[actFrameCnt].t, trans);//Pose of the camera in world coordinates
+	cv::cv2eigen(absCamCoordinates[actFrameCnt].R.t(), rot);//From world to cam -> Thus, w.r.t. origin
+	MatToQuat(rot, quat);
+	Eigen::Affine3f cam_pose;
+	cam_pose.translate(trans.cast<float>());
+	actCamRot = Eigen::Quaternionf(quat.cast<float>());
+	cam_pose.rotate(actCamRot);
+
+	Eigen::Matrix4f pose_orig = cam_pose.matrix();
+	Eigen::Matrix4f cam2robot;
+	cam2robot << 0, 0, 1, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
+		0, -1, 0, 0,
+		1, 0, 0, 0,
+		0, 0, 0, 1;
+	actCamPose = pose_orig * cam2robot;
+}
+
+//Get part of a pointcloud visible in a camera
+bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut)
+{
+	pcl::FrustumCulling<pcl::PointXYZ> fc;
+	fc.setInputCloud(cloudIn);
+	fc.setVerticalFOV(2.f * 180.f * std::atan((float)imgSize.height / (2.f * (float)K1.at<double>(1,1))) / (float)std::_Pi);
+	fc.setHorizontalFOV(2.f * 180.f * std::atan((float)imgSize.width / (2.f * (float)K1.at<double>(0, 0))) / (float)std::_Pi);
+	fc.setNearPlaneDistance((float)actDepthNear);
+	fc.setFarPlaneDistance((float)(maxFarDistMultiplier * actDepthFar));
+	fc.setCameraPose(actCamPose);
+
+	fc.filter(*cloudOut);
+
+	if (cloudOut->empty())
+		return false;
+
+	return true;
+}
+
+//Filters occluded 3D points based on a voxel size corresponding to 1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
+//Returns false if more than 33% are occluded
+bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut)
+{
+	cloudIn->sensor_origin_ = Eigen::Vector4f(actCamPose(0), actCamPose(1), actCamPose(2), 1.f);
+	cloudIn->sensor_orientation_ = actCamRot;
+
+	pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> voxelFilter;
+	voxelFilter.setInputCloud(cloudIn);
+	float leaf_size = (float)((actDepthNear + (actDepthMid - actDepthNear) / 2.0) / K1.at<double>(0, 0));
+	voxelFilter.setLeafSize(leaf_size, leaf_size, leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
+	voxelFilter.initializeVoxelGrid();
+
+	for (size_t i = 0; i < cloudIn->size(); i++)
+	{
+		Eigen::Vector3i grid_coordinates = voxelFilter.getGridCoordinates(cloudIn->points[i].x, cloudIn->points[i].y, cloudIn->points[i].z);
+		int grid_state;
+		int ret = voxelFilter.occlusionEstimation(grid_state, grid_coordinates);
+		if ((ret == 0) && (grid_state == 0))
+		{
+			cloudOut->push_back(cloudIn->points[i]);
+		}
+	}
+
+	float fracOcc = (float)(cloudOut->size()) / (float)(cloudIn->size());
+	if (fracOcc < 0.67)
+		return false;
+
+	return true;
+}
+
+//Perform the whole procedure of generating correspondences, new static, and dynamic 3D elements
 void genStereoSequ::getNewCorrs()
 {
 	updateFrameParameters();
+
+	//Get pose of first camera in camera coordinates using a different coordinate system where X is forward, Y is up, and Z is right
+	getActEigenCamPose();
 
 	if (pars.nrMovObjs > 0)
 	{
@@ -5057,6 +5255,7 @@ void genStereoSequ::getNewCorrs()
 		else
 		{
 			//Calculate movObj3DPtsCam from movObj3DPtsWorld and update the 3D world coordinates based on direction and velocity
+			updateMovObjPositions();
 
 			//Generate maps (masks) of moving objects by backprojection from 3D for the first and second stereo camera: movObjMaskFromLast, movObjMaskFromLast2; create convex hulls: convhullPtsObj; and
 			//Check if some moving objects should be deleted
@@ -5085,8 +5284,8 @@ void genStereoSequ::getNewCorrs()
 				//Generate correspondences and 3D points for new moving objects
 				getMovObjCorrs();
 
-				//Insert new 3D points into world coordinate system
-
+				//Insert new 3D points (from moving objects) into world coordinate system
+				transMovObjPtsToWorld();
 			}
 		}
 		else
@@ -5098,6 +5297,7 @@ void genStereoSequ::getNewCorrs()
 	}
 																																	   
 	//Get 3D points of static elements and store them to actImgPointCloudFromLast
+	
 
 	//Backproject static 3D points
 	backProject3D();
@@ -5115,6 +5315,7 @@ void genStereoSequ::getNewCorrs()
 	combineCorrespondences();
 
 	//Insert new 3D coordinates into the world coordinate system
+	transPtsToWorld();
 }
 
 //Start calculating the whole sequence
