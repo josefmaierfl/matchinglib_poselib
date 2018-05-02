@@ -36,7 +36,7 @@ DISCRIPTION: This file provides some helper functions.
 void randSeed(std::default_random_engine& rand_generator);
 
 //Get a random number within a given range
-inline double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator = std::default_random_engine((unsigned int)std::rand()));
+double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator = std::default_random_engine((unsigned int)std::rand()));
 
 //construct a rotation matrix from angles given in RAD
 cv::Mat eulerAnglesToRotationMatrix(double x, double y, double z);

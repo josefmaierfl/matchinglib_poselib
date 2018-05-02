@@ -127,7 +127,7 @@ private:
 	//Get a random floating point number between 2 ranges
 	inline double getRandDoubleVal(double lowerBound, double upperBound);
 	void initRandPars(std::vector<std::vector<double>>& parIn, bool& rangeEqual, std::vector<double>& parOut);
-	void getRotRectDiffArea(double yaw_angle, double& perc, double& virtWidth);
+	void getRotRectDiffArea(double yaw_angle, double& perc, double& virtWidth1);
 	bool helpNewRandEquRangeVals(int& idx, const int maxit, int align);
 	void setCoordsForOpti();
 	int LMFsolve(cv::Mat p,

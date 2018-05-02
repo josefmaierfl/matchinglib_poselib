@@ -159,7 +159,7 @@ void GenStereoPars::checkParameterFormat(std::vector<std::vector<double>> par, s
 {
 	for (size_t i = 0; i < nrConditions; i++)
 	{
-		double maxX, maxY;
+		//double maxX, maxY;
 		if (par[i].size() == 2)
 		{
 			if (par[i][0] >= par[i][1])
@@ -910,11 +910,11 @@ void GenStereoPars::printit(int ipr, int cnt, size_t nfJ, double ss, cv::Mat x, 
 		{
 			if (ipr > 0)
 			{
-				printf("%4d %4d %12.4e %12.4e %12.4e %12.4e %12.4e \n", cnt, nfJ, ss, x.at<double>(0), dx.at<double>(0), lamda, lamda_c);
+				printf("%4d %4d %12.4e %12.4e %12.4e %12.4e %12.4e \n", cnt, (int)nfJ, ss, x.at<double>(0), dx.at<double>(0), lamda, lamda_c);
 			}
 			else
 			{
-				printf("%4d %4d %12.4e %12.4e %12.4e \n", cnt, nfJ, ss, x.at<double>(0), dx.at<double>(0));
+				printf("%4d %4d %12.4e %12.4e %12.4e \n", cnt, (int)nfJ, ss, x.at<double>(0), dx.at<double>(0));
 			}
 			int lx = x.rows;
 			for (int i = 1; i < lx; i++)
@@ -1476,9 +1476,9 @@ bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit, int align
 //rectangle which is rotated by angle about its center and returns the ratio
 // (between 0 and 1) of the intersecting area compared to the full rectangle
 //area in perc.
-//virtWidth specifies the virtual image width(proportional to the loss in
+//virtWidth1 specifies the virtual image width(proportional to the loss in
 //area) that remains due to this rotation about the z - axis of camera 2.
-void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& virtWidth)
+void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& virtWidth1)
 {
 	//transform into radians and use only a negative angle as the result for
 	//positive angles is the same
@@ -1523,7 +1523,7 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 	if (nearZero(round(yaw_angle * 100.0) / 100.0))
 	{
 		perc = 1.0;
-		virtWidth = (double)imgSize_.width;
+		virtWidth1 = (double)imgSize_.width;
 	}
 	else
 	{
@@ -1548,7 +1548,7 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			Mat w1 = c4 - bl1;
 			double loss_area = norm(w1.rowRange(0,2)) * (double)imgSize_.height / 2.0;
 			double reduceW = 2.0 * loss_area / (double)imgSize_.height;
-			virtWidth = (double)imgSize_.width - reduceW;
+			virtWidth1 = (double)imgSize_.width - reduceW;
 		}
 		else if ((phi + yaw_angle) > 0)
 		{
@@ -1587,7 +1587,7 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			double loss_area1 = h1 * w1 / 2.0;
 			double loss_area2 = h2 * w2 / 2.0;
 			double reduceW = 2.0 * (loss_area1 + loss_area2) / (double)imgSize_.height;
-			virtWidth = (double)imgSize_.width - reduceW;
+			virtWidth1 = (double)imgSize_.width - reduceW;
 		}
 		else
 		{
@@ -1613,7 +1613,7 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			contour1.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			double loss_area = cv::contourArea(contour1);
 			double reduceW = 2.0 * loss_area / (double)imgSize_.height;
-			virtWidth = (double)imgSize_.width - reduceW;
+			virtWidth1 = (double)imgSize_.width - reduceW;
 		}
 		double parea = cv::contourArea(contour);
 		perc = parea / (double)(imgSize_.width * imgSize_.height);

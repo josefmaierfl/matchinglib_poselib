@@ -20,10 +20,12 @@ a view restrictions like depth ranges, moving objects, ...
 #pragma once
 
 #include "glob_includes.h"
+#include "helper_funcs.h"
 #include "opencv2/highgui/highgui.hpp"
 #include <random>
 
 #include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
 
 #include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 
@@ -151,11 +153,11 @@ struct StereoSequParameters
 
 		CV_Assert(!camTrack.empty() && (camTrack[0].rows == 3) && (camTrack[0].cols == 1) && (camTrack[0].type() == CV_64FC1));
 		CV_Assert((relCamVelocity > 0) && (relCamVelocity <= 10.0));
-		CV_Assert(R.empty() || ((R.rows == 3) && (R.cols == 1) && (R.type() == CV_64FC1)));
+		CV_Assert(R.empty() || ((R.rows() == 3) && (R.cols() == 1) && (R.type() == CV_64FC1)));
 		CV_Assert(nrMovObjs < 20);
-		CV_Assert(startPosMovObjs.empty() || ((startPosMovObjs.rows == 3) && (startPosMovObjs.cols == 3) && (startPosMovObjs.type() == CV_8UC1)));
+		CV_Assert(startPosMovObjs.empty() || ((startPosMovObjs.rows() == 3) && (startPosMovObjs.cols() == 3) && (startPosMovObjs.type() == CV_8UC1)));
 		CV_Assert((relAreaRangeMovObjs.first <= 1.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 1.0) && (relAreaRangeMovObjs.second > 0));
-		CV_Assert(movObjDir.empty() || ((movObjDir.rows == 3) && (movObjDir.cols == 1) && (movObjDir.type() == CV_64FC1)));
+		CV_Assert(movObjDir.empty() || ((movObjDir.rows() == 3) && (movObjDir.cols() == 1) && (movObjDir.type() == CV_64FC1)));
 		CV_Assert((relMovObjVelRange.first < 100.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 100.0) && (relAreaRangeMovObjs.second > 0));
 		CV_Assert((minMovObjCorrPortion <= 1.0) && (minMovObjCorrPortion >= 0));
 		CV_Assert((CorrMovObjPort > 0) && (CorrMovObjPort <= 1.0));
@@ -197,6 +199,11 @@ struct StereoSequParameters
 
 struct Poses
 {
+	Poses()
+	{
+		R = cv::Mat::eye(3, 3, CV_64FC1);
+		t = cv::Mat::zeros(3, 1, CV_64FC1);
+	}
 	Poses(cv::Mat R_, cv::Mat t_) : R(R_), t(t_) {}
 
 	cv::Mat R;
@@ -246,16 +253,16 @@ private:
 		size_t &nrAdds,
 		unsigned char &usedDilate);
 	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1);
-	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars, size_t n_pars);
+	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);
 	void getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
-	inline double getDepthFuncVal(std::vector<double> &pars, double x, double y);
+	inline double getDepthFuncVal(std::vector<double> &pars1, double x, double y);
 	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
 	void getKeypoints();
 	int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
-		std::uniform_real_distribution<int32_t> &distributionX,
-		std::uniform_real_distribution<int32_t> &distributionY,
-		std::uniform_real_distribution<int32_t> &distributionX2,
-		std::uniform_real_distribution<int32_t> &distributionY2,
+		std::uniform_int_distribution<int32_t> &distributionX,
+		std::uniform_int_distribution<int32_t> &distributionY,
+		std::uniform_int_distribution<int32_t> &distributionX2,
+		std::uniform_int_distribution<int32_t> &distributionY2,
 		std::vector<cv::Point2d> &x1TN,
 		std::vector<cv::Point2d> &x2TN,
 		std::vector<double> &x2TNdistCorr,
@@ -417,7 +424,7 @@ private:
 /* --------------------- Function prototypes --------------------- */
 
 template<typename T, typename A, typename T1, typename A1>
-void deleteVecEntriesbyIdx(std::vector<T, A> const& editVec, std::vector<T1, A1> const& delVec);
+void deleteVecEntriesbyIdx(std::vector<T, A> &editVec, std::vector<T1, A1> const& delVec);
 
 template<typename T, typename A>
 void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const& delVec, bool rowOrder);

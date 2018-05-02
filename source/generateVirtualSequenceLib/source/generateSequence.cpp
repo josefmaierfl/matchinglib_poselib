@@ -18,7 +18,6 @@ a view restrictions like depth ranges, moving objects, ...
 **********************************************************************************************************/
 
 #include "generateSequence.h"
-#include "helper_funcs.h"
 #include "opencv2/imgproc/imgproc.hpp"
 #include <opencv2/core/eigen.hpp>
 #include <array>
@@ -348,7 +347,7 @@ void genStereoSequ::genNrCorrsImg()
 		else if (nearZero(pars.truePosChanges - 100.0))
 		{
 			nrTruePos.resize(totalNrFrames);
-			std::uniform_real_distribution<size_t> distribution(pars.truePosRange.first, pars.truePosRange.second);
+			std::uniform_int_distribution<size_t> distribution(pars.truePosRange.first, pars.truePosRange.second);
 			for (size_t i = 0; i < totalNrFrames; i++)
 			{
 				nrTruePos[i] = distribution(rand_gen);
@@ -369,7 +368,7 @@ void genStereoSequ::genNrCorrsImg()
 				maxTruePos = maxTruePos > pars.truePosRange.second ? pars.truePosRange.second : maxTruePos;
 				size_t minTruePos = nrTruePos[i - 1] - rangeVal;
 				minTruePos = minTruePos < pars.truePosRange.first ? pars.truePosRange.first : minTruePos;
-				std::uniform_real_distribution<size_t> distribution(minTruePos, maxTruePos);
+				std::uniform_int_distribution<size_t> distribution(minTruePos, maxTruePos);
 				nrTruePos[i] = distribution(rand_gen);
 				nrCorrs[i] = (size_t)round((double)nrTruePos[i] / inlRat[i]);
 				nrTrueNeg[i] = nrCorrs[i] - nrTruePos[i];
@@ -853,7 +852,7 @@ void genStereoSequ::checkDepthAreas()
 	if (pars.nrDepthAreasPReg.empty())
 	{
 		pars.nrDepthAreasPReg = std::vector<std::vector<std::pair<size_t, size_t>>>(3, std::vector<std::pair<size_t, size_t>>(3));
-		std::uniform_real_distribution<size_t> distribution(1, maxElems + 1);
+		std::uniform_int_distribution<size_t> distribution(1, maxElems + 1);
 		for (size_t i = 0; i < 3; i++)
 		{
 			for (size_t j = 0; j < 3; j++)
@@ -1107,11 +1106,11 @@ void genStereoSequ::backProject3D()
 {
 	if (!actCorrsImg2TNFromLast.empty())
 		actCorrsImg2TNFromLast.release();
-	if (!actCorrsImg2TNFromLast_Idx.empty)
+	if (!actCorrsImg2TNFromLast_Idx.empty())
 		actCorrsImg2TNFromLast_Idx.clear();
 	if (!actCorrsImg1TNFromLast.empty())
 		actCorrsImg1TNFromLast.release();
-	if (!actCorrsImg1TNFromLast_Idx.empty)
+	if (!actCorrsImg1TNFromLast_Idx.empty())
 		actCorrsImg1TNFromLast_Idx.clear();
 	if (!actCorrsImg1TPFromLast.empty())
 		actCorrsImg1TPFromLast.release();
@@ -1364,13 +1363,13 @@ void genStereoSequ::checkDepthSeeds()
 		int32_t mmy[2];
 		mmy[0] = y * regSi.height;
 		mmy[1] += regSi.height;
-		std::uniform_real_distribution<int32_t> distributionY(mmy[0], mmy[1]);
+		std::uniform_int_distribution<int32_t> distributionY(mmy[0], mmy[1]);
 		for (int32_t x = 0; x < 3; x++)
 		{				
 			int32_t mmx[2];
 			mmx[0] = x * regSi.width;
 			mmx[1] += regSi.width;
-			std::uniform_real_distribution<int32_t> distributionX(mmx[0], mmx[1]);
+			std::uniform_int_distribution<int32_t> distributionX(mmx[0], mmx[1]);
 			int32_t diffNr = nrDepthAreasPRegNear[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t)seedsNear[y][x].size();
 			while (diffNr > 0)//Generate seeds for near depth areas
 			{
@@ -1429,7 +1428,7 @@ void genStereoSequ::checkDepthSeeds()
 //Deletes some entries within a vector using a vector with indices that point to the entries to delete.
 //The deletion vector containing the indices must be sorted in ascending order.
 template<typename T, typename A, typename T1, typename A1>
-void deleteVecEntriesbyIdx(std::vector<T, A> const& editVec, std::vector<T1, A1> const& delVec)
+void deleteVecEntriesbyIdx(std::vector<T, A> &editVec, std::vector<T1, A1> const& delVec)
 {
 	size_t nrToDel = delVec.size();
 	CV_Assert(nrToDel <= editVec.size());
@@ -2112,19 +2111,19 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, doubl
 /*Calculates a depth value using the function
 z = p1 * (p2 - x)^2 * e^(-x^2 - (y - p3)^2) - 10 * (x / p4 - x^p5 - y^p6) * e^(-x^2 - y^2) - p7 / 3 * e^(-(x + 1)^2 - y^2)
 */
-inline double genStereoSequ::getDepthFuncVal(std::vector<double> &pars, double x, double y)
+inline double genStereoSequ::getDepthFuncVal(std::vector<double> &pars1, double x, double y)
 {
-	double tmp = pars[1] - x;
+	double tmp = pars1[1] - x;
 	tmp *= tmp;
-	double z = pars[0] * tmp;
-	tmp = y - pars[2];
+	double z = pars1[0] * tmp;
+	tmp = y - pars1[2];
 	tmp *= -tmp;
 	tmp -= x * x;
 	z *= exp(tmp);
-	z -= 10.0 * (x / pars[3] - std::pow(x, pars[4]) - std::pow(y, pars[5])) * exp(-x * x - y * y);
+	z -= 10.0 * (x / pars1[3] - std::pow(x, pars1[4]) - std::pow(y, pars1[5])) * exp(-x * x - y * y);
 	tmp = x + 1.0;
 	tmp *= -tmp;
-	z -= pars[6] / 3.0 * exp(tmp - y * y);
+	z -= pars1[6] / 3.0 * exp(tmp - y * y);
 	return z;
 }
 
@@ -2132,46 +2131,46 @@ inline double genStereoSequ::getDepthFuncVal(std::vector<double> &pars, double x
 There are 7 random paramters p:
 z = p1 * (p2 - x)^2 * e^(-x^2 - (y - p3)^2) - 10 * (x / p4 - x^p5 - y^p6) * e^(-x^2 - y^2) - p7 / 3 * e^(-(x + 1)^2 - y^2)
 */
-void genStereoSequ::getRandDepthFuncPars(std::vector<std::vector<double>> &pars, size_t n_pars)
+void genStereoSequ::getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars)
 {
-	pars = std::vector<std::vector<double>>(n_pars, std::vector<double>(7, 0));
+	pars1 = std::vector<std::vector<double>>(n_pars, std::vector<double>(7, 0));
 
 	//p1:
 	std::uniform_real_distribution<double> distribution(0, 10.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars[i][0] = distribution(rand_gen);
+		pars1[i][0] = distribution(rand_gen);
 	}
 	//p2:
 	distribution = std::uniform_real_distribution<double>(0, 2.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars[i][1] = distribution(rand_gen);
+		pars1[i][1] = distribution(rand_gen);
 	}
 	//p3:
 	distribution = std::uniform_real_distribution<double>(0, 4.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars[i][2] = distribution(rand_gen);
+		pars1[i][2] = distribution(rand_gen);
 	}
 	//p4:
 	distribution = std::uniform_real_distribution<double>(0.5, 5.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars[i][3] = distribution(rand_gen);
+		pars1[i][3] = distribution(rand_gen);
 	}
 	//p5 & p6:
 	distribution = std::uniform_real_distribution<double>(2.0, 7.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars[i][4] = distribution(rand_gen);
-		pars[i][5] = distribution(rand_gen);
+		pars1[i][4] = distribution(rand_gen);
+		pars1[i][5] = distribution(rand_gen);
 	}
 	//p7:
 	distribution = std::uniform_real_distribution<double>(1.0, 40.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars[i][6] = distribution(rand_gen);
+		pars1[i][6] = distribution(rand_gen);
 	}
 }
 
@@ -2559,8 +2558,8 @@ void genStereoSequ::getKeypoints()
 			int32_t maxSelect2 = 50;
 			int32_t maxSelect3 = 50;
 			int32_t maxSelect4 = 50;
-			std::uniform_real_distribution<int32_t> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
-			std::uniform_real_distribution<int32_t> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+			std::uniform_int_distribution<int32_t> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
+			std::uniform_int_distribution<int32_t> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
 
 			vector<Point_<int32_t>> corrsNearR, corrsMidR, corrsFarR;
 			vector<Point2d> corrsNearR2, corrsMidR2, corrsFarR2;
@@ -2776,8 +2775,8 @@ void genStereoSequ::getKeypoints()
 						break;
 				}
 			}
-			std::uniform_real_distribution<int32_t> distributionX2(0, imgSize.width);
-			std::uniform_real_distribution<int32_t> distributionY2(0, imgSize.height);
+			std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width);
+			std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height);
 			if (selTN2 < x1TN[y][x].size())//Select the rest randomly
 			{
 				for (size_t i = selTN2; i < x1TN[y][x].size(); i++)
@@ -2922,10 +2921,10 @@ img2Mask		In/Out: Mask marking not usable regions / areas around already selecte
 Return value: Number of true negatives that could not be selected due to area restrictions.
 */
 int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN, 
-	std::uniform_real_distribution<int32_t> &distributionX,
-	std::uniform_real_distribution<int32_t> &distributionY,
-	std::uniform_real_distribution<int32_t> &distributionX2,
-	std::uniform_real_distribution<int32_t> &distributionY2,
+	std::uniform_int_distribution<int32_t> &distributionX,
+	std::uniform_int_distribution<int32_t> &distributionY,
+	std::uniform_int_distribution<int32_t> &distributionX2,
+	std::uniform_int_distribution<int32_t> &distributionY2,
 	std::vector<cv::Point2d> &x1TN,
 	std::vector<cv::Point2d> &x2TN,
 	std::vector<double> &x2TNdistCorr,
@@ -3153,7 +3152,7 @@ void genStereoSequ::getNrSizePosMovObj()
 	//Get the area for each moving object
 	int maxObjsArea = min(area23, maxOArea * (int)pars.nrMovObjs);
 	maxOArea = maxObjsArea / (int)pars.nrMovObjs;
-	std::uniform_real_distribution<int32_t> distribution((int32_t)minOArea, (int32_t)maxOArea);
+	std::uniform_int_distribution<int32_t> distribution((int32_t)minOArea, (int32_t)maxOArea);
 	movObjAreas = vector<vector<vector<int32_t>>>(3, vector<vector<int32_t>>(3));
 	for (int y = 0; y < 3; y++)
 	{
@@ -3178,8 +3177,8 @@ void genStereoSequ::getNrSizePosMovObj()
 			if (nr_tmp > 0)
 			{
 				rand_gen = std::default_random_engine((unsigned int)std::rand());//Prevent getting the same starting positions for equal ranges
-				std::uniform_real_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
-				std::uniform_real_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+				std::uniform_int_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
+				std::uniform_int_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
 				movObjSeeds[y][x].push_back(cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen)));
 				nr_tmp--;
 				if (nr_tmp > 0)
@@ -3191,7 +3190,7 @@ void genStereoSequ::getNrSizePosMovObj()
 					{
 						sort(xposes.begin(), xposes.end());
 						sort(yposes.begin(), yposes.end());
-						vector<int> xInterVals, yInterVals;
+						vector<double> xInterVals, yInterVals;
 						vector<double> xWeights, yWeights;
 
 						//Get possible selection ranges for x-values
@@ -3200,18 +3199,18 @@ void genStereoSequ::getNrSizePosMovObj()
 						int xyend = min(xposes[0] + minODist, maxEnd);
 						if (start == regROIs[y][x].x)
 						{
-							xInterVals.push_back(start);
-							xInterVals.push_back(xposes[0] + minODist);
+							xInterVals.push_back((double)start);
+							xInterVals.push_back((double)(xposes[0] + minODist));
 							xWeights.push_back(0);
 						}
 						else
 						{
-							xInterVals.push_back(regROIs[y][x].x);
-							xInterVals.push_back(start);
+							xInterVals.push_back((double)regROIs[y][x].x);
+							xInterVals.push_back((double)start);
 							xWeights.push_back(1.0);
 							if (xyend != maxEnd)
 							{
-								xInterVals.push_back(xyend);
+								xInterVals.push_back((double)xyend);
 								xWeights.push_back(0);
 							}
 						}
@@ -3219,44 +3218,44 @@ void genStereoSequ::getNrSizePosMovObj()
 						{
 							for (size_t i = 1; i < xposes.size(); i++)
 							{
-								start = max(xposes[i] - minODist, xInterVals.back());
-								if (start != xInterVals.back())
+								start = max(xposes[i] - minODist, (int)floor(xInterVals.back()));
+								if (start != (int)floor(xInterVals.back()))
 								{
-									xInterVals.push_back(xposes[i] - minODist);
+									xInterVals.push_back((double)(xposes[i] - minODist));
 									xWeights.push_back(1.0);
 								}								
 								xyend = min(xposes[i] + minODist, maxEnd);
 								if (xyend != maxEnd)
 								{
-									xInterVals.push_back(xyend);
+									xInterVals.push_back((double)xyend);
 									xWeights.push_back(0);
 								}
 							}
 						}
 						if (xyend != maxEnd)
 						{
-							xInterVals.push_back(maxEnd);
+							xInterVals.push_back((double)maxEnd);
 							xWeights.push_back(1.0);
 						}
 
 						//Get possible selection ranges for y-values
 						start = max(yposes[0] - minODist, regROIs[y][x].y);
 						maxEnd = regROIs[y][x].y + regROIs[y][x].height;
-						int xyend = min(yposes[0] + minODist, maxEnd);
+						xyend = min(yposes[0] + minODist, maxEnd);
 						if (start == regROIs[y][x].y)
 						{
-							yInterVals.push_back(start);
-							yInterVals.push_back(yposes[0] + minODist);
+							yInterVals.push_back((double)start);
+							yInterVals.push_back((double)(yposes[0] + minODist));
 							yWeights.push_back(0);
 						}
 						else
 						{
-							yInterVals.push_back(regROIs[y][x].y);
-							yInterVals.push_back(start);
+							yInterVals.push_back((double)regROIs[y][x].y);
+							yInterVals.push_back((double)start);
 							yWeights.push_back(1.0);
 							if (xyend != maxEnd)
 							{
-								yInterVals.push_back(xyend);
+								yInterVals.push_back((double)xyend);
 								yWeights.push_back(0);
 							}
 						}
@@ -3264,30 +3263,30 @@ void genStereoSequ::getNrSizePosMovObj()
 						{
 							for (size_t i = 1; i < yposes.size(); i++)
 							{
-								start = max(yposes[i] - minODist, yInterVals.back());
-								if (start != yInterVals.back())
+								start = max(yposes[i] - minODist, (int)floor(yInterVals.back()));
+								if (start != (int)floor(yInterVals.back()))
 								{
-									yInterVals.push_back(yposes[i] - minODist);
+									yInterVals.push_back((double)(yposes[i] - minODist));
 									yWeights.push_back(1.0);
 								}
 								xyend = min(yposes[i] + minODist, maxEnd);
 								if (xyend != maxEnd)
 								{
-									yInterVals.push_back(xyend);
+									yInterVals.push_back((double)xyend);
 									yWeights.push_back(0);
 								}
 							}
 						}
 						if (xyend != maxEnd)
 						{
-							yInterVals.push_back(maxEnd);
+							yInterVals.push_back((double)maxEnd);
 							yWeights.push_back(1.0);
 						}
 
 						//Create piecewise uniform distribution and get a random seed
-						piecewise_constant_distribution<int> distrPieceX(xInterVals.begin(), xInterVals.end(), xWeights.begin());
-						piecewise_constant_distribution<int> distrPieceY(yInterVals.begin(), yInterVals.end(), yWeights.begin());
-						movObjSeeds[y][x].push_back(cv::Point_<int32_t>(distrPieceX(rand_gen), distrPieceY(rand_gen)));
+						piecewise_constant_distribution<double> distrPieceX(xInterVals.begin(), xInterVals.end(), xWeights.begin());
+						piecewise_constant_distribution<double> distrPieceY(yInterVals.begin(), yInterVals.end(), yWeights.begin());
+						movObjSeeds[y][x].push_back(cv::Point_<int32_t>((int32_t)floor(distrPieceX(rand_gen)), (int32_t)floor(distrPieceY(rand_gen))));
 						xposes.push_back(movObjSeeds[y][x].back().x);
 						yposes.push_back(movObjSeeds[y][x].back().y);
 						nr_tmp--;
@@ -3843,7 +3842,7 @@ void genStereoSequ::genNewDepthMovObj()
 	combMovObjDepths = Mat::zeros(imgSize, CV_64FC1);
 	for (size_t i = 0; i < movObjDepthClassNew.size(); i++)
 	{
-		double dmin, dmax;
+		double dmin = actDepthNear, dmax = actDepthMid;
 		switch (movObjDepthClassNew[i])
 		{
 		case depthClass::NEAR:
@@ -3927,7 +3926,7 @@ void genStereoSequ::getMovObjCorrs()
 	Point3d pCam;
 	Mat corrsSet = Mat::zeros(imgSize.height + kSi - 1, imgSize.width + kSi - 1, CV_8UC1);
 	cv::copyMakeBorder(movObjMaskFromLast2, movObjMask2All, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));//movObjMask2All must be reduced to image size at the end
-	int maxIt = 20;
+	//int maxIt = 20;
 
 
 	//Generate TP correspondences
@@ -3945,9 +3944,9 @@ void genStereoSequ::getMovObjCorrs()
 	movObjDistTNtoRealNew.resize(nr_movObj);
 	for (size_t i = 0; i < nr_movObj; i++)
 	{
-		std::uniform_real_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width);
-		std::uniform_real_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height);
-		int cnt1 = 0;
+		std::uniform_int_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width);
+		std::uniform_int_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height);
+		//int cnt1 = 0;
 		int nrTN = actTNPerMovObj[i];
 		int nrTP = actTPPerMovObj[i];
 		vector<Point2d> x1TN, x2TN;
@@ -4006,12 +4005,12 @@ void genStereoSequ::getMovObjCorrs()
 			actTPPerMovObj[i + 1] += nrTP;
 		}
 
-		std::uniform_real_distribution<int32_t> distributionX2(0, imgSize.width);
-		std::uniform_real_distribution<int32_t> distributionY2(0, imgSize.height);
+		std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width);
+		std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height);
 		//Find TN keypoints in the second image for already found TN in the first image
 		if (!x1TN.empty())
 		{
-			for (size_t i = 0; i < x1TN.size(); i++)
+			for (size_t j = 0; j < x1TN.size(); j++)
 			{
 				int max_try = 10;
 				while (max_try > 0)
@@ -4294,7 +4293,8 @@ void genStereoSequ::backProjectMovObj()
 	//vector<double> actAreaMovObj(actNrMovObj, 0);
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
-		genMovObjHulls(movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize)), movObjPt1[i], movObjLabelsFromLast[i]);
+		Mat movObjMaskFromLastLargePiece = movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
+		genMovObjHulls(movObjMaskFromLastLargePiece, movObjPt1[i], movObjLabelsFromLast[i]);
 		movObjMaskFromLast |= movObjLabelsFromLast[i];
 	}
 
@@ -4360,8 +4360,8 @@ void genStereoSequ::backProjectMovObj()
 	}
 
 	//Get missing TN correspondences for found keypoints
-	std::uniform_real_distribution<int32_t> distributionX2(0, imgSize.width);
-	std::uniform_real_distribution<int32_t> distributionY2(0, imgSize.height);
+	std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width);
+	std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height);
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
 		if (missingCImg2[i] > 0)
@@ -4409,8 +4409,8 @@ void genStereoSequ::backProjectMovObj()
 		{
 			Mat elemnew = Mat::ones(missingCImg1[i], 3, CV_64FC1);
 			int cnt1 = 0;
-			std::uniform_real_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
-			std::uniform_real_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
+			std::uniform_int_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
+			std::uniform_int_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
 			//Enlarge mask
 			Mat movObjMaskFromLastBorder(movObjMaskFromLastLarge[i].size(), movObjMaskFromLastLarge[i].type());
 			cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));			
@@ -4472,8 +4472,8 @@ void genStereoSequ::backProjectMovObj()
 	cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
-		std::uniform_real_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
-		std::uniform_real_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
+		std::uniform_int_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
+		std::uniform_int_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
 		int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
 		int cnt2 = 0;
 		while (((areaMO < maxOArea) || (cnt2 == 0)) && (missingCImg2[i] > 0) && (cnt2 < maxCnt))//If not all elements could be selected, try to enlarge the area
@@ -4686,7 +4686,7 @@ void genStereoSequ::getSeedsAreasMovObj()
 	}
 
 	//Get the area for each moving object
-	std::uniform_real_distribution<int32_t> distribution((int32_t)minOArea, (int32_t)maxOArea);
+	std::uniform_int_distribution<int32_t> distribution((int32_t)minOArea, (int32_t)maxOArea);
 	movObjAreas.clear();
 	movObjAreas = vector<vector<vector<int32_t>>>(3, vector<vector<int32_t>>(3));
 	for (int y = 0; y < 3; y++)
@@ -4714,8 +4714,8 @@ void genStereoSequ::getSeedsAreasMovObj()
 			if (nr_tmp > 0)
 			{
 				rand_gen = std::default_random_engine((unsigned int)std::rand());//Prevent getting the same starting positions for equal ranges
-				std::uniform_real_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
-				std::uniform_real_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+				std::uniform_int_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
+				std::uniform_int_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
 				cv::Point_<int32_t> pt;
 				int cnt = 0;
 				while (cnt < maxIt)
@@ -4744,7 +4744,7 @@ void genStereoSequ::getSeedsAreasMovObj()
 					{
 						sort(xposes.begin(), xposes.end());
 						sort(yposes.begin(), yposes.end());
-						vector<int> xInterVals, yInterVals;
+						vector<double> xInterVals, yInterVals;
 						vector<double> xWeights, yWeights;
 
 						//Get possible selection ranges for x-values
@@ -4753,18 +4753,18 @@ void genStereoSequ::getSeedsAreasMovObj()
 						int xyend = min(xposes[0] + minODist, maxEnd);
 						if (start == regROIs[y][x].x)
 						{
-							xInterVals.push_back(start);
-							xInterVals.push_back(xposes[0] + minODist);
+							xInterVals.push_back((double)start);
+							xInterVals.push_back((double)(xposes[0] + minODist));
 							xWeights.push_back(0);
 						}
 						else
 						{
-							xInterVals.push_back(regROIs[y][x].x);
-							xInterVals.push_back(start);
+							xInterVals.push_back((double)regROIs[y][x].x);
+							xInterVals.push_back((double)start);
 							xWeights.push_back(1.0);
 							if (xyend != maxEnd)
 							{
-								xInterVals.push_back(xyend);
+								xInterVals.push_back((double)xyend);
 								xWeights.push_back(0);
 							}
 						}
@@ -4772,44 +4772,44 @@ void genStereoSequ::getSeedsAreasMovObj()
 						{
 							for (size_t i = 1; i < xposes.size(); i++)
 							{
-								start = max(xposes[i] - minODist, xInterVals.back());
-								if (start != xInterVals.back())
+								start = max(xposes[i] - minODist, (int)floor(xInterVals.back()));
+								if (start != (int)floor(xInterVals.back()))
 								{
-									xInterVals.push_back(xposes[i] - minODist);
+									xInterVals.push_back((double)(xposes[i] - minODist));
 									xWeights.push_back(1.0);
 								}
 								xyend = min(xposes[i] + minODist, maxEnd);
 								if (xyend != maxEnd)
 								{
-									xInterVals.push_back(xyend);
+									xInterVals.push_back((double)xyend);
 									xWeights.push_back(0);
 								}
 							}
 						}
 						if (xyend != maxEnd)
 						{
-							xInterVals.push_back(maxEnd);
+							xInterVals.push_back((double)maxEnd);
 							xWeights.push_back(1.0);
 						}
 
 						//Get possible selection ranges for y-values
 						start = max(yposes[0] - minODist, regROIs[y][x].y);
 						maxEnd = regROIs[y][x].y + regROIs[y][x].height;
-						int xyend = min(yposes[0] + minODist, maxEnd);
+						xyend = min(yposes[0] + minODist, maxEnd);
 						if (start == regROIs[y][x].y)
 						{
-							yInterVals.push_back(start);
-							yInterVals.push_back(yposes[0] + minODist);
+							yInterVals.push_back((double)start);
+							yInterVals.push_back((double)(yposes[0] + minODist));
 							yWeights.push_back(0);
 						}
 						else
 						{
-							yInterVals.push_back(regROIs[y][x].y);
-							yInterVals.push_back(start);
+							yInterVals.push_back((double)regROIs[y][x].y);
+							yInterVals.push_back((double)start);
 							yWeights.push_back(1.0);
 							if (xyend != maxEnd)
 							{
-								yInterVals.push_back(xyend);
+								yInterVals.push_back((double)xyend);
 								yWeights.push_back(0);
 							}
 						}
@@ -4817,34 +4817,34 @@ void genStereoSequ::getSeedsAreasMovObj()
 						{
 							for (size_t i = 1; i < yposes.size(); i++)
 							{
-								start = max(yposes[i] - minODist, yInterVals.back());
-								if (start != yInterVals.back())
+								start = max(yposes[i] - minODist, (int)floor(yInterVals.back()));
+								if (start != (int)floor(yInterVals.back()))
 								{
-									yInterVals.push_back(yposes[i] - minODist);
+									yInterVals.push_back((double)(yposes[i] - minODist));
 									yWeights.push_back(1.0);
 								}
 								xyend = min(yposes[i] + minODist, maxEnd);
 								if (xyend != maxEnd)
 								{
-									yInterVals.push_back(xyend);
+									yInterVals.push_back((double)xyend);
 									yWeights.push_back(0);
 								}
 							}
 						}
 						if (xyend != maxEnd)
 						{
-							yInterVals.push_back(maxEnd);
+							yInterVals.push_back((double)maxEnd);
 							yWeights.push_back(1.0);
 						}
 
 						//Create piecewise uniform distribution and get a random seed
-						piecewise_constant_distribution<int> distrPieceX(xInterVals.begin(), xInterVals.end(), xWeights.begin());
-						piecewise_constant_distribution<int> distrPieceY(yInterVals.begin(), yInterVals.end(), yWeights.begin());
+						piecewise_constant_distribution<double> distrPieceX(xInterVals.begin(), xInterVals.end(), xWeights.begin());
+						piecewise_constant_distribution<double> distrPieceY(yInterVals.begin(), yInterVals.end(), yWeights.begin());
 
 						cnt = 0;
 						while (cnt < maxIt)
 						{
-							pt = cv::Point_<int32_t>(distrPieceX(rand_gen), distrPieceY(rand_gen));
+							pt = cv::Point_<int32_t>((int32_t)floor(distrPieceX(rand_gen)), (int32_t)floor(distrPieceY(rand_gen)));
 							if (movObjMaskFromLast.at<unsigned char>(pt) == 0)
 							{
 								break;
@@ -5249,7 +5249,7 @@ void genStereoSequ::getCamPtsFromWorld()
 	}
 
 	actImgPointCloudFromLast.clear();
-	pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(&actImgPointCloudFromLast);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(&staticWorld3DPts);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
 	bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPts);
 	if (!success)
@@ -5403,7 +5403,8 @@ void genStereoSequ::getNewCorrs()
 		}
 		if (calcNewMovObj)
 		{
-			std::vector<cv::Point_<int32_t>> seeds, std::vector<int32_t> areas;
+			std::vector<cv::Point_<int32_t>> seeds;
+			std::vector<int32_t> areas;
 			if (getSeedAreaListFromReg(seeds, areas))
 			{
 				//Generate new moving objects and adapt the number of static correspondences per region

@@ -38,9 +38,13 @@ void randSeed(std::default_random_engine& rand_generator)
 	srand(time(NULL));
 }
 
-inline double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator)
+double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator)
 {
 	std::uniform_real_distribution<double> distribution(lowerBound, upperBound);
+	/*if (rand_generator == NULL)
+	{
+		rand_generator = &(std::default_random_engine((unsigned int)std::rand()));
+	}*/
 	return distribution(rand_generator);
 }
 
