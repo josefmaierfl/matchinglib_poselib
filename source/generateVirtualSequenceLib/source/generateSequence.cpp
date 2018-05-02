@@ -4086,6 +4086,7 @@ void genStereoSequ::backProjectMovObj()
 	movObjLabelsFromLast.clear();
 	movObjCorrsImg1TPFromLast.clear();
 	movObjCorrsImg2TPFromLast.clear();
+	movObjCorrsImg12TPFromLast_Idx.clear();
 	movObjCorrsImg1TNFromLast.clear();
 	movObjCorrsImg2TNFromLast.clear();
 	movObjDistTNtoReal.clear();
@@ -4108,6 +4109,7 @@ void genStereoSequ::backProjectMovObj()
 
 	movObjCorrsImg1TPFromLast.resize(actNrMovObj);
 	movObjCorrsImg2TPFromLast.resize(actNrMovObj);
+	movObjCorrsImg12TPFromLast_Idx.resize(actNrMovObj);
 	movObjCorrsImg1TNFromLast.resize(actNrMovObj);
 	movObjCorrsImg2TNFromLast.resize(actNrMovObj);
 
@@ -4130,8 +4132,10 @@ void genStereoSequ::backProjectMovObj()
 		movObjMaskFromLastLarge[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
 		movObjMaskFromLastLarge2[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
 		size_t oor = 0;
+		size_t i2 = 0;
 		for (auto pt : movObj3DPtsCam[i])
 		{
+			i2++;
 			if ((pt.z < actDepthNear) ||
 				(pt.z > dimgWH.maxDist))
 			{
@@ -4232,6 +4236,7 @@ void genStereoSequ::backProjectMovObj()
 					movObjCorrsImg1TPFromLast[i].push_back(x1.t());
 					movObjCorrsImg2TPFromLast[i].push_back(x2.t());
 				}
+				movObjCorrsImg12TPFromLast_Idx[i].push_back(i2-1);
 				movObjPt1[i].push_back(ptr1);
 				movObjPt2[i].push_back(ptr2);
 			}
@@ -4266,6 +4271,7 @@ void genStereoSequ::backProjectMovObj()
 			movObjCorrsImg2TNFromLast.erase(movObjCorrsImg2TNFromLast.begin() + delList[i]);
 			movObjCorrsImg1TPFromLast.erase(movObjCorrsImg1TPFromLast.begin() + delList[i]);
 			movObjCorrsImg2TPFromLast.erase(movObjCorrsImg2TPFromLast.begin() + delList[i]);
+			movObjCorrsImg12TPFromLast_Idx.erase(movObjCorrsImg12TPFromLast_Idx.begin() + delList[i]);
 			movObjMaskFromLastLarge.erase(movObjMaskFromLastLarge.begin() + delList[i]);
 			movObjMaskFromLastLarge2.erase(movObjMaskFromLastLarge2.begin() + delList[i]);
 			movObjPt1.erase(movObjPt1.begin() + delList[i]);
@@ -4936,6 +4942,8 @@ void genStereoSequ::combineCorrespondences()
 
 	combCorrsImg1TP = Mat(3, combNrCorrsTP, CV_64FC1);
 	combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
+	comb3DPts.clear();
+	comb3DPts.reserve(combNrCorrsTP);
 
 	//Copy all TP keypoints of first image
 	int actColNr = 0;
@@ -4956,6 +4964,26 @@ void genStereoSequ::combineCorrespondences()
 		actColNr2 = actColNr + i.cols;
 		i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
 	}
+
+	//Copy all 3D points
+	for (auto i : actCorrsImg12TPFromLast_Idx)
+	{
+		comb3DPts.push_back(actImgPointCloudFromLast[i]);
+	}
+	copy(actImgPointCloud.begin(), actImgPointCloud.end(), comb3DPts.end());
+	for (size_t i = 0; i < movObjCorrsImg12TPFromLast_Idx.size(); i++)
+	{
+		for (auto j : movObjCorrsImg12TPFromLast_Idx[i])
+		{
+			comb3DPts.push_back(movObj3DPtsCam[i][j]);
+		}
+	}
+	for (auto i : movObj3DPtsCamNew)
+	{
+		copy(i.begin(), i.end(), comb3DPts.end());
+	}
+
+	CV_Assert(combCorrsImg1TP.cols == (int)comb3DPts.size());
 
 	//Copy all TP keypoints of second image
 	actColNr = 0;
@@ -5159,6 +5187,98 @@ void genStereoSequ::updateMovObjPositions()
 	}
 }
 
+//Get 3D-points of moving objects that are visible in the camera and transform them from the world coordinate system into camera coordinate system
+void genStereoSequ::getMovObjPtsCam()
+{
+	if (movObj3DPtsWorld.empty())
+	{
+		return;
+	}
+
+	vector<int> delList;
+	movObj3DPtsCam.clear();
+	movObj3DPtsCam.resize(movObj3DPtsWorld.size());
+	for (size_t i = 0; i < movObj3DPtsWorld.size(); i++)
+	{
+		pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(&movObj3DPtsWorld[i]);
+		pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+		bool success = getVisibleCamPointCloud(ptr_movObj3DPtsWorld, camFilteredPts);
+		if (!success)
+		{
+			delList.push_back(i);
+			continue;
+		}
+		pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+		success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts);
+		if (!success)
+		{
+			filteredOccludedPts->clear();
+			success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts, true);
+			if (!success)
+			{
+				if (filteredOccludedPts->size() < 5)
+				{
+					delList.push_back(i);
+					continue;
+				}
+			}
+		}
+		for (size_t j = 0; j < filteredOccludedPts->size(); j++)
+		{
+			cv::Point3d pt = Point3d((double)filteredOccludedPts->at(j).x, (double)filteredOccludedPts->at(j).y, (double)filteredOccludedPts->at(j).z);
+			Mat ptm = Mat(pt, false).reshape(1, 3);
+			ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm - absCamCoordinates[actFrameCnt].t);//does this work???????? -> physical memory of pt and ptm must be the same
+			movObj3DPtsCam[i].push_back(pt);
+		}
+	}
+	if (!delList.empty())
+	{
+		for (int i = (int)delList.size() - 1; i >= 0; i--)
+		{
+			movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
+			movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+		}
+	}
+}
+
+void genStereoSequ::getCamPtsFromWorld()
+{
+	if (staticWorld3DPts.empty())
+	{
+		return;
+	}
+
+	actImgPointCloudFromLast.clear();
+	pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(&actImgPointCloudFromLast);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+	bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPts);
+	if (!success)
+	{
+		return;
+	}
+	pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+	success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts);
+	if (!success)
+	{
+		filteredOccludedPts->clear();
+		success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts, true);
+		if (!success)
+		{
+			if (filteredOccludedPts->empty())
+			{
+				return;
+			}
+		}
+	}
+	for (size_t j = 0; j < filteredOccludedPts->size(); j++)
+	{
+		cv::Point3d pt = Point3d((double)filteredOccludedPts->at(j).x, (double)filteredOccludedPts->at(j).y, (double)filteredOccludedPts->at(j).z);
+		Mat ptm = Mat(pt, false).reshape(1, 3);
+		ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm - absCamCoordinates[actFrameCnt].t);//does this work???????? -> physical memory of pt and ptm must be the same
+		actImgPointCloudFromLast.push_back(pt);
+	}
+}
+
 //Calculates the actual camera pose in camera coordinates in a different camera coordinate system (X forward, Y is up, and Z is right) to use the PCL filter FrustumCulling
 void genStereoSequ::getActEigenCamPose()
 {
@@ -5206,14 +5326,22 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
 
 //Filters occluded 3D points based on a voxel size corresponding to 1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
 //Returns false if more than 33% are occluded
-bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut)
+bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize)
 {
 	cloudIn->sensor_origin_ = Eigen::Vector4f(actCamPose(0), actCamPose(1), actCamPose(2), 1.f);
 	cloudIn->sensor_orientation_ = actCamRot;
 
 	pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> voxelFilter;
 	voxelFilter.setInputCloud(cloudIn);
-	float leaf_size = (float)((actDepthNear + (actDepthMid - actDepthNear) / 2.0) / K1.at<double>(0, 0));
+	float leaf_size;
+	if (useNearLeafSize)
+	{
+		leaf_size = (float)(actDepthNear / K1.at<double>(0, 0));
+	}
+	else
+	{
+		leaf_size = (float)((actDepthNear + (actDepthMid - actDepthNear) / 2.0) / K1.at<double>(0, 0));
+	}
 	voxelFilter.setLeafSize(leaf_size, leaf_size, leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
 	voxelFilter.initializeVoxelGrid();
 
@@ -5254,8 +5382,11 @@ void genStereoSequ::getNewCorrs()
 		}
 		else
 		{
-			//Calculate movObj3DPtsCam from movObj3DPtsWorld and update the 3D world coordinates based on direction and velocity
+			// Update the 3D world coordinates of movObj3DPtsWorld based on direction and velocity
 			updateMovObjPositions();
+
+			//Calculate movObj3DPtsCam from movObj3DPtsWorld: Get 3D-points of moving objects that are visible in the camera and transform them from the world coordinate system into camera coordinate system
+			getMovObjPtsCam();
 
 			//Generate maps (masks) of moving objects by backprojection from 3D for the first and second stereo camera: movObjMaskFromLast, movObjMaskFromLast2; create convex hulls: convhullPtsObj; and
 			//Check if some moving objects should be deleted
@@ -5297,7 +5428,7 @@ void genStereoSequ::getNewCorrs()
 	}
 																																	   
 	//Get 3D points of static elements and store them to actImgPointCloudFromLast
-	
+	getCamPtsFromWorld();
 
 	//Backproject static 3D points
 	backProject3D();

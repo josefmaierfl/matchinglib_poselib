@@ -280,7 +280,9 @@ private:
 	void updateMovObjPositions();
 	void getActEigenCamPose();
 	bool getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut);
-	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut);
+	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize = false);
+	void getMovObjPtsCam();
+	void getCamPtsFromWorld();
 
 private:
 	std::default_random_engine rand_gen;
@@ -395,6 +397,7 @@ private:
 	cv::Mat movObjMask2All;//Combination of movObjMaskFromLast2 and movObjMask2. Mask with the same size as the image masking correspondences of moving objects (mask for second stereo image)
 	std::vector<std::vector<bool>> movObjHasArea;//Indicates for every region if it is completely occupied by a moving object
 	std::vector<cv::Mat> movObjCorrsImg1TPFromLast, movObjCorrsImg2TPFromLast;//Every vector element (size corresponds to number of moving objects) holds correspondences within a moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
+	std::vector<std::vector<size_t>> movObjCorrsImg12TPFromLast_Idx;//Index to the corresponding 3D point within movObj3DPtsCam of correspondences in movObjCorrsImg1TPFromLast and movObjCorrsImg2TPFromLast
 	std::vector<cv::Mat> movObjCorrsImg1TNFromLast;//Every vector element (size corresponds to number of moving objects) holds TN correspondences within a moving object. Every vector element: TN keypoint in the first stereo rig image from movObj3DPtsCam in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
 	std::vector<cv::Mat> movObjCorrsImg2TNFromLast;//Every vector element (size corresponds to number of moving objects) holds TN correspondences within a moving object. Every vector element: TN keypoint in the second stereo rig image from movObj3DPtsCam in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
 	std::vector<cv::Mat> movObjCorrsImg1TP, movObjCorrsImg2TP;//Every vector element (size corresponds to number of newly to add moving objects) holds correspondences within a new moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
@@ -404,6 +407,7 @@ private:
 	std::vector<std::vector<double>> movObjDistTNtoRealNew;//Distance values of the TN keypoint locations for new generated moving objects in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
 
 	cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+	std::vector<cv::Point3d> comb3DPts;//Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP
 	cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
 	std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
