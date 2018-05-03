@@ -10,6 +10,8 @@
 //#include "PfeImgFileIO.h"
 
 #include "getStereoCameraExtr.h"
+#include "generateSequence.h"
+#include "helper_funcs.h"
 #include <time.h>
 #include <chrono>
 #include <iomanip>
@@ -21,7 +23,10 @@ using namespace CommandLineProcessing;
 double getRandDoubleVal(std::default_random_engine rand_generator, double lowerBound, double upperBound);
 void initStarVal(default_random_engine rand_generator, double *range, vector<double>& startVec);
 void initRangeVals(default_random_engine rand_generator, double *range, double *relMinMaxCh, vector<double> startVec, vector<double>& actVec);
-void testStereoCamGeneration(int verbose = 0);
+void testStereoCamGeneration(int verbose = 0, bool genSequence = true);
+int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2, cv::Size &imgSize);
+
+depthClass getRandDepthClass();
 
 void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
@@ -385,7 +390,7 @@ int main( int argc, char* argv[])
 	return 0;
 }
 
-void testStereoCamGeneration(int verbose)
+void testStereoCamGeneration(int verbose, bool genSequence)
 {
 	srand(time(NULL));
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -403,8 +408,8 @@ void testStereoCamGeneration(int verbose)
 	double roll_minmax_change[2] = { 0.7, 1.3 };
 	double pitch_minmax_change[2] = { 0.7, 1.3 };
 	double yaw_minmax_change[2] = { 0.7, 1.3 };
-	double txy_relmax = 0.7; //must be between 0 and 1
-	double tz_relxymax = 0.5; //should be between 0 and 1
+	double txy_relmax = 0.25;// 0.7; //must be between 0 and 1
+	double tz_relxymax = 0.1;// 0.5; //should be between 0 and 1
 	double hlp = std::max(tx_minmax_change[1] * txy_relmax, ty_minmax_change[1] * txy_relmax);
 	txy_relmax = hlp >= 1.0 ? (0.99 / std::max(tx_minmax_change[1], ty_minmax_change[1])) : txy_relmax;
 
@@ -609,7 +614,7 @@ void testStereoCamGeneration(int verbose)
 		cv::Size imgSize = cv::Size(1280, 720);
 
 		GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw, approxImgOverlap, imgSize);
-		newStereoPars.optimizeRtf(verbose);
+		int err = newStereoPars.optimizeRtf(verbose);
 
 		vector<cv::Mat> t_new;
 		Mat K;
@@ -627,7 +632,379 @@ void testStereoCamGeneration(int verbose)
 			cout << "roll= " << std::setprecision(3) << roll_new[i] << " pitch= " << pitch_new[i] << " yaw= " << yaw_new[i] << endl;
 		}
 		cout << "**************************************************************************" << endl << endl;
+
+		if ((err == 0) && genSequence)
+		{
+			std::vector<cv::Mat> Rv, tv;
+			cv::Mat K_1, K_2;
+			if (newStereoPars.getCamPars(Rv, tv, K_1, K_2))
+			{
+				for (size_t i = 0; i < 10; i++)
+				{
+					genNewSequence(Rv, tv, K_1, K_2, imgSize);
+				}
+			}
+		}
 	}
+}
+
+int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2, cv::Size &imgSize)
+{
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine rand_generator(seed);
+
+	const int maxTrackElements = 100;
+	double closedLoopMaxXYRatioRange[2] = { 1.0, 30.0 }; //Multiplier range that specifies how much larger the expension of a track in x-direction can be compared to y. Only for closed loop.
+	double closedLoopMaxXZRatioRange[2] = { 0.001, 1.0 }; //Multiplier range that specifies how much smaller the expension of a track in z-direction can be compared to x. Only for closed loop.
+	double closedLoopMaxElevationAngleRange[2] = { 0, 3.14 / 16.0}; //Angle range for the z-component of the ellipsoide (must be in the range -pi/2 <= angle <= pi/2). Zero corresponds to an ellipsoide without changing z-value.
+
+	size_t nFramesPerCamConf = 5;
+
+	double minInlierRange[2] = { 0.1, 0.5 };//Range of the minimum inlier ratio
+	double maxInlierRange[2] = { 0.55, 1.0 };//Range of the maximum inlier ratio bounded by minInlierRange
+
+	size_t minNrInlierRange[2] = { 1, 50 };//Range of the minimum number of true positive correspondences
+	size_t maxNrInlierRange[2] = { 100, 10000 };//Range of the maximum number of true positive correspondences
+
+	double minKeypDistRange[2] = { 1.0, 99.0 };//Range of the minimum distance between keypoints
+
+	size_t MaxNrDepthAreasPReg = 30;//Maximum number of depth areas per image region
+
+	double relCamVelocityRange[2] = { 0.1, 5.0 };//Relative camera velocity compared to the basline length
+
+	double rollRange[2] = { -3.0, 3.0 };//Roll angle for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+	double pitchRange[2] = { -10.0, 10.0 };//Roll angle for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+	double yawRange[2] = { -2.0, 2.0 };//Roll angle for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+
+	double minRelAreaRangeMovObjsRange[2] = { 0, 0.1 };//Range of the lower border of the relative area range of moving objects. Area range relative to the image area at the beginning.
+	double maxRelAreaRangeMovObjsRange[2] = { 0.15, 0.99 };//Range of the upper border of the relative area range of moving objects. Area range relative to the image area at the beginning.
+
+	double minRelVelocityMovObj = 0.1;//Maximum relative object velocity compared to camera velocity
+	double maxRelVelocityMovObj = 20.0;//Maximum relative object velocity compared to camera velocity
+
+	//Generate a random camera track
+	int closedLoop = rand() % 2;
+	int staticCamMovement = rand() % 2;
+	int nrTrackElements = rand() % maxTrackElements + 1;
+	std::vector<cv::Mat> camTrack;
+	if ((closedLoop == 0) || (staticCamMovement == 1))
+	{
+		double xy, xz;
+		Mat tr1 = Mat(3, 1, CV_64FC1);
+		tr1.at<double>(0) = 1.0;
+		xy = getRandDoubleVal(rand_generator, closedLoopMaxXYRatioRange[0], closedLoopMaxXYRatioRange[1]);
+		xz = getRandDoubleVal(rand_generator, closedLoopMaxXZRatioRange[0], closedLoopMaxXZRatioRange[1]);
+		tr1.at<double>(1) = 1.0 / xy;
+		tr1.at<double>(2) = xz;
+		camTrack.push_back(tr1.clone());
+		if (staticCamMovement != 1)
+		{
+			std::normal_distribution<double> distributionNX2(1.0, 0.25);
+			for (int i = 0; i < nrTrackElements; i++)
+			{
+				xy = getRandDoubleVal(rand_generator, closedLoopMaxXYRatioRange[0], closedLoopMaxXYRatioRange[1]);
+				xz = getRandDoubleVal(rand_generator, closedLoopMaxXZRatioRange[0], closedLoopMaxXZRatioRange[1]);
+				tr1.at<double>(0) *= distributionNX2(rand_generator);
+				tr1.at<double>(1) = (2.0 * (tr1.at<double>(1) * distributionNX2(rand_generator)) + tr1.at<double>(0) / xy) / 3.0;
+				tr1.at<double>(2) = (2.0 * (tr1.at<double>(2) * distributionNX2(rand_generator)) + tr1.at<double>(0) * xz) / 3.0;
+				camTrack.push_back(tr1.clone());
+			}
+		}
+	}
+	else
+	{
+		//Take an ellipsoide with random parameters
+		double b, a = 1.0, c, ab, ac;
+		b = a / getRandDoubleVal(rand_generator, closedLoopMaxXYRatioRange[0], closedLoopMaxXYRatioRange[1]);
+		c = a * getRandDoubleVal(rand_generator, closedLoopMaxXZRatioRange[0], closedLoopMaxXZRatioRange[1]);
+		double teta = getRandDoubleVal(rand_generator, closedLoopMaxElevationAngleRange[0], closedLoopMaxElevationAngleRange[1]);
+		double phiPiece = (2.0 * std::_Pi - std::_Pi / (double)(10 * maxTrackElements))/ (double)nrTrackElements;
+		camTrack.push_back(Mat::zeros(3, 1, CV_64FC1));
+		double phi = phiPiece;
+		for (int i = 0; i < nrTrackElements; i++)
+		{
+			Mat tr1 = Mat(3, 1, CV_64FC1);
+			tr1.at<double>(0) = a * cos(teta) * cos(phi);
+			tr1.at<double>(1) = b * cos(teta) * sin(phi);
+			tr1.at<double>(2) = c * sin(teta);
+			phi += phiPiece;
+			camTrack.push_back(tr1.clone());
+		}
+	}
+
+	int onlyOneInlierRat = rand() % 2;
+	//Inlier ratio range
+	std::pair<double, double> inlRatRange;
+	if (onlyOneInlierRat == 0)
+	{
+		inlRatRange = std::make_pair(getRandDoubleVal(rand_generator, minInlierRange[0], minInlierRange[1]), 1.0);
+		inlRatRange.second = getRandDoubleVal(rand_generator, max(inlRatRange.first + 0.01, maxInlierRange[0]), max(min(inlRatRange.first + 0.02, 1.0), maxInlierRange[1]));
+	}
+	else
+	{
+		inlRatRange = std::make_pair(getRandDoubleVal(rand_generator, minInlierRange[0], maxInlierRange[1]), 1.0);
+		inlRatRange.second = inlRatRange.first;
+	}
+
+	int inlChangeRate = rand() % 3;
+	//Inlier ratio change rate from pair to pair. If 0, the inlier ratio within the given range is always the same for every image pair. 
+	//If 100, the inlier ratio is chosen completely random within the given range.
+	//For values between 0 and 100, the inlier ratio selected is not allowed to change more than this factor from the last inlier ratio.
+	double inlRatChanges = 0;
+	if (inlChangeRate == 1)
+	{
+		inlRatChanges = getRandDoubleVal(rand_generator, 0, 100.0);
+	}
+	else if (inlChangeRate == 2)
+	{
+		inlRatChanges = 100.0;
+	}
+
+	int onlyOneTPNr = rand() % 2;
+	//# true positives range
+	std::pair<size_t, size_t> truePosRange;
+	if (onlyOneTPNr == 0)
+	{
+		std::uniform_int_distribution<size_t> distribution1(minNrInlierRange[0], minNrInlierRange[1]);
+		truePosRange = std::make_pair(distribution1(rand_generator), 1);
+		std::uniform_int_distribution<size_t> distribution2(max(truePosRange.first, maxNrInlierRange[0]), max(truePosRange.first + 1, maxNrInlierRange[1]));
+		truePosRange.second = distribution2(rand_generator);
+	}
+	else
+	{
+		std::uniform_int_distribution<size_t> distribution1(minNrInlierRange[0], maxNrInlierRange[1]);
+		truePosRange = std::make_pair(distribution1(rand_generator), 1);
+		truePosRange.second = truePosRange.first;
+	}
+
+	int tpChangeRate = rand() % 3;
+	//True positives change rate from pair to pair. If 0, the true positives within the given range are always the same for every image pair. 
+	//If 100, the true positives are chosen completely random within the given range.
+	//For values between 0 and 100, the true positives selected are not allowed to change more than this factor from the true positives.
+	double truePosChanges = 0;
+	if (tpChangeRate == 1)
+	{
+		truePosChanges = getRandDoubleVal(rand_generator, 0, 100.0);
+	}
+	else if (tpChangeRate == 2)
+	{
+		truePosChanges = 100.0;
+	}
+
+	//Functionality for the next few values is not implemented yet!!!!!!!!!!!
+	bool keypPosErrType = false;
+	std::pair<double, double> keypErrDistr = std::make_pair(0, 0.5);
+	std::pair<double, double> imgIntNoise = std::make_pair(0, 5.0);
+	//ends here
+
+	//min. distance between keypoints
+	double minKeypDist = getRandDoubleVal(rand_generator, minKeypDistRange[0], minKeypDistRange[1]);
+	
+	//portion of correspondences at depths
+	depthPortion corrsPerDepth = depthPortion(getRandDoubleVal(rand_generator, 0, 1.0), getRandDoubleVal(rand_generator, 0, 1.0), getRandDoubleVal(rand_generator, 0, 1.0));
+
+	int useMultcorrsPerRegion = rand() % 3;
+	//List of portions of image correspondences at regions (Matrix must be 3x3). Maybe doesnt hold: Also depends on 3D-points from prior frames.
+	std::vector<cv::Mat> corrsPerRegion;
+	if (useMultcorrsPerRegion == 1)
+	{
+		cv::Mat corrsPReg(3, 3, CV_64FC1);
+		cv::randu(corrsPReg, Scalar(0), Scalar(1.0));
+		corrsPerRegion.push_back(corrsPReg.clone());
+	}
+	else if (useMultcorrsPerRegion == 2)
+	{
+		int nr_elems = rand() % (int)(nFramesPerCamConf * Rv.size() - 1) + 1;
+		for (int i = 0; i < nr_elems; i++)
+		{
+			cv::Mat corrsPReg(3, 3, CV_64FC1);
+			cv::randu(corrsPReg, Scalar(0), Scalar(1.0));
+			corrsPerRegion.push_back(corrsPReg.clone());
+		}
+	}
+
+	int setcorrsPerRegRepRate0 = rand() % 2;
+	//Repeat rate of portion of correspondences at regions. 
+	//If more than one matrix of portions of correspondences at regions is provided, this number specifies the number of frames for which such a matrix is valid. 
+	//After all matrices are used, the first one is used again. If 0 and no matrix of portions of correspondences at regions is provided, as many random matrizes as frames are randomly generated.
+	size_t corrsPerRegRepRate = 0;
+	if (setcorrsPerRegRepRate0 == 0)
+	{
+		corrsPerRegRepRate = (size_t)rand() % (nFramesPerCamConf * Rv.size() - 1);
+	}
+	
+	int depthsPerRegionEmpty = rand() % 2;
+	//Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, the portion of near, mid, and far depths can be specified. If the overall depth definition is not met, this tensor is adapted.Maybe doesnt hold: Also depends on 3D - points from prior frames.
+	std::vector<std::vector<depthPortion>> depthsPerRegion;
+	if (depthsPerRegionEmpty == 0)
+	{
+		depthsPerRegion.resize(3, std::vector<depthPortion>(3));
+		for (size_t y = 0; y < 3; y++)
+		{
+			for (size_t x = 0; x < 3; x++)
+			{
+				depthsPerRegion[y][x] = depthPortion(getRandDoubleVal(rand_generator, 0, 1.0), getRandDoubleVal(rand_generator, 0, 1.0), getRandDoubleVal(rand_generator, 0, 1.0));
+			}
+		}
+	}
+
+	int nrDepthAreasPRegEmpty = rand() % 2;
+	//Min and Max number of connected depth areas per region (must be 3x3). The minimum number (first) must be larger 0. 
+	//The maximum number is bounded by the minimum area which is 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
+	std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg;
+	if (nrDepthAreasPRegEmpty == 0)
+	{
+		nrDepthAreasPReg.resize(3, std::vector<std::pair<size_t, size_t>>(3));
+		for (size_t y = 0; y < 3; y++)
+		{
+			for (size_t x = 0; x < 3; x++)
+			{
+				nrDepthAreasPReg[y][x] = std::pair<size_t, size_t>(1, (size_t)rand() % MaxNrDepthAreasPReg + 1);
+				int nrDepthAreasPRegEqu = rand() % 2;
+				if (nrDepthAreasPRegEqu == 1)
+				{
+					nrDepthAreasPReg[y][x].first = nrDepthAreasPReg[y][x].second;
+				}
+			}
+		}
+	}
+
+	//Functionality not imlemented:
+	double lostCorrPor;
+	//end
+
+	//Relative velocity of the camera movement (value between 0 and 10; must be larger 0). The velocity is relative to the baseline length between the stereo cameras
+	double relCamVelocity = getRandDoubleVal(rand_generator, relCamVelocityRange[0], relCamVelocityRange[1]);
+
+	//Rotation matrix of the first camera centre.
+	//This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+	cv::Mat R = eulerAnglesToRotationMatrix(getRandDoubleVal(rand_generator, rollRange[0], rollRange[1]) * std::_Pi / 180.0, 
+		getRandDoubleVal(rand_generator, pitchRange[0], pitchRange[1]) * std::_Pi / 180.0, 
+		getRandDoubleVal(rand_generator, yawRange[0], yawRange[1]) * std::_Pi / 180.0);
+
+	//Number of moving objects in the scene
+	size_t nrMovObjs = (size_t)rand() % 20;
+
+	int startPosMovObjsEmpty = rand() % 2;
+	//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
+	cv::Mat startPosMovObjs;
+	if (startPosMovObjsEmpty == 0)
+	{
+		startPosMovObjs = Mat(3, 3, CV_8UC1);
+		for (int y = 0; y < 3; y++)
+		{
+			for (int x = 0; x < 3; x++)
+			{
+				startPosMovObjs.at<unsigned char>(y, x) = (unsigned char)(rand() % 2);
+			}
+		}
+	}
+
+	//Relative area range of moving objects. Area range relative to the image area at the beginning.
+	std::pair<double, double> relAreaRangeMovObjs = std::make_pair(getRandDoubleVal(rand_generator, minRelAreaRangeMovObjsRange[0], minRelAreaRangeMovObjsRange[1]), 0.1);
+	relAreaRangeMovObjs.second = getRandDoubleVal(rand_generator, max(maxRelAreaRangeMovObjsRange[0], relAreaRangeMovObjs.first), maxRelAreaRangeMovObjsRange[1]);
+
+	int movObjDepthVersion = rand() % 4;
+	//Depth of moving objects. Moving objects are always visible and not covered by other static objects. 
+	//If the number of paramters is 1, this depth is used for every object. 
+	//If the number of paramters is equal "nrMovObjs", the corresponding depth is used for every object. 
+	//If the number of parameters is smaller and between 2 and 3, the depths for the moving objects are selected uniformly distributed from the given depths. 
+	//For a number of paramters larger 3 and unequal to "nrMovObjs", a portion for every depth that should be used can be defined 
+	//(e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
+	std::vector<depthClass> movObjDepth;
+	if (movObjDepthVersion == 0)
+	{
+		movObjDepth.push_back(getRandDepthClass());
+	}
+	if (movObjDepthVersion == 1)
+	{
+		movObjDepth.resize(nrMovObjs);
+		for (size_t i = 0; i < nrMovObjs; i++)
+		{
+			movObjDepth[i] = getRandDepthClass();
+		}
+	}
+	else if (movObjDepthVersion == 2)
+	{
+		int nrClasses = max(min((rand() % 2) + 2, (int)nrMovObjs - 1), 1);
+		for (int i = 0; i < nrClasses; i++)
+		{
+			movObjDepth.push_back(getRandDepthClass());
+		}
+	}
+	else
+	{
+		int nrClasses = rand() % 1000 + 1;
+		for (int i = 0; i < nrClasses; i++)
+		{
+			movObjDepth.push_back(getRandDepthClass());
+		}
+	}
+
+	int movObjDirEmpty = rand() % 2;
+	//Movement direction of moving objects relative to camera movementm (must be 3x1). 
+	//The movement direction is linear and does not change if the movement direction of the camera changes.The moving object is removed, if it is no longer visible in both stereo cameras.
+	cv::Mat movObjDir;
+	if (movObjDirEmpty == 0)
+	{
+		movObjDir = Mat(3, 1, CV_64FC1);
+		cv::randu(movObjDir, Scalar(0), Scalar(1.0));
+	}
+
+	//Relative velocity range of moving objects based on relative camera velocity. Values between 0 and 100; Must be larger 0;
+	std::pair<double, double> relMovObjVelRange = std::make_pair(minRelVelocityMovObj, getRandDoubleVal(rand_generator, minRelVelocityMovObj, maxRelVelocityMovObj));
+
+
+	//StereoSequParameters(std::vector<cv::Mat> camTrack_,
+	//	size_t nFramesPerCamConf_ = 5,
+	//	std::pair<double, double> inlRatRange_ = std::make_pair(0.1, 1.0),
+	//	double inlRatChanges_ = 0,
+	//	std::pair<size_t, size_t> truePosRange_ = std::make_pair(100, 2000),
+	//	double truePosChanges_ = 0,
+	//	bool keypPosErrType_ = false,
+	//	std::pair<double, double> keypErrDistr_ = std::make_pair(0, 0.5),
+	//	std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
+	//	double minKeypDist_ = 3.0,
+	//	depthPortion corrsPerDepth_ = depthPortion(),
+	//	//bool randDepth_ = true,
+	//	std::vector<cv::Mat> corrsPerRegion_ = std::vector<cv::Mat>(),
+	//	size_t corrsPerRegRepRate_ = 1,
+	//	std::vector<std::vector<depthPortion>> depthsPerRegion_ = std::vector<std::vector<depthPortion>>(),
+	//	std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg_ = std::vector<std::vector<std::pair<size_t, size_t>>>(),
+	//	double lostCorrPor_ = 0,
+	//	double relCamVelocity_ = 0.5,
+	//	cv::InputArray R_ = cv::noArray(),
+	//	size_t nrMovObjs_ = 0,
+	//	cv::InputArray startPosMovObjs_ = cv::noArray(),
+	//	std::pair<double, double> relAreaRangeMovObjs_ = std::make_pair(0.01, 0.1),
+	//	std::vector<depthClass> movObjDepth_ = std::vector<depthClass>(),
+	//	cv::InputArray movObjDir_ = cv::noArray(),
+	//	std::pair<double, double> relMovObjVelRange_ = std::make_pair(0.5, 1.5),
+	//	double minMovObjCorrPortion_ = 0.5,
+	//	double CorrMovObjPort_ = 0.25,
+	//	size_t minNrMovObjs_ = 0
+	//);
+}
+
+depthClass getRandDepthClass()
+{
+	int selDepthClass = rand() % 3;
+	depthClass res;
+	switch (selDepthClass)
+	{
+	case 0:
+		res = depthClass::NEAR;
+		break;
+	case 1:
+		res = depthClass::MID;
+		break;
+	case 2:
+		res = depthClass::FAR;
+		break;
+	default:
+		break;
+	}
+	return res;
 }
 
 double getRandDoubleVal(std::default_random_engine rand_generator, double lowerBound, double upperBound)

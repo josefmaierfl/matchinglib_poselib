@@ -3734,7 +3734,14 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 //Assign a depth category to each new object label and calculate all depth values for each label
 void genStereoSequ::genNewDepthMovObj()
 {
+	if (pars.nrMovObjs == 0)
+		return;
+
 	//Get the depth classes that should be used for the new generated moving objects
+	if (pars.movObjDepth.empty())
+	{
+		pars.movObjDepth.push_back(depthClass::MID);
+	}
 	if (pars.movObjDepth.size() == pars.nrMovObjs)//Take for every moving object its corresponding depth
 	{
 		if ((movObjDepthClass.size() > 0) && (movObjDepthClass.size() < pars.nrMovObjs))

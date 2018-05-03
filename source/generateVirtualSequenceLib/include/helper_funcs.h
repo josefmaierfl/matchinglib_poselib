@@ -24,7 +24,7 @@ DISCRIPTION: This file provides some helper functions.
 
 #include <Eigen/Dense>
 
-//#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
+#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
 
@@ -39,7 +39,7 @@ void randSeed(std::default_random_engine& rand_generator);
 double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator = std::default_random_engine((unsigned int)std::rand()));
 
 //construct a rotation matrix from angles given in RAD
-cv::Mat eulerAnglesToRotationMatrix(double x, double y, double z);
+cv::Mat GENERATEVIRTUALSEQUENCELIB_API eulerAnglesToRotationMatrix(double x, double y, double z);
 
 //Returns true, if any element of the boolean (CV_8UC1) Mat vector is also true
 bool any_vec_cv(cv::Mat bin);

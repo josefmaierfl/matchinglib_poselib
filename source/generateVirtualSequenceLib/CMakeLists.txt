@@ -118,9 +118,9 @@ file(GLOB_RECURSE header_files
 )
 set(headers
 #    ${include_path}/test.h
-	${include_path}/getStereoCameraExtr.h
-	${include_path}/generateSequence.h
-	${include_path}/helper_funcs.h
+	#${include_path}/getStereoCameraExtr.h
+	#${include_path}/generateSequence.h
+	#${include_path}/helper_funcs.h
 )
 
 set(sources
