@@ -44,12 +44,8 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 
 	randSeed(rand_gen);
 
-	//Generate a mask with the minimal distance between keypoints
-	int sqrSi = 2 * max((int)ceil(pars.minKeypDist), 1) + 1;
-	csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
-
-	//Generate a mask for marking used areas in the first stereo image
-	corrsIMG = Mat::zeros(imgSize.width + sqrSi - 1, imgSize.height + sqrSi - 1, CV_8UC1);
+	//Generate a mask with the minimal distance between keypoints and a mask for marking used areas in the first stereo image
+	genMasks();
 
 	//Calculate inverse of camera matrices
 	K1i = K1.inv();
@@ -96,6 +92,16 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 
 	//Get the relative movement direction (comperd to the camera movement) for every moving object
 	checkMovObjDirection();
+}
+
+void genStereoSequ::genMasks()
+{
+	//Generate a mask with the minimal distance between keypoints
+	int sqrSi = 2 * max((int)ceil(pars.minKeypDist), 1) + 1;
+	csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
+
+	//Generate a mask for marking used areas in the first stereo image
+	corrsIMG = Mat::zeros(imgSize.width + sqrSi - 1, imgSize.height + sqrSi - 1, CV_8UC1);
 }
 
 //Get number of correspondences per image and Correspondences per image regions
@@ -202,11 +208,12 @@ bool genStereoSequ::initFracCorrImgReg()
 		if (areaCorrs > regA)
 		{
 			cout << "There are too many keypoints per region when demanding a minimum keypoint distance of " << pars.minKeypDist << ". Changing it!" << endl;
-			double mKPdist = round(10.0 * sqrt(regA / maxCorr)) / 10.0;
+			double mKPdist = floor(10.0 * sqrt(regA / maxCorr)) / 10.0;
 			if (mKPdist <= 1.414214)
 			{
 				cout << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!" << endl;
 				pars.minKeypDist = 1.0;
+				genMasks();
 				//Get max # of correspondences
 				double maxFC = (double)*std::max_element(nrCorrs.begin(), nrCorrs.end());
 				//Get the largest portion of correspondences within a single region
@@ -250,6 +257,7 @@ bool genStereoSequ::initFracCorrImgReg()
 			{
 				cout << "Changed the minimum keypoint distance to " << mKPdist << endl;
 				pars.minKeypDist = mKPdist;
+				genMasks();
 			}
 		}
 
@@ -526,6 +534,9 @@ cv::Mat genStereoSequ::getTrackRot(cv::Mat tdiff)
 {
 	CV_Assert((tdiff.rows == 3) && (tdiff.cols == 1) && (tdiff.type() == CV_64FC1));
 
+	if (nearZero(cv::norm(tdiff)))
+		return Mat::eye(3, 3, CV_64FC1);
+
 	tdiff /= norm(tdiff);
 
 	//Calculate a rotation to tranform into the yz-plane
@@ -708,7 +719,7 @@ void genStereoSequ::adaptDepthsPerRegion()
 			}
 		}
 		double c1 = pars.corrsPerDepth.mid - portSum;
-		if (!nearZero(c1))
+		if (!nearZero(10.0 * c1))
 		{
 			cout << "Adaption of depth fractions in regions failed!" << endl;
 		}
@@ -996,7 +1007,7 @@ void genStereoSequ::checkDepthAreas()
 						if (diffap < 0)
 						{
 							int cnt = 0;
-							std::ptrdiff_t pdiff = max_element(maxAPRegd, maxAPRegd + 2) - maxAPRegd;
+							std::ptrdiff_t pdiff = max_element(maxAPRegd, maxAPRegd + 3) - maxAPRegd;
 							while ((diffap < 0) && (cnt < 3))
 							{
 								if (maxAPReg[pdiff] > 1)
@@ -1022,7 +1033,7 @@ void genStereoSequ::checkDepthAreas()
 						}
 						else
 						{
-							std::ptrdiff_t pdiff = min_element(maxAPRegd, maxAPRegd + 2) - maxAPRegd;
+							std::ptrdiff_t pdiff = min_element(maxAPRegd, maxAPRegd + 3) - maxAPRegd;
 							while (diffap > 0)
 							{
 								maxAPReg[pdiff]++;
@@ -1634,7 +1645,7 @@ void genStereoSequ::genDepthMaps()
 			maxAPReg[0] = areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x);
 			maxAPReg[1] = areaPRegMid[actCorrsPRIdx].at<int32_t>(y, x);
 			maxAPReg[2] = areaPRegFar[actCorrsPRIdx].at<int32_t>(y, x);
-			std::ptrdiff_t pdiff = min_element(maxAPReg, maxAPReg + 2) - maxAPReg;
+			std::ptrdiff_t pdiff = min_element(maxAPReg, maxAPReg + 3) - maxAPReg;
 			beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[0] = pdiff;
 			if (maxAPReg[(pdiff + 1) % 3] < maxAPReg[(pdiff + 2) % 3])
 			{
@@ -2737,27 +2748,53 @@ void genStereoSequ::getKeypoints()
 			}
 
 			//Copy 3D points and correspondences
-			if(!p3DTPnewRNear.empty())
-				std::copy(p3DTPnewRNear.begin(), p3DTPnewRNear.end(), p3DTPnew[y][x].end());
+			if (!p3DTPnewRNear.empty())
+			{
+				//std::copy(p3DTPnewRNear.begin(), p3DTPnewRNear.end(), p3DTPnew[y][x].end());
+				p3DTPnew[y][x].insert(p3DTPnew[y][x].end(), p3DTPnewRNear.begin(), p3DTPnewRNear.end());
+			}
 			if (!p3DTPnewRMid.empty())
-				std::copy(p3DTPnewRMid.begin(), p3DTPnewRMid.end(), p3DTPnew[y][x].end());
+			{
+				//std::copy(p3DTPnewRMid.begin(), p3DTPnewRMid.end(), p3DTPnew[y][x].end());
+				p3DTPnew[y][x].insert(p3DTPnew[y][x].end(), p3DTPnewRMid.begin(), p3DTPnewRMid.end());
+			}
 			if (!p3DTPnewRFar.empty())
-				std::copy(p3DTPnewRFar.begin(), p3DTPnewRFar.end(), p3DTPnew[y][x].end());
+			{
+				//std::copy(p3DTPnewRFar.begin(), p3DTPnewRFar.end(), p3DTPnew[y][x].end());
+				p3DTPnew[y][x].insert(p3DTPnew[y][x].end(), p3DTPnewRFar.begin(), p3DTPnewRFar.end());
+			}
 
 			if (!corrsNearR.empty())
-				std::copy(corrsNearR.begin(), corrsNearR.end(), corrsAllD[y][x].end());
+			{
+				//std::copy(corrsNearR.begin(), corrsNearR.end(), corrsAllD[y][x].end());
+				corrsAllD[y][x].insert(corrsAllD[y][x].end(), corrsNearR.begin(), corrsNearR.end());
+			}
 			if (!corrsMidR.empty())
-				std::copy(corrsMidR.begin(), corrsMidR.end(), corrsAllD[y][x].end());
+			{
+				//std::copy(corrsMidR.begin(), corrsMidR.end(), corrsAllD[y][x].end());
+				corrsAllD[y][x].insert(corrsAllD[y][x].end(), corrsMidR.begin(), corrsMidR.end());
+			}
 			if (!corrsFarR.empty())
-				std::copy(corrsFarR.begin(), corrsFarR.end(), corrsAllD[y][x].end());
+			{
+				//std::copy(corrsFarR.begin(), corrsFarR.end(), corrsAllD[y][x].end());
+				corrsAllD[y][x].insert(corrsAllD[y][x].end(), corrsFarR.begin(), corrsFarR.end());
+			}
 
 			if (!corrsNearR2.empty())
-				std::copy(corrsNearR2.begin(), corrsNearR2.end(), corrsAllD2[y][x].end());
+			{
+				//std::copy(corrsNearR2.begin(), corrsNearR2.end(), corrsAllD2[y][x].end());
+				corrsAllD2[y][x].insert(corrsAllD2[y][x].end(), corrsNearR2.begin(), corrsNearR2.end());
+			}
 			if (!corrsMidR2.empty())
-				std::copy(corrsMidR2.begin(), corrsMidR2.end(), corrsAllD2[y][x].end());
+			{
+				//std::copy(corrsMidR2.begin(), corrsMidR2.end(), corrsAllD2[y][x].end());
+				corrsAllD2[y][x].insert(corrsAllD2[y][x].end(), corrsMidR2.begin(), corrsMidR2.end());
+			}
 			if (!corrsFarR2.empty())
-				std::copy(corrsFarR2.begin(), corrsFarR2.end(), corrsAllD2[y][x].end());
-			
+			{
+				//std::copy(corrsFarR2.begin(), corrsFarR2.end(), corrsAllD2[y][x].end());
+				corrsAllD2[y][x].insert(corrsAllD2[y][x].end(), corrsFarR2.begin(), corrsFarR2.end());
+			}
 
 			//Select for true negatives in image 1 true negatives in image 2
 			size_t selTN2 = 0;
@@ -2847,9 +2884,12 @@ void genStereoSequ::getKeypoints()
 				if (!x1TN_tmp.empty())
 				{
 					corrsIMG(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (combMovObjLabelsAll == 0);
-					copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN[y][x].end());
-					copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN[y][x].end());
-					copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), x2TNdistCorr[y][x].end());
+					//copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN[y][x].end());
+					x1TN[y][x].insert(x1TN[y][x].end(), x1TN_tmp.begin(), x1TN_tmp.end());
+					//copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN[y][x].end());
+					x2TN[y][x].insert(x2TN[y][x].end(), x2TN_tmp.begin(), x2TN_tmp.end());
+					//copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), x2TNdistCorr[y][x].end());
+					x2TNdistCorr[y][x].insert(x2TNdistCorr[y][x].end(), x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end());
 				}
 			}
 		}
@@ -2878,9 +2918,15 @@ void genStereoSequ::getKeypoints()
 		for (size_t x = 0; x < 3; x++)
 		{
 			if (!p3DTPnew[y][x].empty())
-				std::copy(p3DTPnew[y][x].begin(), p3DTPnew[y][x].end(), actImgPointCloud.end());
+			{
+				//std::copy(p3DTPnew[y][x].begin(), p3DTPnew[y][x].end(), actImgPointCloud.end());
+				actImgPointCloud.insert(actImgPointCloud.end(), p3DTPnew[y][x].begin(), p3DTPnew[y][x].end());
+			}
 			if (!x2TNdistCorr[y][x].empty())
-				std::copy(x2TNdistCorr[y][x].begin(), x2TNdistCorr[y][x].end(), distTNtoReal.end());
+			{
+				//std::copy(x2TNdistCorr[y][x].begin(), x2TNdistCorr[y][x].end(), distTNtoReal.end());
+				distTNtoReal.insert(distTNtoReal.end(), x2TNdistCorr[y][x].begin(), x2TNdistCorr[y][x].end());
+			}
 			
 			for (size_t i = 0; i < corrsAllD[y][x].size(); i++)
 			{
@@ -3337,7 +3383,7 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 		{
 			if (objNFinished[i])
 			{
-				if (!addAdditionalDepth((unsigned char)(i + convhullPtsObj.size() + 1),
+				if (!addAdditionalDepth((unsigned char)(i + convhullPtsObj.size() + 1),//Something is wrong with the mask <----------------------------------------------------
 					combMovObjLabels,
 					movObjLabels[i],
 					mask,
@@ -3775,7 +3821,8 @@ void genStereoSequ::genNewDepthMovObj()
 		else if (movObjDepthClass.size() == 0)
 		{
 			movObjDepthClassNew.clear();
-			copy(pars.movObjDepth.begin(), pars.movObjDepth.begin() + movObjLabels.size(), movObjDepthClassNew.begin());
+			//copy(pars.movObjDepth.begin(), pars.movObjDepth.begin() + movObjLabels.size(), movObjDepthClassNew.begin());
+			movObjDepthClassNew.insert(movObjDepthClassNew.end(), pars.movObjDepth.begin(), pars.movObjDepth.begin() + movObjLabels.size());
 		}
 		else
 		{
@@ -3919,7 +3966,8 @@ void genStereoSequ::genNewDepthMovObj()
 		}
 	}
 	//Add new depth classes to existing ones
-	copy(movObjDepthClassNew.begin(), movObjDepthClassNew.end(), movObjDepthClass.end());
+	//copy(movObjDepthClassNew.begin(), movObjDepthClassNew.end(), movObjDepthClass.end());
+	movObjDepthClass.insert(movObjDepthClass.end(), movObjDepthClassNew.begin(), movObjDepthClassNew.end());
 }
 
 //Generate correspondences and TN for newly generated moving objects
@@ -4055,9 +4103,12 @@ void genStereoSequ::getMovObjCorrs()
 			if (!x1TN_tmp.empty())
 			{
 				corrsSet(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (movObjLabels[i] == 0);
-				copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN.end());
-				copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN.end());
-				copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), movObjDistTNtoRealNew[i].end());
+				//copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN.end());
+				x1TN.insert(x1TN.end(), x1TN_tmp.begin(), x1TN_tmp.end());
+				//copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN.end());
+				x2TN.insert(x2TN.end(), x2TN_tmp.begin(), x2TN_tmp.end());
+				//copy(x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end(), movObjDistTNtoRealNew[i].end());
+				movObjDistTNtoRealNew[i].insert(movObjDistTNtoRealNew[i].end(), x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end());
 			}
 		}
 
@@ -4884,17 +4935,21 @@ bool genStereoSequ::getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &see
 {
 	seeds.clear();
 	areas.clear();
+	seeds.reserve(pars.nrMovObjs);
+	areas.reserve(pars.nrMovObjs);
 	for (int y = 0; y < 3; y++)
 	{
 		for (int x = 0; x < 3; x++)
 		{
 			if (!movObjAreas[y][x].empty())
 			{
-				copy(movObjAreas[y][x].begin(), movObjAreas[y][x].end(), areas.end());
+				//copy(movObjAreas[y][x].begin(), movObjAreas[y][x].end(), areas.end());
+				areas.insert(areas.end(), movObjAreas[y][x].begin(), movObjAreas[y][x].end());
 			}
 			if (!movObjSeeds[y][x].empty())
 			{
-				copy(movObjSeeds[y][x].begin(), movObjSeeds[y][x].end(), seeds.end());
+				//copy(movObjSeeds[y][x].begin(), movObjSeeds[y][x].end(), seeds.end());
+				seeds.insert(seeds.end(), movObjSeeds[y][x].begin(), movObjSeeds[y][x].end());
 			}
 		}
 	}
@@ -4977,7 +5032,8 @@ void genStereoSequ::combineCorrespondences()
 	{
 		comb3DPts.push_back(actImgPointCloudFromLast[i]);
 	}
-	copy(actImgPointCloud.begin(), actImgPointCloud.end(), comb3DPts.end());
+	//copy(actImgPointCloud.begin(), actImgPointCloud.end(), comb3DPts.end());
+	comb3DPts.insert(comb3DPts.end(), actImgPointCloud.begin(), actImgPointCloud.end());
 	for (size_t i = 0; i < movObjCorrsImg12TPFromLast_Idx.size(); i++)
 	{
 		for (auto j : movObjCorrsImg12TPFromLast_Idx[i])
@@ -4987,7 +5043,8 @@ void genStereoSequ::combineCorrespondences()
 	}
 	for (auto i : movObj3DPtsCamNew)
 	{
-		copy(i.begin(), i.end(), comb3DPts.end());
+		//copy(i.begin(), i.end(), comb3DPts.end());
+		comb3DPts.insert(comb3DPts.end(), i.begin(), i.end());
 	}
 
 	CV_Assert(combCorrsImg1TP.cols == (int)comb3DPts.size());
@@ -5051,14 +5108,17 @@ void genStereoSequ::combineCorrespondences()
 
 	//Copy distances of TN locations to their real matching position
 	combDistTNtoReal.reserve(combNrCorrsTN);
-	copy(distTNtoReal.begin(), distTNtoReal.end(), combDistTNtoReal.end());
+	//copy(distTNtoReal.begin(), distTNtoReal.end(), combDistTNtoReal.end());
+	combDistTNtoReal.insert(combDistTNtoReal.end(), distTNtoReal.begin(), distTNtoReal.end());
 	for (auto i : movObjDistTNtoReal)
 	{
-		copy(i.begin(), i.end(), combDistTNtoReal.end());
+		//copy(i.begin(), i.end(), combDistTNtoReal.end());
+		combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
 	}
 	for (auto i : movObjDistTNtoRealNew)
 	{
-		copy(i.begin(), i.end(), combDistTNtoReal.end());
+		//copy(i.begin(), i.end(), combDistTNtoReal.end());
+		combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
 	}
 
 	CV_Assert((size_t)combCorrsImg1TN.cols == combDistTNtoReal.size());
@@ -5298,10 +5358,10 @@ void genStereoSequ::getActEigenCamPose()
 	cv::cv2eigen(absCamCoordinates[actFrameCnt].t, trans);//Pose of the camera in world coordinates
 	cv::cv2eigen(absCamCoordinates[actFrameCnt].R.t(), rot);//From world to cam -> Thus, w.r.t. origin
 	MatToQuat(rot, quat);
-	Eigen::Affine3f cam_pose;
-	cam_pose.translate(trans.cast<float>());
 	actCamRot = Eigen::Quaternionf(quat.cast<float>());
-	cam_pose.rotate(actCamRot);
+	Eigen::Affine3f cam_pose(actCamRot);
+	cam_pose.translation() = trans.cast<float>();
+	//cam_pose.rotate(actCamRot);
 
 	Eigen::Matrix4f pose_orig = cam_pose.matrix();
 	Eigen::Matrix4f cam2robot;

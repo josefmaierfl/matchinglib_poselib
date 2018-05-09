@@ -150,7 +150,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 
 		CV_Assert(!camTrack.empty() && (camTrack[0].rows == 3) && (camTrack[0].cols == 1) && (camTrack[0].type() == CV_64FC1));
 		CV_Assert((relCamVelocity > 0) && (relCamVelocity <= 10.0));
-		CV_Assert(R.empty() || ((R.rows() == 3) && (R.cols() == 1) && (R.type() == CV_64FC1)));
+		CV_Assert(R.empty() || ((R.rows() == 3) && (R.cols() == 3) && (R.type() == CV_64FC1)));
 		CV_Assert(nrMovObjs < 20);
 		CV_Assert(startPosMovObjs.empty() || ((startPosMovObjs.rows() == 3) && (startPosMovObjs.cols() == 3) && (startPosMovObjs.type() == CV_8UC1)));
 		CV_Assert((relAreaRangeMovObjs.first <= 1.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 1.0) && (relAreaRangeMovObjs.second > 0) && (relAreaRangeMovObjs.first <= relAreaRangeMovObjs.second));
@@ -218,6 +218,7 @@ public:
 private:
 	void constructCamPath();
 	cv::Mat getTrackRot(cv::Mat tdiff);
+	void genMasks();
 	bool getDepthRanges();
 	void adaptDepthsPerRegion();
 	void updDepthReg(bool isNear, std::vector<std::vector<depthPortion>> &depthPerRegion, cv::Mat &cpr);

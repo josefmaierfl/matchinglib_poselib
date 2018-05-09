@@ -96,7 +96,7 @@ private:
 
 	std::vector<double> virtWidth;
 	bool horizontalCamAlign = true;
-	bool aliChange = true;
+	//bool aliChange = true;
 
 	//Virtual coordinates within the images for optimization
 	std::vector<cv::Mat> x_lb_max1;

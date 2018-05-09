@@ -682,6 +682,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	double minRelVelocityMovObj = 0.1;//Maximum relative object velocity compared to camera velocity
 	double maxRelVelocityMovObj = 20.0;//Maximum relative object velocity compared to camera velocity
 
+	double minPortionMovObj = 0.1;//Minimal portion of used image areas by moving objects
+	double maxPortionMovObj = 0.85;//Maximal portion of used image areas by moving objects
+
 	//Generate a random camera track
 	int closedLoop = rand() % 2;
 	int staticCamMovement = rand() % 2;
@@ -954,42 +957,74 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	//Relative velocity range of moving objects based on relative camera velocity. Values between 0 and 100; Must be larger 0;
 	std::pair<double, double> relMovObjVelRange = std::make_pair(minRelVelocityMovObj, getRandDoubleVal(rand_generator, minRelVelocityMovObj, maxRelVelocityMovObj));
 
+	int minMovObjCorrPortionType = rand() % 3;
+	int minMovObjCorrPortionType1 = ((rand() % 3) | minMovObjCorrPortionType) & 2;
+	minMovObjCorrPortionType = minMovObjCorrPortionType1 == 2 ? minMovObjCorrPortionType1 : minMovObjCorrPortionType;//Higher propability to get a 2
+	//Minimal portion of correspondences on moving objects for removing them. 
+	//If the portion of visible correspondences drops below this value, the whole moving object is removed. 
+	//Zero means, that the moving object is only removed if there is no visible correspondence in the stereo pair. 
+	//One means, that a single missing correspondence leads to deletion. Values between 0 and 1;
+	double minMovObjCorrPortion = 0;
+	if (minMovObjCorrPortionType == 1)
+	{
+		minMovObjCorrPortion = 1.0;
+	}
+	else if (minMovObjCorrPortionType == 2)
+	{
+		minMovObjCorrPortion = getRandDoubleVal(rand_generator, 0, 1.0);
+	}
 
-	//StereoSequParameters(std::vector<cv::Mat> camTrack_,
-	//	size_t nFramesPerCamConf_ = 5,
-	//	std::pair<double, double> inlRatRange_ = std::make_pair(0.1, 1.0),
-	//	double inlRatChanges_ = 0,
-	//	std::pair<size_t, size_t> truePosRange_ = std::make_pair(100, 2000),
-	//	double truePosChanges_ = 0,
-	//	bool keypPosErrType_ = false,
-	//	std::pair<double, double> keypErrDistr_ = std::make_pair(0, 0.5),
-	//	std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
-	//	double minKeypDist_ = 3.0,
-	//	depthPortion corrsPerDepth_ = depthPortion(),
-	//	//bool randDepth_ = true,
-	//	std::vector<cv::Mat> corrsPerRegion_ = std::vector<cv::Mat>(),
-	//	size_t corrsPerRegRepRate_ = 1,
-	//	std::vector<std::vector<depthPortion>> depthsPerRegion_ = std::vector<std::vector<depthPortion>>(),
-	//	std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg_ = std::vector<std::vector<std::pair<size_t, size_t>>>(),
-	//	double lostCorrPor_ = 0,
-	//	double relCamVelocity_ = 0.5,
-	//	cv::InputArray R_ = cv::noArray(),
-	//	size_t nrMovObjs_ = 0,
-	//	cv::InputArray startPosMovObjs_ = cv::noArray(),
-	//	std::pair<double, double> relAreaRangeMovObjs_ = std::make_pair(0.01, 0.1),
-	//	std::vector<depthClass> movObjDepth_ = std::vector<depthClass>(),
-	//	cv::InputArray movObjDir_ = cv::noArray(),
-	//	std::pair<double, double> relMovObjVelRange_ = std::make_pair(0.5, 1.5),
-	//	double minMovObjCorrPortion_ = 0.5,
-	//	double CorrMovObjPort_ = 0.25,
-	//	size_t minNrMovObjs_ = 0
-	//);
+	//Portion of correspondences on moving object (compared to static objects). It is limited by the size of the objects visible in the images and the minimal distance between correspondences.
+	double CorrMovObjPort = getRandDoubleVal(rand_generator, minPortionMovObj, maxPortionMovObj);
+
+	//Minimum number of moving objects over the whole track. 
+	//If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached. 
+	//If 0, no new moving objects are inserted if every preceding object is out of sight.
+	size_t minNrMovObjs = (size_t)rand() % (nrMovObjs + 1);
+
+	//Set parameters
+	StereoSequParameters stereoSequPars(camTrack,
+		nFramesPerCamConf,
+		inlRatRange,
+		inlRatChanges,
+		truePosRange,
+		truePosChanges,
+		keypPosErrType,
+		keypErrDistr,
+		imgIntNoise,
+		minKeypDist,
+		corrsPerDepth,
+		corrsPerRegion,
+		corrsPerRegRepRate,
+		depthsPerRegion,
+		nrDepthAreasPReg,
+		//lostCorrPor,
+		relCamVelocity,
+		R,
+		nrMovObjs,
+		startPosMovObjs,
+		relAreaRangeMovObjs,
+		movObjDepth,
+		movObjDir,
+		relMovObjVelRange,
+		minMovObjCorrPortion,
+		CorrMovObjPort,
+		minNrMovObjs
+	);
+
+	//Initialize system
+	genStereoSequ stereoSequ(imgSize, K_1, K_2, Rv, tv, stereoSequPars);
+
+	//Generate Sequence
+	stereoSequ.startCalc();
+
+	return 0;
 }
 
 depthClass getRandDepthClass()
 {
 	int selDepthClass = rand() % 3;
-	depthClass res;
+	depthClass res = depthClass::MID;
 	switch (selDepthClass)
 	{
 	case 0:
