@@ -415,13 +415,14 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 
 	CV_Assert(txy_relmax < 1.0);
 
-	for (size_t j = 0; j < 1000; j++)
+	for (size_t j = 0; j < 1000; j++) //Number of performed test runs
 	{
 		double tx_minmax[2] = { 0.1, 5.0 };
 		double ty_minmax[2] = { 0, 5.0 };
 
-		int nrCams = std::rand() % 10 + 1;//1
+		int nrCams = std::rand() % 10 + 1;//1 //Number of different stereo camera configurations (extrinsic) per test
 
+		//Calculate, for which extrinsic (tx, ty, tz, roll, ...) its value or range should remain the same for all nrCams different stereo camera configuratuions
 		int roll_equRanges = (std::rand() % 2) & (std::rand() % 2);
 		int pitch_equRanges = (std::rand() % 2) & (std::rand() % 2);
 		int yaw_equRanges = (std::rand() % 2) & (std::rand() % 2);
@@ -430,18 +431,18 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		int tz_equRanges = (std::rand() % 2) & (std::rand() % 2);
 
 		vector<double> txi_start, tyi_start, tzi_start, rolli_start, pitchi_start, yawi_start;
-		if (!testGenericAlignment)
+		if (!testGenericAlignment)//If restrictions apply for the relative distances between cameras in x and y in a specific camera alignment (horizontal or vertical)
 		{
-			int align = rand() % 2;//0
-			if (align)
+			int align = rand() % 2;//0 //Choose either vertical or horizontal camera alignment
+			if (align)//Vertical camera alignment
 			{
-				initStarVal(rand_generator, ty_minmax, tyi_start);
-				tx_minmax[0] = -txy_relmax * tyi_start.back();
+				initStarVal(rand_generator, ty_minmax, tyi_start);//Generate a random value or range (chosen ramdomly) between ranges for the distance in y
+				tx_minmax[0] = -txy_relmax * tyi_start.back();//Calculate the range of the x-distance based on the maximum y-distance
 				tx_minmax[1] = txy_relmax * tyi_start.back();
-				double tmp = -ty_minmax[0];
+				double tmp = -ty_minmax[0];//Negate to make sure that the reference camera is the top camera (y-component of translation vector must be negative)
 				ty_minmax[0] = -ty_minmax[1];
 				ty_minmax[1] = tmp;
-				initStarVal(rand_generator, tx_minmax, txi_start);
+				initStarVal(rand_generator, tx_minmax, txi_start);//Generate a random value or range (chosen ramdomly) between ranges (smaller or equal than for y) for the distance in x
 				if (tyi_start.size() == 1)
 				{
 					tyi_start[0] = -tyi_start[0];
@@ -453,17 +454,17 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 					tyi_start[1] = tmp;
 				}
 			}
-			else
+			else //Horizontal camera alignment
 			{
-				initStarVal(rand_generator, tx_minmax, txi_start);
+				initStarVal(rand_generator, tx_minmax, txi_start);//Generate a random value or range (chosen ramdomly) between ranges for the distance in x
 				//txi_start.push_back(0.9);//REMOVE
 
-				ty_minmax[0] = -txy_relmax * txi_start.back();
+				ty_minmax[0] = -txy_relmax * txi_start.back();//Calculate the range of the y-distance based on the maximum x-distance
 				ty_minmax[1] = txy_relmax * txi_start.back();
-				double tmp = -tx_minmax[0];
+				double tmp = -tx_minmax[0];//Negate to make sure that the reference camera is the left camera (x-component of translation vector must be negative)
 				tx_minmax[0] = -tx_minmax[1];
 				tx_minmax[1] = tmp;
-				initStarVal(rand_generator, ty_minmax, tyi_start);
+				initStarVal(rand_generator, ty_minmax, tyi_start);//Generate a random value or range (chosen ramdomly) between ranges (smaller or equal than for x) for the distance in y
 				//tyi_start.push_back(-0.5);//REMOVE
 				//tyi_start.push_back(0.5);//REMOVE
 
@@ -479,7 +480,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 				}
 			}
 		}
-		else
+		else //Complete random alignment (x- and y-direction of translation vector) of the stereo cameras without any restrictions about relations between x and y translation
 		{
 			tx_minmax[0] = -tx_minmax[1];
 			ty_minmax[0] = -ty_minmax[1];
@@ -487,14 +488,16 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 			initStarVal(rand_generator, ty_minmax, tyi_start);
 		}
 
+		//Calculate maximum z-distance between cameras based on maximum x- and y-distance (z-distance must be smaller)
 		double tzr = tz_relxymax * std::max(abs(txi_start.back()), abs(tyi_start.back()));
 		double tz_minmax[2];
 		tz_minmax[0] = -tzr;
 		tz_minmax[1] = tzr;
-		initStarVal(rand_generator, tz_minmax, tzi_start);
-		initStarVal(rand_generator, roll_minmax, rolli_start);
-		initStarVal(rand_generator, pitch_minmax, pitchi_start);
-		initStarVal(rand_generator, yaw_minmax, yawi_start);
+		initStarVal(rand_generator, tz_minmax, tzi_start); //Calculate value or range (chosen ramdomly) for the z-distance
+
+		initStarVal(rand_generator, roll_minmax, rolli_start); //Calculate value or range (chosen ramdomly) for the roll
+		initStarVal(rand_generator, pitch_minmax, pitchi_start); //Calculate value or range (chosen ramdomly) for the pitch
+		initStarVal(rand_generator, yaw_minmax, yawi_start); //Calculate value or range (chosen ramdomly) for the yaw
 
 		//tzi_start.push_back(0.02);//REMOVE
 		//rolli_start.push_back(-15.0);//REMOVE
@@ -510,6 +513,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		std::vector<std::vector<double>> pitch;
 		std::vector<std::vector<double>> yaw;
 
+		//Store the initial values or ranges of the extrinsics in the vector that holds the configurations of every of the nrCams stereo configurations
 		tx.push_back(txi_start);
 		ty.push_back(tyi_start);
 		tz.push_back(tzi_start);
@@ -517,6 +521,8 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		pitch.push_back(pitchi_start);
 		yaw.push_back(yawi_start);
 
+		//Generate the remaining ranges (or values) of extrinsics for the other stereo camera configurations
+		//The other ranges must be within the maximum specified ranges and are only allowed to deviate from the initial calculated ranges (..._start) by a relative value (..._minmax_change)
 		for (int i = 1; i < nrCams; i++)
 		{
 			vector<double> txi, tyi, tzi, rolli, pitchi, yawi;
@@ -524,15 +530,17 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 			bool cngTxy = false;
 			while (txi.empty() || ((wrongsignCnt < 100) && cngTxy))
 			{
-				if (tx_equRanges)
+				if (tx_equRanges)//If true, the tx value or range stays the same for all stereo camera configurations
 					txi = txi_start;
 				else
-					initRangeVals(rand_generator, tx_minmax, tx_minmax_change, txi_start, txi);
-				if (ty_equRanges)
+					initRangeVals(rand_generator, tx_minmax, tx_minmax_change, txi_start, txi);//Calculate the new range or value based on the first range (within maximum specified range tx_minmax)
+				if (ty_equRanges)//If true, the ty value or range stays the same for all stereo camera configurations
 					tyi = tyi_start;
 				else
-					initRangeVals(rand_generator, ty_minmax, ty_minmax_change, tyi_start, tyi);
+					initRangeVals(rand_generator, ty_minmax, ty_minmax_change, tyi_start, tyi);//Calculate the new range or value based on the first range (within maximum specified range ty_minmax)
 
+				//Check if the largest absolute x- or y-value (from x-,y-values and/or ranges) is negative to ensure that the reference camera is the top or left camera
+				//This is necessary, as all optimization algorithms (im LM) are based on this assumption
 				double maxX, maxY;
 				if (txi.size() > 1)
 				{
@@ -570,7 +578,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 				if (((abs(maxX) >= abs(maxY)) && (maxX > 0)) ||
 					((abs(maxY) >= abs(maxX)) && (maxY > 0)))
 				{
-					cngTxy = true;
+					cngTxy = true;//Try again if the reference camera is not the top or left camera
 					txi.clear();
 					tyi.clear();
 				}
@@ -580,25 +588,27 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 				}
 				wrongsignCnt++;
 			}
-			if (cngTxy)
+			if (cngTxy)//Abort if no valid extrinsic values or ranges were created for this stereo configuration (reference camera must be top or left camera)
 				break;
-			if (tz_equRanges)
+
+			if (tz_equRanges)//If true, the tz value or range stays the same for all stereo camera configurations
 				tzi = tzi_start;
 			else
-				initRangeVals(rand_generator, tz_minmax, tz_minmax_change, tzi_start, tzi);
-			if (roll_equRanges)
+				initRangeVals(rand_generator, tz_minmax, tz_minmax_change, tzi_start, tzi);//Calculate the new range or value based on the first range (within maximum specified range tz_minmax)
+			if (roll_equRanges)//If true, the roll value or range stays the same for all stereo camera configurations
 				rolli = rolli_start;
 			else
-				initRangeVals(rand_generator, roll_minmax, roll_minmax_change, rolli_start, rolli);
-			if (pitch_equRanges)
+				initRangeVals(rand_generator, roll_minmax, roll_minmax_change, rolli_start, rolli);//Calculate the new range or value based on the first range (within maximum specified range roll_minmax)
+			if (pitch_equRanges) //If true, the pitch value or range stays the same for all stereo camera configurations
 				pitchi = pitchi_start;
 			else
-				initRangeVals(rand_generator, pitch_minmax, pitch_minmax_change, pitchi_start, pitchi);
-			if (yaw_equRanges)
+				initRangeVals(rand_generator, pitch_minmax, pitch_minmax_change, pitchi_start, pitchi);//Calculate the new range or value based on the first range (within maximum specified range pitch_minmax)
+			if (yaw_equRanges) //If true, the yaw value or range stays the same for all stereo camera configurations
 				yawi = yawi_start;
 			else
-				initRangeVals(rand_generator, yaw_minmax, yaw_minmax_change, yawi_start, yawi);
+				initRangeVals(rand_generator, yaw_minmax, yaw_minmax_change, yawi_start, yawi);//Calculate the new range or value based on the first range (within maximum specified range yaw_minmax)
 
+			//Add the new camera configuration to the vector that should hold all of them in the end
 			tx.push_back(txi);
 			ty.push_back(tyi);
 			tz.push_back(tzi);
@@ -607,15 +617,19 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 			yaw.push_back(yawi);
 		}
 
+		//If for one or more stereo configurations no valid configuration was found (reference camera must be top or left camera), skip this test
 		if (tx.size() < nrCams)
 			continue;
 
+		//Generate a random target image overlap between the stereo cameras that sould be present after LM optimization of the extrinsic parameters between the given ranges (that were generated above)
 		double approxImgOverlap = getRandDoubleVal(rand_generator, 0.2, 1.0);//0.1;
-		cv::Size imgSize = cv::Size(1280, 720);
+		cv::Size imgSize = cv::Size(1280, 720);//Select an image size (can be arbitrary)
 
+		//Calculate the extrinsic parameters for all given stereo configurations within the given ranges to achieve an image overlap nearest to the above generated value (in addition to a few other constraints)
 		GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw, approxImgOverlap, imgSize);
 		int err = newStereoPars.optimizeRtf(verbose);
 
+		//Write the results to std out
 		vector<cv::Mat> t_new;
 		Mat K;
 		vector<double> roll_new, pitch_new, yaw_new;
@@ -633,6 +647,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		}
 		cout << "**************************************************************************" << endl << endl;
 
+		//Generate a trajectory/image sequence using the above calculated stereo camera configurations
 		if ((err == 0) && genSequence)
 		{
 			std::vector<cv::Mat> Rv, tv;
@@ -654,11 +669,12 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	std::default_random_engine rand_generator(seed);
 
 	const int maxTrackElements = 100;
-	double closedLoopMaxXYRatioRange[2] = { 1.0, 30.0 }; //Multiplier range that specifies how much larger the expension of a track in x-direction can be compared to y. Only for closed loop.
-	double closedLoopMaxXZRatioRange[2] = { 0.001, 1.0 }; //Multiplier range that specifies how much smaller the expension of a track in z-direction can be compared to x. Only for closed loop.
-	double closedLoopMaxElevationAngleRange[2] = { 0, 3.14 / 16.0}; //Angle range for the z-component of the ellipsoide (must be in the range -pi/2 <= angle <= pi/2). Zero corresponds to an ellipsoide without changing z-value.
+	double closedLoopMaxXYRatioRange[2] = { 1.0, 30.0 }; //Multiplier range that specifies how much larger the expension of a track in x-direction can be compared to y (y = x / value from this range).
+	double closedLoopMaxXZRatioRange[2] = { 0.001, 1.0 }; //Multiplier range that specifies how much smaller/larger the expension of a track in z-direction can be compared to x.
+	double closedLoopMaxElevationAngleRange[2] = { 0, 3.14 / 16.0}; //Only for closed loop. Angle range for the z-component (y in the camera coordinate system) of the ellipsoide (must be in the range -pi/2 <= angle <= pi/2). For a fixed angle, it defines the ellipse on the ellipsoide with a fixed value of z (y in the camera coordinate system).
+	const bool enableFlightMode = false; //Only for closed loop. If enabled, the elevation angle teta of the ellipsoide is continuously changed within the range closedLoopMaxElevationAngleRange to get different height values (z-component of ellipsoide (y in the camera coordinate system)) along the track
 
-	size_t nFramesPerCamConf = 5;
+	size_t nFramesPerCamConf = 5;//Number of consecutive frames on a track with the same stereo configuration
 
 	double minInlierRange[2] = { 0.1, 0.5 };//Range of the minimum inlier ratio
 	double maxInlierRange[2] = { 0.55, 1.0 };//Range of the maximum inlier ratio bounded by minInlierRange
@@ -666,71 +682,80 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	size_t minNrInlierRange[2] = { 1, 50 };//Range of the minimum number of true positive correspondences
 	size_t maxNrInlierRange[2] = { 100, 10000 };//Range of the maximum number of true positive correspondences
 
-	double minKeypDistRange[2] = { 1.0, 99.0 };//Range of the minimum distance between keypoints
+	double minKeypDistRange[2] = { 1.0, 10.0 };//Range of the minimum distance between keypoints
 
 	size_t MaxNrDepthAreasPReg = 30;//Maximum number of depth areas per image region
 
 	double relCamVelocityRange[2] = { 0.1, 5.0 };//Relative camera velocity compared to the basline length
 
-	double rollRange[2] = { -3.0, 3.0 };//Roll angle for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
-	double pitchRange[2] = { -10.0, 10.0 };//Roll angle for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
-	double yawRange[2] = { -2.0, 2.0 };//Roll angle for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+	double rollRange[2] = { -3.0, 3.0 };//Roll angle (x-axis) for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+	double pitchRange[2] = { -10.0, 10.0 };//Pitch angle (y-axis) for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
+	double yawRange[2] = { -2.0, 2.0 };//Yaw angle (z-axis) for the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
 
-	double minRelAreaRangeMovObjsRange[2] = { 0, 0.1 };//Range of the lower border of the relative area range of moving objects. Area range relative to the image area at the beginning.
-	double maxRelAreaRangeMovObjsRange[2] = { 0.15, 0.99 };//Range of the upper border of the relative area range of moving objects. Area range relative to the image area at the beginning.
+	double minRelAreaRangeMovObjsRange[2] = { 0, 0.1 };//Range of the lower border of the relative area range of moving objects. Minimum area range of moving objects relative to the image area at the beginning (when a moving object is first introduced).
+	double maxRelAreaRangeMovObjsRange[2] = { 0.15, 0.99 };//Range of the upper border of the relative area range of moving objects. Maximum area range of moving objects relative to the image area at the beginning (when a moving object is first introduced).
 
-	double minRelVelocityMovObj = 0.1;//Maximum relative object velocity compared to camera velocity
+	double minRelVelocityMovObj = 0.1;//Minimum relative object velocity compared to camera velocity
 	double maxRelVelocityMovObj = 20.0;//Maximum relative object velocity compared to camera velocity
 
-	double minPortionMovObj = 0.1;//Minimal portion of used image areas by moving objects
-	double maxPortionMovObj = 0.85;//Maximal portion of used image areas by moving objects
+	double minPortionMovObj = 0.1;//Minimal portion of used correspondences by moving objects
+	double maxPortionMovObj = 0.85;//Maximal portion of used correspondences by moving objects
 
 	//Generate a random camera track
 	int closedLoop = rand() % 2;
 	int staticCamMovement = rand() % 2;
 	int nrTrackElements = rand() % maxTrackElements + 1;
+	if (nrTrackElements == 1)
+		staticCamMovement = 1;
 	std::vector<cv::Mat> camTrack;
 	if ((closedLoop == 0) || (staticCamMovement == 1))
 	{
 		double xy, xz;
 		Mat tr1 = Mat(3, 1, CV_64FC1);
+		//Generate a random camera movement vector based on the ranges given. The scaling is not important. The scaling and track segments for every image pair are caluclated within the class genStereoSequ 
 		tr1.at<double>(0) = 1.0;
 		xy = getRandDoubleVal(rand_generator, closedLoopMaxXYRatioRange[0], closedLoopMaxXYRatioRange[1]);
 		xz = getRandDoubleVal(rand_generator, closedLoopMaxXZRatioRange[0], closedLoopMaxXZRatioRange[1]);
 		tr1.at<double>(1) = 1.0 / xy;
 		tr1.at<double>(2) = xz;
 		camTrack.push_back(tr1.clone());
-		if (staticCamMovement != 1)
+		if (staticCamMovement != 1)//Add more track segments (ignoring scale of the whole track). Otherwise, the first generated vector defines the not changing direction of the track.
 		{
 			std::normal_distribution<double> distributionNX2(1.0, 0.25);
 			for (int i = 0; i < nrTrackElements; i++)
 			{
 				xy = getRandDoubleVal(rand_generator, closedLoopMaxXYRatioRange[0], closedLoopMaxXYRatioRange[1]);
 				xz = getRandDoubleVal(rand_generator, closedLoopMaxXZRatioRange[0], closedLoopMaxXZRatioRange[1]);
-				tr1.at<double>(0) *= distributionNX2(rand_generator);
-				tr1.at<double>(1) = (2.0 * (tr1.at<double>(1) * distributionNX2(rand_generator)) + tr1.at<double>(0) / xy) / 3.0;
-				tr1.at<double>(2) = (2.0 * (tr1.at<double>(2) * distributionNX2(rand_generator)) + tr1.at<double>(0) * xz) / 3.0;
+				tr1.at<double>(0) *= distributionNX2(rand_generator);//New x-direction depends on old x-direction
+				tr1.at<double>(1) = (2.0 * (tr1.at<double>(1) * distributionNX2(rand_generator)) + tr1.at<double>(0) / xy) / 3.0;//New y-direction mainly depends on old y-direction but also on a random part which depends on the x-direction
+				tr1.at<double>(2) = (2.0 * (tr1.at<double>(2) * distributionNX2(rand_generator)) + tr1.at<double>(0) * xz) / 3.0;//New z-direction mainly depends on old z-direction but also on a random part which depends on the x-direction
 				camTrack.push_back(tr1.clone());
 			}
 		}
 	}
-	else
+	else //Track with loop closure (last track position is near the first but not the same)
 	{
 		//Take an ellipsoide with random parameters
 		double b, a = 1.0, c, ab, ac;
 		b = a / getRandDoubleVal(rand_generator, closedLoopMaxXYRatioRange[0], closedLoopMaxXYRatioRange[1]);
 		c = a * getRandDoubleVal(rand_generator, closedLoopMaxXZRatioRange[0], closedLoopMaxXZRatioRange[1]);
-		double teta = getRandDoubleVal(rand_generator, closedLoopMaxElevationAngleRange[0], closedLoopMaxElevationAngleRange[1]);
-		double phiPiece = (2.0 * std::_Pi - std::_Pi / (double)(10 * maxTrackElements))/ (double)nrTrackElements;
-		camTrack.push_back(Mat::zeros(3, 1, CV_64FC1));
-		double phi = phiPiece;
+		double tmp1 = getRandDoubleVal(rand_generator, closedLoopMaxElevationAngleRange[0], closedLoopMaxElevationAngleRange[1]);
+		double tmp2 = getRandDoubleVal(rand_generator, closedLoopMaxElevationAngleRange[0], closedLoopMaxElevationAngleRange[1]);
+		double theta = min(tmp1, tmp2);
+		double theta2 = max(tmp1, tmp2);
+		double thetaPiece = (theta2 - theta) / (double)(nrTrackElements - 1);//Variation in height from one track element to the next based on the angle theta. Only used in enableFlightMode.
+		double phiPiece = (2.0 * std::_Pi - std::_Pi / (double)(10 * maxTrackElements))/ (double)(nrTrackElements - 1);//The track is nearly a loop closure (phi from 0 to nearly 2 pi)
+		//camTrack.push_back(Mat::zeros(3, 1, CV_64FC1));
+		double phi = 0;// phiPiece;
 		for (int i = 0; i < nrTrackElements; i++)
 		{
 			Mat tr1 = Mat(3, 1, CV_64FC1);
-			tr1.at<double>(0) = a * cos(teta) * cos(phi);
-			tr1.at<double>(1) = b * cos(teta) * sin(phi);
-			tr1.at<double>(2) = c * sin(teta);
+			tr1.at<double>(0) = a * cos(theta) * cos(phi);
+			tr1.at<double>(2) = b * cos(theta) * sin(phi);
+			tr1.at<double>(1) = c * sin(theta);
 			phi += phiPiece;
+			if (enableFlightMode)
+				theta += thetaPiece;
 			camTrack.push_back(tr1.clone());
 		}
 	}
@@ -738,12 +763,12 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	int onlyOneInlierRat = rand() % 2;
 	//Inlier ratio range
 	std::pair<double, double> inlRatRange;
-	if (onlyOneInlierRat == 0)
+	if (onlyOneInlierRat == 0)//Generate a random inlier ratio range within a given range for the image pairs
 	{
 		inlRatRange = std::make_pair(getRandDoubleVal(rand_generator, minInlierRange[0], minInlierRange[1]), 1.0);
 		inlRatRange.second = getRandDoubleVal(rand_generator, max(inlRatRange.first + 0.01, maxInlierRange[0]), max(min(inlRatRange.first + 0.02, 1.0), maxInlierRange[1]));
 	}
-	else
+	else//Only 1 fixed inlier ratio over all image pairs
 	{
 		inlRatRange = std::make_pair(getRandDoubleVal(rand_generator, minInlierRange[0], maxInlierRange[1]), 1.0);
 		inlRatRange.second = inlRatRange.first;
@@ -752,7 +777,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	int inlChangeRate = rand() % 3;
 	//Inlier ratio change rate from pair to pair. If 0, the inlier ratio within the given range is always the same for every image pair. 
 	//If 100, the inlier ratio is chosen completely random within the given range.
-	//For values between 0 and 100, the inlier ratio selected is not allowed to change more than this factor from the last inlier ratio.
+	//For values between 0 and 100, the inlier ratio selected is not allowed to change more than this factor (not percentage) from the last inlier ratio.
 	double inlRatChanges = 0;
 	if (inlChangeRate == 1)
 	{
@@ -807,21 +832,24 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	depthPortion corrsPerDepth = depthPortion(getRandDoubleVal(rand_generator, 0, 1.0), getRandDoubleVal(rand_generator, 0, 1.0), getRandDoubleVal(rand_generator, 0, 1.0));
 
 	int useMultcorrsPerRegion = rand() % 3;
-	//List of portions of image correspondences at regions (Matrix must be 3x3). Maybe doesnt hold: Also depends on 3D-points from prior frames.
+	//List of portions of image correspondences at regions (Matrix must be 3x3). This is the desired distribution of features in the image. Maybe doesnt hold: Also depends on 3D-points from prior frames.
 	std::vector<cv::Mat> corrsPerRegion;
-	if (useMultcorrsPerRegion == 1)
+	//If useMultcorrsPerRegion==0, the portions are randomly initialized. There are as many matrices generated as the number of image pairs divided by corrsPerRegRepRate
+	if (useMultcorrsPerRegion == 1)//The same correspondence distribution over the image is used for all image pairs
 	{
 		cv::Mat corrsPReg(3, 3, CV_64FC1);
 		cv::randu(corrsPReg, Scalar(0), Scalar(1.0));
+		corrsPReg /= sum(corrsPReg)[0];
 		corrsPerRegion.push_back(corrsPReg.clone());
 	}
-	else if (useMultcorrsPerRegion == 2)
+	else if (useMultcorrsPerRegion == 2)//Generates a random number (between 1 and the maximum number of image pairs) of different correspondence distributions
 	{
 		int nr_elems = rand() % (int)(nFramesPerCamConf * Rv.size() - 1) + 1;
 		for (int i = 0; i < nr_elems; i++)
 		{
 			cv::Mat corrsPReg(3, 3, CV_64FC1);
 			cv::randu(corrsPReg, Scalar(0), Scalar(1.0));
+			corrsPReg /= sum(corrsPReg)[0];
 			corrsPerRegion.push_back(corrsPReg.clone());
 		}
 	}
@@ -839,6 +867,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	int depthsPerRegionEmpty = rand() % 2;
 	//Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, the portion of near, mid, and far depths can be specified. If the overall depth definition is not met, this tensor is adapted.Maybe doesnt hold: Also depends on 3D - points from prior frames.
 	std::vector<std::vector<depthPortion>> depthsPerRegion;
+	//If depthsPerRegionEmpty==1, depthsPerRegion is initialized randomly within class genStereoSequ
 	if (depthsPerRegionEmpty == 0)
 	{
 		depthsPerRegion.resize(3, std::vector<depthPortion>(3));
@@ -853,8 +882,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 
 	int nrDepthAreasPRegEmpty = rand() % 2;
 	//Min and Max number of connected depth areas per region (must be 3x3). The minimum number (first) must be larger 0. 
-	//The maximum number is bounded by the minimum area which is 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
+	//The maximum number is bounded by a minimum area of 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
 	std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg;
+	//if nrDepthAreasPRegEmpty==1, nrDepthAreasPReg is initialized randomly within class genStereoSequ
 	if (nrDepthAreasPRegEmpty == 0)
 	{
 		nrDepthAreasPReg.resize(3, std::vector<std::pair<size_t, size_t>>(3));
@@ -872,8 +902,8 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 		}
 	}
 
-	//Functionality not imlemented:
-	double lostCorrPor;
+	//Functionality not implemented:
+	double lostCorrPor = 0;
 	//end
 
 	//Relative velocity of the camera movement (value between 0 and 10; must be larger 0). The velocity is relative to the baseline length between the stereo cameras
@@ -891,6 +921,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	int startPosMovObjsEmpty = rand() % 2;
 	//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 	cv::Mat startPosMovObjs;
+	//if startPosMovObjsEmpty==1, nrDepthAreasPReg is initialized randomly within class genStereoSequ
 	if (startPosMovObjsEmpty == 0)
 	{
 		startPosMovObjs = Mat(3, 3, CV_8UC1);
@@ -909,17 +940,17 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 
 	int movObjDepthVersion = rand() % 4;
 	//Depth of moving objects. Moving objects are always visible and not covered by other static objects. 
-	//If the number of paramters is 1, this depth is used for every object. 
+	//If the number of paramters is 1, this depth class (near, mid, or far) is used for every object. 
 	//If the number of paramters is equal "nrMovObjs", the corresponding depth is used for every object. 
 	//If the number of parameters is smaller and between 2 and 3, the depths for the moving objects are selected uniformly distributed from the given depths. 
 	//For a number of paramters larger 3 and unequal to "nrMovObjs", a portion for every depth that should be used can be defined 
 	//(e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
 	std::vector<depthClass> movObjDepth;
-	if (movObjDepthVersion == 0)
+	if (movObjDepthVersion == 0)//Use the same random depth for every moving object
 	{
 		movObjDepth.push_back(getRandDepthClass());
 	}
-	if (movObjDepthVersion == 1)
+	if (movObjDepthVersion == 1)//Use a random depth for every moving object
 	{
 		movObjDepth.resize(nrMovObjs);
 		for (size_t i = 0; i < nrMovObjs; i++)
@@ -927,7 +958,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 			movObjDepth[i] = getRandDepthClass();
 		}
 	}
-	else if (movObjDepthVersion == 2)
+	else if (movObjDepthVersion == 2)//Specify 2 or 3 random depth classes that are used by every moving object (uniformly distributed)
 	{
 		int nrClasses = max(min((rand() % 2) + 2, (int)nrMovObjs - 1), 1);
 		for (int i = 0; i < nrClasses; i++)
@@ -935,7 +966,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 			movObjDepth.push_back(getRandDepthClass());
 		}
 	}
-	else
+	else//Generates a random distribution of the 3 depth classes which is used to select a depth class for a moving object
 	{
 		int nrClasses = rand() % 1000 + 1;
 		for (int i = 0; i < nrClasses; i++)
@@ -945,8 +976,8 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	}
 
 	int movObjDirEmpty = rand() % 2;
-	//Movement direction of moving objects relative to camera movementm (must be 3x1). 
-	//The movement direction is linear and does not change if the movement direction of the camera changes.The moving object is removed, if it is no longer visible in both stereo cameras.
+	//Movement direction of moving objects relative to camera movement (must be 3x1). 
+	//The movement direction is linear and does not change if the movement direction of the camera changes. The moving object is removed, if it is no longer visible in both stereo cameras.
 	cv::Mat movObjDir;
 	if (movObjDirEmpty == 0)
 	{
