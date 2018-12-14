@@ -217,7 +217,7 @@ public:
 
 private:
 	void constructCamPath();
-	cv::Mat getTrackRot(cv::Mat tdiff);
+	cv::Mat getTrackRot(cv::Mat tdiff, cv::InputArray R_old = cv::noArray());
 	void genMasks();
 	bool getDepthRanges();
 	void adaptDepthsPerRegion();
@@ -425,5 +425,13 @@ void deleteVecEntriesbyIdx(std::vector<T, A> &editVec, std::vector<T1, A1> const
 
 template<typename T, typename A>
 void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const& delVec, bool rowOrder);
+
+/*Rounds a rotation matrix to its nearest integer values and checks if it is still a rotation matrix and does not change more than 22.5deg from the original rotation matrix.
+As an option, the error of the rounded rotation matrix can be compared to an angular difference of a second given rotation matrix R_fixed to R_old.
+The rotation matrix with the smaller angular difference is selected.
+This function is used to select a proper rotation matrix if the "look at" and "up vector" are nearly equal. I trys to find the nearest rotation matrix aligened to the
+"look at" vector taking into account the rotation matrix calculated from the old/last "look at" vector
+*/
+bool roundR(cv::Mat R_old, cv::Mat & R_round, cv::InputArray R_fixed = cv::noArray());
 
 /* -------------------------- Functions -------------------------- */

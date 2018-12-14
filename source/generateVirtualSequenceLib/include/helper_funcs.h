@@ -62,6 +62,30 @@ bool solveLinEqu(cv::Mat& A, cv::Mat& b, cv::Mat& x);
 //Converts a (Rotation) matrix to a (Rotation) quaternion
 void MatToQuat(const Eigen::Matrix3d & rot, Eigen::Vector4d & quat);
 
+//Checks if a 3x3 matrix is a rotation matrix
+bool isMatRotationMat(cv::Mat R);
+
+//Checks if a 3x3 matrix is a rotation matrix
+bool isMatRotationMat(Eigen::Matrix3d R);
+
+//Calculates the difference (roation angle) between two rotation quaternions.
+double rotDiff(Eigen::Vector4d & R1, Eigen::Vector4d & R2);
+
+//Calculates the difference (roation angle) between two rotation matrices.
+double rotDiff(cv::Mat R1, cv::Mat R2);
+
+//Calculates the product of a quaternion and a conjugated quaternion.
+void quatMultConj(const Eigen::Vector4d & Q1, const Eigen::Vector4d & Q2, Eigen::Vector4d & Qres);
+
+//Normalizes the provided quaternion.
+void quatNormalise(Eigen::Vector4d & Q);
+
+//Calculates the angle of a quaternion.
+double quatAngle(Eigen::Vector4d & Q);
+
+//Round every entry of a matrix to its nearest integer
+cv::Mat roundMat(cv::Mat m);
+
 /* -------------------------- Functions -------------------------- */
 
 //Checks, if determinants, etc. are too close to 0

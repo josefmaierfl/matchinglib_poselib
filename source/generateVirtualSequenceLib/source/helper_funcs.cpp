@@ -19,6 +19,10 @@ DISCRIPTION: This file provides some helper functions.
 #include "helper_funcs.h"
 #include <chrono>
 #include <time.h>
+#define _USE_MATH_DEFINES
+#include <math.h>
+
+#include <opencv2/core/eigen.hpp>
 
 using namespace std;
 using namespace cv;
@@ -255,4 +259,145 @@ void MatToQuat(const Eigen::Matrix3d & rot, Eigen::Vector4d & quat) {
 	quat(1) = m_afTuple[1];
 	quat(2) = m_afTuple[2];
 	quat(3) = m_afTuple[3];
+}
+
+/* Checks if a 3x3 matrix is a rotation matrix
+*
+* cv::Mat R				Input  -> Rotation matrix
+*
+* Return:				true or false
+*/
+bool isMatRotationMat(cv::Mat R)
+{
+	CV_Assert(!R.empty());
+
+	Eigen::Matrix3d Re;
+	cv::cv2eigen(R, Re);
+
+	return isMatRotationMat(Re);
+}
+
+/* Checks if a 3x3 matrix is a rotation matrix
+*
+* Matrix3d R			Input  -> Rotation matrix
+*
+* Return:				true or false
+*/
+bool isMatRotationMat(Eigen::Matrix3d R)
+{
+	//Check if R is a rotation matrix
+	Eigen::Matrix3d R_check = (R.transpose() * R) - Eigen::Matrix3d::Identity();
+	double r_det = R.determinant() - 1.0;
+
+	return R_check.isZero(1e-3) && nearZero(r_det);
+}
+
+/* Calculates the difference (roation angle) between two rotation matrices.
+*
+* Mat R1	Input  -> First rotation matrix
+* Mat R2	Input  -> Second rotation matrix
+*
+* Return value:			Rotation angle (from Angle-axis-representation) between the two rotations
+*/
+double rotDiff(cv::Mat R1, cv::Mat R2)
+{
+	Eigen::Matrix3d R1e, R2e;
+	Eigen::Vector4d q1, q2;
+	cv::cv2eigen(R1, R1e);
+	cv::cv2eigen(R2, R2e);
+
+	MatToQuat(R1e, q1);
+	MatToQuat(R2e, q2);
+
+	return rotDiff(q1, q2);
+}
+
+/* Calculates the difference (roation angle) between two rotation quaternions.
+*
+* Eigen::Vector4d R1	Input  -> First rotation quaternion
+* Eigen::Vector4d R2	Input  -> Second rotation quaternion
+*
+* Return value:			Rotation angle (from Angle-axis-representation) between the two rotations
+*/
+double rotDiff(Eigen::Vector4d & R1, Eigen::Vector4d & R2)
+{
+	Eigen::Vector4d Rdiff1;
+	quatMultConj(R1, R2, Rdiff1);
+	quatNormalise(Rdiff1);
+	return quatAngle(Rdiff1);
+}
+
+/* Calculates the product of a quaternion and a conjugated quaternion. This is used e.g. to calculate the
+* angular difference between two rotation quaternions
+*
+* Eigen::Vector4d Q1				Input  -> The first quaternion in the form [w,x,y,z]
+* Eigen::Vector4d Q2				Input  -> The second quaternion in the form [w,x,y,z]
+* Eigen::Vector4d & Qres			Output -> The resulting quaternion in the form [w,x,y,z]
+*
+* Return value:					none
+*/
+void quatMultConj(const Eigen::Vector4d & Q1, const Eigen::Vector4d & Q2, Eigen::Vector4d & Qres)
+{
+	//v(4)=dotproduct(a,quatConj(b));
+	//v.rows(1,3)=crossproduct(a_vec,b_vec)   +   a(4)*b_vec    +   b(4)*a_vec;
+
+	Qres(1) = ((Q1(3) * Q2(2) - Q1(2) * Q2(3)) - Q1(0) * Q2(1)) + Q2(0) * Q1(1);
+	Qres(2) = ((Q1(1) * Q2(3) - Q1(3) * Q2(1)) - Q1(0) * Q2(2)) + Q2(0) * Q1(2);
+	Qres(3) = ((Q1(2) * Q2(1) - Q1(1) * Q2(2)) - Q1(0) * Q2(3)) + Q2(0) * Q1(3);
+
+	Qres(0) = Q1(1) * Q2(1) + Q1(2) * Q2(2) + Q1(3) * Q2(3) + Q1(0) * Q2(0); //just dot prod
+}
+
+/* Normalizes the provided quaternion.
+*
+* Eigen::Vector4d Q1				Input & Output  -> A quaternion in the form [w,x,y,z] must be provided.
+*													   The normalized quaternion is also returned here.
+*
+* Return value:					none
+*/
+void quatNormalise(Eigen::Vector4d & Q)
+{
+	double length = Q(0) * Q(0) + Q(1) * Q(1) + Q(2) * Q(2) + Q(3) * Q(3);
+	double check = length - 1;
+	if (check > 0.0000001 || check < -0.0000001) {
+		double scale = 1.0 / sqrt(length);
+		Q(0) *= scale;
+		Q(1) *= scale;
+		Q(2) *= scale;
+		Q(3) *= scale;
+	}
+}
+
+/* Calculates the angle of a quaternion.
+*
+* Eigen::Vector4d Q1				Input  -> Quaternion in the form [w,x,y,z]
+*
+* Return value:					The angle in RAD.
+*/
+double quatAngle(Eigen::Vector4d & Q)
+{
+	double cosAng = fabs(Q(0));
+	if (cosAng > 1.0) cosAng = 1.0;
+	double ang = 2 * acos(cosAng);
+	if (ang < 0)
+		cout << "acos returning val less than 0" << endl;
+	//if(isnan(ang))
+	//	cout << "acos returning nan" << endl;
+	if (ang > M_PI) ang -= 2 * M_PI;
+	return ang;
+}
+
+/* Rounds every entry of the matrix to the nearest integer
+*
+* Mat m				Input -> A floating point matrix
+*
+* Return value:		Rounded floating point matrix
+*/
+cv::Mat roundMat(cv::Mat m)
+{
+	Mat tmp, tmp1;
+	m.convertTo(tmp, CV_32S, 1.0, 0.5);
+	tmp.convertTo(tmp1, m.type());
+
+	return tmp1;
 }

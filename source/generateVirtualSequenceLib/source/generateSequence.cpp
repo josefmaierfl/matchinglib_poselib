@@ -490,7 +490,9 @@ void genStereoSequ::constructCamPath()
 		}
 
 		//Get camera positions
-		Mat R1 = R0 * getTrackRot(diffTrack[0]);
+		Mat R_track = getTrackRot(diffTrack[0]);
+		Mat R_track_old = R_track.clone();
+		Mat R1 = R0 * R_track;
 		absCamCoordinates[0] = Poses(R1.clone(), t1.clone());
 		double actDiffLength = 0;
 		size_t actTrackNr = 0, lastTrackNr = 0;
@@ -519,7 +521,9 @@ void genStereoSequ::constructCamPath()
 			}
 			multTracks += (absCamVelocity - usedLength) * diffTrack[lastTrackNr] / tdiffNorms[lastTrackNr];
 
-			R1 = R0 * getTrackRot(diffTrack[lastTrackNr]);
+			R_track = getTrackRot(diffTrack[lastTrackNr], R_track_old);
+			R_track_old = R_track.clone();
+			R1 = R0 * R_track;
 			t1 += multTracks;
 			absCamCoordinates[i] = Poses(R1.clone(), t1.clone());
 			actDiffLength -= absCamVelocity;
@@ -527,42 +531,111 @@ void genStereoSequ::constructCamPath()
 	}
 }
 
-/*Calculates a rotation for every differential vector of a track segment to ensure that the camera looks always in the direction perpendicular to the track segment.
-* If the track segment equals the x-axis, the camera faces into positive z-direction (if the initial rotaion equals the identity).
+/*Calculates a rotation for every differential vector of a track segment to ensure that the camera looks always in the direction of the track segment.
+* If the track segment equals the x-axis, the camera faces into positive x-direction (if the initial rotaion equals the identity).
+* The y axis always points down as the up vector is defined as [0,-1,0]. Thus, there is no roll in the camera rotation.
 */
-cv::Mat genStereoSequ::getTrackRot(cv::Mat tdiff)
+cv::Mat genStereoSequ::getTrackRot(cv::Mat tdiff, cv::InputArray R_old)
 {
 	CV_Assert((tdiff.rows == 3) && (tdiff.cols == 1) && (tdiff.type() == CV_64FC1));
 
+	Mat R_C2W = Mat::eye(3, 3, CV_64FC1);
+
 	if (nearZero(cv::norm(tdiff)))
-		return Mat::eye(3, 3, CV_64FC1);
+		return R_C2W;
 
 	tdiff /= norm(tdiff);
 
-	//Calculate a rotation to tranform into the yz-plane
-	double cy2 = tdiff.at<double>(0) * tdiff.at<double>(0) + tdiff.at<double>(2) * tdiff.at<double>(2);
-	double cy = sqrt(cy2);
-	double cosy = tdiff.at<double>(0) / cy;
-	double siny = tdiff.at<double>(2) / cy;
+	Mat Rold;
+	if (!R_old.empty())
+		Rold = R_old.getMat();
 
-	Mat Ry = (Mat_<double>(3, 3) <<//Rotation about y-axis
-		cosy, 0, siny,
-		0, 1.0, 0,
-		-siny, 0, cosy);
+	
+	//Define up-vector as global -y axis
+	Mat world_up = (Mat_<double>(3, 1) << 0, -1, 0);
+	world_up /= norm(world_up);
 
-	//Calculate a rotation to get aligned with the z-axis
-	double cz = sqrt(cy2 + tdiff.at<double>(1) * tdiff.at<double>(1));
-	double cosz = cy / cz;
-	double sinz = -1.0 * tdiff.at<double>(1) / cz;
+	if (nearZero(cv::sum(tdiff - world_up)[0]))
+	{
+		R_C2W = (Mat_<double>(3, 1) << 1.0, 0, 0,
+			0, 0, -1.0,
+			0, 1.0, 0);
+		if (!Rold.empty())
+		{
+			Mat Rr;
+			if (roundR(Rold, Rr, R_C2W))
+			{
+				R_C2W = Rr;
+			}
+		}
+	}
+	else if (nearZero(cv::sum(tdiff + world_up)[0]))
+	{
+		R_C2W = (Mat_<double>(3, 1) << 1.0, 0, 0,
+			0, 0, 1.0,
+			0, -1.0, 0);
+		if (!Rold.empty())
+		{
+			Mat Rr;
+			if (roundR(Rold, Rr, R_C2W))
+			{
+				R_C2W = Rr;
+			}
+		}
+	}
+	else
+	{
+		//Get local axis that is perpendicular to up-vector and look-at vector (new x axis) -> to prevent roll
+		Mat xa = tdiff.cross(world_up);
+		xa /= norm(xa);
+		//Get local axis that is perpendicular to new x-axis and look-at vector (new y axis)
+		Mat ya = tdiff.cross(xa);
+		ya /= norm(ya);
 
-	Mat Rz = (Mat_<double>(3, 3) <<//Rotation about z-axis
-		cosz, -sinz, 0,
-		sinz, cosz, 0,
-		0, 0, 1.0);
+		//Build the rotation matrix (camera to world: x_world = R_C2W * x_local + t) by stacking the normalized axis vectors as columns of R=[x,y,z]
+		xa.copyTo(R_C2W.col(0));
+		ya.copyTo(R_C2W.col(1));
+		tdiff.copyTo(R_C2W.col(2));
+	}
 
-	Mat Rt_W2C = Rz * Ry;//Rotation from world to camera
+	return R_C2W;//return rotation from camera to world
+}
 
-	return Rt_W2C.t();//return rotation from camera to world
+/*Rounds a rotation matrix to its nearest integer values and checks if it is still a rotation matrix and does not change more than 22.5deg from the original rotation matrix.
+As an option, the error of the rounded rotation matrix can be compared to an angular difference of a second given rotation matrix R_fixed to R_old. 
+The rotation matrix with the smaller angular difference is selected.
+This function is used to select a proper rotation matrix if the "look at" and "up vector" are nearly equal. I trys to find the nearest rotation matrix aligened to the
+"look at" vector taking into account the rotation matrix calculated from the old/last "look at" vector
+*/
+bool roundR(cv::Mat R_old, cv::Mat & R_round, cv::InputArray R_fixed)
+{
+	R_round = roundMat(R_old);
+	if (!isMatRotationMat(R_round))
+	{
+		return false;
+	}
+
+	double rd = abs(RAD2DEG(rotDiff(R_old, R_round)));
+	double rfd = 360.0;
+
+	if (!R_fixed.empty())
+	{
+		Mat Rf = R_fixed.getMat();
+		rfd = abs(RAD2DEG(rotDiff(Rf, R_old)));
+
+		if (rfd < rd)
+		{
+			Rf.copyTo(R_round);
+			return true;
+		}
+	}
+
+	if (rd < 22.5)
+	{
+		return true;
+	}
+	
+	return false;
 }
 
 //Calculate the thresholds for the depths near, mid, and far for every camera configuration
