@@ -420,7 +420,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		double tx_minmax[2] = { 0.1, 5.0 };
 		double ty_minmax[2] = { 0, 5.0 };
 
-		int nrCams = std::rand() % 10 + 1;//1 //Number of different stereo camera configurations (extrinsic) per test
+		int nrCams = 2;// std::rand() % 10 + 1;//1 //Number of different stereo camera configurations (extrinsic) per test
 
 		//Calculate, for which extrinsic (tx, ty, tz, roll, ...) its value or range should remain the same for all nrCams different stereo camera configuratuions
 		int roll_equRanges = (std::rand() % 2) & (std::rand() % 2);
@@ -433,7 +433,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		vector<double> txi_start, tyi_start, tzi_start, rolli_start, pitchi_start, yawi_start;
 		if (!testGenericAlignment)//If restrictions apply for the relative distances between cameras in x and y in a specific camera alignment (horizontal or vertical)
 		{
-			int align = rand() % 2;//0 //Choose either vertical or horizontal camera alignment
+			int align = 0;// rand() % 2;//0 //Choose either vertical or horizontal camera alignment
 			if (align)//Vertical camera alignment
 			{
 				initStarVal(rand_generator, ty_minmax, tyi_start);//Generate a random value or range (chosen ramdomly) between ranges for the distance in y

@@ -287,6 +287,7 @@ private:
 	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize = false);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
+	void visualizeCamPath();
 
 private:
 	std::default_random_engine rand_gen;

@@ -26,6 +26,10 @@ a view restrictions like depth ranges, moving objects, ...
 #include "pcl/common/transforms.h"
 #include "pcl/filters/voxel_grid_occlusion_estimation.h"
 
+#include <boost/thread/thread.hpp>
+//#include <pcl/io/pcd_io.h>
+#include <pcl/visualization/pcl_visualizer.h>
+
 
 using namespace std;
 using namespace cv;
@@ -529,6 +533,8 @@ void genStereoSequ::constructCamPath()
 			actDiffLength -= absCamVelocity;
 		}
 	}
+
+	visualizeCamPath();
 }
 
 /*Calculates a rotation for every differential vector of a track segment to ensure that the camera looks always in the direction of the track segment.
@@ -636,6 +642,37 @@ bool roundR(cv::Mat R_old, cv::Mat & R_round, cv::InputArray R_fixed)
 	}
 	
 	return false;
+}
+
+void genStereoSequ::visualizeCamPath()
+{
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+	viewer->setBackgroundColor(0, 0, 0);
+	viewer->addCoordinateSystem(5.0);
+
+	Eigen::Affine3f m;
+	m.setIdentity();
+	for (auto i : absCamCoordinates)
+	{
+		Eigen::Vector3d te;
+		Eigen::Matrix3d Re;
+		cv::cv2eigen(i.R, Re);
+		cv::cv2eigen(i.t, te);
+		m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
+		m.matrix().block<3, 1>(0, 3) = te.cast<float>();
+		viewer->addCoordinateSystem(1.0, m);		
+	}
+
+	viewer->initCameraParameters();
+
+	//--------------------
+	// -----Main loop-----
+	//--------------------
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
 }
 
 //Calculate the thresholds for the depths near, mid, and far for every camera configuration

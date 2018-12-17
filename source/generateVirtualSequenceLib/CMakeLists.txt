@@ -42,6 +42,7 @@ endif()
 if(WIN32)
 	set(PCL_DIR "C:/work/THIRDPARTY/pcl-1.8.1/pcl-1.8.1-dl/PCL 1.8.1/cmake/")
 	find_package(PCL 1.8 REQUIRED)# COMPONENTS common filters)
+	#find_package(PCL 1.8 REQUIRED COMPONENTS common filters visualization)
 else()
 	find_package(PCL 1.8 REQUIRED)
 endif()
@@ -244,6 +245,8 @@ target_link_libraries(${target}
 	${PCL_FILTERS_LIBRARIES}
 	${PCL_GEOMETRY_LIBRARIES}
 	${PCL_SEGMENTATION_LIBRARIES}
+	#${PCL_STEREO_LIBRARIES}
+	${PCL_VISUALIZATION_LIBRARIES}
 
     INTERFACE
 )
