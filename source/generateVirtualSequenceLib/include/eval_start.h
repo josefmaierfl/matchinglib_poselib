@@ -9,7 +9,7 @@
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -20,7 +20,7 @@
 #pragma once
 
 #include "glob_includes.h"
-#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
+#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
 

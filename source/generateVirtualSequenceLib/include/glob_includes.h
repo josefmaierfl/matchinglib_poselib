@@ -9,7 +9,7 @@
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -24,5 +24,6 @@
 #include <stdlib.h>
 #include <vector>
 //#include <cmath>
+#define _USE_MATH_DEFINES
 #include <math.h>       /* isnan, sqrt */
 #include <utility>

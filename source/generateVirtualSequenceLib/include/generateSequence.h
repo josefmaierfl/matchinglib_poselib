@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: March 2018
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -27,7 +27,7 @@ a view restrictions like depth ranges, moving objects, ...
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 
-#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
+#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
 
@@ -255,7 +255,7 @@ private:
 	inline double getDepthFuncVal(std::vector<double> &pars1, double x, double y);
 	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
 	void getKeypoints();
-	int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
+	int32_t genTrueNegCorrs(int32_t nrTN,
 		std::uniform_int_distribution<int32_t> &distributionX,
 		std::uniform_int_distribution<int32_t> &distributionY,
 		std::uniform_int_distribution<int32_t> &distributionX2,

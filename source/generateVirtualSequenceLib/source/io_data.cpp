@@ -9,7 +9,7 @@
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -21,7 +21,7 @@
 
 //#include "..\include\glob_includes.h"
 #include "io_data.h"
-#include "atlstr.h"
+//#include "atlstr.h"
 #include <stdint.h>
 #include <fstream>
 #include "dirent.h"

@@ -6,13 +6,13 @@
 #option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." ON)
 
 if(WIN32)
-if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-endif()
-#if("$ENV{PFELIBROOT}" STREQUAL "")
-	#message(ERROR "Not able to build lib: Root of pfelib not found! set PFELIBROOT")
-#endif()
-include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
+	  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
+	endif()
+	#if("$ENV{PFELIBROOT}" STREQUAL "")
+		#message(ERROR "Not able to build lib: Root of pfelib not found! set PFELIBROOT")
+	#endif()
+	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 endif()
 
 #Eigen is included in PCL:
@@ -26,14 +26,14 @@ endif()
 find_package(Eigen REQUIRED)
 
 if("${OpenCV_DIR}" STREQUAL "")
-    message(STATUS "could not find any opencv dir trying fallback")
+    message(STATUS "could not find any opencv dir. Trying fallback")
     if(WIN32)
       # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
       # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
 	  find_package(OpenCV 3.2 REQUIRED)
     else()
-      set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
-      find_package(OpenCV REQUIRED)
+      #set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
+      find_package(OpenCV 3.2 REQUIRED)
     endif()
 else()
     find_package(OpenCV 3.2 REQUIRED)
@@ -52,7 +52,9 @@ if(PCL_FOUND)
 	message(STATUS "PCL Version: ${PCL_VERSION}")
 endif()
 
-find_package(Nanoflann REQUIRED)
+#find_package(Nanoflann REQUIRED)
+SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
+
 #find_package(Flann REQUIRED)
 
 #find_package(OpenMP)
@@ -112,11 +114,11 @@ set(export_macro "${target_upper}_API")
 set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")#/${target}")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
-file(GLOB_RECURSE header_files
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.inl"
-)
+#file(GLOB_RECURSE header_files
+#  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+#  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+#  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.inl"
+#)
 set(headers
 #    ${include_path}/test.h
 	#${include_path}/getStereoCameraExtr.h
@@ -156,7 +158,7 @@ source_group_by_path(${source_path}  "\\\\.cpp$|\\\\.c$|\\\\.h$|\\\\.hpp$"
 add_library(${target}
     ${sources}
     ${headers}
-    ${header_files}
+    #${header_files}
 )
 
 # Create namespaced alias
@@ -196,16 +198,18 @@ set_target_properties(${target}
 #
 # Include directories
 #
+message(${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
+	${Nanoflann_INCLUDE_DIR}
+
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
     #${FLANN_INCLUDE_DIRS}
-    ${Nanoflann_INCLUDE_DIR}
     #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
@@ -247,6 +251,7 @@ target_link_libraries(${target}
 	${PCL_SEGMENTATION_LIBRARIES}
 	#${PCL_STEREO_LIBRARIES}
 	${PCL_VISUALIZATION_LIBRARIES}
+	#Eigen
 
     INTERFACE
 )

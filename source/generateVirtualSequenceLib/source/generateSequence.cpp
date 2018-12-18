@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: March 2018
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -5487,8 +5487,8 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
 {
 	pcl::FrustumCulling<pcl::PointXYZ> fc;
 	fc.setInputCloud(cloudIn);
-	fc.setVerticalFOV(2.f * 180.f * std::atan((float)imgSize.height / (2.f * (float)K1.at<double>(1,1))) / (float)std::_Pi);
-	fc.setHorizontalFOV(2.f * 180.f * std::atan((float)imgSize.width / (2.f * (float)K1.at<double>(0, 0))) / (float)std::_Pi);
+	fc.setVerticalFOV(2.f * 180.f * std::atan((float)imgSize.height / (2.f * (float)K1.at<double>(1,1))) / (float)M_PI);
+	fc.setHorizontalFOV(2.f * 180.f * std::atan((float)imgSize.width / (2.f * (float)K1.at<double>(0, 0))) / (float)M_PI);
 	fc.setNearPlaneDistance((float)actDepthNear);
 	fc.setFarPlaneDistance((float)(maxFarDistMultiplier * actDepthFar));
 	fc.setCameraPose(actCamPose);

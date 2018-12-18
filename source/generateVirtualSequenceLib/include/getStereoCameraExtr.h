@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: February 2018
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -25,7 +25,7 @@ overlap area ratio between the views and some restrictions on the camera paramet
 #include <stdexcept>
 #include <random>
 
-#include "generateVirtualSequenceLib\generateVirtualSequenceLib_api.h"
+#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
 

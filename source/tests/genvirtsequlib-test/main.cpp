@@ -744,7 +744,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 		double theta = min(tmp1, tmp2);
 		double theta2 = max(tmp1, tmp2);
 		double thetaPiece = (theta2 - theta) / (double)(nrTrackElements - 1);//Variation in height from one track element to the next based on the angle theta. Only used in enableFlightMode.
-		double phiPiece = (2.0 * std::_Pi - std::_Pi / (double)(10 * maxTrackElements))/ (double)(nrTrackElements - 1);//The track is nearly a loop closure (phi from 0 to nearly 2 pi)
+		double phiPiece = (2.0 * M_PI - M_PI / (double)(10 * maxTrackElements))/ (double)(nrTrackElements - 1);//The track is nearly a loop closure (phi from 0 to nearly 2 pi)
 		//camTrack.push_back(Mat::zeros(3, 1, CV_64FC1));
 		double phi = 0;// phiPiece;
 		for (int i = 0; i < nrTrackElements; i++)
@@ -911,9 +911,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 
 	//Rotation matrix of the first camera centre.
 	//This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
-	cv::Mat R = eulerAnglesToRotationMatrix(getRandDoubleVal(rand_generator, rollRange[0], rollRange[1]) * std::_Pi / 180.0, 
-		getRandDoubleVal(rand_generator, pitchRange[0], pitchRange[1]) * std::_Pi / 180.0, 
-		getRandDoubleVal(rand_generator, yawRange[0], yawRange[1]) * std::_Pi / 180.0);
+	cv::Mat R = eulerAnglesToRotationMatrix(getRandDoubleVal(rand_generator, rollRange[0], rollRange[1]) * M_PI / 180.0, 
+		getRandDoubleVal(rand_generator, pitchRange[0], pitchRange[1]) * M_PI / 180.0, 
+		getRandDoubleVal(rand_generator, yawRange[0], yawRange[1]) * M_PI / 180.0);
 
 	//Number of moving objects in the scene
 	size_t nrMovObjs = (size_t)rand() % 20;

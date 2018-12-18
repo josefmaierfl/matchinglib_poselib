@@ -1,0 +1,7 @@
+build*
+install*
+*~
+CMakeLists.txt.user
+3rdparty/flann*
+3rdparty/libkdtree*
+3rdparty/fastann*
