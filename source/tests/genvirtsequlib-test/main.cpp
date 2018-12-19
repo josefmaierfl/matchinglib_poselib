@@ -729,7 +729,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 				tr1.at<double>(0) *= distributionNX2(rand_generator);//New x-direction depends on old x-direction
 				tr1.at<double>(1) = (2.0 * (tr1.at<double>(1) * distributionNX2(rand_generator)) + tr1.at<double>(0) / xy) / 3.0;//New y-direction mainly depends on old y-direction but also on a random part which depends on the x-direction
 				tr1.at<double>(2) = (2.0 * (tr1.at<double>(2) * distributionNX2(rand_generator)) + tr1.at<double>(0) * xz) / 3.0;//New z-direction mainly depends on old z-direction but also on a random part which depends on the x-direction
-				camTrack.push_back(tr1.clone());
+				camTrack.push_back(camTrack.back() + tr1);
 			}
 		}
 	}
@@ -1031,12 +1031,12 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 		nrDepthAreasPReg,
 		//lostCorrPor,
 		relCamVelocity,
-		R,
+		R.clone(),
 		nrMovObjs,
-		startPosMovObjs,
+		startPosMovObjs.clone(),
 		relAreaRangeMovObjs,
 		movObjDepth,
-		movObjDir,
+		movObjDir.clone(),
 		relMovObjVelRange,
 		minMovObjCorrPortion,
 		CorrMovObjPort,

@@ -40,7 +40,7 @@ using namespace cv;
 
 /* -------------------------- Functions -------------------------- */
 
-genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::vector<cv::Mat> R_, std::vector<cv::Mat> t_, StereoSequParameters pars_) :
+genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::vector<cv::Mat> R_, std::vector<cv::Mat> t_, StereoSequParameters & pars_) :
 	imgSize(imgSize_), K1(K1_), K2(K2_), R(R_), t(t_), pars(pars_)
 {
 	CV_Assert((K1.rows == 3) && (K2.rows == 3) && (K1.cols == 3) && (K2.cols == 3) && (K1.type() == CV_64FC1) && (K2.type() == CV_64FC1));
@@ -94,7 +94,7 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 	//Calculate the initial number, size, and positions of moving objects in the image
 	getNrSizePosMovObj();
 
-	//Get the relative movement direction (comperd to the camera movement) for every moving object
+	//Get the relative movement direction (compared to the camera movement) for every moving object
 	checkMovObjDirection();
 }
 
@@ -453,7 +453,7 @@ void genStereoSequ::constructCamPath()
 	if (pars.R.empty())
 		R0 = Mat::eye(3, 3, CV_64FC1);
 	else
-		R0 = pars.R.getMat();
+		R0 = pars.R;
 	Mat t1 = Mat::zeros(3, 1, CV_64FC1);
 	if (nrTracks == 1)
 	{
@@ -470,14 +470,14 @@ void genStereoSequ::constructCamPath()
 	else
 	{
 		//Get differential vectors of the path and the overall path length
-		vector<Mat> diffTrack = vector<Mat>(nrTracks);
-		vector<double> tdiffNorms = vector<double>(nrTracks);
-		double trackNormSum = norm(pars.camTrack[0]);
-		diffTrack[0] = pars.camTrack[0].clone();// / trackNormSum;
-		tdiffNorms[0] = trackNormSum;
-		for (size_t i = 1; i < nrTracks; i++)
+		vector<Mat> diffTrack = vector<Mat>(nrTracks-1);
+		vector<double> tdiffNorms = vector<double>(nrTracks-1);
+		double trackNormSum = 0;//norm(pars.camTrack[0]);
+//		diffTrack[0] = pars.camTrack[0].clone();// / trackNormSum;
+//		tdiffNorms[0] = trackNormSum;
+		for (size_t i = 0; i < nrTracks - 1; i++)
 		{
-			Mat tdiff = pars.camTrack[i] - pars.camTrack[i - 1];
+			Mat tdiff = pars.camTrack[i + 1] - pars.camTrack[i];
 			double tdiffnorm = norm(tdiff);
 			trackNormSum += tdiffnorm;
 			diffTrack[i] = tdiff.clone();// / tdiffnorm;
@@ -485,9 +485,9 @@ void genStereoSequ::constructCamPath()
 		}
 
 		//Calculate a new scaling for the path based on the original path length, total number of frames and camera velocity
-		double trackScale = (double)totalNrFrames * absCamVelocity / trackNormSum;
+		double trackScale = (double)(totalNrFrames - 1) * absCamVelocity / trackNormSum;
 		//Rescale track diffs
-		for (size_t i = 0; i < nrTracks; i++)
+		for (size_t i = 0; i < nrTracks - 1; i++)
 		{
 			diffTrack[i] *= trackScale;
 			tdiffNorms[i] *= trackScale;
@@ -497,6 +497,8 @@ void genStereoSequ::constructCamPath()
 		Mat R_track = getTrackRot(diffTrack[0]);
 		Mat R_track_old = R_track.clone();
 		Mat R1 = R0 * R_track;
+		pars.camTrack[0].copyTo(t1);
+		t1 *= trackScale;
 		absCamCoordinates[0] = Poses(R1.clone(), t1.clone());
 		double actDiffLength = 0;
 		size_t actTrackNr = 0, lastTrackNr = 0;
@@ -505,7 +507,7 @@ void genStereoSequ::constructCamPath()
 			bool firstAdd = true;
 			Mat multTracks = Mat::zeros(3, 1, CV_64FC1);
 			double usedLength = 0;
-			while ((actDiffLength < absCamVelocity) && (actTrackNr < nrTracks))
+			while ((actDiffLength < (absCamVelocity - DBL_EPSILON)) && (actTrackNr < (nrTracks - 1)))
 			{
 				if (firstAdd)
 				{
@@ -3221,7 +3223,7 @@ void genStereoSequ::getNrSizePosMovObj()
 	}
 	else
 	{
-		startPosMovObjs = pars.startPosMovObjs.getMat();
+		startPosMovObjs = pars.startPosMovObjs;
 	}
 
 	//Check, if the input paramters are valid and if not, adapt them
@@ -5329,7 +5331,7 @@ void genStereoSequ::transMovObjPtsToWorld()
 	}
 }
 
-//Get the relative movement direction (comperd to the camera movement) for every moving object
+//Get the relative movement direction (compared to the camera movement) for every moving object
 void genStereoSequ::checkMovObjDirection()
 {
 	if (pars.movObjDir.empty())
@@ -5341,7 +5343,7 @@ void genStereoSequ::checkMovObjDirection()
 	}
 	else
 	{
-		movObjDir = pars.movObjDir.getMat();
+		movObjDir = pars.movObjDir;
 		movObjDir /= norm(movObjDir);
 	}
 }

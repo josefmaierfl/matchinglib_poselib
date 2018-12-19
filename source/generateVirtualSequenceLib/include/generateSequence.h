@@ -123,12 +123,12 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		//lostCorrPor(lostCorrPor_),
 		camTrack(camTrack_),
 		relCamVelocity(relCamVelocity_),
-		R(R_),
+//		R(R_),
 		nrMovObjs(nrMovObjs_),
-		startPosMovObjs(startPosMovObjs_),
+//		startPosMovObjs(startPosMovObjs_),
 		relAreaRangeMovObjs(relAreaRangeMovObjs_),
 		movObjDepth(movObjDepth_),
-		movObjDir(movObjDir_),
+//		movObjDir(movObjDir_),
 		relMovObjVelRange(relMovObjVelRange_),
 		minMovObjCorrPortion(minMovObjCorrPortion_),
 		CorrMovObjPort(CorrMovObjPort_),
@@ -150,15 +150,22 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 
 		CV_Assert(!camTrack.empty() && (camTrack[0].rows == 3) && (camTrack[0].cols == 1) && (camTrack[0].type() == CV_64FC1));
 		CV_Assert((relCamVelocity > 0) && (relCamVelocity <= 10.0));
-		CV_Assert(R.empty() || ((R.rows() == 3) && (R.cols() == 3) && (R.type() == CV_64FC1)));
+		CV_Assert(R_.empty() || ((R_.getMat().rows == 3) && (R_.getMat().cols == 3) && (R_.type() == CV_64FC1)));
 		CV_Assert(nrMovObjs < 20);
-		CV_Assert(startPosMovObjs.empty() || ((startPosMovObjs.rows() == 3) && (startPosMovObjs.cols() == 3) && (startPosMovObjs.type() == CV_8UC1)));
+		CV_Assert(startPosMovObjs_.empty() || ((startPosMovObjs_.getMat().rows == 3) && (startPosMovObjs_.getMat().cols == 3) && (startPosMovObjs_.type() == CV_8UC1)));
 		CV_Assert((relAreaRangeMovObjs.first <= 1.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 1.0) && (relAreaRangeMovObjs.second > 0) && (relAreaRangeMovObjs.first <= relAreaRangeMovObjs.second));
-		CV_Assert(movObjDir.empty() || ((movObjDir.rows() == 3) && (movObjDir.cols() == 1) && (movObjDir.type() == CV_64FC1)));
+		CV_Assert(movObjDir_.empty() || ((movObjDir_.getMat().rows == 3) && (movObjDir_.getMat().cols == 1) && (movObjDir_.type() == CV_64FC1)));
 		CV_Assert((relMovObjVelRange.first < 100.0) && (relAreaRangeMovObjs.first >= 0) && (relAreaRangeMovObjs.second <= 100.0) && (relAreaRangeMovObjs.second > 0));
 		CV_Assert((minMovObjCorrPortion <= 1.0) && (minMovObjCorrPortion >= 0));
 		CV_Assert((CorrMovObjPort > 0) && (CorrMovObjPort <= 1.0));
 		CV_Assert(minNrMovObjs <= nrMovObjs);
+
+		if(!R_.empty())
+		    R = R_.getMat();
+        if(!startPosMovObjs_.empty())
+            startPosMovObjs = startPosMovObjs_.getMat();
+        if(!movObjDir_.empty())
+            movObjDir = movObjDir_.getMat();
 	}
 
 	//Parameters for generating correspondences
@@ -181,12 +188,12 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 	//Paramters for camera and object movements
 	std::vector<cv::Mat> camTrack;//Movement direction or track of the cameras (Mat must be 3x1). If 1 vector: Direction in the form [tx, ty, tz]. If more vectors: absolute position edges on a track.  The scaling of the track is calculated using the velocity information(The last frame is located at the last edge); tz is the main viewing direction of the first camera which can be changed using the rotation vector for the camera centre.The camera rotation during movement is based on the relative movement direction(like a fixed stereo rig mounted on a car).
 	double relCamVelocity;//Relative velocity of the camera movement (value between 0 and 10; must be larger 0). The velocity is relative to the baseline length between the stereo cameras
-	cv::InputArray R;//Rotation matrix of the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera. Rotation matrix must be generated using the form R_y * R_z * R_x.
+	cv::Mat R;//Rotation matrix of the first camera centre. This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera. Rotation matrix must be generated using the form R_y * R_z * R_x.
 	size_t nrMovObjs;//Number of moving objects in the scene
-	cv::InputArray startPosMovObjs;//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
+	cv::Mat startPosMovObjs;//Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 	std::pair<double, double> relAreaRangeMovObjs;//Relative area range of moving objects. Area range relative to the image area at the beginning.
 	std::vector<depthClass> movObjDepth;//Depth of moving objects. Moving objects are always visible and not covered by other static objects. If the number of paramters is 1, this depth is used for every object. If the number of paramters is equal "nrMovObjs", the corresponding depth is used for every object. If the number of parameters is smaller and between 2 and 3, the depths for the moving objects are selected uniformly distributed from the given depths. For a number of paramters larger 3 and unequal to "nrMovObjs", a portion for every depth that should be used can be defined (e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
-	cv::InputArray movObjDir;//Movement direction of moving objects relative to camera movementm (must be 3x1). The movement direction is linear and does not change if the movement direction of the camera changes.The moving object is removed, if it is no longer visible in both stereo cameras.
+	cv::Mat movObjDir;//Movement direction of moving objects relative to camera movementm (must be 3x1). The movement direction is linear and does not change if the movement direction of the camera changes.The moving object is removed, if it is no longer visible in both stereo cameras.
 	std::pair<double, double> relMovObjVelRange;//Relative velocity range of moving objects based on relative camera velocity. Values between 0 and 100; Must be larger 0;
 	double minMovObjCorrPortion;//Minimal portion of correspondences on moving objects for removing them. If the portion of visible correspondences drops below this value, the whole moving object is removed. Zero means, that the moving object is only removed if there is no visible correspondence in the stereo pair. One means, that a single missing correspondence leads to deletion. Values between 0 and 1;
 	double CorrMovObjPort;//Portion of correspondences on moving object (compared to static objects). It is limited by the size of the objects visible in the images and the minimal distance between correspondences.
@@ -212,7 +219,7 @@ struct Poses
 class GENERATEVIRTUALSEQUENCELIB_API genStereoSequ
 {
 public:
-	genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::vector<cv::Mat> R_, std::vector<cv::Mat> t_, StereoSequParameters pars_);
+	genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::vector<cv::Mat> R_, std::vector<cv::Mat> t_, StereoSequParameters & pars_);
 	void startCalc();
 
 private:
