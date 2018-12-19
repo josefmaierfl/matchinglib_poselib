@@ -669,8 +669,8 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	std::default_random_engine rand_generator(seed);
 
 	const int maxTrackElements = 100;
-	double closedLoopMaxXYRatioRange[2] = { 1.0, 30.0 }; //Multiplier range that specifies how much larger the expension of a track in x-direction can be compared to y (y = x / value from this range).
-	double closedLoopMaxXZRatioRange[2] = { 0.001, 1.0 }; //Multiplier range that specifies how much smaller/larger the expension of a track in z-direction can be compared to x.
+	double closedLoopMaxXYRatioRange[2] = { 1.0, 3.0 }; //Multiplier range that specifies how much larger the expension of a track in x-direction can be compared to y (y = x / value from this range).
+	double closedLoopMaxXZRatioRange[2] = { 0.1, 1.0 }; //Multiplier range that specifies how much smaller/larger the expension of a track in z-direction can be compared to x.
 	double closedLoopMaxElevationAngleRange[2] = { 0, 3.14 / 16.0}; //Only for closed loop. Angle range for the z-component (y in the camera coordinate system) of the ellipsoide (must be in the range -pi/2 <= angle <= pi/2). For a fixed angle, it defines the ellipse on the ellipsoide with a fixed value of z (y in the camera coordinate system).
 	const bool enableFlightMode = false; //Only for closed loop. If enabled, the elevation angle teta of the ellipsoide is continuously changed within the range closedLoopMaxElevationAngleRange to get different height values (z-component of ellipsoide (y in the camera coordinate system)) along the track
 

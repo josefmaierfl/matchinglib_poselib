@@ -23,6 +23,7 @@ a view restrictions like depth ranges, moving objects, ...
 #include "helper_funcs.h"
 #include "opencv2/highgui/highgui.hpp"
 #include <random>
+#include <exception>
 
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -215,6 +216,19 @@ struct Poses
 
 
 /* --------------------------- Classes --------------------------- */
+
+class SequenceException : public std::exception
+{
+    std::string _msg;
+
+public:
+    SequenceException(const std::string &msg) : _msg(msg) {}
+
+    virtual const char *what() const noexcept override
+    {
+        return _msg.c_str();
+    }
+};
 
 class GENERATEVIRTUALSEQUENCELIB_API genStereoSequ
 {

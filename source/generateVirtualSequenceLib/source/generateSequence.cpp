@@ -62,7 +62,10 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::v
 	constructCamPath();
 
 	//Calculate the thresholds for the depths near, mid, and far for every camera configuration
-	getDepthRanges();
+	if(!getDepthRanges())
+    {
+	    throw SequenceException("Depth ranges are negative!\n");
+    }
 
 	//Used inlier ratios
 	genInlierRatios();
@@ -187,7 +190,10 @@ bool genStereoSequ::initFracCorrImgReg()
 				{
 					newCorrsPerRegion.at<int32_t>(pos)--;
 					chkSize--;
-				}
+				} /*else
+                {
+				    cout << "Zero corrs in region " << pos << "of frame " << i << endl;
+                }*/
 			} while (chkSize > 0);
 		}
 		else if (chkSize < 0)
@@ -291,7 +297,10 @@ bool genStereoSequ::initFracCorrImgReg()
 				{
 					negsReg.at<int32_t>(pos)--;
 					chkSize--;
-				}
+				} /*else
+                {
+                    cout << "Zero neg corrs in region " << pos << "of frame " << i << endl;
+                }*/
 			} while (chkSize > 0);
 		}
 		else if (chkSize < 0)
@@ -333,6 +342,10 @@ void genStereoSequ::genNrCorrsImg()
 	nrTrueNeg.resize(totalNrFrames);
 	if ((pars.truePosRange.second - pars.truePosRange.first) == 0)
 	{
+	    if(pars.truePosRange.first == 0)
+        {
+	        throw SequenceException("Number of true positives specified 0 for all frames - nothing can be generated!\n");
+        }
 		nrTruePos.resize(totalNrFrames, pars.truePosRange.first);
 		for (size_t i = 0; i < totalNrFrames; i++)
 		{
@@ -346,7 +359,7 @@ void genStereoSequ::genNrCorrsImg()
 	}
 	else
 	{
-		size_t initTruePos = (size_t)round(getRandDoubleValRng((double)pars.truePosRange.first, (double)pars.truePosRange.second));
+		size_t initTruePos = std::max((size_t)round(getRandDoubleValRng((double)pars.truePosRange.first, (double)pars.truePosRange.second)), (size_t)1);
 		if (nearZero(pars.truePosChanges))
 		{
 			nrTruePos.resize(totalNrFrames, initTruePos);
@@ -378,7 +391,8 @@ void genStereoSequ::genNrCorrsImg()
 				size_t rangeVal = (size_t)round(pars.truePosChanges * (double)nrTruePos[i - 1]);
 				size_t maxTruePos = nrTruePos[i - 1] + rangeVal;
 				maxTruePos = maxTruePos > pars.truePosRange.second ? pars.truePosRange.second : maxTruePos;
-				size_t minTruePos = nrTruePos[i - 1] - rangeVal;
+                int64_t minTruePos_ = (int64_t)nrTruePos[i - 1] - (int64_t)rangeVal;
+                size_t minTruePos = minTruePos_ < 0 ? 0:((size_t)minTruePos_);
 				minTruePos = minTruePos < pars.truePosRange.first ? pars.truePosRange.first : minTruePos;
 				std::uniform_int_distribution<size_t> distribution(minTruePos, maxTruePos);
 				nrTruePos[i] = distribution(rand_gen);
@@ -410,7 +424,7 @@ void genStereoSequ::genInlierRatios()
 			std::uniform_real_distribution<double> distribution(pars.inlRatRange.first, pars.inlRatRange.second);
 			for (size_t i = 0; i < totalNrFrames; i++)
 			{
-				inlRat[i] = distribution(rand_gen);
+				inlRat[i] = max(distribution(rand_gen), 0.01);
 			}
 		}
 		else
@@ -423,7 +437,7 @@ void genStereoSequ::genInlierRatios()
 				maxInlrat = maxInlrat > pars.inlRatRange.second ? pars.inlRatRange.second : maxInlrat;
 				double minInlrat = inlRat[i - 1] - pars.inlRatChanges * inlRat[i - 1];
 				minInlrat = minInlrat < pars.inlRatRange.first ? pars.inlRatRange.first : minInlrat;
-				inlRat[i] = getRandDoubleValRng(minInlrat, maxInlrat);
+				inlRat[i] = max(getRandDoubleValRng(minInlrat, maxInlrat), 0.01);
 			}
 		}
 	}
