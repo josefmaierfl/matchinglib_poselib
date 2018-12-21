@@ -19,6 +19,7 @@ a view restrictions like depth ranges, moving objects, ...
 
 #include "generateSequence.h"
 #include "opencv2/imgproc/imgproc.hpp"
+//#include <opencv2/imgcodecs.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <array>
 
@@ -845,7 +846,7 @@ void genStereoSequ::adaptDepthsPerRegion()
 			}
 		}
 		double c1 = pars.corrsPerDepth.mid - portSum;
-		if (!nearZero(10.0 * c1))
+		if (!nearZero(c1 / 10.0))
 		{
 			cout << "Adaption of depth fractions in regions failed!" << endl;
 		}
@@ -1133,7 +1134,7 @@ void genStereoSequ::checkDepthAreas()
 						if (diffap < 0)
 						{
 							int cnt = 0;
-							std::ptrdiff_t pdiff = max_element(maxAPRegd, maxAPRegd + 3) - maxAPRegd;
+							std::ptrdiff_t pdiff = min_element(maxAPRegd, maxAPRegd + 3) - maxAPRegd;
 							while ((diffap < 0) && (cnt < 3))
 							{
 								if (maxAPReg[pdiff] > 1)
@@ -1143,12 +1144,12 @@ void genStereoSequ::checkDepthAreas()
 								}
 								if (diffap < 0)
 								{
-									if ((maxAPReg[(pdiff + 1) % 3] > 1) && (maxAPRegd[(pdiff + 1) % 3] > maxAPRegd[(pdiff + 2) % 3]))
+									if ((maxAPReg[(pdiff + 1) % 3] > 1) && (maxAPRegd[(pdiff + 1) % 3] <= maxAPRegd[(pdiff + 2) % 3]))
 									{
 										maxAPReg[(pdiff + 1) % 3]--;
 										diffap++;
 									}
-									else if ((maxAPReg[(pdiff + 2) % 3] > 1) && (maxAPRegd[(pdiff + 2) % 3] > maxAPRegd[(pdiff + 1) % 3]))
+									else if ((maxAPReg[(pdiff + 2) % 3] > 1) && (maxAPRegd[(pdiff + 2) % 3] < maxAPRegd[(pdiff + 1) % 3]))
 									{
 										maxAPReg[(pdiff + 2) % 3]--;
 										diffap++;
@@ -1159,14 +1160,14 @@ void genStereoSequ::checkDepthAreas()
 						}
 						else
 						{
-							std::ptrdiff_t pdiff = min_element(maxAPRegd, maxAPRegd + 3) - maxAPRegd;
+							std::ptrdiff_t pdiff = max_element(maxAPRegd, maxAPRegd + 3) - maxAPRegd;
 							while (diffap > 0)
 							{
 								maxAPReg[pdiff]++;
 								diffap--;
 								if (diffap > 0)
 								{
-									if (maxAPRegd[(pdiff + 1) % 3] < maxAPRegd[(pdiff + 2) % 3])
+									if (maxAPRegd[(pdiff + 1) % 3] >= maxAPRegd[(pdiff + 2) % 3])
 									{
 										maxAPReg[(pdiff + 1) % 3]++;
 										diffap--;
@@ -2315,7 +2316,7 @@ void genStereoSequ::getRandDepthFuncPars(std::vector<std::vector<double>> &pars1
 unsigned char pixVal	In: Value assigned to the random pixel positions
 cv::Mat &imgD			In/Out: Image holding all depth ranges where the new random depth pixels should be added
 cv::Mat &imgSD			In/Out: Image holding only one specific depth range where the new random depth pixels should be added
-cv::Mat &mask			In: Mask for imgD and imgSD
+cv::Mat &mask			In: Mask for imgD and imgSD (marks backprojected moving objects (with a 1))
 cv::Point_<int32_t> &startpos		In: Start position (excluding this single location) from where to start adding new depth pixels
 cv::Point_<int32_t> &endpos			Out: End position where the last depth pixel was set
 int32_t &addArea		In/Out: Adds the number of newly inserted pixels to the given number
@@ -2341,22 +2342,88 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 	unsigned char &usedDilate)
 {
 	const size_t max_iter = 100;
+    //get possible directions for expanding (max. 8 possibilities) by checking the masks
 	vector<int32_t> directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1);
-	if (directions.empty() || (nrAdds > max_iter) || usedDilate)
+	if (directions.empty() || (nrAdds > max_iter) || usedDilate)//Dilate the label if no direction was found or there were already to many iterations
 	{
-		int siAfterDil = 0, strElmSi = 3, cnt = 0, maxCnt = 20;
+		int strElmSi = 3, cnt = 0, maxCnt = 20, strElmSiAdd = 0, strElmSiDir[2] = {0, 0};
+        int32_t siAfterDil = 0;
 		while ((siAfterDil == 0) && (cnt < maxCnt))
 		{
 			cnt++;
-			Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi, strElmSi));
+			Mat element;
+            int elSel = rand() % 3;
+            strElmSiAdd = rand() % 3;
+            strElmSiDir[0] = rand() % 2;
+            strElmSiDir[1] = rand() % 2;
+            switch (elSel)
+            {
+                case 0:
+                    element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi + strElmSiDir[0] * strElmSiAdd, strElmSi + strElmSiDir[1] * strElmSiAdd));
+                    break;
+                case 1:
+                    element = cv::getStructuringElement(MORPH_RECT, Size(strElmSi + strElmSiDir[0] * strElmSiAdd, strElmSi + strElmSiDir[1] * strElmSiAdd));
+                    break;
+                case 2:
+                    element = cv::getStructuringElement(MORPH_CROSS, Size(strElmSi + strElmSiDir[0] * strElmSiAdd, strElmSi + strElmSiDir[1] * strElmSiAdd));
+                    break;
+                default:
+                    element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi, strElmSi));
+                    break;
+            }
+
+
 			strElmSi++;
 			Mat imgSDdilate;
+
+            /*Mat dilImgTh2;
+            cv::threshold( imgSD(vROI), dilImgTh2, 0, 255,0 );
+            namedWindow( "Dilated2", WINDOW_AUTOSIZE );
+            imshow("Dilated2", dilImgTh2);
+            waitKey(0);
+            destroyWindow("Dilated2");*/
+
 			dilate(imgSD(vROI), imgSDdilate, element);
-			imgSDdilate &= mask(vROI) & ((imgD(vROI) == 0) | imgSD(vROI));
-			siAfterDil = sum(imgSDdilate)[0];
+//			imgSDdilate &= mask(vROI) & ((imgD(vROI) == 0) | imgSD(vROI));
+            imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | imgSD(vROI));
+
+            /*Mat dilImgTh3;
+            cv::threshold( imgSDdilate, dilImgTh3, 0, 255,0 );
+            namedWindow( "Dilated3", WINDOW_AUTOSIZE );
+            imshow("Dilated3", dilImgTh3);
+            waitKey(0);
+            destroyWindow("Dilated3");*/
+
+			siAfterDil = (int32_t)sum(imgSDdilate)[0];
+            static size_t visualizeMask = 0;
+            if(visualizeMask % 10 == 0)
+            {
+                Mat colorMapImg;
+                // Apply the colormap:
+                applyColorMap(imgD * 20, colorMapImg, cv::COLORMAP_RAINBOW);
+                namedWindow( "combined ObjLabels1", WINDOW_AUTOSIZE );
+                imshow("combined ObjLabels1", colorMapImg);
+
+                Mat dilImgTh;
+                cv::threshold( imgSDdilate, dilImgTh, 0, 255,0 );
+                namedWindow( "Dilated1", WINDOW_AUTOSIZE );
+                imshow("Dilated1", dilImgTh);
+
+                Mat onlyDil = (imgSDdilate ^ imgSD(vROI)) * 20 + imgSD(vROI);
+                applyColorMap(onlyDil, colorMapImg, cv::COLORMAP_HOT);
+                namedWindow( "Dilated", WINDOW_AUTOSIZE );
+                imshow("Dilated", onlyDil);
+
+                waitKey(0);
+                destroyWindow("combined ObjLabels1");
+                destroyWindow("Dilated");
+                destroyWindow("Dilated1");
+            }
+            visualizeMask++;
+
 			if (siAfterDil > maxAreaReg)
 			{
-				int diff = siAfterDil - maxAreaReg;
+				int32_t diff = siAfterDil - maxAreaReg;
 				imgSDdilate ^= imgSD(vROI);
 				for (int y = 0; y < vROI.height; y++)
 				{
@@ -2385,9 +2452,11 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 			else if (siAfterDil > 0)
 			{
 				imgSDdilate.copyTo(imgSD(vROI));
+                imgD(vROI) &= (imgSDdilate == 0);
 				imgSDdilate *= pixVal;
-				imgSDdilate.copyTo(imgD(vROI));
-				addArea += siAfterDil;
+                imgD(vROI) |= imgSDdilate;
+                //imgSDdilate.copyTo(imgD(vROI));
+				addArea = siAfterDil;
 				nrAdds++;
 				usedDilate = 1;
 
@@ -2437,6 +2506,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 		default:
 			break;
 		}
+		//Set the pixel
 		imgD.at<unsigned char>(endpos) = pixVal;
 		imgSD.at<unsigned char>(endpos) = 1;
 		addArea++;
@@ -2445,15 +2515,27 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 		{
 			return false;
 		}
+		//Add additional pixels in the local neighbourhood (other possible directions) of the actual added pixel
+		//and prevent adding new pixels in similar directions compared to the added one
 		vector<int32_t> extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1);
 		if (extension.size() > 1)//Check if we can add addition pixels without blocking the way for the next iteration
 		{
+            //Prevent adding additional pixels to the main direction and its immediate neighbor directions
 			int32_t noExt[3];
 			noExt[0] = (directions[diri] + 1) % 8;
 			noExt[1] = directions[diri];
 			noExt[2] = (directions[diri] + 7) % 8;
-			//Prevent adding additional pixels to the main direction and its immediate neighbor directions
-			for (int i = extension.size()-1; i >= 0; i--)
+            //vector<int32_t>::reverse_iterator itr = extension.rbegin();
+            for(vector<int32_t>::reverse_iterator itr = extension.rbegin(); itr != extension.rend(); itr++)
+            {
+                if ((*itr == noExt[0]) ||
+                    (*itr == noExt[1]) ||
+                    (*itr == noExt[2]))
+                {
+                    extension.erase(std::next(itr).base());
+                }
+            }
+			/*for (int i = extension.size()-1; i >= 0; i--)
 			{
 				if ((extension[i] == noExt[0]) ||
 					(extension[i] == noExt[1]) || 
@@ -2463,10 +2545,10 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 					if(i > 0)
 						i++;
 				}
-			}
+			}*/
 			if (extension.size() > 1)
 			{
-				//Choose a random number of additional pixels to add
+				//Choose a random number of additional pixels to add (based on possible directions of expansion)
 				int addsi = rand() % ((int)extension.size() + 1);
 				if (addsi)
 				{
@@ -2512,6 +2594,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 						default:
 							break;
 						}
+						//Set the pixel
 						imgD.at<unsigned char>(singleExt) = pixVal;
 						imgSD.at<unsigned char>(singleExt) = 1;
 						addArea++;
@@ -2558,17 +2641,17 @@ std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &s
 	if (atBorderX)
 	{
 		const unsigned char atBorderXn = ~atBorderX;
-		const unsigned char v1 = (atBorderXn & 0x1);
-		const unsigned char v2 = (atBorderXn & 0x2) + ((atBorderX & 0x2) >> 1);
+		const unsigned char v1 = (atBorderXn & 0x1);//results in 0x0 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
+		const unsigned char v2 = (atBorderXn & 0x2) + ((atBorderX & 0x2) >> 1);//results in 0x2 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
 		irx = Range(startpos.x - (int32_t)v1, startpos.x + (int32_t)v2);
-		drx = Range((int32_t)(~v1), 1 + (int32_t)v2);
+		drx = Range((int32_t)(~v1 & 0x1), 1 + (int32_t)v2);
 		if (atBorderY)
 		{ 
 			const unsigned char atBorderYn = ~atBorderY;
 			const unsigned char v3 = (atBorderYn & 0x1);
 			const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
 			iry = Range(startpos.y - (int32_t)v3, startpos.y + (int32_t)v4);
-			dry = Range((int32_t)(~v3), 1 + (int32_t)v4);
+			dry = Range((int32_t)(~v3 & 0x1), 1 + (int32_t)v4);
 		}
 		else
 		{
@@ -2579,9 +2662,12 @@ std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &s
 	else if (atBorderY)
 	{
 		unsigned char atBorderYn = ~atBorderY;
-		iry = Range(startpos.y - (atBorderYn & 0x1), startpos.y + (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1));
+        const unsigned char v3 = (atBorderYn & 0x1);
+        const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
+		iry = Range(startpos.y - (int32_t)v3, startpos.y + (int32_t)v4);
 		irx = Range(startpos.x - 1, startpos.x + 2);
 		drx = Range::all();
+        dry = Range((int32_t)(~v3 & 0x1), 1 + (int32_t)v4);
 	}
 	else
 	{
@@ -2591,7 +2677,8 @@ std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &s
 		dry = Range::all();
 	}
 
-	directions(dry, drx) &= (imgD(iry, irx) == 0) & mask(iry, irx) & regMask(iry, irx);
+//	directions(dry, drx) &= (imgD(iry, irx) == 0) & mask(iry, irx) & regMask(iry, irx);
+    directions(dry, drx) &= (imgD(iry, irx) == 0) & (mask(iry, irx) == 0) & regMask(iry, irx);
 
 	vector<int32_t> dirs;
 	for (int32_t i = 0; i < 9; i++)
@@ -3224,16 +3311,16 @@ void genStereoSequ::getNrSizePosMovObj()
 		return;
 	}
 
-	if (pars.startPosMovObjs.empty())
+	if (pars.startPosMovObjs.empty() || (cv::sum(pars.startPosMovObjs)[0] == 0))
 	{
 		startPosMovObjs = Mat::zeros(3, 3, CV_8UC1);
-		for (size_t y = 0; y < 3; y++)
-		{
-			for (size_t x = 0; x < 3; x++)
-			{
-				startPosMovObjs.at<unsigned char>(y, x) = (unsigned char)(rand() % 2);
-			}
-		}
+		while(cv::sum(startPosMovObjs)[0] == 0) {
+            for (size_t y = 0; y < 3; y++) {
+                for (size_t x = 0; x < 3; x++) {
+                    startPosMovObjs.at<unsigned char>(y, x) = (unsigned char) (rand() % 2);
+                }
+            }
+        }
 	}
 	else
 	{
@@ -3483,18 +3570,34 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 	size_t nr_movObj = areas.size();
 
 	movObjLabels.clear();
-	if(nr_movObj)
-		movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
+	if(nr_movObj) {
+        //movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
+        for (size_t i = 0; i < nr_movObj; i++)
+        {
+            movObjLabels.push_back(cv::Mat::zeros(imgSize, CV_8UC1));
+        }
+    }
 	combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
 	//Set seeding positions in mov. obj. label images
 	for (size_t i = 0; i < nr_movObj; i++)
 	{
 		movObjLabels[i].at<unsigned char>(seeds[i]) = 1;
-		combMovObjLabels.at<unsigned char>(seeds[i]) = (unsigned char)i;
+		combMovObjLabels.at<unsigned char>(seeds[i]) = (unsigned char)(i + 1);
 	}
 	Size siM1(imgSize.width - 1, imgSize.height - 1);
-	Rect imgArea = Rect(Point(0, 0), imgSize);
-	Mat regMask = cv::Mat::ones(imgSize, CV_8UC1);
+
+#define MOV_OBJ_ONLY_IN_REGIONS 0
+#if MOV_OBJ_ONLY_IN_REGIONS
+	vector<cv::Point_<int32_t>> objRegionIndices(nr_movObj);
+	for (size_t i = 0; i < nr_movObj; i++)
+    {
+        objRegionIndices[i].x = seeds[i].x / (imgSize.width / 3);
+        objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
+    }
+#else
+	Rect imgArea = Rect(Point(0, 0), imgSize);//Is also useless as it covers the whole image
+	Mat regMask = cv::Mat::ones(imgSize, CV_8UC1);//is currently not really used (should mark the areas where moving objects can grow)
+#endif
 	std::vector<cv::Point_<int32_t>> startposes = seeds;
 	vector<int32_t> actArea(nr_movObj, 1);
 	vector<size_t> nrIterations(nr_movObj, 0);
@@ -3503,24 +3606,33 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 	int remainObj = (int)nr_movObj;
 
 	//Generate labels
+    size_t visualizeMask = 0;
 	while (remainObj > 0)
 	{
 		for (size_t i = 0; i < nr_movObj; i++)
 		{
 			if (objNFinished[i])
 			{
-				if (!addAdditionalDepth((unsigned char)(i + convhullPtsObj.size() + 1),//Something is wrong with the mask <----------------------------------------------------
+				if (!addAdditionalDepth((unsigned char)(i + convhullPtsObj.size() + 1),
 					combMovObjLabels,
 					movObjLabels[i],
 					mask,
+#if MOV_OBJ_ONLY_IN_REGIONS
+					regmasks[objRegionIndices[i].y][objRegionIndices[i].x],
+#else
 					regMask,
+#endif
 					startposes[i],
 					startposes[i],
 					actArea[i],
 					areas[i],
 					siM1,
 					seeds[i],
+#if MOV_OBJ_ONLY_IN_REGIONS
+					regmasksROIs[objRegionIndices[i].y][objRegionIndices[i].x],
+#else
 					imgArea,
+#endif
 					nrIterations[i],
 					dilateOps[i]))
 				{
@@ -3528,7 +3640,26 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 					remainObj--;
 				}
 			}
-		}
+            /*Mat dilImgTh4;
+            cv::threshold( movObjLabels[i], dilImgTh4, 0, 255,0 );
+            namedWindow( "Dilated4", WINDOW_AUTOSIZE );
+            imshow("Dilated4", dilImgTh4);
+            waitKey(0);
+            destroyWindow("Dilated4");*/
+        }
+		if(visualizeMask % 10 == 0)
+        {
+		    Mat colorMapImg;
+            unsigned char clmul = 255 / nr_movObj;
+            // Apply the colormap:
+            applyColorMap(combMovObjLabels * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+            namedWindow( "combined ObjLabels", WINDOW_AUTOSIZE );
+            imshow("combined ObjLabels", colorMapImg);
+
+            waitKey(0);
+            destroyWindow("combined ObjLabels");
+        }
+        visualizeMask++;
 	}
 
 	//Get bounding rectangles for the areas
