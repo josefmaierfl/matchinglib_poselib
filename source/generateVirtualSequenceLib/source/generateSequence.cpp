@@ -1500,13 +1500,13 @@ void genStereoSequ::checkDepthSeeds()
 	{
 		int32_t mmy[2];
 		mmy[0] = y * regSi.height;
-		mmy[1] += regSi.height;
+		mmy[1] = mmy[0] + regSi.height - 1;
 		std::uniform_int_distribution<int32_t> distributionY(mmy[0], mmy[1]);
 		for (int32_t x = 0; x < 3; x++)
 		{				
 			int32_t mmx[2];
 			mmx[0] = x * regSi.width;
-			mmx[1] += regSi.width;
+			mmx[1] = mmx[0] + regSi.width - 1;
 			std::uniform_int_distribution<int32_t> distributionX(mmx[0], mmx[1]);
 			int32_t diffNr = nrDepthAreasPRegNear[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t)seedsNear[y][x].size();
 			while (diffNr > 0)//Generate seeds for near depth areas
@@ -2258,7 +2258,13 @@ inline double genStereoSequ::getDepthFuncVal(std::vector<double> &pars1, double 
 	tmp *= -tmp;
 	tmp -= x * x;
 	z *= exp(tmp);
-	z -= 10.0 * (x / pars1[3] - std::pow(x, pars1[4]) - std::pow(y, pars1[5])) * exp(-x * x - y * y);
+	/*double tmp1[4];
+	tmp1[0] = x / pars1[3];
+    tmp1[1] = std::pow(x, pars1[4]);
+    tmp1[2] = std::pow(y, pars1[5]);
+    tmp1[3] = exp(-x * x - y * y);
+    z -= 10.0 * (tmp1[0] - tmp1[1] - tmp1[2]) * tmp1[3];*/
+    z -= 10.0 * (x / pars1[3] - std::pow(x, pars1[4]) - std::pow(y, pars1[5])) * exp(-x * x - y * y);
 	tmp = x + 1.0;
 	tmp *= -tmp;
 	z -= pars1[6] / 3.0 * exp(tmp - y * y);
@@ -2301,8 +2307,8 @@ void genStereoSequ::getRandDepthFuncPars(std::vector<std::vector<double>> &pars1
 	distribution = std::uniform_real_distribution<double>(2.0, 7.0);
 	for (size_t i = 0; i < n_pars; i++)
 	{
-		pars1[i][4] = distribution(rand_gen);
-		pars1[i][5] = distribution(rand_gen);
+		pars1[i][4] = round(distribution(rand_gen));
+		pars1[i][5] = round(distribution(rand_gen));
 	}
 	//p7:
 	distribution = std::uniform_real_distribution<double>(1.0, 40.0);
@@ -2341,9 +2347,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 	size_t &nrAdds,
 	unsigned char &usedDilate)
 {
-	const size_t max_iter = 100;
+	const size_t max_iter = 10000;
     //get possible directions for expanding (max. 8 possibilities) by checking the masks
-	vector<int32_t> directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1);
+	vector<int32_t> directions;
+	if((nrAdds <= max_iter) && !usedDilate)
+    {
+        directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true);
+    }
 	if (directions.empty() || (nrAdds > max_iter) || usedDilate)//Dilate the label if no direction was found or there were already to many iterations
 	{
 		int strElmSi = 3, cnt = 0, maxCnt = 20, strElmSiAdd = 0, strElmSiDir[2] = {0, 0};
@@ -2396,7 +2406,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
 			siAfterDil = (int32_t)sum(imgSDdilate)[0];
             static size_t visualizeMask = 0;
-            if(visualizeMask % 10 == 0)
+            if(visualizeMask % 50 == 0)
             {
                 Mat colorMapImg;
                 // Apply the colormap:
@@ -2456,9 +2466,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 				imgSDdilate *= pixVal;
                 imgD(vROI) |= imgSDdilate;
                 //imgSDdilate.copyTo(imgD(vROI));
-				addArea = siAfterDil;
 				nrAdds++;
 				usedDilate = 1;
+				if(addArea == siAfterDil)
+                {
+				    return false;
+                }
+                addArea = siAfterDil;
 
 				return true;
 			}
@@ -2473,39 +2487,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 		//Get a random direction where to add a pixel
 		int diri = rand() % (int)directions.size();
 		endpos = startpos;
-		switch (directions[diri])
-		{
-		case 0://direction left up
-			endpos.x--;
-			endpos.y--;
-			break;
-		case 1://direction up
-			endpos.y--;
-			break;
-		case 2://direction right up
-			endpos.x++;
-			endpos.y--;
-			break;
-		case 3://direction right
-			endpos.x++;
-			break;
-		case 4://direction right down
-			endpos.x++;
-			endpos.y++;
-			break;
-		case 5://direction down
-			endpos.y++;
-			break;
-		case 6://direction left down
-			endpos.x--;
-			endpos.y++;
-			break;
-		case 7://direction left
-			endpos.x--;
-			break;
-		default:
-			break;
-		}
+        nextPosition(endpos, directions[diri]);
 		//Set the pixel
 		imgD.at<unsigned char>(endpos) = pixVal;
 		imgSD.at<unsigned char>(endpos) = 1;
@@ -2517,7 +2499,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 		}
 		//Add additional pixels in the local neighbourhood (other possible directions) of the actual added pixel
 		//and prevent adding new pixels in similar directions compared to the added one
-		vector<int32_t> extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1);
+		vector<int32_t> extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1, imgSD, false);
 		if (extension.size() > 1)//Check if we can add addition pixels without blocking the way for the next iteration
 		{
             //Prevent adding additional pixels to the main direction and its immediate neighbor directions
@@ -2561,39 +2543,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 					{
 						cv::Point_<int32_t> singleExt = endpos;
 						const int pos = (beginExt + i) % (int)extension.size();
-						switch (extension[pos])
-						{
-						case 0://direction left up
-							singleExt.x--;
-							singleExt.y--;
-							break;
-						case 1://direction up
-							singleExt.y--;
-							break;
-						case 2://direction right up
-							singleExt.x++;
-							singleExt.y--;
-							break;
-						case 3://direction right
-							singleExt.x++;
-							break;
-						case 4://direction right down
-							singleExt.x++;
-							singleExt.y++;
-							break;
-						case 5://direction down
-							singleExt.y++;
-							break;
-						case 6://direction left down
-							singleExt.x--;
-							singleExt.y++;
-							break;
-						case 7://direction left
-							singleExt.x--;
-							break;
-						default:
-							break;
-						}
+                        nextPosition(singleExt, extension[pos]);
 						//Set the pixel
 						imgD.at<unsigned char>(singleExt) = pixVal;
 						imgSD.at<unsigned char>(singleExt) = 1;
@@ -2612,112 +2562,197 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 }
 
 //Get valid directions to expand the depth area given a start position
-std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1)
+std::vector<int32_t> genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1, cv::Mat &imgSD, bool escArea)
 {
-	Mat directions = Mat::ones(3, 3, CV_8UC1);
+	static int maxFixDirChange = 8;
+	int fixDirChange = 0;
+    Mat directions;
 	unsigned char atBorderX = 0, atBorderY = 0;
-	if (startpos.x <= 0)
-	{
-		directions.col(0) = Mat::zeros(3, 1, CV_8UC1);
-		atBorderX = 0x1;
-	}
-	if (startpos.x >= siM1.width)
-	{
-		directions.col(2) = Mat::zeros(3, 1, CV_8UC1);
-		atBorderX = 0x2;
-	}
-	if (startpos.y <= 0)
-	{
-		directions.row(0) = Mat::zeros(1, 3, CV_8UC1);
-		atBorderY = 0x1;
-	}
-	if (startpos.y >= siM1.height)
-	{
-		directions.row(2) = Mat::zeros(1, 3, CV_8UC1);
-		atBorderY = 0x2;
-	}
+    Mat directions_dist;
+    vector<int32_t> dirs;
+    int32_t fixedDir = 0;
+    bool dirFixed = false;
+    bool inOwnArea = false;
+    do {
+        directions = Mat::ones(3, 3, CV_8UC1);
+        if (startpos.x <= 0) {
+            directions.col(0) = Mat::zeros(3, 1, CV_8UC1);
+            atBorderX = 0x1;
+        }
+        if (startpos.x >= siM1.width) {
+            directions.col(2) = Mat::zeros(3, 1, CV_8UC1);
+            atBorderX = 0x2;
+        }
+        if (startpos.y <= 0) {
+            directions.row(0) = Mat::zeros(1, 3, CV_8UC1);
+            atBorderY = 0x1;
+        }
+        if (startpos.y >= siM1.height) {
+            directions.row(2) = Mat::zeros(1, 3, CV_8UC1);
+            atBorderY = 0x2;
+        }
 
-	Range irx, iry, drx, dry;
-	if (atBorderX)
-	{
-		const unsigned char atBorderXn = ~atBorderX;
-		const unsigned char v1 = (atBorderXn & 0x1);//results in 0x0 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
-		const unsigned char v2 = (atBorderXn & 0x2) + ((atBorderX & 0x2) >> 1);//results in 0x2 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
-		irx = Range(startpos.x - (int32_t)v1, startpos.x + (int32_t)v2);
-		drx = Range((int32_t)(~v1 & 0x1), 1 + (int32_t)v2);
-		if (atBorderY)
-		{ 
-			const unsigned char atBorderYn = ~atBorderY;
-			const unsigned char v3 = (atBorderYn & 0x1);
-			const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
-			iry = Range(startpos.y - (int32_t)v3, startpos.y + (int32_t)v4);
-			dry = Range((int32_t)(~v3 & 0x1), 1 + (int32_t)v4);
-		}
-		else
-		{
-			iry = Range(startpos.y - 1, startpos.y + 2);
-			dry = Range::all();
-		}
-	}
-	else if (atBorderY)
-	{
-		unsigned char atBorderYn = ~atBorderY;
-        const unsigned char v3 = (atBorderYn & 0x1);
-        const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
-		iry = Range(startpos.y - (int32_t)v3, startpos.y + (int32_t)v4);
-		irx = Range(startpos.x - 1, startpos.x + 2);
-		drx = Range::all();
-        dry = Range((int32_t)(~v3 & 0x1), 1 + (int32_t)v4);
-	}
-	else
-	{
-		irx = Range(startpos.x - 1, startpos.x + 2);
-		iry = Range(startpos.y - 1, startpos.y + 2);
-		drx = Range::all();
-		dry = Range::all();
-	}
+        Range irx, iry, drx, dry;
+        if (atBorderX) {
+            const unsigned char atBorderXn = ~atBorderX;
+            const unsigned char v1 = (atBorderXn & 0x1);//results in 0x0 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
+            const unsigned char v2 = (atBorderXn & 0x2) + ((atBorderX & 0x2)
+                    >> 1);//results in 0x2 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
+            irx = Range(startpos.x - (int32_t) v1, startpos.x + (int32_t) v2);
+            drx = Range((int32_t) (~v1 & 0x1), 1 + (int32_t) v2);
+            if (atBorderY) {
+                const unsigned char atBorderYn = ~atBorderY;
+                const unsigned char v3 = (atBorderYn & 0x1);
+                const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
+                iry = Range(startpos.y - (int32_t) v3, startpos.y + (int32_t) v4);
+                dry = Range((int32_t) (~v3 & 0x1), 1 + (int32_t) v4);
+            } else {
+                iry = Range(startpos.y - 1, startpos.y + 2);
+                dry = Range::all();
+            }
+        } else if (atBorderY) {
+            unsigned char atBorderYn = ~atBorderY;
+            const unsigned char v3 = (atBorderYn & 0x1);
+            const unsigned char v4 = (atBorderYn & 0x2) + ((atBorderY & 0x2) >> 1);
+            iry = Range(startpos.y - (int32_t) v3, startpos.y + (int32_t) v4);
+            irx = Range(startpos.x - 1, startpos.x + 2);
+            drx = Range::all();
+            dry = Range((int32_t) (~v3 & 0x1), 1 + (int32_t) v4);
+        } else {
+            irx = Range(startpos.x - 1, startpos.x + 2);
+            iry = Range(startpos.y - 1, startpos.y + 2);
+            drx = Range::all();
+            dry = Range::all();
+        }
 
-//	directions(dry, drx) &= (imgD(iry, irx) == 0) & mask(iry, irx) & regMask(iry, irx);
-    directions(dry, drx) &= (imgD(iry, irx) == 0) & (mask(iry, irx) == 0) & regMask(iry, irx);
 
-	vector<int32_t> dirs;
-	for (int32_t i = 0; i < 9; i++)
-	{
-		if (directions.at<bool>(i))
-		{
-			switch (i)
-			{
-			case 0:
-				dirs.push_back(0);
-				break;
-			case 1:
-				dirs.push_back(1);
-				break;
-			case 2:
-				dirs.push_back(2);
-				break;
-			case 3:
-				dirs.push_back(7);
-				break;
-			case 5:
-				dirs.push_back(3);
-				break;
-			case 6:
-				dirs.push_back(6);
-				break;
-			case 7:
-				dirs.push_back(5);
-				break;
-			case 8:
-				dirs.push_back(4);
-				break;
-			default:
-				break;
-			}
-		}
-	}
+        directions.copyTo(directions_dist);
+        directions(dry, drx) &= (imgD(iry, irx) == 0) & (mask(iry, irx) == 0) & regMask(iry, irx);
+        if ((sum(directions)[0] == 0) && escArea) {
+            directions_dist(dry, drx) &=
+                    ((imgD(iry, irx) == 0) | imgSD(iry, irx)) & (mask(iry, irx) == 0) & regMask(iry, irx);
+            if (sum(directions_dist)[0] != 0) {
+                if(!dirFixed) {
+                    directions_dist.copyTo(directions);
+                    inOwnArea = true;
+                } else
+                {
+                    cv::Point_<int32_t> localPos = cv::Point_<int32_t>(1, 1);
+                    nextPosition(localPos, fixedDir);
+                    if(directions_dist.at<unsigned char>(localPos) == 0)
+                    {
+                        if(fixDirChange > maxFixDirChange) {
+                            inOwnArea = false;
+                            dirFixed = false;
+                        } else
+                        {
+                            inOwnArea = true;
+                            dirFixed = false;
+                            directions_dist.copyTo(directions);
+                        }
+                        fixDirChange++;
+                    }
+                }
+            } else {
+                inOwnArea = false;
+                dirFixed = false;
+            }
+        } else
+        {
+            dirFixed = false;
+            inOwnArea = false;
+        }
+
+        if(!dirFixed) {
+            dirs.clear();
+            for (int32_t i = 0; i < 9; i++) {
+                if (directions.at<bool>(i)) {
+                    switch (i) {
+                        case 0:
+                            dirs.push_back(0);
+                            break;
+                        case 1:
+                            dirs.push_back(1);
+                            break;
+                        case 2:
+                            dirs.push_back(2);
+                            break;
+                        case 3:
+                            dirs.push_back(7);
+                            break;
+                        case 5:
+                            dirs.push_back(3);
+                            break;
+                        case 6:
+                            dirs.push_back(6);
+                            break;
+                        case 7:
+                            dirs.push_back(5);
+                            break;
+                        case 8:
+                            dirs.push_back(4);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+
+        if(inOwnArea && !dirs.empty())
+        {
+            if(!dirFixed) {
+                if (dirs.size() == 1) {
+                    fixedDir = dirs[0];
+                } else {
+                    //Get a random direction where to go next
+                    fixedDir = dirs[rand() % (int) dirs.size()];
+                }
+                dirFixed = true;
+            }
+            nextPosition(startpos, fixedDir);
+        }
+    }
+    while(inOwnArea);
 
 	return dirs;
+}
+
+void genStereoSequ::nextPosition(cv::Point_<int32_t> &position, int32_t direction)
+{
+    switch (direction)
+    {
+        case 0://direction left up
+            position.x--;
+            position.y--;
+            break;
+        case 1://direction up
+            position.y--;
+            break;
+        case 2://direction right up
+            position.x++;
+            position.y--;
+            break;
+        case 3://direction right
+            position.x++;
+            break;
+        case 4://direction right down
+            position.x++;
+            position.y++;
+            break;
+        case 5://direction down
+            position.y++;
+            break;
+        case 6://direction left down
+            position.x--;
+            position.y++;
+            break;
+        case 7://direction left
+            position.x--;
+            break;
+        default:
+            break;
+    }
 }
 
 //Generates correspondences and 3D points in the camera coordinate system (including false matches) from static scene elements
@@ -2782,8 +2817,8 @@ void genStereoSequ::getKeypoints()
 			int32_t maxSelect2 = 50;
 			int32_t maxSelect3 = 50;
 			int32_t maxSelect4 = 50;
-			std::uniform_int_distribution<int32_t> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
-			std::uniform_int_distribution<int32_t> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+			std::uniform_int_distribution<int32_t> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width - 1);
+			std::uniform_int_distribution<int32_t> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height - 1);
 
 			vector<Point_<int32_t>> corrsNearR, corrsMidR, corrsFarR;
 			vector<Point2d> corrsNearR2, corrsMidR2, corrsFarR2;
@@ -3025,8 +3060,8 @@ void genStereoSequ::getKeypoints()
 						break;
 				}
 			}
-			std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width);
-			std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height);
+			std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width - 1);
+			std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height - 1);
 			if (selTN2 < x1TN[y][x].size())//Select the rest randomly
 			{
 				for (size_t i = selTN2; i < x1TN[y][x].size(); i++)
@@ -3093,7 +3128,7 @@ void genStereoSequ::getKeypoints()
 				Mat maskImg1;
 				copyMakeBorder(combMovObjLabelsAll, maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));
 				maskImg1 |= corrsIMG;
-				nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, cImg2);
+				nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, cImg2, depthMap);
 				if (!x1TN_tmp.empty())
 				{
 					corrsIMG(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (combMovObjLabelsAll == 0);
@@ -3188,7 +3223,8 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 	std::vector<cv::Point2d> &x2TN,
 	std::vector<double> &x2TNdistCorr,
 	cv::Mat &img1Mask,
-	cv::Mat &img2Mask)
+	cv::Mat &img2Mask,
+	cv::Mat &usedDepthMap)
 {
 	int32_t kSi = csurr.rows;
 	int32_t posadd = (kSi - 1) / 2;
@@ -3216,7 +3252,7 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 		x1TN.push_back(Point2d((double)pt.x, (double)pt.y));
 		int max_try = 10;
 		double perfDist = 50.0;
-		if (!checkLKPInlier(pt, pt2, pCam, depthMap))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
+		if (!checkLKPInlier(pt, pt2, pCam, usedDepthMap))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
 		{
 			while (max_try > 0)
 			{
@@ -3238,16 +3274,26 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 			Point2d ptd;
 			while (max_try > 0)
 			{
-				do
-				{
-					ptd.x = distributionNX2(rand_gen);
-					ptd.x += 0.75 * ptd.x / abs(ptd.x);
-					ptd.x *= 1.5;
-					ptd.y = distributionNY2(rand_gen);
-					ptd.y += 0.75 * ptd.y / abs(ptd.y);
-					ptd.y *= 1.5;
-				} while ((abs(ptd.x) < 1.5) && (abs(ptd.y) < 1.5));
-				pt2 += ptd;
+			    int maxAtBorder = 10;
+                do {
+                    do {
+                        ptd.x = distributionNX2(rand_gen);
+                        ptd.x += 0.75 * ptd.x / abs(ptd.x);
+                        ptd.x *= 1.5;
+                        ptd.y = distributionNY2(rand_gen);
+                        ptd.y += 0.75 * ptd.y / abs(ptd.y);
+                        ptd.y *= 1.5;
+                    } while ((abs(ptd.x) < 1.5) && (abs(ptd.y) < 1.5));
+                    pt2 += ptd;
+                    maxAtBorder--;
+                } while (((pt2.x < 0) || (pt2.x > (double)(imgSize.width - 1)) ||
+                         (pt2.y < 0) || (pt2.y > (double)(imgSize.height - 1))) && (maxAtBorder > 0));
+
+                if (maxAtBorder <= 0)
+                {
+                    max_try = 0;
+                    break;
+                }
 
 				Mat s_tmp1 = img2Mask(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
 				if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
@@ -3436,8 +3482,8 @@ void genStereoSequ::getNrSizePosMovObj()
 			if (nr_tmp > 0)
 			{
 				rand_gen = std::default_random_engine((unsigned int)std::rand());//Prevent getting the same starting positions for equal ranges
-				std::uniform_int_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
-				std::uniform_int_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+				std::uniform_int_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width - 1);
+				std::uniform_int_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height - 1);
 				movObjSeeds[y][x].push_back(cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen)));
 				nr_tmp--;
 				if (nr_tmp > 0)
@@ -3647,7 +3693,7 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
             waitKey(0);
             destroyWindow("Dilated4");*/
         }
-		if(visualizeMask % 10 == 0)
+		if(visualizeMask % 100 == 0)
         {
 		    Mat colorMapImg;
             unsigned char clmul = 255 / nr_movObj;
@@ -3671,7 +3717,26 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 			Mat mask_tmp = movObjLabels[i].clone();
 			vector<vector<Point> > contours;
 			vector<Vec4i> hierarchy;
+			size_t dilTries = 0;
 			cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+			while((contours.size() > 1) && (dilTries < 5))//Prevent the detection of multiple objects if connections between parts are too small
+            {
+                Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+                dilate(mask_tmp, mask_tmp, element);
+                contours.clear();
+                hierarchy.clear();
+                cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+                dilTries++;
+            }
+			if(dilTries >= 5)
+            {
+                vector<vector<Point> > contours_new(1);
+                for(vector<vector<Point> >::reverse_iterator cit = contours.rbegin(); cit != contours.rend(); cit++)
+                {
+                    contours_new[0].insert(contours_new[0].end(), cit->begin(), cit->end());
+                }
+                contours = contours_new;
+            }
 			movObjLabelsROIs[i] = cv::boundingRect(contours[0]);
 		}
 	}
@@ -4222,6 +4287,19 @@ void genStereoSequ::genNewDepthMovObj()
 			}
 		}
 	}
+
+    //Visualize the depth values
+    Mat normalizedDepth, labelMask = cv::Mat::zeros(imgSize, CV_8UC1);
+    for(auto dl : movObjLabels)
+    {
+        labelMask |= (dl != 0);
+    }
+    cv::normalize(combMovObjDepths, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, labelMask);
+    namedWindow( "Normalized Moving Obj Depth", WINDOW_AUTOSIZE );
+    imshow("Normalized Moving Obj Depth", normalizedDepth);
+    waitKey(0);
+    destroyWindow("Normalized Moving Obj Depth");
+
 	//Add new depth classes to existing ones
 	//copy(movObjDepthClassNew.begin(), movObjDepthClassNew.end(), movObjDepthClass.end());
 	movObjDepthClass.insert(movObjDepthClass.end(), movObjDepthClassNew.begin(), movObjDepthClassNew.end());
@@ -4240,6 +4318,9 @@ void genStereoSequ::getMovObjCorrs()
 	cv::copyMakeBorder(movObjMaskFromLast2, movObjMask2All, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));//movObjMask2All must be reduced to image size at the end
 	//int maxIt = 20;
 
+	//For visualization
+	int dispit = 0;
+	const int dispit_interval = 10;
 
 	//Generate TP correspondences
 	movObjCorrsImg1TP.clear();
@@ -4256,8 +4337,8 @@ void genStereoSequ::getMovObjCorrs()
 	movObjDistTNtoRealNew.resize(nr_movObj);
 	for (size_t i = 0; i < nr_movObj; i++)
 	{
-		std::uniform_int_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width);
-		std::uniform_int_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height);
+		std::uniform_int_distribution<int32_t> distributionX(movObjLabelsROIs[i].x, movObjLabelsROIs[i].x + movObjLabelsROIs[i].width - 1);
+		std::uniform_int_distribution<int32_t> distributionY(movObjLabelsROIs[i].y, movObjLabelsROIs[i].y + movObjLabelsROIs[i].height - 1);
 		//int cnt1 = 0;
 		int nrTN = actTNPerMovObj[i];
 		int nrTP = actTPPerMovObj[i];
@@ -4281,15 +4362,17 @@ void genStereoSequ::getMovObjCorrs()
 			maxSelect = 50;
 
 			//Check if it is also an inlier in the right image
-			bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
-			Mat s_tmp1 = movObjMask2All(Rect((int)round(pt2.x), (int)round(pt2.y), kSi, kSi));
-			if (s_tmp1.at<unsigned char>(posadd, posadd) > 0)
-			{
-				maxSelect2--;
-				continue;
-			}
-			s_tmp1.at<unsigned char>(posadd, posadd) = 1;//The minimum distance between keypoints in the second image is fixed to approx. 1 for new correspondences
-			maxSelect2 = 50;
+			bool isInl = checkLKPInlier(pt, pt2, pCam, combMovObjDepths);
+			if(isInl) {
+                Mat s_tmp1 = movObjMask2All(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
+                if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
+                    maxSelect2--;
+                    continue;
+                }
+                s_tmp1.at<unsigned char>(posadd,
+                                         posadd) = 1;//The minimum distance between keypoints in the second image is fixed to approx. 1 for new correspondences
+                maxSelect2 = 50;
+            }
 			s_tmp += csurr;
 			if (!isInl)
 			{
@@ -4310,6 +4393,19 @@ void genStereoSequ::getMovObjCorrs()
 			x1TP.push_back(Point2d((double)pt.x, (double)pt.y));
 			x2TP.push_back(pt2);
 			movObj3DPtsCamNew[i].push_back(pCam);
+
+			//Visualize the masks
+			if(dispit % dispit_interval == 0)
+            {
+                namedWindow( "Move Corrs mask img1", WINDOW_AUTOSIZE );
+                imshow("Move Corrs mask img1", (corrsSet > 0));
+                namedWindow( "Move Corrs mask img2", WINDOW_AUTOSIZE );
+                imshow("Move Corrs mask img2", (movObjMask2All > 0));
+                waitKey(0);
+                destroyWindow("Move Corrs mask img1");
+                destroyWindow("Move Corrs mask img2");
+            }
+            dispit++;
 		}
 		//If there are still correspondences missing, try to use them in the next object
 		if ((nrTP > 0) && (i < (nr_movObj - 1)))
@@ -4317,11 +4413,15 @@ void genStereoSequ::getMovObjCorrs()
 			actTPPerMovObj[i + 1] += nrTP;
 		}
 
-		std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width);
-		std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height);
+		std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width - 1);
+		std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height - 1);
 		//Find TN keypoints in the second image for already found TN in the first image
 		if (!x1TN.empty())
 		{
+            //Visualize the mask before adding them
+            namedWindow( "Move TN Corrs mask img2 before", WINDOW_AUTOSIZE );
+            imshow("Move TN Corrs mask img2 before", (movObjMask2All > 0));
+
 			for (size_t j = 0; j < x1TN.size(); j++)
 			{
 				int max_try = 10;
@@ -4346,6 +4446,13 @@ void genStereoSequ::getMovObjCorrs()
 				x1TN.pop_back();
 				nrTN++;
 			}
+
+			//Visualize the mask afterwards
+            namedWindow( "Move TN Corrs mask img2 after", WINDOW_AUTOSIZE );
+            imshow("Move TN Corrs mask img2 after", (movObjMask2All > 0));
+            waitKey(0);
+            destroyWindow("Move TN Corrs mask img2 after");
+            destroyWindow("Move TN Corrs mask img2 before");
 		}
 
 		//Get the rest of TN correspondences
@@ -4356,7 +4463,48 @@ void genStereoSequ::getMovObjCorrs()
 			Mat maskImg1;
 			copyMakeBorder(movObjLabels[i], maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));
 			maskImg1 |= corrsSet;
-			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, movObjMask2All);
+
+            //Visualize the mask before adding them
+            namedWindow( "Move rand TN Corrs mask img1 before", WINDOW_AUTOSIZE );
+            imshow("Move rand TN Corrs mask img1 before", (maskImg1 > 0));
+            namedWindow( "Move rand TN Corrs mask img2 before", WINDOW_AUTOSIZE );
+            imshow("Move rand TN Corrs mask img2 before", (movObjMask2All > 0));
+
+            //Generate a depth map for generating TN based on the depth of the actual moving object
+            double dmin = actDepthNear, dmax = actDepthMid;
+            switch (movObjDepthClassNew[i])
+            {
+                case depthClass::NEAR:
+                    dmin = actDepthNear;
+                    dmax = actDepthMid;
+                    break;
+                case depthClass::MID:
+                    dmin = actDepthMid;
+                    dmax = actDepthFar;
+                    break;
+                case depthClass::FAR:
+                    dmin = actDepthFar;
+                    dmax = maxFarDistMultiplier * actDepthFar;
+                    break;
+                default:
+                    break;
+            }
+            Mat randDepth(imgSize,CV_64FC1);
+            randu(randDepth, Scalar(dmin), Scalar(dmax + 0.001));
+
+			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, movObjMask2All, randDepth);
+
+            //Visualize the mask afterwards
+            namedWindow( "Move rand TN Corrs mask img1 after", WINDOW_AUTOSIZE );
+            imshow("Move rand TN Corrs mask img1 after", (maskImg1 > 0));
+            namedWindow( "Move rand TN Corrs mask img2 after", WINDOW_AUTOSIZE );
+            imshow("Move rand TN Corrs mask img2 after", (movObjMask2All > 0));
+            waitKey(0);
+            destroyWindow("Move rand TN Corrs mask img1 before");
+            destroyWindow("Move rand TN Corrs mask img1 after");
+            destroyWindow("Move rand TN Corrs mask img2 before");
+            destroyWindow("Move rand TN Corrs mask img2 after");
+
 			if (!x1TN_tmp.empty())
 			{
 				corrsSet(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (movObjLabels[i] == 0);
@@ -4675,8 +4823,8 @@ void genStereoSequ::backProjectMovObj()
 	}
 
 	//Get missing TN correspondences for found keypoints
-	std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width);
-	std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height);
+	std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width - 1);
+	std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height - 1);
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
 		if (missingCImg2[i] > 0)
@@ -4724,8 +4872,8 @@ void genStereoSequ::backProjectMovObj()
 		{
 			Mat elemnew = Mat::ones(missingCImg1[i], 3, CV_64FC1);
 			int cnt1 = 0;
-			std::uniform_int_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
-			std::uniform_int_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
+			std::uniform_int_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width - 1);
+			std::uniform_int_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height - 1);
 			//Enlarge mask
 			Mat movObjMaskFromLastBorder(movObjMaskFromLastLarge[i].size(), movObjMaskFromLastLarge[i].type());
 			cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));			
@@ -4787,8 +4935,21 @@ void genStereoSequ::backProjectMovObj()
 	cv::copyMakeBorder(movObjMaskFromLastOld, movObjMaskFromLastBorder, posadd, posadd, posadd, posadd, BORDER_CONSTANT, cv::Scalar(0));
 	for (size_t i = 0; i < actNrMovObj; i++)
 	{
-		std::uniform_int_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width);
-		std::uniform_int_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height);
+	    //Generate a depth map for generating TN based on the depth of the back-projected 3D points
+	    double minDepth = DBL_MAX, maxDepth = DBL_MIN;
+	    for(size_t j = 0; j < movObjCorrsImg12TPFromLast_Idx[i].size(); i++)
+        {
+	        double sDepth = movObj3DPtsCam[i][movObjCorrsImg12TPFromLast_Idx[i][j]].z;
+	        if(sDepth < minDepth)
+	            minDepth = sDepth;
+	        if(sDepth > maxDepth)
+                maxDepth = sDepth;
+        }
+	    Mat randDepth(imgSize,CV_64FC1);
+	    randu(randDepth, Scalar(minDepth), Scalar(maxDepth + 0.001));
+
+		std::uniform_int_distribution<int32_t> distributionX(objROIs[i].x, objROIs[i].x + objROIs[i].width - 1);
+		std::uniform_int_distribution<int32_t> distributionY(objROIs[i].y, objROIs[i].y + objROIs[i].height - 1);
 		int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
 		int cnt2 = 0;
 		while (((areaMO < maxOArea) || (cnt2 == 0)) && (missingCImg2[i] > 0) && (cnt2 < maxCnt))//If not all elements could be selected, try to enlarge the area
@@ -4810,7 +4971,8 @@ void genStereoSequ::backProjectMovObj()
 				x2TN,
 				movObjDistTNtoReal[i],
 				movObjLabelsFromLastN,
-				movObjMaskFromLast2Border);
+				movObjMaskFromLast2Border,
+				randDepth);
 
 			cnt2++;
 			if (remainingTN != missingCImg2[i])
@@ -5029,8 +5191,8 @@ void genStereoSequ::getSeedsAreasMovObj()
 			if (nr_tmp > 0)
 			{
 				rand_gen = std::default_random_engine((unsigned int)std::rand());//Prevent getting the same starting positions for equal ranges
-				std::uniform_int_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width);
-				std::uniform_int_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height);
+				std::uniform_int_distribution<int> distributionX(regROIs[y][x].x, regROIs[y][x].x + regROIs[y][x].width - 1);
+				std::uniform_int_distribution<int> distributionY(regROIs[y][x].y, regROIs[y][x].y + regROIs[y][x].height - 1);
 				cv::Point_<int32_t> pt;
 				int cnt = 0;
 				while (cnt < maxIt)
@@ -5064,7 +5226,7 @@ void genStereoSequ::getSeedsAreasMovObj()
 
 						//Get possible selection ranges for x-values
 						int start = max(xposes[0] - minODist, regROIs[y][x].x);
-						int maxEnd = regROIs[y][x].x + regROIs[y][x].width;
+						int maxEnd = regROIs[y][x].x + regROIs[y][x].width - 1;
 						int xyend = min(xposes[0] + minODist, maxEnd);
 						if (start == regROIs[y][x].x)
 						{
@@ -5109,7 +5271,7 @@ void genStereoSequ::getSeedsAreasMovObj()
 
 						//Get possible selection ranges for y-values
 						start = max(yposes[0] - minODist, regROIs[y][x].y);
-						maxEnd = regROIs[y][x].y + regROIs[y][x].height;
+						maxEnd = regROIs[y][x].y + regROIs[y][x].height - 1;
 						xyend = min(yposes[0] + minODist, maxEnd);
 						if (start == regROIs[y][x].y)
 						{

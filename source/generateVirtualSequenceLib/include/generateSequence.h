@@ -270,7 +270,8 @@ private:
 		cv::Rect &vROI,
 		size_t &nrAdds,
 		unsigned char &usedDilate);
-	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1);
+	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1, cv::Mat &imgSD, bool escArea = true);
+    void nextPosition(cv::Point_<int32_t> &position, int32_t direction);
 	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);
 	void getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
 	inline double getDepthFuncVal(std::vector<double> &pars1, double x, double y);
@@ -285,7 +286,8 @@ private:
 		std::vector<cv::Point2d> &x2TN,
 		std::vector<double> &x2TNdistCorr,
 		cv::Mat &img1Mask,
-		cv::Mat &img2Mask);
+		cv::Mat &img2Mask,
+		cv::Mat &usedDepthMap);
 	bool checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam, cv::Mat &usedDepthMap);
 	void getNrSizePosMovObj();
 	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
