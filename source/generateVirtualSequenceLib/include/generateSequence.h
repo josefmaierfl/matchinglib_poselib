@@ -312,6 +312,7 @@ private:
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
+	void visualizeMovObjPtCloud();
 
 private:
 	std::default_random_engine rand_gen;

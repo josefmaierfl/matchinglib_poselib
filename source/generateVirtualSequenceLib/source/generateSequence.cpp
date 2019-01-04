@@ -690,6 +690,7 @@ void genStereoSequ::visualizeCamPath()
 		viewer->spinOnce(100);
 		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
 	}
+    viewer->close();
 }
 
 //Calculate the thresholds for the depths near, mid, and far for every camera configuration
@@ -4559,7 +4560,7 @@ void genStereoSequ::getMovObjCorrs()
         {
             double reductionFactor = (double)(actTPPerMovObj[i] - nrTP + actTNPerMovObj[i] - nrTN) / (double)(actTPPerMovObj[i] + actTNPerMovObj[i]);
             //incorporate fraction of not visible (in cam2) features
-            reductionFactor *= (double)(corrsNotVisible + x1TP.size()) / (double)x1TP.size();
+            reductionFactor *= (double)(corrsNotVisible + x1TP.size()) / ((double)x1TP.size() + 0.001);
             reductionFactor = reductionFactor > 1.0 ? 1.0:reductionFactor;
             for (int j = i + 1; j < nr_movObj; ++j) {
                 actTPPerMovObj[j] = (int32_t)round((double)actTPPerMovObj[j] * reductionFactor);
@@ -5670,7 +5671,8 @@ void genStereoSequ::transMovObjPtsToWorld()
 		movObj3DPtsWorld[idx].reserve(movObj3DPtsCamNew[i].size());
 		for (size_t j = 0; j < movObj3DPtsCamNew[i].size(); j++)
 		{
-			Mat ptm = absCamCoordinates[actFrameCnt].R * Mat(movObj3DPtsCamNew[i][j]).reshape(1).t() + absCamCoordinates[actFrameCnt].t;
+		    Mat pt3 = Mat(movObj3DPtsCamNew[i][j]).reshape(1);//.t();
+			Mat ptm = absCamCoordinates[actFrameCnt].R * pt3 + absCamCoordinates[actFrameCnt].t;
 			movObj3DPtsWorld[idx].push_back(pcl::PointXYZ((float)ptm.at<double>(0), (float)ptm.at<double>(1), (float)ptm.at<double>(2)));
 		}
 		double velocity = 0;
@@ -5701,6 +5703,51 @@ void genStereoSequ::transMovObjPtsToWorld()
 		tdiff *= velocity;
 		movObjWorldMovement[i] = tdiff.clone();
 	}
+    visualizeMovObjPtCloud();
+}
+
+void genStereoSequ::visualizeMovObjPtCloud()
+{
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->setBackgroundColor(0, 0, 0);
+    viewer->addCoordinateSystem(5.0);
+
+    Eigen::Affine3f m;
+    m.setIdentity();
+
+    Eigen::Vector3d te;
+    Eigen::Matrix3d Re;
+    cv::cv2eigen(absCamCoordinates[actFrameCnt].R, Re);
+    cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
+    m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
+    m.matrix().block<3, 1>(0, 3) = te.cast<float>();
+    viewer->addCoordinateSystem(1.0, m);
+
+    //size_t nrObjs = movObj3DPtsWorld.size();
+    pcl::PointCloud<pcl::PointXYZ>::Ptr basic_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
+    for (auto i : movObj3DPtsWorld)
+    {
+        for(auto j : i)
+        {
+            basic_cloud_ptr->push_back(j);
+        }
+    }
+    viewer->addPointCloud<pcl::PointXYZ> (basic_cloud_ptr, "moving objects cloud");
+    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "moving objects cloud");
+
+
+    viewer->initCameraParameters();
+
+    //--------------------
+    // -----Main loop-----
+    //--------------------
+    while (!viewer->wasStopped())
+    {
+        viewer->spinOnce(100);
+        boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+    }
+
+    viewer->close();
 }
 
 //Get the relative movement direction (compared to the camera movement) for every moving object
