@@ -214,12 +214,12 @@ bool genStereoSequ::initFracCorrImgReg()
 		double minCorr, maxCorr;
 		cv::minMaxLoc(newCorrsPerRegion, &minCorr, &maxCorr);
 		double regA = (double)imgSize.area() / 9.0;
-		double areaCorrs = maxCorr * pars.minKeypDist * pars.minKeypDist;
+		double areaCorrs = maxCorr * pars.minKeypDist * pars.minKeypDist * 1.33;//Multiply by 1.33 to take gaps into account that are a result of randomness
 		
 		if (areaCorrs > regA)
 		{
 			cout << "There are too many keypoints per region when demanding a minimum keypoint distance of " << pars.minKeypDist << ". Changing it!" << endl;
-			double mKPdist = floor(10.0 * sqrt(regA / maxCorr)) / 10.0;
+			double mKPdist = floor(10.0 * sqrt(regA / (1.33 * maxCorr))) / 10.0;
 			if (mKPdist <= 1.414214)
 			{
 				cout << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!" << endl;
@@ -2348,13 +2348,14 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 	unsigned char &usedDilate)
 {
 	const size_t max_iter = 10000;
+	const size_t midDilateCnt = 300;
     //get possible directions for expanding (max. 8 possibilities) by checking the masks
 	vector<int32_t> directions;
-	if((nrAdds <= max_iter) && !usedDilate)
+	if((nrAdds <= max_iter) && !usedDilate && ((nrAdds % midDilateCnt != 0) || (nrAdds < midDilateCnt)))
     {
         directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true);
     }
-	if (directions.empty() || (nrAdds > max_iter) || usedDilate)//Dilate the label if no direction was found or there were already to many iterations
+	if (directions.empty() || (nrAdds > max_iter) || usedDilate || ((nrAdds % midDilateCnt == 0) && (nrAdds >= midDilateCnt)))//Dilate the label if no direction was found or there were already to many iterations
 	{
 		int strElmSi = 3, cnt = 0, maxCnt = 20, strElmSiAdd = 0, strElmSiDir[2] = {0, 0};
         int32_t siAfterDil = 0;
@@ -2466,8 +2467,10 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 				imgSDdilate *= pixVal;
                 imgD(vROI) |= imgSDdilate;
                 //imgSDdilate.copyTo(imgD(vROI));
-				nrAdds++;
-				usedDilate = 1;
+				if((directions.empty() && ((nrAdds % midDilateCnt != 0) || (nrAdds < midDilateCnt))) || (nrAdds > max_iter)) {
+                    usedDilate = 1;
+                }
+                nrAdds++;
 				if(addArea == siAfterDil)
                 {
 				    return false;
@@ -3224,17 +3227,27 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 	std::vector<double> &x2TNdistCorr,
 	cv::Mat &img1Mask,
 	cv::Mat &img2Mask,
-	cv::Mat &usedDepthMap)
+	cv::Mat &usedDepthMap)/*,
+	cv::InputArray labelMask)*/
 {
 	int32_t kSi = csurr.rows;
 	int32_t posadd = (kSi - 1) / 2;
 	std::normal_distribution<double> distributionNX2(0, max(imgSize.width / 48, 10));
 	std::normal_distribution<double> distributionNY2(0, max(imgSize.width / 48, 10));
-	int maxSelect2 = 50;
+	int maxSelect2 = 75;
 	int maxSelect3 = max(3 * nrTN, 500);
 	Point pt;
 	Point2d pt2;
 	Point3d pCam;
+
+	/*Mat optLabelMask;//Optional mask for moving objects to select only TN on moving objects in the first image
+	if(labelMask.empty())
+    {
+        optLabelMask = Mat::ones(imgSize, CV_8UC1);
+    } else
+    {
+        optLabelMask = labelMask.getMat();
+    }*/
 
 	while ((nrTN > 0) && (maxSelect2 > 0) && (maxSelect3 > 0))
 	{
@@ -3242,12 +3255,12 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 		pt.y = distributionY(rand_gen);
 
 		Mat s_tmp = img1Mask(Rect(pt, Size(kSi, kSi)));
-		if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
+		if ((s_tmp.at<unsigned char>(posadd, posadd) > 0))// || (optLabelMask.at<unsigned char>(pt) == 0))
 		{
 			maxSelect2--;
 			continue;
 		}
-		maxSelect2 = 50;
+		maxSelect2 = 75;
 		s_tmp += csurr;
 		x1TN.push_back(Point2d((double)pt.x, (double)pt.y));
 		int max_try = 10;
@@ -3264,7 +3277,8 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 					max_try--;
 					continue;
 				}
-				s_tmp1 += csurr;
+				//s_tmp1 += csurr;
+                s_tmp1.at<unsigned char>(posadd, posadd)++;
 				break;
 			}
 			pt2 = Point2d((double)pt.x, (double)pt.y);
@@ -3301,7 +3315,8 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
 					max_try--;
 					continue;
 				}
-				s_tmp1 += csurr;
+				//s_tmp1 += csurr;
+                s_tmp1.at<unsigned char>(posadd, posadd)++;
 				perfDist = norm(ptd);
 				break;
 			}
@@ -3807,7 +3822,12 @@ void genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<i
 		{
 			areassum += i;
 		}
-		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);//reduce the initial area by reducing the radius of a circle with corresponding area by 1: are_new = area - 2*sqrt(pi)*sqrt(area)+pi
+        //reduce the initial area by reducing the radius of a circle with corresponding area by 1: are_new = area - 2*sqrt(pi)*sqrt(area)+pi
+//		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
+        //reduce the initial area by reducing the radius of a circle with corresponding area by reduceRadius
+        double reduceRadius = 5.0;
+        double tmp = sqrt((double)(areassum) * M_PI) - reduceRadius;
+		maxCorrs = max((int32_t)((tmp * tmp) / (1.5 * M_PI * pars.minKeypDist * pars.minKeypDist)), 1);
 		if ((actCorrsOnMovObj - corrsOnMovObjLF) > maxCorrs)
 		{
 			actCorrsOnMovObj = maxCorrs + corrsOnMovObjLF;
@@ -4408,21 +4428,21 @@ void genStereoSequ::getMovObjCorrs()
             dispit++;
 		}
 		//If there are still correspondences missing, try to use them in the next object
-		if ((nrTP > 0) && (i < (nr_movObj - 1)))
+		/*if ((nrTP > 0) && (i < (nr_movObj - 1)))
 		{
 			actTPPerMovObj[i + 1] += nrTP;
-		}
+		}*/
 
 		std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width - 1);
 		std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height - 1);
 		//Find TN keypoints in the second image for already found TN in the first image
+		size_t corrsNotVisible = x1TN.size();
 		if (!x1TN.empty())
 		{
-            //Visualize the mask before adding them
-            namedWindow( "Move TN Corrs mask img2 before", WINDOW_AUTOSIZE );
-            imshow("Move TN Corrs mask img2 before", (movObjMask2All > 0));
+            //Generate mask for visualization before adding keypoints
+            Mat dispMask = (movObjMask2All > 0);
 
-			for (size_t j = 0; j < x1TN.size(); j++)
+			for (size_t j = 0; j < corrsNotVisible; j++)
 			{
 				int max_try = 10;
 				while (max_try > 0)
@@ -4435,7 +4455,8 @@ void genStereoSequ::getMovObjCorrs()
 						max_try--;
 						continue;
 					}
-					csurr.copyTo(s_tmp);
+					//csurr.copyTo(s_tmp);
+                    s_tmp.at<unsigned char>(posadd, posadd) = 1;
 					x2TN.push_back(Point2d((double)pt.x, (double)pt.y));
 					movObjDistTNtoRealNew[i].push_back(50.0);
 					break;
@@ -4448,11 +4469,18 @@ void genStereoSequ::getMovObjCorrs()
 			}
 
 			//Visualize the mask afterwards
-            namedWindow( "Move TN Corrs mask img2 after", WINDOW_AUTOSIZE );
-            imshow("Move TN Corrs mask img2 after", (movObjMask2All > 0));
+            namedWindow( "Move TN Corrs mask img2", WINDOW_AUTOSIZE );
+			Mat dispMask2 = (movObjMask2All > 0);
+            vector<Mat> channels;
+            Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+            channels.push_back(b);
+            channels.push_back(dispMask);
+            channels.push_back(dispMask2);
+            Mat img3c;
+            merge(channels, img3c);
+            imshow("Move TN Corrs mask img2", img3c);
             waitKey(0);
-            destroyWindow("Move TN Corrs mask img2 after");
-            destroyWindow("Move TN Corrs mask img2 before");
+            destroyWindow("Move TN Corrs mask img2");
 		}
 
 		//Get the rest of TN correspondences
@@ -4462,13 +4490,11 @@ void genStereoSequ::getMovObjCorrs()
 			std::vector<double> x2TNdistCorr_tmp;
 			Mat maskImg1;
 			copyMakeBorder(movObjLabels[i], maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT, Scalar(0));
-			maskImg1 |= corrsSet;
+			maskImg1 = (maskImg1 == 0) | corrsSet;
 
-            //Visualize the mask before adding them
-            namedWindow( "Move rand TN Corrs mask img1 before", WINDOW_AUTOSIZE );
-            imshow("Move rand TN Corrs mask img1 before", (maskImg1 > 0));
-            namedWindow( "Move rand TN Corrs mask img2 before", WINDOW_AUTOSIZE );
-            imshow("Move rand TN Corrs mask img2 before", (movObjMask2All > 0));
+            //Generate mask for visualization before adding keypoints
+            Mat dispMaskImg2 = (movObjMask2All > 0);
+            Mat dispMaskImg1 = (maskImg1 > 0);
 
             //Generate a depth map for generating TN based on the depth of the actual moving object
             double dmin = actDepthNear, dmax = actDepthMid;
@@ -4492,22 +4518,33 @@ void genStereoSequ::getMovObjCorrs()
             Mat randDepth(imgSize,CV_64FC1);
             randu(randDepth, Scalar(dmin), Scalar(dmax + 0.001));
 
-			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, movObjMask2All, randDepth);
+			nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp, x2TN_tmp, x2TNdistCorr_tmp, maskImg1, movObjMask2All, randDepth);//, movObjLabels[i]);
 
             //Visualize the mask afterwards
-            namedWindow( "Move rand TN Corrs mask img1 after", WINDOW_AUTOSIZE );
-            imshow("Move rand TN Corrs mask img1 after", (maskImg1 > 0));
-            namedWindow( "Move rand TN Corrs mask img2 after", WINDOW_AUTOSIZE );
-            imshow("Move rand TN Corrs mask img2 after", (movObjMask2All > 0));
+            Mat dispMask2Img2 = (movObjMask2All > 0);
+            Mat dispMask2Img1 = (maskImg1 > 0);
+            vector<Mat> channels, channels1;
+            Mat b = Mat::zeros(dispMask2Img2.size(), CV_8UC1);
+            channels.push_back(b);
+            channels.push_back(dispMaskImg2);
+            channels.push_back(dispMask2Img2);
+            channels1.push_back(b);
+            channels1.push_back(dispMaskImg1);
+            channels1.push_back(dispMask2Img1);
+            Mat img3c, img3c1;
+            merge(channels, img3c);
+            merge(channels1, img3c1);
+            namedWindow( "Move rand TN Corrs mask img1", WINDOW_AUTOSIZE );
+            imshow("Move rand TN Corrs mask img1", img3c1);
+            namedWindow( "Move rand TN Corrs mask img2", WINDOW_AUTOSIZE );
+            imshow("Move rand TN Corrs mask img2", img3c);
             waitKey(0);
-            destroyWindow("Move rand TN Corrs mask img1 before");
-            destroyWindow("Move rand TN Corrs mask img1 after");
-            destroyWindow("Move rand TN Corrs mask img2 before");
-            destroyWindow("Move rand TN Corrs mask img2 after");
+            destroyWindow("Move rand TN Corrs mask img1");
+            destroyWindow("Move rand TN Corrs mask img2");
 
 			if (!x1TN_tmp.empty())
 			{
-				corrsSet(Rect(Point(posadd, posadd), imgSize)) |= maskImg1(Rect(Point(posadd, posadd), imgSize)) & (movObjLabels[i] == 0);
+				corrsSet(Rect(Point(posadd, posadd), imgSize)) |= (maskImg1(Rect(Point(posadd, posadd), imgSize)) & (movObjLabels[i] > 0));
 				//copy(x1TN_tmp.begin(), x1TN_tmp.end(), x1TN.end());
 				x1TN.insert(x1TN.end(), x1TN_tmp.begin(), x1TN_tmp.end());
 				//copy(x2TN_tmp.begin(), x2TN_tmp.end(), x2TN.end());
@@ -4516,6 +4553,34 @@ void genStereoSequ::getMovObjCorrs()
 				movObjDistTNtoRealNew[i].insert(movObjDistTNtoRealNew[i].end(), x2TNdistCorr_tmp.begin(), x2TNdistCorr_tmp.end());
 			}
 		}
+
+        //Adapt the number of TP and TN in the next objects based on the remaining number of TP and TN of the current object
+        if (((nrTP > 0) || (nrTN > 0)) && (i < (nr_movObj - 1)))
+        {
+            double reductionFactor = (double)(actTPPerMovObj[i] - nrTP + actTNPerMovObj[i] - nrTN) / (double)(actTPPerMovObj[i] + actTNPerMovObj[i]);
+            //incorporate fraction of not visible (in cam2) features
+            reductionFactor *= (double)(corrsNotVisible + x1TP.size()) / (double)x1TP.size();
+            reductionFactor = reductionFactor > 1.0 ? 1.0:reductionFactor;
+            for (int j = i + 1; j < nr_movObj; ++j) {
+                actTPPerMovObj[j] = (int32_t)round((double)actTPPerMovObj[j] * reductionFactor);
+                actTNPerMovObj[j] = (int32_t)round((double)actTNPerMovObj[j] * reductionFactor);
+            }
+            //Change the number of TP and TN to correct the overall inlier ratio of moving objects (as the desired inlier ratio of the current object is not reached)
+            int32_t next_corrs = actTNPerMovObj[i + 1] + actTPPerMovObj[i + 1];
+            actTPPerMovObj[i + 1] += nrTP;
+            actTNPerMovObj[i + 1] += nrTN;
+            reductionFactor = (double)next_corrs / (double)(actTNPerMovObj[i + 1] + actTPPerMovObj[i + 1]);
+            actTPPerMovObj[i + 1] = (int32_t)round((double)actTPPerMovObj[i + 1] * reductionFactor);
+            actTNPerMovObj[i + 1] = (int32_t)round((double)actTNPerMovObj[i + 1] * reductionFactor);
+            if(actTPPerMovObj[i + 1] < nrTP)
+            {
+                actTPPerMovObj[i + 1] = nrTP;
+            }
+            if(actTNPerMovObj[i + 1] < nrTN)
+            {
+                actTNPerMovObj[i + 1] = nrTN;
+            }
+        }
 
 		//Store correspondences
 		if (!x1TP.empty())

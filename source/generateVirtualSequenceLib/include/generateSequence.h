@@ -287,7 +287,8 @@ private:
 		std::vector<double> &x2TNdistCorr,
 		cv::Mat &img1Mask,
 		cv::Mat &img2Mask,
-		cv::Mat &usedDepthMap);
+		cv::Mat &usedDepthMap);/*,
+		cv::InputArray labelMask = cv::noArray());*/
 	bool checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam, cv::Mat &usedDepthMap);
 	void getNrSizePosMovObj();
 	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
