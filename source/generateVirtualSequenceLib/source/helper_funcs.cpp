@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: March 2018
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -75,7 +75,7 @@ cv::Mat eulerAnglesToRotationMatrix(double x, double y, double z)
 	return R_y * R_z * R_x;
 }
 
-bool any_vec_cv(cv::Mat bin)
+bool any_vec_cv(const cv::Mat& bin)
 {
 	CV_Assert(((bin.rows == 1) || (bin.cols == 1)) && (bin.type() == CV_8UC1));
 	int ln = bin.rows > bin.cols ? bin.rows : bin.cols;
@@ -89,7 +89,7 @@ bool any_vec_cv(cv::Mat bin)
 	return false;
 }
 
-bool isfinite_vec_cv(cv::Mat bin)
+bool isfinite_vec_cv(const cv::Mat& bin)
 {
 	CV_Assert(((bin.rows == 1) || (bin.cols == 1)) && (bin.type() == CV_64FC1));
 	int ln = bin.rows > bin.cols ? bin.rows : bin.cols;
@@ -107,7 +107,7 @@ bool isfinite_vec_cv(cv::Mat bin)
 *		K is the camera matrix of camera 1
 *		x is a homogeneous point within the image in pixel coordinates
 */
-cv::Mat getLineCam1(cv::Mat K, cv::Mat x)
+cv::Mat getLineCam1(const cv::Mat& K, const cv::Mat& x)
 {
 	return K.inv() * x;
 }
@@ -121,7 +121,7 @@ cv::Mat getLineCam1(cv::Mat K, cv::Mat x)
 *    K is the camera matrix of camera 2
 *  x is a homogeneous point within the image in pixel coordinates
 */
-void getLineCam2(cv::Mat R, cv::Mat t, cv::Mat K, cv::Mat x, cv::Mat& a, cv::Mat& b)
+void getLineCam2(const cv::Mat& R, const cv::Mat& t, const cv::Mat& K, const cv::Mat& x, cv::Mat& a, cv::Mat& b)
 {
 	a = -1.0 * R.t() * t;
 	b = R.t() * K.inv() * x;
@@ -134,7 +134,7 @@ void getLineCam2(cv::Mat R, cv::Mat t, cv::Mat K, cv::Mat x, cv::Mat& a, cv::Mat
 * origin of the coordinate system which is also the camera centre of the
 * left / bottom camera.
 */
-double getLineIntersect(cv::Mat b1, cv::Mat a2, cv::Mat b2)
+double getLineIntersect(const cv::Mat& b1, const cv::Mat& a2, const cv::Mat& b2)
 {
 	//First, check if the 2 lines are linear dependent
 	//Check if line 2 contains the origin
@@ -179,7 +179,7 @@ double getLineIntersect(cv::Mat b1, cv::Mat a2, cv::Mat b2)
 	return (S1.at<double>(2) + S2.at<double>(2)) / 2.0;
 }
 
-bool solveLinEqu(cv::Mat& A, cv::Mat& b, cv::Mat& x)
+bool solveLinEqu(const cv::Mat& A, const cv::Mat& b, cv::Mat& x)
 {
 	if (!cv::solve(A, b, x, DECOMP_LU))
 	{
@@ -267,7 +267,7 @@ void MatToQuat(const Eigen::Matrix3d & rot, Eigen::Vector4d & quat) {
 *
 * Return:				true or false
 */
-bool isMatRotationMat(cv::Mat R)
+bool isMatRotationMat(const cv::Mat& R)
 {
 	CV_Assert(!R.empty());
 
@@ -299,7 +299,7 @@ bool isMatRotationMat(Eigen::Matrix3d R)
 *
 * Return value:			Rotation angle (from Angle-axis-representation) between the two rotations
 */
-double rotDiff(cv::Mat R1, cv::Mat R2)
+double rotDiff(const cv::Mat& R1, const cv::Mat& R2)
 {
 	Eigen::Matrix3d R1e, R2e;
 	Eigen::Vector4d q1, q2;
@@ -393,7 +393,7 @@ double quatAngle(Eigen::Vector4d & Q)
 *
 * Return value:		Rounded floating point matrix
 */
-cv::Mat roundMat(cv::Mat m)
+cv::Mat roundMat(const cv::Mat& m)
 {
 	Mat tmp, tmp1;
 	m.convertTo(tmp, CV_32S, 1.0, 0.5);

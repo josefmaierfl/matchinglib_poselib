@@ -911,9 +911,12 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 
 	//Rotation matrix of the first camera centre.
 	//This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera
-	cv::Mat R = eulerAnglesToRotationMatrix(getRandDoubleVal(rand_generator, rollRange[0], rollRange[1]) * M_PI / 180.0, 
-		getRandDoubleVal(rand_generator, pitchRange[0], pitchRange[1]) * M_PI / 180.0, 
+	cv::Mat R = eulerAnglesToRotationMatrix(getRandDoubleVal(rand_generator, rollRange[0], rollRange[1]) * M_PI / 180.0,
+		getRandDoubleVal(rand_generator, pitchRange[0], pitchRange[1]) * M_PI / 180.0,
 		getRandDoubleVal(rand_generator, yawRange[0], yawRange[1]) * M_PI / 180.0);
+    /*cv::Mat R = eulerAnglesToRotationMatrix(0,
+                                            -90.0 * M_PI / 180.0,
+                                            0);*/
 
 	//Number of moving objects in the scene
 	size_t nrMovObjs = (size_t)rand() % 20;

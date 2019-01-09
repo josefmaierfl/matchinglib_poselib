@@ -238,7 +238,7 @@ public:
 
 private:
 	void constructCamPath();
-	cv::Mat getTrackRot(cv::Mat tdiff, cv::InputArray R_old = cv::noArray());
+	cv::Mat getTrackRot(const cv::Mat tdiff, cv::InputArray R_old = cv::noArray());
 	void genMasks();
 	bool getDepthRanges();
 	void adaptDepthsPerRegion();
@@ -330,7 +330,7 @@ private:
 
 	size_t totalNrFrames = 0;//Total number of frames
 	double absCamVelocity;//in baselines from frame to frame
-	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world (not the translation vector): C=-R^T * t -> t = -R * C
+	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
 
 	std::vector<double> inlRat;//Inlier ratio for every frame
 	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
@@ -458,6 +458,6 @@ The rotation matrix with the smaller angular difference is selected.
 This function is used to select a proper rotation matrix if the "look at" and "up vector" are nearly equal. I trys to find the nearest rotation matrix aligened to the
 "look at" vector taking into account the rotation matrix calculated from the old/last "look at" vector
 */
-bool roundR(cv::Mat R_old, cv::Mat & R_round, cv::InputArray R_fixed = cv::noArray());
+bool roundR(const cv::Mat R_old, cv::Mat & R_round, cv::InputArray R_fixed = cv::noArray());
 
 /* -------------------------- Functions -------------------------- */
