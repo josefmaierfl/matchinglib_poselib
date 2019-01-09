@@ -3116,6 +3116,24 @@ void genStereoSequ::getNrSizePosMovObj() {
                             xInterVals.push_back((double) maxEnd);
                             xWeights.push_back(1.0);
                         }
+                        //Check if we are able to select a new seed position
+                        double wsum = 0;
+                        for (auto &i: xWeights) {
+                            wsum += i;
+                        }
+                        if (nearZero(wsum)) {
+                            xWeights.clear();
+                            xInterVals.clear();
+                            vector<int> xIntervalDiffs(xposes.size() - 1);
+                            for (int i = 1; i < xposes.size(); ++i) {
+                                xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
+                            }
+                            int maxdiff = std::distance(xIntervalDiffs.begin(),
+                                                        std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
+                            xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
+                            xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
+                            xWeights.push_back(1.0);
+                        }
 
                         //Get possible selection ranges for y-values
                         start = max(yposes[0] - minODist, regROIs[y][x].y);
@@ -3150,6 +3168,24 @@ void genStereoSequ::getNrSizePosMovObj() {
                         }
                         if (xyend != maxEnd) {
                             yInterVals.push_back((double) maxEnd);
+                            yWeights.push_back(1.0);
+                        }
+                        //Check if we are able to select a new seed position
+                        wsum = 0;
+                        for (auto &i: yWeights) {
+                            wsum += i;
+                        }
+                        if (nearZero(wsum)) {
+                            yWeights.clear();
+                            yInterVals.clear();
+                            vector<int> yIntervalDiffs(yposes.size() - 1);
+                            for (int i = 1; i < yposes.size(); ++i) {
+                                yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
+                            }
+                            int maxdiff = std::distance(yIntervalDiffs.begin(),
+                                                        std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
+                            yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
+                            yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
                             yWeights.push_back(1.0);
                         }
 
@@ -3389,11 +3425,31 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
         //reduce the initial area by reducing the radius of a circle with corresponding area by 1: are_new = area - 2*sqrt(pi)*sqrt(area)+pi
 //		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
         //reduce the initial area by reducing the radius of a circle with corresponding area by reduceRadius
-        double reduceRadius = pars.minKeypDist < 5.0 ? 5.0:pars.minKeypDist;
+        double reduceRadius = pars.minKeypDist < 5.0 ? 5.0 : pars.minKeypDist;
         double tmp = sqrt((double) (areassum) * M_PI) - reduceRadius;
         maxCorrs = max((int32_t) ((tmp * tmp) / (1.5 * M_PI * pars.minKeypDist * pars.minKeypDist)), 1);
         if ((actCorrsOnMovObj - corrsOnMovObjLF) > maxCorrs) {
             actCorrsOnMovObj = maxCorrs + corrsOnMovObjLF;
+        }
+
+        //Check, if the areas of moving objects are valid
+        int32_t initAsum = 0;
+        for (auto i : areas) {
+            initAsum += i;
+        }
+        if (initAsum != areassum) {
+            double areaChange = (double) areassum / (double) initAsum;
+            if ((areaChange < 0.95) || (areaChange > 1.05)) {
+                cout << "Areas of moving objects are more than 5% different compared to given values." << endl;
+                for (size_t i = 0; i < areas.size(); i++) {
+                    areaChange = (double) actArea[i] / (double) areas[i];
+                    if (!nearZero(areaChange - 1.0)) {
+                        cout << "Area " << i << " with seed position (x, y) " << seeds[i].x << ", " << seeds[i].y <<
+                             " differs by " << areaChange - 1.0 << "% or " << actArea[i] - areas[i] << "pixels."
+                             << endl;
+                    }
+                }
+            }
         }
     }
 
@@ -3641,6 +3697,33 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
 
     //Combine existing and new labels of moving objects
     combMovObjLabelsAll = combMovObjLabels | movObjMaskFromLast;
+
+    //Check the inlier ratio, TP, TN, and number of correspondences
+    int32_t sumTPMO = 0, sumTNMO = 0, sumCorrsMO = 0;
+    for (auto i:actTPPerMovObj) {
+        sumTPMO += i;
+    }
+    for (auto i:actTNPerMovObj) {
+        sumTNMO += i;
+    }
+    sumCorrsMO = sumTPMO + sumTNMO;
+    if (sumCorrsMO != actCorrsOnMovObj) {
+        cout << "Sum of number of correspondences on moving objects is different to given number." << endl;
+        if (sumTPMO != actTruePosOnMovObj) {
+            cout << "Sum of number of TP correspondences on moving objects is different to given number. Sum: " <<
+                 sumTPMO << " Given: " << actTruePosOnMovObj << endl;
+        }
+        if (sumTNMO != actTrueNegOnMovObj) {
+            cout << "Sum of number of TN correspondences on moving objects is different to given number. Sum: " <<
+                 sumTNMO << " Given: " << actTrueNegOnMovObj << endl;
+        }
+    }
+    double inlRatDiffMO = (double) sumTPMO / (double) sumCorrsMO - inlRat[actFrameCnt];
+    if (!nearZero(inlRatDiffMO / 100.0)) {
+        cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
+             << inlRatDiffMO << endl;
+    }
+
 }
 
 //Assign a depth category to each new object label and calculate all depth values for each label
@@ -4107,6 +4190,56 @@ void genStereoSequ::getMovObjCorrs() {
         }
     }
     movObjMask2All = movObjMask2All(Rect(Point(posadd, posadd), imgSize));
+
+    //Check number of TP and TN per moving object and the overall inlier ratio
+    size_t nrCorrsMO = 0, nrTPMO = 0, nrTNMO = 0;
+    vector<int> nrTPperMO(nr_movObj, 0), nrTNperMO(nr_movObj, 0);
+    for (size_t k = 0; k < nr_movObj; ++k) {
+        nrTPperMO[k] = movObjCorrsImg1TP[k].cols;
+        nrTPMO += nrTPperMO[k];
+        nrTNperMO[k] = movObjCorrsImg1TN[k].cols;
+        nrTNMO += nrTNperMO[k];
+    }
+    nrCorrsMO = nrTPMO + nrTNMO;
+    if (nrCorrsMO != actCorrsOnMovObj) {
+        double chRate = (double) nrCorrsMO / (double) actCorrsOnMovObj;
+        if ((chRate < 0.95) || (chRate > 1.05)) {
+            cout << "Number of correspondences on moving objects is " << 100.0 * (chRate - 1.0)
+                 << "% different to given values!" << endl;
+            cout << "Actual #: " << nrCorrsMO << " Given #: " << actCorrsOnMovObj << endl;
+            for (size_t k = 0; k < nr_movObj; ++k) {
+                if ((int32_t) nrTPperMO[k] != actTPPerMovObj[k]) {
+                    cout << "# of TP for moving object " << k << " at position (x, y): (" <<
+                         movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
+                         ", " << movObjLabelsROIs[k].y +
+                                 movObjLabelsROIs[k].height / 2
+                         << ") differs by "
+                         << (int32_t) nrTPperMO[k] - actTPPerMovObj[k]
+                         <<
+                         " correspondences (Actual #: " << nrTPperMO[k]
+                         << " Given #: " << actTPPerMovObj[k] << ")"
+                         << endl;
+                }
+                if ((int32_t) nrTNperMO[k] != actTNPerMovObj[k]) {
+                    cout << "# of TP for moving object " << k << " at position (x, y): (" <<
+                         movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
+                         ", " << movObjLabelsROIs[k].y +
+                                 movObjLabelsROIs[k].height / 2
+                         << ") differs by "
+                         << (int32_t) nrTNperMO[k] - actTNPerMovObj[k]
+                         <<
+                         " correspondences (Actual #: " << nrTNperMO[k]
+                         << " Given #: " << actTNPerMovObj[k] << ")"
+                         << endl;
+                }
+            }
+        }
+    }
+    double inlRatDiffMO = (double) nrTPMO / (double) nrCorrsMO - inlRat[actFrameCnt];
+    if (!nearZero(inlRatDiffMO / 100.0)) {
+        cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
+             << inlRatDiffMO << endl;
+    }
 }
 
 //Generate (backproject) correspondences from existing moving objects and generate hulls of the objects in the image
@@ -4755,6 +4888,24 @@ void genStereoSequ::getSeedsAreasMovObj() {
                             xInterVals.push_back((double) maxEnd);
                             xWeights.push_back(1.0);
                         }
+                        //Check if we are able to select a new seed position
+                        double wsum = 0;
+                        for (auto &i: xWeights) {
+                            wsum += i;
+                        }
+                        if (nearZero(wsum)) {
+                            xWeights.clear();
+                            xInterVals.clear();
+                            vector<int> xIntervalDiffs(xposes.size() - 1);
+                            for (int i = 1; i < xposes.size(); ++i) {
+                                xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
+                            }
+                            int maxdiff = std::distance(xIntervalDiffs.begin(),
+                                                        std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
+                            xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
+                            xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
+                            xWeights.push_back(1.0);
+                        }
 
                         //Get possible selection ranges for y-values
                         start = max(yposes[0] - minODist, regROIs[y][x].y);
@@ -4789,6 +4940,24 @@ void genStereoSequ::getSeedsAreasMovObj() {
                         }
                         if (xyend != maxEnd) {
                             yInterVals.push_back((double) maxEnd);
+                            yWeights.push_back(1.0);
+                        }
+                        //Check if we are able to select a new seed position
+                        wsum = 0;
+                        for (auto &i: yWeights) {
+                            wsum += i;
+                        }
+                        if (nearZero(wsum)) {
+                            yWeights.clear();
+                            yInterVals.clear();
+                            vector<int> yIntervalDiffs(yposes.size() - 1);
+                            for (int i = 1; i < yposes.size(); ++i) {
+                                yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
+                            }
+                            int maxdiff = std::distance(yIntervalDiffs.begin(),
+                                                        std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
+                            yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
+                            yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
                             yWeights.push_back(1.0);
                         }
 

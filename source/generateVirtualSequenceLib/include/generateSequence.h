@@ -341,7 +341,7 @@ private:
 	std::vector<cv::Mat> nrCorrsRegs;//Absolute number of correspondences (TP+TN) per image region and frame; Type CV_32SC1
 	std::vector<cv::Mat> nrTrueNegRegs;//Absolute number of true negative correspondences per image region and frame; Type CV_32SC1
 
-	std::vector<std::vector<cv::Mat>> regmasks;//Mask for every of the 3x3 regions with the same size as the image and aspecific percentage of validity outside every region (overlap areas). Used for generating depth maps. See genRegMasks() for details on the overlap area.
+	std::vector<std::vector<cv::Mat>> regmasks;//Mask for every of the 3x3 regions with the same size as the image and a specific percentage of validity outside every region (overlap areas). Used for generating depth maps. See genRegMasks() for details on the overlap area.
 	std::vector<std::vector<cv::Rect>> regmasksROIs;//ROIs used to generate regmasks.
 
 	cv::Mat depthMap;//Mat of the same size as the image holding a depth value for every pixel (double)
