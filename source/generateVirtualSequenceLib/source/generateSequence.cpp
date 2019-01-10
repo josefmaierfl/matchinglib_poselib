@@ -3076,118 +3076,9 @@ void genStereoSequ::getNrSizePosMovObj() {
                     xposes.push_back(movObjSeeds[y][x].back().x);
                     yposes.push_back(movObjSeeds[y][x].back().y);
                     while (nr_tmp > 0) {
-                        sort(xposes.begin(), xposes.end());
-                        sort(yposes.begin(), yposes.end());
                         vector<double> xInterVals, yInterVals;
                         vector<double> xWeights, yWeights;
-
-                        //Get possible selection ranges for x-values
-                        int start = max(xposes[0] - minODist, regROIs[y][x].x);
-                        int maxEnd = regROIs[y][x].x + regROIs[y][x].width;
-                        int xyend = min(xposes[0] + minODist, maxEnd);
-                        if (start == regROIs[y][x].x) {
-                            xInterVals.push_back((double) start);
-                            xInterVals.push_back((double) (xposes[0] + minODist));
-                            xWeights.push_back(0);
-                        } else {
-                            xInterVals.push_back((double) regROIs[y][x].x);
-                            xInterVals.push_back((double) start);
-                            xWeights.push_back(1.0);
-                            if (xyend != maxEnd) {
-                                xInterVals.push_back((double) xyend);
-                                xWeights.push_back(0);
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            for (size_t i = 1; i < xposes.size(); i++) {
-                                start = max(xposes[i] - minODist, (int) floor(xInterVals.back()));
-                                if (start != (int) floor(xInterVals.back())) {
-                                    xInterVals.push_back((double) (xposes[i] - minODist));
-                                    xWeights.push_back(1.0);
-                                }
-                                xyend = min(xposes[i] + minODist, maxEnd);
-                                if (xyend != maxEnd) {
-                                    xInterVals.push_back((double) xyend);
-                                    xWeights.push_back(0);
-                                }
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            xInterVals.push_back((double) maxEnd);
-                            xWeights.push_back(1.0);
-                        }
-                        //Check if we are able to select a new seed position
-                        double wsum = 0;
-                        for (auto &i: xWeights) {
-                            wsum += i;
-                        }
-                        if (nearZero(wsum)) {
-                            xWeights.clear();
-                            xInterVals.clear();
-                            vector<int> xIntervalDiffs(xposes.size() - 1);
-                            for (int i = 1; i < xposes.size(); ++i) {
-                                xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
-                            }
-                            int maxdiff = std::distance(xIntervalDiffs.begin(),
-                                                        std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
-                            xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
-                            xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
-                            xWeights.push_back(1.0);
-                        }
-
-                        //Get possible selection ranges for y-values
-                        start = max(yposes[0] - minODist, regROIs[y][x].y);
-                        maxEnd = regROIs[y][x].y + regROIs[y][x].height;
-                        xyend = min(yposes[0] + minODist, maxEnd);
-                        if (start == regROIs[y][x].y) {
-                            yInterVals.push_back((double) start);
-                            yInterVals.push_back((double) (yposes[0] + minODist));
-                            yWeights.push_back(0);
-                        } else {
-                            yInterVals.push_back((double) regROIs[y][x].y);
-                            yInterVals.push_back((double) start);
-                            yWeights.push_back(1.0);
-                            if (xyend != maxEnd) {
-                                yInterVals.push_back((double) xyend);
-                                yWeights.push_back(0);
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            for (size_t i = 1; i < yposes.size(); i++) {
-                                start = max(yposes[i] - minODist, (int) floor(yInterVals.back()));
-                                if (start != (int) floor(yInterVals.back())) {
-                                    yInterVals.push_back((double) (yposes[i] - minODist));
-                                    yWeights.push_back(1.0);
-                                }
-                                xyend = min(yposes[i] + minODist, maxEnd);
-                                if (xyend != maxEnd) {
-                                    yInterVals.push_back((double) xyend);
-                                    yWeights.push_back(0);
-                                }
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            yInterVals.push_back((double) maxEnd);
-                            yWeights.push_back(1.0);
-                        }
-                        //Check if we are able to select a new seed position
-                        wsum = 0;
-                        for (auto &i: yWeights) {
-                            wsum += i;
-                        }
-                        if (nearZero(wsum)) {
-                            yWeights.clear();
-                            yInterVals.clear();
-                            vector<int> yIntervalDiffs(yposes.size() - 1);
-                            for (int i = 1; i < yposes.size(); ++i) {
-                                yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
-                            }
-                            int maxdiff = std::distance(yIntervalDiffs.begin(),
-                                                        std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
-                            yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
-                            yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
-                            yWeights.push_back(1.0);
-                        }
+                        buildDistributionRanges(xposes, yposes, x, y, xInterVals, xWeights, yInterVals, yWeights);
 
                         //Create piecewise uniform distribution and get a random seed
                         piecewise_constant_distribution<double> distrPieceX(xInterVals.begin(), xInterVals.end(),
@@ -3203,6 +3094,127 @@ void genStereoSequ::getNrSizePosMovObj() {
                 }
             }
         }
+    }
+}
+
+//Build ranges and weights for a piecewise_constant_distribution based on values calculated before
+void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
+                                            std::vector<int> &yposes,
+                                            int &x,
+                                            int &y,
+                                            std::vector<double> &xInterVals,
+                                            std::vector<double> &xWeights,
+                                            std::vector<double> &yInterVals,
+                                            std::vector<double> &yWeights) {
+    sort(xposes.begin(), xposes.end());
+    sort(yposes.begin(), yposes.end());
+
+    //Get possible selection ranges for x-values
+    int start = max(xposes[0] - minODist, regROIs[y][x].x);
+    int maxEnd = regROIs[y][x].x + regROIs[y][x].width - 1;
+    int xyend = min(xposes[0] + minODist, maxEnd);
+    if (start == regROIs[y][x].x) {
+        xInterVals.push_back((double) start);
+        xInterVals.push_back((double) (xposes[0] + minODist));
+        xWeights.push_back(0);
+    } else {
+        xInterVals.push_back((double) regROIs[y][x].x);
+        xInterVals.push_back((double) start);
+        xWeights.push_back(1.0);
+        if (xyend != maxEnd) {
+            xInterVals.push_back((double) xyend);
+            xWeights.push_back(0);
+        }
+    }
+    if (xyend != maxEnd) {
+        for (size_t i = 1; i < xposes.size(); i++) {
+            start = max(xposes[i] - minODist, (int) floor(xInterVals.back()));
+            if (start != (int) floor(xInterVals.back())) {
+                xInterVals.push_back((double) (xposes[i] - minODist));
+                xWeights.push_back(1.0);
+            }
+            xyend = min(xposes[i] + minODist, maxEnd);
+            if (xyend != maxEnd) {
+                xInterVals.push_back((double) xyend);
+                xWeights.push_back(0);
+            }
+        }
+    }
+    if (xyend != maxEnd) {
+        xInterVals.push_back((double) maxEnd);
+        xWeights.push_back(1.0);
+    }
+    //Check if we are able to select a new seed position
+    double wsum = 0;
+    for (auto &i: xWeights) {
+        wsum += i;
+    }
+    if (nearZero(wsum)) {
+        xWeights.clear();
+        xInterVals.clear();
+        vector<int> xIntervalDiffs(xposes.size() - 1);
+        for (int i = 1; i < xposes.size(); ++i) {
+            xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
+        }
+        int maxdiff = std::distance(xIntervalDiffs.begin(),
+                                    std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
+        xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
+        xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
+        xWeights.push_back(1.0);
+    }
+
+    //Get possible selection ranges for y-values
+    start = max(yposes[0] - minODist, regROIs[y][x].y);
+    maxEnd = regROIs[y][x].y + regROIs[y][x].height - 1;
+    xyend = min(yposes[0] + minODist, maxEnd);
+    if (start == regROIs[y][x].y) {
+        yInterVals.push_back((double) start);
+        yInterVals.push_back((double) (yposes[0] + minODist));
+        yWeights.push_back(0);
+    } else {
+        yInterVals.push_back((double) regROIs[y][x].y);
+        yInterVals.push_back((double) start);
+        yWeights.push_back(1.0);
+        if (xyend != maxEnd) {
+            yInterVals.push_back((double) xyend);
+            yWeights.push_back(0);
+        }
+    }
+    if (xyend != maxEnd) {
+        for (size_t i = 1; i < yposes.size(); i++) {
+            start = max(yposes[i] - minODist, (int) floor(yInterVals.back()));
+            if (start != (int) floor(yInterVals.back())) {
+                yInterVals.push_back((double) (yposes[i] - minODist));
+                yWeights.push_back(1.0);
+            }
+            xyend = min(yposes[i] + minODist, maxEnd);
+            if (xyend != maxEnd) {
+                yInterVals.push_back((double) xyend);
+                yWeights.push_back(0);
+            }
+        }
+    }
+    if (xyend != maxEnd) {
+        yInterVals.push_back((double) maxEnd);
+        yWeights.push_back(1.0);
+    }
+    //Check if we are able to select a new seed position
+    wsum = 0;
+    for (auto &i: yWeights) {
+        wsum += i;
+    }
+    if (nearZero(wsum)) {
+        yWeights.clear();
+        yInterVals.clear();
+        vector<int> yIntervalDiffs(yposes.size() - 1);
+        for (int i = 1; i < yposes.size(); ++i) {
+            yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
+        }
+        int maxdiff = std::distance(yIntervalDiffs.begin(),
+                                    std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
+        yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
+        yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
+        yWeights.push_back(1.0);
     }
 }
 
@@ -3444,8 +3456,8 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
                 for (size_t i = 0; i < areas.size(); i++) {
                     areaChange = (double) actArea[i] / (double) areas[i];
                     if (!nearZero(areaChange - 1.0)) {
-                        cout << "Area " << i << " with seed position (x, y) " << seeds[i].x << ", " << seeds[i].y <<
-                             " differs by " << areaChange - 1.0 << "% or " << actArea[i] - areas[i] << "pixels."
+                        cout << "Area " << i << " with seed position (x, y): (" << seeds[i].x << ", " << seeds[i].y <<
+                             ") differs by " << 100.0 * (areaChange - 1.0) << "% or " << actArea[i] - areas[i] << " pixels."
                              << endl;
                     }
                 }
@@ -4848,118 +4860,9 @@ void genStereoSequ::getSeedsAreasMovObj() {
                     xposes.push_back(movObjSeeds[y][x].back().x);
                     yposes.push_back(movObjSeeds[y][x].back().y);
                     while (nr_tmp > 0) {
-                        sort(xposes.begin(), xposes.end());
-                        sort(yposes.begin(), yposes.end());
                         vector<double> xInterVals, yInterVals;
                         vector<double> xWeights, yWeights;
-
-                        //Get possible selection ranges for x-values
-                        int start = max(xposes[0] - minODist, regROIs[y][x].x);
-                        int maxEnd = regROIs[y][x].x + regROIs[y][x].width - 1;
-                        int xyend = min(xposes[0] + minODist, maxEnd);
-                        if (start == regROIs[y][x].x) {
-                            xInterVals.push_back((double) start);
-                            xInterVals.push_back((double) (xposes[0] + minODist));
-                            xWeights.push_back(0);
-                        } else {
-                            xInterVals.push_back((double) regROIs[y][x].x);
-                            xInterVals.push_back((double) start);
-                            xWeights.push_back(1.0);
-                            if (xyend != maxEnd) {
-                                xInterVals.push_back((double) xyend);
-                                xWeights.push_back(0);
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            for (size_t i = 1; i < xposes.size(); i++) {
-                                start = max(xposes[i] - minODist, (int) floor(xInterVals.back()));
-                                if (start != (int) floor(xInterVals.back())) {
-                                    xInterVals.push_back((double) (xposes[i] - minODist));
-                                    xWeights.push_back(1.0);
-                                }
-                                xyend = min(xposes[i] + minODist, maxEnd);
-                                if (xyend != maxEnd) {
-                                    xInterVals.push_back((double) xyend);
-                                    xWeights.push_back(0);
-                                }
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            xInterVals.push_back((double) maxEnd);
-                            xWeights.push_back(1.0);
-                        }
-                        //Check if we are able to select a new seed position
-                        double wsum = 0;
-                        for (auto &i: xWeights) {
-                            wsum += i;
-                        }
-                        if (nearZero(wsum)) {
-                            xWeights.clear();
-                            xInterVals.clear();
-                            vector<int> xIntervalDiffs(xposes.size() - 1);
-                            for (int i = 1; i < xposes.size(); ++i) {
-                                xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
-                            }
-                            int maxdiff = std::distance(xIntervalDiffs.begin(),
-                                                        std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
-                            xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
-                            xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
-                            xWeights.push_back(1.0);
-                        }
-
-                        //Get possible selection ranges for y-values
-                        start = max(yposes[0] - minODist, regROIs[y][x].y);
-                        maxEnd = regROIs[y][x].y + regROIs[y][x].height - 1;
-                        xyend = min(yposes[0] + minODist, maxEnd);
-                        if (start == regROIs[y][x].y) {
-                            yInterVals.push_back((double) start);
-                            yInterVals.push_back((double) (yposes[0] + minODist));
-                            yWeights.push_back(0);
-                        } else {
-                            yInterVals.push_back((double) regROIs[y][x].y);
-                            yInterVals.push_back((double) start);
-                            yWeights.push_back(1.0);
-                            if (xyend != maxEnd) {
-                                yInterVals.push_back((double) xyend);
-                                yWeights.push_back(0);
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            for (size_t i = 1; i < yposes.size(); i++) {
-                                start = max(yposes[i] - minODist, (int) floor(yInterVals.back()));
-                                if (start != (int) floor(yInterVals.back())) {
-                                    yInterVals.push_back((double) (yposes[i] - minODist));
-                                    yWeights.push_back(1.0);
-                                }
-                                xyend = min(yposes[i] + minODist, maxEnd);
-                                if (xyend != maxEnd) {
-                                    yInterVals.push_back((double) xyend);
-                                    yWeights.push_back(0);
-                                }
-                            }
-                        }
-                        if (xyend != maxEnd) {
-                            yInterVals.push_back((double) maxEnd);
-                            yWeights.push_back(1.0);
-                        }
-                        //Check if we are able to select a new seed position
-                        wsum = 0;
-                        for (auto &i: yWeights) {
-                            wsum += i;
-                        }
-                        if (nearZero(wsum)) {
-                            yWeights.clear();
-                            yInterVals.clear();
-                            vector<int> yIntervalDiffs(yposes.size() - 1);
-                            for (int i = 1; i < yposes.size(); ++i) {
-                                yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
-                            }
-                            int maxdiff = std::distance(yIntervalDiffs.begin(),
-                                                        std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
-                            yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
-                            yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
-                            yWeights.push_back(1.0);
-                        }
+                        buildDistributionRanges(xposes, yposes, x, y, xInterVals, xWeights, yInterVals, yWeights);
 
                         //Create piecewise uniform distribution and get a random seed
                         piecewise_constant_distribution<double> distrPieceX(xInterVals.begin(), xInterVals.end(),

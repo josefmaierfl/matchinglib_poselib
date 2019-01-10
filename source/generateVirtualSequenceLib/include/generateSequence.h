@@ -291,6 +291,14 @@ private:
 		cv::InputArray labelMask = cv::noArray());*/
 	bool checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Point3d &pCam, cv::Mat &usedDepthMap);
 	void getNrSizePosMovObj();
+	void buildDistributionRanges(std::vector<int> &xposes,
+								 std::vector<int> &yposes,
+								 int &x,
+								 int &y,
+								 std::vector<double> &xInterVals,
+								 std::vector<double> &xWeights,
+								 std::vector<double> &yInterVals,
+								 std::vector<double> &yWeights);
 	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
 	void genNewDepthMovObj();
 	void backProjectMovObj();
