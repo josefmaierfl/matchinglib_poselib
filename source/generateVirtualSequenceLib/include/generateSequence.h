@@ -321,6 +321,7 @@ private:
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
 	void visualizeMovObjPtCloud();
+    int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
 
 private:
 	std::default_random_engine rand_gen;
@@ -399,6 +400,9 @@ private:
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsNearFromLast;//Holds the actual near seeds of backprojected 3D points for every region; Size 3x3xn;
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsMidFromLast;//Holds the actual mid seeds of backprojected 3D points for every region; Size 3x3xn;
 	std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> seedsFarFromLast;//Holds the actual far seeds of backprojected 3D points for every region; Size 3x3xn;
+    std::vector<std::vector<std::vector<int32_t>>> seedsNearNNDist;//Holds the distance to the nearest neighbor for every seed of seedsNear
+    std::vector<std::vector<std::vector<int32_t>>> seedsMidNNDist;//Holds the distance to the nearest neighbor for every seed of seedsMid
+    std::vector<std::vector<std::vector<int32_t>>> seedsFarNNDist;//Holds the distance to the nearest neighbor for every seed of seedsFar
 
 	cv::Mat startPosMovObjs; //Possible starting positions of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 	cv::Mat movObjDir;//Movement direction of moving objects relative to camera movementm (must be 3x1 double). The movement direction is linear and does not change if the movement direction of the camera changes.
