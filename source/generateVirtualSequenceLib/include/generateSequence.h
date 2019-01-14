@@ -322,6 +322,14 @@ private:
 	void visualizeCamPath();
 	void visualizeMovObjPtCloud();
     int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
+    bool fillRemainingAreas(cv::Mat &depthArea,
+                            const cv::Mat &usedAreas,
+                            int32_t areaToFill,
+                            int32_t &actualArea,
+                            cv::InputArray otherDepthA1 = cv::noArray(),
+                            cv::InputArray otherDepthA2 = cv::noArray());
+    void removeNrFilledPixels(cv::Size delElementSi, cv::Size matSize, cv::Mat &targetMat, int32_t nrToDel);
+    void delOverlaps2(cv::Mat &depthArea1, cv::Mat &depthArea2);
 
 private:
 	std::default_random_engine rand_gen;

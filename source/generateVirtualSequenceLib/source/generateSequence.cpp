@@ -1600,6 +1600,7 @@ void genStereoSequ::genDepthMaps() {
 
     cv::Mat noGenMaskB = Mat::zeros(imgSize.height + 2 * maskEnlarge, imgSize.width + 2 * maskEnlarge, CV_8UC1);
     Mat noGenMaskB2 = noGenMaskB.clone();
+    Mat noGenMask_save;
     cv::Mat noGenMask = noGenMaskB(Range(maskEnlarge, imgSize.height + maskEnlarge), Range(maskEnlarge, imgSize.width + maskEnlarge));
     Mat noGenMask2 = noGenMaskB2(Range(maskEnlarge, imgSize.height + maskEnlarge), Range(maskEnlarge, imgSize.width + maskEnlarge));
     /*minSi = 2 * minSi + 1;
@@ -1648,52 +1649,64 @@ void genStereoSequ::genDepthMaps() {
                     case 0:
                         for (size_t j = 0; j < seedsNear[y][x].size(); j++) {
                             cv::Point3_<int32_t> pt = seedsNear[y][x][j];
-                            Mat part;
+                            Mat part, rmask;
+                            int32_t nnd = seedsNearNNDist[y][x][j];
+                            int32_t useRad = min(max((nnd-1) / 2, meanNearA.at<cv::Vec<int32_t, 2>>(y,x)[1]), nnd-2);
+                            int32_t offset = maskEnlarge - useRad;
+                            int32_t offset2 = offset + useRad;
+                            getRandMask(rmask, meanNearA.at<cv::Vec<int32_t, 2>>(y,x)[0], useRad, minSi);
                             if (i == 2) {
-                                int32_t nnd = seedsNearNNDist[y][x][j];
-                                int32_t useRad = min(max((nnd-1) / 2, meanNearA.at<cv::Vec<int32_t, 2>>(y,x)[1]), nnd-2);
-                                int32_t offset = maskEnlarge - useRad;
-                                int32_t offset2 = offset + useRad;
                                 part = noGenMaskB(Range(pt.y + offset, pt.y + offset2), Range(pt.x + offset, pt.x + offset2));
-//                                getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR)
                             }
                             else {
-                                part = noGenMaskB2(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+                                part = noGenMaskB2(Range(pt.y + offset, pt.y + offset2), Range(pt.x + offset, pt.x + offset2));
                             }
-                            part |= minArea;
+                            part |= rmask;
                         }
                         break;
                     case 1:
-                        for (auto pt : seedsMid[y][x]) {
-                            Mat part;
+                        for (size_t j = 0; j < seedsMid[y][x].size(); j++) {
+                            cv::Point3_<int32_t> pt = seedsMid[y][x][j];
+                            Mat part, rmask;
+                            int32_t nnd = seedsMidNNDist[y][x][j];
+                            int32_t useRad = min(max((nnd-1) / 2, meanMidA.at<cv::Vec<int32_t, 2>>(y,x)[1]), nnd-2);
+                            int32_t offset = maskEnlarge - useRad;
+                            int32_t offset2 = offset + useRad;
+                            getRandMask(rmask, meanMidA.at<cv::Vec<int32_t, 2>>(y,x)[0], useRad, minSi);
                             if (i == 2) {
-                                part = noGenMaskB(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+                                part = noGenMaskB(Range(pt.y + offset, pt.y + offset2), Range(pt.x + offset, pt.x + offset2));
                             }
                             else {
-                                part = noGenMaskB2(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+                                part = noGenMaskB2(Range(pt.y + offset, pt.y + offset2), Range(pt.x + offset, pt.x + offset2));
                             }
-                            part |= minArea;
+                            part |= rmask;
                         }
                         break;
                     case 2:
-                        for (auto pt : seedsFar[y][x]) {
-                            Mat part;
+                        for (size_t j = 0; j < seedsFar[y][x].size(); j++) {
+                            cv::Point3_<int32_t> pt = seedsFar[y][x][j];
+                            Mat part, rmask;
+                            int32_t nnd = seedsFarNNDist[y][x][j];
+                            int32_t useRad = min(max((nnd-1) / 2, meanFarA.at<cv::Vec<int32_t, 2>>(y,x)[1]), nnd-2);
+                            int32_t offset = maskEnlarge - useRad;
+                            int32_t offset2 = offset + useRad;
+                            getRandMask(rmask, meanFarA.at<cv::Vec<int32_t, 2>>(y,x)[0], useRad, minSi);
                             if (i == 2) {
-                                part = noGenMaskB(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+                                part = noGenMaskB(Range(pt.y + offset, pt.y + offset2), Range(pt.x + offset, pt.x + offset2));
                             }
                             else {
-                                part = noGenMaskB2(Range(pt.y, pt.y + minSi), Range(pt.x, pt.x + minSi));
+                                part = noGenMaskB2(Range(pt.y + offset, pt.y + offset2), Range(pt.x + offset, pt.x + offset2));
                             }
-                            part |= minArea;
+                            part |= rmask;
                         }
                         break;
                     default:
                         break;
                 }
             }
-//            noGenMaskB |= noGenMaskB2;
         }
     }
+    noGenMask.copyTo(noGenMask_save);
     noGenMaskB |= noGenMaskB2;
 
     //Create first layer of depth areas
@@ -1725,7 +1738,7 @@ void genStereoSequ::genDepthMaps() {
     //Init actual positions
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
-            if (!seedsNear[y][x].empty()) {
+            if (!seedsNear[y][x].empty() && (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] != 0)) {
                 actPosSeedsNear[y][x].resize(seedsNear[y][x].size());
                 nrIterPerSeedNear[y][x].resize(seedsNear[y][x].size(), 0);
                 //areaPerSeedNear[y][x].resize(seedsNear[y][x].size(), 0);
@@ -1739,7 +1752,7 @@ void genStereoSequ::genDepthMaps() {
                     actAreaNear[y][x]++;
                 }
             }
-            if (!seedsMid[y][x].empty()) {
+            if (!seedsMid[y][x].empty() && (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] != 1)) {
                 actPosSeedsMid[y][x].resize(seedsMid[y][x].size());
                 nrIterPerSeedMid[y][x].resize(seedsMid[y][x].size(), 0);
                 //areaPerSeedMid[y][x].resize(seedsMid[y][x].size(), 0);
@@ -1753,7 +1766,7 @@ void genStereoSequ::genDepthMaps() {
                     actAreaMid[y][x]++;
                 }
             }
-            if (!seedsFar[y][x].empty()) {
+            if (!seedsFar[y][x].empty() && (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] != 2)) {
                 actPosSeedsFar[y][x].resize(seedsFar[y][x].size());
                 nrIterPerSeedFar[y][x].resize(seedsFar[y][x].size(), 0);
                 //areaPerSeedFar[y][x].resize(seedsFar[y][x].size(), 0);
@@ -1876,7 +1889,7 @@ void genStereoSequ::genDepthMaps() {
     }
 
     //Fill the remaining areas
-    for (size_t y = 0; y < 3; y++) {
+    /*for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
             Mat fillMask =
                     (depthAreaMap(regROIs[y][x]) == 0) & Mat::ones(regROIs[y][x].height, regROIs[y][x].width, CV_8UC1);
@@ -1887,18 +1900,110 @@ void genStereoSequ::genDepthMaps() {
                     break;
                 case 1:
                     actUsedAreaMid(regROIs[y][x]) |= fillMask;
-                    /*fillMask *= 2;
-				depthAreaMap(regROIs[y][x]) |= fillMask;*/
+                    *//*fillMask *= 2;
+				depthAreaMap(regROIs[y][x]) |= fillMask;*//*
                     break;
                 case 2:
                     actUsedAreaFar(regROIs[y][x]) |= fillMask;
-                    /*fillMask *= 3;
-				depthAreaMap(regROIs[y][x]) |= fillMask;*/
+                    *//*fillMask *= 3;
+				depthAreaMap(regROIs[y][x]) |= fillMask;*//*
                     break;
                 default:
                     break;
             }
         }
+    }*/
+
+    //Fill the remaining areas:
+    //Generate the (largest) depth areas per region independent of the largest & different depth areas of other regions
+	Mat maskNear = Mat::zeros(imgSize, CV_8UC1);
+    Mat maskMid = Mat::zeros(imgSize, CV_8UC1);
+    Mat maskFar = Mat::zeros(imgSize, CV_8UC1);
+    int32_t fillAreas[3] = {0,0,0};
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2]) {
+                case 0:
+                    maskNear(regROIs[y][x]) |= noGenMask_save(regROIs[y][x]);
+                    fillAreas[0] += areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x);
+                    break;
+                case 1:
+                    maskMid(regROIs[y][x]) |= noGenMask_save(regROIs[y][x]);
+                    fillAreas[1] += areaPRegMid[actCorrsPRIdx].at<int32_t>(y, x);
+                    break;
+                case 2:
+                    maskFar(regROIs[y][x]) |= noGenMask_save(regROIs[y][x]);
+                    fillAreas[2] += areaPRegFar[actCorrsPRIdx].at<int32_t>(y, x);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    int32_t actualAreas[3] = {0,0,0};
+    actualAreas[0] = cv::countNonZero(maskNear);
+    actualAreas[1] = cv::countNonZero(maskMid);
+    actualAreas[2] = cv::countNonZero(maskFar);
+    fillRemainingAreas(maskNear, depthAreaMap, fillAreas[0], actualAreas[0]);
+    fillRemainingAreas(maskMid, depthAreaMap, fillAreas[1], actualAreas[1]);
+    fillRemainingAreas(maskFar, depthAreaMap, fillAreas[2], actualAreas[2]);
+    //Get overlaps of filled areas (3 different) and remove them
+    Mat overlap3 = maskNear & maskMid & maskFar;
+    int nr_overlap3 = cv::countNonZero(overlap3);
+    if(nr_overlap3) {
+        Mat overlap3sv = overlap3.clone();
+        int overlapDel = nr_overlap3 / 3;
+        //Remove small mid and far areas (only near areas remain in overlap areas)
+        removeNrFilledPixels(cv::Size(3, 3), imgSize, overlap3, overlapDel);
+        Mat changeMask = ((overlap3 ^ overlap3sv) == 0);
+        maskMid &= changeMask;
+        maskFar &= changeMask;
+        overlap3sv = overlap3.clone();
+        //Remove small near and far areas (only mid areas remain in overlap areas)
+        removeNrFilledPixels(cv::Size(3, 3), imgSize, overlap3, overlapDel);
+        changeMask = ((overlap3 ^ overlap3sv) == 0);
+        maskNear &= changeMask;
+        maskFar &= changeMask;
+        //Remove small near and mid areas (only far areas remain in overlap areas)
+        changeMask = (overlap3 == 0);
+        maskNear &= changeMask;
+        maskMid &= changeMask;
+    }
+    //Get overlaps of filled areas (2 different) and remove them
+    delOverlaps2(maskNear, maskMid);
+    delOverlaps2(maskNear, maskFar);
+    delOverlaps2(maskFar, maskMid);
+    //Try to fill the remaining gaps using dilation
+    const int maxCnt = 20;
+    int cnt = 0;
+    bool finished[3] = {false, false, false};
+    actualAreas[0] = cv::countNonZero(maskNear);
+    actualAreas[1] = cv::countNonZero(maskMid);
+    actualAreas[2] = cv::countNonZero(maskFar);
+    while((!finished[0] || !finished[1] || !finished[2]) && (cnt < maxCnt))
+    {
+        if(!fillRemainingAreas(maskNear, depthAreaMap, fillAreas[0], actualAreas[0], maskMid, maskFar))
+        {
+            finished[0] = true;
+        }
+        else if(actualAreas[0] >= fillAreas[0]){
+            finished[0] = true;
+        }
+        if(fillRemainingAreas(maskMid, depthAreaMap, fillAreas[1], actualAreas[1], maskNear, maskFar))
+        {
+            finished[1] = true;
+        }
+        if(actualAreas[1] >= fillAreas[1]){
+            finished[1] = true;
+        }
+        if(fillRemainingAreas(maskFar, depthAreaMap, fillAreas[2], actualAreas[2], maskNear, maskMid))
+        {
+            finished[2] = true;
+        }
+        if(actualAreas[2] >= fillAreas[2]){
+            finished[2] = true;
+        }
+        cnt++;
     }
 
     //Show the result
@@ -1933,10 +2038,153 @@ void genStereoSequ::genDepthMaps() {
     destroyWindow("Normalized Static Obj Depth");
 }
 
-//Create a random binary mask with a given size
+//Get overlaps of filled areas (2 different) and remove them
+void genStereoSequ::delOverlaps2(cv::Mat &depthArea1, cv::Mat &depthArea2)
+{
+    Mat overlap2 = depthArea1 & depthArea2;
+    int nr_overlap2 = cv::countNonZero(overlap2);
+    if(nr_overlap2)
+    {
+        Mat overlap2sv = overlap2.clone();
+        int overlapDel = nr_overlap2 / 3;
+        removeNrFilledPixels(cv::Size(3, 3), imgSize, overlap2, overlapDel);
+        Mat changeMask = ((overlap2 ^ overlap2sv) == 0);
+        depthArea1 &= changeMask;
+        depthArea2 &= (overlap2 == 0);
+    }
+}
+
+bool genStereoSequ::fillRemainingAreas(cv::Mat &depthArea,
+        const cv::Mat &usedAreas,
+        int32_t areaToFill,
+        int32_t &actualArea,
+        cv::InputArray otherDepthA1,
+        cv::InputArray otherDepthA2)
+{
+    Mat mask;
+    bool only1It = false;
+    if(otherDepthA1.empty() || otherDepthA2.empty())
+    {
+        mask = (usedAreas == 0);
+    } else{
+        Mat otherDepthA1m = otherDepthA1.getMat();
+        Mat otherDepthA2m = otherDepthA2.getMat();
+        mask = (usedAreas == 0) & (otherDepthA1m == 0) & (otherDepthA2m == 0);
+        only1It = true;
+    }
+
+    int strElmSi = 5, cnt = 0, maxCnt = 50, strElmSiAdd = 0, strElmSiDir[2] = {0, 0};
+    int32_t siAfterDil = 0;
+    while (((!only1It && (siAfterDil < areaToFill)) || (only1It && ((siAfterDil - actualArea) == 0))) && (cnt < maxCnt)) {
+        cnt++;
+        Mat element;
+        int elSel = rand() % 3;
+        strElmSiAdd = rand() % strElmSi;
+        strElmSiDir[0] = rand() % 2;
+        strElmSiDir[1] = rand() % 2;
+        switch (elSel) {
+            case 0:
+                element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi + strElmSiDir[0] * strElmSiAdd,
+                                                                        strElmSi + strElmSiDir[1] * strElmSiAdd));
+                break;
+            case 1:
+                element = cv::getStructuringElement(MORPH_RECT, Size(strElmSi + strElmSiDir[0] * strElmSiAdd,
+                                                                     strElmSi + strElmSiDir[1] * strElmSiAdd));
+                break;
+            case 2:
+                element = cv::getStructuringElement(MORPH_CROSS, Size(strElmSi + strElmSiDir[0] * strElmSiAdd,
+                                                                      strElmSi + strElmSiDir[1] * strElmSiAdd));
+                break;
+            default:
+                element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi, strElmSi));
+                break;
+        }
+
+
+        strElmSi += 2;
+        Mat depthAreaDilate;
+        dilate(depthArea, depthAreaDilate, element);
+        depthAreaDilate &= mask;
+        siAfterDil = (int32_t)cv::countNonZero(depthAreaDilate);
+
+        if (siAfterDil >= areaToFill) {
+            if(siAfterDil > areaToFill) {
+                int32_t diff = siAfterDil - areaToFill;
+                depthAreaDilate ^= depthArea;
+                removeNrFilledPixels(element.size(), imgSize, depthAreaDilate, diff);
+            }
+            depthArea |= depthAreaDilate;
+            actualArea = areaToFill;
+
+            return true;
+        }else if(((siAfterDil - actualArea) == 0) && (cnt > 10))
+        {
+            return false;
+        }
+        else if (siAfterDil > 0) {
+            depthAreaDilate.copyTo(depthArea);
+            actualArea = siAfterDil;
+
+            return true;
+        }
+    }
+    if(cnt >= maxCnt)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+void genStereoSequ::removeNrFilledPixels(cv::Size delElementSi, cv::Size matSize, cv::Mat &targetMat, int32_t nrToDel)
+{
+    cv::Size delSiEnd(matSize.width - delElementSi.width, matSize.height - delElementSi.height);
+    cv::Rect delPos(0, 0, delElementSi.width, delElementSi.height);
+    Mat delMask, delZeroMask = cv::Mat::zeros(delElementSi, targetMat.type());
+    int32_t diff = nrToDel;
+    for (int y = 0; y < delSiEnd.height; y += delElementSi.height) {
+        for (int x = 0; x < delSiEnd.width; x += delElementSi.width) {
+            delPos.x = x;
+            delPos.y = y;
+            delMask = targetMat(delPos);
+            int nonZeros = cv::countNonZero(delMask);
+            if (nonZeros > 0) {
+                if (diff >= nonZeros) {
+                    diff -= nonZeros;
+                    delZeroMask.copyTo(delMask);
+                } else if (diff > 0) {
+                    for (int y1 = 0; y1 < delElementSi.height; y1++) {
+                        for (int x1 = 0; x1 < delElementSi.width; x1++) {
+                            if (delMask.at<unsigned char>(y1, x1)) {
+                                delMask.at<unsigned char>(y1, x1) = 0;
+                                diff--;
+                                if (diff <= 0)
+                                    break;
+                            }
+                        }
+                        if (diff <= 0)
+                            break;
+                    }
+                }
+                if (diff <= 0)
+                    break;
+            }
+        }
+        if (diff <= 0)
+            break;
+    }
+}
+
+/*Create a random binary mask with a given size
+ * mask ... Output random mask with the size  (2 * useRad) x (2 * useRad)
+ * area ... Approximate area of 'ones' (255 for 8bit) in the mask
+ * useRad ... Radius that should be used to fill a random circle mask
+ * midR ... Circle radius in the middle of the mask that should be filled with 'ones'
+ * Returns the number of 'ones' in the mask*/
 int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR)
 {
     int32_t usedist = 2 * useRad;
+    int32_t area2 = min((int32_t)floor((double)(useRad * useRad) * M_PI), area);
     Mat mask_t = cv::Mat::zeros(usedist, usedist, CV_64FC1);
     Mat minVals = Mat::zeros(usedist, usedist, CV_64FC1);
     Mat maxVals = Mat::ones(usedist, usedist, CV_64FC1) * 255.0;
@@ -1973,7 +2221,7 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
 
     Mat element = cv::getStructuringElement(MORPH_CROSS, Size(3, 3));
     int maxcnt = 50;
-    int minA = max(area / 2, 9);
+    int minA = max(area2 / 2, 9);
     while((actA < minA) && (maxcnt > 0))
     {
         dilate(mask, mask, element);
@@ -1985,8 +2233,8 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
     {
         return actA;
     }
-    maxcnt = 20;
-    while((actA > area) && (maxcnt > 0))
+    maxcnt = 50;
+    while((actA > area2) && (maxcnt > 0))
     {
         erode(mask, mask, element);
         actA = cv::countNonZero(mask);
@@ -2280,13 +2528,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
     if (directions.empty() || (nrAdds > max_iter) || usedDilate || ((nrAdds % midDilateCnt == 0) && (nrAdds >=
                                                                                                      midDilateCnt)))//Dilate the label if no direction was found or there were already to many iterations
     {
-        int strElmSi = 3, cnt = 0, maxCnt = 20, strElmSiAdd = 0, strElmSiDir[2] = {0, 0};
-        int32_t siAfterDil = 0;
-        while ((siAfterDil == 0) && (cnt < maxCnt)) {
+        int strElmSi = 3, cnt = 0, maxCnt = 10, strElmSiAdd = 0, strElmSiDir[2] = {0, 0};
+        int32_t siAfterDil = addArea;
+        while (((siAfterDil - addArea) == 0) && (cnt < maxCnt)) {
             cnt++;
             Mat element;
             int elSel = rand() % 3;
-            strElmSiAdd = rand() % 3;
+            strElmSiAdd = rand() % strElmSi;
             strElmSiDir[0] = rand() % 2;
             strElmSiDir[1] = rand() % 2;
             switch (elSel) {
@@ -2308,11 +2556,11 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             }
 
 
-            strElmSi++;
+            strElmSi += 2;
             Mat imgSDdilate;
             dilate(imgSD(vROI), imgSDdilate, element);
             imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | imgSD(vROI));
-            siAfterDil = (int32_t) sum(imgSDdilate)[0];
+            siAfterDil = (int32_t)cv::countNonZero(imgSDdilate);
 
             /*static size_t visualizeMask = 0;
             if (visualizeMask % 50 == 0) {
@@ -2339,43 +2587,46 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             }
             visualizeMask++;*/
 
-            if (siAfterDil > maxAreaReg) {
-                cv::Size delSi = element.size();
-                cv::Size delSiEnd(vROI.width - delSi.width, vROI.height - delSi.height);
-                cv::Rect delPos(0, 0, delSi.width, delSi.height);
-                Mat delMask, delZeroMask = cv::Mat::zeros(delSi, imgSDdilate.type());
-                int32_t diff = siAfterDil - maxAreaReg;
-                imgSDdilate ^= imgSD(vROI);
-                for (int y = 0; y < delSiEnd.height; y += delSi.height) {
-                    for (int x = 0; x < delSiEnd.width; x += delSi.width) {
-                        delPos.x = x;
-                        delPos.y = y;
-                        delMask = imgSDdilate(delPos);
-                        int nonZeros = cv::countNonZero(delMask);
-                        if (nonZeros > 0) {
-                            if (diff >= nonZeros) {
-                                diff -= nonZeros;
-                                delZeroMask.copyTo(delMask);
-                            } else if (diff > 0){
-                                for (int y1 = 0; y1 < delSi.height; y1++) {
-                                    for (int x1 = 0; x1 < delSi.width; x1++) {
-                                        if (delMask.at<unsigned char>(y1, x1)) {
-                                            delMask.at<unsigned char>(y1, x1) = 0;
-                                            diff--;
-                                            if (diff <= 0)
-                                                break;
+            if (siAfterDil >= maxAreaReg) {
+                if(siAfterDil > maxAreaReg) {
+                    int32_t diff = siAfterDil - maxAreaReg;
+                    imgSDdilate ^= imgSD(vROI);
+//                    cv::Size delSi = element.size();
+                    removeNrFilledPixels(element.size(), vROI.size(), imgSDdilate, diff);
+                    /*cv::Size delSiEnd(vROI.width - delSi.width, vROI.height - delSi.height);
+                    cv::Rect delPos(0, 0, delSi.width, delSi.height);
+                    Mat delMask, delZeroMask = cv::Mat::zeros(delSi, imgSDdilate.type());
+                    for (int y = 0; y < delSiEnd.height; y += delSi.height) {
+                        for (int x = 0; x < delSiEnd.width; x += delSi.width) {
+                            delPos.x = x;
+                            delPos.y = y;
+                            delMask = imgSDdilate(delPos);
+                            int nonZeros = cv::countNonZero(delMask);
+                            if (nonZeros > 0) {
+                                if (diff >= nonZeros) {
+                                    diff -= nonZeros;
+                                    delZeroMask.copyTo(delMask);
+                                } else if (diff > 0) {
+                                    for (int y1 = 0; y1 < delSi.height; y1++) {
+                                        for (int x1 = 0; x1 < delSi.width; x1++) {
+                                            if (delMask.at<unsigned char>(y1, x1)) {
+                                                delMask.at<unsigned char>(y1, x1) = 0;
+                                                diff--;
+                                                if (diff <= 0)
+                                                    break;
+                                            }
                                         }
+                                        if (diff <= 0)
+                                            break;
                                     }
-                                    if (diff <= 0)
-                                        break;
                                 }
+                                if (diff <= 0)
+                                    break;
                             }
-                            if (diff <= 0)
-                                break;
                         }
-                    }
-                    if (diff <= 0)
-                        break;
+                        if (diff <= 0)
+                            break;
+                    }*/
                 }
                 imgSD(vROI) |= imgSDdilate;
                 imgSDdilate *= pixVal;
@@ -2385,7 +2636,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 usedDilate = 1;
 
                 return false;
-            } else if (siAfterDil > 0) {
+            } else if ((siAfterDil - addArea) > 0) {
                 imgSDdilate.copyTo(imgSD(vROI));
                 imgD(vROI) &= (imgSDdilate == 0);
                 imgSDdilate *= pixVal;
@@ -2395,9 +2646,9 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                     usedDilate = 1;
                 }
                 nrAdds++;
-                if (addArea == siAfterDil) {
+                /*if (addArea == siAfterDil) {
                     return false;
-                }
+                }*/
                 addArea = siAfterDil;
 
                 return true;
