@@ -77,6 +77,16 @@ enum GENERATEVIRTUALSEQUENCELIB_API depthClass
 	FAR
 };
 
+enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
+{
+	SHOW_INIT_CAM_PATH = 0x01,
+	SHOW_BUILD_PROC_MOV_OBJ = 0x02,
+	SHOW_MOV_OBJ_DISTANCES = 0x04,
+	SHOW_MOV_OBJ_3D_PTS = 0x08,
+	SHOW_MOV_OBJ_CORRS_GEN = 0x10,
+	SHOW_BUILD_PROC_STATIC_OBJ = 0x20
+};
+
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 {
 	StereoSequParameters(std::vector<cv::Mat> camTrack_,
@@ -233,7 +243,13 @@ public:
 class GENERATEVIRTUALSEQUENCELIB_API genStereoSequ
 {
 public:
-	genStereoSequ(cv::Size imgSize_, cv::Mat K1_, cv::Mat K2_, std::vector<cv::Mat> R_, std::vector<cv::Mat> t_, StereoSequParameters & pars_);
+	genStereoSequ(cv::Size imgSize_,
+			cv::Mat K1_,
+			cv::Mat K2_,
+			std::vector<cv::Mat> R_,
+			std::vector<cv::Mat> t_,
+			StereoSequParameters & pars_,
+			uint32_t verbose = 0);
 	void startCalc();
 
 private:
@@ -330,6 +346,9 @@ private:
                             cv::InputArray otherDepthA2 = cv::noArray());
     void removeNrFilledPixels(cv::Size delElementSi, cv::Size matSize, cv::Mat &targetMat, int32_t nrToDel);
     void delOverlaps2(cv::Mat &depthArea1, cv::Mat &depthArea2);
+
+public:
+	uint32_t verbose = 0;
 
 private:
 	std::default_random_engine rand_gen;
