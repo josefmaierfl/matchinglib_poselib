@@ -285,7 +285,9 @@ private:
 		cv::Point_<int32_t> initSeed,
 		cv::Rect &vROI,
 		size_t &nrAdds,
-		unsigned char &usedDilate);
+		unsigned char &usedDilate,
+		cv::InputOutputArray neighborRegMask = cv::noArray(),
+		unsigned char regIdx = 0);
 	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1, cv::Mat &imgSD, bool escArea = true);
     void nextPosition(cv::Point_<int32_t> &position, int32_t direction);
 	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);

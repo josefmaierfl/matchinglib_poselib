@@ -878,9 +878,14 @@ void genStereoSequ::checkDepthAreas() {
     }
 
     //Initialize the numbers for every region and depth definition
-    nrDepthAreasPRegNear = std::vector<cv::Mat>(depthsPerRegion.size(), Mat::ones(3, 3, CV_32SC1));
-    nrDepthAreasPRegMid = std::vector<cv::Mat>(depthsPerRegion.size(), Mat::ones(3, 3, CV_32SC1));
-    nrDepthAreasPRegFar = std::vector<cv::Mat>(depthsPerRegion.size(), Mat::ones(3, 3, CV_32SC1));
+    nrDepthAreasPRegNear = std::vector<cv::Mat>(depthsPerRegion.size());
+    nrDepthAreasPRegMid = std::vector<cv::Mat>(depthsPerRegion.size());
+    nrDepthAreasPRegFar = std::vector<cv::Mat>(depthsPerRegion.size());
+    for (size_t i = 0; i < depthsPerRegion.size(); i++) {
+        nrDepthAreasPRegNear[i] = Mat::ones(3, 3, CV_32SC1);
+        nrDepthAreasPRegMid[i] = Mat::ones(3, 3, CV_32SC1);
+        nrDepthAreasPRegFar[i] = Mat::ones(3, 3, CV_32SC1);
+    }
 
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
@@ -1018,30 +1023,34 @@ void genStereoSequ::checkDepthAreas() {
 //Calculate the area in pixels for every depth and region
 void genStereoSequ::calcPixAreaPerDepth() {
 //    int32_t regArea = (int32_t) imgSize.area() / 9;
-    areaPRegNear.resize(depthsPerRegion.size(), Mat::zeros(3, 3, CV_32SC1));
-    areaPRegMid.resize(depthsPerRegion.size(), Mat::zeros(3, 3, CV_32SC1));
-    areaPRegFar.resize(depthsPerRegion.size(), Mat::zeros(3, 3, CV_32SC1));
+    areaPRegNear.resize(depthsPerRegion.size());
+    areaPRegMid.resize(depthsPerRegion.size());
+    areaPRegFar.resize(depthsPerRegion.size());
 
     for (size_t i = 0; i < depthsPerRegion.size(); i++) {
+        areaPRegNear[i] = Mat::zeros(3, 3, CV_32SC1);
+        areaPRegMid[i] = Mat::zeros(3, 3, CV_32SC1);
+        areaPRegFar[i] = Mat::zeros(3, 3, CV_32SC1);
         for (size_t y = 0; y < 3; y++) {
             for (size_t x = 0; x < 3; x++) {
                 int32_t tmp[3] = {0,0,0};
-                double regArea = (double) regROIs[y][x].area();
-                tmp[0] = (int32_t) round(depthsPerRegion[i][y][x].near * regArea);
+                int regArea = regROIs[y][x].area();
+                tmp[0] = (int32_t) round(depthsPerRegion[i][y][x].near * (double)regArea);
                 if ((tmp[0] != 0) && (tmp[0] < minDArea))
                     tmp[0] = minDArea;
 
-                tmp[1] = (int32_t) round(depthsPerRegion[i][y][x].mid * regArea);
+                tmp[1] = (int32_t) round(depthsPerRegion[i][y][x].mid * (double)regArea);
                 if ((tmp[1] != 0) && (tmp[1] < minDArea))
                     tmp[1] = minDArea;
 
-                tmp[2] = (int32_t) round(depthsPerRegion[i][y][x].far * regArea);
+                tmp[2] = (int32_t) round(depthsPerRegion[i][y][x].far * (double)regArea);
                 if ((tmp[2] != 0) && (tmp[2] < minDArea))
                     tmp[2] = minDArea;
 
-                if((tmp[0]+tmp[0]+tmp[0]) != regROIs[y][x].area())
+                if((tmp[0]+tmp[1]+tmp[2]) != regArea)
                 {
-
+                    std::ptrdiff_t pdiff = max_element(tmp, tmp + 3) - tmp;
+                    tmp[pdiff] = regArea - tmp[(pdiff + 1) % 3] - tmp[(pdiff + 2) % 3];
                 }
 
                 areaPRegNear[i].at<int32_t>(y, x) = tmp[0];
@@ -1548,12 +1557,13 @@ void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<s
 //Initialize region ROIs and masks
 void genStereoSequ::genRegMasks() {
     //Construct valid areas for every region
-    regmasks = vector<vector<Mat>>(3, vector<Mat>(3, Mat::zeros(imgSize, CV_8UC1)));
+    regmasks = vector<vector<Mat>>(3, vector<Mat>(3));
     regmasksROIs = vector<vector<cv::Rect>>(3, vector<cv::Rect>(3));
     regROIs = vector<vector<cv::Rect>>(3, vector<cv::Rect>(3));
     Size imgSi13 = Size(imgSize.width / 3, imgSize.height / 3);
     Mat validRect = Mat::ones(imgSize, CV_8UC1);
     const float overSi = 1.25f;//Allows the expension of created areas outside its region by a given percentage
+
     for (size_t y = 0; y < 3; y++) {
         cv::Point2i pl1, pr1, pl2, pr2;
         pl1.y = y * imgSi13.height;
@@ -1583,7 +1593,8 @@ void genStereoSequ::genRegMasks() {
             }
             Rect vROI = Rect(pl1, pr1);
             regmasksROIs[y][x] = vROI;
-            regmasks[y][x](vROI) |= validRect(vROI);
+            regmasks[y][x] = Mat::zeros(imgSize, CV_8UC1);
+            validRect(vROI).copyTo(regmasks[y][x](vROI));
             Rect vROIo = Rect(pl2, pr2);
             regROIs[y][x] = vROIo;
         }
@@ -1761,6 +1772,16 @@ void genStereoSequ::genDepthMaps() {
         destroyWindow("Mask for largest depth");
     }
 
+    //Show the region masks
+    /*namedWindow("Region mask", WINDOW_AUTOSIZE);
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 3; ++x) {
+            imshow("Region mask", (regmasks[y][x] > 0));
+            waitKey(0);
+        }
+    }
+    destroyWindow("Region mask");*/
+
     //Create first layer of depth areas
     std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> actPosSeedsNear(3,
                                                                                std::vector<std::vector<cv::Point_<int32_t>>>(
@@ -1787,6 +1808,7 @@ void genStereoSequ::genDepthMaps() {
     Mat actUsedAreaNear = Mat::zeros(imgSize, CV_8UC1);
     Mat actUsedAreaMid = Mat::zeros(imgSize, CV_8UC1);
     Mat actUsedAreaFar = Mat::zeros(imgSize, CV_8UC1);
+    Mat neighborRegMask = Mat::zeros(imgSize, CV_8UC1);
     //Init actual positions
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
@@ -1801,6 +1823,7 @@ void genStereoSequ::genDepthMaps() {
                     actPosSeedsNear[y][x][i].y = iy;
                     depthAreaMap.at<unsigned char>(iy, ix) = 1;
                     actUsedAreaNear.at<unsigned char>(iy, ix) = 1;
+                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char)(y * 3 + x);
                     actAreaNear[y][x]++;
                 }
             }
@@ -1814,7 +1837,8 @@ void genStereoSequ::genDepthMaps() {
                     actPosSeedsMid[y][x][i].x = ix;
                     actPosSeedsMid[y][x][i].y = iy;
                     depthAreaMap.at<unsigned char>(iy, ix) = 2;
-                    actUsedAreaMid.at<unsigned char>(iy, ix) = 2;
+                    actUsedAreaMid.at<unsigned char>(iy, ix) = 1;
+                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char)(y * 3 + x);
                     actAreaMid[y][x]++;
                 }
             }
@@ -1828,7 +1852,8 @@ void genStereoSequ::genDepthMaps() {
                     actPosSeedsFar[y][x][i].x = ix;
                     actPosSeedsFar[y][x][i].y = iy;
                     depthAreaMap.at<unsigned char>(iy, ix) = 3;
-                    actUsedAreaFar.at<unsigned char>(iy, ix) = 3;
+                    actUsedAreaFar.at<unsigned char>(iy, ix) = 1;
+                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char)(y * 3 + x);
                     actAreaFar[y][x]++;
                 }
             }
@@ -1872,7 +1897,9 @@ void genStereoSequ::genDepthMaps() {
                                                                                         seedsNear[y][x][i].y),
                                                                                 regmasksROIs[y][x],
                                                                                 nrIterPerSeedNear[y][x][i],
-                                                                                dilateOpNear[y][x]);
+                                                                                dilateOpNear[y][x],
+                                                                                neighborRegMask,
+                                                                                (unsigned char)(y * 3 + x));
                                     }else{
                                         break;
                                     }
@@ -1900,7 +1927,9 @@ void genStereoSequ::genDepthMaps() {
                                                                                                     seedsMid[y][x][i].y),
                                                                                 regmasksROIs[y][x],
                                                                                 nrIterPerSeedMid[y][x][i],
-                                                                                dilateOpMid[y][x]);
+                                                                                dilateOpMid[y][x],
+                                                                                neighborRegMask,
+                                                                                (unsigned char)(y * 3 + x));
                                     }else{
                                         break;
                                     }
@@ -1928,7 +1957,9 @@ void genStereoSequ::genDepthMaps() {
                                                                                                     seedsFar[y][x][i].y),
                                                                                 regmasksROIs[y][x],
                                                                                 nrIterPerSeedFar[y][x][i],
-                                                                                dilateOpFar[y][x]);
+                                                                                dilateOpFar[y][x],
+                                                                                neighborRegMask,
+                                                                                (unsigned char)(y * 3 + x));
                                     }else{
                                         break;
                                     }
@@ -1941,7 +1972,7 @@ void genStereoSequ::genDepthMaps() {
                     }
                 }
             }
-            if (visualizeMask % 10 == 0) {
+            if (visualizeMask % 200 == 0) {
                 Mat colorMapImg;
                 unsigned char clmul = 255 / 3;
                 // Apply the colormap:
@@ -1968,13 +1999,13 @@ void genStereoSequ::genDepthMaps() {
         destroyWindow("Static object depth areas after filling 2 depths per region");
     }
 
-    //Show the mask
+    /*//Show the mask
     {
         namedWindow("Mask for largest depth", WINDOW_AUTOSIZE);
         imshow("Mask for largest depth", noGenMask2);
         waitKey(0);
         destroyWindow("Mask for largest depth");
-    }
+    }*/
 
     //Fill the remaining areas:
     //Generate the (largest) depth areas per region independent of the largest & different depth areas of other regions
@@ -2162,7 +2193,7 @@ void genStereoSequ::genDepthMaps() {
     }
 
     //Fill the remaining areas
-    if(nFinished[0] || nFinished[1] || nFinished[2]) {
+//    if(nFinished[0] || nFinished[1] || nFinished[2]) {
         for (size_t y = 0; y < 3; y++) {
             for (size_t x = 0; x < 3; x++) {
                 Mat fillMask =
@@ -2188,10 +2219,10 @@ void genStereoSequ::genDepthMaps() {
                 }
             }
         }
-    }
+//    }
 
     //Show the result
-    if(nFinished[0] || nFinished[1] || nFinished[2]) {
+//    if(nFinished[0] || nFinished[1] || nFinished[2]) {
         unsigned char clmul = 255 / 3;
         // Apply the colormap:
         Mat colorMapImg;
@@ -2200,14 +2231,14 @@ void genStereoSequ::genDepthMaps() {
         imshow("Static object depth areas", colorMapImg);
         waitKey(0);
         destroyWindow("Static object depth areas");
-    }
+//    }
 
     //Check if some values are not filled
-    int checkNF = cv::countNonZero(depthAreaMap == 0);
+    /*int checkNF = cv::countNonZero(depthAreaMap == 0);
     if(checkNF)
     {
         cout << checkNF << " pixels are not filled for static depth areas!" << endl;
-    }
+    }*/
 
     //Get final depth values for each depth region
     Mat depthMapNear, depthMapMid, depthMapFar;
@@ -2457,7 +2488,8 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
         return actA;
     }
     maxcnt = 50;
-    while((actA > area2) && (maxcnt > 0))
+    minA = max(2 * area2 / 3, 9);
+    while((actA > minA) && (maxcnt > 0))
     {
         erode(mask, mask, element);
         actA = cv::countNonZero(mask);
@@ -2746,9 +2778,16 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                                        cv::Point_<int32_t> initSeed,
                                        cv::Rect &vROI,
                                        size_t &nrAdds,
-                                       unsigned char &usedDilate) {
+                                       unsigned char &usedDilate,
+                                       cv::InputOutputArray neighborRegMask,
+                                       unsigned char regIdx) {
     const size_t max_iter = 10000;
     const size_t midDilateCnt = 300;
+    Mat neighborRegMask_;
+    if(!neighborRegMask.empty())
+    {
+        neighborRegMask_ = neighborRegMask.getMat();
+    }
     //get possible directions for expanding (max. 8 possibilities) by checking the masks
     vector<int32_t> directions;
     if ((nrAdds <= max_iter) && !usedDilate && ((nrAdds % midDilateCnt != 0) || (nrAdds < midDilateCnt))) {
@@ -2787,9 +2826,49 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
             strElmSi += 2;
             Mat imgSDdilate;
-            dilate(imgSD(vROI), imgSDdilate, element);
-            imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | imgSD(vROI));
-            siAfterDil = (int32_t)cv::countNonZero(imgSDdilate);
+            Mat beforeDilation, afterDilation, afterDilationWMask;
+            if(!neighborRegMask_.empty()){
+                Mat newImgSDROI = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
+
+                beforeDilation = newImgSDROI.clone();
+
+                dilate(newImgSDROI, imgSDdilate, element);
+
+                afterDilation = imgSDdilate.clone();
+
+                /*namedWindow("specific objLabels without neighbors", WINDOW_AUTOSIZE);
+                imshow("specific objLabels without neighbors", (newImgSDROI > 0));
+                namedWindow("specific objLabels with neighbors", WINDOW_AUTOSIZE);
+                imshow("specific objLabels with neighbors", (imgSD(vROI) > 0));*/
+
+                imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | newImgSDROI);
+                afterDilationWMask = imgSDdilate.clone();
+                Mat neighborRegMaskROI = ((imgSDdilate > 0) & Mat::ones(vROI.size(), CV_8UC1)) * regIdx;
+                neighborRegMask_(vROI) |= neighborRegMaskROI;
+
+                /*namedWindow("specific objLabels without neighbors dilated and mask", WINDOW_AUTOSIZE);
+                imshow("specific objLabels without neighbors dilated and mask", (imgSDdilate > 0));*/
+
+                siAfterDil = (int32_t)cv::countNonZero(imgSDdilate);
+                imgSDdilate |= imgSD(vROI);
+
+                /*namedWindow("specific objLabels with neighbors dilated and mask", WINDOW_AUTOSIZE);
+                imshow("specific objLabels with neighbors dilated and mask", (imgSDdilate > 0));
+
+                waitKey(0);
+                destroyWindow("specific objLabels without neighbors");
+                destroyWindow("specific objLabels with neighbors");
+                destroyWindow("specific objLabels without neighbors dilated and mask");
+                destroyWindow("specific objLabels with neighbors dilated and mask");*/
+            }
+            else{
+                beforeDilation = imgSD(vROI).clone();
+                dilate(imgSD(vROI), imgSDdilate, element);
+                afterDilation = imgSDdilate.clone();
+                imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | (imgSD(vROI) > 0));
+                afterDilationWMask = imgSDdilate.clone();
+                siAfterDil = (int32_t)cv::countNonZero(imgSDdilate);
+            }
 
             /*static size_t visualizeMask = 0;
             if (visualizeMask % 50 == 0) {
@@ -2847,7 +2926,34 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
                 return true;
             } else if ((siAfterDil - addArea) < 0){
-                throw SequenceException("Generated depth area is smaller after dilation (and using a mask afterwards) than before!");
+
+                namedWindow("Before dilation", WINDOW_AUTOSIZE);
+                namedWindow("After dilation Before masking", WINDOW_AUTOSIZE);
+                namedWindow("After dilation After masking", WINDOW_AUTOSIZE);
+                namedWindow("All labels", WINDOW_AUTOSIZE);
+                namedWindow("Used specific mask", WINDOW_AUTOSIZE);
+                imshow("Before dilation", (beforeDilation > 0));
+                imshow("After dilation Before masking", (afterDilation > 0));
+                imshow("After dilation After masking", (afterDilationWMask > 0));
+                imshow("All labels", (imgD(vROI) == 0));
+                imshow("Used specific mask", (mask(vROI) == 0));
+                int realAreaBeforeDil = cv::countNonZero(beforeDilation);
+                int realAreaAfterDil = cv::countNonZero(afterDilation);
+                cout << "Measured area before dilation: " << realAreaBeforeDil << endl
+                << "Given area: " << addArea << endl
+                << "Area after dilation: " << realAreaAfterDil << endl
+                << "Area after dilation and masking " << siAfterDil << endl;
+                waitKey(0);
+                destroyWindow("Before dilation");
+                destroyWindow("After dilation Before masking");
+                destroyWindow("After dilation After masking");
+                destroyWindow("All labels");
+                destroyWindow("Used specific mask");
+
+
+//                throw SequenceException("Generated depth area is smaller after dilation (and using a mask afterwards) than before!");
+
+
             }
         }
         if (cnt >= maxCnt) {
@@ -2861,6 +2967,9 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         //Set the pixel
         imgD.at<unsigned char>(endpos) = pixVal;
         imgSD.at<unsigned char>(endpos) = 1;
+        if(!neighborRegMask_.empty()){
+            neighborRegMask_.at<unsigned char>(endpos) = regIdx;
+        }
         addArea++;
         nrAdds++;
         if (addArea >= maxAreaReg) {
@@ -2899,6 +3008,9 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                         //Set the pixel
                         imgD.at<unsigned char>(singleExt) = pixVal;
                         imgSD.at<unsigned char>(singleExt) = 1;
+                        if(!neighborRegMask_.empty()){
+                            neighborRegMask_.at<unsigned char>(singleExt) = regIdx;
+                        }
                         addArea++;
                     }
                 }
