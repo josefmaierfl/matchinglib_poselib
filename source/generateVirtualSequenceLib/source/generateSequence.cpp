@@ -1877,6 +1877,10 @@ void genStereoSequ::genDepthMaps() {
                             if (!actPosSeedsNear[y][x].empty()) {
                                 for (size_t i = 0; i < actPosSeedsNear[y][x].size(); i++) {
                                     if (areasNFinish[y][x]) {
+
+                                        Mat beforeAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int32_t Asv = actAreaNear[y][x];
+
                                         areasNFinish[y][x] = addAdditionalDepth(1,
                                                                                 depthAreaMap,
                                                                                 actUsedAreaNear,
@@ -1897,6 +1901,40 @@ void genStereoSequ::genDepthMaps() {
                                                                                 dilateOpNear[y][x],
                                                                                 neighborRegMask,
                                                                                 (unsigned char) (y * 3 + x));
+
+                                        Mat afterAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int realAreaBeforeDil = cv::countNonZero(afterAdding);
+                                        if(realAreaBeforeDil != actAreaNear[y][x])
+                                        {
+                                            cout << "Area difference: " << realAreaBeforeDil - actAreaNear[y][x] << endl;
+                                            cout << "Area diff between last and actual values: " << actAreaNear[y][x] - Asv << endl;
+                                            Mat addingDiff = afterAdding ^ beforeAdding;
+                                            namedWindow("Before", WINDOW_AUTOSIZE);
+                                            namedWindow("After", WINDOW_AUTOSIZE);
+                                            namedWindow("Diff", WINDOW_AUTOSIZE);
+                                            namedWindow("Mask", WINDOW_AUTOSIZE);
+                                            namedWindow("All Regions", WINDOW_AUTOSIZE);
+                                            namedWindow("Neighbours", WINDOW_AUTOSIZE);
+                                            imshow("Before", (beforeAdding > 0));
+                                            imshow("After", (afterAdding > 0));
+                                            imshow("Diff", (addingDiff > 0));
+                                            imshow("Mask", noGenMask(regmasksROIs[y][x]));
+                                            Mat colorMapImg;
+                                            unsigned char clmul = 255 / 3;
+                                            // Apply the colormap:
+                                            applyColorMap(depthAreaMap(regmasksROIs[y][x]) * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+                                            imshow("All Regions", colorMapImg);
+                                            clmul = 255 / 9;
+                                            applyColorMap(neighborRegMask(regmasksROIs[y][x]) * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+                                            imshow("Neighbours", colorMapImg);
+                                            waitKey(0);
+                                            destroyWindow("Before");
+                                            destroyWindow("After");
+                                            destroyWindow("Diff");
+                                            destroyWindow("Mask");
+                                            destroyWindow("All Regions");
+                                            destroyWindow("Neighbours");
+                                        }
                                     } else {
                                         break;
                                     }
@@ -1908,6 +1946,10 @@ void genStereoSequ::genDepthMaps() {
                             if (!actPosSeedsMid[y][x].empty()) {
                                 for (size_t i = 0; i < actPosSeedsMid[y][x].size(); i++) {
                                     if (areasNFinish[y][x]) {
+
+                                        Mat beforeAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int32_t Asv = actAreaMid[y][x];
+
                                         areasNFinish[y][x] = addAdditionalDepth(2,
                                                                                 depthAreaMap,
                                                                                 actUsedAreaMid,
@@ -1927,6 +1969,40 @@ void genStereoSequ::genDepthMaps() {
                                                                                 dilateOpMid[y][x],
                                                                                 neighborRegMask,
                                                                                 (unsigned char) (y * 3 + x));
+
+                                        Mat afterAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int realAreaBeforeDil = cv::countNonZero(afterAdding);
+                                        if(realAreaBeforeDil != actAreaMid[y][x])
+                                        {
+                                            cout << "Area difference: " << realAreaBeforeDil - actAreaMid[y][x] << endl;
+                                            cout << "Area diff between last and actual values: " << actAreaMid[y][x] - Asv << endl;
+                                            Mat addingDiff = afterAdding ^ beforeAdding;
+                                            namedWindow("Before", WINDOW_AUTOSIZE);
+                                            namedWindow("After", WINDOW_AUTOSIZE);
+                                            namedWindow("Diff", WINDOW_AUTOSIZE);
+                                            namedWindow("Mask", WINDOW_AUTOSIZE);
+                                            namedWindow("All Regions", WINDOW_AUTOSIZE);
+                                            namedWindow("Neighbours", WINDOW_AUTOSIZE);
+                                            imshow("Before", (beforeAdding > 0));
+                                            imshow("After", (afterAdding > 0));
+                                            imshow("Diff", (addingDiff > 0));
+                                            imshow("Mask", noGenMask(regmasksROIs[y][x]));
+                                            Mat colorMapImg;
+                                            unsigned char clmul = 255 / 3;
+                                            // Apply the colormap:
+                                            applyColorMap(depthAreaMap(regmasksROIs[y][x]) * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+                                            imshow("All Regions", colorMapImg);
+                                            clmul = 255 / 9;
+                                            applyColorMap(neighborRegMask(regmasksROIs[y][x]) * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+                                            imshow("Neighbours", colorMapImg);
+                                            waitKey(0);
+                                            destroyWindow("Before");
+                                            destroyWindow("After");
+                                            destroyWindow("Diff");
+                                            destroyWindow("Mask");
+                                            destroyWindow("All Regions");
+                                            destroyWindow("Neighbours");
+                                        }
                                     } else {
                                         break;
                                     }
@@ -1938,6 +2014,10 @@ void genStereoSequ::genDepthMaps() {
                             if (!actPosSeedsFar[y][x].empty()) {
                                 for (size_t i = 0; i < actPosSeedsFar[y][x].size(); i++) {
                                     if (areasNFinish[y][x]) {
+
+                                        Mat beforeAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int32_t Asv = actAreaFar[y][x];
+
                                         areasNFinish[y][x] = addAdditionalDepth(3,
                                                                                 depthAreaMap,
                                                                                 actUsedAreaFar,
@@ -1957,6 +2037,40 @@ void genStereoSequ::genDepthMaps() {
                                                                                 dilateOpFar[y][x],
                                                                                 neighborRegMask,
                                                                                 (unsigned char) (y * 3 + x));
+
+                                        Mat afterAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int realAreaBeforeDil = cv::countNonZero(afterAdding);
+                                        if(realAreaBeforeDil != actAreaFar[y][x])
+                                        {
+                                            cout << "Area difference: " << realAreaBeforeDil - actAreaFar[y][x] << endl;
+                                            cout << "Area diff between last and actual values: " << actAreaFar[y][x] - Asv << endl;
+                                            Mat addingDiff = afterAdding ^ beforeAdding;
+                                            namedWindow("Before", WINDOW_AUTOSIZE);
+                                            namedWindow("After", WINDOW_AUTOSIZE);
+                                            namedWindow("Diff", WINDOW_AUTOSIZE);
+                                            namedWindow("Mask", WINDOW_AUTOSIZE);
+                                            namedWindow("All Regions", WINDOW_AUTOSIZE);
+                                            namedWindow("Neighbours", WINDOW_AUTOSIZE);
+                                            imshow("Before", (beforeAdding > 0));
+                                            imshow("After", (afterAdding > 0));
+                                            imshow("Diff", (addingDiff > 0));
+                                            imshow("Mask", noGenMask(regmasksROIs[y][x]));
+                                            Mat colorMapImg;
+                                            unsigned char clmul = 255 / 3;
+                                            // Apply the colormap:
+                                            applyColorMap(depthAreaMap(regmasksROIs[y][x]) * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+                                            imshow("All Regions", colorMapImg);
+                                            clmul = 255 / 9;
+                                            applyColorMap(neighborRegMask(regmasksROIs[y][x]) * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
+                                            imshow("Neighbours", colorMapImg);
+                                            waitKey(0);
+                                            destroyWindow("Before");
+                                            destroyWindow("After");
+                                            destroyWindow("Diff");
+                                            destroyWindow("Mask");
+                                            destroyWindow("All Regions");
+                                            destroyWindow("Neighbours");
+                                        }
                                     } else {
                                         break;
                                     }
@@ -1970,7 +2084,7 @@ void genStereoSequ::genDepthMaps() {
                 }
             }
             if (verbose & SHOW_BUILD_PROC_STATIC_OBJ) {
-                if (visualizeMask % 200 == 0) {
+                if (visualizeMask % 100 == 0) {
                     Mat colorMapImg;
                     unsigned char clmul = 255 / 3;
                     // Apply the colormap:
@@ -2552,8 +2666,8 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, doubl
     uint16_t nL = 0;
 
     //Get connected areas
-    nrLabels = connectedComponentsWithStats(din, actUsedAreaLabel, actUsedAreaStats, actUsedAreaCentroids, 4, CV_16U);
-    nL = (uint16_t) (nrLabels + 1);
+    nrLabels = connectedComponentsWithStats(din, actUsedAreaLabel, actUsedAreaStats, actUsedAreaCentroids, 8, CV_16U);
+    nL = nrLabels;//(uint16_t) (nrLabels + 1);
     getRandDepthFuncPars(funcPars, (size_t) nL);
     //cv::ConnectedComponentsTypes::CC_STAT_HEIGHT;
 
@@ -2770,6 +2884,20 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
     if ((nrAdds <= max_iter) && !usedDilate && ((nrAdds % midDilateCnt != 0) || (nrAdds < midDilateCnt))) {
         directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true);
     }
+
+    Mat beforeDilation;
+    if (!neighborRegMask_.empty()) {
+        beforeDilation = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
+    }else{
+        beforeDilation = imgSD(vROI).clone();
+    }
+
+    int realAreaBeforeDil = cv::countNonZero(beforeDilation);
+    if(realAreaBeforeDil != addArea)
+    {
+        cout << "Area difference: " << realAreaBeforeDil - addArea << endl;
+    }
+
     if (directions.empty() || (nrAdds > max_iter) || usedDilate || ((nrAdds % midDilateCnt == 0) && (nrAdds >=
                                                                                                      midDilateCnt)))//Dilate the label if no direction was found or there were already to many iterations
     {
@@ -2803,11 +2931,12 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
             strElmSi += 2;
             Mat imgSDdilate;
-            Mat beforeDilation, afterDilation, afterDilationWMask;
+            Mat neighborRegMaskROI;
+            Mat /*beforeDilation,*/ afterDilation, afterDilationWMask;
             if (!neighborRegMask_.empty()) {
                 Mat newImgSDROI = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
 
-                beforeDilation = newImgSDROI.clone();
+//                beforeDilation = newImgSDROI.clone();
 
                 dilate(newImgSDROI, imgSDdilate, element);
 
@@ -2820,8 +2949,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
                 imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | newImgSDROI);
                 afterDilationWMask = imgSDdilate.clone();
-                Mat neighborRegMaskROI = ((imgSDdilate > 0) & Mat::ones(vROI.size(), CV_8UC1)) * regIdx;
-                neighborRegMask_(vROI) |= neighborRegMaskROI;
+                neighborRegMaskROI = ((imgSDdilate > 0) & Mat::ones(vROI.size(), CV_8UC1)) * regIdx;
 
                 /*namedWindow("specific objLabels without neighbors dilated and mask", WINDOW_AUTOSIZE);
                 imshow("specific objLabels without neighbors dilated and mask", (imgSDdilate > 0));*/
@@ -2838,13 +2966,15 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 destroyWindow("specific objLabels without neighbors dilated and mask");
                 destroyWindow("specific objLabels with neighbors dilated and mask");*/
             } else {
-                beforeDilation = imgSD(vROI).clone();
+//                beforeDilation = imgSD(vROI).clone();
                 dilate(imgSD(vROI), imgSDdilate, element);
                 afterDilation = imgSDdilate.clone();
                 imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | (imgSD(vROI) > 0));
                 afterDilationWMask = imgSDdilate.clone();
                 siAfterDil = (int32_t) cv::countNonZero(imgSDdilate);
             }
+
+
 
             /*static size_t visualizeMask = 0;
             if (visualizeMask % 50 == 0) {
@@ -2877,6 +3007,11 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                     imgSDdilate ^= imgSD(vROI);
                     removeNrFilledPixels(element.size(), vROI.size(), imgSDdilate, diff);
                 }
+                if (!neighborRegMask_.empty())
+                {
+                    neighborRegMaskROI = ((imgSDdilate > 0) & Mat::ones(vROI.size(), CV_8UC1)) * regIdx;
+                    neighborRegMask_(vROI) |= neighborRegMaskROI;
+                }
                 imgSD(vROI) |= imgSDdilate;
                 imgSDdilate *= pixVal;
                 imgD(vROI) |= imgSDdilate;
@@ -2886,6 +3021,9 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
                 return false;
             } else if ((siAfterDil - addArea) > 0) {
+                if (!neighborRegMask_.empty()) {
+                    neighborRegMask_(vROI) |= neighborRegMaskROI;
+                }
                 imgSDdilate.copyTo(imgSD(vROI));
                 imgD(vROI) &= (imgSDdilate == 0);
                 imgSDdilate *= pixVal;
@@ -2913,7 +3051,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 imshow("After dilation After masking", (afterDilationWMask > 0));
                 imshow("All labels", (imgD(vROI) == 0));
                 imshow("Used specific mask", (mask(vROI) == 0));
-                int realAreaBeforeDil = cv::countNonZero(beforeDilation);
+
                 int realAreaAfterDil = cv::countNonZero(afterDilation);
                 cout << "Measured area before dilation: " << realAreaBeforeDil << endl
                      << "Given area: " << addArea << endl
@@ -2941,7 +3079,15 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         endpos = startpos;
         nextPosition(endpos, directions[diri]);
         //Set the pixel
+        if(imgD.at<unsigned char>(endpos) != 0)
+        {
+            cout << "Found" << endl;
+        }
         imgD.at<unsigned char>(endpos) = pixVal;
+        if(imgSD.at<unsigned char>(endpos) != 0)
+        {
+            cout << "Found" << endl;
+        }
         imgSD.at<unsigned char>(endpos) = 1;
         if (!neighborRegMask_.empty()) {
             neighborRegMask_.at<unsigned char>(endpos) = regIdx;
@@ -2982,7 +3128,15 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                         const int pos = (beginExt + i) % (int) extension.size();
                         nextPosition(singleExt, extension[pos]);
                         //Set the pixel
+                        if(imgD.at<unsigned char>(singleExt) != 0)
+                        {
+                            cout << "Found" << endl;
+                        }
                         imgD.at<unsigned char>(singleExt) = pixVal;
+                        if(imgSD.at<unsigned char>(singleExt) != 0)
+                        {
+                            cout << "Found" << endl;
+                        }
                         imgSD.at<unsigned char>(singleExt) = 1;
                         if (!neighborRegMask_.empty()) {
                             neighborRegMask_.at<unsigned char>(singleExt) = regIdx;
@@ -3015,6 +3169,8 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mas
     bool inOwnArea = false;
     do {
         directions = Mat::ones(3, 3, CV_8UC1);
+        atBorderX = 0;
+        atBorderY = 0;
         if (startpos.x <= 0) {
             directions.col(0) = Mat::zeros(3, 1, CV_8UC1);
             atBorderX = 0x1;
@@ -3083,6 +3239,7 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mas
                         if (fixDirChange > maxFixDirChange) {
                             inOwnArea = false;
                             dirFixed = false;
+                            directions = Mat::zeros(3, 3, CV_8UC1);
                         } else {
                             inOwnArea = true;
                             dirFixed = false;
@@ -3094,6 +3251,7 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mas
             } else {
                 inOwnArea = false;
                 dirFixed = false;
+                directions = Mat::zeros(3, 3, CV_8UC1);
             }
         } else {
             dirFixed = false;
@@ -4064,6 +4222,9 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
     while (remainObj > 0) {
         for (size_t i = 0; i < nr_movObj; i++) {
             if (objNFinished[i]) {
+                Mat beforeAdding = movObjLabels[i].clone();
+                int32_t Asv = actArea[i];
+
                 if (!addAdditionalDepth((unsigned char) (i + convhullPtsObj.size() + 1),
                                         combMovObjLabels,
                                         movObjLabels[i],
@@ -4088,6 +4249,24 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
                                         dilateOps[i])) {
                     objNFinished[i] = false;
                     remainObj--;
+                }
+                Mat afterAdding =  movObjLabels[i].clone();;
+                int realAreaBeforeDil = cv::countNonZero(afterAdding);
+                if(realAreaBeforeDil != actArea[i])
+                {
+                    cout << "Area difference: " << realAreaBeforeDil - actArea[i] << endl;
+                    cout << "Area diff between last and actual values: " << actArea[i] - Asv << endl;
+                    Mat addingDiff = afterAdding ^ beforeAdding;
+                    namedWindow("Before", WINDOW_AUTOSIZE);
+                    namedWindow("After", WINDOW_AUTOSIZE);
+                    namedWindow("Diff", WINDOW_AUTOSIZE);
+                    imshow("Before", (beforeAdding > 0));
+                    imshow("After", (afterAdding > 0));
+                    imshow("Diff", (addingDiff > 0));
+                    waitKey(0);
+                    destroyWindow("Before");
+                    destroyWindow("After");
+                    destroyWindow("Diff");
                 }
             }
             /*Mat dilImgTh4;

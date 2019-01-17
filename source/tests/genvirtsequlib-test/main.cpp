@@ -1047,7 +1047,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	);
 
 	//Initialize system
-	genStereoSequ stereoSequ(imgSize, K_1, K_2, Rv, tv, stereoSequPars);
+	genStereoSequ stereoSequ(imgSize, K_1, K_2, Rv, tv, stereoSequPars, SHOW_BUILD_PROC_STATIC_OBJ);
 
 	//Generate Sequence
 	stereoSequ.startCalc();
