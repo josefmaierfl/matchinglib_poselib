@@ -84,7 +84,8 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_MOV_OBJ_DISTANCES = 0x04,
 	SHOW_MOV_OBJ_3D_PTS = 0x08,
 	SHOW_MOV_OBJ_CORRS_GEN = 0x10,
-	SHOW_BUILD_PROC_STATIC_OBJ = 0x20
+	SHOW_BUILD_PROC_STATIC_OBJ = 0x20,
+	SHOW_STATIC_OBJ_DISTANCES = 0x40
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -291,7 +292,7 @@ private:
 	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1, cv::Mat &imgSD, bool escArea = true);
     void nextPosition(cv::Point_<int32_t> &position, int32_t direction);
 	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);
-	void getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
+	void getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
 	inline double getDepthFuncVal(std::vector<double> &pars1, double x, double y);
 	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
 	void getKeypoints();

@@ -42,6 +42,10 @@ using namespace cv;
 
 /* --------------------- Function prototypes --------------------- */
 
+void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete);
+void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B);
+void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask);
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -2333,7 +2337,7 @@ void genStereoSequ::genDepthMaps() {
 //    }
 
     //Show the result
-    if (verbose & SHOW_BUILD_PROC_STATIC_OBJ) {
+    if (verbose & (SHOW_BUILD_PROC_STATIC_OBJ | SHOW_STATIC_OBJ_DISTANCES)) {
         unsigned char clmul = 255 / 3;
         // Apply the colormap:
         Mat colorMapImg;
@@ -2341,7 +2345,9 @@ void genStereoSequ::genDepthMaps() {
         namedWindow("Static object depth areas", WINDOW_AUTOSIZE);
         imshow("Static object depth areas", colorMapImg);
         waitKey(0);
-        destroyWindow("Static object depth areas");
+        if ((verbose & SHOW_STATIC_OBJ_DISTANCES) && !(verbose & SHOW_STATIC_OBJ_DISTANCES)) {
+            destroyWindow("Static object depth areas");
+        }
     }
 
     //Get final depth values for each depth region
@@ -2354,13 +2360,38 @@ void genStereoSequ::genDepthMaps() {
     depthMap = depthMapNear + depthMapMid + depthMapFar;
 
     //Visualize the depth values
-    Mat normalizedDepth;//, labelMask = cv::Mat::zeros(imgSize, CV_8UC1);
-    //labelMask |= actUsedAreaNear | actUsedAreaMid | actUsedAreaFar;
-    cv::normalize(depthMap, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX);//, -1, labelMask);
-    namedWindow("Normalized Static Obj Depth", WINDOW_AUTOSIZE);
-    imshow("Normalized Static Obj Depth", normalizedDepth);
-    waitKey(0);
-    destroyWindow("Normalized Static Obj Depth");
+    if (verbose & SHOW_STATIC_OBJ_DISTANCES) {
+        Mat normalizedDepth;
+        cv::normalize(depthMapNear, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, depthMapNear > 0);
+        namedWindow("Normalized Static Obj Depth Near", WINDOW_AUTOSIZE);
+        imshow("Normalized Static Obj Depth Near", normalizedDepth);
+
+        normalizedDepth.release();
+        cv::normalize(depthMapMid, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, depthMapMid > 0);
+        namedWindow("Normalized Static Obj Depth Mid", WINDOW_AUTOSIZE);
+        imshow("Normalized Static Obj Depth Mid", normalizedDepth);
+
+        normalizedDepth.release();
+        cv::normalize(depthMapFar, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, depthMapFar > 0);
+        namedWindow("Normalized Static Obj Depth Far", WINDOW_AUTOSIZE);
+        imshow("Normalized Static Obj Depth Far", normalizedDepth);
+
+//        Mat normalizedDepth;//, labelMask = cv::Mat::zeros(imgSize, CV_8UC1);
+        //labelMask |= actUsedAreaNear | actUsedAreaMid | actUsedAreaFar;
+        normalizedDepth.release();
+        cv::normalize(depthMap, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX);//, -1, labelMask);
+        Mat normalizedDepthColor;
+        normalizedDepth.convertTo(normalizedDepthColor, CV_8UC1, 255.0);
+        applyColorMap(normalizedDepthColor, normalizedDepthColor, cv::COLORMAP_RAINBOW);
+        namedWindow("Normalized Static Obj Depth", WINDOW_AUTOSIZE);
+        imshow("Normalized Static Obj Depth", normalizedDepthColor);
+        waitKey(0);
+        destroyWindow("Normalized Static Obj Depth Near");
+        destroyWindow("Normalized Static Obj Depth Mid");
+        destroyWindow("Normalized Static Obj Depth Far");
+        destroyWindow("Normalized Static Obj Depth");
+    }
+    destroyAllWindows();
 }
 
 //Get overlaps of filled areas (2 different) and remove them
@@ -2656,7 +2687,7 @@ void genStereoSequ::getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, doubl
 }
 
 //Generate depth values (for every pixel) for the given areas of depth regions
-void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, double dmax,
+void genStereoSequ::getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin, double dmax,
                                  std::vector<cv::Point3_<int32_t>> &initSeedInArea) {
     Mat actUsedAreaLabel;
     Mat actUsedAreaStats;
@@ -2671,6 +2702,17 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, doubl
     getRandDepthFuncPars(funcPars, (size_t) nL);
     //cv::ConnectedComponentsTypes::CC_STAT_HEIGHT;
 
+    //Visualize the depth values
+    if (verbose & SHOW_STATIC_OBJ_DISTANCES) {
+        Mat colorMapImg;
+        Mat mask = (din > 0);
+        buildColorMapHSV2RGB(actUsedAreaLabel, colorMapImg, nrLabels, mask);
+        namedWindow("Static Obj Connected Components", WINDOW_AUTOSIZE);
+        imshow("Static Obj Connected Components", colorMapImg);
+        waitKey(0);
+        destroyWindow("Static Obj Connected Components");
+    }
+
     dout.release();
     dout = Mat::zeros(imgSize, CV_64FC1);
     for (uint16_t i = 0; i < nL; i++) {
@@ -2680,6 +2722,7 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, doubl
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT));
         Mat laMat = actUsedAreaLabel(labelBB);
         Mat doutSlice = dout(labelBB);
+        Mat dinSlice = din(labelBB);
 
         double dmin_tmp = getRandDoubleValRng(dmin, dmin + 0.6 * (dmax - dmin));
         double dmax_tmp = getRandDoubleValRng(dmin_tmp + 0.1 * (dmax - dmin), dmax);
@@ -2742,7 +2785,7 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, doubl
         for (int y = 0; y < labelBB.height; y++) {
             for (int x = 0; x < labelBB.width; x++) {
                 if (laMat.at<uint16_t>(y, x) == i) {
-                    if (din.at<unsigned char>(y, x) == 0) {
+                    if (dinSlice.at<unsigned char>(y, x) == 0) {
                         lareaNCnt--;
                         if ((lareaCnt == 0) && (lareaNCnt < 0)) {
                             lareaCnt = -1;
@@ -2776,6 +2819,119 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, cv::Mat &din, double dmin, doubl
                 }
             }
         }
+    }
+
+/*    Mat normalizedDepth;
+    cv::normalize(dout, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, dout > 0);
+    namedWindow("Normalized Static Obj Depth One Depth", WINDOW_AUTOSIZE);
+    imshow("Normalized Static Obj Depth One Depth", normalizedDepth);
+    waitKey(0);
+    destroyWindow("Normalized Static Obj Depth One Depth");*/
+}
+
+void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask)
+{
+    std::vector<cv::Vec3b> pallete;
+    gen_palette(nrLabels, pallete);
+    Mat mask_;
+    if(!mask.empty())
+    {
+        mask_ = mask.getMat();
+    } else{
+        mask_ = Mat::ones(in16.size(), CV_8UC1);
+    }
+
+    rgb8 = Mat::zeros(in16.size(), CV_8UC3);
+    for (int y = 0; y < in16.rows; ++y) {
+        for (int x = 0; x < in16.cols; ++x) {
+            if(mask_.at<uint8_t>(y,x) > 0)
+            {
+                uint16_t lnr = in16.at<uint16_t>(y,x);
+                rgb8.at<cv::Vec3b>(y, x) = pallete[lnr];
+            }
+        }
+    }
+}
+
+void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B)
+{
+    if (S == 0)                       //HSV values = 0 ÷ 1
+    {
+        R = (int)(V * 255.);
+        G = R;
+        B = R;
+    }
+    else
+    {
+        float var_h, var_1, var_2, var_3, var_r, var_g, var_b;
+        int var_i;
+
+        var_h = H * 6.0f;
+
+        if (var_h == 6.0f)
+            var_h = 0;      // H must be < 1
+
+        var_i = int(var_h);     // Or ... var_i = floor( var_h )
+        var_1 = V * (1 - S);
+        var_2 = V * (1 - S * (var_h - var_i));
+        var_3 = V * (1 - S * (1 - (var_h - var_i)));
+
+        if (var_i == 0)
+        {
+            var_r = V;
+            var_g = var_3;
+            var_b = var_1;
+        }
+        else if (var_i == 1)
+        {
+            var_r = var_2;
+            var_g = V;
+            var_b = var_1;
+        }
+        else if (var_i == 2)
+        {
+            var_r = var_1;
+            var_g = V;
+            var_b = var_3;
+        }
+        else if (var_i == 3)
+        {
+            var_r = var_1;
+            var_g = var_2;
+            var_b = V;
+        }
+        else if (var_i == 4)
+        {
+            var_r = var_3;
+            var_g = var_1;
+            var_b = V;
+        }
+        else
+        {
+            var_r = V;
+            var_g = var_1;
+            var_b = var_2;
+        }
+
+        R = (int)(var_r * 255);    //RGB results = 0 ÷ 255
+        G = (int)(var_g * 255);
+        B = (int)(var_b * 255);
+    }
+}
+
+void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete) {
+    const float addHue = sqrt(0.1f); //use an irrational number to achieve many different hues
+    float currHue = 0.0f;
+
+    for(int k = 0; k < num_labels; ++k)
+    {
+        int R=0,G=0,B=0;
+        float H = currHue - floor(currHue);
+        float V = 0.75f + 0.25f * ((float)(k % 4) / 3.f);
+        color_HSV2RGB(H , V , V, R, G, B);
+        cv::Vec3b col = cv::Vec3b(R,G,B);
+        pallete.push_back(col);
+        currHue += addHue;
     }
 }
 
