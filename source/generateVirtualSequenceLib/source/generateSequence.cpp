@@ -1878,8 +1878,8 @@ void genStereoSequ::genDepthMaps() {
                                 for (size_t i = 0; i < actPosSeedsNear[y][x].size(); i++) {
                                     if (areasNFinish[y][x]) {
 
-                                        Mat beforeAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
-                                        int32_t Asv = actAreaNear[y][x];
+                                        /*Mat beforeAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int32_t Asv = actAreaNear[y][x];*/
 
                                         areasNFinish[y][x] = addAdditionalDepth(1,
                                                                                 depthAreaMap,
@@ -1902,7 +1902,7 @@ void genStereoSequ::genDepthMaps() {
                                                                                 neighborRegMask,
                                                                                 (unsigned char) (y * 3 + x));
 
-                                        Mat afterAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        /*Mat afterAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
                                         int realAreaBeforeDil = cv::countNonZero(afterAdding);
                                         if(realAreaBeforeDil != actAreaNear[y][x])
                                         {
@@ -1934,7 +1934,7 @@ void genStereoSequ::genDepthMaps() {
                                             destroyWindow("Mask");
                                             destroyWindow("All Regions");
                                             destroyWindow("Neighbours");
-                                        }
+                                        }*/
                                     } else {
                                         break;
                                     }
@@ -1947,8 +1947,8 @@ void genStereoSequ::genDepthMaps() {
                                 for (size_t i = 0; i < actPosSeedsMid[y][x].size(); i++) {
                                     if (areasNFinish[y][x]) {
 
-                                        Mat beforeAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
-                                        int32_t Asv = actAreaMid[y][x];
+                                        /*Mat beforeAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int32_t Asv = actAreaMid[y][x];*/
 
                                         areasNFinish[y][x] = addAdditionalDepth(2,
                                                                                 depthAreaMap,
@@ -1970,7 +1970,7 @@ void genStereoSequ::genDepthMaps() {
                                                                                 neighborRegMask,
                                                                                 (unsigned char) (y * 3 + x));
 
-                                        Mat afterAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        /*Mat afterAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
                                         int realAreaBeforeDil = cv::countNonZero(afterAdding);
                                         if(realAreaBeforeDil != actAreaMid[y][x])
                                         {
@@ -2002,7 +2002,7 @@ void genStereoSequ::genDepthMaps() {
                                             destroyWindow("Mask");
                                             destroyWindow("All Regions");
                                             destroyWindow("Neighbours");
-                                        }
+                                        }*/
                                     } else {
                                         break;
                                     }
@@ -2015,8 +2015,8 @@ void genStereoSequ::genDepthMaps() {
                                 for (size_t i = 0; i < actPosSeedsFar[y][x].size(); i++) {
                                     if (areasNFinish[y][x]) {
 
-                                        Mat beforeAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
-                                        int32_t Asv = actAreaFar[y][x];
+                                        /*Mat beforeAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        int32_t Asv = actAreaFar[y][x];*/
 
                                         areasNFinish[y][x] = addAdditionalDepth(3,
                                                                                 depthAreaMap,
@@ -2038,7 +2038,7 @@ void genStereoSequ::genDepthMaps() {
                                                                                 neighborRegMask,
                                                                                 (unsigned char) (y * 3 + x));
 
-                                        Mat afterAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
+                                        /*Mat afterAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
                                         int realAreaBeforeDil = cv::countNonZero(afterAdding);
                                         if(realAreaBeforeDil != actAreaFar[y][x])
                                         {
@@ -2070,7 +2070,7 @@ void genStereoSequ::genDepthMaps() {
                                             destroyWindow("Mask");
                                             destroyWindow("All Regions");
                                             destroyWindow("Neighbours");
-                                        }
+                                        }*/
                                     } else {
                                         break;
                                     }
@@ -2084,7 +2084,7 @@ void genStereoSequ::genDepthMaps() {
                 }
             }
             if (verbose & SHOW_BUILD_PROC_STATIC_OBJ) {
-                if (visualizeMask % 100 == 0) {
+                if (visualizeMask % 200 == 0) {
                     Mat colorMapImg;
                     unsigned char clmul = 255 / 3;
                     // Apply the colormap:
@@ -2885,19 +2885,6 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true);
     }
 
-    Mat beforeDilation;
-    if (!neighborRegMask_.empty()) {
-        beforeDilation = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
-    }else{
-        beforeDilation = imgSD(vROI).clone();
-    }
-
-    int realAreaBeforeDil = cv::countNonZero(beforeDilation);
-    if(realAreaBeforeDil != addArea)
-    {
-        cout << "Area difference: " << realAreaBeforeDil - addArea << endl;
-    }
-
     if (directions.empty() || (nrAdds > max_iter) || usedDilate || ((nrAdds % midDilateCnt == 0) && (nrAdds >=
                                                                                                      midDilateCnt)))//Dilate the label if no direction was found or there were already to many iterations
     {
@@ -2932,15 +2919,10 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             strElmSi += 2;
             Mat imgSDdilate;
             Mat neighborRegMaskROI;
-            Mat /*beforeDilation,*/ afterDilation, afterDilationWMask;
             if (!neighborRegMask_.empty()) {
                 Mat newImgSDROI = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
 
-//                beforeDilation = newImgSDROI.clone();
-
                 dilate(newImgSDROI, imgSDdilate, element);
-
-                afterDilation = imgSDdilate.clone();
 
                 /*namedWindow("specific objLabels without neighbors", WINDOW_AUTOSIZE);
                 imshow("specific objLabels without neighbors", (newImgSDROI > 0));
@@ -2948,7 +2930,6 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 imshow("specific objLabels with neighbors", (imgSD(vROI) > 0));*/
 
                 imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | newImgSDROI);
-                afterDilationWMask = imgSDdilate.clone();
                 neighborRegMaskROI = ((imgSDdilate > 0) & Mat::ones(vROI.size(), CV_8UC1)) * regIdx;
 
                 /*namedWindow("specific objLabels without neighbors dilated and mask", WINDOW_AUTOSIZE);
@@ -2966,11 +2947,8 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 destroyWindow("specific objLabels without neighbors dilated and mask");
                 destroyWindow("specific objLabels with neighbors dilated and mask");*/
             } else {
-//                beforeDilation = imgSD(vROI).clone();
                 dilate(imgSD(vROI), imgSDdilate, element);
-                afterDilation = imgSDdilate.clone();
                 imgSDdilate &= (mask(vROI) == 0) & ((imgD(vROI) == 0) | (imgSD(vROI) > 0));
-                afterDilationWMask = imgSDdilate.clone();
                 siAfterDil = (int32_t) cv::countNonZero(imgSDdilate);
             }
 
@@ -3033,41 +3011,12 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                     usedDilate = 1;
                 }
                 nrAdds++;
-                /*if (addArea == siAfterDil) {
-                    return false;
-                }*/
                 addArea = siAfterDil;
 
                 return true;
             } else if ((siAfterDil - addArea) < 0) {
 
-                namedWindow("Before dilation", WINDOW_AUTOSIZE);
-                namedWindow("After dilation Before masking", WINDOW_AUTOSIZE);
-                namedWindow("After dilation After masking", WINDOW_AUTOSIZE);
-                namedWindow("All labels", WINDOW_AUTOSIZE);
-                namedWindow("Used specific mask", WINDOW_AUTOSIZE);
-                imshow("Before dilation", (beforeDilation > 0));
-                imshow("After dilation Before masking", (afterDilation > 0));
-                imshow("After dilation After masking", (afterDilationWMask > 0));
-                imshow("All labels", (imgD(vROI) == 0));
-                imshow("Used specific mask", (mask(vROI) == 0));
-
-                int realAreaAfterDil = cv::countNonZero(afterDilation);
-                cout << "Measured area before dilation: " << realAreaBeforeDil << endl
-                     << "Given area: " << addArea << endl
-                     << "Area after dilation: " << realAreaAfterDil << endl
-                     << "Area after dilation and masking " << siAfterDil << endl;
-                waitKey(0);
-                destroyWindow("Before dilation");
-                destroyWindow("After dilation Before masking");
-                destroyWindow("After dilation After masking");
-                destroyWindow("All labels");
-                destroyWindow("Used specific mask");
-
-
-//                throw SequenceException("Generated depth area is smaller after dilation (and using a mask afterwards) than before!");
-
-
+                throw SequenceException("Generated depth area is smaller after dilation (and using a mask afterwards) than before!");
             }
         }
         if (cnt >= maxCnt) {
@@ -4222,7 +4171,7 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
     while (remainObj > 0) {
         for (size_t i = 0; i < nr_movObj; i++) {
             if (objNFinished[i]) {
-                Mat beforeAdding = movObjLabels[i].clone();
+//                Mat beforeAdding = movObjLabels[i].clone();
                 int32_t Asv = actArea[i];
 
                 if (!addAdditionalDepth((unsigned char) (i + convhullPtsObj.size() + 1),
@@ -4250,7 +4199,7 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
                     objNFinished[i] = false;
                     remainObj--;
                 }
-                Mat afterAdding =  movObjLabels[i].clone();;
+                /*Mat afterAdding =  movObjLabels[i].clone();;
                 int realAreaBeforeDil = cv::countNonZero(afterAdding);
                 if(realAreaBeforeDil != actArea[i])
                 {
@@ -4267,7 +4216,7 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
                     destroyWindow("Before");
                     destroyWindow("After");
                     destroyWindow("Diff");
-                }
+                }*/
             }
             /*Mat dilImgTh4;
             cv::threshold( movObjLabels[i], dilImgTh4, 0, 255,0 );
