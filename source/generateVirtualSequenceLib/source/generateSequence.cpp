@@ -43,7 +43,9 @@ using namespace cv;
 /* --------------------- Function prototypes --------------------- */
 
 void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete);
+
 void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B);
+
 void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask);
 
 /* -------------------------- Functions -------------------------- */
@@ -1170,6 +1172,9 @@ void genStereoSequ::checkDepthSeeds() {
     seedsFar = std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>>(3,
                                                                            std::vector<std::vector<cv::Point3_<int32_t>>>(
                                                                                    3));
+
+    //Generate a mask for marking used areas in the first stereo image
+    corrsIMG = Mat::zeros(imgSize.width + csurr.rows - 1, imgSize.height + csurr.cols - 1, CV_8UC1);
 
     int posadd1 = max((int) ceil(pars.minKeypDist), (int) sqrt(minDArea));
     int sqrSi1 = 2 * posadd1;
@@ -2829,40 +2834,34 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin,
     destroyWindow("Normalized Static Obj Depth One Depth");*/
 }
 
-void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask)
-{
+void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask) {
     std::vector<cv::Vec3b> pallete;
     gen_palette(nrLabels, pallete);
     Mat mask_;
-    if(!mask.empty())
-    {
+    if (!mask.empty()) {
         mask_ = mask.getMat();
-    } else{
+    } else {
         mask_ = Mat::ones(in16.size(), CV_8UC1);
     }
 
     rgb8 = Mat::zeros(in16.size(), CV_8UC3);
     for (int y = 0; y < in16.rows; ++y) {
         for (int x = 0; x < in16.cols; ++x) {
-            if(mask_.at<uint8_t>(y,x) > 0)
-            {
-                uint16_t lnr = in16.at<uint16_t>(y,x);
+            if (mask_.at<uint8_t>(y, x) > 0) {
+                uint16_t lnr = in16.at<uint16_t>(y, x);
                 rgb8.at<cv::Vec3b>(y, x) = pallete[lnr];
             }
         }
     }
 }
 
-void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B)
-{
+void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B) {
     if (S == 0)                       //HSV values = 0 ÷ 1
     {
-        R = (int)(V * 255.);
+        R = (int) (V * 255.);
         G = R;
         B = R;
-    }
-    else
-    {
+    } else {
         float var_h, var_1, var_2, var_3, var_r, var_g, var_b;
         int var_i;
 
@@ -2876,46 +2875,35 @@ void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B)
         var_2 = V * (1 - S * (var_h - var_i));
         var_3 = V * (1 - S * (1 - (var_h - var_i)));
 
-        if (var_i == 0)
-        {
+        if (var_i == 0) {
             var_r = V;
             var_g = var_3;
             var_b = var_1;
-        }
-        else if (var_i == 1)
-        {
+        } else if (var_i == 1) {
             var_r = var_2;
             var_g = V;
             var_b = var_1;
-        }
-        else if (var_i == 2)
-        {
+        } else if (var_i == 2) {
             var_r = var_1;
             var_g = V;
             var_b = var_3;
-        }
-        else if (var_i == 3)
-        {
+        } else if (var_i == 3) {
             var_r = var_1;
             var_g = var_2;
             var_b = V;
-        }
-        else if (var_i == 4)
-        {
+        } else if (var_i == 4) {
             var_r = var_3;
             var_g = var_1;
             var_b = V;
-        }
-        else
-        {
+        } else {
             var_r = V;
             var_g = var_1;
             var_b = var_2;
         }
 
-        R = (int)(var_r * 255);    //RGB results = 0 ÷ 255
-        G = (int)(var_g * 255);
-        B = (int)(var_b * 255);
+        R = (int) (var_r * 255);    //RGB results = 0 ÷ 255
+        G = (int) (var_g * 255);
+        B = (int) (var_b * 255);
     }
 }
 
@@ -2923,13 +2911,12 @@ void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete) {
     const float addHue = sqrt(0.1f); //use an irrational number to achieve many different hues
     float currHue = 0.0f;
 
-    for(int k = 0; k < num_labels; ++k)
-    {
-        int R=0,G=0,B=0;
+    for (int k = 0; k < num_labels; ++k) {
+        int R = 0, G = 0, B = 0;
         float H = currHue - floor(currHue);
-        float V = 0.75f + 0.25f * ((float)(k % 4) / 3.f);
-        color_HSV2RGB(H , V , V, R, G, B);
-        cv::Vec3b col = cv::Vec3b(R,G,B);
+        float V = 0.75f + 0.25f * ((float) (k % 4) / 3.f);
+        color_HSV2RGB(H, V, V, R, G, B);
+        cv::Vec3b col = cv::Vec3b(R, G, B);
         pallete.push_back(col);
         currHue += addHue;
     }
@@ -3141,8 +3128,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                     imgSDdilate ^= imgSD(vROI);
                     removeNrFilledPixels(element.size(), vROI.size(), imgSDdilate, diff);
                 }
-                if (!neighborRegMask_.empty())
-                {
+                if (!neighborRegMask_.empty()) {
                     neighborRegMaskROI = ((imgSDdilate > 0) & Mat::ones(vROI.size(), CV_8UC1)) * regIdx;
                     neighborRegMask_(vROI) |= neighborRegMaskROI;
                 }
@@ -3172,7 +3158,8 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 return true;
             } else if ((siAfterDil - addArea) < 0) {
 
-                throw SequenceException("Generated depth area is smaller after dilation (and using a mask afterwards) than before!");
+                throw SequenceException(
+                        "Generated depth area is smaller after dilation (and using a mask afterwards) than before!");
             }
         }
         if (cnt >= maxCnt) {
@@ -3184,13 +3171,11 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         endpos = startpos;
         nextPosition(endpos, directions[diri]);
         //Set the pixel
-        if(imgD.at<unsigned char>(endpos) != 0)
-        {
+        if (imgD.at<unsigned char>(endpos) != 0) {
             cout << "Found" << endl;
         }
         imgD.at<unsigned char>(endpos) = pixVal;
-        if(imgSD.at<unsigned char>(endpos) != 0)
-        {
+        if (imgSD.at<unsigned char>(endpos) != 0) {
             cout << "Found" << endl;
         }
         imgSD.at<unsigned char>(endpos) = 1;
@@ -3233,13 +3218,11 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                         const int pos = (beginExt + i) % (int) extension.size();
                         nextPosition(singleExt, extension[pos]);
                         //Set the pixel
-                        if(imgD.at<unsigned char>(singleExt) != 0)
-                        {
+                        if (imgD.at<unsigned char>(singleExt) != 0) {
                             cout << "Found" << endl;
                         }
                         imgD.at<unsigned char>(singleExt) = pixVal;
-                        if(imgSD.at<unsigned char>(singleExt) != 0)
-                        {
+                        if (imgSD.at<unsigned char>(singleExt) != 0) {
                             cout << "Found" << endl;
                         }
                         imgSD.at<unsigned char>(singleExt) = 1;
@@ -3462,7 +3445,8 @@ void genStereoSequ::getKeypoints() {
         Point_<int32_t> pt((int32_t) round(actCorrsImg2TPFromLast.at<double>(0, i)),
                            (int32_t) round(actCorrsImg2TPFromLast.at<double>(1, i)));
         Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
-        csurr.copyTo(s_tmp);
+        s_tmp.at<unsigned char>(posadd, posadd) = 1;
+//        csurr.copyTo(s_tmp);
     }
     const int nrBPTN2 = actCorrsImg2TNFromLast.cols;
     int nrBPTN2cnt = 0;
@@ -3470,7 +3454,8 @@ void genStereoSequ::getKeypoints() {
         Point_<int32_t> pt((int32_t) round(actCorrsImg2TNFromLast.at<double>(0, i)),
                            (int32_t) round(actCorrsImg2TNFromLast.at<double>(1, i)));
         Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
-        csurr.copyTo(s_tmp);
+        s_tmp.at<unsigned char>(posadd, posadd) = 1;
+//        csurr.copyTo(s_tmp);
     }
     cImg2(Rect(Point(posadd, posadd), imgSize)) |= movObjMask2All;
 
@@ -3485,6 +3470,10 @@ void genStereoSequ::getKeypoints() {
 
         x1pTN[pt.y / rSl.height][pt.x / rSl.width].push_back(pt);
     }
+
+    //For visualization
+    int dispit = 0;
+    const int dispit_interval = 50;
 
     vector<vector<vector<Point_<int32_t>>>> corrsAllD(3, vector<vector<Point_<int32_t>>>(3));
     vector<vector<vector<Point2d>>> corrsAllD2(3, vector<vector<Point2d>>(3));
@@ -3545,8 +3534,10 @@ void genStereoSequ::getKeypoints() {
             if (nrFar < 0)
                 nrMid += nrFar;
 
+            int32_t nrNMF = nrNear + nrMid + nrFar;
+
             while (((nrNear > 0) || (nrFar > 0) || (nrMid > 0)) && (maxSelect2 > 0) && (maxSelect3 > 0) &&
-                   (maxSelect4 > 0)) {
+                   (maxSelect4 > 0) && (nrNMF > 0)) {
                 pt.x = distributionX(rand_gen);
                 pt.y = distributionY(rand_gen);
 
@@ -3564,15 +3555,17 @@ void genStereoSequ::getKeypoints() {
                     maxSelect2 = 50;
                     //Check if it is also an inlier in the right image
                     bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
-                    Mat s_tmp1 = cImg2(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
-                    if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
-                        maxSelect++;
-                        maxSelect4--;
-                        continue;
+                    if (isInl) {
+                        Mat s_tmp1 = cImg2(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
+                        if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
+                            maxSelect++;
+                            maxSelect4--;
+                            continue;
+                        }
+                        s_tmp1.at<unsigned char>(posadd,
+                                                 posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
+                        maxSelect4 = 50;
                     }
-                    s_tmp1.at<unsigned char>(posadd,
-                                             posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
-                    maxSelect4 = 50;
                     s_tmp += csurr;
                     if (!isInl) {
                         if (nrTN > 0) {
@@ -3587,6 +3580,7 @@ void genStereoSequ::getKeypoints() {
                     }
                     maxSelect3 = 50;
                     nrNear--;
+                    nrNMF--;
                     corrsNearR.push_back(pt);
                     corrsNearR2.push_back(pt2);
                     p3DTPnewRNear.push_back(pCam);
@@ -3604,15 +3598,17 @@ void genStereoSequ::getKeypoints() {
                     maxSelect2 = 50;
                     //Check if it is also an inlier in the right image
                     bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
-                    Mat s_tmp1 = cImg2(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
-                    if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
-                        maxSelect++;
-                        maxSelect4--;
-                        continue;
+                    if (isInl) {
+                        Mat s_tmp1 = cImg2(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
+                        if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
+                            maxSelect++;
+                            maxSelect4--;
+                            continue;
+                        }
+                        s_tmp1.at<unsigned char>(posadd,
+                                                 posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
+                        maxSelect4 = 50;
                     }
-                    s_tmp1.at<unsigned char>(posadd,
-                                             posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
-                    maxSelect4 = 50;
                     s_tmp += csurr;
                     if (!isInl) {
                         if (nrTN > 0) {
@@ -3627,6 +3623,7 @@ void genStereoSequ::getKeypoints() {
                     }
                     maxSelect3 = 50;
                     nrMid--;
+                    nrNMF--;
                     corrsMidR.push_back(pt);
                     corrsMidR2.push_back(pt2);
                     p3DTPnewRMid.push_back(pCam);
@@ -3644,15 +3641,17 @@ void genStereoSequ::getKeypoints() {
                     maxSelect2 = 50;
                     //Check if it is also an inlier in the right image
                     bool isInl = checkLKPInlier(pt, pt2, pCam, depthMap);
-                    Mat s_tmp1 = cImg2(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
-                    if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
-                        maxSelect++;
-                        maxSelect4--;
-                        continue;
+                    if (isInl) {
+                        Mat s_tmp1 = cImg2(Rect((int) round(pt2.x), (int) round(pt2.y), kSi, kSi));
+                        if (s_tmp1.at<unsigned char>(posadd, posadd) > 0) {
+                            maxSelect++;
+                            maxSelect4--;
+                            continue;
+                        }
+                        s_tmp1.at<unsigned char>(posadd,
+                                                 posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
+                        maxSelect4 = 50;
                     }
-                    s_tmp1.at<unsigned char>(posadd,
-                                             posadd) = 1;//The minimum distance between keypoints in the second image is fixed to 1 for new correspondences
-                    maxSelect4 = 50;
                     s_tmp += csurr;
                     if (!isInl) {
                         if (nrTN > 0) {
@@ -3667,11 +3666,26 @@ void genStereoSequ::getKeypoints() {
                     }
                     maxSelect3 = 50;
                     nrFar--;
+                    nrNMF--;
                     corrsFarR.push_back(pt);
                     corrsFarR2.push_back(pt2);
                     p3DTPnewRFar.push_back(pCam);
                 } else {
                     cout << "Depth area not defined! This should not happen!" << endl;
+                }
+
+                //Visualize the masks
+                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
+                    if (dispit % dispit_interval == 0) {
+                        namedWindow("Static Corrs mask img1", WINDOW_AUTOSIZE);
+                        imshow("Static Corrs mask img1", (corrsIMG > 0));
+                        namedWindow("Static Corrs mask img2", WINDOW_AUTOSIZE);
+                        imshow("Static Corrs mask img2", (cImg2 > 0));
+                        waitKey(0);
+                        destroyWindow("Static Corrs mask img1");
+                        destroyWindow("Static Corrs mask img2");
+                    }
+                    dispit++;
                 }
             }
 
@@ -3715,7 +3729,13 @@ void genStereoSequ::getKeypoints() {
                 corrsAllD2[y][x].insert(corrsAllD2[y][x].end(), corrsFarR2.begin(), corrsFarR2.end());
             }
 
-            //Select for true negatives in image 1 true negatives in image 2
+            //Generate mask for visualization before adding keypoints
+            Mat dispMask;
+            if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && (x1TN[y][x].size() > 0)) {
+                dispMask = (cImg2 > 0);
+            }
+
+            //Select for true negatives in image 1 (already generated ones) true negatives in image 2
             size_t selTN2 = 0;
             if (nrBPTN2cnt < nrBPTN2)//First take backprojected TN from the second image
             {
@@ -3744,17 +3764,41 @@ void genStereoSequ::getKeypoints() {
                             max_try--;
                             continue;
                         }
-                        csurr.copyTo(s_tmp);
+//                        csurr.copyTo(s_tmp);
+                        s_tmp.at<unsigned char>(posadd, posadd) = 1;
                         x2TN[y][x].push_back(Point2d((double) pt.x, (double) pt.y));
                         x2TNdistCorr[y][x].push_back(50.0);
                         break;
                     }
                 }
                 while (x1TN[y][x].size() > x2TN[y][x].size()) {
+                    Mat s_tmp = corrsIMG(Rect(Point_<int32_t>((int32_t) round(x1TN[y][x].back().x),
+                                                              (int32_t) round(x1TN[y][x].back().y)), Size(kSi, kSi)));
+                    s_tmp -= csurr;
                     x1TN[y][x].pop_back();
                     nrTN++;
                 }
             }
+
+            //Visualize the mask afterwards
+            if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && (x1TN[y][x].size() > 0)) {
+                if (x2TN[y][x].size() > 0) {
+                    namedWindow("Static TN Corrs mask img2", WINDOW_AUTOSIZE);
+                    Mat dispMask2 = (cImg2 > 0);
+                    vector<Mat> channels;
+                    Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+                    channels.push_back(b);
+                    channels.push_back(dispMask);
+                    channels.push_back(dispMask2);
+                    Mat img3c;
+                    merge(channels, img3c);
+                    imshow("Static TN Corrs mask img2", img3c);
+                    waitKey(0);
+                    destroyWindow("Static TN Corrs mask img2");
+                }
+            }
+
+            //Generate random TN in image 1
             if ((nrTN > 0) && (nrBPTN2cnt < nrBPTN2))//Take backprojected TN from the second image if available
             {
                 int32_t nrTN_tmp = nrTN;
@@ -5116,7 +5160,10 @@ void genStereoSequ::getMovObjCorrs() {
         size_t corrsNotVisible = x1TN.size();
         if (!x1TN.empty()) {
             //Generate mask for visualization before adding keypoints
-            Mat dispMask = (movObjMask2All > 0);
+            Mat dispMask;
+            if (verbose & SHOW_MOV_OBJ_CORRS_GEN) {
+                dispMask = (movObjMask2All > 0);
+            }
 
             for (size_t j = 0; j < corrsNotVisible; j++) {
                 int max_try = 10;
@@ -5136,6 +5183,9 @@ void genStereoSequ::getMovObjCorrs() {
                 }
             }
             while (x1TN.size() > x2TN.size()) {
+                Mat s_tmp = corrsSet(Rect(Point_<int32_t>((int32_t) round(x1TN.back().x),
+                                                          (int32_t) round(x1TN.back().y)), Size(kSi, kSi)));
+                s_tmp -= csurr;
                 x1TN.pop_back();
                 nrTN++;
             }
