@@ -3783,7 +3783,7 @@ void genStereoSequ::getKeypoints() {
             //Visualize the mask afterwards
             if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && (x1TN[y][x].size() > 0)) {
                 if (x2TN[y][x].size() > 0) {
-                    namedWindow("Static TN Corrs mask img2", WINDOW_AUTOSIZE);
+                    namedWindow("Static rand TN Corrs mask img2", WINDOW_AUTOSIZE);
                     Mat dispMask2 = (cImg2 > 0);
                     vector<Mat> channels;
                     Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -3792,15 +3792,20 @@ void genStereoSequ::getKeypoints() {
                     channels.push_back(dispMask2);
                     Mat img3c;
                     merge(channels, img3c);
-                    imshow("Static TN Corrs mask img2", img3c);
+                    imshow("Static rand TN Corrs mask img2", img3c);
                     waitKey(0);
-                    destroyWindow("Static TN Corrs mask img2");
+                    destroyWindow("Static rand TN Corrs mask img2");
                 }
             }
 
             //Generate random TN in image 1
             if ((nrTN > 0) && (nrBPTN2cnt < nrBPTN2))//Take backprojected TN from the second image if available
             {
+                //Generate mask for visualization before adding keypoints
+                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
+                    dispMask = (corrsIMG > 0);
+                }
+
                 int32_t nrTN_tmp = nrTN;
                 for (int32_t i = 0; i < nrTN_tmp; i++) {
                     int max_try = 10;
@@ -3826,6 +3831,22 @@ void genStereoSequ::getKeypoints() {
                     if (nrBPTN2cnt >= nrBPTN2)
                         break;
                 }
+
+                //Visualize the mask afterwards
+                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN){
+                    namedWindow("Static rand TN Corrs mask img1", WINDOW_AUTOSIZE);
+                    Mat dispMask2 = (cImg2 > 0);
+                    vector<Mat> channels;
+                    Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+                    channels.push_back(b);
+                    channels.push_back(dispMask);
+                    channels.push_back(dispMask2);
+                    Mat img3c;
+                    merge(channels, img3c);
+                    imshow("Static rand TN Corrs mask img1", img3c);
+                    waitKey(0);
+                    destroyWindow("Static rand TN Corrs mask img1");
+                }
             }
 
             //Get the rest of TN correspondences
@@ -3835,9 +3856,43 @@ void genStereoSequ::getKeypoints() {
                 Mat maskImg1;
                 copyMakeBorder(combMovObjLabelsAll, maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT,
                                Scalar(0));
-                maskImg1 |= corrsIMG;
+                maskImg1 = (maskImg1 == 0) | corrsIMG;
+
+                //Generate mask for visualization before adding keypoints
+                Mat dispMaskImg2;
+                Mat dispMaskImg1;
+                if(verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
+                    dispMaskImg2 = (cImg2 > 0);
+                    dispMaskImg1 = (maskImg1 > 0);
+                }
+
                 nrTN = genTrueNegCorrs(nrTN, distributionX, distributionY, distributionX2, distributionY2, x1TN_tmp,
                                        x2TN_tmp, x2TNdistCorr_tmp, maskImg1, cImg2, depthMap);
+
+                //Visualize the mask afterwards
+                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
+                    Mat dispMask2Img2 = (cImg2 > 0);
+                    Mat dispMask2Img1 = (maskImg1 > 0);
+                    vector<Mat> channels, channels1;
+                    Mat b = Mat::zeros(dispMask2Img2.size(), CV_8UC1);
+                    channels.push_back(b);
+                    channels.push_back(dispMaskImg2);
+                    channels.push_back(dispMask2Img2);
+                    channels1.push_back(b);
+                    channels1.push_back(dispMaskImg1);
+                    channels1.push_back(dispMask2Img1);
+                    Mat img3c, img3c1;
+                    merge(channels, img3c);
+                    merge(channels1, img3c1);
+                    namedWindow("Static rand img1 rand img2 TN Corrs mask img1", WINDOW_AUTOSIZE);
+                    imshow("Static rand img1 rand img2 TN Corrs mask img1", img3c1);
+                    namedWindow("Static rand img1 rand img2 TN Corrs mask img2", WINDOW_AUTOSIZE);
+                    imshow("Static rand img1 rand img2 TN Corrs mask img2", img3c);
+                    waitKey(0);
+                    destroyWindow("Static rand img1 rand img2 TN Corrs mask img1");
+                    destroyWindow("Static rand img1 rand img2 TN Corrs mask img2");
+                }
+
                 if (!x1TN_tmp.empty()) {
                     corrsIMG(Rect(Point(posadd, posadd), imgSize)) |=
                             maskImg1(Rect(Point(posadd, posadd), imgSize)) & (combMovObjLabelsAll == 0);
@@ -3850,6 +3905,9 @@ void genStereoSequ::getKeypoints() {
                                               x2TNdistCorr_tmp.end());
                 }
             }
+
+            //Adapt the number of TP and TN in the next region based on the remaining number of TP and TN of the current region
+
         }
     }
 
@@ -3898,6 +3956,86 @@ void genStereoSequ::getKeypoints() {
         }
     }
 
+}
+
+void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
+        int32_t nrTN,
+        size_t corrsNotVisible,
+        size_t foundTPCorrs,
+        int idx_x,
+        int32_t nr_movObj,
+        int y,
+        std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> x1pTN)
+{
+    /*int32_t nrMid = nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) - nrNear - nrFar;
+
+    int32_t nrTN = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) - (int32_t) x1pTN[y][x].size();*/
+
+
+    if (((nrTP > 0) || (nrTN > 0)) && (i < (nr_movObj - 1))) {
+        double reductionFactor;
+        if((nr_movObj > 0) && (x1pTN.empty()))
+        {
+            reductionFactor = (double) (actTPPerMovObj[idx_x] - nrTP + actTNPerMovObj[idx_x] - nrTN) /
+                              (double) (actTPPerMovObj[idx_x] + actTNPerMovObj[idx_x]);
+        }
+        else if((nr_movObj == 0) && (!x1pTN.empty()))
+        {
+            reductionFactor = (double) (nrTruePosRegs[actFrameCnt].at<int32_t>(y, idx_x) - nrTP +
+                    nrTrueNegRegs[actFrameCnt].at<int32_t>(y, idx_x) - (int32_t) x1pTN[y][idx_x].size() - nrTN) /
+                              (double) (nrTruePosRegs[actFrameCnt].at<int32_t>(y, idx_x) +
+                                      nrTrueNegRegs[actFrameCnt].at<int32_t>(y, idx_x) - (int32_t) x1pTN[y][idx_x].size());
+        } else{
+            throw SequenceException("Wrong call of adaptNRCorrespondences function!");
+        }
+        //incorporate fraction of not visible (in cam2) features
+        reductionFactor *= (double) (corrsNotVisible + foundTPCorrs) / ((double) foundTPCorrs + 0.001);
+        reductionFactor = reductionFactor > 1.0 ? 1.0 : reductionFactor;
+        reductionFactor = reductionFactor < 0.33 ? 1.0 : reductionFactor;
+        if(nr_movObj > 0) {
+            for (int j = idx_x + 1; j < nr_movObj; ++j) {
+                actTPPerMovObj[j] = (int32_t) round((double) actTPPerMovObj[j] * reductionFactor);
+                actTNPerMovObj[j] = (int32_t) round((double) actTNPerMovObj[j] * reductionFactor);
+            }
+        } else{
+
+        }
+        //Change the number of TP and TN to correct the overall inlier ratio of moving objects (as the desired inlier ratio of the current object is not reached)
+        int32_t next_corrs = actTNPerMovObj[idx_x + 1] + actTPPerMovObj[idx_x + 1];
+        int rest = nrTP + nrTN;
+        if (rest > next_corrs) {
+            if ((double) next_corrs / (double) rest > 0.5) {
+                actTPPerMovObj[idx_x + 1] = nrTP;
+                actTNPerMovObj[idx_x + 1] = nrTN;
+            } else {
+                for (int j = idx_x + 2; j < nr_movObj; ++j) {
+                    next_corrs = actTNPerMovObj[j] + actTPPerMovObj[j];
+                    if (rest > next_corrs) {
+                        if ((double) next_corrs / (double) rest > 0.5) {
+                            actTPPerMovObj[j] = nrTP;
+                            actTNPerMovObj[j] = nrTN;
+                            break;
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        reductionFactor = 1.0 - (double) rest / (double) next_corrs;
+                        actTPPerMovObj[j] = (int32_t) round((double) actTPPerMovObj[j] * reductionFactor);
+                        actTNPerMovObj[j] = (int32_t) round((double) actTNPerMovObj[j] * reductionFactor);
+                        actTPPerMovObj[j] += nrTP;
+                        actTNPerMovObj[j] += nrTN;
+                        break;
+                    }
+                }
+            }
+        } else {
+            reductionFactor = 1.0 - (double) rest / (double) next_corrs;
+            actTPPerMovObj[idx_x + 1] = (int32_t) round((double) actTPPerMovObj[idx_x + 1] * reductionFactor);
+            actTNPerMovObj[idx_x + 1] = (int32_t) round((double) actTNPerMovObj[idx_x + 1] * reductionFactor);
+            actTPPerMovObj[idx_x + 1] += nrTP;
+            actTNPerMovObj[idx_x + 1] += nrTN;
+        }
+    }
 }
 
 /*Generates a number of nrTN true negative correspondences with a given x- & y- distribution (including the range) in both
@@ -5216,8 +5354,12 @@ void genStereoSequ::getMovObjCorrs() {
             maskImg1 = (maskImg1 == 0) | corrsSet;
 
             //Generate mask for visualization before adding keypoints
-            Mat dispMaskImg2 = (movObjMask2All > 0);
-            Mat dispMaskImg1 = (maskImg1 > 0);
+            Mat dispMaskImg2;
+            Mat dispMaskImg1;
+            if (verbose & SHOW_MOV_OBJ_CORRS_GEN) {
+                dispMaskImg2 = (movObjMask2All > 0);
+                dispMaskImg1 = (maskImg1 > 0);
+            }
 
             //Generate a depth map for generating TN based on the depth of the actual moving object
             double dmin = actDepthNear, dmax = actDepthMid;

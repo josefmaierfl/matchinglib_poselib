@@ -350,6 +350,15 @@ private:
                             cv::InputArray otherDepthA2 = cv::noArray());
     void removeNrFilledPixels(cv::Size delElementSi, cv::Size matSize, cv::Mat &targetMat, int32_t nrToDel);
     void delOverlaps2(cv::Mat &depthArea1, cv::Mat &depthArea2);
+    void adaptNRCorrespondences(int32_t nrTP,
+                                int32_t nrTN,
+                                size_t corrsNotVisible,
+                                size_t foundTPCorrs,
+                                int idx_x,
+                                int32_t nr_movObj = 0,
+                                int y = 0,
+                                std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> x1pTN =
+                                        std::vector<std::vector<std::vector<cv::Point_<int32_t>>>>());
 
 public:
 	uint32_t verbose = 0;
