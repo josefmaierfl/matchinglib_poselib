@@ -293,9 +293,9 @@ private:
 	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1, cv::Mat &imgSD, bool escArea = true);
     void nextPosition(cv::Point_<int32_t> &position, int32_t direction);
 	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);
-	void getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
+	void getDepthVals(cv::OutputArray dout, const cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
 	inline double getDepthFuncVal(std::vector<double> &pars1, double x, double y);
-	void getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
+	void getDepthMaps(cv::OutputArray dout, cv::Mat &din, double dmin, double dmax, std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr);
 	void getKeypoints();
 	int32_t genTrueNegCorrs(int32_t nrTN,
 		std::uniform_int_distribution<int32_t> &distributionX,
@@ -356,9 +356,7 @@ private:
                                 size_t foundTPCorrs,
                                 int idx_x,
                                 int32_t nr_movObj = 0,
-                                int y = 0,
-                                std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> x1pTN =
-                                        std::vector<std::vector<std::vector<cv::Point_<int32_t>>>>());
+                                int y = 0);
 
 public:
 	uint32_t verbose = 0;

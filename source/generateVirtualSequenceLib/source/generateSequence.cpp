@@ -122,7 +122,7 @@ void genStereoSequ::genMasks() {
     csurr = Mat::ones(sqrSi, sqrSi, CV_8UC1);
 
     //Generate a mask for marking used areas in the first stereo image
-    corrsIMG = Mat::zeros(imgSize.width + sqrSi - 1, imgSize.height + sqrSi - 1, CV_8UC1);
+    corrsIMG = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
 }
 
 //Get number of correspondences per image and Correspondences per image regions
@@ -1174,7 +1174,7 @@ void genStereoSequ::checkDepthSeeds() {
                                                                                    3));
 
     //Generate a mask for marking used areas in the first stereo image
-    corrsIMG = Mat::zeros(imgSize.width + csurr.rows - 1, imgSize.height + csurr.cols - 1, CV_8UC1);
+    corrsIMG = Mat::zeros(imgSize.height + csurr.cols - 1, imgSize.width + csurr.rows - 1, CV_8UC1);
 
     int posadd1 = max((int) ceil(pars.minKeypDist), (int) sqrt(minDArea));
     int sqrSi1 = 2 * posadd1;
@@ -2390,11 +2390,41 @@ void genStereoSequ::genDepthMaps() {
         applyColorMap(normalizedDepthColor, normalizedDepthColor, cv::COLORMAP_RAINBOW);
         namedWindow("Normalized Static Obj Depth", WINDOW_AUTOSIZE);
         imshow("Normalized Static Obj Depth", normalizedDepthColor);
+
+        normalizedDepth.release();
+        Mat labelMask = (depthMapFar == 0);
+        cv::normalize(depthMap, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, labelMask);
+        normalizedDepthColor.release();
+        normalizedDepth.convertTo(normalizedDepthColor, CV_8UC1, 255.0);
+        applyColorMap(normalizedDepthColor, normalizedDepthColor, cv::COLORMAP_RAINBOW);
+        namedWindow("Normalized Static Obj Depth Near and Mid", WINDOW_AUTOSIZE);
+        imshow("Normalized Static Obj Depth Near and Mid", normalizedDepthColor);
+
+        //Check for 0 values
+        Mat check0 = (depthMap <= 0);
+        int check0val = cv::countNonZero(check0);
+        if(check0val){
+            namedWindow("Zero or lower Obj Depth", WINDOW_AUTOSIZE);
+            imshow("Zero or lower Obj Depth", check0);
+            Mat checkB0 = (depthMap < 0);
+            check0val = cv::countNonZero(checkB0);
+            if(check0val){
+                namedWindow("Below zero Obj Depth", WINDOW_AUTOSIZE);
+                imshow("Below zero Obj Depth", checkB0);
+                waitKey(0);
+                destroyWindow("Below zero Obj Depth");
+            }
+            waitKey(0);
+            destroyWindow("Zero or lower Obj Depth");
+//            throw SequenceException("Static depth value of zero or below zero found!");
+        }
+
         waitKey(0);
         destroyWindow("Normalized Static Obj Depth Near");
         destroyWindow("Normalized Static Obj Depth Mid");
         destroyWindow("Normalized Static Obj Depth Far");
         destroyWindow("Normalized Static Obj Depth");
+        destroyWindow("Normalized Static Obj Depth Near and Mid");
     }
     destroyAllWindows();
 }
@@ -2638,7 +2668,7 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
 }
 
 //Generate depth values (for every pixel) for the given areas of depth regions taking into account the depth values from backprojected 3D points
-void genStereoSequ::getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, double dmax,
+void genStereoSequ::getDepthMaps(cv::OutputArray dout, cv::Mat &din, double dmin, double dmax,
                                  std::vector<std::vector<std::vector<cv::Point3_<int32_t>>>> &initSeeds, int dNr) {
     std::vector<cv::Point3_<int32_t>> initSeedInArea;
 
@@ -2692,7 +2722,7 @@ void genStereoSequ::getDepthMaps(cv::Mat &dout, cv::Mat &din, double dmin, doubl
 }
 
 //Generate depth values (for every pixel) for the given areas of depth regions
-void genStereoSequ::getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin, double dmax,
+void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, double dmin, double dmax,
                                  std::vector<cv::Point3_<int32_t>> &initSeedInArea) {
     Mat actUsedAreaLabel;
     Mat actUsedAreaStats;
@@ -2718,15 +2748,26 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin,
         destroyWindow("Static Obj Connected Components");
     }
 
-    dout.release();
-    dout = Mat::zeros(imgSize, CV_64FC1);
+    //dout.release();
+    dout.create(imgSize, CV_64FC1);
+    Mat dout_ = dout.getMat();
+    dout_.setTo(0);
+//    dout = Mat::zeros(imgSize, CV_64FC1);
+    vector<cv::Point> singlePixelAreas;
     for (uint16_t i = 0; i < nL; i++) {
         Rect labelBB = Rect(actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_LEFT),
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_TOP),
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_WIDTH),
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT));
+
+        if(labelBB.area() == 1)
+        {
+            singlePixelAreas.push_back(Point(labelBB.x,labelBB.y));
+            continue;
+        }
+
         Mat laMat = actUsedAreaLabel(labelBB);
-        Mat doutSlice = dout(labelBB);
+        Mat doutSlice = dout_(labelBB);
         Mat dinSlice = din(labelBB);
 
         double dmin_tmp = getRandDoubleValRng(dmin, dmin + 0.6 * (dmax - dmin));
@@ -2823,6 +2864,34 @@ void genStereoSequ::getDepthVals(cv::Mat &dout, const cv::Mat &din, double dmin,
                     }
                 }
             }
+        }
+    }
+
+    if(!singlePixelAreas.empty()){
+        Mat dout_big;
+        const int extBord = 2;
+        const int mSi = extBord * 2 + 1;
+        Size mSi_ = Size(mSi, mSi);
+        cv::copyMakeBorder(dout_,dout_big,extBord,extBord,extBord,extBord,BORDER_CONSTANT,Scalar(0));
+        for (size_t i = 0; i < singlePixelAreas.size(); ++i) {
+            Mat doutBigSlice = dout_big(Rect(singlePixelAreas[i],mSi_));
+            double dsum;
+            int nrN0 = 0;
+            for (int y = 0; y < mSi; ++y) {
+                for (int x = 0; x < mSi; ++x) {
+                    if(!nearZero(doutBigSlice.at<double>(y,x))){
+                        nrN0++;
+                    }
+                }
+            }
+            if(nrN0 == 0){
+                dsum = actDepthMid;
+            }
+            else{
+                dsum = sum(doutBigSlice)[0];
+                dsum /= (double)nrN0;
+            }
+            dout_.at<double>(singlePixelAreas[i]) = dsum;
         }
     }
 
@@ -3440,7 +3509,7 @@ void genStereoSequ::getKeypoints() {
     int32_t posadd = (kSi - 1) / 2;
 
     //Mark used areas (by correspondences, TN, and moving objects) in the second image
-    Mat cImg2 = Mat::zeros(imgSize.width + kSi - 1, imgSize.height + kSi - 1, CV_8UC1);
+    Mat cImg2 = Mat::zeros(imgSize.height + kSi - 1, imgSize.width + kSi - 1, CV_8UC1);
     for (int i = 0; i < actCorrsImg2TPFromLast.cols; i++) {
         Point_<int32_t> pt((int32_t) round(actCorrsImg2TPFromLast.at<double>(0, i)),
                            (int32_t) round(actCorrsImg2TPFromLast.at<double>(1, i)));
@@ -3689,6 +3758,9 @@ void genStereoSequ::getKeypoints() {
                 }
             }
 
+            size_t corrsNotVisible = x1TN[y][x].size();
+            size_t foundTPCorrs = corrsNearR.size() + corrsMidR.size() + corrsFarR.size();
+
             //Copy 3D points and correspondences
             if (!p3DTPnewRNear.empty()) {
                 //std::copy(p3DTPnewRNear.begin(), p3DTPnewRNear.end(), p3DTPnew[y][x].end());
@@ -3856,7 +3928,7 @@ void genStereoSequ::getKeypoints() {
                 Mat maskImg1;
                 copyMakeBorder(combMovObjLabelsAll, maskImg1, posadd, posadd, posadd, posadd, BORDER_CONSTANT,
                                Scalar(0));
-                maskImg1 = (maskImg1 == 0) | corrsIMG;
+                maskImg1 |= corrsIMG;
 
                 //Generate mask for visualization before adding keypoints
                 Mat dispMaskImg2;
@@ -3907,7 +3979,7 @@ void genStereoSequ::getKeypoints() {
             }
 
             //Adapt the number of TP and TN in the next region based on the remaining number of TP and TN of the current region
-
+            adaptNRCorrespondences(nrNMF, nrTN, corrsNotVisible, foundTPCorrs, x, 0, y);
         }
     }
 
@@ -3958,83 +4030,89 @@ void genStereoSequ::getKeypoints() {
 
 }
 
+//Reduce the number of TP and TN correspondences of the next moving objects/image regions for which correspondences
+// are generated based on the number of TP and TN that were not be able to generate for the current
+// moving object/image region because of too less space (minimum distance between keypoints)
 void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
         int32_t nrTN,
         size_t corrsNotVisible,
         size_t foundTPCorrs,
         int idx_x,
         int32_t nr_movObj,
-        int y,
-        std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> x1pTN)
+        int y)
 {
-    /*int32_t nrMid = nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) - nrNear - nrFar;
-
-    int32_t nrTN = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) - (int32_t) x1pTN[y][x].size();*/
-
-
-    if (((nrTP > 0) || (nrTN > 0)) && (i < (nr_movObj - 1))) {
-        double reductionFactor;
-        if((nr_movObj > 0) && (x1pTN.empty()))
-        {
-            reductionFactor = (double) (actTPPerMovObj[idx_x] - nrTP + actTNPerMovObj[idx_x] - nrTN) /
-                              (double) (actTPPerMovObj[idx_x] + actTNPerMovObj[idx_x]);
-        }
-        else if((nr_movObj == 0) && (!x1pTN.empty()))
-        {
-            reductionFactor = (double) (nrTruePosRegs[actFrameCnt].at<int32_t>(y, idx_x) - nrTP +
-                    nrTrueNegRegs[actFrameCnt].at<int32_t>(y, idx_x) - (int32_t) x1pTN[y][idx_x].size() - nrTN) /
-                              (double) (nrTruePosRegs[actFrameCnt].at<int32_t>(y, idx_x) +
-                                      nrTrueNegRegs[actFrameCnt].at<int32_t>(y, idx_x) - (int32_t) x1pTN[y][idx_x].size());
-        } else{
-            throw SequenceException("Wrong call of adaptNRCorrespondences function!");
-        }
-        //incorporate fraction of not visible (in cam2) features
-        reductionFactor *= (double) (corrsNotVisible + foundTPCorrs) / ((double) foundTPCorrs + 0.001);
-        reductionFactor = reductionFactor > 1.0 ? 1.0 : reductionFactor;
-        reductionFactor = reductionFactor < 0.33 ? 1.0 : reductionFactor;
-        if(nr_movObj > 0) {
-            for (int j = idx_x + 1; j < nr_movObj; ++j) {
-                actTPPerMovObj[j] = (int32_t) round((double) actTPPerMovObj[j] * reductionFactor);
-                actTNPerMovObj[j] = (int32_t) round((double) actTNPerMovObj[j] * reductionFactor);
+    int idx_xy, maxCnt;
+    vector<int32_t*> ptrTP, ptrTN;
+    if(nr_movObj == 0){
+        idx_xy = 3*y+idx_x;
+        maxCnt = 9;
+        for(int y_=0;y_<3;++y_){
+            for(int x_=0;x_<3;++x_){
+                ptrTP.push_back(&nrTruePosRegs[actFrameCnt].at<int32_t>(y_, x_));
+                ptrTN.push_back(&nrTrueNegRegs[actFrameCnt].at<int32_t>(y_, x_));
             }
-        } else{
-
         }
-        //Change the number of TP and TN to correct the overall inlier ratio of moving objects (as the desired inlier ratio of the current object is not reached)
-        int32_t next_corrs = actTNPerMovObj[idx_x + 1] + actTPPerMovObj[idx_x + 1];
-        int rest = nrTP + nrTN;
-        if (rest > next_corrs) {
-            if ((double) next_corrs / (double) rest > 0.5) {
-                actTPPerMovObj[idx_x + 1] = nrTP;
-                actTNPerMovObj[idx_x + 1] = nrTN;
-            } else {
-                for (int j = idx_x + 2; j < nr_movObj; ++j) {
-                    next_corrs = actTNPerMovObj[j] + actTPPerMovObj[j];
-                    if (rest > next_corrs) {
-                        if ((double) next_corrs / (double) rest > 0.5) {
-                            actTPPerMovObj[j] = nrTP;
-                            actTNPerMovObj[j] = nrTN;
-                            break;
-                        } else {
-                            continue;
-                        }
-                    } else {
-                        reductionFactor = 1.0 - (double) rest / (double) next_corrs;
-                        actTPPerMovObj[j] = (int32_t) round((double) actTPPerMovObj[j] * reductionFactor);
-                        actTNPerMovObj[j] = (int32_t) round((double) actTNPerMovObj[j] * reductionFactor);
-                        actTPPerMovObj[j] += nrTP;
-                        actTNPerMovObj[j] += nrTN;
+    }
+    else{
+        idx_xy = idx_x;
+        maxCnt = nr_movObj;
+        for(vector<int32_t>::iterator it = actTPPerMovObj.begin(); it != actTPPerMovObj.end();it++){
+            ptrTP.push_back(&(*it));
+        }
+        for(vector<int32_t>::iterator it = actTNPerMovObj.begin(); it != actTNPerMovObj.end();it++){
+            ptrTN.push_back(&(*it));
+        }
+    }
+
+    if (((nrTP <= 0) && (nrTN <= 0)) || (idx_xy >= (maxCnt - 1))){
+        return;
+    }
+    double reductionFactor = (double) (*ptrTP[idx_xy] - nrTP + *ptrTN[idx_xy] - nrTN) /
+                             (double) (*ptrTP[idx_xy] + *ptrTN[idx_xy]);
+
+    //incorporate fraction of not visible (in cam2) features
+    reductionFactor *= (double) (corrsNotVisible + foundTPCorrs) / ((double) foundTPCorrs + 0.001);
+    reductionFactor = reductionFactor > 1.0 ? 1.0 : reductionFactor;
+    reductionFactor = reductionFactor < 0.33 ? 1.0 : reductionFactor;
+    for (int j = idx_xy + 1; j < maxCnt; ++j) {
+        *ptrTP[j] = (int32_t)(round((double) (*ptrTP[j]) * reductionFactor));
+        *ptrTN[j] = (int32_t)round((double) (*ptrTN[j]) * reductionFactor);
+    }
+    //Change the number of TP and TN to correct the overall inlier ratio of moving objects / image regions
+    // (as the desired inlier ratio of the current object/region is not reached)
+    int32_t next_corrs = *ptrTN[idx_xy + 1] + *ptrTP[idx_xy + 1];
+    int rest = nrTP + nrTN;
+    if (rest > next_corrs) {
+        if ((double) next_corrs / (double) rest > 0.5) {
+            *ptrTP[idx_xy + 1] = nrTP;
+            *ptrTN[idx_xy + 1] = nrTN;
+        } else {
+            for (int j = idx_xy + 2; j < maxCnt; ++j) {
+                next_corrs = *ptrTN[j] + *ptrTP[j];
+                if (rest > next_corrs) {
+                    if ((double) next_corrs / (double) rest > 0.5) {
+                        *ptrTP[j] = nrTP;
+                        *ptrTN[j] = nrTN;
                         break;
+                    } else {
+                        continue;
                     }
+                } else {
+                    reductionFactor = 1.0 - (double) rest / (double) next_corrs;
+                    *ptrTP[j] = (int32_t) round((double) (*ptrTP[j]) * reductionFactor);
+                    *ptrTN[j] = (int32_t) round((double) (*ptrTN[j]) * reductionFactor);
+                    *ptrTP[j] += nrTP;
+                    *ptrTN[j] += nrTN;
+                    break;
                 }
             }
-        } else {
-            reductionFactor = 1.0 - (double) rest / (double) next_corrs;
-            actTPPerMovObj[idx_x + 1] = (int32_t) round((double) actTPPerMovObj[idx_x + 1] * reductionFactor);
-            actTNPerMovObj[idx_x + 1] = (int32_t) round((double) actTNPerMovObj[idx_x + 1] * reductionFactor);
-            actTPPerMovObj[idx_x + 1] += nrTP;
-            actTNPerMovObj[idx_x + 1] += nrTN;
         }
+    } else {
+        reductionFactor = 1.0 - (double) rest / (double) next_corrs;
+        *ptrTP[idx_xy + 1] = (int32_t) round((double) (*ptrTP[idx_xy + 1]) * reductionFactor);
+        *ptrTN[idx_xy + 1] = (int32_t) round((double) (*ptrTN[idx_xy + 1]) * reductionFactor);
+        *ptrTP[idx_xy + 1] += nrTP;
+        *ptrTN[idx_xy + 1] += nrTN;
     }
 }
 
@@ -4173,6 +4251,11 @@ genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Poin
     Mat x = (Mat_<double>(3, 1) << (double) pt.x, (double) pt.y, 1.0);
 
     double depth = usedDepthMap.at<double>(pt);
+
+    if(depth < 0){
+        throw SequenceException("Found negative depth value!");
+    }
+
     x = K1i * x;
     x *= depth / x.at<double>(2);
     pCam = Point3d(x);
@@ -5424,7 +5507,9 @@ void genStereoSequ::getMovObjCorrs() {
         }
 
         //Adapt the number of TP and TN in the next objects based on the remaining number of TP and TN of the current object
-        if (((nrTP > 0) || (nrTN > 0)) && (i < (nr_movObj - 1))) {
+        adaptNRCorrespondences(nrTP, nrTN, corrsNotVisible, x1TP.size(), i, nr_movObj);
+
+        /*if (((nrTP > 0) || (nrTN > 0)) && (i < (nr_movObj - 1))) {
             double reductionFactor = (double) (actTPPerMovObj[i] - nrTP + actTNPerMovObj[i] - nrTN) /
                                      (double) (actTPPerMovObj[i] + actTNPerMovObj[i]);
             //incorporate fraction of not visible (in cam2) features
@@ -5470,7 +5555,7 @@ void genStereoSequ::getMovObjCorrs() {
                 actTPPerMovObj[i + 1] += nrTP;
                 actTNPerMovObj[i + 1] += nrTN;
             }
-        }
+        }*/
 
         //Store correspondences
         if (!x1TP.empty()) {
