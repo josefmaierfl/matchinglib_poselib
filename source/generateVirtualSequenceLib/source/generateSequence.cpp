@@ -57,6 +57,7 @@ void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> vi
 Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
                                                cv::InputArray R_C2W = cv::noArray(),
                                                cv::InputArray t_C2W = cv::noArray());
+void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -6501,6 +6502,10 @@ void genStereoSequ::transPtsToWorld() {
         visualizeStaticObjPtCloud();
     }
     destroyAllWindows();
+
+    if((verbose & SHOW_MOV_OBJ_3D_PTS) && (verbose & SHOW_STATIC_OBJ_3D_PTS)) {
+        visualizeMovingAndStaticObjPtCloud();
+    }
 }
 
 //Transform new generated 3D points from new generated moving objects into world coordinates
@@ -6566,15 +6571,8 @@ void genStereoSequ::visualizeMovObjPtCloud() {
                                                        absCamCoordinates[actFrameCnt].t);
 
     //Generate colormap for moving obejcts (every object has a different color)
-    Mat colors = Mat(movObj3DPtsWorld.size(), 1, CV_8UC1);
-    unsigned char addc = movObj3DPtsWorld.size() > 255 ? 255 : (unsigned char) movObj3DPtsWorld.size();
-    addc = addc < 2 ? 255 : (255 / (addc - 1));
-    colors.at<unsigned char>(0) = 0;
-    for (size_t k = 1; k < movObj3DPtsWorld.size(); ++k) {
-        colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
-    }
     Mat colormap_img;
-    applyColorMap(colors, colormap_img, COLORMAP_PARULA);
+    getNColors(colormap_img, movObj3DPtsWorld.size(), COLORMAP_PARULA);
 
     //size_t nrObjs = movObj3DPtsWorld.size();
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr basic_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -6601,6 +6599,18 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     setPCLViewerCamPars(viewer, m.matrix(), K1);
 
     startPCLViewer(viewer);
+}
+
+void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap)
+{
+    Mat colors = Mat(nr_Colors, 1, CV_8UC1);
+    unsigned char addc = nr_Colors > 255 ? 255 : (unsigned char) nr_Colors;
+    addc = addc < 2 ? 255 : (255 / (addc - 1));
+    colors.at<unsigned char>(0) = 0;
+    for (size_t k = 1; k < nr_Colors; ++k) {
+        colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
+    }
+    applyColorMap(colors, colorMat, colormap);
 }
 
 void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
@@ -6666,6 +6676,56 @@ void genStereoSequ::visualizeStaticObjPtCloud() {
     viewer->addPointCloud<pcl::PointXYZ>(staticWorld3DPts.makeShared(), "static objects cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1,
                                              "static objects cloud");
+
+    setPCLViewerCamPars(viewer, m.matrix(), K1);
+
+    startPCLViewer(viewer);
+}
+
+void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
+    if (staticWorld3DPts.empty() || movObj3DPtsWorld.empty())
+        return;
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+
+    Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
+                                                       absCamCoordinates[actFrameCnt].t);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr basic_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    //Generate colormap for moving obejcts (every object has a different color)
+    Mat colormap_img;
+    getNColors(colormap_img, movObj3DPtsWorld.size(), COLORMAP_AUTUMN);
+
+    size_t idx = 0;
+    for (auto i : movObj3DPtsWorld) {
+        for (auto j : i) {
+            pcl::PointXYZRGB point;
+            point.x = j.x;
+            point.y = j.y;
+            point.z = j.z;
+
+            point.b = colormap_img.at<cv::Vec3b>(idx)[0];
+            point.g = colormap_img.at<cv::Vec3b>(idx)[1];
+            point.r = colormap_img.at<cv::Vec3b>(idx)[2];
+            basic_cloud_ptr->push_back(point);
+        }
+        idx++;
+    }
+    for (auto i : staticWorld3DPts) {
+        pcl::PointXYZRGB point;
+        point.x = i.x;
+        point.y = i.y;
+        point.z = i.z;
+
+        point.b = 0;
+        point.g = 255;
+        point.r = 0;
+        basic_cloud_ptr->push_back(point);
+    }
+    viewer->addPointCloud<pcl::PointXYZRGB>(basic_cloud_ptr, "static and moving objects cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1,
+                                             "static and moving objects cloud");
 
     setPCLViewerCamPars(viewer, m.matrix(), K1);
 

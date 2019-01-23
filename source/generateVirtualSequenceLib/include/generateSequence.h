@@ -343,6 +343,7 @@ private:
 	void visualizeCamPath();
 	void visualizeMovObjPtCloud();
     void visualizeStaticObjPtCloud();
+    void visualizeMovingAndStaticObjPtCloud();
     int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
     bool fillRemainingAreas(cv::Mat &depthArea,
                             const cv::Mat &usedAreas,
