@@ -86,7 +86,8 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_MOV_OBJ_CORRS_GEN = 0x10,
 	SHOW_BUILD_PROC_STATIC_OBJ = 0x20,
 	SHOW_STATIC_OBJ_DISTANCES = 0x40,
-	SHOW_STATIC_OBJ_CORRS_GEN = 0x80
+	SHOW_STATIC_OBJ_CORRS_GEN = 0x80,
+	SHOW_STATIC_OBJ_3D_PTS = 0x100
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -341,6 +342,7 @@ private:
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
 	void visualizeMovObjPtCloud();
+    void visualizeStaticObjPtCloud();
     int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
     bool fillRemainingAreas(cv::Mat &depthArea,
                             const cv::Mat &usedAreas,

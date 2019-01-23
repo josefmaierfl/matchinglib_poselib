@@ -2342,7 +2342,7 @@ void genStereoSequ::genDepthMaps() {
 //    }
 
     //Show the result
-    if (verbose & (SHOW_BUILD_PROC_STATIC_OBJ | SHOW_STATIC_OBJ_DISTANCES)) {
+    if (verbose & (SHOW_BUILD_PROC_STATIC_OBJ | SHOW_STATIC_OBJ_DISTANCES | SHOW_STATIC_OBJ_3D_PTS)) {
         unsigned char clmul = 255 / 3;
         // Apply the colormap:
         Mat colorMapImg;
@@ -2350,7 +2350,7 @@ void genStereoSequ::genDepthMaps() {
         namedWindow("Static object depth areas", WINDOW_AUTOSIZE);
         imshow("Static object depth areas", colorMapImg);
         waitKey(0);
-        if ((verbose & SHOW_STATIC_OBJ_DISTANCES) && !(verbose & SHOW_STATIC_OBJ_DISTANCES)) {
+        if ((verbose & SHOW_STATIC_OBJ_DISTANCES) && !(verbose & (SHOW_STATIC_OBJ_DISTANCES | SHOW_STATIC_OBJ_3D_PTS))) {
             destroyWindow("Static object depth areas");
         }
     }
@@ -2426,7 +2426,9 @@ void genStereoSequ::genDepthMaps() {
         destroyWindow("Normalized Static Obj Depth");
         destroyWindow("Normalized Static Obj Depth Near and Mid");
     }
-    destroyAllWindows();
+    if(!(verbose & SHOW_STATIC_OBJ_3D_PTS)) {
+        destroyAllWindows();
+    }
 }
 
 //Get overlaps of filled areas (2 different) and remove them
@@ -2751,7 +2753,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
     //dout.release();
     dout.create(imgSize, CV_64FC1);
     Mat dout_ = dout.getMat();
-    dout_.setTo(0);
+    dout_.setTo(Scalar(0));
 //    dout = Mat::zeros(imgSize, CV_64FC1);
     vector<cv::Point> singlePixelAreas;
     for (uint16_t i = 0; i < nL; i++) {
@@ -2875,7 +2877,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
         cv::copyMakeBorder(dout_,dout_big,extBord,extBord,extBord,extBord,BORDER_CONSTANT,Scalar(0));
         for (size_t i = 0; i < singlePixelAreas.size(); ++i) {
             Mat doutBigSlice = dout_big(Rect(singlePixelAreas[i],mSi_));
-            double dsum;
+            double dmsum = 0;
             int nrN0 = 0;
             for (int y = 0; y < mSi; ++y) {
                 for (int x = 0; x < mSi; ++x) {
@@ -2885,13 +2887,13 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
                 }
             }
             if(nrN0 == 0){
-                dsum = actDepthMid;
+                dmsum = actDepthMid;
             }
             else{
-                dsum = sum(doutBigSlice)[0];
-                dsum /= (double)nrN0;
+                dmsum = sum(doutBigSlice)[0];
+                dmsum /= (double)nrN0;
             }
-            dout_.at<double>(singlePixelAreas[i]) = dsum;
+            dout_.at<double>(singlePixelAreas[i]) = dmsum;
         }
     }
 
@@ -4071,7 +4073,9 @@ void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
                              (double) (*ptrTP[idx_xy] + *ptrTN[idx_xy]);
 
     //incorporate fraction of not visible (in cam2) features
-    reductionFactor *= (double) (corrsNotVisible + foundTPCorrs) / ((double) foundTPCorrs + 0.001);
+    if((corrsNotVisible + foundTPCorrs) > 0) {
+        reductionFactor *= (double) (corrsNotVisible + foundTPCorrs) / ((double) foundTPCorrs + 0.001);
+    }
     reductionFactor = reductionFactor > 1.0 ? 1.0 : reductionFactor;
     reductionFactor = reductionFactor < 0.33 ? 1.0 : reductionFactor;
     for (int j = idx_xy + 1; j < maxCnt; ++j) {
@@ -5509,54 +5513,6 @@ void genStereoSequ::getMovObjCorrs() {
         //Adapt the number of TP and TN in the next objects based on the remaining number of TP and TN of the current object
         adaptNRCorrespondences(nrTP, nrTN, corrsNotVisible, x1TP.size(), i, nr_movObj);
 
-        /*if (((nrTP > 0) || (nrTN > 0)) && (i < (nr_movObj - 1))) {
-            double reductionFactor = (double) (actTPPerMovObj[i] - nrTP + actTNPerMovObj[i] - nrTN) /
-                                     (double) (actTPPerMovObj[i] + actTNPerMovObj[i]);
-            //incorporate fraction of not visible (in cam2) features
-            reductionFactor *= (double) (corrsNotVisible + x1TP.size()) / ((double) x1TP.size() + 0.001);
-            reductionFactor = reductionFactor > 1.0 ? 1.0 : reductionFactor;
-            reductionFactor = reductionFactor < 0.33 ? 1.0 : reductionFactor;
-            for (int j = i + 1; j < nr_movObj; ++j) {
-                actTPPerMovObj[j] = (int32_t) round((double) actTPPerMovObj[j] * reductionFactor);
-                actTNPerMovObj[j] = (int32_t) round((double) actTNPerMovObj[j] * reductionFactor);
-            }
-            //Change the number of TP and TN to correct the overall inlier ratio of moving objects (as the desired inlier ratio of the current object is not reached)
-            int32_t next_corrs = actTNPerMovObj[i + 1] + actTPPerMovObj[i + 1];
-            int rest = nrTP + nrTN;
-            if (rest > next_corrs) {
-                if ((double) next_corrs / (double) rest > 0.5) {
-                    actTPPerMovObj[i + 1] = nrTP;
-                    actTNPerMovObj[i + 1] = nrTN;
-                } else {
-                    for (int j = i + 2; j < nr_movObj; ++j) {
-                        next_corrs = actTNPerMovObj[j] + actTPPerMovObj[j];
-                        if (rest > next_corrs) {
-                            if ((double) next_corrs / (double) rest > 0.5) {
-                                actTPPerMovObj[j] = nrTP;
-                                actTNPerMovObj[j] = nrTN;
-                                break;
-                            } else {
-                                continue;
-                            }
-                        } else {
-                            reductionFactor = 1.0 - (double) rest / (double) next_corrs;
-                            actTPPerMovObj[j] = (int32_t) round((double) actTPPerMovObj[j] * reductionFactor);
-                            actTNPerMovObj[j] = (int32_t) round((double) actTNPerMovObj[j] * reductionFactor);
-                            actTPPerMovObj[j] += nrTP;
-                            actTNPerMovObj[j] += nrTN;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                reductionFactor = 1.0 - (double) rest / (double) next_corrs;
-                actTPPerMovObj[i + 1] = (int32_t) round((double) actTPPerMovObj[i + 1] * reductionFactor);
-                actTNPerMovObj[i + 1] = (int32_t) round((double) actTNPerMovObj[i + 1] * reductionFactor);
-                actTPPerMovObj[i + 1] += nrTP;
-                actTNPerMovObj[i + 1] += nrTN;
-            }
-        }*/
-
         //Store correspondences
         if (!x1TP.empty()) {
             movObjCorrsImg1TP[i] = Mat::ones(3, (int) x1TP.size(), CV_64FC1);
@@ -6333,18 +6289,24 @@ void genStereoSequ::combineCorrespondences() {
         combNrCorrsTN += i.cols;
     }
 
-    combCorrsImg1TP = Mat(3, combNrCorrsTP, CV_64FC1);
-    combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
+    if(combNrCorrsTP) {
+        combCorrsImg1TP = Mat(3, combNrCorrsTP, CV_64FC1);
+        combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
+    }
     comb3DPts.clear();
     comb3DPts.reserve(combNrCorrsTP);
 
     //Copy all TP keypoints of first image
     int actColNr = 0;
     int actColNr2 = actCorrsImg1TPFromLast.cols;
-    actCorrsImg1TPFromLast.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+    if(actColNr2 != actColNr) {
+        actCorrsImg1TPFromLast.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+    }
     actColNr = actColNr2;
     actColNr2 = actColNr + actCorrsImg1TP.cols;
-    actCorrsImg1TP.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+    if(actColNr2 != actColNr) {
+        actCorrsImg1TP.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+    }
     for (auto i : movObjCorrsImg1TPFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
@@ -6360,8 +6322,9 @@ void genStereoSequ::combineCorrespondences() {
     for (auto i : actCorrsImg12TPFromLast_Idx) {
         comb3DPts.push_back(actImgPointCloudFromLast[i]);
     }
-    //copy(actImgPointCloud.begin(), actImgPointCloud.end(), comb3DPts.end());
-    comb3DPts.insert(comb3DPts.end(), actImgPointCloud.begin(), actImgPointCloud.end());
+    if(!actImgPointCloud.empty()) {
+        comb3DPts.insert(comb3DPts.end(), actImgPointCloud.begin(), actImgPointCloud.end());
+    }
     for (size_t i = 0; i < movObjCorrsImg12TPFromLast_Idx.size(); i++) {
         for (auto j : movObjCorrsImg12TPFromLast_Idx[i]) {
             comb3DPts.push_back(movObj3DPtsCam[i][j]);
@@ -6377,10 +6340,14 @@ void genStereoSequ::combineCorrespondences() {
     //Copy all TP keypoints of second image
     actColNr = 0;
     actColNr2 = actCorrsImg2TPFromLast.cols;
-    actCorrsImg2TPFromLast.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+    if(actColNr2 != actColNr) {
+        actCorrsImg2TPFromLast.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+    }
     actColNr = actColNr2;
     actColNr2 = actColNr + actCorrsImg2TP.cols;
-    actCorrsImg2TP.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+    if(actColNr2 != actColNr) {
+        actCorrsImg2TP.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+    }
     for (auto i : movObjCorrsImg2TPFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
@@ -6392,13 +6359,17 @@ void genStereoSequ::combineCorrespondences() {
         i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
     }
 
-    combCorrsImg1TN = Mat(3, combNrCorrsTN, CV_64FC1);
-    combCorrsImg2TN = Mat(3, combNrCorrsTN, CV_64FC1);
+    if(combNrCorrsTN) {
+        combCorrsImg1TN = Mat(3, combNrCorrsTN, CV_64FC1);
+        combCorrsImg2TN = Mat(3, combNrCorrsTN, CV_64FC1);
+    }
 
     //Copy all TN keypoints of first image
     actColNr = 0;
     actColNr2 = actCorrsImg1TN.cols;
-    actCorrsImg1TN.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+    if(actColNr2 != actColNr) {
+        actCorrsImg1TN.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+    }
     for (auto i : movObjCorrsImg1TNFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
@@ -6413,7 +6384,9 @@ void genStereoSequ::combineCorrespondences() {
     //Copy all TN keypoints of second image
     actColNr = 0;
     actColNr2 = actCorrsImg2TN.cols;
-    actCorrsImg2TN.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+    if(actColNr2 != actColNr) {
+        actCorrsImg2TN.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+    }
     for (auto i : movObjCorrsImg2TNFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
@@ -6427,8 +6400,9 @@ void genStereoSequ::combineCorrespondences() {
 
     //Copy distances of TN locations to their real matching position
     combDistTNtoReal.reserve(combNrCorrsTN);
-    //copy(distTNtoReal.begin(), distTNtoReal.end(), combDistTNtoReal.end());
-    combDistTNtoReal.insert(combDistTNtoReal.end(), distTNtoReal.begin(), distTNtoReal.end());
+    if(!distTNtoReal.empty()) {
+        combDistTNtoReal.insert(combDistTNtoReal.end(), distTNtoReal.begin(), distTNtoReal.end());
+    }
     for (auto i : movObjDistTNtoReal) {
         //copy(i.begin(), i.end(), combDistTNtoReal.end());
         combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
@@ -6471,11 +6445,16 @@ void genStereoSequ::transPtsToWorld() {
     staticWorld3DPts.reserve(staticWorld3DPts.size() + nrPts);
 
     for (size_t i = 0; i < nrPts; i++) {
-        Mat ptm = absCamCoordinates[actFrameCnt].R * Mat(actImgPointCloud[i]).reshape(1).t() +
+        Mat ptm = absCamCoordinates[actFrameCnt].R * Mat(actImgPointCloud[i]).reshape(1) +
                   absCamCoordinates[actFrameCnt].t;
         staticWorld3DPts.push_back(
                 pcl::PointXYZ((float) ptm.at<double>(0), (float) ptm.at<double>(1), (float) ptm.at<double>(2)));
     }
+
+    if (verbose & SHOW_STATIC_OBJ_3D_PTS) {
+        visualizeStaticObjPtCloud();
+    }
+    destroyAllWindows();
 }
 
 //Transform new generated 3D points from new generated moving objects into world coordinates
@@ -6581,6 +6560,55 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     viewer->addPointCloud<pcl::PointXYZRGB>(basic_cloud_ptr, "moving objects cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1,
                                              "moving objects cloud");
+
+
+//    viewer->initCameraParameters();
+
+    Eigen::Matrix4f cam_extrinsics(m.matrix());
+    Eigen::Matrix3f zRotPi;
+    zRotPi << -1.f, 0, 0,
+            0, -1.f, 0,
+            0, 0, 1.f;
+    cam_extrinsics.block<3, 3>(0, 0) = cam_extrinsics.block<3, 3>(0, 0) * zRotPi;
+    Eigen::Matrix3d cam_intrinsicsd;
+    Eigen::Matrix3f cam_intrinsics;
+    cv::cv2eigen(K1, cam_intrinsicsd);
+    cam_intrinsics = cam_intrinsicsd.cast<float>();
+    viewer->setCameraParameters(cam_intrinsics, cam_extrinsics);
+
+    //--------------------
+    // -----Main loop-----
+    //--------------------
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+        boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+    }
+
+    viewer->close();
+}
+
+void genStereoSequ::visualizeStaticObjPtCloud() {
+    if (staticWorld3DPts.empty())
+        return;
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->setBackgroundColor(0, 0, 0);
+    viewer->addCoordinateSystem(5.0);
+
+    Eigen::Affine3f m;
+    m.setIdentity();
+
+    Eigen::Vector3d te;
+    Eigen::Matrix3d Re;
+    cv::cv2eigen(absCamCoordinates[actFrameCnt].R, Re);
+    cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
+    m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
+    m.matrix().block<3, 1>(0, 3) = te.cast<float>();
+    viewer->addCoordinateSystem(1.0, m);
+
+    viewer->addPointCloud<pcl::PointXYZ>(staticWorld3DPts.makeShared(), "static objects cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1,
+                                             "static objects cloud");
 
 
 //    viewer->initCameraParameters();
