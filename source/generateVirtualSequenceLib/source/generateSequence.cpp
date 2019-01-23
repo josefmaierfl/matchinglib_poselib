@@ -48,6 +48,16 @@ void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B);
 
 void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask);
 
+void startPCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer);
+
+void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
+                         Eigen::Matrix4f cam_extrinsics,
+                         const cv::Mat &K1);
+
+Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
+                                               cv::InputArray R_C2W = cv::noArray(),
+                                               cv::InputArray t_C2W = cv::noArray());
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -589,8 +599,7 @@ bool roundR(const cv::Mat R_old, cv::Mat &R_round, cv::InputArray R_fixed) {
 
 void genStereoSequ::visualizeCamPath() {
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
-    viewer->addCoordinateSystem(5.0);
+    initPCLViewerCoordinateSystems(viewer);
 
     Eigen::Affine3f m;
     m.setIdentity();
@@ -606,14 +615,7 @@ void genStereoSequ::visualizeCamPath() {
 
     viewer->initCameraParameters();
 
-    //--------------------
-    // -----Main loop-----
-    //--------------------
-    while (!viewer->wasStopped()) {
-        viewer->spinOnce(100);
-        boost::this_thread::sleep(boost::posix_time::microseconds(100000));
-    }
-    viewer->close();
+    startPCLViewer(viewer);
 }
 
 //Calculate the thresholds for the depths near, mid, and far for every camera configuration
@@ -2350,7 +2352,8 @@ void genStereoSequ::genDepthMaps() {
         namedWindow("Static object depth areas", WINDOW_AUTOSIZE);
         imshow("Static object depth areas", colorMapImg);
         waitKey(0);
-        if ((verbose & SHOW_STATIC_OBJ_DISTANCES) && !(verbose & (SHOW_STATIC_OBJ_DISTANCES | SHOW_STATIC_OBJ_3D_PTS))) {
+        if ((verbose & SHOW_STATIC_OBJ_DISTANCES) &&
+            !(verbose & (SHOW_STATIC_OBJ_DISTANCES | SHOW_STATIC_OBJ_3D_PTS))) {
             destroyWindow("Static object depth areas");
         }
     }
@@ -2403,12 +2406,12 @@ void genStereoSequ::genDepthMaps() {
         //Check for 0 values
         Mat check0 = (depthMap <= 0);
         int check0val = cv::countNonZero(check0);
-        if(check0val){
+        if (check0val) {
             namedWindow("Zero or lower Obj Depth", WINDOW_AUTOSIZE);
             imshow("Zero or lower Obj Depth", check0);
             Mat checkB0 = (depthMap < 0);
             check0val = cv::countNonZero(checkB0);
-            if(check0val){
+            if (check0val) {
                 namedWindow("Below zero Obj Depth", WINDOW_AUTOSIZE);
                 imshow("Below zero Obj Depth", checkB0);
                 waitKey(0);
@@ -2426,7 +2429,7 @@ void genStereoSequ::genDepthMaps() {
         destroyWindow("Normalized Static Obj Depth");
         destroyWindow("Normalized Static Obj Depth Near and Mid");
     }
-    if(!(verbose & SHOW_STATIC_OBJ_3D_PTS)) {
+    if (!(verbose & SHOW_STATIC_OBJ_3D_PTS)) {
         destroyAllWindows();
     }
 }
@@ -2762,9 +2765,8 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_WIDTH),
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT));
 
-        if(labelBB.area() == 1)
-        {
-            singlePixelAreas.push_back(Point(labelBB.x,labelBB.y));
+        if (labelBB.area() == 1) {
+            singlePixelAreas.push_back(Point(labelBB.x, labelBB.y));
             continue;
         }
 
@@ -2869,29 +2871,28 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
         }
     }
 
-    if(!singlePixelAreas.empty()){
+    if (!singlePixelAreas.empty()) {
         Mat dout_big;
         const int extBord = 2;
         const int mSi = extBord * 2 + 1;
         Size mSi_ = Size(mSi, mSi);
-        cv::copyMakeBorder(dout_,dout_big,extBord,extBord,extBord,extBord,BORDER_CONSTANT,Scalar(0));
+        cv::copyMakeBorder(dout_, dout_big, extBord, extBord, extBord, extBord, BORDER_CONSTANT, Scalar(0));
         for (size_t i = 0; i < singlePixelAreas.size(); ++i) {
-            Mat doutBigSlice = dout_big(Rect(singlePixelAreas[i],mSi_));
+            Mat doutBigSlice = dout_big(Rect(singlePixelAreas[i], mSi_));
             double dmsum = 0;
             int nrN0 = 0;
             for (int y = 0; y < mSi; ++y) {
                 for (int x = 0; x < mSi; ++x) {
-                    if(!nearZero(doutBigSlice.at<double>(y,x))){
+                    if (!nearZero(doutBigSlice.at<double>(y, x))) {
                         nrN0++;
                     }
                 }
             }
-            if(nrN0 == 0){
+            if (nrN0 == 0) {
                 dmsum = actDepthMid;
-            }
-            else{
+            } else {
                 dmsum = sum(doutBigSlice)[0];
-                dmsum /= (double)nrN0;
+                dmsum /= (double) nrN0;
             }
             dout_.at<double>(singlePixelAreas[i]) = dmsum;
         }
@@ -3907,7 +3908,7 @@ void genStereoSequ::getKeypoints() {
                 }
 
                 //Visualize the mask afterwards
-                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN){
+                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
                     namedWindow("Static rand TN Corrs mask img1", WINDOW_AUTOSIZE);
                     Mat dispMask2 = (cImg2 > 0);
                     vector<Mat> channels;
@@ -3935,7 +3936,7 @@ void genStereoSequ::getKeypoints() {
                 //Generate mask for visualization before adding keypoints
                 Mat dispMaskImg2;
                 Mat dispMaskImg1;
-                if(verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
+                if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
                     dispMaskImg2 = (cImg2 > 0);
                     dispMaskImg1 = (maskImg1 > 0);
                 }
@@ -3989,10 +3990,14 @@ void genStereoSequ::getKeypoints() {
     actImgPointCloud.clear();
     distTNtoReal.clear();
     size_t nrTPCorrs = 0, nrTNCorrs = 0;
+    vector<vector<size_t>> nrTPperR(3, vector<size_t>(3, 0)), nrTNperR(3, vector<size_t>(3,
+                                                                                         0));//For checking against given values
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
-            nrTPCorrs += corrsAllD[y][x].size();
-            nrTNCorrs += x1TN[y][x].size();
+            nrTPperR[y][x] = corrsAllD[y][x].size();
+            nrTPCorrs += nrTPperR[y][x];
+            nrTNperR[y][x] = x1TN[y][x].size();
+            nrTNCorrs += nrTNperR[y][x];
         }
     }
     actCorrsImg1TP = Mat::ones(3, nrTPCorrs, CV_64FC1);
@@ -4030,57 +4035,98 @@ void genStereoSequ::getKeypoints() {
         }
     }
 
+    //Check number of TP and TN per moving object and the overall inlier ratio
+    size_t nrCorrsR = 0, nrCorrsRGiven = 0;
+    nrCorrsR = nrTPCorrs + nrTNCorrs;
+    nrCorrsRGiven = (size_t) sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0];
+    if (nrCorrsR != nrCorrsRGiven) {
+        double chRate = (double) nrCorrsR / (double) nrCorrsRGiven;
+        if ((chRate < 0.95) || (chRate > 1.05)) {
+            cout << "Number of correspondences on static objects is " << 100.0 * (chRate - 1.0)
+                 << "% different to given values!" << endl;
+            cout << "Actual #: " << nrCorrsR << " Given #: " << nrCorrsRGiven << endl;
+            for (size_t k = 0; k < 3; ++k) {
+                for (size_t k1 = 0; k1 < 3; ++k1) {
+                    if ((int32_t) nrTPperR[k][k1] != nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)) {
+                        cout << "# of TP for static region (x, y): (" <<
+                             k1 <<
+                             ", " << k
+                             << ") differs by "
+                             << (int32_t) nrTPperR[k][k1] - nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)
+                             <<
+                             " correspondences (Actual #: " << nrTPperR[k][k1]
+                             << " Given #: " << nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
+                             << endl;
+                    }
+                    if ((int32_t) nrTNperR[k][k1] != nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1)) {
+                        cout << "# of TN for static region (x, y): (" <<
+                             k1 <<
+                             ", " << k
+                             << ") differs by "
+                             << (int32_t) nrTNperR[k][k1] - nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1)
+                             <<
+                             " correspondences (Actual #: " << nrTNperR[k][k1]
+                             << " Given #: " << nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
+                             << endl;
+                    }
+                }
+            }
+        }
+    }
+    double inlRatDiffSR = (double) nrTPCorrs / (double) nrCorrsR - inlRat[actFrameCnt];
+    if (!nearZero(inlRatDiffSR / 100.0)) {
+        cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
+             << inlRatDiffSR << endl;
+    }
 }
 
 //Reduce the number of TP and TN correspondences of the next moving objects/image regions for which correspondences
 // are generated based on the number of TP and TN that were not be able to generate for the current
 // moving object/image region because of too less space (minimum distance between keypoints)
 void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
-        int32_t nrTN,
-        size_t corrsNotVisible,
-        size_t foundTPCorrs,
-        int idx_x,
-        int32_t nr_movObj,
-        int y)
-{
+                                           int32_t nrTN,
+                                           size_t corrsNotVisible,
+                                           size_t foundTPCorrs,
+                                           int idx_x,
+                                           int32_t nr_movObj,
+                                           int y) {
     int idx_xy, maxCnt;
-    vector<int32_t*> ptrTP, ptrTN;
-    if(nr_movObj == 0){
-        idx_xy = 3*y+idx_x;
+    vector<int32_t *> ptrTP, ptrTN;
+    if (nr_movObj == 0) {
+        idx_xy = 3 * y + idx_x;
         maxCnt = 9;
-        for(int y_=0;y_<3;++y_){
-            for(int x_=0;x_<3;++x_){
+        for (int y_ = 0; y_ < 3; ++y_) {
+            for (int x_ = 0; x_ < 3; ++x_) {
                 ptrTP.push_back(&nrTruePosRegs[actFrameCnt].at<int32_t>(y_, x_));
                 ptrTN.push_back(&nrTrueNegRegs[actFrameCnt].at<int32_t>(y_, x_));
             }
         }
-    }
-    else{
+    } else {
         idx_xy = idx_x;
         maxCnt = nr_movObj;
-        for(vector<int32_t>::iterator it = actTPPerMovObj.begin(); it != actTPPerMovObj.end();it++){
+        for (vector<int32_t>::iterator it = actTPPerMovObj.begin(); it != actTPPerMovObj.end(); it++) {
             ptrTP.push_back(&(*it));
         }
-        for(vector<int32_t>::iterator it = actTNPerMovObj.begin(); it != actTNPerMovObj.end();it++){
+        for (vector<int32_t>::iterator it = actTNPerMovObj.begin(); it != actTNPerMovObj.end(); it++) {
             ptrTN.push_back(&(*it));
         }
     }
 
-    if (((nrTP <= 0) && (nrTN <= 0)) || (idx_xy >= (maxCnt - 1))){
+    if (((nrTP <= 0) && (nrTN <= 0)) || (idx_xy >= (maxCnt - 1))) {
         return;
     }
     double reductionFactor = (double) (*ptrTP[idx_xy] - nrTP + *ptrTN[idx_xy] - nrTN) /
                              (double) (*ptrTP[idx_xy] + *ptrTN[idx_xy]);
 
     //incorporate fraction of not visible (in cam2) features
-    if((corrsNotVisible + foundTPCorrs) > 0) {
+    if ((corrsNotVisible + foundTPCorrs) > 0) {
         reductionFactor *= (double) (corrsNotVisible + foundTPCorrs) / ((double) foundTPCorrs + 0.001);
     }
     reductionFactor = reductionFactor > 1.0 ? 1.0 : reductionFactor;
     reductionFactor = reductionFactor < 0.33 ? 1.0 : reductionFactor;
     for (int j = idx_xy + 1; j < maxCnt; ++j) {
-        *ptrTP[j] = (int32_t)(round((double) (*ptrTP[j]) * reductionFactor));
-        *ptrTN[j] = (int32_t)round((double) (*ptrTN[j]) * reductionFactor);
+        *ptrTP[j] = (int32_t) (round((double) (*ptrTP[j]) * reductionFactor));
+        *ptrTN[j] = (int32_t) round((double) (*ptrTN[j]) * reductionFactor);
     }
     //Change the number of TP and TN to correct the overall inlier ratio of moving objects / image regions
     // (as the desired inlier ratio of the current object/region is not reached)
@@ -4160,7 +4206,7 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
     Point3d pCam;
 
     /*Mat optLabelMask;//Optional mask for moving objects to select only TN on moving objects in the first image
-	if(labelMask.empty())
+    if(labelMask.empty())
     {
         optLabelMask = Mat::ones(imgSize, CV_8UC1);
     } else
@@ -4256,7 +4302,7 @@ genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Poin
 
     double depth = usedDepthMap.at<double>(pt);
 
-    if(depth < 0){
+    if (depth < 0) {
         throw SequenceException("Found negative depth value!");
     }
 
@@ -4573,12 +4619,12 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
 
 #define MOV_OBJ_ONLY_IN_REGIONS 0
 #if MOV_OBJ_ONLY_IN_REGIONS
-                                                                                                                            vector<cv::Point_<int32_t>> objRegionIndices(nr_movObj);
-	for (size_t i = 0; i < nr_movObj; i++)
-    {
-        objRegionIndices[i].x = seeds[i].x / (imgSize.width / 3);
-        objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
-    }
+    vector<cv::Point_<int32_t>> objRegionIndices(nr_movObj);
+for (size_t i = 0; i < nr_movObj; i++)
+{
+objRegionIndices[i].x = seeds[i].x / (imgSize.width / 3);
+objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
+}
 #else
     Rect imgArea = Rect(Point(0, 0), imgSize);//Is also useless as it covers the whole image
     Mat regMask = cv::Mat::ones(imgSize,
@@ -5375,9 +5421,9 @@ void genStereoSequ::getMovObjCorrs() {
         }
         //If there are still correspondences missing, try to use them in the next object
         /*if ((nrTP > 0) && (i < (nr_movObj - 1)))
-		{
-			actTPPerMovObj[i + 1] += nrTP;
-		}*/
+        {
+            actTPPerMovObj[i + 1] += nrTP;
+        }*/
 
         std::uniform_int_distribution<int32_t> distributionX2(0, imgSize.width - 1);
         std::uniform_int_distribution<int32_t> distributionY2(0, imgSize.height - 1);
@@ -5561,7 +5607,7 @@ void genStereoSequ::getMovObjCorrs() {
                          << endl;
                 }
                 if ((int32_t) nrTNperMO[k] != actTNPerMovObj[k]) {
-                    cout << "# of TP for moving object " << k << " at position (x, y): (" <<
+                    cout << "# of TN for moving object " << k << " at position (x, y): (" <<
                          movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
                          ", " << movObjLabelsROIs[k].y +
                                  movObjLabelsROIs[k].height / 2
@@ -6289,7 +6335,7 @@ void genStereoSequ::combineCorrespondences() {
         combNrCorrsTN += i.cols;
     }
 
-    if(combNrCorrsTP) {
+    if (combNrCorrsTP) {
         combCorrsImg1TP = Mat(3, combNrCorrsTP, CV_64FC1);
         combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
     }
@@ -6299,12 +6345,12 @@ void genStereoSequ::combineCorrespondences() {
     //Copy all TP keypoints of first image
     int actColNr = 0;
     int actColNr2 = actCorrsImg1TPFromLast.cols;
-    if(actColNr2 != actColNr) {
+    if (actColNr2 != actColNr) {
         actCorrsImg1TPFromLast.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
     }
     actColNr = actColNr2;
     actColNr2 = actColNr + actCorrsImg1TP.cols;
-    if(actColNr2 != actColNr) {
+    if (actColNr2 != actColNr) {
         actCorrsImg1TP.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
     }
     for (auto i : movObjCorrsImg1TPFromLast) {
@@ -6322,7 +6368,7 @@ void genStereoSequ::combineCorrespondences() {
     for (auto i : actCorrsImg12TPFromLast_Idx) {
         comb3DPts.push_back(actImgPointCloudFromLast[i]);
     }
-    if(!actImgPointCloud.empty()) {
+    if (!actImgPointCloud.empty()) {
         comb3DPts.insert(comb3DPts.end(), actImgPointCloud.begin(), actImgPointCloud.end());
     }
     for (size_t i = 0; i < movObjCorrsImg12TPFromLast_Idx.size(); i++) {
@@ -6340,12 +6386,12 @@ void genStereoSequ::combineCorrespondences() {
     //Copy all TP keypoints of second image
     actColNr = 0;
     actColNr2 = actCorrsImg2TPFromLast.cols;
-    if(actColNr2 != actColNr) {
+    if (actColNr2 != actColNr) {
         actCorrsImg2TPFromLast.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
     }
     actColNr = actColNr2;
     actColNr2 = actColNr + actCorrsImg2TP.cols;
-    if(actColNr2 != actColNr) {
+    if (actColNr2 != actColNr) {
         actCorrsImg2TP.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
     }
     for (auto i : movObjCorrsImg2TPFromLast) {
@@ -6359,7 +6405,7 @@ void genStereoSequ::combineCorrespondences() {
         i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
     }
 
-    if(combNrCorrsTN) {
+    if (combNrCorrsTN) {
         combCorrsImg1TN = Mat(3, combNrCorrsTN, CV_64FC1);
         combCorrsImg2TN = Mat(3, combNrCorrsTN, CV_64FC1);
     }
@@ -6367,7 +6413,7 @@ void genStereoSequ::combineCorrespondences() {
     //Copy all TN keypoints of first image
     actColNr = 0;
     actColNr2 = actCorrsImg1TN.cols;
-    if(actColNr2 != actColNr) {
+    if (actColNr2 != actColNr) {
         actCorrsImg1TN.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
     }
     for (auto i : movObjCorrsImg1TNFromLast) {
@@ -6384,7 +6430,7 @@ void genStereoSequ::combineCorrespondences() {
     //Copy all TN keypoints of second image
     actColNr = 0;
     actColNr2 = actCorrsImg2TN.cols;
-    if(actColNr2 != actColNr) {
+    if (actColNr2 != actColNr) {
         actCorrsImg2TN.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
     }
     for (auto i : movObjCorrsImg2TNFromLast) {
@@ -6400,7 +6446,7 @@ void genStereoSequ::combineCorrespondences() {
 
     //Copy distances of TN locations to their real matching position
     combDistTNtoReal.reserve(combNrCorrsTN);
-    if(!distTNtoReal.empty()) {
+    if (!distTNtoReal.empty()) {
         combDistTNtoReal.insert(combDistTNtoReal.end(), distTNtoReal.begin(), distTNtoReal.end());
     }
     for (auto i : movObjDistTNtoReal) {
@@ -6468,9 +6514,9 @@ void genStereoSequ::transMovObjPtsToWorld() {
     movObj3DPtsWorld.resize(nrOldObjs + nrNewObjs);
     movObjWorldMovement.resize(nrOldObjs + nrNewObjs);
     /* WRONG:
-	 * Mat trans_c2w;//Translation vector for transferring 3D points from camera to world coordinates
+     * Mat trans_c2w;//Translation vector for transferring 3D points from camera to world coordinates
     Mat RC2W = absCamCoordinates[actFrameCnt].R.t();
-	trans_c2w = -1.0 * RC2W * absCamCoordinates[actFrameCnt].t;//Get the C2W-translation from the position of the camera centre in world coordinates*/
+    trans_c2w = -1.0 * RC2W * absCamCoordinates[actFrameCnt].t;//Get the C2W-translation from the position of the camera centre in world coordinates*/
     for (size_t i = 0; i < nrNewObjs; i++) {
         size_t idx = nrOldObjs + i;
         movObj3DPtsWorld[idx].reserve(movObj3DPtsCamNew[i].size());
@@ -6515,19 +6561,9 @@ void genStereoSequ::visualizeMovObjPtCloud() {
         return;
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
-    viewer->addCoordinateSystem(5.0);
 
-    Eigen::Affine3f m;
-    m.setIdentity();
-
-    Eigen::Vector3d te;
-    Eigen::Matrix3d Re;
-    cv::cv2eigen(absCamCoordinates[actFrameCnt].R, Re);
-    cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
-    m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
-    m.matrix().block<3, 1>(0, 3) = te.cast<float>();
-    viewer->addCoordinateSystem(1.0, m);
+    Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
+                                                       absCamCoordinates[actFrameCnt].t);
 
     //Generate colormap for moving obejcts (every object has a different color)
     Mat colors = Mat(movObj3DPtsWorld.size(), 1, CV_8UC1);
@@ -6562,9 +6598,15 @@ void genStereoSequ::visualizeMovObjPtCloud() {
                                              "moving objects cloud");
 
 
-//    viewer->initCameraParameters();
+    setPCLViewerCamPars(viewer, m.matrix(), K1);
 
-    Eigen::Matrix4f cam_extrinsics(m.matrix());
+    startPCLViewer(viewer);
+}
+
+void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
+                         Eigen::Matrix4f cam_extrinsics,
+                         const cv::Mat &K1) {
+    //Eigen::Matrix4f cam_extrinsics(m.matrix());
     Eigen::Matrix3f zRotPi;
     zRotPi << -1.f, 0, 0,
             0, -1.f, 0,
@@ -6575,7 +6617,9 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     cv::cv2eigen(K1, cam_intrinsicsd);
     cam_intrinsics = cam_intrinsicsd.cast<float>();
     viewer->setCameraParameters(cam_intrinsics, cam_extrinsics);
+}
 
+void startPCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer) {
     //--------------------
     // -----Main loop-----
     //--------------------
@@ -6587,53 +6631,45 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     viewer->close();
 }
 
-void genStereoSequ::visualizeStaticObjPtCloud() {
-    if (staticWorld3DPts.empty())
-        return;
-
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
+                                               cv::InputArray R_C2W,
+                                               cv::InputArray t_C2W) {
     viewer->setBackgroundColor(0, 0, 0);
     viewer->addCoordinateSystem(5.0);
 
     Eigen::Affine3f m;
     m.setIdentity();
 
-    Eigen::Vector3d te;
-    Eigen::Matrix3d Re;
-    cv::cv2eigen(absCamCoordinates[actFrameCnt].R, Re);
-    cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
-    m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
-    m.matrix().block<3, 1>(0, 3) = te.cast<float>();
-    viewer->addCoordinateSystem(1.0, m);
+    if (!R_C2W.empty() && !t_C2W.empty()) {
+
+        Eigen::Vector3d te;
+        Eigen::Matrix3d Re;
+        cv::cv2eigen(R_C2W.getMat(), Re);
+        cv::cv2eigen(t_C2W.getMat(), te);
+        m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
+        m.matrix().block<3, 1>(0, 3) = te.cast<float>();
+        viewer->addCoordinateSystem(1.0, m);
+    }
+
+    return m;
+}
+
+void genStereoSequ::visualizeStaticObjPtCloud() {
+    if (staticWorld3DPts.empty())
+        return;
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+
+    Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
+                                                       absCamCoordinates[actFrameCnt].t);
 
     viewer->addPointCloud<pcl::PointXYZ>(staticWorld3DPts.makeShared(), "static objects cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1,
                                              "static objects cloud");
 
+    setPCLViewerCamPars(viewer, m.matrix(), K1);
 
-//    viewer->initCameraParameters();
-
-    Eigen::Matrix4f cam_extrinsics(m.matrix());
-    Eigen::Matrix3f zRotPi;
-    zRotPi << -1.f, 0, 0,
-            0, -1.f, 0,
-            0, 0, 1.f;
-    cam_extrinsics.block<3, 3>(0, 0) = cam_extrinsics.block<3, 3>(0, 0) * zRotPi;
-    Eigen::Matrix3d cam_intrinsicsd;
-    Eigen::Matrix3f cam_intrinsics;
-    cv::cv2eigen(K1, cam_intrinsicsd);
-    cam_intrinsics = cam_intrinsicsd.cast<float>();
-    viewer->setCameraParameters(cam_intrinsics, cam_extrinsics);
-
-    //--------------------
-    // -----Main loop-----
-    //--------------------
-    while (!viewer->wasStopped()) {
-        viewer->spinOnce(100);
-        boost::this_thread::sleep(boost::posix_time::microseconds(100000));
-    }
-
-    viewer->close();
+    startPCLViewer(viewer);
 }
 
 //Get the relative movement direction (compared to the camera movement) for every moving object
