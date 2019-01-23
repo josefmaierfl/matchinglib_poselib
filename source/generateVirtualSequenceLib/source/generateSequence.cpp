@@ -57,6 +57,7 @@ void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> vi
 Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
                                                cv::InputArray R_C2W = cv::noArray(),
                                                cv::InputArray t_C2W = cv::noArray());
+
 void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap);
 
 /* -------------------------- Functions -------------------------- */
@@ -6503,7 +6504,7 @@ void genStereoSequ::transPtsToWorld() {
     }
     destroyAllWindows();
 
-    if((verbose & SHOW_MOV_OBJ_3D_PTS) && (verbose & SHOW_STATIC_OBJ_3D_PTS)) {
+    if ((verbose & SHOW_MOV_OBJ_3D_PTS) && (verbose & SHOW_STATIC_OBJ_3D_PTS)) {
         visualizeMovingAndStaticObjPtCloud();
     }
 }
@@ -6601,8 +6602,7 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     startPCLViewer(viewer);
 }
 
-void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap)
-{
+void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap) {
     Mat colors = Mat(nr_Colors, 1, CV_8UC1);
     unsigned char addc = nr_Colors > 255 ? 255 : (unsigned char) nr_Colors;
     addc = addc < 2 ? 255 : (255 / (addc - 1));
@@ -6732,6 +6732,42 @@ void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
     startPCLViewer(viewer);
 }
 
+void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointCloud<pcl::PointXYZ>> &movObjs_old,
+                                            std::vector<pcl::PointCloud<pcl::PointXYZ>> &movObjs_new) {
+    if (movObjs_old.empty() || movObjs_new.empty())
+        return;
+
+    CV_Assert((movObjs_old.size() == movObjs_new.size()) && (movObjs_old[0].size() == movObjs_new[0].size()));
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+
+    Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
+                                                       absCamCoordinates[actFrameCnt].t);
+
+    //Generate colormap for moving obejcts (every object has a different color)
+    Mat colormap_img;
+    getNColors(colormap_img, movObjs_old.size(), COLORMAP_PARULA);
+    colormap_img.convertTo(colormap_img, CV_64FC3);
+    colormap_img /= 255.0;
+
+    size_t idx = 0;
+    for (size_t i = 0; i < movObjs_old.size(); ++i) {
+        for (size_t j = 0; j < movObjs_old[i].size(); ++j) {
+            viewer->addArrow(movObjs_old[i][j],
+                             movObjs_new[i][j],
+                             colormap_img.at<cv::Vec3d>(idx)[2],
+                             colormap_img.at<cv::Vec3d>(idx)[1],
+                             colormap_img.at<cv::Vec3d>(idx)[0],
+                             false);
+        }
+        idx++;
+    }
+
+    setPCLViewerCamPars(viewer, m.matrix(), K1);
+
+    startPCLViewer(viewer);
+}
+
 //Get the relative movement direction (compared to the camera movement) for every moving object
 void genStereoSequ::checkMovObjDirection() {
     if (pars.movObjDir.empty()) {
@@ -6751,12 +6787,24 @@ void genStereoSequ::updateMovObjPositions() {
         return;
     }
 
+    std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld_old;
+    if (verbose & SHOW_MOV_OBJ_MOVEMENT) {
+        movObj3DPtsWorld_old.resize(movObj3DPtsWorld.size());
+        for (size_t i = 0; i < movObj3DPtsWorld.size(); ++i) {
+            pcl::copyPointCloud(movObj3DPtsWorld[i], movObj3DPtsWorld_old[i]);
+        }
+    }
+
     for (size_t i = 0; i < movObj3DPtsWorld.size(); i++) {
         Eigen::Affine3f obj_transform = Eigen::Affine3f::Identity();
         obj_transform.translation() << (float) movObjWorldMovement[i].at<double>(0),
                 (float) movObjWorldMovement[i].at<double>(1),
                 (float) movObjWorldMovement[i].at<double>(2);
         pcl::transformPointCloud(movObj3DPtsWorld[i], movObj3DPtsWorld[i], obj_transform);
+    }
+
+    if (verbose & SHOW_MOV_OBJ_MOVEMENT) {
+        visualizeMovObjMovement(movObj3DPtsWorld_old, movObj3DPtsWorld);
     }
 }
 
