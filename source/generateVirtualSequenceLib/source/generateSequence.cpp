@@ -60,6 +60,20 @@ Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualizat
 
 void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap);
 
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
+
+void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid);
+
+void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
+                              std::vector<float> &cloudExtensions,
+                              std::vector<pcl::PointXYZ> &cloudCentroids);
+
+void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension, pcl::PointXYZ &cloudCentroid);
+
+Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
+                           const cv::Mat &R,
+                           const cv::Mat &t);
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -603,21 +617,30 @@ void genStereoSequ::visualizeCamPath() {
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
     initPCLViewerCoordinateSystems(viewer);
 
-    Eigen::Affine3f m;
-    m.setIdentity();
     for (auto i : absCamCoordinates) {
-        Eigen::Vector3d te;
-        Eigen::Matrix3d Re;
-        cv::cv2eigen(i.R, Re);
-        cv::cv2eigen(i.t, te);
-        m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
-        m.matrix().block<3, 1>(0, 3) = te.cast<float>();
-        viewer->addCoordinateSystem(1.0, m);
+        addVisualizeCamCenter(viewer, i.R, i.t);
     }
 
     viewer->initCameraParameters();
 
     startPCLViewer(viewer);
+}
+
+Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
+        const cv::Mat &R,
+        const cv::Mat &t)
+{
+    Eigen::Affine3f m;
+    m.setIdentity();
+    Eigen::Vector3d te;
+    Eigen::Matrix3d Re;
+    cv::cv2eigen(R, Re);
+    cv::cv2eigen(t, te);
+    m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
+    m.matrix().block<3, 1>(0, 3) = te.cast<float>();
+    viewer->addCoordinateSystem(1.0, m);
+
+    return m;
 }
 
 //Calculate the thresholds for the depths near, mid, and far for every camera configuration
@@ -4715,7 +4738,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     }
 
     //Finally visualize the labels
-    if (verbose & (SHOW_BUILD_PROC_MOV_OBJ | SHOW_MOV_OBJ_3D_PTS)) {
+    if ((nr_movObj > 0) && (verbose & (SHOW_BUILD_PROC_MOV_OBJ | SHOW_MOV_OBJ_3D_PTS))) {
         //Generate colormap for moving obejcts (every object has a different color)
         Mat colors = Mat(nr_movObj, 1, CV_8UC1);
         unsigned char addc = nr_movObj > 255 ? 255 : (unsigned char) nr_movObj;
@@ -4786,7 +4809,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             movObjOverlap[y][x] = (double) (cv::countNonZero(combMovObjLabels(regROIs[y][x])) +
                                             cv::countNonZero(mask(regROIs[y][x]))) /
                                   (double) (regROIs[y][x].area());
-            if (movObjOverlap[y][x] > 0.9) {
+            if (movObjOverlap[y][x] > 0.85) {
                 movObjHasArea[y][x] = true;
                 movObjCorrsFromStatic[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
                 movObjCorrsFromStaticInv[y][x] = 0;
@@ -5628,6 +5651,13 @@ void genStereoSequ::getMovObjCorrs() {
         cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
              << inlRatDiffMO << endl;
     }
+
+    //Remove empty moving object point clouds
+    for (vector<vector<Point3d>>::reverse_iterator itr = movObj3DPtsCamNew.rbegin(); itr != movObj3DPtsCamNew.rend(); itr++) {
+        if (itr->empty()) {
+            movObj3DPtsCamNew.erase(std::next(itr).base());
+        }
+    }
 }
 
 //Generate (backproject) correspondences from existing moving objects and generate hulls of the objects in the image
@@ -6323,18 +6353,26 @@ void genStereoSequ::combineCorrespondences() {
     //Get number of TP correspondences
     combNrCorrsTP = actCorrsImg1TPFromLast.cols + actCorrsImg1TP.cols;
     for (auto i : movObjCorrsImg1TPFromLast) {
-        combNrCorrsTP += i.cols;
+        if(!i.empty()) {
+            combNrCorrsTP += i.cols;
+        }
     }
     for (auto i : movObjCorrsImg1TP) {
-        combNrCorrsTP += i.cols;
+        if(!i.empty()) {
+            combNrCorrsTP += i.cols;
+        }
     }
     //Get number of TN correspondences
     combNrCorrsTN = actCorrsImg1TN.cols;
     for (auto i : movObjCorrsImg1TNFromLast) {
-        combNrCorrsTN += i.cols;
+        if(!i.empty()) {
+            combNrCorrsTN += i.cols;
+        }
     }
     for (auto i : movObjCorrsImg1TN) {
-        combNrCorrsTN += i.cols;
+        if(!i.empty()) {
+            combNrCorrsTN += i.cols;
+        }
     }
 
     if (combNrCorrsTP) {
@@ -6358,12 +6396,16 @@ void genStereoSequ::combineCorrespondences() {
     for (auto i : movObjCorrsImg1TPFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+        }
     }
     for (auto i : movObjCorrsImg1TP) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg1TP.colRange(actColNr, actColNr2));
+        }
     }
 
     //Copy all 3D points
@@ -6380,7 +6422,9 @@ void genStereoSequ::combineCorrespondences() {
     }
     for (auto i : movObj3DPtsCamNew) {
         //copy(i.begin(), i.end(), comb3DPts.end());
-        comb3DPts.insert(comb3DPts.end(), i.begin(), i.end());
+        if(!i.empty()) {
+            comb3DPts.insert(comb3DPts.end(), i.begin(), i.end());
+        }
     }
 
     CV_Assert(combCorrsImg1TP.cols == (int) comb3DPts.size());
@@ -6399,12 +6443,16 @@ void genStereoSequ::combineCorrespondences() {
     for (auto i : movObjCorrsImg2TPFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+        }
     }
     for (auto i : movObjCorrsImg2TP) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg2TP.colRange(actColNr, actColNr2));
+        }
     }
 
     if (combNrCorrsTN) {
@@ -6421,12 +6469,16 @@ void genStereoSequ::combineCorrespondences() {
     for (auto i : movObjCorrsImg1TNFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+        }
     }
     for (auto i : movObjCorrsImg1TN) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+        }
     }
 
     //Copy all TN keypoints of second image
@@ -6438,12 +6490,16 @@ void genStereoSequ::combineCorrespondences() {
     for (auto i : movObjCorrsImg2TNFromLast) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+        }
     }
     for (auto i : movObjCorrsImg2TN) {
         actColNr = actColNr2;
         actColNr2 = actColNr + i.cols;
-        i.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+        if (actColNr2 != actColNr) {
+            i.copyTo(combCorrsImg2TN.colRange(actColNr, actColNr2));
+        }
     }
 
     //Copy distances of TN locations to their real matching position
@@ -6453,11 +6509,15 @@ void genStereoSequ::combineCorrespondences() {
     }
     for (auto i : movObjDistTNtoReal) {
         //copy(i.begin(), i.end(), combDistTNtoReal.end());
-        combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
+        if(!i.empty()) {
+            combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
+        }
     }
     for (auto i : movObjDistTNtoRealNew) {
         //copy(i.begin(), i.end(), combDistTNtoReal.end());
-        combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
+        if(!i.empty()) {
+            combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
+        }
     }
 
     CV_Assert((size_t) combCorrsImg1TN.cols == combDistTNtoReal.size());
@@ -6648,17 +6708,8 @@ Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualizat
     viewer->addCoordinateSystem(5.0);
 
     Eigen::Affine3f m;
-    m.setIdentity();
-
     if (!R_C2W.empty() && !t_C2W.empty()) {
-
-        Eigen::Vector3d te;
-        Eigen::Matrix3d Re;
-        cv::cv2eigen(R_C2W.getMat(), Re);
-        cv::cv2eigen(t_C2W.getMat(), te);
-        m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
-        m.matrix().block<3, 1>(0, 3) = te.cast<float>();
-        viewer->addCoordinateSystem(1.0, m);
+        m = addVisualizeCamCenter(viewer, R_C2W.getMat(), t_C2W.getMat());
     }
 
     return m;
@@ -6732,12 +6783,13 @@ void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
     startPCLViewer(viewer);
 }
 
-void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointCloud<pcl::PointXYZ>> &movObjs_old,
-                                            std::vector<pcl::PointCloud<pcl::PointXYZ>> &movObjs_new) {
-    if (movObjs_old.empty() || movObjs_new.empty())
+void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCentroids_old,
+                                            std::vector<pcl::PointXYZ> &cloudCentroids_new,
+                                            std::vector<float> &cloudExtensions) {
+    if (cloudCentroids_old.empty() || cloudCentroids_new.empty())
         return;
 
-    CV_Assert((movObjs_old.size() == movObjs_new.size()) && (movObjs_old[0].size() == movObjs_new[0].size()));
+    CV_Assert(cloudCentroids_old.size() == cloudCentroids_new.size());
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
 
@@ -6746,21 +6798,51 @@ void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointCloud<pcl::Poi
 
     //Generate colormap for moving obejcts (every object has a different color)
     Mat colormap_img;
-    getNColors(colormap_img, movObjs_old.size(), COLORMAP_PARULA);
+    getNColors(colormap_img, cloudCentroids_old.size() * 2, COLORMAP_PARULA);
     colormap_img.convertTo(colormap_img, CV_64FC3);
     colormap_img /= 255.0;
 
-    size_t idx = 0;
-    for (size_t i = 0; i < movObjs_old.size(); ++i) {
-        for (size_t j = 0; j < movObjs_old[i].size(); ++j) {
-            viewer->addArrow(movObjs_old[i][j],
-                             movObjs_new[i][j],
-                             colormap_img.at<cv::Vec3d>(idx)[2],
-                             colormap_img.at<cv::Vec3d>(idx)[1],
-                             colormap_img.at<cv::Vec3d>(idx)[0],
-                             false);
-        }
-        idx++;
+    for (size_t i = 0; i < cloudCentroids_old.size(); ++i) {
+        size_t i2 = 2*i;
+        size_t i21 = i2+1;
+        viewer->addSphere(cloudCentroids_old[i],
+                (double)cloudExtensions[i],
+                  colormap_img.at<cv::Vec3d>(i2)[2],
+                  colormap_img.at<cv::Vec3d>(i2)[1],
+                  colormap_img.at<cv::Vec3d>(i2)[0],
+                          "sphere_old" + std::to_string(i));
+        viewer->addSphere(cloudCentroids_new[i],
+                          (double)cloudExtensions[i],
+                          colormap_img.at<cv::Vec3d>(i21)[2],
+                          colormap_img.at<cv::Vec3d>(i21)[1],
+                          colormap_img.at<cv::Vec3d>(i21)[0],
+                          "sphere_new" + std::to_string(i));
+        viewer->addArrow(cloudCentroids_old[i],
+                         cloudCentroids_new[i],
+                         colormap_img.at<cv::Vec3d>(i2)[2],
+                         colormap_img.at<cv::Vec3d>(i2)[1],
+                         colormap_img.at<cv::Vec3d>(i2)[0],
+                         false,
+                         "arrow" + std::to_string(i));
+    }
+
+    //Add last camera center
+    if(actFrameCnt > 0) {
+        addVisualizeCamCenter(viewer, absCamCoordinates[actFrameCnt - 1].R, absCamCoordinates[actFrameCnt - 1].t);
+        pcl::PointXYZ c_old, c_new;
+        c_old.x = (float)absCamCoordinates[actFrameCnt - 1].t.at<double>(0);
+        c_old.y = (float)absCamCoordinates[actFrameCnt - 1].t.at<double>(1);
+        c_old.z = (float)absCamCoordinates[actFrameCnt - 1].t.at<double>(2);
+        c_new.x = (float)absCamCoordinates[actFrameCnt].t.at<double>(0);
+        c_new.y = (float)absCamCoordinates[actFrameCnt].t.at<double>(1);
+        c_new.z = (float)absCamCoordinates[actFrameCnt].t.at<double>(2);
+        viewer->addArrow(c_old,
+                         c_new,
+                         1.0,
+                         1.0,
+                         1.0,
+                         false,
+                         "arrow_cams");
     }
 
     setPCLViewerCamPars(viewer, m.matrix(), K1);
@@ -6787,12 +6869,21 @@ void genStereoSequ::updateMovObjPositions() {
         return;
     }
 
-    std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld_old;
+//    std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld_old;
+    vector<pcl::PointXYZ> mocentroids;
     if (verbose & SHOW_MOV_OBJ_MOVEMENT) {
-        movObj3DPtsWorld_old.resize(movObj3DPtsWorld.size());
-        for (size_t i = 0; i < movObj3DPtsWorld.size(); ++i) {
-            pcl::copyPointCloud(movObj3DPtsWorld[i], movObj3DPtsWorld_old[i]);
-        }
+//        movObj3DPtsWorld_old.resize(movObj3DPtsWorld.size());
+        getCloudCentroids(movObj3DPtsWorld, mocentroids);
+        /*for (size_t i = 0; i < movObj3DPtsWorld.size(); ++i) {
+//            pcl::copyPointCloud(movObj3DPtsWorld[i], movObj3DPtsWorld_old[i]);
+            pcl::PointXYZ point;
+            Eigen::Matrix< float, 4, 1 > pm;
+            pcl::compute3DCentroid(movObj3DPtsWorld[i],pm);
+            point.x = pm(0);
+            point.y = pm(1);
+            point.z = pm(2);
+            mocentroids.push_back(point);
+        }*/
     }
 
     for (size_t i = 0; i < movObj3DPtsWorld.size(); i++) {
@@ -6804,8 +6895,57 @@ void genStereoSequ::updateMovObjPositions() {
     }
 
     if (verbose & SHOW_MOV_OBJ_MOVEMENT) {
-        visualizeMovObjMovement(movObj3DPtsWorld_old, movObj3DPtsWorld);
+//        visualizeMovObjMovement(movObj3DPtsWorld_old, movObj3DPtsWorld);
+        vector<pcl::PointXYZ> mocentroids2;
+        vector<float> cloudExtensions;
+        getCloudCentroids(movObj3DPtsWorld, mocentroids2);
+        getMeanCloudStandardDevs(movObj3DPtsWorld, cloudExtensions, mocentroids2);
+        visualizeMovObjMovement(mocentroids, mocentroids2, cloudExtensions);
     }
+}
+
+void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
+        std::vector<float> &cloudExtensions,
+        std::vector<pcl::PointXYZ> &cloudCentroids)
+{
+    cloudExtensions.reserve(pointclouds.size());
+    for (size_t i = 0; i < pointclouds.size(); ++i) {
+        float cloudExtension = 0;
+        getMeanCloudStandardDev(pointclouds[i], cloudExtension, cloudCentroids[i]);
+        cloudExtensions.push_back(cloudExtension);
+    }
+}
+
+void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension, pcl::PointXYZ &cloudCentroid)
+{
+    Eigen::Matrix< float, 4, 1 > pm;
+    Eigen::Matrix< float, 3, 3 > covariance_matrix;
+    pm << cloudCentroid.x, cloudCentroid.y, cloudCentroid.z, 1.f;
+    pcl::computeCovarianceMatrixNormalized(pointcloud, pm, covariance_matrix);
+    cloudExtension = 0;
+    for (int i = 0; i < 3; ++i) {
+        cloudExtension += sqrt(covariance_matrix(i,i));
+    }
+    cloudExtension /= 3.f;
+}
+
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids)
+{
+    cloudCentroids.reserve(pointclouds.size());
+    for (size_t i = 0; i < pointclouds.size(); ++i) {
+        pcl::PointXYZ point;
+        getCloudCentroid(pointclouds[i], point);
+        cloudCentroids.push_back(point);
+    }
+}
+
+void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid)
+{
+    Eigen::Matrix< float, 4, 1 > pm;
+    pcl::compute3DCentroid(pointcloud,pm);
+    cloudCentroid.x = pm(0);
+    cloudCentroid.y = pm(1);
+    cloudCentroid.z = pm(2);
 }
 
 //Get 3D-points of moving objects that are visible in the camera and transform them from the world coordinate system into camera coordinate system
@@ -6819,7 +6959,7 @@ void genStereoSequ::getMovObjPtsCam() {
     movObj3DPtsCam.resize(movObj3DPtsWorld.size());
     for (size_t i = 0; i < movObj3DPtsWorld.size(); i++) {
         pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(&movObj3DPtsWorld[i]);
-        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts();//new pcl::PointCloud<pcl::PointXYZ>());
         bool success = getVisibleCamPointCloud(ptr_movObj3DPtsWorld, camFilteredPts);
         if (!success) {
             delList.push_back(i);

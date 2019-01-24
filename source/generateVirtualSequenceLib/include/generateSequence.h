@@ -345,8 +345,9 @@ private:
 	void visualizeMovObjPtCloud();
     void visualizeStaticObjPtCloud();
     void visualizeMovingAndStaticObjPtCloud();
-	void visualizeMovObjMovement(std::vector<pcl::PointCloud<pcl::PointXYZ>> &movObjs_old,
-								 std::vector<pcl::PointCloud<pcl::PointXYZ>> &movObjs_new);
+	void visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCentroids_old,
+                                 std::vector<pcl::PointXYZ> &cloudCentroids_new,
+                                 std::vector<float> &cloudExtensions);
     int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
     bool fillRemainingAreas(cv::Mat &depthArea,
                             const cv::Mat &usedAreas,
