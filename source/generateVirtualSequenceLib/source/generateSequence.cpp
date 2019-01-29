@@ -7071,6 +7071,10 @@ void genStereoSequ::getActEigenCamPose() {
             1.f, 0, 0, 0,
             0, 0, 0, 1.f;
     actCamPose = pose_orig * cam2robot;
+
+    Eigen::Vector4d quat;
+    MatToQuat(Re, quat);
+    actCamRot = Eigen::Quaternionf(quat.cast<float>());
 }
 
 //Get part of a pointcloud visible in a camera
@@ -7098,7 +7102,9 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
 //Returns false if more than 33% are occluded
 bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                         pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize) {
-    cloudIn->sensor_origin_ = Eigen::Vector4f(actCamPose(0), actCamPose(1), actCamPose(2), 1.f);
+    cloudIn->sensor_origin_ = Eigen::Vector4f((float)absCamCoordinates[actFrameCnt].t.at<double>(0),
+                                              (float)absCamCoordinates[actFrameCnt].t.at<double>(1),
+                                              (float)absCamCoordinates[actFrameCnt].t.at<double>(2), 1.f);
     cloudIn->sensor_orientation_ = actCamRot;
 
     pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> voxelFilter;
