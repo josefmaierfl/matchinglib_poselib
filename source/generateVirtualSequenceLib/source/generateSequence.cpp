@@ -103,6 +103,43 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     //Construct the camera path
     constructCamPath();
 
+    /*while(1){
+        actDepthNear = 1.0;
+        actDepthFar = 100.0;
+        actCamPose = Eigen::Matrix4f().setIdentity();
+        Eigen::Matrix4f cam2robot;
+        cam2robot
+                << 0, 0, 1.f, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
+                0, -1.f, 0, 0,
+                1.f, 0, 0, 0,
+                0, 0, 0, 1.f;
+        *//*cam2robot
+                << 0, 0, -1.f, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
+                0, -1.f, 0, 0,
+                -1.f, 0, 0, 0,
+                0, 0, 0, 1.f;*//*
+        actCamPose *= cam2robot;
+        pcl::PointCloud<pcl::PointXYZ> ptr_movObj3DPtsWorld;//(new pcl::PointCloud<pcl::PointXYZ>());
+        float anghor = (float) imgSize.width / (2.f * (float) K1.at<double>(0, 0));
+        float angver = (float) imgSize.height / (2.f * (float) K1.at<double>(1, 1));
+        for (int i = 0; i < 50; i++) {
+            pcl::PointXYZ pt;
+            pt.z = (float) getRandDoubleValRng(actDepthNear, maxFarDistMultiplier * actDepthFar);
+
+            float mimax = anghor * pt.z;
+            float mimay = angver * pt.z;
+            pt.y = (float) getRandDoubleValRng(-mimay, mimay);
+            pt.x = (float) getRandDoubleValRng(-mimax, mimax);
+            ptr_movObj3DPtsWorld.push_back(pt);
+        }
+        pcl::PointCloud<pcl::PointXYZ>::Ptr inputPts(ptr_movObj3DPtsWorld.makeShared());
+        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+//        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts1(new pcl::PointCloud<pcl::PointXYZ>());
+        bool success = getVisibleCamPointCloud(inputPts, camFilteredPts);
+//        pcl::copyPointCloud(*camFilteredPts.get(), *camFilteredPts1.get());
+//        inputPts.reset();
+    }*/
+
     //Calculate the thresholds for the depths near, mid, and far for every camera configuration
     if (!getDepthRanges()) {
         throw SequenceException("Depth ranges are negative!\n");
@@ -541,7 +578,8 @@ cv::Mat genStereoSequ::getTrackRot(const cv::Mat tdiff, cv::InputArray R_old) {
 
 
     //Define up-vector as global -y axis
-    Mat world_up = (Mat_<double>(3, 1) << 0, -1, 0);
+//    Mat world_up = (Mat_<double>(3, 1) << 0, -1, 0);
+    Mat world_up = (Mat_<double>(3, 1) << 0, 1, 0);
     world_up /= norm(world_up);
 
     if (nearZero(cv::sum(tdiff_ - world_up)[0])) {
@@ -6959,13 +6997,16 @@ void genStereoSequ::getMovObjPtsCam() {
     movObj3DPtsCam.resize(movObj3DPtsWorld.size());
     for (size_t i = 0; i < movObj3DPtsWorld.size(); i++) {
         pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(movObj3DPtsWorld[i].makeShared());
+       /* pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::copyPointCloud(movObj3DPtsWorld[i], *ptr_movObj3DPtsWorld.get());*/
         pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+//        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts = ptr_movObj3DPtsWorld;
         bool success = getVisibleCamPointCloud(ptr_movObj3DPtsWorld, camFilteredPts);
         if (!success) {
             delList.push_back(i);
             continue;
         }
-        pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+        /*pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
         success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts);
         if (!success) {
             filteredOccludedPts->clear();
@@ -6984,7 +7025,7 @@ void genStereoSequ::getMovObjPtsCam() {
             ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
                                                           absCamCoordinates[actFrameCnt].t);//does this work???????? -> physical memory of pt and ptm must be the same
             movObj3DPtsCam[i].push_back(pt);
-        }
+        }*/
     }
     if (!delList.empty()) {
         for (int i = (int) delList.size() - 1; i >= 0; i--) {
@@ -7000,7 +7041,7 @@ void genStereoSequ::getCamPtsFromWorld() {
     }
 
     actImgPointCloudFromLast.clear();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(&staticWorld3DPts);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
     pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
     bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPts);
     if (!success) {
@@ -7048,29 +7089,40 @@ void genStereoSequ::getActEigenCamPose() {
     cam_pose.setIdentity();
     Eigen::Vector3d te;
     Eigen::Matrix3d Re;
-    cv::cv2eigen(absCamCoordinates[actFrameCnt].R, Re);
-    cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
+    if(actFrameCnt > 0){
+        cv::cv2eigen(absCamCoordinates[actFrameCnt-1].R, Re);
+        cv::cv2eigen(absCamCoordinates[actFrameCnt-1].t, te);
+    }
+    else {
+        cv::cv2eigen(absCamCoordinates[actFrameCnt].R, Re);
+        cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
+    }
     cam_pose.matrix().block<3, 3>(0, 0) = Re.cast<float>();
     cam_pose.matrix().block<3, 1>(0, 3) = te.cast<float>();
 
     Eigen::Matrix4f pose_orig = cam_pose.matrix();
 
-    Eigen::Matrix3f zRotPi;
+    /*Eigen::Matrix3f zRotPi;
     zRotPi << -1.f, 0, 0,
             0, -1.f, 0,
             0, 0, 1.f;
-    pose_orig.block<3, 3>(0, 0) = pose_orig.block<3, 3>(0, 0) * zRotPi;
+    pose_orig.block<3, 3>(0, 0) = pose_orig.block<3, 3>(0, 0) * zRotPi;*/
 
-    /*pose_orig.block<3, 3>(0, 0).transposeInPlace();
-    pose_orig.block<3, 1>(0, 3) = -1.0 * pose_orig.block<3, 3>(0, 0) * pose_orig.block<3, 1>(0, 3);*/
+//    pose_orig.block<3, 3>(0, 0).transposeInPlace();
+//    pose_orig.block<3, 1>(0, 3) = -1.0 * pose_orig.block<3, 3>(0, 0) * pose_orig.block<3, 1>(0, 3);
 
     Eigen::Matrix4f cam2robot;
     cam2robot
-            << 0, 0, 1, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
-            0, -1, 0, 0,
-            1, 0, 0, 0,
-            0, 0, 0, 1;
-    actCamPose = pose_orig;// * cam2robot;
+            << 0, 0, 1.f, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
+            0, -1.f, 0, 0,
+            1.f, 0, 0, 0,
+            0, 0, 0, 1.f;
+    /*cam2robot
+            << 0, 0, -1.f, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
+            0, -1.f, 0, 0,
+            -1.f, 0, 0, 0,
+            0, 0, 0, 1.f;*/
+    actCamPose = pose_orig * cam2robot;
 }
 
 //Get part of a pointcloud visible in a camera
@@ -7086,10 +7138,18 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
     fc.setFarPlaneDistance((float) (maxFarDistMultiplier * actDepthFar));
     fc.setCameraPose(actCamPose);
 
+//    pcl::PointCloud<pcl::PointXYZ> target;
     fc.filter(*cloudOut);
+
+    if(cloudIn->size() != cloudOut->size()){
+        throw SequenceException("Sizes not equal!");
+    }
 
     if (cloudOut->empty())
         return false;
+
+//    pcl::copyPointCloud(target, *cloudOut.get());
+//    cloudOut = target.makeShared();
 
     return true;
 }
@@ -7146,7 +7206,7 @@ void genStereoSequ::getNewCorrs() {
             movObjMask = Mat::zeros(imgSize, CV_8UC1);
         } else {
             // Update the 3D world coordinates of movObj3DPtsWorld based on direction and velocity
-            updateMovObjPositions();
+//            updateMovObjPositions();
 
             //Calculate movObj3DPtsCam from movObj3DPtsWorld: Get 3D-points of moving objects that are visible in the camera and transform them from the world coordinate system into camera coordinate system
             getMovObjPtsCam();

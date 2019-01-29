@@ -702,8 +702,8 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	double maxPortionMovObj = 0.85;//Maximal portion of used correspondences by moving objects
 
 	//Generate a random camera track
-	int closedLoop = rand() % 2;
-	int staticCamMovement = rand() % 2;
+	int closedLoop = 1;//rand() % 2;
+	int staticCamMovement = 0;//rand() % 2;
 	int nrTrackElements = rand() % maxTrackElements + 1;
 	if (nrTrackElements == 1)
 		staticCamMovement = 1;

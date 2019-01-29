@@ -24,6 +24,7 @@ endif()
 #endif()
 
 find_package(Eigen REQUIRED)
+#include_directories(SYSTEM ${EIGEN_INCLUDE_DIRS})
 
 if("${OpenCV_DIR}" STREQUAL "")
     message(STATUS "could not find any opencv dir. Trying fallback")
