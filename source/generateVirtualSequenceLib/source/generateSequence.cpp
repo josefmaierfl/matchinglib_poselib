@@ -74,6 +74,8 @@ Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLV
                            const cv::Mat &R,
                            const cv::Mat &t);
 
+void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim, pcl::PointXYZ &cloudCentroid);
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -6942,15 +6944,19 @@ void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &point
 
 void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension, pcl::PointXYZ &cloudCentroid)
 {
+    pcl::PointXYZ cloudDim;
+    getCloudDimensionStdDev(pointcloud, cloudDim, cloudCentroid);
+    cloudExtension = (cloudDim.x + cloudDim.y + cloudDim.z) / 3.f;
+}
+
+void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim, pcl::PointXYZ &cloudCentroid){
     Eigen::Matrix< float, 4, 1 > pm;
     Eigen::Matrix< float, 3, 3 > covariance_matrix;
     pm << cloudCentroid.x, cloudCentroid.y, cloudCentroid.z, 1.f;
     pcl::computeCovarianceMatrixNormalized(pointcloud, pm, covariance_matrix);
-    cloudExtension = 0;
-    for (int i = 0; i < 3; ++i) {
-        cloudExtension += sqrt(covariance_matrix(i,i));
-    }
-    cloudExtension /= 3.f;
+    cloudDim.x = sqrt(covariance_matrix(0,0));
+    cloudDim.y = sqrt(covariance_matrix(1,1));
+    cloudDim.z = sqrt(covariance_matrix(2,2));
 }
 
 void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids)
@@ -7006,7 +7012,7 @@ void genStereoSequ::getMovObjPtsCam() {
                                      (double) filteredOccludedPts->at(j).z);
             Mat ptm = Mat(pt, false).reshape(1, 3);
             ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
-                                                          absCamCoordinates[actFrameCnt].t);//does this work???????? -> physical memory of pt and ptm must be the same
+                                                          absCamCoordinates[actFrameCnt].t);
             movObj3DPtsCam[i].push_back(pt);
         }
     }
@@ -7110,15 +7116,49 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> voxelFilter;
     voxelFilter.setInputCloud(cloudIn);
     float leaf_size;
-    if (useNearLeafSize) {
+    /*if (useNearLeafSize) {
         leaf_size = (float) (actDepthNear / K1.at<double>(0, 0));
     } else {
         leaf_size = (float) ((actDepthNear + (actDepthMid - actDepthNear) / 2.0) / K1.at<double>(0, 0));
+    }*/
+
+    pcl::PointXYZ cloudCentroid;
+    getCloudCentroid(*cloudIn.get(), cloudCentroid);
+    if (useNearLeafSize) {
+        pcl::PointXYZ cloudDim;
+        getCloudDimensionStdDev(*cloudIn.get(), cloudDim, cloudCentroid);
+        double x[2], y[2], z[2];
+        x[0] = (double) (cloudCentroid.x + cloudDim.x);
+        x[1] = (double) (cloudCentroid.x - cloudDim.x);
+        y[0] = (double) (cloudCentroid.y + cloudDim.y);
+        y[1] = (double) (cloudCentroid.y - cloudDim.y);
+        z[0] = (double) (cloudCentroid.z + cloudDim.z);
+        z[1] = (double) (cloudCentroid.z - cloudDim.z);
+        double minZ = DBL_MAX;
+        for (int i = 0; i < 2; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                for (int k = 0; k < 2; ++k) {
+                    Mat Xw = (Mat_<double>(3, 1) << x[i], y[j], z[k]);
+                    Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
+                    if(Xc.at<double>(2) < minZ){
+                        minZ = Xc.at<double>(2);
+                    }
+                }
+            }
+        }
+        leaf_size = (float)minZ;
+    } else {
+        Mat Xw = (Mat_<double>(3, 1) << (double) cloudCentroid.x, (double) cloudCentroid.y, (double) cloudCentroid.z);
+        Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
+        leaf_size = (float)Xc.at<double>(2);
     }
+    leaf_size /= (float)K1.at<double>(0, 0);
+
     voxelFilter.setLeafSize(leaf_size, leaf_size,
                             leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
     voxelFilter.initializeVoxelGrid();
 
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded(new pcl::PointCloud<pcl::PointXYZ>);
     for (size_t i = 0; i < cloudIn->size(); i++) {
         Eigen::Vector3i grid_coordinates = voxelFilter.getGridCoordinates(cloudIn->points[i].x,
                                                                           cloudIn->points[i].y,
@@ -7128,6 +7168,14 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         if ((ret == 0) && (grid_state == 0)) {
             cloudOut->push_back(cloudIn->points[i]);
         }
+        else if((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS))
+        {
+            cloudOccluded->push_back(cloudIn->points[i]);
+        }
+    }
+
+    if(verbose & SHOW_BACKPROJECT_OCCLUSIONS){
+        visualizeOcclusions(cloudOut, cloudOccluded, (double)leaf_size);
     }
 
     float fracOcc = (float) (cloudOut->size()) / (float) (cloudIn->size());
@@ -7135,6 +7183,51 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         return false;
 
     return true;
+}
+
+void genStereoSequ::visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudVisible,
+                                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded,
+                                        double ptSize) {
+    if (cloudVisible->empty() && cloudOccluded->empty())
+        return;
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+
+    Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
+                                                       absCamCoordinates[actFrameCnt].t);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr basic_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+
+    for (auto i : *cloudVisible.get()) {
+        pcl::PointXYZRGB point;
+        point.x = i.x;
+        point.y = i.y;
+        point.z = i.z;
+
+        point.b = 0;
+        point.g = 255;
+        point.r = 0;
+        basic_cloud_ptr->push_back(point);
+    }
+    for (auto i : *cloudOccluded.get()) {
+        pcl::PointXYZRGB point;
+        point.x = i.x;
+        point.y = i.y;
+        point.z = i.z;
+
+        point.b = 0;
+        point.g = 0;
+        point.r = 255;
+        basic_cloud_ptr->push_back(point);
+    }
+    viewer->addPointCloud<pcl::PointXYZRGB>(basic_cloud_ptr, "visible and occluded points");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, ptSize,
+                                             "visible and occluded points");
+
+    setPCLViewerCamPars(viewer, m.matrix(), K1);
+
+    startPCLViewer(viewer);
 }
 
 //Perform the whole procedure of generating correspondences, new static, and dynamic 3D elements

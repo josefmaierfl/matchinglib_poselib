@@ -88,7 +88,8 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_STATIC_OBJ_DISTANCES = 0x40,
 	SHOW_STATIC_OBJ_CORRS_GEN = 0x80,
 	SHOW_STATIC_OBJ_3D_PTS = 0x100,
-	SHOW_MOV_OBJ_MOVEMENT = 0x200
+	SHOW_MOV_OBJ_MOVEMENT = 0x200,
+	SHOW_BACKPROJECT_OCCLUSIONS = 0x400
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -348,6 +349,9 @@ private:
 	void visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCentroids_old,
                                  std::vector<pcl::PointXYZ> &cloudCentroids_new,
                                  std::vector<float> &cloudExtensions);
+	void visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudVisible,
+							 pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded,
+							 double ptSize);
     int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
     bool fillRemainingAreas(cv::Mat &depthArea,
                             const cv::Mat &usedAreas,
