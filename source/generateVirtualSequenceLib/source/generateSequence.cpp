@@ -62,6 +62,8 @@ void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap);
 
 void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
 
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
+
 void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid);
 
 void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
@@ -6166,12 +6168,16 @@ void genStereoSequ::genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &final
     approxPolyDP(contours[0], finalHull, epsilon, true);
 }
 
-void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask) {
+void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts) {
     int sqrSi = csurr.rows;
 
     //Get the convex hull of the keypoints
     vector<vector<Point>> hull(1);
     convexHull(kps, hull[0]);
+
+    if(hullPts){
+        *hullPts = hull[0];
+    }
 
     //Get bounding box
     Rect hullBB = boundingRect(hull[0]);
@@ -6184,22 +6190,48 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
     //Invert the mask
     Mat ncm = (corrMask(hullBB) == 0);
 
+    namedWindow("Inverted keypoint mask", WINDOW_AUTOSIZE);
+    imshow("Inverted keypoint mask", ncm);
+
     //draw the filled convex hull with enlarged borders
-    Mat hullMat1 = Mat::zeros(imgSize, CV_8UC3);
-    vector<Mat> hullMat1C;
+    Mat hullMat1 = Mat::zeros(imgSize, CV_8UC1);
+//    vector<Mat> hullMat1C;
     //with filled contour:
-    drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), CV_FILLED);
+//    drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), CV_FILLED);
+    drawContours(hullMat1, hull, -1, Scalar(255), CV_FILLED);
+
+    namedWindow("Convex hull filled", WINDOW_AUTOSIZE);
+    imshow("Convex hull filled", hullMat1);
+
     //enlarge borders:
-    drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), sqrSi);
-    split(hullMat1, hullMat1C);
-    hullMat1 = hullMat1C[0](hullBB);
+//    drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), sqrSi);
+    drawContours(hullMat1, hull, -1, Scalar(255), sqrSi);
+//    split(hullMat1, hullMat1C);
+//    hullMat1 = hullMat1C[0](hullBB);
+    hullMat1 = hullMat1(hullBB);
+
+    namedWindow("Convex hull filled enlarged", WINDOW_AUTOSIZE);
+    imshow("Convex hull filled enlarged", hullMat1);
 
     //Combine convex hull and inverted mask
     Mat icm = ncm & hullMat1;
 
+    namedWindow("Convex hull combined", WINDOW_AUTOSIZE);
+    imshow("Convex hull combined", icm);
+
     //Apply distance transform algorithm
     Mat distImg;
     distanceTransform(icm, distImg, DIST_L2, DIST_MASK_PRECISE, CV_32FC1);
+
+    Mat distTransNorm;
+    normalize(distImg, distTransNorm, 0, 1.0, NORM_MINMAX);
+    namedWindow("Distance Transform", WINDOW_AUTOSIZE);
+    imshow("Distance Transform", distTransNorm);
+    waitKey(0);
+    destroyWindow("Distance Transform");
+    destroyWindow("Convex hull combined");
+    destroyWindow("Convex hull filled enlarged");
+    destroyWindow("Convex hull filled");
 
     //Get the largest distance from white pixels to black pixels
     double minVal, maxVal;
@@ -6213,6 +6245,12 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
 
     //Perform closing to generate the final mask
     morphologyEx(corrMask, finalMask, MORPH_CLOSE, element);
+
+    namedWindow("Final mask for given points", WINDOW_AUTOSIZE);
+    imshow("Final mask for given points", finalMask > 0);
+    waitKey(0);
+    destroyWindow("Final mask for given points");
+    destroyWindow("Inverted keypoint mask");
 }
 
 //Calculate the seeding position and area for every new moving object
@@ -6969,6 +7007,16 @@ void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
     }
 }
 
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids)
+{
+    cloudCentroids.reserve(pointclouds.size());
+    for (size_t i = 0; i < pointclouds.size(); ++i) {
+        pcl::PointXYZ point;
+        getCloudCentroid(*pointclouds[i].get(), point);
+        cloudCentroids.push_back(point);
+    }
+}
+
 void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid)
 {
     Eigen::Matrix< float, 4, 1 > pm;
@@ -6984,42 +7032,170 @@ void genStereoSequ::getMovObjPtsCam() {
         return;
     }
 
+    size_t movObjSize = movObj3DPtsWorld.size();
     vector<int> delList;
     movObj3DPtsCam.clear();
-    movObj3DPtsCam.resize(movObj3DPtsWorld.size());
-    for (size_t i = 0; i < movObj3DPtsWorld.size(); i++) {
+    movObj3DPtsCam.resize(movObjSize);
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPts(movObjSize);
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedCamPts(movObjSize);
+    vector<pair<float,int>> meanDists(movObjSize, make_pair(0,-1));
+
+    Eigen::Affine3f obj_transform = Eigen::Affine3f::Identity();
+    Eigen::Vector3d te;
+    Eigen::Matrix3d Re;
+    cv::cv2eigen(absCamCoordinates[actFrameCnt].R.t(), Re);
+    cv::cv2eigen(absCamCoordinates[actFrameCnt].t, te);
+    te = -1.0 * Re * te;
+    obj_transform.matrix().block<3, 3>(0, 0) = Re.cast<float>();
+    obj_transform.matrix().block<3, 1>(0, 3) = te.cast<float>();
+
+    for (size_t i = 0; i < movObjSize; i++) {
         pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(movObj3DPtsWorld[i].makeShared());
         pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+        //Check if the moving object is visible in the camera
         bool success = getVisibleCamPointCloud(ptr_movObj3DPtsWorld, camFilteredPts);
         if (!success) {
             delList.push_back(i);
             continue;
         }
-        pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
-        success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts);
+
+        //Check if due to the changed camera position, some 3D points are occluded from others of the same moving object
+        filteredOccludedPts[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+        success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts[i]);
         if (!success) {
-            filteredOccludedPts->clear();
-            success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts, true);
+            filteredOccludedPts[i]->clear();
+            success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts[i], true);
             if (!success) {
-                if (filteredOccludedPts->size() < 5) {
+                if (filteredOccludedPts[i]->size() < 5) {
                     delList.push_back(i);
                     continue;
                 }
             }
         }
-        for (size_t j = 0; j < filteredOccludedPts->size(); j++) {
-            cv::Point3d pt = Point3d((double) filteredOccludedPts->at(j).x, (double) filteredOccludedPts->at(j).y,
-                                     (double) filteredOccludedPts->at(j).z);
+
+        //Convert 3D points from world into camera coordinates
+        filteredOccludedCamPts[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::transformPointCloud(*filteredOccludedPts[i].get(), *filteredOccludedCamPts[i].get(), obj_transform);
+
+        //Get the mean distance of every moving object to the camera
+        if(movObjSize > 1) {
+            pcl::PointXYZ mocentroid;
+            getCloudCentroid(*filteredOccludedCamPts[i].get(), mocentroid);
+            meanDists[i] = make_pair(mocentroid.z, i);
+        }
+    }
+
+    if(movObjSize > 1) {
+        //Check, if there are overlaps between moving objects and filter 3D points that would be behind another moving object
+        sort(meanDists.begin(), meanDists.end(), [](std::pair<float, int> first, std::pair<float, int> second) {
+            return first.first < second.first;
+        });
+
+        int sqrSi = csurr.rows;
+        int posadd = (sqrSi - 1) / 2;
+        Mat globMOmask = Mat::zeros(imgSize, CV_8UC1);
+        for (size_t i = 0; i < movObjSize; i++) {
+            int idx = meanDists[i].second;
+            if (idx < 0)
+                continue;
+
+            Mat locMOmask = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
+            std::vector<cv::Point> keypointsMO(filteredOccludedCamPts[idx]->size());
+            for (int j = 0; j < filteredOccludedCamPts[idx]->size(); ++j) {
+                Mat pt = K1 * (Mat_<double>(3, 1) << (double) (*filteredOccludedCamPts[idx])[j].x,
+                        (double) (*filteredOccludedCamPts[idx])[j].y,
+                        (double) (*filteredOccludedCamPts[idx])[j].z);
+                pt /= pt.at<double>(2);
+                keypointsMO[j].x = (int) round(pt.at<double>(0));
+                keypointsMO[j].y = (int) round(pt.at<double>(1));
+                if ((keypointsMO[j].x < 0) || (keypointsMO[j].y < 0) ||
+                    (keypointsMO[j].x >= imgSize.width) ||
+                    (keypointsMO[j].y >= imgSize.height)) {
+                    continue;
+                }
+                Mat s_tmp = locMOmask(Rect(keypointsMO[j], Size(sqrSi, sqrSi)));
+                csurr.copyTo(s_tmp);
+            }
+
+            namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
+            imshow("Backprojected moving object keypoints", locMOmask > 0);
+            waitKey(0);
+            destroyWindow("Backprojected moving object keypoints");
+
+            Mat resMOmask;
+            std::vector<vector<cv::Point>> hullPts(1);
+            genMovObjHulls(locMOmask, keypointsMO, resMOmask, &hullPts[0]);
+
+            namedWindow("Backprojected moving object area using convex hull", WINDOW_AUTOSIZE);
+            imshow("Backprojected moving object area using convex hull", resMOmask > 0);
+
+            Mat hullMat = Mat::zeros(imgSize, CV_8UC1);;
+            drawContours(hullMat, hullPts, -1, Scalar(255), CV_FILLED);
+            locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
+            locMOmask &= hullMat;
+
+            namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
+            imshow("Backprojected moving object area final", locMOmask);
+
+            Mat overlaps = globMOmask & locMOmask;
+
+            namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
+            imshow("Overlap with other moving objects", overlaps);
+            waitKey(0);
+            destroyWindow("Overlap with other moving objects");
+            destroyWindow("Backprojected moving object area final");
+            destroyWindow("Backprojected moving object area using convex hull");
+
+            if (cv::countNonZero(overlaps) > 0) {
+                for (int j = 0; j < keypointsMO.size(); ++j) {
+                    if (locMOmask.at<unsigned char>(keypointsMO[j]) > 0) {
+                        movObj3DPtsCam[i].push_back(cv::Point3d((double) (*filteredOccludedCamPts[i])[j].x,
+                                                                (double) (*filteredOccludedCamPts[i])[j].y,
+                                                                (double) (*filteredOccludedCamPts[i])[j].z));
+                    }
+                }
+                if (movObj3DPtsCam[i].empty()) {
+                    delList.push_back(i);
+                }
+            }
+            else{
+                for (int j = 0; j < filteredOccludedCamPts[i]->size(); ++j) {
+                    movObj3DPtsCam[0].push_back(cv::Point3d((double) (*filteredOccludedCamPts[i])[j].x,
+                                                            (double) (*filteredOccludedCamPts[i])[j].y,
+                                                            (double) (*filteredOccludedCamPts[i])[j].z));
+                }
+            }
+            globMOmask |= locMOmask;
+
+            namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
+            imshow("Global backprojected moving objects mask", globMOmask);
+            waitKey(0);
+            destroyWindow("Global backprojected moving objects mask");
+        }
+    }
+    else{
+        for (int j = 0; j < filteredOccludedCamPts[0]->size(); ++j) {
+            movObj3DPtsCam[0].push_back(cv::Point3d((double) (*filteredOccludedCamPts[0])[j].x,
+                                                    (double) (*filteredOccludedCamPts[0])[j].y,
+                                                    (double) (*filteredOccludedCamPts[0])[j].z));
+        }
+    }
+
+    /*for (size_t i = 0; i < movObjSize; i++) {
+        for (size_t j = 0; j < filteredOccludedPts[i]->size(); j++) {
+            cv::Point3d pt = Point3d((double) filteredOccludedPts[i]->at(j).x, (double) filteredOccludedPts[i]->at(j).y,
+                                     (double) filteredOccludedPts[i]->at(j).z);
             Mat ptm = Mat(pt, false).reshape(1, 3);
             ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
                                                           absCamCoordinates[actFrameCnt].t);
             movObj3DPtsCam[i].push_back(pt);
         }
-    }
+    }*/
+    sort(delList.begin(), delList.end());
     if (!delList.empty()) {
         for (int i = (int) delList.size() - 1; i >= 0; i--) {
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
-            movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+            movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);//at this time, also moving objects that are only occluded are deleted
         }
     }
 }

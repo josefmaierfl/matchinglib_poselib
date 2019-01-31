@@ -325,7 +325,7 @@ private:
 	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
 	void genNewDepthMovObj();
 	void backProjectMovObj();
-	void genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask);
+	void genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = NULL);
 	void genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull);
 	void getSeedsAreasMovObj();
 	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
