@@ -5750,6 +5750,7 @@ void genStereoSequ::backProjectMovObj() {
     std::vector<Mat> movObjMaskFromLastLarge2(actNrMovObj);
     std::vector<std::vector<cv::Point>> movObjPt1(actNrMovObj), movObjPt2(actNrMovObj);
 
+    //Get correspondences (TN + TP) of backprojected moving objects
     for (size_t i = 0; i < actNrMovObj; i++) {
         movObjMaskFromLastLarge[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
         movObjMaskFromLastLarge2[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
@@ -5769,7 +5770,7 @@ void genStereoSequ::backProjectMovObj() {
 
             bool outOfR[2] = {false, false};
             if ((x1.at<double>(0) < 0) || (x1.at<double>(0) > dimgWH.width) ||
-                (x1.at<double>(1) < 0) || (x1.at<double>(0) > dimgWH.height))//Not visible in first image
+                (x1.at<double>(1) < 0) || (x1.at<double>(1) > dimgWH.height))//Not visible in first image
             {
                 outOfR[0] = true;
             }
@@ -5778,7 +5779,7 @@ void genStereoSequ::backProjectMovObj() {
             x2 /= x2.at<double>(2);
 
             if ((x2.at<double>(0) < 0) || (x2.at<double>(0) > dimgWH.width) ||
-                (x2.at<double>(1) < 0) || (x2.at<double>(0) > dimgWH.height))//Not visible in second image
+                (x2.at<double>(1) < 0) || (x2.at<double>(1) > dimgWH.height))//Not visible in second image
             {
                 outOfR[1] = true;
             }
@@ -5790,11 +5791,11 @@ void genStereoSequ::backProjectMovObj() {
             Point ptr2 = Point((int) round(x2.at<double>(0)), (int) round(x2.at<double>(1)));
 
             //Check if the point is too near to an other correspondence of a moving object
-            if (movObjMaskFromLast.at<unsigned char>(ptr1) > 0)
+            if (!outOfR[0] && movObjMaskFromLast.at<unsigned char>(ptr1) > 0)
                 outOfR[0] = true;
 
             //Check if the point is too near to an other correspondence of a moving object in the second image
-            if (movObjMaskFromLast2.at<unsigned char>(ptr2) > 0)
+            if (!outOfR[1] && movObjMaskFromLast2.at<unsigned char>(ptr2) > 0)
                 outOfR[1] = true;
 
             //Check if the point is too near to an other correspondence of this moving object
@@ -5810,8 +5811,10 @@ void genStereoSequ::backProjectMovObj() {
                 Mat s_tmp = movObjMaskFromLastLarge2[i](Rect(ptr2, Size(sqrSi, sqrSi)));
                 if (s_tmp.at<unsigned char>(posadd, posadd) > 0)
                     outOfR[1] = true;
-                else
-                    csurr.copyTo(s_tmp);
+                else {
+//                    csurr.copyTo(s_tmp);
+                    s_tmp.at<unsigned char>(posadd, posadd) = 1;
+                }
             }
 
             if (outOfR[0] && outOfR[1]) {
@@ -5856,8 +5859,39 @@ void genStereoSequ::backProjectMovObj() {
                 movObjCorrsImg1TPFromLast[i] = movObjCorrsImg1TPFromLast[i].t();
                 movObjCorrsImg2TPFromLast[i] = movObjCorrsImg2TPFromLast[i].t();
             }
+
+            Mat dispMask1, dispMask2;
+            if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                dispMask1 = (movObjMaskFromLast > 0);
+                dispMask2 = (movObjMaskFromLast2 > 0);
+            }
+
             movObjMaskFromLast |= movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
             movObjMaskFromLast2 |= movObjMaskFromLastLarge2[i](Rect(Point(posadd, posadd), imgSize));
+
+            if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                Mat dispMask12 = (movObjMaskFromLast > 0);
+                Mat dispMask22 = (movObjMaskFromLast2 > 0);
+                vector<Mat> channels;
+                Mat b = Mat::zeros(dispMask12.size(), CV_8UC1);
+                channels.push_back(b);
+                channels.push_back(dispMask1);
+                channels.push_back(dispMask12);
+                Mat img3c;
+                merge(channels, img3c);
+                namedWindow("Backprojected moving objects mask of TP and TN image 1", WINDOW_AUTOSIZE);
+                imshow("Backprojected moving objects mask of TP and TN image 1", img3c);
+                channels.clear();
+                channels.push_back(b);
+                channels.push_back(dispMask2);
+                channels.push_back(dispMask22);
+                merge(channels, img3c);
+                namedWindow("Backprojected moving objects mask of TP and TN image 2", WINDOW_AUTOSIZE);
+                imshow("Backprojected moving objects mask of TP and TN image 2", img3c);
+                waitKey(0);
+                destroyWindow("Backprojected moving objects mask of TP and TN image 1");
+                destroyWindow("Backprojected moving objects mask of TP and TN image 2");
+            }
         }
     }
 
@@ -5891,7 +5925,28 @@ void genStereoSequ::backProjectMovObj() {
     for (size_t i = 0; i < actNrMovObj; i++) {
         Mat movObjMaskFromLastLargePiece = movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
         genMovObjHulls(movObjMaskFromLastLargePiece, movObjPt1[i], movObjLabelsFromLast[i]);
+
+        Mat dispMask;
+        if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+            dispMask = (movObjMaskFromLast > 0);
+        }
+
         movObjMaskFromLast |= movObjLabelsFromLast[i];
+
+        if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+            Mat dispMask2 = (movObjMaskFromLast > 0);
+            vector<Mat> channels;
+            Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+            channels.push_back(b);
+            channels.push_back(dispMask);
+            channels.push_back(dispMask2);
+            Mat img3c;
+            merge(channels, img3c);
+            namedWindow("Backprojected moving object hulls", WINDOW_AUTOSIZE);
+            imshow("Backprojected moving object hulls", img3c);
+            waitKey(0);
+            destroyWindow("Backprojected moving object hulls");
+        }
     }
 
     //Enlarge the object areas if they are too small
@@ -5908,10 +5963,39 @@ void genStereoSequ::backProjectMovObj() {
             if (areaMO2 > areaMO) {
                 areaMO = areaMO2;
                 imgSDdilate.copyTo(movObjLabelsFromLast[i]);
+                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    namedWindow("Backprojected moving object hull enlargement", WINDOW_AUTOSIZE);
+                    imshow("Backprojected moving object hull enlargement", movObjLabelsFromLast[i] > 0);
+                    waitKey(0);
+                    destroyWindow("Backprojected moving object hull enlargement");
+                }
             } else {
                 break;
             }
             cnt++;
+        }
+        if(cnt > 0){
+            Mat dispMask;
+            if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                dispMask = (movObjMaskFromLast > 0);
+            }
+
+            movObjMaskFromLast |= movObjLabelsFromLast[i];
+
+            if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                Mat dispMask2 = (movObjMaskFromLast > 0);
+                vector<Mat> channels;
+                Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+                channels.push_back(b);
+                channels.push_back(dispMask);
+                channels.push_back(dispMask2);
+                Mat img3c;
+                merge(channels, img3c);
+                namedWindow("Backprojected dilated moving object hulls", WINDOW_AUTOSIZE);
+                imshow("Backprojected dilated moving object hulls", img3c);
+                waitKey(0);
+                destroyWindow("Backprojected dilated moving object hulls");
+            }
         }
     }
 
@@ -5919,7 +6003,7 @@ void genStereoSequ::backProjectMovObj() {
     vector<int> missingCImg2(actNrMovObj, 0);
     vector<int> missingCImg1(actNrMovObj, 0);
     for (size_t i = 0; i < actNrMovObj; i++) {
-        if (!movObjCorrsImg1TNFromLast[i].empty() && !movObjCorrsImg1TNFromLast[i].empty()) {
+        if (!movObjCorrsImg1TNFromLast[i].empty() && !movObjCorrsImg2TNFromLast[i].empty()) {
             if (movObjCorrsImg1TNFromLast[i].cols > movObjCorrsImg2TNFromLast[i].cols) {
                 missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols - movObjCorrsImg2TNFromLast[i].cols;
             } else if (movObjCorrsImg1TNFromLast[i].cols < movObjCorrsImg2TNFromLast[i].cols) {
@@ -5957,7 +6041,8 @@ void genStereoSequ::backProjectMovObj() {
                     Point_<int32_t> pt = Point_<int32_t>(distributionX2(rand_gen), distributionY2(rand_gen));
                     Mat s_tmp = movObjMaskFromLast2Border(Rect(pt, Size(sqrSi, sqrSi)));
                     if (s_tmp.at<unsigned char>(posadd, posadd) == 0) {
-                        csurr.copyTo(s_tmp);
+//                        csurr.copyTo(s_tmp);
+                        s_tmp.at<unsigned char>(posadd, posadd) = 1;
                         elemnew.at<double>(j, 0) = (double) pt.x;
                         elemnew.at<double>(j, 1) = (double) pt.y;
                         break;
@@ -5969,7 +6054,28 @@ void genStereoSequ::backProjectMovObj() {
                 cnt1++;
             }
             if (cnt1 > 0) {
+                Mat dispMask;
+                if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    dispMask = (movObjMaskFromLast2 > 0);
+                }
+
                 movObjMaskFromLast2 |= movObjMaskFromLast2Border(Rect(Point(posadd, posadd), imgSize));
+
+                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    Mat dispMask2 = (movObjMaskFromLast2 > 0);
+                    vector<Mat> channels;
+                    Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+                    channels.push_back(b);
+                    channels.push_back(dispMask);
+                    channels.push_back(dispMask2);
+                    Mat img3c;
+                    merge(channels, img3c);
+                    namedWindow("Random TN in img2 for backprojected moving object TN of img1", WINDOW_AUTOSIZE);
+                    imshow("Random TN in img2 for backprojected moving object TN of img1", img3c);
+                    waitKey(0);
+                    destroyWindow("Random TN in img2 for backprojected moving object TN of img1");
+                }
+
                 movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
                 movObjCorrsImg2TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
                 movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
@@ -6010,7 +6116,28 @@ void genStereoSequ::backProjectMovObj() {
                 cnt1++;
             }
             if (cnt1 > 0) {
+                Mat dispMask;
+                if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    dispMask = (movObjMaskFromLastOld > 0);
+                }
+
                 movObjMaskFromLastOld |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
+
+                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    Mat dispMask2 = (movObjMaskFromLastOld > 0);
+                    vector<Mat> channels;
+                    Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
+                    channels.push_back(b);
+                    channels.push_back(dispMask);
+                    channels.push_back(dispMask2);
+                    Mat img3c;
+                    merge(channels, img3c);
+                    namedWindow("Random TN in img1 for backprojected moving object TN of img2", WINDOW_AUTOSIZE);
+                    imshow("Random TN in img1 for backprojected moving object TN of img2", img3c);
+                    waitKey(0);
+                    destroyWindow("Random TN in img1 for backprojected moving object TN of img2");
+                }
+
                 movObjLabelsFromLast[i] |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
                 movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
                 movObjCorrsImg1TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
@@ -6075,6 +6202,12 @@ void genStereoSequ::backProjectMovObj() {
             movObjLabelsFromLastN = (movObjLabelsFromLastN == 0);
             movObjLabelsFromLastN |= movObjMaskFromLastBorder;
 
+            Mat dispMask1, dispMask2;
+            if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                dispMask1 = (movObjLabelsFromLastN > 0);
+                dispMask2 = (movObjMaskFromLast2Border > 0);
+            }
+
             std::vector<cv::Point2d> x1TN;
             std::vector<cv::Point2d> x2TN;
             int32_t remainingTN = genTrueNegCorrs(missingCImg2[i],
@@ -6091,6 +6224,31 @@ void genStereoSequ::backProjectMovObj() {
 
             cnt2++;
             if (remainingTN != missingCImg2[i]) {
+
+                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    Mat dispMask12 = (movObjLabelsFromLastN > 0);
+                    Mat dispMask22 = (movObjMaskFromLast2Border > 0);
+                    vector<Mat> channels;
+                    Mat b = Mat::zeros(dispMask12.size(), CV_8UC1);
+                    channels.push_back(b);
+                    channels.push_back(dispMask1);
+                    channels.push_back(dispMask12);
+                    Mat img3c;
+                    merge(channels, img3c);
+                    namedWindow("Random TN in img1 for backprojected moving object", WINDOW_AUTOSIZE);
+                    imshow("Random TN in img1 for backprojected moving object", img3c);
+                    channels.clear();
+                    channels.push_back(b);
+                    channels.push_back(dispMask2);
+                    channels.push_back(dispMask22);
+                    merge(channels, img3c);
+                    namedWindow("Random TN in img2 for backprojected moving object", WINDOW_AUTOSIZE);
+                    imshow("Random TN in img2 for backprojected moving object", img3c);
+                    waitKey(0);
+                    destroyWindow("Random TN in img1 for backprojected moving object");
+                    destroyWindow("Random TN in img2 for backprojected moving object");
+                }
+
                 movObjLabelsFromLastN(Rect(Point(posadd, posadd), imgSize)) &= movObjLabelsFromLast[i];
                 movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize)) |= movObjLabelsFromLastN(
                         Rect(Point(posadd, posadd), imgSize));
@@ -6121,8 +6279,8 @@ void genStereoSequ::backProjectMovObj() {
                     areaMO = areaMO2;
                     if (areaMO < maxOArea) {
                         imgSDdilate.copyTo(movObjLabelsFromLast[i]);
-                        objROIs[i] = Rect(max(objROIs[i].x - sqrSi, 0), max(objROIs[i].y - sqrSi, 0),
-                                          objROIs[i].width + 2 * sqrSi, objROIs[i].height + 2 * sqrSi);
+                        objROIs[i] = Rect(max(objROIs[i].x - posadd, 0), max(objROIs[i].y - posadd, 0),
+                                          objROIs[i].width + 2 * posadd, objROIs[i].height + 2 * posadd);
                         objROIs[i] = Rect(objROIs[i].x, objROIs[i].y,
                                           (objROIs[i].x + objROIs[i].width) > imgSize.width ? (imgSize.width -
                                                                                                objROIs[i].x)
@@ -6130,6 +6288,8 @@ void genStereoSequ::backProjectMovObj() {
                                           (objROIs[i].y + objROIs[i].height) > imgSize.height ? (imgSize.height -
                                                                                                  objROIs[i].y)
                                                                                               : objROIs[i].height);
+                        distributionX = std::uniform_int_distribution<int32_t>(objROIs[i].x, objROIs[i].x + objROIs[i].width - 1);
+                        distributionY = std::uniform_int_distribution<int32_t>(objROIs[i].y, objROIs[i].y + objROIs[i].height - 1);
                     } else {
                         break;
                     }
@@ -6141,6 +6301,7 @@ void genStereoSequ::backProjectMovObj() {
         }
     }
     movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize)).copyTo(movObjMaskFromLastOld);
+    movObjMaskFromLast2 |= movObjMaskFromLast2Border(Rect(Point(posadd, posadd), imgSize));
 
     movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
     actTNPerMovObjFromLast.resize(actNrMovObj);
@@ -6155,20 +6316,151 @@ void genStereoSequ::backProjectMovObj() {
         actTrueNegOnMovObjFromLast += actTNPerMovObjFromLast[i];
     }
     actCorrsOnMovObjFromLast = actTrueNegOnMovObjFromLast + actTruePosOnMovObjFromLast;
+
+    //Finally visualize the labels
+    if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+        //Generate colormap for moving obejcts (every object has a different color)
+        Mat colors = Mat(actNrMovObj, 1, CV_8UC1);
+        unsigned char addc = actNrMovObj > 255 ? 255 : (unsigned char) actNrMovObj;
+        addc = addc < 2 ? 255 : (255 / (addc - 1));
+        colors.at<unsigned char>(0) = 0;
+        for (size_t k = 1; k < actNrMovObj; ++k) {
+            colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
+        }
+        Mat colormap_img;
+        applyColorMap(colors, colormap_img, COLORMAP_PARULA);
+        Mat labelImgRGB = Mat::zeros(imgSize, CV_8UC3);
+        for (size_t i = 0; i < actNrMovObj; i++) {
+            for (int r = 0; r < imgSize.height; r++) {
+                for (int c = 0; c < imgSize.width; c++) {
+                    if (movObjLabelsFromLast[i].at<unsigned char>(r, c) != 0) {
+                        labelImgRGB.at<cv::Vec3b>(r, c) = colormap_img.at<cv::Vec3b>(i);
+                    }
+                }
+            }
+        }
+        namedWindow("Backprojected final moving object labels", WINDOW_AUTOSIZE);
+        imshow("Backprojected final moving object labels", labelImgRGB);
+        waitKey(0);
+        destroyWindow("Backprojected final moving object labels");
+    }
 }
 
-void genStereoSequ::genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull) {
+void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> &finalHull) {
+
+    if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+        namedWindow("Original backprojected moving object mask", WINDOW_AUTOSIZE);
+        imshow("Original backprojected moving object mask", mask > 0);
+    }
+
     //Get the contour of the mask
     vector<vector<Point>> contours;
     Mat finalMcopy = mask.clone();
     findContours(finalMcopy, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
+    //Calculate 1 single outer contour for multiple sub-objects avoiding a convex hull
+    int contSize =(int)contours.size();
+    if(contSize > 1){
+        //Get biggest element (which will be the main element)
+        double biggestArea = 0;
+        int idx = 0;
+        for (int i = 0; i < contSize; ++i) {
+            double actArea = contourArea(contours[i]);
+            if(actArea > biggestArea){
+                biggestArea = actArea;
+                idx = i;
+            }
+        }
+        //Calculate the center of mass of every element to get the distances between elements
+        Point2f bigAreaCenter;
+        vector<Point> bigAreaContour = contours[idx];
+        cv::Moments bigAreaMoments = moments(bigAreaContour, true);
+        bigAreaCenter = Point2f( bigAreaMoments.m10/bigAreaMoments.m00 , bigAreaMoments.m01/bigAreaMoments.m00 );
+        vector<pair<int,Point2f>> areaCenters;
+        for (int i = 0; i < contSize; ++i) {
+            if(i == idx) continue;
+            cv::Moments areaMoment = moments(contours[i], true);
+            areaCenters.push_back(make_pair(i, Point2f( areaMoment.m10/areaMoment.m00 , areaMoment.m01/areaMoment.m00 )));
+        }
+        //Begin with the nearest element and combine every 2 nearest elements
+        for (int i = 0; i < contSize - 1; ++i) {
+            float minDist = FLT_MAX;
+            pair<int,int> minDistIdx;
+            for (int j = 0; j < areaCenters.size(); ++j) {
+                Point2f ptdiff = bigAreaCenter - areaCenters[j].second;
+                float dist = sqrt(ptdiff.x * ptdiff.x + ptdiff.y * ptdiff.y);
+                if(dist < minDist){
+                    minDist = dist;
+                    minDistIdx = make_pair(areaCenters[j].first,j);
+                }
+            }
+            //Combine nearest element and biggest element
+            int maxBOSi = (int)bigAreaContour.size();
+            vector<int> hullIdxs, hullIdxs1, hullIdxs2;
+            vector<Point> comb2Areas = bigAreaContour;
+            comb2Areas.insert(comb2Areas.end(), contours[minDistIdx.first].begin(), contours[minDistIdx.first].end());
+            convexHull(comb2Areas, hullIdxs);
+            //Check from which area the convex hull points are
+            for (int k = 0; k < hullIdxs.size(); ++k) {
+                if(hullIdxs[k] < maxBOSi){
+                    hullIdxs1.push_back(hullIdxs[k]);
+                }
+                else{
+                    hullIdxs2.push_back(hullIdxs[k]);
+                }
+            }
+            //Take only contour coordinates from both areas that are within their own part of the convex hull
+            // (neglect coordinates that are in between the 2 areas)
+            vector<Point> bigAreaContourNew;
+            for (int l = 0; l < maxBOSi; ++l) {
+                //Check if the coordinate is within or on the given contour
+                double ptLoc = 0;
+                ptLoc = cv::pointPolygonTest(hullIdxs1, bigAreaContour[l], false);
+                if(ptLoc >= 0){
+                    bigAreaContourNew.push_back(bigAreaContour[l]);
+                }
+            }
+            for (int l = 0; l < contours[minDistIdx.first].size(); ++l) {
+                //Check if the coordinate is within or on the given contour
+                double ptLoc = 0;
+                ptLoc = cv::pointPolygonTest(hullIdxs2, contours[minDistIdx.first][l], false);
+                if(ptLoc >= 0){
+                    bigAreaContourNew.push_back(contours[minDistIdx.first][l]);
+                }
+            }
+            //Store the new larger contour
+            bigAreaContour = bigAreaContourNew;
+            //Delete the used area center
+            areaCenters.erase(areaCenters.begin() + minDistIdx.second);
+            //Calculate the new center of the big area
+            bigAreaMoments = moments(bigAreaContour, true);
+            bigAreaCenter = Point2f( bigAreaMoments.m10/bigAreaMoments.m00 , bigAreaMoments.m01/bigAreaMoments.m00 );
+        }
+        contours.clear();
+        contours.resize(1);
+        contours[0] = bigAreaContour;
+    }
+
     //Simplify the contour
     double epsilon = 0.01 * cv::arcLength(contours[0], true);//1% of the overall contour length
     approxPolyDP(contours[0], finalHull, epsilon, true);
+
+    if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+        Mat maskcontours = Mat::zeros(imgSize, CV_8UC3);
+        drawContours(maskcontours, contours, 0, Scalar(0, 255, 0));
+        vector<vector<Point>> tmp(1);
+        tmp[0] = finalHull;
+        drawContours(maskcontours, tmp, 0, Scalar(0, 0, 255));
+        namedWindow("Approximated and original backprojected moving object mask contour", WINDOW_AUTOSIZE);
+        imshow("Approximated backprojected moving object mask contour", maskcontours > 0);
+
+        waitKey(0);
+        destroyWindow("Original backprojected moving object mask");
+        destroyWindow("Approximated backprojected moving object mask contour");
+    }
 }
 
-void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts) {
+void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts) {
     int sqrSi = csurr.rows;
 
     //Get the convex hull of the keypoints
@@ -6190,34 +6482,29 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
     //Invert the mask
     Mat ncm = (corrMask(hullBB) == 0);
 
-    namedWindow("Inverted keypoint mask", WINDOW_AUTOSIZE);
-    imshow("Inverted keypoint mask", ncm);
+    /*namedWindow("Inverted keypoint mask", WINDOW_AUTOSIZE);
+    imshow("Inverted keypoint mask", ncm);*/
 
     //draw the filled convex hull with enlarged borders
     Mat hullMat1 = Mat::zeros(imgSize, CV_8UC1);
-//    vector<Mat> hullMat1C;
     //with filled contour:
-//    drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), CV_FILLED);
     drawContours(hullMat1, hull, -1, Scalar(255), CV_FILLED);
 
-    namedWindow("Convex hull filled", WINDOW_AUTOSIZE);
-    imshow("Convex hull filled", hullMat1);
+    /*namedWindow("Convex hull filled", WINDOW_AUTOSIZE);
+    imshow("Convex hull filled", hullMat1);*/
 
     //enlarge borders:
-//    drawContours(hullMat1, hull, -1, Scalar(255, 255, 255), sqrSi);
     drawContours(hullMat1, hull, -1, Scalar(255), sqrSi);
-//    split(hullMat1, hullMat1C);
-//    hullMat1 = hullMat1C[0](hullBB);
     hullMat1 = hullMat1(hullBB);
 
-    namedWindow("Convex hull filled enlarged", WINDOW_AUTOSIZE);
-    imshow("Convex hull filled enlarged", hullMat1);
+    /*namedWindow("Convex hull filled enlarged", WINDOW_AUTOSIZE);
+    imshow("Convex hull filled enlarged", hullMat1);*/
 
     //Combine convex hull and inverted mask
     Mat icm = ncm & hullMat1;
 
-    namedWindow("Convex hull combined", WINDOW_AUTOSIZE);
-    imshow("Convex hull combined", icm);
+    /*namedWindow("Convex hull combined", WINDOW_AUTOSIZE);
+    imshow("Convex hull combined", icm);*/
 
     //Apply distance transform algorithm
     Mat distImg;
@@ -6229,9 +6516,9 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
     imshow("Distance Transform", distTransNorm);
     waitKey(0);
     destroyWindow("Distance Transform");
-    destroyWindow("Convex hull combined");
+    /*destroyWindow("Convex hull combined");
     destroyWindow("Convex hull filled enlarged");
-    destroyWindow("Convex hull filled");
+    destroyWindow("Convex hull filled");*/
 
     //Get the largest distance from white pixels to black pixels
     double minVal, maxVal;
@@ -6250,7 +6537,7 @@ void genStereoSequ::genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kp
     imshow("Final mask for given points", finalMask > 0);
     waitKey(0);
     destroyWindow("Final mask for given points");
-    destroyWindow("Inverted keypoint mask");
+//    destroyWindow("Inverted keypoint mask");
 }
 
 //Calculate the seeding position and area for every new moving object
@@ -7099,6 +7386,7 @@ void genStereoSequ::getMovObjPtsCam() {
             if (idx < 0)
                 continue;
 
+            bool kpOutofR = false;
             Mat locMOmask = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
             std::vector<cv::Point> keypointsMO(filteredOccludedCamPts[idx]->size());
             for (int j = 0; j < filteredOccludedCamPts[idx]->size(); ++j) {
@@ -7111,66 +7399,80 @@ void genStereoSequ::getMovObjPtsCam() {
                 if ((keypointsMO[j].x < 0) || (keypointsMO[j].y < 0) ||
                     (keypointsMO[j].x >= imgSize.width) ||
                     (keypointsMO[j].y >= imgSize.height)) {
+                    kpOutofR = true;
                     continue;
                 }
                 Mat s_tmp = locMOmask(Rect(keypointsMO[j], Size(sqrSi, sqrSi)));
                 csurr.copyTo(s_tmp);
             }
 
-            namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
-            imshow("Backprojected moving object keypoints", locMOmask > 0);
-            waitKey(0);
-            destroyWindow("Backprojected moving object keypoints");
+            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+                namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
+                imshow("Backprojected moving object keypoints", locMOmask > 0);
+                waitKey(0);
+                destroyWindow("Backprojected moving object keypoints");
+            }
 
             Mat resMOmask;
             std::vector<vector<cv::Point>> hullPts(1);
             genMovObjHulls(locMOmask, keypointsMO, resMOmask, &hullPts[0]);
 
-            namedWindow("Backprojected moving object area using convex hull", WINDOW_AUTOSIZE);
-            imshow("Backprojected moving object area using convex hull", resMOmask > 0);
+            /*namedWindow("Backprojected moving object area using convex hull", WINDOW_AUTOSIZE);
+            imshow("Backprojected moving object area using convex hull", resMOmask > 0);*/
 
             Mat hullMat = Mat::zeros(imgSize, CV_8UC1);;
             drawContours(hullMat, hullPts, -1, Scalar(255), CV_FILLED);
             locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
             locMOmask &= hullMat;
 
-            namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
-            imshow("Backprojected moving object area final", locMOmask);
+            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+                namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
+                imshow("Backprojected moving object area final", locMOmask);
+            }
 
             Mat overlaps = globMOmask & locMOmask;
 
-            namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
-            imshow("Overlap with other moving objects", overlaps);
-            waitKey(0);
-            destroyWindow("Overlap with other moving objects");
-            destroyWindow("Backprojected moving object area final");
-            destroyWindow("Backprojected moving object area using convex hull");
+            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+                namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
+                imshow("Overlap with other moving objects", overlaps);
+                waitKey(0);
+                destroyWindow("Overlap with other moving objects");
+                destroyWindow("Backprojected moving object area final");
+            }
+//            destroyWindow("Backprojected moving object area using convex hull");
+
 
             if (cv::countNonZero(overlaps) > 0) {
+                if(kpOutofR)
+                {
+                    throw SequenceException("Backprojected image coordinate of moving object is out of range.");
+                }
                 for (int j = 0; j < keypointsMO.size(); ++j) {
-                    if (locMOmask.at<unsigned char>(keypointsMO[j]) > 0) {
-                        movObj3DPtsCam[i].push_back(cv::Point3d((double) (*filteredOccludedCamPts[i])[j].x,
-                                                                (double) (*filteredOccludedCamPts[i])[j].y,
-                                                                (double) (*filteredOccludedCamPts[i])[j].z));
+                    if (overlaps.at<unsigned char>(keypointsMO[j]) == 0) {
+                        movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
+                                                                (double) (*filteredOccludedCamPts[idx])[j].y,
+                                                                (double) (*filteredOccludedCamPts[idx])[j].z));
                     }
                 }
-                if (movObj3DPtsCam[i].empty()) {
-                    delList.push_back(i);
+                if (movObj3DPtsCam[idx].empty()) {
+                    delList.push_back(idx);
                 }
             }
             else{
-                for (int j = 0; j < filteredOccludedCamPts[i]->size(); ++j) {
-                    movObj3DPtsCam[0].push_back(cv::Point3d((double) (*filteredOccludedCamPts[i])[j].x,
-                                                            (double) (*filteredOccludedCamPts[i])[j].y,
-                                                            (double) (*filteredOccludedCamPts[i])[j].z));
+                for (int j = 0; j < filteredOccludedCamPts[idx]->size(); ++j) {
+                    movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
+                                                            (double) (*filteredOccludedCamPts[idx])[j].y,
+                                                            (double) (*filteredOccludedCamPts[idx])[j].z));
                 }
             }
             globMOmask |= locMOmask;
 
-            namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
-            imshow("Global backprojected moving objects mask", globMOmask);
-            waitKey(0);
-            destroyWindow("Global backprojected moving objects mask");
+            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+                namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
+                imshow("Global backprojected moving objects mask", globMOmask);
+                waitKey(0);
+                destroyWindow("Global backprojected moving objects mask");
+            }
         }
     }
     else{
@@ -7181,16 +7483,6 @@ void genStereoSequ::getMovObjPtsCam() {
         }
     }
 
-    /*for (size_t i = 0; i < movObjSize; i++) {
-        for (size_t j = 0; j < filteredOccludedPts[i]->size(); j++) {
-            cv::Point3d pt = Point3d((double) filteredOccludedPts[i]->at(j).x, (double) filteredOccludedPts[i]->at(j).y,
-                                     (double) filteredOccludedPts[i]->at(j).z);
-            Mat ptm = Mat(pt, false).reshape(1, 3);
-            ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
-                                                          absCamCoordinates[actFrameCnt].t);
-            movObj3DPtsCam[i].push_back(pt);
-        }
-    }*/
     sort(delList.begin(), delList.end());
     if (!delList.empty()) {
         for (int i = (int) delList.size() - 1; i >= 0; i--) {

@@ -89,7 +89,8 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_STATIC_OBJ_CORRS_GEN = 0x80,
 	SHOW_STATIC_OBJ_3D_PTS = 0x100,
 	SHOW_MOV_OBJ_MOVEMENT = 0x200,
-	SHOW_BACKPROJECT_OCCLUSIONS = 0x400
+	SHOW_BACKPROJECT_OCCLUSIONS = 0x400,
+	SHOW_BACKPROJECT_MOV_OBJ_CORRS = 0x800
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -325,8 +326,8 @@ private:
 	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
 	void genNewDepthMovObj();
 	void backProjectMovObj();
-	void genMovObjHulls(cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = NULL);
-	void genHullFromMask(cv::Mat &mask, std::vector<cv::Point> &finalHull);
+	void genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = NULL);
+	void genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> &finalHull);
 	void getSeedsAreasMovObj();
 	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
 	bool getNewMovObjs();
