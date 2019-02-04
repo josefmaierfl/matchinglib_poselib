@@ -656,7 +656,7 @@ bool roundR(const cv::Mat R_old, cv::Mat &R_round, cv::InputArray R_fixed) {
 }
 
 void genStereoSequ::visualizeCamPath() {
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Camera path"));
     initPCLViewerCoordinateSystems(viewer);
 
     for (auto i : absCamCoordinates) {
@@ -5950,8 +5950,8 @@ void genStereoSequ::backProjectMovObj() {
     }
 
     //Enlarge the object areas if they are too small
-    Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-    const int maxCnt = 20;
+    Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
+    const int maxCnt = 40;
     for (size_t i = 0; i < actNrMovObj; i++) {
         int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
         int cnt = 0;
@@ -6178,7 +6178,7 @@ void genStereoSequ::backProjectMovObj() {
     for (size_t i = 0; i < actNrMovObj; i++) {
         //Generate a depth map for generating TN based on the depth of the back-projected 3D points
         double minDepth = DBL_MAX, maxDepth = DBL_MIN;
-        for (size_t j = 0; j < movObjCorrsImg12TPFromLast_Idx[i].size(); i++) {
+        for (size_t j = 0; j < movObjCorrsImg12TPFromLast_Idx[i].size(); j++) {
             double sDepth = movObj3DPtsCam[i][movObjCorrsImg12TPFromLast_Idx[i][j]].z;
             if (sDepth < minDepth)
                 minDepth = sDepth;
@@ -6351,6 +6351,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
         namedWindow("Original backprojected moving object mask", WINDOW_AUTOSIZE);
         imshow("Original backprojected moving object mask", mask > 0);
+        waitKey(0);
     }
 
     //Get the contour of the mask
@@ -6396,45 +6397,149 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
             }
             //Combine nearest element and biggest element
             int maxBOSi = (int)bigAreaContour.size();
-            vector<int> hullIdxs, hullIdxs1, hullIdxs2;
+            vector<int> hullIdxs;
+            vector<Point> hullPts1, hullPts2;
             vector<Point> comb2Areas = bigAreaContour;
             comb2Areas.insert(comb2Areas.end(), contours[minDistIdx.first].begin(), contours[minDistIdx.first].end());
             convexHull(comb2Areas, hullIdxs);
             //Check from which area the convex hull points are
+            int hullIdxInsert[2] = {-1, -1};
+            bool advIdx[2] = {false, false};
             for (int k = 0; k < hullIdxs.size(); ++k) {
                 if(hullIdxs[k] < maxBOSi){
-                    hullIdxs1.push_back(hullIdxs[k]);
+                    hullPts1.push_back(comb2Areas[hullIdxs[k]]);
+                    if ((hullIdxInsert[0] < 0) && (!hullPts2.empty())){
+                        hullIdxInsert[0] = hullIdxs[k];
+                    }
+                    if ((hullIdxInsert[1] < 0) && (!hullPts2.empty())){
+                        hullIdxInsert[1] = hullIdxs[k-1] - maxBOSi + 1;
+                        advIdx[1] = true;
+                        if(hullIdxInsert[1] >= (int)contours[minDistIdx.first].size()){
+                            hullIdxInsert[1] = 0;
+                        }
+                    }
                 }
                 else{
-                    hullIdxs2.push_back(hullIdxs[k]);
+                    if ((hullIdxInsert[0] < 0) && (!hullPts1.empty())){
+                        hullIdxInsert[0] = hullIdxs[k-1] + 1;
+                        advIdx[0] = true;
+                        if(hullIdxInsert[0] >= maxBOSi){
+                            hullIdxInsert[0] = 0;
+                        }
+                    }
+                    if ((hullIdxInsert[1] < 0) && (!hullPts1.empty())){
+                        hullIdxInsert[1] = hullIdxs[k] - maxBOSi;
+                    }
+                    hullPts2.push_back(comb2Areas[hullIdxs[k]]);
                 }
             }
             //Take only contour coordinates from both areas that are within their own part of the convex hull
             // (neglect coordinates that are in between the 2 areas)
-            vector<Point> bigAreaContourNew;
-            for (int l = 0; l < maxBOSi; ++l) {
-                //Check if the coordinate is within or on the given contour
-                double ptLoc = 0;
-                ptLoc = cv::pointPolygonTest(hullIdxs1, bigAreaContour[l], false);
-                if(ptLoc >= 0){
-                    bigAreaContourNew.push_back(bigAreaContour[l]);
+            //And get a correct ordering of the contour
+            if(!hullPts2.empty()) {
+                int bACNidx = -1;
+                vector<Point> bigAreaContourNew1, bigAreaContourNew2;
+                if(hullPts1.size() < 3) {
+                    cv::Point edgePt;
+                    if(advIdx[0]){
+                        int useIdx = hullIdxInsert[0];
+                        if(useIdx == 0){
+                            useIdx = maxBOSi;
+                        }
+                        useIdx--;
+                        edgePt = bigAreaContour[useIdx];
+                    }
+                    else{
+                        edgePt = bigAreaContour[hullIdxInsert[0]];
+                    }
+
+                    bigAreaContourNew1 = hullPts1;
+                    for (int j = 0; j < (int)hullPts1.size(); ++j) {
+                        if((hullPts1[j].x - edgePt.x + hullPts1[j].y - edgePt.y) == 0){
+                            bACNidx = j;
+                            if(advIdx[0]){
+                                bACNidx++;
+                                if(bACNidx >= (int)hullPts1.size()){
+                                    bACNidx = 0;
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-            for (int l = 0; l < contours[minDistIdx.first].size(); ++l) {
-                //Check if the coordinate is within or on the given contour
-                double ptLoc = 0;
-                ptLoc = cv::pointPolygonTest(hullIdxs2, contours[minDistIdx.first][l], false);
-                if(ptLoc >= 0){
-                    bigAreaContourNew.push_back(contours[minDistIdx.first][l]);
+                else{
+                    for (int l = 0; l < maxBOSi; ++l) {
+                        //Check if the coordinate is within or on the given contour
+                        double ptLoc = 0;
+                        ptLoc = cv::pointPolygonTest(hullPts1, bigAreaContour[l], false);
+                        if (ptLoc >= 0) {
+                            bigAreaContourNew1.push_back(bigAreaContour[l]);
+                            if((bACNidx < 0) && (l >= hullIdxInsert[0])){
+                                bACNidx = (int)bigAreaContourNew1.size() - 1;
+                            }
+                        }
+                    }
+                    if(bACNidx < 0){
+                        bACNidx = 0;
+                        advIdx[0] = false;
+                    }
                 }
+
+                if(hullPts2.size() < 3){
+                    bigAreaContourNew2 = hullPts2;
+                }
+                else {
+                    int hullIdxInsert2 = -1;
+                    for (int l = 0; l < contours[minDistIdx.first].size(); ++l) {
+                        //Check if the coordinate is within or on the given contour
+                        double ptLoc = 0;
+                        ptLoc = cv::pointPolygonTest(hullPts2, contours[minDistIdx.first][l], false);
+                        if (ptLoc >= 0) {
+                            bigAreaContourNew2.push_back(contours[minDistIdx.first][l]);
+                            if((hullIdxInsert2 < 0) && (l >= hullIdxInsert[1])){
+                                hullIdxInsert2 = (int)bigAreaContourNew2.size() - 1;
+                            }
+                        }
+                    }
+                    if((hullIdxInsert2 < (int)bigAreaContourNew2.size()) && (hullIdxInsert2 > 0)){
+                        vector<Point> tmpContour;
+                        tmpContour.insert(tmpContour.end(), bigAreaContourNew2.begin() + hullIdxInsert2, bigAreaContourNew2.end());
+                        tmpContour.insert(tmpContour.end(), bigAreaContourNew2.begin(), bigAreaContourNew2.begin() + hullIdxInsert2);
+                        bigAreaContourNew2 = tmpContour;
+                    }
+                }
+
+                cv::Point pDiff[2];
+                int dist[2];
+                int useIdx = bACNidx;
+                if(advIdx[0]){
+                    if(useIdx == 0){
+                        useIdx = maxBOSi;
+                    }
+                    useIdx--;
+                }
+                pDiff[0] = bigAreaContourNew1[useIdx] - hullPts2[0];
+                pDiff[1] = bigAreaContourNew1[useIdx] - hullPts2.back();
+                dist[0] = pDiff[0].x * pDiff[0].x + pDiff[0].y + pDiff[0].y;
+                dist[1] = pDiff[1].x * pDiff[1].x + pDiff[1].y + pDiff[1].y;
+                if(dist[0] < dist[1]) {
+                    bigAreaContourNew1.insert(bigAreaContourNew1.begin() + bACNidx, hullPts2.begin(),
+                                              hullPts2.end());
+                }
+                else{
+                    std::reverse(hullPts2.begin(), hullPts2.end());
+                    bigAreaContourNew1.insert(bigAreaContourNew1.begin() + bACNidx, hullPts2.begin(),
+                                              hullPts2.end());
+                }
+
+                //Store the new larger contour
+                bigAreaContour = bigAreaContourNew1;
+                //Calculate the new center of the big area
+                bigAreaMoments = moments(bigAreaContour, true);
+                bigAreaCenter = Point2f(bigAreaMoments.m10 / bigAreaMoments.m00,
+                                        bigAreaMoments.m01 / bigAreaMoments.m00);
             }
-            //Store the new larger contour
-            bigAreaContour = bigAreaContourNew;
             //Delete the used area center
             areaCenters.erase(areaCenters.begin() + minDistIdx.second);
-            //Calculate the new center of the big area
-            bigAreaMoments = moments(bigAreaContour, true);
-            bigAreaCenter = Point2f( bigAreaMoments.m10/bigAreaMoments.m00 , bigAreaMoments.m01/bigAreaMoments.m00 );
         }
         contours.clear();
         contours.resize(1);
@@ -6442,7 +6547,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     }
 
     //Simplify the contour
-    double epsilon = 0.01 * cv::arcLength(contours[0], true);//1% of the overall contour length
+    double epsilon = 0.005 * cv::arcLength(contours[0], true);//1% of the overall contour length
     approxPolyDP(contours[0], finalHull, epsilon, true);
 
     if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
@@ -6510,12 +6615,13 @@ void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Poin
     Mat distImg;
     distanceTransform(icm, distImg, DIST_L2, DIST_MASK_PRECISE, CV_32FC1);
 
-    Mat distTransNorm;
+    /*Mat distTransNorm;
     normalize(distImg, distTransNorm, 0, 1.0, NORM_MINMAX);
     namedWindow("Distance Transform", WINDOW_AUTOSIZE);
     imshow("Distance Transform", distTransNorm);
     waitKey(0);
-    destroyWindow("Distance Transform");
+    destroyWindow("Distance Transform");*/
+
     /*destroyWindow("Convex hull combined");
     destroyWindow("Convex hull filled enlarged");
     destroyWindow("Convex hull filled");*/
@@ -6533,10 +6639,10 @@ void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Poin
     //Perform closing to generate the final mask
     morphologyEx(corrMask, finalMask, MORPH_CLOSE, element);
 
-    namedWindow("Final mask for given points", WINDOW_AUTOSIZE);
+    /*namedWindow("Final mask for given points", WINDOW_AUTOSIZE);
     imshow("Final mask for given points", finalMask > 0);
     waitKey(0);
-    destroyWindow("Final mask for given points");
+    destroyWindow("Final mask for given points");*/
 //    destroyWindow("Inverted keypoint mask");
 }
 
@@ -6991,7 +7097,7 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     if (movObj3DPtsWorld.empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Moving objects"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7083,7 +7189,7 @@ void genStereoSequ::visualizeStaticObjPtCloud() {
     if (staticWorld3DPts.empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Static Objects"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7101,7 +7207,7 @@ void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
     if (staticWorld3DPts.empty() || movObj3DPtsWorld.empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Moving and static objects"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7155,7 +7261,7 @@ void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCen
 
     CV_Assert(cloudCentroids_old.size() == cloudCentroids_new.size());
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Moving object movement"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7659,7 +7765,7 @@ void genStereoSequ::visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     if (cloudVisible->empty() && cloudOccluded->empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Occlusions within a moving object"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
