@@ -6403,46 +6403,236 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
             comb2Areas.insert(comb2Areas.end(), contours[minDistIdx.first].begin(), contours[minDistIdx.first].end());
             convexHull(comb2Areas, hullIdxs);
             //Check from which area the convex hull points are
-            int hullIdxInsert[2] = {-1, -1};
-            bool advIdx[2] = {false, false};
+            int hullIdxInsert[2][2] = {{-1, -1}, {-1, -1}};
+            bool advIdx[2][2] = {{false, false}, {false, false}};
+            bool branchChk[4] = {false, false, false, false};
             for (int k = 0; k < hullIdxs.size(); ++k) {
                 if(hullIdxs[k] < maxBOSi){
-                    hullPts1.push_back(comb2Areas[hullIdxs[k]]);
-                    if ((hullIdxInsert[0] < 0) && (!hullPts2.empty())){
-                        hullIdxInsert[0] = hullIdxs[k];
-                    }
-                    if ((hullIdxInsert[1] < 0) && (!hullPts2.empty())){
-                        hullIdxInsert[1] = hullIdxs[k-1] - maxBOSi + 1;
-                        advIdx[1] = true;
-                        if(hullIdxInsert[1] >= (int)contours[minDistIdx.first].size()){
-                            hullIdxInsert[1] = 0;
+                    branchChk[0] = true;
+                    if(branchChk[0] && branchChk[1]){
+                        branchChk[3] = true;
+                        if (hullIdxInsert[0][0] < 0){
+                            hullIdxInsert[0][0] = hullIdxs[k];
+                        }
+                        if (hullIdxInsert[1][0] < 0){
+                            hullIdxInsert[1][0] = hullIdxs[k-1] - maxBOSi;
+                            advIdx[1][0] = true;
                         }
                     }
+                    if(branchChk[2]){
+                        if (hullIdxInsert[0][1] < 0){
+                            hullIdxInsert[0][1] = hullIdxs[k];
+                        }
+                        if ((hullIdxInsert[1][1] < 0) && (!hullPts2.empty())){
+                            hullIdxInsert[1][1] = hullIdxs[k-1] - maxBOSi;
+                            advIdx[1][1] = true;
+                        }
+                    }
+
+                    hullPts1.push_back(comb2Areas[hullIdxs[k]]);
                 }
                 else{
-                    if ((hullIdxInsert[0] < 0) && (!hullPts1.empty())){
-                        hullIdxInsert[0] = hullIdxs[k-1] + 1;
-                        advIdx[0] = true;
-                        if(hullIdxInsert[0] >= maxBOSi){
-                            hullIdxInsert[0] = 0;
+                    branchChk[1] = true;
+                    if(branchChk[0] && branchChk[1]){
+                        branchChk[2] = true;
+                        if (hullIdxInsert[0][0] < 0){
+                            hullIdxInsert[0][0] = hullIdxs[k-1];
+                            advIdx[0][0] = true;
+                        }
+                        if (hullIdxInsert[1][0] < 0){
+                            hullIdxInsert[1][0] = hullIdxs[k] - maxBOSi;
                         }
                     }
-                    if ((hullIdxInsert[1] < 0) && (!hullPts1.empty())){
-                        hullIdxInsert[1] = hullIdxs[k] - maxBOSi;
+                    if(branchChk[3]){
+                        if (hullIdxInsert[0][1] < 0){
+                            hullIdxInsert[0][1] = hullIdxs[k-1];
+                            advIdx[0][1] = true;
+                        }
+                        if (hullIdxInsert[1][1] < 0){
+                            hullIdxInsert[1][1] = hullIdxs[k] - maxBOSi;
+                        }
                     }
                     hullPts2.push_back(comb2Areas[hullIdxs[k]]);
                 }
             }
+
+            if(!hullPts2.empty()) {
+
+                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                    Mat maskcontours = Mat::zeros(imgSize, CV_8UC3);
+                    vector<vector<Point>> tmp(1);
+                    tmp[0] = bigAreaContour;
+                    drawContours(maskcontours, tmp, 0, Scalar(0, 255, 0));
+                    namedWindow("New big area", WINDOW_AUTOSIZE);
+                    imshow("New big area", maskcontours);
+
+                    waitKey(0);
+                    destroyWindow("New big area");
+                }
+
+                if (hullIdxInsert[0][1] < 0){
+                    if(advIdx[0][0]){
+                        hullIdxInsert[0][1] = hullIdxs[0];
+                        hullIdxInsert[1][1] = hullIdxs.back() - maxBOSi;
+                        advIdx[1][1] = true;
+                    }
+                    else{
+                        hullIdxInsert[1][1] = hullIdxs[0] - maxBOSi;
+                        hullIdxInsert[0][1] = hullIdxs.back();
+                        advIdx[0][1] = true;
+                    }
+                }
+
+                CV_Assert((advIdx[0][0] ^ advIdx[1][0]) && (advIdx[0][1] ^ advIdx[1][1]) && (advIdx[0][0] ^ advIdx[0][1]));
+
+                vector<Point> bigAreaContourNew1, bigAreaContourNew2, bigAreaContourNew12, bigAreaContourNew22;
+                vector<Point>::iterator a1begin, a2begin, a1end, a2end;
+                if(advIdx[0][0]){
+                    if(hullIdxInsert[0][1] > hullIdxInsert[0][0]){
+                        hullIdxInsert[0][1]++;
+                        if(hullIdxInsert[0][1] >= maxBOSi){
+                            a1end = bigAreaContour.end();
+                        }
+                        else{
+                            a1end = bigAreaContour.begin() + hullIdxInsert[0][1];
+                        }
+                        a1begin = bigAreaContour.begin() + hullIdxInsert[0][0];
+                        bigAreaContourNew1.insert(bigAreaContourNew1.end(), a1begin, a1end);
+                        std::reverse(bigAreaContourNew1.begin(), bigAreaContourNew1.end());
+
+                        hullIdxInsert[0][1]--;
+                        a1begin = bigAreaContour.begin() + hullIdxInsert[0][1];
+                        a1end = bigAreaContour.end();
+                        bigAreaContourNew12.insert(bigAreaContourNew12.end(), a1begin, a1end);
+                        hullIdxInsert[0][0]++;
+                        a1begin = bigAreaContour.begin();
+                        a1end = bigAreaContour.begin() + hullIdxInsert[0][0];
+                        bigAreaContourNew12.insert(bigAreaContourNew12.end(), a1begin, a1end);
+                    }
+                    else{
+                        hullIdxInsert[0][0]++;
+                        if(hullIdxInsert[0][0] >= maxBOSi){
+                            a1end = bigAreaContour.end();
+                        }
+                        else{
+                            a1end = bigAreaContour.begin() + hullIdxInsert[0][0];
+                        }
+                        a1begin = bigAreaContour.begin() + hullIdxInsert[0][1];
+                        bigAreaContourNew1.insert(bigAreaContourNew1.end(), a1begin, a1end);
+
+                        hullIdxInsert[0][1]++;
+                        if(hullIdxInsert[0][1] >= maxBOSi){
+                            a1end = bigAreaContour.end();
+                        }
+                        else{
+                            a1end = bigAreaContour.begin() + hullIdxInsert[0][1];
+                        }
+                        a1begin = bigAreaContour.begin();
+                        bigAreaContourNew12.insert(bigAreaContourNew12.end(), a1begin, a1end);
+                        std::reverse(bigAreaContourNew12.begin(), bigAreaContourNew12.end());
+                        vector<Point> secPosib;
+                        hullIdxInsert[0][0]--;
+                        a1begin = bigAreaContour.begin() + hullIdxInsert[0][0];
+                        a1end = bigAreaContour.end();
+                        secPosib.insert(secPosib.end(), a1begin, a1end);
+                        std::reverse(secPosib.begin(), secPosib.end());
+                        bigAreaContourNew12.insert(bigAreaContourNew12.end(), secPosib.begin(), secPosib.end());
+                    }
+
+                    if(hullIdxInsert[1][0] > hullIdxInsert[1][1]){
+                        hullIdxInsert[1][0]++;
+                        if(hullIdxInsert[1][0] >= contours[minDistIdx.first].size()){
+                            a2end = contours[minDistIdx.first].end();
+                        }
+                        else{
+                            a2end = contours[minDistIdx.first].begin() + hullIdxInsert[1][0];
+                        }
+                        a2begin = contours[minDistIdx.first].begin() + hullIdxInsert[1][1];
+                        bigAreaContourNew2.insert(bigAreaContourNew2.end(), a2begin, a2end);
+                        std::reverse(bigAreaContourNew2.begin(), bigAreaContourNew2.end());
+                    }
+                    else{
+                        hullIdxInsert[1][1]++;
+                        if(hullIdxInsert[1][1] >= contours[minDistIdx.first].size()){
+                            a2end = contours[minDistIdx.first].end();
+                        }
+                        else{
+                            a2end = contours[minDistIdx.first].begin() + hullIdxInsert[1][1];
+                        }
+                        a2begin = contours[minDistIdx.first].begin() + hullIdxInsert[1][0];
+                        bigAreaContourNew2.insert(bigAreaContourNew2.end(), a2begin, a2end);
+                    }
+                    bigAreaContourNew1.insert(bigAreaContourNew1.end(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
+                }
+                else{
+                    if(hullIdxInsert[0][0] > hullIdxInsert[0][1]){
+                        hullIdxInsert[0][0]++;
+                        if(hullIdxInsert[0][0] >= maxBOSi){
+                            a1end = bigAreaContour.end();
+                        }
+                        else{
+                            a1end = bigAreaContour.begin() + hullIdxInsert[0][0];
+                        }
+                        a1begin = bigAreaContour.begin() + hullIdxInsert[0][1];
+                        bigAreaContourNew1.insert(bigAreaContourNew1.end(), a1begin, a1end);
+                        std::reverse(bigAreaContourNew1.begin(), bigAreaContourNew1.end());
+                    }
+                    else{
+                        hullIdxInsert[0][1]++;
+                        if(hullIdxInsert[0][1] >= maxBOSi){
+                            a1end = bigAreaContour.end();
+                        }
+                        else{
+                            a1end = bigAreaContour.begin() + hullIdxInsert[0][1];
+                        }
+                        a1begin = bigAreaContour.begin() + hullIdxInsert[0][0];
+                        bigAreaContourNew1.insert(bigAreaContourNew1.end(), a1begin, a1end);
+                    }
+
+                    if(hullIdxInsert[1][1] > hullIdxInsert[1][0]){
+                        hullIdxInsert[1][1]++;
+                        if(hullIdxInsert[1][1] >= contours[minDistIdx.first].size()){
+                            a2end = contours[minDistIdx.first].end();
+                        }
+                        else{
+                            a2end = contours[minDistIdx.first].begin() + hullIdxInsert[1][1];
+                        }
+                        a2begin = contours[minDistIdx.first].begin() + hullIdxInsert[0][0];
+                        bigAreaContourNew2.insert(bigAreaContourNew2.end(), a2begin, a2end);
+                        std::reverse(bigAreaContourNew2.begin(), bigAreaContourNew2.end());
+                    }
+                    else{
+                        hullIdxInsert[1][0]++;
+                        if(hullIdxInsert[1][0] >= contours[minDistIdx.first].size()){
+                            a2end = contours[minDistIdx.first].end();
+                        }
+                        else{
+                            a2end = contours[minDistIdx.first].begin() + hullIdxInsert[1][0];
+                        }
+                        a2begin = contours[minDistIdx.first].begin() + hullIdxInsert[1][1];
+                        bigAreaContourNew2.insert(bigAreaContourNew2.end(), a2begin, a2end);
+                    }
+                    bigAreaContourNew1.insert(bigAreaContourNew1.begin(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
+                }
+
+                //Store the new larger contour
+                bigAreaContour = bigAreaContourNew1;
+                //Calculate the new center of the big area
+                bigAreaMoments = moments(bigAreaContour, true);
+                bigAreaCenter = Point2f(bigAreaMoments.m10 / bigAreaMoments.m00,
+                                        bigAreaMoments.m01 / bigAreaMoments.m00);
+            }
+
             //Take only contour coordinates from both areas that are within their own part of the convex hull
             // (neglect coordinates that are in between the 2 areas)
             //And get a correct ordering of the contour
-            if(!hullPts2.empty()) {
+            /*if(!hullPts2.empty()) {
                 int bACNidx = -1;
                 vector<Point> bigAreaContourNew1, bigAreaContourNew2;
                 if(hullPts1.size() < 3) {
                     cv::Point edgePt;
-                    if(advIdx[0]){
-                        int useIdx = hullIdxInsert[0];
+                    if(advIdx[0][0]){
+                        int useIdx = hullIdxInsert[0][0];
                         if(useIdx == 0){
                             useIdx = maxBOSi;
                         }
@@ -6450,14 +6640,14 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                         edgePt = bigAreaContour[useIdx];
                     }
                     else{
-                        edgePt = bigAreaContour[hullIdxInsert[0]];
+                        edgePt = bigAreaContour[hullIdxInsert[0][0]];
                     }
 
                     bigAreaContourNew1 = hullPts1;
                     for (int j = 0; j < (int)hullPts1.size(); ++j) {
                         if((hullPts1[j].x - edgePt.x + hullPts1[j].y - edgePt.y) == 0){
                             bACNidx = j;
-                            if(advIdx[0]){
+                            if(advIdx[0][0]){
                                 bACNidx++;
                                 if(bACNidx >= (int)hullPts1.size()){
                                     bACNidx = 0;
@@ -6473,14 +6663,14 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                         ptLoc = cv::pointPolygonTest(hullPts1, bigAreaContour[l], false);
                         if (ptLoc >= 0) {
                             bigAreaContourNew1.push_back(bigAreaContour[l]);
-                            if((bACNidx < 0) && (l >= hullIdxInsert[0])){
+                            if((bACNidx < 0) && (l >= hullIdxInsert[0][0])){
                                 bACNidx = (int)bigAreaContourNew1.size() - 1;
                             }
                         }
                     }
                     if(bACNidx < 0){
                         bACNidx = 0;
-                        advIdx[0] = false;
+                        advIdx[0][0] = false;
                     }
                 }
 
@@ -6495,7 +6685,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                         ptLoc = cv::pointPolygonTest(hullPts2, contours[minDistIdx.first][l], false);
                         if (ptLoc >= 0) {
                             bigAreaContourNew2.push_back(contours[minDistIdx.first][l]);
-                            if((hullIdxInsert2 < 0) && (l >= hullIdxInsert[1])){
+                            if((hullIdxInsert2 < 0) && (l >= hullIdxInsert[1][0])){
                                 hullIdxInsert2 = (int)bigAreaContourNew2.size() - 1;
                             }
                         }
@@ -6511,7 +6701,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                 cv::Point pDiff[2];
                 int dist[2];
                 int useIdx = bACNidx;
-                if(advIdx[0]){
+                if(advIdx[0][0]){
                     if(useIdx == 0){
                         useIdx = maxBOSi;
                     }
@@ -6537,7 +6727,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                 bigAreaMoments = moments(bigAreaContour, true);
                 bigAreaCenter = Point2f(bigAreaMoments.m10 / bigAreaMoments.m00,
                                         bigAreaMoments.m01 / bigAreaMoments.m00);
-            }
+            }*/
             //Delete the used area center
             areaCenters.erase(areaCenters.begin() + minDistIdx.second);
         }
