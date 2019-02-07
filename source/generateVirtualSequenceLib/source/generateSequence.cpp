@@ -26,6 +26,7 @@ a view restrictions like depth ranges, moving objects, ...
 #include "pcl/filters/frustum_culling.h"
 #include "pcl/common/transforms.h"
 #include "pcl/filters/voxel_grid_occlusion_estimation.h"
+#include <pcl/common/common.h>
 
 #include <boost/thread/thread.hpp>
 //#include <pcl/io/pcd_io.h>
@@ -4441,7 +4442,7 @@ void genStereoSequ::getNrSizePosMovObj() {
 
     //The maximum image area coverd with moving objects should not exeed 2/3 of the image
     if (minOArea * (int) pars.nrMovObjs > area23) {
-        pars.nrMovObjs = (size_t) (area23 / minOArea);
+        adaptMinNrMovObjsAndNrMovObjs((size_t) (area23 / minOArea));
         maxOArea = minOArea;
         minOArea = minOArea / 2;
     }
@@ -4461,7 +4462,7 @@ void genStereoSequ::getNrSizePosMovObj() {
                 maxOArea = minOArea;
                 minOArea = minOArea / 2;
             }
-            pars.nrMovObjs = (size_t) (maxOPerReg * nrStartA);
+            adaptMinNrMovObjsAndNrMovObjs((size_t) (maxOPerReg * nrStartA));
         }
     } else {
         maxOPerReg = 2;
@@ -4542,6 +4543,13 @@ void genStereoSequ::getNrSizePosMovObj() {
             }
         }
     }
+}
+
+void genStereoSequ::adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew){
+    float ratMinActMovObj = (float)pars.minNrMovObjs / (float)pars.nrMovObjs;
+    pars.minNrMovObjs = (size_t)round(ratMinActMovObj * (float)pars_nrMovObjsNew);
+    pars.minNrMovObjs = (pars.minNrMovObjs > pars_nrMovObjsNew) ? pars_nrMovObjsNew:pars.minNrMovObjs;
+    pars.nrMovObjs = pars_nrMovObjsNew;
 }
 
 //Build ranges and weights for a piecewise_constant_distribution based on values calculated before
@@ -6560,7 +6568,6 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                         getSecPartContourPos(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][1],
                                              hullIdxInsert[1][0]);
                     }
-//                    bigAreaContourNew1.insert(bigAreaContourNew1.begin(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
                 }
 
                 //Select the correct contours of both seperate areas which offer together the largest area and/or have points of the convex hull in common
@@ -7213,6 +7220,7 @@ void genStereoSequ::combineCorrespondences() {
     }
 
     //Copy distances of TN locations to their real matching position
+    combDistTNtoReal.clear();
     combDistTNtoReal.reserve(combNrCorrsTN);
     if (!distTNtoReal.empty()) {
         combDistTNtoReal.insert(combDistTNtoReal.end(), distTNtoReal.begin(), distTNtoReal.end());
@@ -7720,7 +7728,7 @@ void genStereoSequ::getMovObjPtsCam() {
         }
     }
 
-    if (movObjSize > 1) {
+    if ((movObjSize - delList.size()) > 1) {
         //Check, if there are overlaps between moving objects and filter 3D points that would be behind another moving object
         sort(meanDists.begin(), meanDists.end(), [](std::pair<float, int> first, std::pair<float, int> second) {
             return first.first < second.first;
@@ -7829,7 +7837,7 @@ void genStereoSequ::getMovObjPtsCam() {
                 destroyWindow("Global backprojected moving objects mask");
             }
         }
-    } else {
+    } else if (delList.empty()){
         for (int j = 0; j < filteredOccludedCamPts[0]->size(); ++j) {
             movObj3DPtsCam[0].push_back(cv::Point3d((double) (*filteredOccludedCamPts[0])[j].x,
                                                     (double) (*filteredOccludedCamPts[0])[j].y,
@@ -7903,6 +7911,7 @@ void genStereoSequ::getActEigenCamPose() {
 
     Eigen::Vector4d quat;
     MatToQuat(Re, quat);
+    quatNormalise(quat);
     actCamRot = Eigen::Quaternionf(quat.cast<float>());
 }
 
@@ -7947,6 +7956,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
 
     pcl::PointXYZ cloudCentroid;
     getCloudCentroid(*cloudIn.get(), cloudCentroid);
+    double usedZ;
     if (useNearLeafSize) {
         pcl::PointXYZ cloudDim;
         getCloudDimensionStdDev(*cloudIn.get(), cloudDim, cloudCentroid);
@@ -7963,19 +7973,70 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                 for (int k = 0; k < 2; ++k) {
                     Mat Xw = (Mat_<double>(3, 1) << x[i], y[j], z[k]);
                     Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
-                    if (Xc.at<double>(2) < minZ) {
+                    double ptz = Xc.at<double>(2);
+                    if ((ptz < minZ) && (ptz > 0)) {
                         minZ = Xc.at<double>(2);
                     }
                 }
             }
         }
+        if(minZ > maxFarDistMultiplier * actDepthFar){
+            Mat Xw = (Mat_<double>(3, 1) << (double) cloudCentroid.x, (double) cloudCentroid.y, (double) cloudCentroid.z);
+            Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
+            minZ = Xc.at<double>(2);
+        }
+        usedZ = minZ;
         leaf_size = (float) minZ;
     } else {
         Mat Xw = (Mat_<double>(3, 1) << (double) cloudCentroid.x, (double) cloudCentroid.y, (double) cloudCentroid.z);
         Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
-        leaf_size = (float) Xc.at<double>(2);
+        usedZ = Xc.at<double>(2);
+        leaf_size = (float) usedZ;
     }
     leaf_size /= (float) K1.at<double>(0, 0);
+
+    //Check if leaf size is too small for PCL (as there is a limitation within PCL)
+    Eigen::Vector4f min_p, max_p;
+    pcl::getMinMax3D(*cloudIn.get(), min_p, max_p);
+    float d1, d2, d3;
+    d1 = max_p[0] - min_p[0];
+    d2 = max_p[1] - min_p[1];
+    d3 = max_p[2] - min_p[2];
+    int64_t dx = static_cast<int64_t>(d1 / leaf_size)+1;
+    int64_t dy = static_cast<int64_t>(d2 / leaf_size)+1;
+    int64_t dz = static_cast<int64_t>(d3 / leaf_size)+1;
+    int64_t maxIdxSize = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+    if ((dx*dy*dz) > maxIdxSize){
+        double kSi = (double)((csurr.rows - 1) / 2);
+        kSi = kSi > 3.0 ? 3.0:kSi;
+        leaf_size = (float)(kSi * usedZ / K1.at<double>(0, 0));
+        dx = static_cast<int64_t>(d1 / leaf_size)+1;
+        dy = static_cast<int64_t>(d2 / leaf_size)+1;
+        dz = static_cast<int64_t>(d3 / leaf_size)+1;
+        while (((dx*dy*dz) > maxIdxSize) && ((kSi + DBL_EPSILON) < csurr.rows)) {
+            kSi++;
+            leaf_size = (float) (kSi * usedZ / K1.at<double>(0, 0));
+            dx = static_cast<int64_t>(d1 / leaf_size) + 1;
+            dy = static_cast<int64_t>(d2 / leaf_size) + 1;
+            dz = static_cast<int64_t>(d3 / leaf_size) + 1;
+        }
+        if ((dx*dy*dz) > maxIdxSize) {
+            double lNew = ceil(100.0 * (double) d1 * (double) d2 * (double) d3 / (double) maxIdxSize) / 100.0;
+            if (useNearLeafSize) {
+                //Go on without filtering
+                cloudOut.reset();
+                cloudOut = cloudIn;
+            } else {
+                if (lNew > 1.1 * (double) leaf_size) {
+                    //Go on without filtering
+                    cloudOut.reset();
+                    cloudOut = cloudIn;
+                } else {
+                    leaf_size = lNew;
+                }
+            }
+        }
+    }
 
     voxelFilter.setLeafSize(leaf_size, leaf_size,
                             leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2

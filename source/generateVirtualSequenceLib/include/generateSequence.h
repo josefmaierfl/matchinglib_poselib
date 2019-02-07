@@ -370,6 +370,7 @@ private:
                                 int32_t nr_movObj = 0,
                                 int y = 0);
     void clearNewMovObjVars();
+    void adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew);
 
 public:
 	uint32_t verbose = 0;
