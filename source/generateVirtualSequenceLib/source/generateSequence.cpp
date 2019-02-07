@@ -60,9 +60,11 @@ Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualizat
 
 void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap);
 
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
+void
+getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
 
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds,
+                       std::vector<pcl::PointXYZ> &cloudCentroids);
 
 void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid);
 
@@ -70,17 +72,22 @@ void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &point
                               std::vector<float> &cloudExtensions,
                               std::vector<pcl::PointXYZ> &cloudCentroids);
 
-void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension, pcl::PointXYZ &cloudCentroid);
+void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension,
+                             pcl::PointXYZ &cloudCentroid);
 
 Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                           const cv::Mat &R,
-                           const cv::Mat &t);
+                                      const cv::Mat &R,
+                                      const cv::Mat &t);
 
-void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim, pcl::PointXYZ &cloudCentroid);
+void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim,
+                             pcl::PointXYZ &cloudCentroid);
 
 void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
+
 void getSecPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
+
 void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
+
 void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
 
 /* -------------------------- Functions -------------------------- */
@@ -674,9 +681,8 @@ void genStereoSequ::visualizeCamPath() {
 }
 
 Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-        const cv::Mat &R,
-        const cv::Mat &t)
-{
+                                      const cv::Mat &R,
+                                      const cv::Mat &t) {
     Eigen::Affine3f m;
     m.setIdentity();
     Eigen::Vector3d te;
@@ -5392,7 +5398,7 @@ void genStereoSequ::genNewDepthMovObj() {
     movObjDepthClass.insert(movObjDepthClass.end(), movObjDepthClassNew.begin(), movObjDepthClassNew.end());
 }
 
-void genStereoSequ::clearNewMovObjVars(){
+void genStereoSequ::clearNewMovObjVars() {
     movObjCorrsImg1TP.clear();
     movObjCorrsImg2TP.clear();
     movObjCorrsImg1TN.clear();
@@ -5704,7 +5710,8 @@ void genStereoSequ::getMovObjCorrs() {
     }
 
     //Remove empty moving object point clouds
-    for (vector<vector<Point3d>>::reverse_iterator itr = movObj3DPtsCamNew.rbegin(); itr != movObj3DPtsCamNew.rend(); itr++) {
+    for (vector<vector<Point3d>>::reverse_iterator itr = movObj3DPtsCamNew.rbegin();
+         itr != movObj3DPtsCamNew.rend(); itr++) {
         if (itr->empty()) {
             movObj3DPtsCamNew.erase(std::next(itr).base());
         }
@@ -5879,7 +5886,7 @@ void genStereoSequ::backProjectMovObj() {
             movObjMaskFromLast |= movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
             movObjMaskFromLast2 |= movObjMaskFromLastLarge2[i](Rect(Point(posadd, posadd), imgSize));
 
-            if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+            if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                 Mat dispMask12 = (movObjMaskFromLast > 0);
                 Mat dispMask22 = (movObjMaskFromLast2 > 0);
                 vector<Mat> channels;
@@ -5935,7 +5942,7 @@ void genStereoSequ::backProjectMovObj() {
     for (size_t i = 0; i < actNrMovObj; i++) {
         Mat movObjMaskFromLastLargePiece = movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
         genMovObjHulls(movObjMaskFromLastLargePiece, movObjPt1[i], movObjLabelsFromLast[i]);
-        if(i > 0) {
+        if (i > 0) {
             movObjLabelsFromLast[i] &= (movObjMaskFromLast == 0);
         }
 
@@ -5946,7 +5953,7 @@ void genStereoSequ::backProjectMovObj() {
 
         movObjMaskFromLast |= movObjLabelsFromLast[i];
 
-        if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+        if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
             Mat dispMask2 = (movObjMaskFromLast > 0);
             vector<Mat> channels;
             Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -5976,7 +5983,7 @@ void genStereoSequ::backProjectMovObj() {
             if (areaMO2 > areaMO) {
                 areaMO = areaMO2;
                 imgSDdilate.copyTo(movObjLabelsFromLast[i]);
-                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                     namedWindow("Backprojected moving object hull enlargement", WINDOW_AUTOSIZE);
                     imshow("Backprojected moving object hull enlargement", movObjLabelsFromLast[i] > 0);
                     waitKey(0);
@@ -5987,7 +5994,7 @@ void genStereoSequ::backProjectMovObj() {
             }
             cnt++;
         }
-        if(cnt > 0){
+        if (cnt > 0) {
             Mat dispMask;
             if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                 dispMask = (movObjMaskFromLast > 0);
@@ -5995,7 +6002,7 @@ void genStereoSequ::backProjectMovObj() {
 
             movObjMaskFromLast |= movObjLabelsFromLast[i];
 
-            if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+            if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                 Mat dispMask2 = (movObjMaskFromLast > 0);
                 vector<Mat> channels;
                 Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -6074,7 +6081,7 @@ void genStereoSequ::backProjectMovObj() {
 
                 movObjMaskFromLast2 |= movObjMaskFromLast2Border(Rect(Point(posadd, posadd), imgSize));
 
-                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                     Mat dispMask2 = (movObjMaskFromLast2 > 0);
                     vector<Mat> channels;
                     Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -6136,7 +6143,7 @@ void genStereoSequ::backProjectMovObj() {
 
                 movObjMaskFromLastOld |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
 
-                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                     Mat dispMask2 = (movObjMaskFromLastOld > 0);
                     vector<Mat> channels;
                     Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -6238,7 +6245,7 @@ void genStereoSequ::backProjectMovObj() {
             cnt2++;
             if (remainingTN != missingCImg2[i]) {
 
-                if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+                if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                     Mat dispMask12 = (movObjLabelsFromLastN > 0);
                     Mat dispMask22 = (movObjMaskFromLast2Border > 0);
                     vector<Mat> channels;
@@ -6301,8 +6308,10 @@ void genStereoSequ::backProjectMovObj() {
                                           (objROIs[i].y + objROIs[i].height) > imgSize.height ? (imgSize.height -
                                                                                                  objROIs[i].y)
                                                                                               : objROIs[i].height);
-                        distributionX = std::uniform_int_distribution<int32_t>(objROIs[i].x, objROIs[i].x + objROIs[i].width - 1);
-                        distributionY = std::uniform_int_distribution<int32_t>(objROIs[i].y, objROIs[i].y + objROIs[i].height - 1);
+                        distributionX = std::uniform_int_distribution<int32_t>(objROIs[i].x,
+                                                                               objROIs[i].x + objROIs[i].width - 1);
+                        distributionY = std::uniform_int_distribution<int32_t>(objROIs[i].y,
+                                                                               objROIs[i].y + objROIs[i].height - 1);
                     } else {
                         break;
                     }
@@ -6362,7 +6371,7 @@ void genStereoSequ::backProjectMovObj() {
 
 void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> &finalHull) {
 
-    if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+    if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
         namedWindow("Original backprojected moving object mask", WINDOW_AUTOSIZE);
         imshow("Original backprojected moving object mask", mask > 0);
         waitKey(0);
@@ -6374,14 +6383,14 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     findContours(finalMcopy, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
     //Calculate 1 single outer contour for multiple sub-objects avoiding a convex hull
-    int contSize =(int)contours.size();
-    if(contSize > 1){
+    int contSize = (int) contours.size();
+    if (contSize > 1) {
         //Get biggest element (which will be the main element)
         double biggestArea = 0;
         int idx = 0;
         for (int i = 0; i < contSize; ++i) {
             double actArea = contourArea(contours[i]);
-            if(actArea > biggestArea){
+            if (actArea > biggestArea) {
                 biggestArea = actArea;
                 idx = i;
             }
@@ -6390,79 +6399,81 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
         Point2f bigAreaCenter;
         vector<Point> bigAreaContour = contours[idx];
         cv::Moments bigAreaMoments = moments(bigAreaContour, true);
-        bigAreaCenter = Point2f( bigAreaMoments.m10/bigAreaMoments.m00 , bigAreaMoments.m01/bigAreaMoments.m00 );
-        vector<pair<int,Point2f>> areaCenters;
+        bigAreaCenter = Point2f(bigAreaMoments.m10 / bigAreaMoments.m00, bigAreaMoments.m01 / bigAreaMoments.m00);
+        vector<pair<int, Point2f>> areaCenters;
         for (int i = 0; i < contSize; ++i) {
-            if(i == idx) continue;
+            if (i == idx) continue;
             cv::Moments areaMoment = moments(contours[i], true);
-            areaCenters.push_back(make_pair(i, Point2f( areaMoment.m10/areaMoment.m00 , areaMoment.m01/areaMoment.m00 )));
+            areaCenters.push_back(
+                    make_pair(i, Point2f(areaMoment.m10 / areaMoment.m00, areaMoment.m01 / areaMoment.m00)));
         }
         //Begin with the nearest element and combine every 2 nearest elements
         for (int i = 0; i < contSize - 1; ++i) {
             float minDist = FLT_MAX;
-            pair<int,int> minDistIdx;
+            pair<int, int> minDistIdx;
             for (int j = 0; j < areaCenters.size(); ++j) {
                 Point2f ptdiff = bigAreaCenter - areaCenters[j].second;
                 float dist = sqrt(ptdiff.x * ptdiff.x + ptdiff.y * ptdiff.y);
-                if(dist < minDist){
+                if (dist < minDist) {
                     minDist = dist;
-                    minDistIdx = make_pair(areaCenters[j].first,j);
+                    minDistIdx = make_pair(areaCenters[j].first, j);
                 }
             }
             //Combine nearest element and biggest element
-            int maxBOSi = (int)bigAreaContour.size();
+            int maxBOSi = (int) bigAreaContour.size();
             vector<int> hullIdxs;
             vector<Point> hullPts1, hullPts2;
             vector<Point> comb2Areas = bigAreaContour;
             comb2Areas.insert(comb2Areas.end(), contours[minDistIdx.first].begin(), contours[minDistIdx.first].end());
             convexHull(comb2Areas, hullIdxs);
             //Check from which area the convex hull points are
-            int hullIdxInsert[2][2] = {{-1, -1}, {-1, -1}};
-            bool advIdx[2][2] = {{false, false}, {false, false}};
+            int hullIdxInsert[2][2] = {{-1, -1},
+                                       {-1, -1}};
+            bool advIdx[2][2] = {{false, false},
+                                 {false, false}};
             bool branchChk[4] = {false, false, false, false};
             for (int k = 0; k < hullIdxs.size(); ++k) {
-                if(hullIdxs[k] < maxBOSi){
+                if (hullIdxs[k] < maxBOSi) {
                     branchChk[0] = true;
-                    if(branchChk[0] && branchChk[1]){
+                    if (branchChk[0] && branchChk[1]) {
                         branchChk[3] = true;
-                        if (hullIdxInsert[0][0] < 0){
+                        if (hullIdxInsert[0][0] < 0) {
                             hullIdxInsert[0][0] = hullIdxs[k];
                         }
-                        if (hullIdxInsert[1][0] < 0){
-                            hullIdxInsert[1][0] = hullIdxs[k-1] - maxBOSi;
+                        if (hullIdxInsert[1][0] < 0) {
+                            hullIdxInsert[1][0] = hullIdxs[k - 1] - maxBOSi;
                             advIdx[1][0] = true;
                         }
                     }
-                    if(branchChk[2]){
-                        if (hullIdxInsert[0][1] < 0){
+                    if (branchChk[2]) {
+                        if (hullIdxInsert[0][1] < 0) {
                             hullIdxInsert[0][1] = hullIdxs[k];
                         }
-                        if ((hullIdxInsert[1][1] < 0) && (!hullPts2.empty())){
-                            hullIdxInsert[1][1] = hullIdxs[k-1] - maxBOSi;
+                        if ((hullIdxInsert[1][1] < 0) && (!hullPts2.empty())) {
+                            hullIdxInsert[1][1] = hullIdxs[k - 1] - maxBOSi;
                             advIdx[1][1] = true;
                         }
                     }
 
                     hullPts1.push_back(comb2Areas[hullIdxs[k]]);
-                }
-                else{
+                } else {
                     branchChk[1] = true;
-                    if(branchChk[0] && branchChk[1]){
+                    if (branchChk[0] && branchChk[1]) {
                         branchChk[2] = true;
-                        if (hullIdxInsert[0][0] < 0){
-                            hullIdxInsert[0][0] = hullIdxs[k-1];
+                        if (hullIdxInsert[0][0] < 0) {
+                            hullIdxInsert[0][0] = hullIdxs[k - 1];
                             advIdx[0][0] = true;
                         }
-                        if (hullIdxInsert[1][0] < 0){
+                        if (hullIdxInsert[1][0] < 0) {
                             hullIdxInsert[1][0] = hullIdxs[k] - maxBOSi;
                         }
                     }
-                    if(branchChk[3]){
-                        if (hullIdxInsert[0][1] < 0){
-                            hullIdxInsert[0][1] = hullIdxs[k-1];
+                    if (branchChk[3]) {
+                        if (hullIdxInsert[0][1] < 0) {
+                            hullIdxInsert[0][1] = hullIdxs[k - 1];
                             advIdx[0][1] = true;
                         }
-                        if (hullIdxInsert[1][1] < 0){
+                        if (hullIdxInsert[1][1] < 0) {
                             hullIdxInsert[1][1] = hullIdxs[k] - maxBOSi;
                         }
                     }
@@ -6470,7 +6481,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                 }
             }
 
-            if(!hullPts2.empty()) {
+            if (!hullPts2.empty()) {
 
                 /*if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                     Mat maskcontours = Mat::zeros(imgSize, CV_8UC3);
@@ -6484,66 +6495,77 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                     destroyWindow("New big area");
                 }*/
 
-                if (hullIdxInsert[0][1] < 0){
-                    if(advIdx[0][0]){
+                if (hullIdxInsert[0][1] < 0) {
+                    if (advIdx[0][0]) {
                         hullIdxInsert[0][1] = hullIdxs[0];
                         hullIdxInsert[1][1] = hullIdxs.back() - maxBOSi;
                         advIdx[1][1] = true;
-                    }
-                    else{
+                    } else {
                         hullIdxInsert[1][1] = hullIdxs[0] - maxBOSi;
                         hullIdxInsert[0][1] = hullIdxs.back();
                         advIdx[0][1] = true;
                     }
                 }
 
-                CV_Assert((advIdx[0][0] ^ advIdx[1][0]) && (advIdx[0][1] ^ advIdx[1][1]) && (advIdx[0][0] ^ advIdx[0][1]));
+                CV_Assert((advIdx[0][0] ^ advIdx[1][0]) && (advIdx[0][1] ^ advIdx[1][1]) &&
+                          (advIdx[0][0] ^ advIdx[0][1]));
 
                 //Extract for each area both possible contour elements
                 vector<Point> bigAreaContourNew1, bigAreaContourNew2, bigAreaContourNew12, bigAreaContourNew22;
-                if(advIdx[0][0]){
-                    if(hullIdxInsert[0][1] > hullIdxInsert[0][0]){
-                        getFirstPartContourNeg(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][1], hullIdxInsert[0][0]);
-                        getSecPartContourNeg(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][1], hullIdxInsert[0][0]);
-                    }
-                    else{
-                        getFirstPartContourPos(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][1], hullIdxInsert[0][0]);
-                        getSecPartContourPos(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][1], hullIdxInsert[0][0]);
-                    }
-
-                    if(hullIdxInsert[1][0] > hullIdxInsert[1][1]){
-                        getFirstPartContourNeg(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][0], hullIdxInsert[1][1]);
-                        getSecPartContourNeg(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][0], hullIdxInsert[1][1]);
-                    }
-                    else{
-                        getFirstPartContourPos(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][0], hullIdxInsert[1][1]);
-                        getSecPartContourPos(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][0], hullIdxInsert[1][1]);
-                    }
-                }
-                else{
-                    if(hullIdxInsert[0][0] > hullIdxInsert[0][1]){
-                        getFirstPartContourNeg(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][0], hullIdxInsert[0][1]);
-                        getSecPartContourNeg(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][0], hullIdxInsert[0][1]);
-                    }
-                    else{
-                        getFirstPartContourPos(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][0], hullIdxInsert[0][1]);
-                        getSecPartContourPos(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][0], hullIdxInsert[0][1]);
+                if (advIdx[0][0]) {
+                    if (hullIdxInsert[0][1] > hullIdxInsert[0][0]) {
+                        getFirstPartContourNeg(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][1],
+                                               hullIdxInsert[0][0]);
+                        getSecPartContourNeg(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][1],
+                                             hullIdxInsert[0][0]);
+                    } else {
+                        getFirstPartContourPos(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][1],
+                                               hullIdxInsert[0][0]);
+                        getSecPartContourPos(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][1],
+                                             hullIdxInsert[0][0]);
                     }
 
-                    if(hullIdxInsert[1][1] > hullIdxInsert[1][0]){
-                        getFirstPartContourNeg(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][1], hullIdxInsert[1][0]);
-                        getSecPartContourNeg(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][1], hullIdxInsert[1][0]);
+                    if (hullIdxInsert[1][0] > hullIdxInsert[1][1]) {
+                        getFirstPartContourNeg(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][0],
+                                               hullIdxInsert[1][1]);
+                        getSecPartContourNeg(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][0],
+                                             hullIdxInsert[1][1]);
+                    } else {
+                        getFirstPartContourPos(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][0],
+                                               hullIdxInsert[1][1]);
+                        getSecPartContourPos(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][0],
+                                             hullIdxInsert[1][1]);
                     }
-                    else{
-                        getFirstPartContourPos(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][1], hullIdxInsert[1][0]);
-                        getSecPartContourPos(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][1], hullIdxInsert[1][0]);
+                } else {
+                    if (hullIdxInsert[0][0] > hullIdxInsert[0][1]) {
+                        getFirstPartContourNeg(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][0],
+                                               hullIdxInsert[0][1]);
+                        getSecPartContourNeg(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][0],
+                                             hullIdxInsert[0][1]);
+                    } else {
+                        getFirstPartContourPos(bigAreaContourNew1, bigAreaContour, hullIdxInsert[0][0],
+                                               hullIdxInsert[0][1]);
+                        getSecPartContourPos(bigAreaContourNew12, bigAreaContour, hullIdxInsert[0][0],
+                                             hullIdxInsert[0][1]);
+                    }
+
+                    if (hullIdxInsert[1][1] > hullIdxInsert[1][0]) {
+                        getFirstPartContourNeg(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][1],
+                                               hullIdxInsert[1][0]);
+                        getSecPartContourNeg(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][1],
+                                             hullIdxInsert[1][0]);
+                    } else {
+                        getFirstPartContourPos(bigAreaContourNew2, contours[minDistIdx.first], hullIdxInsert[1][1],
+                                               hullIdxInsert[1][0]);
+                        getSecPartContourPos(bigAreaContourNew22, contours[minDistIdx.first], hullIdxInsert[1][1],
+                                             hullIdxInsert[1][0]);
                     }
 //                    bigAreaContourNew1.insert(bigAreaContourNew1.begin(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
                 }
 
                 //Select the correct contours of both seperate areas which offer together the largest area and/or have points of the convex hull in common
-                if((hullPts1.size() <= 2) || (hullPts2.size() <= 2)){
-                    double areas[4] = {0,0,0,0};
+                if ((hullPts1.size() <= 2) || (hullPts2.size() <= 2)) {
+                    double areas[4] = {0, 0, 0, 0};
                     vector<Point> testCont[4];
                     testCont[0] = bigAreaContourNew1;
                     testCont[0].insert(testCont[0].end(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
@@ -6560,20 +6582,21 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                     std::ptrdiff_t pdiff = max_element(areas, areas + 4) - areas;
 
                     bool selfintersection = true;
-                    while(selfintersection) {
+                    while (selfintersection) {
                         Rect conRe;
                         conRe = cv::boundingRect(testCont[pdiff]);
                         Point conReSP = Point(conRe.x, conRe.y);
                         Mat testMat = Mat::zeros(conRe.height, conRe.width, CV_8UC1);
-                        for (int j = 1; j < (int)testCont[pdiff].size(); ++j) {
+                        for (int j = 1; j < (int) testCont[pdiff].size(); ++j) {
                             Mat testMat1 = Mat::zeros(conRe.height, conRe.width, CV_8UC1);
-                            cv::line(testMat1, testCont[pdiff][j-1]-conReSP, testCont[pdiff][j]-conReSP, Scalar(1));
-                            testMat1.at<unsigned char>(testCont[pdiff][j]-conReSP) = 0;
+                            cv::line(testMat1, testCont[pdiff][j - 1] - conReSP, testCont[pdiff][j] - conReSP,
+                                     Scalar(1));
+                            testMat1.at<unsigned char>(testCont[pdiff][j] - conReSP) = 0;
                             testMat += testMat1;
                         }
                         Mat testMat1 = Mat::zeros(conRe.height, conRe.width, CV_8UC1);
-                        cv::line(testMat1, testCont[pdiff].back()-conReSP, testCont[pdiff][0]-conReSP, Scalar(1));
-                        testMat1.at<unsigned char>(testCont[pdiff][0]-conReSP) = 0;
+                        cv::line(testMat1, testCont[pdiff].back() - conReSP, testCont[pdiff][0] - conReSP, Scalar(1));
+                        testMat1.at<unsigned char>(testCont[pdiff][0] - conReSP) = 0;
                         testMat += testMat1;
 
                         /*namedWindow("Line intersections", WINDOW_AUTOSIZE);
@@ -6588,86 +6611,90 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                         bool foundIntSec = false;
                         for (int k = 0; k < conRe.height; ++k) {
                             for (int l = 0; l < conRe.width; ++l) {
-                                if(testMat.at<unsigned char>(k,l) > 1){
+                                if (testMat.at<unsigned char>(k, l) > 1) {
                                     foundIntSec = true;
                                     break;
                                 }
                             }
-                            if(foundIntSec) break;
+                            if (foundIntSec) break;
                         }
-                        if(foundIntSec){
+                        if (foundIntSec) {
                             areas[pdiff] = 0;
                             pdiff = max_element(areas, areas + 4) - areas;
-                        }
-                        else{
+                        } else {
                             selfintersection = false;
                         }
                     }
                     bigAreaContour = testCont[pdiff];
-                } else{
+                } else {
                     bool selCont[4] = {false, false, false, false};
-                    int equCnt[2] = {0,0};
+                    int equCnt[2] = {0, 0};
                     for (int j = 0; j < (int) hullPts1.size(); ++j) {
                         for (int k = 0; k < (int) bigAreaContourNew1.size(); ++k) {
-                            if((abs(hullPts1[j].x - bigAreaContourNew1[k].x) + abs(hullPts1[j].y - bigAreaContourNew1[k].y)) == 0){
+                            if ((abs(hullPts1[j].x - bigAreaContourNew1[k].x) +
+                                 abs(hullPts1[j].y - bigAreaContourNew1[k].y)) == 0) {
                                 equCnt[0]++;
-                                if(equCnt[0] > 2){
+                                if (equCnt[0] > 2) {
                                     selCont[0] = true;
                                     break;
                                 }
                             }
                         }
-                        if(selCont[0]) break;
+                        if (selCont[0]) break;
                         for (int k = 0; k < (int) bigAreaContourNew12.size(); ++k) {
-                            if((abs(hullPts1[j].x - bigAreaContourNew12[k].x) + abs(hullPts1[j].y - bigAreaContourNew12[k].y)) == 0){
+                            if ((abs(hullPts1[j].x - bigAreaContourNew12[k].x) +
+                                 abs(hullPts1[j].y - bigAreaContourNew12[k].y)) == 0) {
                                 equCnt[1]++;
-                                if(equCnt[1] > 2){
+                                if (equCnt[1] > 2) {
                                     selCont[1] = true;
                                     break;
                                 }
                             }
                         }
-                        if(selCont[1]) break;
+                        if (selCont[1]) break;
                     }
                     equCnt[0] = 0;
                     equCnt[1] = 0;
                     for (int j = 0; j < (int) hullPts2.size(); ++j) {
                         for (int k = 0; k < (int) bigAreaContourNew2.size(); ++k) {
-                            if((abs(hullPts2[j].x - bigAreaContourNew2[k].x) + abs(hullPts2[j].y - bigAreaContourNew2[k].y)) == 0){
+                            if ((abs(hullPts2[j].x - bigAreaContourNew2[k].x) +
+                                 abs(hullPts2[j].y - bigAreaContourNew2[k].y)) == 0) {
                                 equCnt[0]++;
-                                if(equCnt[0] > 2){
+                                if (equCnt[0] > 2) {
                                     selCont[2] = true;
                                     break;
                                 }
                             }
                         }
-                        if(selCont[2]) break;
+                        if (selCont[2]) break;
                         for (int k = 0; k < (int) bigAreaContourNew22.size(); ++k) {
-                            if((abs(hullPts2[j].x - bigAreaContourNew22[k].x) + abs(hullPts2[j].y - bigAreaContourNew22[k].y)) == 0){
+                            if ((abs(hullPts2[j].x - bigAreaContourNew22[k].x) +
+                                 abs(hullPts2[j].y - bigAreaContourNew22[k].y)) == 0) {
                                 equCnt[1]++;
-                                if(equCnt[1] > 2){
+                                if (equCnt[1] > 2) {
                                     selCont[3] = true;
                                     break;
                                 }
                             }
                         }
-                        if(selCont[3]) break;
+                        if (selCont[3]) break;
                     }
-                    if(selCont[0] && selCont[2]){
+                    if (selCont[0] && selCont[2]) {
                         bigAreaContour = bigAreaContourNew1;
-                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
-                    }
-                    else if(selCont[0] && selCont[3]){
+                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew2.begin(),
+                                              bigAreaContourNew2.end());
+                    } else if (selCont[0] && selCont[3]) {
                         bigAreaContour = bigAreaContourNew1;
-                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew22.begin(), bigAreaContourNew22.end());
-                    }
-                    else if(selCont[1] && selCont[2]){
+                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew22.begin(),
+                                              bigAreaContourNew22.end());
+                    } else if (selCont[1] && selCont[2]) {
                         bigAreaContour = bigAreaContourNew12;
-                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew2.begin(), bigAreaContourNew2.end());
-                    }
-                    else{
+                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew2.begin(),
+                                              bigAreaContourNew2.end());
+                    } else {
                         bigAreaContour = bigAreaContourNew12;
-                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew22.begin(), bigAreaContourNew22.end());
+                        bigAreaContour.insert(bigAreaContour.end(), bigAreaContourNew22.begin(),
+                                              bigAreaContourNew22.end());
                     }
                 }
 
@@ -6687,15 +6714,14 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
 
     //Simplify the contour
     double epsilon = 0.005 * cv::arcLength(contours[0], true);//1% of the overall contour length
-    if(epsilon > 7.5){
+    if (epsilon > 7.5) {
         epsilon = 7.5;
-    }
-    else if(epsilon < 2.0){
+    } else if (epsilon < 2.0) {
         epsilon = 2.0;
     }
     approxPolyDP(contours[0], finalHull, epsilon, true);
 
-    if(verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
+    if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
         Mat maskcontours = Mat::zeros(imgSize, CV_8UC3);
         drawContours(maskcontours, contours, 0, Scalar(0, 255, 0));
         vector<vector<Point>> tmp(1);
@@ -6710,26 +6736,24 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     }
 }
 
-void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd){
+void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
     std::vector<cv::Point>::iterator a1begin, a1end;
     idxEnd++;
-    if(idxEnd >= source.size()){
+    if (idxEnd >= source.size()) {
         a1end = source.end();
-    }
-    else{
+    } else {
         a1end = source.begin() + idxEnd;
     }
     a1begin = source.begin() + idxStart;
     target.insert(target.end(), a1begin, a1end);
 }
 
-void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd){
+void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
     std::vector<cv::Point>::iterator a1begin, a1end;
     idxStart++;
-    if(idxStart >= source.size()){
+    if (idxStart >= source.size()) {
         a1end = source.end();
-    }
-    else{
+    } else {
         a1end = source.begin() + idxStart;
     }
     a1begin = source.begin() + idxEnd;
@@ -6737,23 +6761,22 @@ void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Poin
     std::reverse(target.begin(), target.end());
 }
 
-void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd){
+void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
     std::vector<cv::Point>::iterator a1begin, a1end;
-    if(idxStart == idxEnd){
+    if (idxStart == idxEnd) {
         idxEnd++;
     }
     idxStart++;
-    if(idxStart >= source.size()){
+    if (idxStart >= source.size()) {
         a1end = source.end();
-    }
-    else{
+    } else {
         a1end = source.begin() + idxStart;
     }
     a1begin = source.begin();
     target.insert(target.end(), a1begin, a1end);
     std::reverse(target.begin(), target.end());
     vector<Point> secPosib;
-    if(idxEnd < (int)source.size()) {
+    if (idxEnd < (int) source.size()) {
         a1begin = source.begin() + idxEnd;
         a1end = source.end();
         secPosib.insert(secPosib.end(), a1begin, a1end);
@@ -6762,12 +6785,12 @@ void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point>
     }
 }
 
-void getSecPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd){
+void getSecPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
     std::vector<cv::Point>::iterator a1begin, a1end;
-    if(idxStart == idxEnd){
+    if (idxStart == idxEnd) {
         idxStart++;
     }
-    if(idxStart < (int)source.size()) {
+    if (idxStart < (int) source.size()) {
         a1begin = source.begin() + idxStart;
         a1end = source.end();
         target.insert(target.end(), a1begin, a1end);
@@ -6778,14 +6801,15 @@ void getSecPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point>
     target.insert(target.end(), a1begin, a1end);
 }
 
-void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts) {
+void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask,
+                                   std::vector<cv::Point> *hullPts) {
     int sqrSi = csurr.rows;
 
     //Get the convex hull of the keypoints
     vector<vector<Point>> hull(1);
     convexHull(kps, hull[0]);
 
-    if(hullPts){
+    if (hullPts) {
         *hullPts = hull[0];
     }
 
@@ -7039,24 +7063,24 @@ void genStereoSequ::combineCorrespondences() {
     //Get number of TP correspondences
     combNrCorrsTP = actCorrsImg1TPFromLast.cols + actCorrsImg1TP.cols;
     for (auto i : movObjCorrsImg1TPFromLast) {
-        if(!i.empty()) {
+        if (!i.empty()) {
             combNrCorrsTP += i.cols;
         }
     }
     for (auto i : movObjCorrsImg1TP) {
-        if(!i.empty()) {
+        if (!i.empty()) {
             combNrCorrsTP += i.cols;
         }
     }
     //Get number of TN correspondences
     combNrCorrsTN = actCorrsImg1TN.cols;
     for (auto i : movObjCorrsImg1TNFromLast) {
-        if(!i.empty()) {
+        if (!i.empty()) {
             combNrCorrsTN += i.cols;
         }
     }
     for (auto i : movObjCorrsImg1TN) {
-        if(!i.empty()) {
+        if (!i.empty()) {
             combNrCorrsTN += i.cols;
         }
     }
@@ -7108,7 +7132,7 @@ void genStereoSequ::combineCorrespondences() {
     }
     for (auto i : movObj3DPtsCamNew) {
         //copy(i.begin(), i.end(), comb3DPts.end());
-        if(!i.empty()) {
+        if (!i.empty()) {
             comb3DPts.insert(comb3DPts.end(), i.begin(), i.end());
         }
     }
@@ -7195,13 +7219,13 @@ void genStereoSequ::combineCorrespondences() {
     }
     for (auto i : movObjDistTNtoReal) {
         //copy(i.begin(), i.end(), combDistTNtoReal.end());
-        if(!i.empty()) {
+        if (!i.empty()) {
             combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
         }
     }
     for (auto i : movObjDistTNtoRealNew) {
         //copy(i.begin(), i.end(), combDistTNtoReal.end());
-        if(!i.empty()) {
+        if (!i.empty()) {
             combDistTNtoReal.insert(combDistTNtoReal.end(), i.begin(), i.end());
         }
     }
@@ -7312,7 +7336,8 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     if (movObj3DPtsWorld.empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Moving objects"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+            new pcl::visualization::PCLVisualizer("Moving objects"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7404,7 +7429,8 @@ void genStereoSequ::visualizeStaticObjPtCloud() {
     if (staticWorld3DPts.empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Static Objects"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+            new pcl::visualization::PCLVisualizer("Static Objects"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7422,7 +7448,8 @@ void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
     if (staticWorld3DPts.empty() || movObj3DPtsWorld.empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Moving and static objects"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+            new pcl::visualization::PCLVisualizer("Moving and static objects"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7476,7 +7503,8 @@ void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCen
 
     CV_Assert(cloudCentroids_old.size() == cloudCentroids_new.size());
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Moving object movement"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+            new pcl::visualization::PCLVisualizer("Moving object movement"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
@@ -7488,22 +7516,22 @@ void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCen
     colormap_img /= 255.0;
 
     for (size_t i = 0; i < cloudCentroids_old.size(); ++i) {
-        size_t i2 = 2*i;
-        size_t i21 = i2+1;
+        size_t i2 = 2 * i;
+        size_t i21 = i2 + 1;
         viewer->addSphere(cloudCentroids_old[i],
-                (double)cloudExtensions[i],
-                  colormap_img.at<cv::Vec3d>(i2)[2],
-                  colormap_img.at<cv::Vec3d>(i2)[1],
-                  colormap_img.at<cv::Vec3d>(i2)[0],
+                          (double) cloudExtensions[i],
+                          colormap_img.at<cv::Vec3d>(i2)[2],
+                          colormap_img.at<cv::Vec3d>(i2)[1],
+                          colormap_img.at<cv::Vec3d>(i2)[0],
                           "sphere_old" + std::to_string(i));
         viewer->addSphere(cloudCentroids_new[i],
-                          (double)cloudExtensions[i],
+                          (double) cloudExtensions[i],
                           colormap_img.at<cv::Vec3d>(i21)[2],
                           colormap_img.at<cv::Vec3d>(i21)[1],
                           colormap_img.at<cv::Vec3d>(i21)[0],
                           "sphere_new" + std::to_string(i));
         viewer->addArrow(cloudCentroids_new[i],
-                cloudCentroids_old[i],
+                         cloudCentroids_old[i],
                          colormap_img.at<cv::Vec3d>(i2)[2],
                          colormap_img.at<cv::Vec3d>(i2)[1],
                          colormap_img.at<cv::Vec3d>(i2)[0],
@@ -7512,15 +7540,15 @@ void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCen
     }
 
     //Add last camera center
-    if(actFrameCnt > 0) {
+    if (actFrameCnt > 0) {
         addVisualizeCamCenter(viewer, absCamCoordinates[actFrameCnt - 1].R, absCamCoordinates[actFrameCnt - 1].t);
         pcl::PointXYZ c_old, c_new;
-        c_old.x = (float)absCamCoordinates[actFrameCnt - 1].t.at<double>(0);
-        c_old.y = (float)absCamCoordinates[actFrameCnt - 1].t.at<double>(1);
-        c_old.z = (float)absCamCoordinates[actFrameCnt - 1].t.at<double>(2);
-        c_new.x = (float)absCamCoordinates[actFrameCnt].t.at<double>(0);
-        c_new.y = (float)absCamCoordinates[actFrameCnt].t.at<double>(1);
-        c_new.z = (float)absCamCoordinates[actFrameCnt].t.at<double>(2);
+        c_old.x = (float) absCamCoordinates[actFrameCnt - 1].t.at<double>(0);
+        c_old.y = (float) absCamCoordinates[actFrameCnt - 1].t.at<double>(1);
+        c_old.z = (float) absCamCoordinates[actFrameCnt - 1].t.at<double>(2);
+        c_new.x = (float) absCamCoordinates[actFrameCnt].t.at<double>(0);
+        c_new.y = (float) absCamCoordinates[actFrameCnt].t.at<double>(1);
+        c_new.z = (float) absCamCoordinates[actFrameCnt].t.at<double>(2);
         viewer->addArrow(c_new,
                          c_old,
                          1.0,
@@ -7577,9 +7605,8 @@ void genStereoSequ::updateMovObjPositions() {
 }
 
 void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
-        std::vector<float> &cloudExtensions,
-        std::vector<pcl::PointXYZ> &cloudCentroids)
-{
+                              std::vector<float> &cloudExtensions,
+                              std::vector<pcl::PointXYZ> &cloudCentroids) {
     cloudExtensions.reserve(pointclouds.size());
     for (size_t i = 0; i < pointclouds.size(); ++i) {
         float cloudExtension = 0;
@@ -7588,25 +7615,26 @@ void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &point
     }
 }
 
-void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension, pcl::PointXYZ &cloudCentroid)
-{
+void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension,
+                             pcl::PointXYZ &cloudCentroid) {
     pcl::PointXYZ cloudDim;
     getCloudDimensionStdDev(pointcloud, cloudDim, cloudCentroid);
     cloudExtension = (cloudDim.x + cloudDim.y + cloudDim.z) / 3.f;
 }
 
-void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim, pcl::PointXYZ &cloudCentroid){
-    Eigen::Matrix< float, 4, 1 > pm;
-    Eigen::Matrix< float, 3, 3 > covariance_matrix;
+void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim,
+                             pcl::PointXYZ &cloudCentroid) {
+    Eigen::Matrix<float, 4, 1> pm;
+    Eigen::Matrix<float, 3, 3> covariance_matrix;
     pm << cloudCentroid.x, cloudCentroid.y, cloudCentroid.z, 1.f;
     pcl::computeCovarianceMatrixNormalized(pointcloud, pm, covariance_matrix);
-    cloudDim.x = sqrt(covariance_matrix(0,0));
-    cloudDim.y = sqrt(covariance_matrix(1,1));
-    cloudDim.z = sqrt(covariance_matrix(2,2));
+    cloudDim.x = sqrt(covariance_matrix(0, 0));
+    cloudDim.y = sqrt(covariance_matrix(1, 1));
+    cloudDim.z = sqrt(covariance_matrix(2, 2));
 }
 
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids)
-{
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
+                       std::vector<pcl::PointXYZ> &cloudCentroids) {
     cloudCentroids.reserve(pointclouds.size());
     for (size_t i = 0; i < pointclouds.size(); ++i) {
         pcl::PointXYZ point;
@@ -7615,8 +7643,8 @@ void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
     }
 }
 
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids)
-{
+void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds,
+                       std::vector<pcl::PointXYZ> &cloudCentroids) {
     cloudCentroids.reserve(pointclouds.size());
     for (size_t i = 0; i < pointclouds.size(); ++i) {
         pcl::PointXYZ point;
@@ -7625,10 +7653,9 @@ void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointcl
     }
 }
 
-void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid)
-{
-    Eigen::Matrix< float, 4, 1 > pm;
-    pcl::compute3DCentroid(pointcloud,pm);
+void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid) {
+    Eigen::Matrix<float, 4, 1> pm;
+    pcl::compute3DCentroid(pointcloud, pm);
     cloudCentroid.x = pm(0);
     cloudCentroid.y = pm(1);
     cloudCentroid.z = pm(2);
@@ -7646,7 +7673,7 @@ void genStereoSequ::getMovObjPtsCam() {
     movObj3DPtsCam.resize(movObjSize);
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPts(movObjSize);
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedCamPts(movObjSize);
-    vector<pair<float,int>> meanDists(movObjSize, make_pair(0,-1));
+    vector<pair<float, int>> meanDists(movObjSize, make_pair(0, -1));
 
     Eigen::Affine3f obj_transform = Eigen::Affine3f::Identity();
     Eigen::Vector3d te;
@@ -7686,14 +7713,14 @@ void genStereoSequ::getMovObjPtsCam() {
         pcl::transformPointCloud(*filteredOccludedPts[i].get(), *filteredOccludedCamPts[i].get(), obj_transform);
 
         //Get the mean distance of every moving object to the camera
-        if(movObjSize > 1) {
+        if (movObjSize > 1) {
             pcl::PointXYZ mocentroid;
             getCloudCentroid(*filteredOccludedCamPts[i].get(), mocentroid);
             meanDists[i] = make_pair(mocentroid.z, i);
         }
     }
 
-    if(movObjSize > 1) {
+    if (movObjSize > 1) {
         //Check, if there are overlaps between moving objects and filter 3D points that would be behind another moving object
         sort(meanDists.begin(), meanDists.end(), [](std::pair<float, int> first, std::pair<float, int> second) {
             return first.first < second.first;
@@ -7728,14 +7755,14 @@ void genStereoSequ::getMovObjPtsCam() {
                 Mat s_tmp = locMOmask(Rect(keypointsMO[j], Size(sqrSi, sqrSi)));
                 csurr.copyTo(s_tmp);
             }
-            if(!keyPDelList.empty()){
-                for(int j = (int)keyPDelList.size(); j >= 0; j--){
+            if (!keyPDelList.empty()) {
+                for (int j = (int) keyPDelList.size(); j >= 0; j--) {
                     keypointsMO.erase(keypointsMO.begin() + keyPDelList[j]);
                     filteredOccludedCamPts[idx]->erase(filteredOccludedCamPts[idx]->begin() + keyPDelList[j]);
                 }
             }
 
-            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
                 namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
                 imshow("Backprojected moving object keypoints", locMOmask > 0);
                 waitKey(0);
@@ -7754,14 +7781,14 @@ void genStereoSequ::getMovObjPtsCam() {
             locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
             locMOmask &= hullMat;
 
-            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
                 namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
                 imshow("Backprojected moving object area final", locMOmask);
             }
 
             Mat overlaps = globMOmask & locMOmask;
 
-            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
                 namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
                 imshow("Overlap with other moving objects", overlaps);
                 waitKey(0);
@@ -7779,32 +7806,30 @@ void genStereoSequ::getMovObjPtsCam() {
                 for (int j = 0; j < keypointsMO.size(); ++j) {
                     if (overlaps.at<unsigned char>(keypointsMO[j]) == 0) {
                         movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
-                                                                (double) (*filteredOccludedCamPts[idx])[j].y,
-                                                                (double) (*filteredOccludedCamPts[idx])[j].z));
+                                                                  (double) (*filteredOccludedCamPts[idx])[j].y,
+                                                                  (double) (*filteredOccludedCamPts[idx])[j].z));
                     }
                 }
                 if (movObj3DPtsCam[idx].empty()) {
                     delList.push_back(idx);
                 }
-            }
-            else{
+            } else {
                 for (int j = 0; j < filteredOccludedCamPts[idx]->size(); ++j) {
                     movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
-                                                            (double) (*filteredOccludedCamPts[idx])[j].y,
-                                                            (double) (*filteredOccludedCamPts[idx])[j].z));
+                                                              (double) (*filteredOccludedCamPts[idx])[j].y,
+                                                              (double) (*filteredOccludedCamPts[idx])[j].z));
                 }
             }
             globMOmask |= locMOmask;
 
-            if(verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
                 namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
                 imshow("Global backprojected moving objects mask", globMOmask);
                 waitKey(0);
                 destroyWindow("Global backprojected moving objects mask");
             }
         }
-    }
-    else{
+    } else {
         for (int j = 0; j < filteredOccludedCamPts[0]->size(); ++j) {
             movObj3DPtsCam[0].push_back(cv::Point3d((double) (*filteredOccludedCamPts[0])[j].x,
                                                     (double) (*filteredOccludedCamPts[0])[j].y,
@@ -7816,7 +7841,8 @@ void genStereoSequ::getMovObjPtsCam() {
     if (!delList.empty()) {
         for (int i = (int) delList.size() - 1; i >= 0; i--) {
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
-            movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);//at this time, also moving objects that are only occluded are deleted
+            movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() +
+                                   delList[i]);//at this time, also moving objects that are only occluded are deleted
         }
     }
 }
@@ -7905,9 +7931,9 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
 //Returns false if more than 33% are occluded
 bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                         pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize) {
-    cloudIn->sensor_origin_ = Eigen::Vector4f((float)absCamCoordinates[actFrameCnt].t.at<double>(0),
-                                              (float)absCamCoordinates[actFrameCnt].t.at<double>(1),
-                                              (float)absCamCoordinates[actFrameCnt].t.at<double>(2), 1.f);
+    cloudIn->sensor_origin_ = Eigen::Vector4f((float) absCamCoordinates[actFrameCnt].t.at<double>(0),
+                                              (float) absCamCoordinates[actFrameCnt].t.at<double>(1),
+                                              (float) absCamCoordinates[actFrameCnt].t.at<double>(2), 1.f);
     cloudIn->sensor_orientation_ = actCamRot;
 
     pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> voxelFilter;
@@ -7937,19 +7963,19 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                 for (int k = 0; k < 2; ++k) {
                     Mat Xw = (Mat_<double>(3, 1) << x[i], y[j], z[k]);
                     Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
-                    if(Xc.at<double>(2) < minZ){
+                    if (Xc.at<double>(2) < minZ) {
                         minZ = Xc.at<double>(2);
                     }
                 }
             }
         }
-        leaf_size = (float)minZ;
+        leaf_size = (float) minZ;
     } else {
         Mat Xw = (Mat_<double>(3, 1) << (double) cloudCentroid.x, (double) cloudCentroid.y, (double) cloudCentroid.z);
         Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
-        leaf_size = (float)Xc.at<double>(2);
+        leaf_size = (float) Xc.at<double>(2);
     }
-    leaf_size /= (float)K1.at<double>(0, 0);
+    leaf_size /= (float) K1.at<double>(0, 0);
 
     voxelFilter.setLeafSize(leaf_size, leaf_size,
                             leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
@@ -7964,15 +7990,13 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         int ret = voxelFilter.occlusionEstimation(grid_state, grid_coordinates);
         if ((ret == 0) && (grid_state == 0)) {
             cloudOut->push_back(cloudIn->points[i]);
-        }
-        else if((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS))
-        {
+        } else if ((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS)) {
             cloudOccluded->push_back(cloudIn->points[i]);
         }
     }
 
-    if(verbose & SHOW_BACKPROJECT_OCCLUSIONS){
-        visualizeOcclusions(cloudOut, cloudOccluded, (double)leaf_size);
+    if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+        visualizeOcclusions(cloudOut, cloudOccluded, (double) leaf_size);
     }
 
     float fracOcc = (float) (cloudOut->size()) / (float) (cloudIn->size());
@@ -7988,7 +8012,8 @@ void genStereoSequ::visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     if (cloudVisible->empty() && cloudOccluded->empty())
         return;
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Occlusions within a moving object"));
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+            new pcl::visualization::PCLVisualizer("Occlusions within a moving object"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
