@@ -369,6 +369,7 @@ private:
                                 int idx_x,
                                 int32_t nr_movObj = 0,
                                 int y = 0);
+    void clearNewMovObjVars();
 
 public:
 	uint32_t verbose = 0;

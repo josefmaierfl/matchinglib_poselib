@@ -4107,7 +4107,7 @@ void genStereoSequ::getKeypoints() {
         }
     }
 
-    //Check number of TP and TN per moving object and the overall inlier ratio
+    //Check number of static TP and TN per region and the overall inlier ratio
     size_t nrCorrsR = 0, nrCorrsRGiven = 0;
     nrCorrsR = nrTPCorrs + nrTNCorrs;
     nrCorrsRGiven = (size_t) sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0];
@@ -5392,6 +5392,15 @@ void genStereoSequ::genNewDepthMovObj() {
     movObjDepthClass.insert(movObjDepthClass.end(), movObjDepthClassNew.begin(), movObjDepthClassNew.end());
 }
 
+void genStereoSequ::clearNewMovObjVars(){
+    movObjCorrsImg1TP.clear();
+    movObjCorrsImg2TP.clear();
+    movObjCorrsImg1TN.clear();
+    movObjCorrsImg2TN.clear();
+    movObj3DPtsCamNew.clear();
+    movObjDistTNtoRealNew.clear();
+}
+
 //Generate correspondences and TN for newly generated moving objects
 void genStereoSequ::getMovObjCorrs() {
     size_t nr_movObj = actTPPerMovObj.size();
@@ -5410,17 +5419,12 @@ void genStereoSequ::getMovObjCorrs() {
     const int dispit_interval = 50;
 
     //Generate TP correspondences
-    movObjCorrsImg1TP.clear();
+    clearNewMovObjVars();
     movObjCorrsImg1TP.resize(nr_movObj);
-    movObjCorrsImg2TP.clear();
     movObjCorrsImg2TP.resize(nr_movObj);
-    movObjCorrsImg1TN.clear();
     movObjCorrsImg1TN.resize(nr_movObj);
-    movObjCorrsImg2TN.clear();
     movObjCorrsImg2TN.resize(nr_movObj);
-    movObj3DPtsCamNew.clear();
     movObj3DPtsCamNew.resize(nr_movObj);
-    movObjDistTNtoRealNew.clear();
     movObjDistTNtoRealNew.resize(nr_movObj);
     for (size_t i = 0; i < nr_movObj; i++) {
         std::uniform_int_distribution<int32_t> distributionX(movObjLabelsROIs[i].x,
@@ -5852,6 +5856,7 @@ void genStereoSequ::backProjectMovObj() {
             }
         }
 
+        //Check if the portion of usable 3D points of this moving  object is below a user specified threshold. If yes, delete it.
         double actGoodPortion = (double) (movObj3DPtsCam[i].size() - oor) / (double) movObj3DPtsCam[i].size();
         if ((actGoodPortion < pars.minMovObjCorrPortion) || nearZero(actGoodPortion)) {
             delList.push_back(i);
@@ -5921,7 +5926,7 @@ void genStereoSequ::backProjectMovObj() {
     }
     movObjDistTNtoReal.resize(actNrMovObj);
 
-    //Generate hulls of the objects in the image
+    //Generate hulls of the objects in the image and a mask fo every moving object and a global label mask
     movObjLabelsFromLast.resize(actNrMovObj);
     convhullPtsObj.resize(actNrMovObj);
     Mat movObjMaskFromLastOld = movObjMaskFromLast.clone();
@@ -5930,6 +5935,9 @@ void genStereoSequ::backProjectMovObj() {
     for (size_t i = 0; i < actNrMovObj; i++) {
         Mat movObjMaskFromLastLargePiece = movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
         genMovObjHulls(movObjMaskFromLastLargePiece, movObjPt1[i], movObjLabelsFromLast[i]);
+        if(i > 0) {
+            movObjLabelsFromLast[i] &= (movObjMaskFromLast == 0);
+        }
 
         Mat dispMask;
         if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
@@ -6021,7 +6029,7 @@ void genStereoSequ::backProjectMovObj() {
         }
     }
 
-    //Get ROIs of moving objects
+    //Get ROIs of moving objects by calculating the simplified contour (non-convex) of every object
     vector<Rect> objROIs(actNrMovObj);
     for (size_t i = 0; i < actNrMovObj; i++) {
         vector<Point> hull;
@@ -6311,6 +6319,7 @@ void genStereoSequ::backProjectMovObj() {
     movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
     actTNPerMovObjFromLast.resize(actNrMovObj);
     for (size_t i = 0; i < actNrMovObj; i++) {
+        //Generate a final non-convex hull or contour for every moving object
         genHullFromMask(movObjLabelsFromLast[i], convhullPtsObj[i]);
         movObjMaskFromLast |= (unsigned char) (i + 1) * movObjLabelsFromLast[i];
         //actAreaMovObj[i] = contourArea(convhullPtsObj[i]);
@@ -7014,9 +7023,11 @@ bool genStereoSequ::getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &see
 //The function backProjectMovObj() must be called before
 bool genStereoSequ::getNewMovObjs() {
     if (pars.minNrMovObjs == 0) {
+        clearNewMovObjVars();
         return false;
     }
     if (movObj3DPtsWorld.size() >= pars.minNrMovObjs) {
+        clearNewMovObjVars();
         return false;
     }
 
