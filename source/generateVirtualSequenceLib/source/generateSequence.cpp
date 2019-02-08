@@ -7867,6 +7867,21 @@ void genStereoSequ::getCamPtsFromWorld() {
     if (!success) {
         return;
     }
+
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts(9);
+    size_t checkSizePtCld = 0;
+    for (int y = 0; y < 9; ++y) {
+        for (int x = 0; x < 1; ++x) {
+            camFilteredPtsParts[y * 1 + x].reset(new pcl::PointCloud<pcl::PointXYZ>());
+            success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPtsParts[y * 1 + x], 9, 0, y, 0);
+            checkSizePtCld += camFilteredPtsParts[y * 1 + x]->size();
+        }
+    }
+    if(checkSizePtCld != camFilteredPts->size()){
+        cout << "Not working" << endl;
+    }
+
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
     success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts);
     if (!success) {
@@ -7907,6 +7922,9 @@ void genStereoSequ::getActEigenCamPose() {
             0, -1.f, 0, 0,
             1.f, 0, 0, 0,
             0, 0, 0, 1.f;
+    //X_w = R_c2w * R_z^T * R_y^T * (R_y * R_z * X_c); cam2robot = R_z^T * R_y^T; X_w is in the normal (z forward, y down, x right) coordinate system
+    //For the conversion from normal X_n to the other X_o (x forward, y up, z right) coordinate system: X_o = R_y * R_z * X_n (R_z rotation followed by R_y rotation)
+    //R_y is a -90deg and R_z a 180deg rotation
     actCamPose = pose_orig * cam2robot;
 
     Eigen::Vector4d quat;
@@ -7917,16 +7935,86 @@ void genStereoSequ::getActEigenCamPose() {
 
 //Get part of a pointcloud visible in a camera
 bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
-                                            pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut) {
+                                            pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
+                                            int fovDevideVertical,
+                                            int fovDevideHorizontal,
+                                            int returnDevPartNrVer,
+                                            int returnDevPartNrHor,
+                                            float minDistance,
+                                            float maxDistance) {
+
+    if(fovDevideVertical || fovDevideHorizontal || !nearZero((double)minDistance) || !nearZero((double)maxDistance)){
+        CV_Assert((fovDevideVertical == 0) || ((returnDevPartNrVer >= 0) && (returnDevPartNrVer < fovDevideVertical)));
+        CV_Assert((fovDevideHorizontal == 0) || ((returnDevPartNrHor >= 0) && (returnDevPartNrHor < fovDevideHorizontal)));
+        CV_Assert(nearZero((double)minDistance) || ((minDistance >= (float) actDepthNear) &&
+        (((minDistance < maxDistance) || nearZero((double)maxDistance)) && (minDistance < (float) (maxFarDistMultiplier * actDepthFar)))));
+        CV_Assert(nearZero((double)maxDistance) || ((maxDistance <= (float) (maxFarDistMultiplier * actDepthFar)) &&
+        ((minDistance < maxDistance) && (maxDistance > (float) actDepthNear))));
+    }
+
     pcl::FrustumCulling<pcl::PointXYZ> fc;
     fc.setInputCloud(cloudIn);
-    fc.setVerticalFOV(
-            2.f * 180.f * std::atan((float) imgSize.height / (2.f * (float) K1.at<double>(1, 1))) / (float) M_PI);
-    fc.setHorizontalFOV(
-            2.f * 180.f * std::atan((float) imgSize.width / (2.f * (float) K1.at<double>(0, 0))) / (float) M_PI);
-    fc.setNearPlaneDistance((float) actDepthNear);
-    fc.setFarPlaneDistance((float) (maxFarDistMultiplier * actDepthFar));
-    fc.setCameraPose(actCamPose);
+    float verFOV = 2.f * std::atan((float) imgSize.height / (2.f * (float) K1.at<double>(1, 1)));
+    float horFOV = 2.f * std::atan((float) imgSize.width / (2.f * (float) K1.at<double>(0, 0)));
+    if(fovDevideVertical){
+        verFOV /= (float)fovDevideVertical;
+    }
+    if(fovDevideHorizontal){
+        horFOV /= (float)fovDevideHorizontal;
+    }
+    fc.setVerticalFOV(180.f * verFOV / (float) M_PI);
+    fc.setHorizontalFOV(180.f * horFOV / (float) M_PI);
+
+    if(nearZero((double)minDistance)) {
+        fc.setNearPlaneDistance((float) actDepthNear);
+    }
+    else{
+        fc.setNearPlaneDistance(minDistance);
+    }
+    if(nearZero((double)maxDistance)) {
+        fc.setFarPlaneDistance((float) (maxFarDistMultiplier * actDepthFar));
+    }else{
+        fc.setFarPlaneDistance(maxDistance);
+    }
+
+    if(fovDevideVertical || fovDevideHorizontal)
+    {
+        Eigen::Matrix4f rotVer, rotHor;
+        if(fovDevideVertical){
+            float angV = verFOV * ((float)returnDevPartNrVer - (float)fovDevideVertical / 2.f + 0.5f);
+            /*rotVer
+                    << 1.f, 0, 0, 0,
+                    0, cos(angV), -sin(angV), 0,
+                    0, sin(angV), cos(angV), 0,
+                    0, 0, 0, 1.f;*/
+            rotVer
+                    << cos(angV), -sin(angV), 0, 0,
+                    sin(angV), cos(angV), 0, 0,
+                    0, 0, 1.f, 0,
+                    0, 0, 0, 1.f;
+            rotVer.transposeInPlace();
+        }
+        else{
+            rotVer.setIdentity();
+        }
+        if(fovDevideHorizontal){
+            float angH = horFOV * ((float)returnDevPartNrHor - (float)fovDevideHorizontal / 2.f + 0.5f);
+            rotHor
+                    << cos(angH), 0, sin(angH), 0,
+                    0, 1.f, 0, 0,
+                    -sin(angH), 0, cos(angH), 0,
+                    0, 0, 0, 1.f;
+            rotHor.transposeInPlace();
+        }
+        else{
+            rotHor.setIdentity();
+        }
+//        fc.setCameraPose(rotVer * rotHor * actCamPose);
+        fc.setCameraPose(actCamPose * rotHor * rotVer);
+    }
+    else {
+        fc.setCameraPose(actCamPose);
+    }
 
     fc.filter(*cloudOut);
 

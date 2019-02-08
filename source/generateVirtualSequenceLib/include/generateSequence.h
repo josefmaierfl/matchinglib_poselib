@@ -339,7 +339,14 @@ private:
 	void transMovObjPtsToWorld();
 	void updateMovObjPositions();
 	void getActEigenCamPose();
-	bool getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut);
+	bool getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+								 pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
+								 int fovDevideVertical = 0,
+								 int fovDevideHorizontal = 0,
+								 int returnDevPartNrVer = 0,
+								 int returnDevPartNrHor = 0,
+								 float minDistance = 0,
+								 float maxDistance = 0);
 	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize = false);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
