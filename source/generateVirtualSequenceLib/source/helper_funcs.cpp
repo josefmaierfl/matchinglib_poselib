@@ -292,7 +292,7 @@ bool isMatRotationMat(Eigen::Matrix3d R)
 	return R_check.isZero(1e-3) && nearZero(r_det);
 }
 
-/* Calculates the difference (roation angle) between two rotation matrices.
+/* Calculates the difference (rotation angle) between two rotation matrices.
 *
 * Mat R1	Input  -> First rotation matrix
 * Mat R2	Input  -> Second rotation matrix
@@ -312,7 +312,62 @@ double rotDiff(const cv::Mat& R1, const cv::Mat& R2)
 	return rotDiff(q1, q2);
 }
 
-/* Calculates the difference (roation angle) between two rotation quaternions.
+/* Calculates the difference (rotation angle) between two rotation matrices.
+*
+* Eigen::Matrix3d R1	Input  -> First rotation matrix
+* Eigen::Matrix3d R2	Input  -> Second rotation matrix
+*
+* Return value:			Rotation angle (from Angle-axis-representation) between the two rotations
+*/
+double rotDiff(const Eigen::Matrix3d& R1, const Eigen::Matrix3d& R2)
+{
+	Eigen::Vector4d q1, q2;
+
+	MatToQuat(R1, q1);
+	MatToQuat(R2, q2);
+
+	return rotDiff(q1, q2);
+}
+
+/* Calculates the difference (rotation angle) between two camera projection matrices.
+*
+* Eigen::Matrix4d R1	Input  -> First projection matrix
+* Eigen::Matrix4d R2	Input  -> Second projection matrix
+*
+* Return value:			Rotation angle (from Angle-axis-representation) between the two rotations
+*/
+double rotDiff(const Eigen::Matrix4d& R1, const Eigen::Matrix4d& R2)
+{
+	Eigen::Vector4d q1, q2;
+	Eigen::Matrix3d R1e, R2e;
+	R1e = R1.block<3, 3>(0, 0);
+	R2e = R2.block<3, 3>(0, 0);
+
+	MatToQuat(R1e, q1);
+	MatToQuat(R2e, q2);
+
+	return rotDiff(q1, q2);
+}
+
+/* Calculates the difference (rotation angle) between two camera projection matrices.
+*
+* Eigen::Matrix4f R1	Input  -> First projection matrix
+* Eigen::Matrix4f R2	Input  -> Second projection matrix
+*
+* Return value:			Rotation angle (from Angle-axis-representation) between the two rotations
+*/
+double rotDiff(const Eigen::Matrix4f& R1, const Eigen::Matrix4f& R2)
+{
+	Eigen::Vector4d q1, q2;
+	Eigen::Matrix4d R1e, R2e;
+
+	R1e = R1.cast<double>();
+	R2e = R2.cast<double>();
+
+	return rotDiff(R1e, R2e);
+}
+
+/* Calculates the difference (rotation angle) between two rotation quaternions.
 *
 * Eigen::Vector4d R1	Input  -> First rotation quaternion
 * Eigen::Vector4d R2	Input  -> Second rotation quaternion

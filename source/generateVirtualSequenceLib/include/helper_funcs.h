@@ -68,11 +68,20 @@ bool isMatRotationMat(const cv::Mat& R);
 //Checks if a 3x3 matrix is a rotation matrix
 bool isMatRotationMat(Eigen::Matrix3d R);
 
-//Calculates the difference (roation angle) between two rotation quaternions.
+//Calculates the difference (rotation angle) between two rotation quaternions.
 double rotDiff(Eigen::Vector4d & R1, Eigen::Vector4d & R2);
 
-//Calculates the difference (roation angle) between two rotation matrices.
+//Calculates the difference (rotation angle) between two rotation matrices.
 double rotDiff(const cv::Mat& R1, const cv::Mat& R2);
+
+//Calculates the difference (rotation angle) between two rotation matrices.
+double rotDiff(const Eigen::Matrix3d& R1, const Eigen::Matrix3d& R2);
+
+//Calculates the difference (rotation angle) between two camera projection matrices.
+double rotDiff(const Eigen::Matrix4d& R1, const Eigen::Matrix4d& R2);
+
+//Calculates the difference (rotation angle) between two camera projection matrices.
+double rotDiff(const Eigen::Matrix4f& R1, const Eigen::Matrix4f& R2);
 
 //Calculates the product of a quaternion and a conjugated quaternion.
 void quatMultConj(const Eigen::Vector4d & Q1, const Eigen::Vector4d & Q2, Eigen::Vector4d & Qres);

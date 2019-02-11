@@ -4688,6 +4688,19 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
 
     size_t nr_movObj = areas.size();
 
+    if (nr_movObj == 0)
+        actCorrsOnMovObj = corrsOnMovObjLF;
+    else
+        actCorrsOnMovObj = (int32_t) round(pars.CorrMovObjPort * (double) nrCorrs[actFrameCnt]);
+
+    if(actCorrsOnMovObj <= corrsOnMovObjLF){
+        nr_movObj = 0;
+        seeds.clear();
+        areas.clear();
+        actTruePosOnMovObj = 0;
+        actTrueNegOnMovObj = 0;
+    }
+
     movObjLabels.clear();
     if (nr_movObj) {
         //movObjLabels.resize(nr_movObj, cv::Mat::zeros(imgSize, CV_8UC1));
@@ -4865,12 +4878,16 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     vector<vector<int32_t>> movObjCorrsFromStaticInv(3, vector<int32_t>(3, 0));
     int32_t absNrCorrsFromStatic = 0;
     Mat statCorrsPRegNew = Mat::zeros(3, 3, CV_32SC1);
+    double oldMovObjAreaImgRat = 0;
+    if((nr_movObj == 0) && (actCorrsOnMovObj > 0)){
+        oldMovObjAreaImgRat = (double)cv::countNonZero(mask) / (double)imgSize.area();
+    }
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
             movObjOverlap[y][x] = (double) (cv::countNonZero(combMovObjLabels(regROIs[y][x])) +
                                             cv::countNonZero(mask(regROIs[y][x]))) /
                                   (double) (regROIs[y][x].area());
-            if (movObjOverlap[y][x] > 0.85) {
+            if (movObjOverlap[y][x] > 0.9) {
                 movObjHasArea[y][x] = true;
                 movObjCorrsFromStatic[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
                 movObjCorrsFromStaticInv[y][x] = 0;
@@ -4880,6 +4897,10 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             } else {
                 movObjCorrsFromStatic[y][x] = (int32_t) round(
                         (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
+                if((nr_movObj == 0) && (actCorrsOnMovObj > 0)){
+                    int32_t maxFromOld = (int32_t) round((double)corrsOnMovObjLF * movObjOverlap[y][x] / oldMovObjAreaImgRat);
+                    movObjCorrsFromStatic[y][x] = movObjCorrsFromStatic[y][x] > maxFromOld ? maxFromOld:movObjCorrsFromStatic[y][x];
+                }
                 movObjCorrsFromStaticInv[y][x] =
                         nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) - movObjCorrsFromStatic[y][x];
                 absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
@@ -4895,12 +4916,12 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     //	moAreaOld += cv::contourArea(convhullPtsObj[i]);
     //}
 
-    if (nr_movObj == 0)
+    /*if (nr_movObj == 0)
         actCorrsOnMovObj = corrsOnMovObjLF;
     else
-        actCorrsOnMovObj = (int32_t) round(pars.CorrMovObjPort * (double) nrCorrs[actFrameCnt]);// -corrsOnMovObjLF;
+        actCorrsOnMovObj = (int32_t) round(pars.CorrMovObjPort * (double) nrCorrs[actFrameCnt]);*/// -corrsOnMovObjLF;
     //actCorrsOnMovObj = actCorrsOnMovObj > 0 ? actCorrsOnMovObj : 0;
-    if (actCorrsOnMovObj == 0) {
+    /*if (actCorrsOnMovObj == 0) {
         seeds.clear();
         areas.clear();
         movObjLabels.clear();
@@ -4910,7 +4931,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         actTruePosOnMovObj = 0;
         actTrueNegOnMovObj = 0;
         return;
-    }
+    }*/
     //Check if there are too many correspondences on the moving objects
     int32_t maxCorrs = 0;
     int32_t areassum = 0;
@@ -4951,137 +4972,139 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         }
     }
 
-    double areaFracStaticCorrs = (double) absNrCorrsFromStatic /
-                                 (double) nrCorrs[actFrameCnt];//Fraction of correspondences which the moving objects should take because of their area
-    //double r_CorrMovObjPort = round(pars.CorrMovObjPort * 100.0) / 100.0;//Fraction of correspondences the user specified for the moving objects
-    double r_areaFracStaticCorrs = round(areaFracStaticCorrs * 100.0) / 100.0;
-    double r_effectiveFracMovObj = round((double) actCorrsOnMovObj / (double) nrCorrs[actFrameCnt] * 100.0) /
-                                   100.0;//Effective not changable fraction of correspondences on moving objects
-    if (r_effectiveFracMovObj >
-        r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
-    {
-        int32_t remStat = actCorrsOnMovObj - absNrCorrsFromStatic;
-        int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
-        int32_t remStatrem = remStat;
-        for (size_t y = 0; y < 3; y++) {
-            for (size_t x = 0; x < 3; x++) {
-                if (!movObjHasArea[y][x] && (remStatrem > 0)) {
-                    int32_t val = (int32_t) round(
-                            (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remStat);
-                    int32_t newval = movObjCorrsFromStaticInv[y][x] - val;
-                    if (newval > 0) {
-                        remStatrem -= val;
-                        if (remStatrem < 0) {
-                            val += remStatrem;
-                            newval = movObjCorrsFromStaticInv[y][x] - val;
-                            remStatrem = 0;
-                        }
-                        statCorrsPRegNew.at<int32_t>(y, x) = newval;
-                    } else {
-                        remStatrem -= val + newval;
-                        if (remStatrem < 0) {
-                            statCorrsPRegNew.at<int32_t>(y, x) = -remStatrem;
-                            remStatrem = 0;
+    if (nr_movObj > 0) {
+        double areaFracStaticCorrs = (double) absNrCorrsFromStatic /
+                                     (double) nrCorrs[actFrameCnt];//Fraction of correspondences which the moving objects should take because of their area
+        //double r_CorrMovObjPort = round(pars.CorrMovObjPort * 100.0) / 100.0;//Fraction of correspondences the user specified for the moving objects
+        double r_areaFracStaticCorrs = round(areaFracStaticCorrs * 100.0) / 100.0;
+        double r_effectiveFracMovObj = round((double) actCorrsOnMovObj / (double) nrCorrs[actFrameCnt] * 100.0) /
+                                       100.0;//Effective not changable fraction of correspondences on moving objects
+        if (r_effectiveFracMovObj >
+            r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
+        {
+            int32_t remStat = actCorrsOnMovObj - absNrCorrsFromStatic;
+            int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+            int32_t remStatrem = remStat;
+            for (size_t y = 0; y < 3; y++) {
+                for (size_t x = 0; x < 3; x++) {
+                    if (!movObjHasArea[y][x] && (remStatrem > 0)) {
+                        int32_t val = (int32_t) round(
+                                (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remStat);
+                        int32_t newval = movObjCorrsFromStaticInv[y][x] - val;
+                        if (newval > 0) {
+                            remStatrem -= val;
+                            if (remStatrem < 0) {
+                                val += remStatrem;
+                                newval = movObjCorrsFromStaticInv[y][x] - val;
+                                remStatrem = 0;
+                            }
+                            statCorrsPRegNew.at<int32_t>(y, x) = newval;
+                        } else {
+                            remStatrem -= val + newval;
+                            if (remStatrem < 0) {
+                                statCorrsPRegNew.at<int32_t>(y, x) = -remStatrem;
+                                remStatrem = 0;
+                            }
                         }
                     }
                 }
             }
-        }
-        if (remStatrem > 0) {
-            vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
-                    const size_t idx = y * 3 + x;
-                    movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x));
+            if (remStatrem > 0) {
+                vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+                for (size_t y = 0; y < 3; y++) {
+                    for (size_t x = 0; x < 3; x++) {
+                        const size_t idx = y * 3 + x;
+                        movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x));
+                    }
+                }
+                sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
+                     [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                         return first.second > second.second;
+                     });
+                int maxIt = remStatrem;
+                while ((remStatrem > 0) && (maxIt > 0)) {
+                    for (size_t i = 0; i < 9; i++) {
+                        if (movObjCorrsFromStaticInv_tmp[i].second > 0) {
+                            size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+                            size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+                            statCorrsPRegNew.at<int32_t>(y, x)--;
+                            remStatrem--;
+                            movObjCorrsFromStaticInv_tmp[i].second--;
+                            if (remStatrem == 0) {
+                                break;
+                            }
+                        }
+                    }
+                    maxIt--;
                 }
             }
-            sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
-                 [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
-                     return first.second > second.second;
-                 });
-            int maxIt = remStatrem;
-            while ((remStatrem > 0) && (maxIt > 0)) {
-                for (size_t i = 0; i < 9; i++) {
-                    if (movObjCorrsFromStaticInv_tmp[i].second > 0) {
+        } else if (r_effectiveFracMovObj <
+                   r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
+        {
+            int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObj;
+
+            int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+            int32_t remMovrem = remMov;
+            vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
+            for (size_t y = 0; y < 3; y++) {
+                for (size_t x = 0; x < 3; x++) {
+                    if (!movObjHasArea[y][x] && (remMovrem > 0)) {
+                        int32_t val = (int32_t) round(
+                                (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
+                        int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
+                        //Get the maximum # of correspondences per area using the minimum distance between keypoints
+                        cmaxreg[y][x] = (int32_t) ((double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
+                                                   (1.0 - movObjOverlap[y][x]) /
+                                                   (1.5 * pars.minKeypDist * pars.minKeypDist));
+                        if (newval <= cmaxreg[y][x]) {
+                            remMovrem -= val;
+                            if (remMovrem < 0) {
+                                val += remMovrem;
+                                newval = movObjCorrsFromStaticInv[y][x] + val;
+                                remMovrem = 0;
+                            }
+                            statCorrsPRegNew.at<int32_t>(y, x) = newval;
+                            cmaxreg[y][x] -= newval;
+                        } else {
+                            statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
+                            remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
+                            if (remMovrem < 0) {
+                                statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
+                                remMovrem = 0;
+                            }
+                            cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
+                        }
+                    }
+                }
+            }
+            if (remMovrem > 0) {
+                vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+                for (size_t y = 0; y < 3; y++) {
+                    for (size_t x = 0; x < 3; x++) {
+                        const size_t idx = y * 3 + x;
+                        movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, cmaxreg[y][x]);
+                    }
+                }
+                sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
+                     [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                         return first.second > second.second;
+                     });
+                int maxIt = remMovrem;
+                while ((remMovrem > 0) && (maxIt > 0)) {
+                    for (size_t i = 0; i < 9; i++) {
                         size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
                         size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
-                        statCorrsPRegNew.at<int32_t>(y, x)--;
-                        remStatrem--;
-                        movObjCorrsFromStaticInv_tmp[i].second--;
-                        if (remStatrem == 0) {
-                            break;
+                        if ((movObjCorrsFromStaticInv_tmp[i].second > 0) && (statCorrsPRegNew.at<int32_t>(y, x) > 0)) {
+                            statCorrsPRegNew.at<int32_t>(y, x)++;
+                            remMovrem--;
+                            movObjCorrsFromStaticInv_tmp[i].second--;
+                            if (remMovrem == 0) {
+                                break;
+                            }
                         }
                     }
+                    maxIt--;
                 }
-                maxIt--;
-            }
-        }
-    } else if (r_effectiveFracMovObj <
-               r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
-    {
-        int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObj;
-
-        int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
-        int32_t remMovrem = remMov;
-        vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
-        for (size_t y = 0; y < 3; y++) {
-            for (size_t x = 0; x < 3; x++) {
-                if (!movObjHasArea[y][x] && (remMovrem > 0)) {
-                    int32_t val = (int32_t) round(
-                            (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
-                    int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
-                    //Get the maximum # of correspondences per area using the minimum distance between keypoints
-                    cmaxreg[y][x] = (int32_t) ((double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
-                                               (1.0 - movObjOverlap[y][x]) /
-                                               (1.5 * pars.minKeypDist * pars.minKeypDist));
-                    if (newval <= cmaxreg[y][x]) {
-                        remMovrem -= val;
-                        if (remMovrem < 0) {
-                            val += remMovrem;
-                            newval = movObjCorrsFromStaticInv[y][x] + val;
-                            remMovrem = 0;
-                        }
-                        statCorrsPRegNew.at<int32_t>(y, x) = newval;
-                        cmaxreg[y][x] -= newval;
-                    } else {
-                        statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
-                        remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
-                        if (remMovrem < 0) {
-                            statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
-                            remMovrem = 0;
-                        }
-                        cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
-                    }
-                }
-            }
-        }
-        if (remMovrem > 0) {
-            vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
-                    const size_t idx = y * 3 + x;
-                    movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, cmaxreg[y][x]);
-                }
-            }
-            sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
-                 [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
-                     return first.second > second.second;
-                 });
-            int maxIt = remMovrem;
-            while ((remMovrem > 0) && (maxIt > 0)) {
-                for (size_t i = 0; i < 9; i++) {
-                    size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
-                    size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
-                    if ((movObjCorrsFromStaticInv_tmp[i].second > 0) && (statCorrsPRegNew.at<int32_t>(y, x) > 0)) {
-                        statCorrsPRegNew.at<int32_t>(y, x)++;
-                        remMovrem--;
-                        movObjCorrsFromStaticInv_tmp[i].second--;
-                        if (remMovrem == 0) {
-                            break;
-                        }
-                    }
-                }
-                maxIt--;
             }
         }
     }
@@ -5139,6 +5162,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                         actTPPerMovObj[actAreaIdx[idx].first]--;
                         restTP++;
                     }
+                    else {
+                        idx++;
+                    }
                 }
                 if (restTP <= 0) {
                     seeds.erase(seeds.begin() + actAreaIdx[nr_movObj - 1].first);
@@ -5162,6 +5188,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                         if (actTNPerMovObj[actAreaIdx[idx].first] > 1) {
                             actTNPerMovObj[actAreaIdx[idx].first]--;
                             restTN++;
+                        }
+                        else {
+                            idx++;
                         }
                     }
                     if (restTN <= 0) {
@@ -7862,8 +7891,8 @@ void genStereoSequ::getCamPtsFromWorld() {
 
     actImgPointCloudFromLast.clear();
     pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
-    pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
-    bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPts);
+//    pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+    /*bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPts);
     if (!success) {
         return;
     }
@@ -7879,23 +7908,44 @@ void genStereoSequ::getCamPtsFromWorld() {
     }
     if(checkSizePtCld != camFilteredPts->size()){
         cout << "Not working" << endl;
+    }*/
+
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
+    const int partsx = 3;
+    const int partsy = 3;
+    const int partsxy = partsx * partsy;
+    bool success = getVisibleCamPointCloudSlices(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx, 0, 0);
+    if (!success) {
+        return;
     }
 
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
-    success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts);
-    if (!success) {
-        filteredOccludedPts->clear();
-        success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts, true);
-        if (!success) {
-            if (filteredOccludedPts->empty()) {
-                return;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
+    success = false;
+    for(int i=0;i<partsxy;i++) {
+        if(camFilteredPtsParts[i]->empty()) continue;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+        bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts);
+        if (!success1) {
+            filteredOccludedPts->clear();
+            success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts, true);
+            if(!filteredOccludedPts->empty()){
+                filteredOccludedPtsAll->insert(filteredOccludedPtsAll->end(), filteredOccludedPts->begin(), filteredOccludedPts->end());
             }
         }
+        else{
+            success = true;
+            filteredOccludedPtsAll->insert(filteredOccludedPtsAll->end(), filteredOccludedPts->begin(), filteredOccludedPts->end());
+        }
     }
-    for (size_t j = 0; j < filteredOccludedPts->size(); j++) {
-        cv::Point3d pt = Point3d((double) filteredOccludedPts->at(j).x, (double) filteredOccludedPts->at(j).y,
-                                 (double) filteredOccludedPts->at(j).z);
+    if(!success){
+        if (filteredOccludedPtsAll->empty()) {
+            return;
+        }
+    }
+
+    for (size_t j = 0; j < filteredOccludedPtsAll->size(); j++) {
+        cv::Point3d pt = Point3d((double) filteredOccludedPtsAll->at(j).x, (double) filteredOccludedPtsAll->at(j).y,
+                                 (double) filteredOccludedPtsAll->at(j).z);
         Mat ptm = Mat(pt, false).reshape(1, 3);
         ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
                                                       absCamCoordinates[actFrameCnt].t);//does this work???????? -> physical memory of pt and ptm must be the same
@@ -7933,7 +7983,69 @@ void genStereoSequ::getActEigenCamPose() {
     actCamRot = Eigen::Quaternionf(quat.cast<float>());
 }
 
-//Get part of a pointcloud visible in a camera
+bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+                                            std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
+                                            int fovDevideVertical,
+                                            int fovDevideHorizontal,
+                                            float minDistance,
+                                            float maxDistance) {
+    if(cloudIn->empty()) return false;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+    bool success = getVisibleCamPointCloud(cloudIn, camFilteredPts);
+    if (!success) {
+        return false;
+    }
+
+    cloudOut = vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>(fovDevideVertical * fovDevideHorizontal);
+    size_t checkSizePtCld = 0;
+    success = false;
+    for (int y = 0; y < fovDevideVertical; ++y) {
+        for (int x = 0; x < fovDevideHorizontal; ++x) {
+            cloudOut[y * fovDevideHorizontal + x].reset(new pcl::PointCloud<pcl::PointXYZ>());
+            success |= getVisibleCamPointCloud(camFilteredPts,
+                                               cloudOut[y * fovDevideHorizontal + x],
+                    fovDevideVertical,
+                    fovDevideHorizontal,
+                    y,
+                    x,
+                    minDistance,
+                    maxDistance);
+            checkSizePtCld += cloudOut[y * fovDevideHorizontal + x]->size();
+        }
+    }
+    //Remove duplicates
+    vector<pair<int,int>> delList;
+    for (int i = 0; i < (int)cloudOut.size(); ++i) {
+        for (int j = 0; j < (int) cloudOut[i]->size(); ++j) {
+            for (int k = i; k < (int)cloudOut.size(); ++k) {
+                for (int l = (k == i) ? (j+1):0; l < (int) cloudOut[k]->size(); ++l) {
+                    float dist = abs(cloudOut[i]->at(j).x - cloudOut[k]->at(l).x) +
+                            abs(cloudOut[i]->at(j).y - cloudOut[k]->at(l).y) +
+                            abs(cloudOut[i]->at(j).z - cloudOut[k]->at(l).z);
+                    if(nearZero((double)dist)){
+                        delList.push_back(make_pair(i,j));
+                    }
+                }
+            }
+        }
+    }
+    if(!delList.empty()){
+        for(int i = (int)delList.size() - 1; i >= 0; i--){
+            cloudOut[delList[i].first]->erase(cloudOut[delList[i].first]->begin() + delList[i].second);
+        }
+    }
+    if(checkSizePtCld != camFilteredPts->size()){
+        cout << "Not working" << endl;
+    }
+    return success;
+}
+
+//Get part of a pointcloud visible in a camera.
+// The function supports slicing of the truncated pyramid (frustum of pyramid) given the number of slices in vertical
+// and horizontal direction and their 0-based indices (This function must be called for every slice seperately). Before
+// using slicing, the function should be called without slicing and the results of this call should be provided to the
+// function with slicing
 bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                             pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
                                             int fovDevideVertical,
@@ -7965,23 +8077,34 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
     fc.setVerticalFOV(180.f * verFOV / (float) M_PI);
     fc.setHorizontalFOV(180.f * horFOV / (float) M_PI);
 
+    float mimaDistance[2];
     if(nearZero((double)minDistance)) {
-        fc.setNearPlaneDistance((float) actDepthNear);
+        mimaDistance[0] = (float) actDepthNear;
+//        fc.setNearPlaneDistance((float) actDepthNear);
     }
     else{
-        fc.setNearPlaneDistance(minDistance);
+        mimaDistance[0] = minDistance;
+//        fc.setNearPlaneDistance(minDistance);
     }
     if(nearZero((double)maxDistance)) {
-        fc.setFarPlaneDistance((float) (maxFarDistMultiplier * actDepthFar));
+        mimaDistance[1] = (float) (maxFarDistMultiplier * actDepthFar);
+//        fc.setFarPlaneDistance((float) (maxFarDistMultiplier * actDepthFar));
     }else{
-        fc.setFarPlaneDistance(maxDistance);
+        mimaDistance[1] = maxDistance;
+//        fc.setFarPlaneDistance(maxDistance);
     }
 
     if(fovDevideVertical || fovDevideHorizontal)
     {
-        Eigen::Matrix4f rotVer, rotHor;
+        Eigen::Matrix4f rotVer, rotHor, rotBoth;
+        bool bothAngNotZero = false;
+        double resalpha = 0;
         if(fovDevideVertical){
             float angV = verFOV * ((float)returnDevPartNrVer - (float)fovDevideVertical / 2.f + 0.5f);
+            if(!nearZero((double)angV)){
+                bothAngNotZero = true;
+                resalpha = (double)angV;
+            }
             /*rotVer
                     << 1.f, 0, 0, 0,
                     0, cos(angV), -sin(angV), 0,
@@ -7999,6 +8122,11 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
         }
         if(fovDevideHorizontal){
             float angH = horFOV * ((float)returnDevPartNrHor - (float)fovDevideHorizontal / 2.f + 0.5f);
+            if(nearZero((double)angH) && bothAngNotZero){
+                bothAngNotZero = false;
+            } else if(!nearZero((double)angH)){
+                resalpha = (double)angH;
+            }
             rotHor
                     << cos(angH), 0, sin(angH), 0,
                     0, 1.f, 0, 0,
@@ -8009,12 +8137,28 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
         else{
             rotHor.setIdentity();
         }
-//        fc.setCameraPose(rotVer * rotHor * actCamPose);
-        fc.setCameraPose(actCamPose * rotHor * rotVer);
+        rotBoth = actCamPose * rotHor * rotVer;
+        fc.setCameraPose(rotBoth);
+        if(bothAngNotZero) {
+            resalpha = rotDiff(actCamPose, rotBoth);
+        }
+        if(!nearZero((double)resalpha)) {
+            resalpha = resalpha < 0 ? -resalpha : resalpha;
+            double tmp = cos(resalpha);
+            tmp *= tmp * tmp;
+            //Adapt the minimum and maximum distance as the given distances which form 2 planes appear
+            // under a different angle compared to the original planes without slicing
+            mimaDistance[0] = (mimaDistance[0] * cos(2 * resalpha)) / tmp;
+            mimaDistance[1] = mimaDistance[1] / tmp;
+        }
+
     }
     else {
         fc.setCameraPose(actCamPose);
     }
+
+    fc.setNearPlaneDistance(mimaDistance[0]);
+    fc.setFarPlaneDistance(mimaDistance[1]);
 
     fc.filter(*cloudOut);
 

@@ -347,6 +347,12 @@ private:
 								 int returnDevPartNrHor = 0,
 								 float minDistance = 0,
 								 float maxDistance = 0);
+	bool getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+								  std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
+								  int fovDevideVertical,
+								  int fovDevideHorizontal,
+								  float minDistance = 0,
+								  float maxDistance = 0);
 	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize = false);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
