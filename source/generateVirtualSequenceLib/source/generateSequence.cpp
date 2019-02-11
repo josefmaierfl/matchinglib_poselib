@@ -6936,9 +6936,49 @@ void genStereoSequ::getSeedsAreasMovObj() {
                 nrPerRegMax.at<unsigned char>(y, x) = (unsigned char) (maxOPerReg - 1);
             } else if (moarea <= (maxOPerReg - 1) * maxOArea) {
                 Mat actUsedAreaLabel;
-                int nrLabels = connectedComponents(movObjMaskFromLast(regROIs[y][x]), actUsedAreaLabel, 4, CV_16U);
-                if (nrLabels < maxOPerReg)
-                    nrPerRegMax.at<unsigned char>(y, x) = (unsigned char) (maxOPerReg - nrLabels);
+//                int nrLabels = connectedComponents(movObjMaskFromLast(regROIs[y][x]), actUsedAreaLabel, 4, CV_16U);
+                Mat actUsedAreaStats;
+                Mat actUsedAreaCentroids;
+                Mat usedPartMask = movObjMaskFromLast(regROIs[y][x]);
+                Mat markSameObj = Mat::zeros(regROIs[y][x].height,regROIs[y][x].width, CV_8UC1);
+                int nrLabels = connectedComponentsWithStats(usedPartMask, actUsedAreaLabel, actUsedAreaStats, actUsedAreaCentroids, 8, CV_16U);
+                int nrFndObj = nrLabels;
+                for(int i = 0; i < nrLabels; i++) {
+                    Rect labelBB = Rect(actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_LEFT),
+                                        actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_TOP),
+                                        actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_WIDTH),
+                                        actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT));
+                    Mat labelPart = actUsedAreaLabel(labelBB);
+                    Mat usedPartofPartMask = usedPartMask(labelBB);
+                    Point checkPos = Point(0,0);
+                    bool noMovObj = false, validPT = false;
+                    for (int y1 = 0; y1 < labelBB.height; ++y1) {
+                        for (int x1 = 0; x1 < labelBB.width; ++x1) {
+                            if(labelPart.at<uint16_t>(y1,x1) == i){
+                                if(usedPartofPartMask.at<unsigned char>(y1,x1) == 0){
+                                    noMovObj = true;
+                                    nrFndObj--;
+                                    break;
+                                }
+                                checkPos = Point(y1,x1);
+                                validPT = true;
+                            }
+                        }
+                        if(noMovObj || validPT) break;
+                    }
+                    if(!noMovObj && validPT) {
+                        if(markSameObj.at<unsigned char>(checkPos.y + labelBB.y, checkPos.x + labelBB.x) != 0){
+                            nrFndObj--;
+                        }
+                        else {
+                            unsigned char m_obj_nr = usedPartofPartMask.at<unsigned char>(checkPos);
+                            markSameObj |= (usedPartMask == m_obj_nr);
+                        }
+                    }
+                }
+
+                if (nrFndObj < maxOPerReg)
+                    nrPerRegMax.at<unsigned char>(y, x) = (unsigned char) (maxOPerReg - nrFndObj);
             }
         }
     }
@@ -7813,10 +7853,12 @@ void genStereoSequ::getMovObjPtsCam() {
             /*namedWindow("Backprojected moving object area using convex hull", WINDOW_AUTOSIZE);
             imshow("Backprojected moving object area using convex hull", resMOmask > 0);*/
 
-            Mat hullMat = Mat::zeros(imgSize, CV_8UC1);;
-            drawContours(hullMat, hullPts, -1, Scalar(255), CV_FILLED);
-            locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
-            locMOmask &= hullMat;
+            if(keypointsMO.size() > 1) {
+                Mat hullMat = Mat::zeros(imgSize, CV_8UC1);;
+                drawContours(hullMat, hullPts, -1, Scalar(255), CV_FILLED);
+                locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
+                locMOmask &= hullMat;
+            }
 
             if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
                 namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
@@ -7998,7 +8040,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     }
 
     cloudOut = vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>(fovDevideVertical * fovDevideHorizontal);
-    size_t checkSizePtCld = 0;
+    int checkSizePtCld = 0;
     success = false;
     for (int y = 0; y < fovDevideVertical; ++y) {
         for (int x = 0; x < fovDevideHorizontal; ++x) {
@@ -8011,7 +8053,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
                     x,
                     minDistance,
                     maxDistance);
-            checkSizePtCld += cloudOut[y * fovDevideHorizontal + x]->size();
+            checkSizePtCld += (int)cloudOut[y * fovDevideHorizontal + x]->size();
         }
     }
     //Remove duplicates
@@ -8033,6 +8075,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     if(!delList.empty()){
         for(int i = (int)delList.size() - 1; i >= 0; i--){
             cloudOut[delList[i].first]->erase(cloudOut[delList[i].first]->begin() + delList[i].second);
+            checkSizePtCld--;
         }
     }
     if(checkSizePtCld != camFilteredPts->size()){
