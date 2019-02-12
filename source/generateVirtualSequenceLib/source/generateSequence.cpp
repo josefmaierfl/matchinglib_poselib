@@ -1191,13 +1191,18 @@ void genStereoSequ::backProject3D() {
         Mat x1 = K1 * X;
         x1 /= x1.at<double>(2);
 
+        bool outOfR[2] = {false, false};
+
         //Check if the point is within the area of a moving object
-        if (combMovObjLabelsAll.at<unsigned char>((int) round(x1.at<double>(1)), (int) round(x1.at<double>(0))) > 0)
+        Point x1r = Point((int) round(x1.at<double>(0)), (int) round(x1.at<double>(1)));
+        if((x1r.x < 0) || (x1r.x > dimgWH.width) || (x1r.y < 0) || (x1r.y > dimgWH.height)){
+            outOfR[0] = true;
+        }
+        else if (combMovObjLabelsAll.at<unsigned char>(x1r.y, x1r.x) > 0)
             continue;
 
-        bool outOfR[2] = {false, false};
         if ((x1.at<double>(0) < 0) || (x1.at<double>(0) > dimgWH.width) ||
-            (x1.at<double>(1) < 0) || (x1.at<double>(0) > dimgWH.height))//Not visible in first image
+            (x1.at<double>(1) < 0) || (x1.at<double>(1) > dimgWH.height))//Not visible in first image
         {
             outOfR[0] = true;
         }
@@ -1206,13 +1211,17 @@ void genStereoSequ::backProject3D() {
         x2 /= x2.at<double>(2);
 
         if ((x2.at<double>(0) < 0) || (x2.at<double>(0) > dimgWH.width) ||
-            (x2.at<double>(1) < 0) || (x2.at<double>(0) > dimgWH.height))//Not visible in second image
+            (x2.at<double>(1) < 0) || (x2.at<double>(1) > dimgWH.height))//Not visible in second image
         {
             outOfR[1] = true;
         }
 
         //Check if the point is within the area of a moving object in the second image
-        if (movObjMask2All.at<unsigned char>((int) round(x2.at<double>(1)), (int) round(x2.at<double>(0))) > 0)
+        Point x2r = Point((int) round(x2.at<double>(0)), (int) round(x2.at<double>(1)));
+        if((x2r.x < 0) || (x2r.x > dimgWH.width) || (x2r.y < 0) || (x2r.y > dimgWH.height)){
+            outOfR[1] = true;
+        }
+        else if (movObjMask2All.at<unsigned char>(x2r.y, x2r.x) > 0)
             outOfR[1] = true;
 
         if (outOfR[0] && outOfR[1]) {
@@ -4894,6 +4903,8 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
             } else if (nearZero(movObjOverlap[y][x])) {
                 statCorrsPRegNew.at<int32_t>(y, x) = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+                movObjCorrsFromStatic[y][x] = 0;
+                movObjCorrsFromStaticInv[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
             } else {
                 movObjCorrsFromStatic[y][x] = (int32_t) round(
                         (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
@@ -6021,10 +6032,12 @@ void genStereoSequ::backProjectMovObj() {
                 areaMO = areaMO2;
                 imgSDdilate.copyTo(movObjLabelsFromLast[i]);
                 if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
-                    namedWindow("Backprojected moving object hull enlargement", WINDOW_AUTOSIZE);
-                    imshow("Backprojected moving object hull enlargement", movObjLabelsFromLast[i] > 0);
-                    waitKey(0);
-                    destroyWindow("Backprojected moving object hull enlargement");
+                    if((cnt % 4) == 0) {
+                        namedWindow("Backprojected moving object hull enlargement", WINDOW_AUTOSIZE);
+                        imshow("Backprojected moving object hull enlargement", movObjLabelsFromLast[i] > 0);
+                        waitKey(0);
+                        destroyWindow("Backprojected moving object hull enlargement");
+                    }
                 }
             } else {
                 break;
@@ -7853,10 +7866,10 @@ void genStereoSequ::getMovObjPtsCam() {
             /*namedWindow("Backprojected moving object area using convex hull", WINDOW_AUTOSIZE);
             imshow("Backprojected moving object area using convex hull", resMOmask > 0);*/
 
-            if(keypointsMO.size() > 1) {
+            locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
+            if(keypointsMO.size() > 2) {
                 Mat hullMat = Mat::zeros(imgSize, CV_8UC1);;
                 drawContours(hullMat, hullPts, -1, Scalar(255), CV_FILLED);
-                locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
                 locMOmask &= hullMat;
             }
 
@@ -7953,10 +7966,11 @@ void genStereoSequ::getCamPtsFromWorld() {
     }*/
 
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
-    const int partsx = 3;
-    const int partsy = 3;
+    const int partsx = 4;
+    const int partsy = 4;
     const int partsxy = partsx * partsy;
-    bool success = getVisibleCamPointCloudSlices(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx, 0, 0);
+//    bool success = getVisibleCamPointCloudSlices(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx, 0, 0);
+    bool success = getVisibleCamPointCloudSlicesAndDepths(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx);
     if (!success) {
         return;
     }
@@ -8025,6 +8039,117 @@ void genStereoSequ::getActEigenCamPose() {
     actCamRot = Eigen::Quaternionf(quat.cast<float>());
 }
 
+bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+                                                  std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
+                                                  int fovDevideVertical,
+                                                  int fovDevideHorizontal){
+    if(cloudIn->empty()) return false;
+
+    //Get point cloud slices with 3D point depths in the camera coordinate system from near to mid
+    int partsxy = fovDevideVertical * fovDevideHorizontal;
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudsNear;
+    bool success1 = getVisibleCamPointCloudSlices(cloudIn,
+            cloudsNear,
+            fovDevideVertical,
+            fovDevideHorizontal,
+            (float) actDepthNear,
+            (float) actDepthMid);
+
+    //Get point cloud slices with 3D point depths in the camera coordinate system from mid to far
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudsFar;
+    bool success2 = getVisibleCamPointCloudSlices(cloudIn,
+                                                  cloudsFar,
+                                                  fovDevideVertical,
+                                                  fovDevideHorizontal,
+                                                  (float) actDepthMid,
+                                                  (float) (maxFarDistMultiplier * actDepthFar));
+
+    //Check for duplicates at the borders
+    if(success1 && success2){
+        vector<pair<int,int>> delList;
+        for (int i = 0; i < (int)cloudsNear.size(); ++i) {
+            for (int j = 0; j < (int) cloudsNear[i]->size(); ++j) {
+                for (int l = 0; l < (int) cloudsFar[i]->size(); ++l) {
+                    float dist = abs(cloudsNear[i]->at(j).x - cloudsFar[i]->at(l).x) +
+                                 abs(cloudsNear[i]->at(j).y - cloudsFar[i]->at(l).y) +
+                                 abs(cloudsNear[i]->at(j).z - cloudsFar[i]->at(l).z);
+                    if(nearZero((double)dist)){
+                        delList.push_back(make_pair(i,l));
+                    }
+                }
+            }
+        }
+        if(!delList.empty()){
+            for(int i = (int)delList.size() - 1; i >= 0; i--){
+                cloudsFar[delList[i].first]->erase(cloudsFar[delList[i].first]->begin() + delList[i].second);
+            }
+        }
+    }
+
+    //Filter near occluded 3D points with a smaller voxel size
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsNear(partsxy);
+    if(success1) {
+        success1 = false;
+        for (int i = 0; i < partsxy; i++) {
+            filteredOccludedPtsNear[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+            if (cloudsNear[i]->empty()) continue;
+            bool success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear[i]);
+            if (!success3) {
+//                filteredOccludedPtsNear[i]->clear();
+                pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsNear2(new pcl::PointCloud<pcl::PointXYZ>());
+                success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear2, true);
+                if(success3){
+                    filteredOccludedPtsNear[i] = filteredOccludedPtsNear2;
+                    success1 = true;
+                }
+            } else {
+                success1 = true;
+            }
+        }
+    }
+
+    //Filter far occluded 3D points with a bigger voxel size
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsFar(partsxy);
+    if(success2) {
+        success2 = false;
+        for (int i = 0; i < partsxy; i++) {
+            if (cloudsFar[i]->empty()) continue;
+            filteredOccludedPtsFar[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+            bool success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar[i]);
+            if (!success3) {
+//                filteredOccludedPtsFar[i]->clear();
+                pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsFar2(new pcl::PointCloud<pcl::PointXYZ>());
+                success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar2, true);
+                if(success3){
+                    filteredOccludedPtsFar[i] = filteredOccludedPtsFar2;
+                    success2 = true;
+                }
+            } else {
+                success2 = true;
+            }
+        }
+    }
+
+    //Combine near and far filtered point clouds
+    success1 = false;
+    cloudOut = filteredOccludedPtsNear;
+    for (int i = 0; i < partsxy; i++) {
+        if((filteredOccludedPtsFar[i].get() != NULL) && !filteredOccludedPtsFar[i]->empty()) {
+            if(cloudOut[i].get() != NULL) {
+                cloudOut[i]->insert(cloudOut[i]->end(),
+                                    filteredOccludedPtsFar[i]->begin(),
+                                    filteredOccludedPtsFar[i]->end());
+            }
+            else{
+                cloudOut[i] = filteredOccludedPtsFar[i];
+            }
+        }
+        if(!cloudOut[i]->empty()) success1 = true;
+    }
+
+    return success1;
+}
+
 bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                             std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
                                             int fovDevideVertical,
@@ -8034,13 +8159,13 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     if(cloudIn->empty()) return false;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
-    bool success = getVisibleCamPointCloud(cloudIn, camFilteredPts);
+    bool success = getVisibleCamPointCloud(cloudIn, camFilteredPts, 0, 0, 0, 0, minDistance, maxDistance);
     if (!success) {
         return false;
     }
 
     cloudOut = vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>(fovDevideVertical * fovDevideHorizontal);
-    int checkSizePtCld = 0;
+//    int checkSizePtCld = 0;
     success = false;
     for (int y = 0; y < fovDevideVertical; ++y) {
         for (int x = 0; x < fovDevideHorizontal; ++x) {
@@ -8053,7 +8178,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
                     x,
                     minDistance,
                     maxDistance);
-            checkSizePtCld += (int)cloudOut[y * fovDevideHorizontal + x]->size();
+//            checkSizePtCld += (int)cloudOut[y * fovDevideHorizontal + x]->size();
         }
     }
     //Remove duplicates
@@ -8075,12 +8200,12 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     if(!delList.empty()){
         for(int i = (int)delList.size() - 1; i >= 0; i--){
             cloudOut[delList[i].first]->erase(cloudOut[delList[i].first]->begin() + delList[i].second);
-            checkSizePtCld--;
+//            checkSizePtCld--;
         }
     }
-    if(checkSizePtCld != camFilteredPts->size()){
+    /*if(checkSizePtCld != camFilteredPts->size()){
         cout << "Not working" << endl;
-    }
+    }*/
     return success;
 }
 
@@ -8215,6 +8340,9 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
 //Returns false if more than 33% are occluded
 bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                         pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize) {
+    if(cloudIn->empty())
+        return false;
+
     cloudIn->sensor_origin_ = Eigen::Vector4f((float) absCamCoordinates[actFrameCnt].t.at<double>(0),
                                               (float) absCamCoordinates[actFrameCnt].t.at<double>(1),
                                               (float) absCamCoordinates[actFrameCnt].t.at<double>(2), 1.f);
@@ -8249,8 +8377,8 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                     Mat Xw = (Mat_<double>(3, 1) << x[i], y[j], z[k]);
                     Mat Xc = absCamCoordinates[actFrameCnt].R.t() * (Xw - absCamCoordinates[actFrameCnt].t);
                     double ptz = Xc.at<double>(2);
-                    if ((ptz < minZ) && (ptz > 0)) {
-                        minZ = Xc.at<double>(2);
+                    if ((ptz < minZ) && (ptz > actDepthNear)) {
+                        minZ = ptz;
                     }
                 }
             }
@@ -8297,18 +8425,13 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         }
         if ((dx*dy*dz) > maxIdxSize) {
             double lNew = ceil(100.0 * (double) d1 * (double) d2 * (double) d3 / (double) maxIdxSize) / 100.0;
-            if (useNearLeafSize) {
+            if (lNew > 1.2 * (double) leaf_size) {
                 //Go on without filtering
                 cloudOut.reset();
                 cloudOut = cloudIn;
+                return true;
             } else {
-                if (lNew > 1.1 * (double) leaf_size) {
-                    //Go on without filtering
-                    cloudOut.reset();
-                    cloudOut = cloudIn;
-                } else {
-                    leaf_size = lNew;
-                }
+                leaf_size = lNew;
             }
         }
     }
@@ -8349,7 +8472,7 @@ void genStereoSequ::visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         return;
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
-            new pcl::visualization::PCLVisualizer("Occlusions within a moving object"));
+            new pcl::visualization::PCLVisualizer("Occlusions within an object"));
 
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
