@@ -1581,9 +1581,9 @@ void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const &delVec, bo
     size_t n_new = nrData - nrToDel;
     cv::Mat editMatNew;
     if (rowOrder)
-        editMatNew = (n_new, editMat.cols, editMat.type());
+        editMatNew = Mat(n_new, editMat.cols, editMat.type());
     else
-        editMatNew = (editMat.rows, n_new, editMat.type());
+        editMatNew = Mat(editMat.rows, n_new, editMat.type());
 
     T old_idx = 0;
     int startRowNew = 0;
@@ -1606,7 +1606,7 @@ void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const &delVec, bo
         if (rowOrder)
             editMat.rowRange((int) old_idx, editMat.rows).copyTo(editMatNew.rowRange(startRowNew, n_new));
         else
-            editMat.colRange((int) old_idx, editMat.rows).copyTo(editMatNew.colRange(startRowNew, n_new));
+            editMat.colRange((int) old_idx, editMat.cols).copyTo(editMatNew.colRange(startRowNew, n_new));
     }
     editMatNew.copyTo(editMat);
 }
@@ -2890,7 +2890,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
                 if ((initSeedInArea[j].x >= minX) && (initSeedInArea[j].x < maxX) &&
                     (initSeedInArea[j].y >= minY) && (initSeedInArea[j].y < maxY)) {
                     if (actUsedAreaLabel.at<uint16_t>(initSeedInArea[j].y, initSeedInArea[j].x) == i) {
-                        initDepths.push_back(actImgPointCloudFromLast[initSeedInArea[j].z].z);
+                        initDepths.push_back(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[initSeedInArea[j].z]].z);
                     }
                 }
             }
@@ -2915,6 +2915,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
                 dmin_tmp = std::max(dmin_tmp, dmin);
                 dmax_tmp = std::min(dmax_tmp, dmax);
                 drange = dmax_tmp - dmin_tmp;
+                CV_Assert(drange > 0);
             }
         }
 
@@ -5077,13 +5078,17 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                             statCorrsPRegNew.at<int32_t>(y, x) = newval;
                             cmaxreg[y][x] -= newval;
                         } else {
-                            statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
-                            remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
-                            if (remMovrem < 0) {
-                                statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
-                                remMovrem = 0;
+                            if(movObjCorrsFromStaticInv[y][x] < cmaxreg[y][x]) {
+                                statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
+                                remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
+                                if (remMovrem < 0) {
+                                    statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
+                                    remMovrem = 0;
+                                }
+                                cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
+                            }else{
+                                cmaxreg[y][x] = 0;
                             }
-                            cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
                         }
                     }
                 }
@@ -6934,7 +6939,7 @@ void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Poin
 
 //Calculate the seeding position and area for every new moving object
 //This function should not be called for the first frame
-void genStereoSequ::getSeedsAreasMovObj() {
+bool genStereoSequ::getSeedsAreasMovObj() {
     //Get number of possible seeds per region
     Mat nrPerRegMax = Mat::zeros(3, 3, CV_8UC1);
     int minOArea23 = 2 * min(minOArea, maxOArea - minOArea) / 3;
@@ -6996,6 +7001,8 @@ void genStereoSequ::getSeedsAreasMovObj() {
         }
     }
 
+    if(cv::sum(nrPerRegMax)[0] == 0) return false;
+
     //Get the number of moving object seeds per region
     int nrMovObjs_tmp = (int) pars.nrMovObjs - (int) movObj3DPtsWorld.size();
     Mat nrPerReg = Mat::zeros(3, 3, CV_8UC1);
@@ -7016,6 +7023,7 @@ void genStereoSequ::getSeedsAreasMovObj() {
             if (nrMovObjs_tmp == 0)
                 break;
         }
+        if(cv::sum(nrPerRegMax)[0] == 0) break;
     }
 
     //Get the area for each moving object
@@ -7103,6 +7111,8 @@ void genStereoSequ::getSeedsAreasMovObj() {
             }
         }
     }
+
+    return true;
 }
 
 //Extracts the areas and seeding positions for new moving objects from the region structure
@@ -7946,28 +7956,9 @@ void genStereoSequ::getCamPtsFromWorld() {
 
     actImgPointCloudFromLast.clear();
     pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
-//    pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
-    /*bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPts);
-    if (!success) {
-        return;
-    }
-
-    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts(9);
-    size_t checkSizePtCld = 0;
-    for (int y = 0; y < 9; ++y) {
-        for (int x = 0; x < 1; ++x) {
-            camFilteredPtsParts[y * 1 + x].reset(new pcl::PointCloud<pcl::PointXYZ>());
-            success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, camFilteredPtsParts[y * 1 + x], 9, 0, y, 0);
-            checkSizePtCld += camFilteredPtsParts[y * 1 + x]->size();
-        }
-    }
-    if(checkSizePtCld != camFilteredPts->size()){
-        cout << "Not working" << endl;
-    }*/
-
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
-    const int partsx = 4;
-    const int partsy = 4;
+    const int partsx = 5;
+    const int partsy = 5;
     const int partsxy = partsx * partsy;
 //    bool success = getVisibleCamPointCloudSlices(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx, 0, 0);
     bool success = getVisibleCamPointCloudSlicesAndDepths(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx);
@@ -7976,23 +7967,39 @@ void genStereoSequ::getCamPtsFromWorld() {
     }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
     success = false;
     for(int i=0;i<partsxy;i++) {
         if(camFilteredPtsParts[i]->empty()) continue;
         pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
-        bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+        bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts, false, false, occludedPts);
         if (!success1) {
             filteredOccludedPts->clear();
-            success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts, true);
+            occludedPts->clear();
+            success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts, true, false, occludedPts);
             if(!filteredOccludedPts->empty()){
                 filteredOccludedPtsAll->insert(filteredOccludedPtsAll->end(), filteredOccludedPts->begin(), filteredOccludedPts->end());
+            }
+            if(!occludedPts->empty()){
+                occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
             }
         }
         else{
             success = true;
             filteredOccludedPtsAll->insert(filteredOccludedPtsAll->end(), filteredOccludedPts->begin(), filteredOccludedPts->end());
+            if(!occludedPts->empty()){
+                occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
+            }
         }
     }
+
+    if(!filteredOccludedPtsAll->empty() || !occludedPtsAll->empty()){
+        if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            visualizeOcclusions(filteredOccludedPtsAll, occludedPtsAll, 1.0);
+        }
+    }
+
     if(!success){
         if (filteredOccludedPtsAll->empty()) {
             return;
@@ -8093,11 +8100,11 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
         for (int i = 0; i < partsxy; i++) {
             filteredOccludedPtsNear[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
             if (cloudsNear[i]->empty()) continue;
-            bool success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear[i]);
+            bool success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear[i], false, false);
             if (!success3) {
 //                filteredOccludedPtsNear[i]->clear();
                 pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsNear2(new pcl::PointCloud<pcl::PointXYZ>());
-                success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear2, true);
+                success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear2, true, false);
                 if(success3){
                     filteredOccludedPtsNear[i] = filteredOccludedPtsNear2;
                     success1 = true;
@@ -8115,11 +8122,11 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
         for (int i = 0; i < partsxy; i++) {
             if (cloudsFar[i]->empty()) continue;
             filteredOccludedPtsFar[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
-            bool success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar[i]);
+            bool success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar[i], false, false);
             if (!success3) {
 //                filteredOccludedPtsFar[i]->clear();
                 pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsFar2(new pcl::PointCloud<pcl::PointXYZ>());
-                success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar2, true);
+                success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar2, true, false);
                 if(success3){
                     filteredOccludedPtsFar[i] = filteredOccludedPtsFar2;
                     success2 = true;
@@ -8203,6 +8210,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
 //            checkSizePtCld--;
         }
     }
+    //Typically, the returned number of 3D points within all slices is 1 smaller compared to the whole region (why?)
     /*if(checkSizePtCld != camFilteredPts->size()){
         cout << "Not working" << endl;
     }*/
@@ -8339,7 +8347,10 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
 //Filters occluded 3D points based on a voxel size corresponding to 1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
 //Returns false if more than 33% are occluded
 bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
-                                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize) {
+                                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
+                                        bool useNearLeafSize,
+                                        bool visRes,
+                                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded) {
     if(cloudIn->empty())
         return false;
 
@@ -8424,7 +8435,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
             dz = static_cast<int64_t>(d3 / leaf_size) + 1;
         }
         if ((dx*dy*dz) > maxIdxSize) {
-            double lNew = ceil(100.0 * (double) d1 * (double) d2 * (double) d3 / (double) maxIdxSize) / 100.0;
+            double lNew = cbrt(ceil(100.0 * (double) d1 * (double) d2 * (double) d3 / (double) maxIdxSize) / 100.0);
             if (lNew > 1.2 * (double) leaf_size) {
                 //Go on without filtering
                 cloudOut.reset();
@@ -8440,7 +8451,13 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                             leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
     voxelFilter.initializeVoxelGrid();
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded_;//(new pcl::PointCloud<pcl::PointXYZ>);
+    if(cloudOccluded.get() != NULL){
+        cloudOccluded_ = cloudOccluded;
+    }
+    else{
+        cloudOccluded_.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    }
     for (size_t i = 0; i < cloudIn->size(); i++) {
         Eigen::Vector3i grid_coordinates = voxelFilter.getGridCoordinates(cloudIn->points[i].x,
                                                                           cloudIn->points[i].y,
@@ -8450,13 +8467,20 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         if ((ret == 0) && (grid_state == 0)) {
             cloudOut->push_back(cloudIn->points[i]);
         } else if ((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS)) {
-            cloudOccluded->push_back(cloudIn->points[i]);
+            cloudOccluded_->push_back(cloudIn->points[i]);
         }
     }
 
-    if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
-        visualizeOcclusions(cloudOut, cloudOccluded, (double) leaf_size);
+    if (visRes && (verbose & SHOW_BACKPROJECT_OCCLUSIONS)) {
+        visualizeOcclusions(cloudOut, cloudOccluded_, (double) leaf_size);
     }
+
+    /*if((cloudOccluded.get() != NULL) && (cloudOccluded_.get() != NULL) && (!cloudOccluded_->empty())){
+//        cloudOccluded.reset(cloudOccluded_->makeShared());
+        cloudOccluded.swap(cloudOccluded_);
+//        cloudOccluded = cloudOccluded_->makeShared();
+//        cloudOccluded = cloudOccluded_;
+    }*/
 
     float fracOcc = (float) (cloudOut->size()) / (float) (cloudIn->size());
     if (fracOcc < 0.67)
@@ -8540,7 +8564,7 @@ void genStereoSequ::getNewCorrs() {
             //Generate seeds and areas for new moving objects
             calcNewMovObj = getNewMovObjs();
             if (calcNewMovObj) {
-                getSeedsAreasMovObj();
+                calcNewMovObj = getSeedsAreasMovObj();
             }
         }
         if (calcNewMovObj) {

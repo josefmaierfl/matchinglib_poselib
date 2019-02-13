@@ -28,6 +28,8 @@ a view restrictions like depth ranges, moving objects, ...
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 
+//#include <boost/make_shared.hpp>
+
 #include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
@@ -328,7 +330,7 @@ private:
 	void backProjectMovObj();
 	void genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = NULL);
 	void genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> &finalHull);
-	void getSeedsAreasMovObj();
+	bool getSeedsAreasMovObj();
 	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
 	bool getNewMovObjs();
 	void getMovObjCorrs();
@@ -357,7 +359,11 @@ private:
                                                std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
                                                int fovDevideVertical,
                                                int fovDevideHorizontal);
-	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut, bool useNearLeafSize = false);
+	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
+	        bool useNearLeafSize = false,
+	        bool visRes = true,
+	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);//boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>());
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
