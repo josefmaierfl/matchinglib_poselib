@@ -1349,10 +1349,30 @@ void genStereoSequ::checkDepthSeeds() {
         filtInitPts(Rect(sqrSiDiff2, sqrSiDiff2, imgSize.width + 2 * posadd, imgSize.height + 2 * posadd)).copyTo(
                 corrsIMG);
 
+        //Check if seedsNear only holds near distances
+        for (int j = 0; j < seedsNear_tmp1.size(); ++j) {
+            if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsNear_tmp1[j].z]].z >= actDepthMid){
+                cout << "Wrong distance!" << endl;
+            }
+        }
+        //Check if seedsMid only holds mid distances
+        for (int j = 0; j < seedsMid_tmp1.size(); ++j) {
+            if((actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid_tmp1[j].z]].z < actDepthMid) ||
+               (actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid_tmp1[j].z]].z >= actDepthFar)){
+                cout << "Wrong distance!" << endl;
+            }
+        }
+        //Check if seedsFar only holds far distances
+        for (int j = 0; j < seedsFar_tmp1.size(); ++j) {
+            if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsFar_tmp1[j].z]].z < actDepthFar){
+                cout << "Wrong distance!" << endl;
+            }
+        }
+
         //Delete correspondences and 3D points that were to near to each other in the image
         if (!delListCorrs.empty()) {
-            std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
-            cv::Mat actCorrsImg1TPFromLast_tmp, actCorrsImg2TPFromLast_tmp;
+            /*std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
+            cv::Mat actCorrsImg1TPFromLast_tmp, actCorrsImg2TPFromLast_tmp;*/
 
             sort(delList3D.begin(), delList3D.end(),
                  [](size_t first, size_t second) { return first < second; });//Ascending order
@@ -1399,6 +1419,38 @@ void genStereoSequ::checkDepthSeeds() {
             int32_t ix = seedsFar_tmp1[i].x / regSi.width;
             int32_t iy = seedsFar_tmp1[i].y / regSi.height;
             seedsFar[iy][ix].push_back(seedsFar_tmp1[i]);
+        }
+    }
+    
+    //Check if seedsNear only holds near distances
+    for (int l = 0; l < 3; ++l) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < seedsNear[l][i].size(); ++j) {
+                if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsNear[l][i][j].z]].z >= actDepthMid){
+                    cout << "Wrong distance!" << endl;
+                }
+            }
+        }
+    }
+    //Check if seedsMid only holds mid distances
+    for (int l = 0; l < 3; ++l) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < seedsMid[l][i].size(); ++j) {
+                if((actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid[l][i][j].z]].z < actDepthMid) ||
+                        (actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid[l][i][j].z]].z >= actDepthFar)){
+                    cout << "Wrong distance!" << endl;
+                }
+            }
+        }
+    }
+    //Check if seedsFar only holds far distances
+    for (int l = 0; l < 3; ++l) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < seedsFar[l][i].size(); ++j) {
+                if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsFar[l][i][j].z]].z < actDepthFar){
+                    cout << "Wrong distance!" << endl;
+                }
+            }
         }
     }
 
@@ -1455,6 +1507,44 @@ void genStereoSequ::checkDepthSeeds() {
                     csurr1.copyTo(s_tmp);
                     seedsFar[y][x].push_back(pt);
                     diffNr--;
+                }
+            }
+        }
+    }
+
+    //Check if seedsNear only holds near distances
+    for (int l = 0; l < 3; ++l) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < seedsNear[l][i].size(); ++j) {
+                if(seedsNear[l][i][j].z >= 0) {
+                    if (actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsNear[l][i][j].z]].z >= actDepthMid) {
+                        cout << "Wrong distance!" << endl;
+                    }
+                }
+            }
+        }
+    }
+    //Check if seedsMid only holds near distances
+    for (int l = 0; l < 3; ++l) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < seedsMid[l][i].size(); ++j) {
+                if(seedsMid[l][i][j].z >= 0) {
+                    if ((actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid[l][i][j].z]].z < actDepthMid) ||
+                        (actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid[l][i][j].z]].z >= actDepthFar)) {
+                        cout << "Wrong distance!" << endl;
+                    }
+                }
+            }
+        }
+    }
+    //Check if seedsMid only holds near distances
+    for (int l = 0; l < 3; ++l) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < seedsFar[l][i].size(); ++j) {
+                if(seedsFar[l][i][j].z >= 0) {
+                    if (actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsFar[l][i][j].z]].z < actDepthFar) {
+                        cout << "Wrong distance!" << endl;
+                    }
                 }
             }
         }
@@ -1636,12 +1726,16 @@ void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<s
     size_t idx = 0;
     size_t maxIdx = delListSortedAsc.size() - 1;
     for (size_t i = 0; i < idxVec_tmp.size(); i++) {
-        if (idxVec_tmp[i].first < delListSortedAsc[idx]) {
-            idxVec_tmp[i].first -= idx;
-        } else {
-            while ((idxVec_tmp[i].first > delListSortedAsc[idx]) && (idx < maxIdx)) {
-                idx++;
+        if(idx <= maxIdx) {
+            if (idxVec_tmp[i].first < delListSortedAsc[idx]) {
+                idxVec_tmp[i].first -= idx;
+            } else {
+                while (idxVec_tmp[i].first > delListSortedAsc[idx]) {
+                    idx++;
+                }
+                idxVec_tmp[i].first -= idx;
             }
+        }else{
             idxVec_tmp[i].first -= idx;
         }
     }
@@ -5917,7 +6011,11 @@ void genStereoSequ::backProjectMovObj() {
         }
 
         //Check if the portion of usable 3D points of this moving  object is below a user specified threshold. If yes, delete it.
-        double actGoodPortion = (double) (movObj3DPtsCam[i].size() - oor) / (double) movObj3DPtsCam[i].size();
+        double actGoodPortion = 0;
+        if(!movObj3DPtsCam[i].empty())
+        {
+            actGoodPortion = (double) (movObj3DPtsCam[i].size() - oor) / (double) movObj3DPtsCam[i].size();
+        }
         if ((actGoodPortion < pars.minMovObjCorrPortion) || nearZero(actGoodPortion)) {
             delList.push_back(i);
         } else {
@@ -5983,6 +6081,8 @@ void genStereoSequ::backProjectMovObj() {
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
         }
         actNrMovObj = movObj3DPtsCam.size();
+        if(actNrMovObj == 0)
+            return;
     }
     movObjDistTNtoReal.resize(actNrMovObj);
 
@@ -6767,9 +6867,9 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     }
 
     //Simplify the contour
-    double epsilon = 0.005 * cv::arcLength(contours[0], true);//1% of the overall contour length
-    if (epsilon > 7.5) {
-        epsilon = 7.5;
+    double epsilon = 0.005 * cv::arcLength(contours[0], true);//0.5% of the overall contour length
+    if (epsilon > 6.5) {
+        epsilon = 6.5;
     } else if (epsilon < 2.0) {
         epsilon = 2.0;
     }
@@ -6782,11 +6882,11 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
         tmp[0] = finalHull;
         drawContours(maskcontours, tmp, 0, Scalar(0, 0, 255));
         namedWindow("Approximated and original backprojected moving object mask contour", WINDOW_AUTOSIZE);
-        imshow("Approximated backprojected moving object mask contour", maskcontours > 0);
+        imshow("Approximated and original backprojected moving object mask contour", maskcontours > 0);
 
         waitKey(0);
         destroyWindow("Original backprojected moving object mask");
-        destroyWindow("Approximated backprojected moving object mask contour");
+        destroyWindow("Approximated and original backprojected moving object mask contour");
     }
 }
 
@@ -6980,6 +7080,7 @@ bool genStereoSequ::getSeedsAreasMovObj() {
                                 }
                                 checkPos = Point(y1,x1);
                                 validPT = true;
+                                break;
                             }
                         }
                         if(noMovObj || validPT) break;
@@ -7860,6 +7961,10 @@ void genStereoSequ::getMovObjPtsCam() {
                     keypointsMO.erase(keypointsMO.begin() + keyPDelList[j]);
                     filteredOccludedCamPts[idx]->erase(filteredOccludedCamPts[idx]->begin() + keyPDelList[j]);
                 }
+                if(filteredOccludedCamPts[idx]->empty()){
+                    delList.push_back(idx);
+                    continue;
+                }
             }
 
             if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
@@ -8362,12 +8467,6 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     pcl::VoxelGridOcclusionEstimation<pcl::PointXYZ> voxelFilter;
     voxelFilter.setInputCloud(cloudIn);
     float leaf_size;
-    /*if (useNearLeafSize) {
-        leaf_size = (float) (actDepthNear / K1.at<double>(0, 0));
-    } else {
-        leaf_size = (float) ((actDepthNear + (actDepthMid - actDepthNear) / 2.0) / K1.at<double>(0, 0));
-    }*/
-
     pcl::PointXYZ cloudCentroid;
     getCloudCentroid(*cloudIn.get(), cloudCentroid);
     double usedZ;
@@ -8438,8 +8537,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
             double lNew = cbrt(ceil(100.0 * (double) d1 * (double) d2 * (double) d3 / (double) maxIdxSize) / 100.0);
             if (lNew > 1.2 * (double) leaf_size) {
                 //Go on without filtering
-                cloudOut.reset();
-                cloudOut = cloudIn;
+                *cloudOut.get() = *cloudIn.get();
                 return true;
             } else {
                 leaf_size = lNew;
@@ -8474,13 +8572,6 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     if (visRes && (verbose & SHOW_BACKPROJECT_OCCLUSIONS)) {
         visualizeOcclusions(cloudOut, cloudOccluded_, (double) leaf_size);
     }
-
-    /*if((cloudOccluded.get() != NULL) && (cloudOccluded_.get() != NULL) && (!cloudOccluded_->empty())){
-//        cloudOccluded.reset(cloudOccluded_->makeShared());
-        cloudOccluded.swap(cloudOccluded_);
-//        cloudOccluded = cloudOccluded_->makeShared();
-//        cloudOccluded = cloudOccluded_;
-    }*/
 
     float fracOcc = (float) (cloudOut->size()) / (float) (cloudIn->size());
     if (fracOcc < 0.67)

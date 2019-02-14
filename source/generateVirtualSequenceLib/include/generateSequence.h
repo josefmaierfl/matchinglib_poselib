@@ -28,8 +28,6 @@ a view restrictions like depth ranges, moving objects, ...
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 
-//#include <boost/make_shared.hpp>
-
 #include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
@@ -363,7 +361,7 @@ private:
 	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
 	        bool useNearLeafSize = false,
 	        bool visRes = true,
-	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);//boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>());
+	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
