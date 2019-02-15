@@ -400,7 +400,8 @@ private:
 	std::default_random_engine rand_gen;
 
 	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
-	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is 
+	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is
+	const double fakeDistTNCorrespondences = 50.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
 
 	cv::Size imgSize;
 	cv::Mat K1, K1i;//Camera matrix 1 and its inverse

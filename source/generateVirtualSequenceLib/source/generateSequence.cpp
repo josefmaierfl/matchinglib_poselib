@@ -1350,7 +1350,7 @@ void genStereoSequ::checkDepthSeeds() {
                 corrsIMG);
 
         //Check if seedsNear only holds near distances
-        for (int j = 0; j < seedsNear_tmp1.size(); ++j) {
+        /*for (int j = 0; j < seedsNear_tmp1.size(); ++j) {
             if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsNear_tmp1[j].z]].z >= actDepthMid){
                 cout << "Wrong distance!" << endl;
             }
@@ -1367,7 +1367,7 @@ void genStereoSequ::checkDepthSeeds() {
             if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsFar_tmp1[j].z]].z < actDepthFar){
                 cout << "Wrong distance!" << endl;
             }
-        }
+        }*/
 
         //Delete correspondences and 3D points that were to near to each other in the image
         if (!delListCorrs.empty()) {
@@ -1427,7 +1427,7 @@ void genStereoSequ::checkDepthSeeds() {
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < seedsNear[l][i].size(); ++j) {
                 if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsNear[l][i][j].z]].z >= actDepthMid){
-                    cout << "Wrong distance!" << endl;
+                    throw SequenceException("Seeding depth of backprojected static 3D points in the category near is out of range!");
                 }
             }
         }
@@ -1438,7 +1438,7 @@ void genStereoSequ::checkDepthSeeds() {
             for (int j = 0; j < seedsMid[l][i].size(); ++j) {
                 if((actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid[l][i][j].z]].z < actDepthMid) ||
                         (actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsMid[l][i][j].z]].z >= actDepthFar)){
-                    cout << "Wrong distance!" << endl;
+                    throw SequenceException("Seeding depth of backprojected static 3D points in the category mid is out of range!");
                 }
             }
         }
@@ -1448,7 +1448,7 @@ void genStereoSequ::checkDepthSeeds() {
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < seedsFar[l][i].size(); ++j) {
                 if(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[seedsFar[l][i][j].z]].z < actDepthFar){
-                    cout << "Wrong distance!" << endl;
+                    throw SequenceException("Seeding depth of backprojected static 3D points in the category far is out of range!");
                 }
             }
         }
@@ -1513,7 +1513,7 @@ void genStereoSequ::checkDepthSeeds() {
     }
 
     //Check if seedsNear only holds near distances
-    for (int l = 0; l < 3; ++l) {
+    /*for (int l = 0; l < 3; ++l) {
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < seedsNear[l][i].size(); ++j) {
                 if(seedsNear[l][i][j].z >= 0) {
@@ -1548,7 +1548,7 @@ void genStereoSequ::checkDepthSeeds() {
                 }
             }
         }
-    }
+    }*/
 
     //Get distances between neighboring seeds
     SeedCloud sc;
@@ -1730,7 +1730,7 @@ void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<s
             if (idxVec_tmp[i].first < delListSortedAsc[idx]) {
                 idxVec_tmp[i].first -= idx;
             } else {
-                while (idxVec_tmp[i].first > delListSortedAsc[idx]) {
+                while ((idx <= maxIdx) && (idxVec_tmp[i].first > delListSortedAsc[idx])) {
                     idx++;
                 }
                 idxVec_tmp[i].first -= idx;
@@ -4001,7 +4001,7 @@ void genStereoSequ::getKeypoints() {
                     pt2.x = actCorrsImg2TNFromLast.at<double>(0, nrBPTN2cnt);
                     pt2.y = actCorrsImg2TNFromLast.at<double>(1, nrBPTN2cnt);
                     x2TN[y][x].push_back(pt2);
-                    x2TNdistCorr[y][x].push_back(50.0);
+                    x2TNdistCorr[y][x].push_back(fakeDistTNCorrespondences);
                     nrBPTN2cnt++;
                     selTN2++;
                     if (nrBPTN2cnt >= nrBPTN2)
@@ -4025,7 +4025,7 @@ void genStereoSequ::getKeypoints() {
 //                        csurr.copyTo(s_tmp);
                         s_tmp.at<unsigned char>(posadd, posadd) = 1;
                         x2TN[y][x].push_back(Point2d((double) pt.x, (double) pt.y));
-                        x2TNdistCorr[y][x].push_back(50.0);
+                        x2TNdistCorr[y][x].push_back(fakeDistTNCorrespondences);
                         break;
                     }
                 }
@@ -4082,7 +4082,7 @@ void genStereoSequ::getKeypoints() {
                         pt2.y = actCorrsImg2TNFromLast.at<double>(1, nrBPTN2cnt);
                         nrBPTN2cnt++;
                         x2TN[y][x].push_back(pt2);
-                        x2TNdistCorr[y][x].push_back(50.0);
+                        x2TNdistCorr[y][x].push_back(fakeDistTNCorrespondences);
                         nrTN--;
                         break;
                     }
@@ -4359,7 +4359,7 @@ distributionX2	In: x-distribution and value range in the second image
 distributionY2	In: y-distribution and value range in the second image
 x1TN			Out: True negative keypoints in the first image
 x2TN			Out: True negative keypoints in the second image
-x2TNdistCorr	Out: Distance of a TN keypoint in the second image to its true positive location. If the value is larger 50.0, the TN was generated completely random.
+x2TNdistCorr	Out: Distance of a TN keypoint in the second image to its true positive location. If the value is equal fakeDistTNCorrespondences, the TN was generated completely random.
 img1Mask		In/Out: Mask marking not usable regions / areas around already selected correspondences in camera 1
 img2Mask		In/Out: Mask marking not usable regions / areas around already selected correspondences in camera 2
 
@@ -4411,7 +4411,7 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
         s_tmp += csurr;
         x1TN.push_back(Point2d((double) pt.x, (double) pt.y));
         int max_try = 10;
-        double perfDist = 50.0;
+        double perfDist = fakeDistTNCorrespondences;
         if (!checkLKPInlier(pt, pt2, pCam,
                             usedDepthMap))//Take a random corresponding point in the second image if the reprojection is not visible to get a TN
         {
@@ -5678,7 +5678,7 @@ void genStereoSequ::getMovObjCorrs() {
                     //csurr.copyTo(s_tmp);
                     s_tmp.at<unsigned char>(posadd, posadd) = 1;
                     x2TN.push_back(Point2d((double) pt.x, (double) pt.y));
-                    movObjDistTNtoRealNew[i].push_back(50.0);
+                    movObjDistTNtoRealNew[i].push_back(fakeDistTNCorrespondences);
                     break;
                 }
             }
@@ -6070,6 +6070,8 @@ void genStereoSequ::backProjectMovObj() {
             movObjCorrsImg1TPFromLast.erase(movObjCorrsImg1TPFromLast.begin() + delList[i]);
             movObjCorrsImg2TPFromLast.erase(movObjCorrsImg2TPFromLast.begin() + delList[i]);
             movObjCorrsImg12TPFromLast_Idx.erase(movObjCorrsImg12TPFromLast_Idx.begin() + delList[i]);
+            movObjMaskFromLast &= (movObjMaskFromLastLarge[delList[i]] == 0);
+            movObjMaskFromLast2 &= (movObjMaskFromLastLarge2[delList[i]] == 0);
             movObjMaskFromLastLarge.erase(movObjMaskFromLastLarge.begin() + delList[i]);
             movObjMaskFromLastLarge2.erase(movObjMaskFromLastLarge2.begin() + delList[i]);
             movObjPt1.erase(movObjPt1.begin() + delList[i]);
@@ -6181,13 +6183,20 @@ void genStereoSequ::backProjectMovObj() {
         if (!movObjCorrsImg1TNFromLast[i].empty() && !movObjCorrsImg2TNFromLast[i].empty()) {
             if (movObjCorrsImg1TNFromLast[i].cols > movObjCorrsImg2TNFromLast[i].cols) {
                 missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols - movObjCorrsImg2TNFromLast[i].cols;
+                movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
             } else if (movObjCorrsImg1TNFromLast[i].cols < movObjCorrsImg2TNFromLast[i].cols) {
                 missingCImg1[i] = movObjCorrsImg2TNFromLast[i].cols - movObjCorrsImg1TNFromLast[i].cols;
+                movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg2TNFromLast[i].cols, fakeDistTNCorrespondences);
+            }
+            else{
+                movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
             }
         } else if (!movObjCorrsImg1TNFromLast[i].empty()) {
             missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols;
+            movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
         } else if (!movObjCorrsImg2TNFromLast[i].empty()) {
             missingCImg1[i] = movObjCorrsImg2TNFromLast[i].cols;
+            movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg2TNFromLast[i].cols, fakeDistTNCorrespondences);
         }
     }
 
@@ -6255,12 +6264,14 @@ void genStereoSequ::backProjectMovObj() {
                 movObjCorrsImg2TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
                 movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
                 missingCImg2[i] -= cnt1;
-                movObjDistTNtoReal[i] = vector<double>(cnt1, 50.0);
+//                movObjDistTNtoReal[i] = vector<double>(cnt1, fakeDistTNCorrespondences);
             }
             if (missingCImg2[i] > 0) {
                 movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].colRange(0,
                                                                                      movObjCorrsImg1TNFromLast[i].cols -
                                                                                      missingCImg2[i]);
+                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].begin() + movObjCorrsImg1TNFromLast[i].cols -
+                                                                            missingCImg2[i], movObjDistTNtoReal[i].end());
             }
         } else if (missingCImg1[i] > 0) {
             Mat elemnew = Mat::ones(missingCImg1[i], 3, CV_64FC1);
@@ -6318,12 +6329,14 @@ void genStereoSequ::backProjectMovObj() {
                 movObjCorrsImg1TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
                 movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
                 missingCImg1[i] -= cnt1;
-                movObjDistTNtoReal[i] = vector<double>(cnt1, 50.0);
+//                movObjDistTNtoReal[i] = vector<double>(cnt1, fakeDistTNCorrespondences);
             }
             if (missingCImg1[i] > 0) {
                 movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].colRange(0,
                                                                                      movObjCorrsImg2TNFromLast[i].cols -
                                                                                      missingCImg1[i]);
+                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].begin() + movObjCorrsImg2TNFromLast[i].cols -
+                                            missingCImg1[i], movObjDistTNtoReal[i].end());
             }
         }
     }
@@ -8151,6 +8164,10 @@ void genStereoSequ::getActEigenCamPose() {
     actCamRot = Eigen::Quaternionf(quat.cast<float>());
 }
 
+//Split the visible point cloud (through the camera) into a few slices to be able to use smaller leaf sizes in the
+// pcl::VoxelGridOcclusionEstimation function as the number of useable voxels is bounded by a 32bit index
+//Moreover split each slice in a near and a far part and use for each depth region a different voxel size based on the
+//mean point cloud slice distance (bigger voxels for 3D points more distant to the camera)
 bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                                   std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
                                                   int fovDevideVertical,
@@ -8535,12 +8552,29 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         }
         if ((dx*dy*dz) > maxIdxSize) {
             double lNew = cbrt(ceil(100.0 * (double) d1 * (double) d2 * (double) d3 / (double) maxIdxSize) / 100.0);
-            if (lNew > 1.2 * (double) leaf_size) {
+            const double maxlsenlarge = 1.2;
+            if (lNew > maxlsenlarge * (double) leaf_size) {
                 //Go on without filtering
                 *cloudOut.get() = *cloudIn.get();
                 return true;
             } else {
                 leaf_size = lNew;
+                dx = static_cast<int64_t>(d1 / leaf_size)+1;
+                dy = static_cast<int64_t>(d2 / leaf_size)+1;
+                dz = static_cast<int64_t>(d3 / leaf_size)+1;
+                double lsenlarge = 1.05;
+                while (((dx*dy*dz) > maxIdxSize) && (lsenlarge < maxlsenlarge)) {
+                    leaf_size *= lsenlarge;
+                    dx = static_cast<int64_t>(d1 / leaf_size) + 1;
+                    dy = static_cast<int64_t>(d2 / leaf_size) + 1;
+                    dz = static_cast<int64_t>(d3 / leaf_size) + 1;
+                    lsenlarge *= 1.05;
+                }
+                if ((dx*dy*dz) > maxIdxSize) {
+                    //Go on without filtering
+                    *cloudOut.get() = *cloudIn.get();
+                    return true;
+                }
             }
         }
     }
