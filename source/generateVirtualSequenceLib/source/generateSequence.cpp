@@ -165,6 +165,9 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     //Used inlier ratios
     genInlierRatios();
 
+    //Initialize region ROIs and masks
+    genRegMasks();
+
     //Number of correspondences per image and Correspondences per image regions
     initNrCorrespondences();
 
@@ -173,9 +176,6 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
 
     //Check if the given ranges of connected depth areas per image region are correct and initialize them for every definition of depths per image region
     checkDepthAreas();
-
-    //Initialize region ROIs and masks
-    genRegMasks();
 
     //Calculate the area in pixels for every depth and region
     calcPixAreaPerDepth();
@@ -203,6 +203,165 @@ void genStereoSequ::genMasks() {
 
     //Generate a mask for marking used areas in the first stereo image
     corrsIMG = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
+}
+
+//Function can only be called after the medium depth for the actual frame is calculated
+void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use){
+
+    //Project the corners of img1 on a plane at medium depth in 3D
+    vector<Point2f> imgCorners1(4);
+    double negXY[2] = {0,0};
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x) {
+            Point3d pt((double)(x * (imgSize.width - 1)), (double)(y * (imgSize.height - 1)), 1.0);
+            Mat ptm = Mat(pt, false).reshape(1, 3);
+            ptm = K1i * ptm;
+            ptm *= depth_use / ptm.at<double>(2); //3D position at medium depth
+            ptm /= ptm.at<double>(2); //Projection into a plane at medium depth
+            imgCorners1[y*2+x] = Point2f((float)pt.x, (float)pt.y);
+            if(negXY[0] > pt.x){
+                negXY[0] = pt.x;
+            }
+            if(negXY[1] > pt.y){
+                negXY[1] = pt.y;
+            }
+        }
+    }
+
+    //Project the corners of img2 on a plane at medium depth in 3D
+    vector<Point2f> imgCorners2(4);
+    Mat A = R_use.t() * K2i;
+    Mat a3 = A.row(2);//Get the 3rd row
+    double b3 = R_use.col(2).dot(t_use); // R(Col3) * t
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x) {
+            Point3d pt((double)(x * (imgSize.width - 1)), (double)(y * (imgSize.height - 1)), 1.0);
+            Mat ptm = Mat(pt, false).reshape(1, 3);
+
+            //Get scale factor for image coordinate in image 2 to get 3D coordinates at medium depth in the coordinate system of camera 1
+            /* From s * x2 = K2 * (R * X + t) with x2...img coordinate in second stereo img, s...scale factor, and X...3D coordinate in coordinate system of camera 1
+             * ->we know x2 = (x2_1, x2_2, 1)^T and the distance X_3 of X = (X_1, X_2, X_3)^T
+             * Leads to s * R^T * K2^-1 * x2 - R^T * t = X
+             * Substituting A = R^T * K2^-1 and b = R^T * t leads to s * A * x2 = X + b
+             * As we only need row 3 of the equation: a3 = A_(3,:)...row 3 of A and b3 = b_3...last (3rd) entry of vector b with b3 = R_(:,3) * t
+             * Thus we have s * (a3 * x2) = X_3 + b3 which leads to s = (X_3 + b3) / (a3 * x2)
+             */
+            double a3x2 = a3.dot(ptm.t());//Dot product
+            double s = (depth_use + b3) / a3x2;
+
+            ptm = R_use.t() * K2i * ptm;
+            ptm *= s; //Scale it to get the correct distance
+            ptm -= R_use.t() * t_use;
+            //Check, if we have the correct distance
+            /*if(!nearZero(ptm.at<double>(2) - depth_use)){
+                cout << "Check formulas" << endl;
+            }*/
+            ptm /= ptm.at<double>(2); //Projection into a plane at medium depth
+            imgCorners2[y*2+x] = Point2f((float)pt.x, (float)pt.y);
+            if(negXY[0] > pt.x){
+                negXY[0] = pt.x;
+            }
+            if(negXY[1] > pt.y){
+                negXY[1] = pt.y;
+            }
+        }
+    }
+
+    //Transform into positive domain
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x) {
+            imgCorners1[y*2+x].x -= (float)negXY[0];
+            imgCorners1[y*2+x].y -= (float)negXY[1];
+            imgCorners2[y*2+x].x -= (float)negXY[0];
+            imgCorners2[y*2+x].y -= (float)negXY[1];
+        }
+    }
+
+    //Get rotated rectangles
+    cv::RotatedRect r1, r2, r3;
+    r1 = cv::minAreaRect(imgCorners1);
+    r2 = cv::minAreaRect(imgCorners2);
+
+    //Get intersections
+    std::vector<cv::Point2f> midZPoly;
+    int ti = cv::rotatedRectangleIntersection(r1, r2, midZPoly);
+
+    if(ti == INTERSECT_NONE){
+        throw SequenceException("No intersection of stereo images at medium depth!");
+    }
+
+    //Transform the points back to their initial coordinate system
+    for (size_t i = 0; i < midZPoly.size(); ++i) {
+        midZPoly[i].x += (float)negXY[0];
+        midZPoly[i].y += (float)negXY[1];
+    }
+
+    //Backproject the found intersections to the first image
+    std::vector<cv::Point> img1Poly1;
+    for (size_t i = 0; i < midZPoly.size(); ++i) {
+        Mat ptm = (Mat_<double>(3,1) << (double)midZPoly[i].x, (double)midZPoly[i].y, 1.0);
+        ptm *= depth_use;
+        ptm = K1 * ptm;
+        ptm /= ptm.at<double>(2);
+        img1Poly1.push_back(Point((int)round(ptm.at<double>(0)), (int)round(ptm.at<double>(1))));
+        if(img1Poly1.back().x > (imgSize.width - 1)){
+            img1Poly1.back().x = imgSize.width - 1;
+        }
+        if(img1Poly1.back().x < 0){
+            img1Poly1.back().x = 0;
+        }
+        if(img1Poly1.back().y > (imgSize.height - 1)){
+            img1Poly1.back().y = imgSize.height - 1;
+        }
+        if(img1Poly1.back().y < 0){
+            img1Poly1.back().y = 0;
+        }
+    }
+
+    //Get the correct order of the intersections
+    vector<int> intSecIdx;
+    convexHull(img1Poly1, intSecIdx);
+    img1Poly.resize(intSecIdx.size());
+    for (int j = 0; j < intSecIdx.size(); ++j) {
+        img1Poly[j] = img1Poly1[intSecIdx[j]];
+    }
+
+
+    //Draw intersection area
+    if(verbose & SHOW_STEREO_INTERSECTION){
+        vector<vector<Point>> intersectCont(1);
+
+        intersectCont[0] = img1Poly;
+        Mat wimg = Mat::zeros(imgSize, CV_8UC3);
+        drawContours(wimg, intersectCont, 0, Scalar(0, 255, 0), CV_FILLED);
+        namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
+        imshow("Stereo intersection", wimg);
+
+        waitKey(0);
+        destroyWindow("Stereo intersection");
+    }
+}
+
+//Get the fraction of intersection between the stereo images for every image region (3x3)
+void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use){
+    //Check overlap of the stereo images
+    std::vector<cv::Point> img1Poly;
+    getImgIntersection(img1Poly, R_use, t_use, depth_use);
+
+    //Create a mask for overlapping views
+    vector<vector<Point>> intersectCont(1);
+
+    intersectCont[0] = img1Poly;
+    Mat wimg = Mat::zeros(imgSize, CV_8UC1);
+    drawContours(wimg, intersectCont, 0, Scalar(255), CV_FILLED);
+
+    fracUseableTPperRegion = Mat(3,3,CV_64FC1);
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 3; ++x) {
+            fracUseableTPperRegion.at<double>(y,x) = (double)countNonZero(wimg(regROIs[y][x])) / (double)regROIs[y][x].area();
+        }
+    }
+
 }
 
 //Get number of correspondences per image and Correspondences per image regions
@@ -255,8 +414,17 @@ bool genStereoSequ::initFracCorrImgReg() {
     nrTruePosRegs.reserve(totalNrFrames);
     nrCorrsRegs.reserve(totalNrFrames);
     nrTrueNegRegs.reserve(totalNrFrames);
-    size_t cnt = 0;
+    size_t cnt = 0, stereoIdx = 0;
     for (size_t i = 0; i < totalNrFrames; i++) {
+        //Get intersection of stereo images at medium distance plane for every image region in camera 1
+        if (((i % (pars.nFramesPerCamConf)) == 0) && (i > 0)) {
+            stereoIdx++;
+        }
+        cv::Mat fracUseableTPperRegion;
+        getInterSecFracRegions(fracUseableTPperRegion, R[stereoIdx], t[stereoIdx], depthMid[stereoIdx]);
+        cv::Mat fracUseableTPperRegionNeg = Mat::ones(3,3,CV_64FC1) - fracUseableTPperRegion;
+        fracUseableTPperRegionNeg /= cv::sum(fracUseableTPperRegionNeg)[0];
+
         //Get number of correspondences per region
         Mat newCorrsPerRegion;
         newCorrsPerRegion = pars.corrsPerRegion[cnt] * nrCorrs[i];
@@ -343,6 +511,7 @@ bool genStereoSequ::initFracCorrImgReg() {
         //Get number of true negatives per region
         Mat negsReg(3, 3, CV_64FC1);
         cv::randu(negsReg, Scalar(0), Scalar(1.0));
+        negsReg = negsReg.mul(fracUseableTPperRegionNeg);
         negsReg /= sum(negsReg)[0];
         Mat newCorrsPerRegiond;
         newCorrsPerRegion.convertTo(newCorrsPerRegiond, CV_64FC1);
@@ -6070,8 +6239,8 @@ void genStereoSequ::backProjectMovObj() {
             movObjCorrsImg1TPFromLast.erase(movObjCorrsImg1TPFromLast.begin() + delList[i]);
             movObjCorrsImg2TPFromLast.erase(movObjCorrsImg2TPFromLast.begin() + delList[i]);
             movObjCorrsImg12TPFromLast_Idx.erase(movObjCorrsImg12TPFromLast_Idx.begin() + delList[i]);
-            movObjMaskFromLast &= (movObjMaskFromLastLarge[delList[i]] == 0);
-            movObjMaskFromLast2 &= (movObjMaskFromLastLarge2[delList[i]] == 0);
+            movObjMaskFromLast &= (movObjMaskFromLastLarge[delList[i]](Rect(Point(posadd, posadd), imgSize)) == 0);
+            movObjMaskFromLast2 &= (movObjMaskFromLastLarge2[delList[i]](Rect(Point(posadd, posadd), imgSize)) == 0);
             movObjMaskFromLastLarge.erase(movObjMaskFromLastLarge.begin() + delList[i]);
             movObjMaskFromLastLarge2.erase(movObjMaskFromLastLarge2.begin() + delList[i]);
             movObjPt1.erase(movObjPt1.begin() + delList[i]);

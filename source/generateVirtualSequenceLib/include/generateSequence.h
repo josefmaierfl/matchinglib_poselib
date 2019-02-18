@@ -90,7 +90,8 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_STATIC_OBJ_3D_PTS = 0x100,
 	SHOW_MOV_OBJ_MOVEMENT = 0x200,
 	SHOW_BACKPROJECT_OCCLUSIONS = 0x400,
-	SHOW_BACKPROJECT_MOV_OBJ_CORRS = 0x800
+	SHOW_BACKPROJECT_MOV_OBJ_CORRS = 0x800,
+	SHOW_STEREO_INTERSECTION = 0x1000
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -392,6 +393,8 @@ private:
                                 int y = 0);
     void clearNewMovObjVars();
     void adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew);
+    void getImgIntersection(std::vector<cv::Point> &img1Poly, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use);
+    void getInterSecFracRegions(cv::Mat &fracUseableTPperRegion, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use);
 
 public:
 	uint32_t verbose = 0;
@@ -439,7 +442,7 @@ private:
 	std::vector<cv::Mat> areaPRegNear;//Area in pixels per region that should hold near depth values; Type CV_32SC1, same size as depthsPerRegion
 	std::vector<cv::Mat> areaPRegMid;//Area in pixels per region that should hold mid depth values; Type CV_32SC1, same size as depthsPerRegion
 	std::vector<cv::Mat> areaPRegFar;//Area in pixels per region that should hold far depth values; Type CV_32SC1, same size as depthsPerRegion
-	std::vector<std::vector<cv::Rect>> regROIs;//ROIs of every of the 9x9 image regions
+	std::vector<std::vector<cv::Rect>> regROIs;//ROIs of every of the 3x3 image regions
 
 	pcl::PointCloud<pcl::PointXYZ> staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
 	std::vector<cv::Point3d> actImgPointCloudFromLast;//3D coordiantes that were generated with a different frame. Coordinates are in the camera coordinate system.
