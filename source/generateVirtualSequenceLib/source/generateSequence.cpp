@@ -206,7 +206,11 @@ void genStereoSequ::genMasks() {
 }
 
 //Function can only be called after the medium depth for the actual frame is calculated
-void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use){
+void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
+        const cv::Mat &R_use,
+        const cv::Mat &t_use,
+        const double depth_use,
+        bool visualize){
 
     //Project the corners of img1 on a plane at medium depth in 3D
     vector<Point2f> imgCorners1(4);
@@ -343,10 +347,14 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly, const c
 }
 
 //Get the fraction of intersection between the stereo images for every image region (3x3)
-void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use){
+void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
+        const cv::Mat &R_use,
+        const cv::Mat &t_use,
+        const double depth_use,
+        cv::InputArray mask){
     //Check overlap of the stereo images
     std::vector<cv::Point> img1Poly;
-    getImgIntersection(img1Poly, R_use, t_use, depth_use);
+    getImgIntersection(img1Poly, R_use, t_use, depth_use, mask.empty());
 
     //Create a mask for overlapping views
     vector<vector<Point>> intersectCont(1);
@@ -355,10 +363,20 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion, cons
     Mat wimg = Mat::zeros(imgSize, CV_8UC1);
     drawContours(wimg, intersectCont, 0, Scalar(255), CV_FILLED);
 
-    fracUseableTPperRegion = Mat(3,3,CV_64FC1);
+    if(!mask.empty()){
+        wimg &= mask.getMat();
+    }
+
+    fracUseableTPperRegion_ = Mat(3,3,CV_64FC1);
     for (int y = 0; y < 3; ++y) {
         for (int x = 0; x < 3; ++x) {
-            fracUseableTPperRegion.at<double>(y,x) = (double)countNonZero(wimg(regROIs[y][x])) / (double)regROIs[y][x].area();
+            if(mask.empty()) {
+                fracUseableTPperRegion_.at<double>(y, x) =
+                        (double) countNonZero(wimg(regROIs[y][x])) / (double) regROIs[y][x].area();
+            }else{
+                fracUseableTPperRegion_.at<double>(y, x) =
+                        (double) countNonZero(wimg(regROIs[y][x])) / (double) countNonZero(mask.getMat());
+            }
         }
     }
 
@@ -415,134 +433,233 @@ bool genStereoSequ::initFracCorrImgReg() {
     nrCorrsRegs.reserve(totalNrFrames);
     nrTrueNegRegs.reserve(totalNrFrames);
     size_t cnt = 0, stereoIdx = 0;
+    cv::Mat fracUseableTPperRegion_tmp, fracUseableTPperRegionNeg, fUTPpRNSum1;
     for (size_t i = 0; i < totalNrFrames; i++) {
         //Get intersection of stereo images at medium distance plane for every image region in camera 1
-        if (((i % (pars.nFramesPerCamConf)) == 0) && (i > 0)) {
-            stereoIdx++;
+        if ((i % pars.nFramesPerCamConf) == 0) {
+            if(i > 0) {
+                stereoIdx++;
+            }
+            getInterSecFracRegions(fracUseableTPperRegion_tmp, R[stereoIdx], t[stereoIdx], depthMid[stereoIdx]);
+            fracUseableTPperRegion.push_back(fracUseableTPperRegion_tmp.clone());
+            fracUseableTPperRegionNeg = Mat::ones(3,3,CV_64FC1) - fracUseableTPperRegion_tmp;
+            fUTPpRNSum1 = fracUseableTPperRegionNeg / cv::sum(fracUseableTPperRegionNeg)[0];
         }
-        cv::Mat fracUseableTPperRegion;
-        getInterSecFracRegions(fracUseableTPperRegion, R[stereoIdx], t[stereoIdx], depthMid[stereoIdx]);
-        cv::Mat fracUseableTPperRegionNeg = Mat::ones(3,3,CV_64FC1) - fracUseableTPperRegion;
-        fracUseableTPperRegionNeg /= cv::sum(fracUseableTPperRegionNeg)[0];
+
+        cv::Mat corrsTooMuch;
+        double activeRegions = 9.0;
+        Mat corrsRemain = Mat::ones(3,3,CV_32SC1);
 
         //Get number of correspondences per region
         Mat newCorrsPerRegion;
-        newCorrsPerRegion = pars.corrsPerRegion[cnt] * nrCorrs[i];
-        newCorrsPerRegion.convertTo(newCorrsPerRegion, CV_32SC1, 1.0, 0.5);//Corresponds to round
-        int32_t chkSize = sum(newCorrsPerRegion)[0] - (int32_t) nrCorrs[i];
-        if (chkSize > 0) {
-            do {
-                int pos = std::rand() % 9;
-                if (newCorrsPerRegion.at<int32_t>(pos) > 0) {
-                    newCorrsPerRegion.at<int32_t>(pos)--;
-                    chkSize--;
-                } /*else
+        Mat negsReg(3, 3, CV_64FC1);
+        bool recalcCorrsPerRegion = false;
+        do {
+            newCorrsPerRegion = pars.corrsPerRegion[cnt] * nrCorrs[i];
+            newCorrsPerRegion.convertTo(newCorrsPerRegion, CV_32SC1, 1.0, 0.5);//Corresponds to round
+            int32_t chkSize = sum(newCorrsPerRegion)[0] - (int32_t) nrCorrs[i];
+            if (chkSize > 0) {
+                do {
+                    int pos = std::rand() % 9;
+                    if (newCorrsPerRegion.at<int32_t>(pos) > 0) {
+                        newCorrsPerRegion.at<int32_t>(pos)--;
+                        chkSize--;
+                    } /*else
                 {
 				    cout << "Zero corrs in region " << pos << "of frame " << i << endl;
                 }*/
-            } while (chkSize > 0);
-        } else if (chkSize < 0) {
-            do {
-                int pos = std::rand() % 9;
-                if (!nearZero(pars.corrsPerRegion[cnt].at<double>(pos))) {
-                    newCorrsPerRegion.at<int32_t>(pos)++;
-                    chkSize++;
-                }
-            } while (chkSize < 0);
-        }
+                } while (chkSize > 0);
+            } else if (chkSize < 0) {
+                do {
+                    int pos = std::rand() % 9;
+                    if (!nearZero(pars.corrsPerRegion[cnt].at<double>(pos))) {
+                        newCorrsPerRegion.at<int32_t>(pos)++;
+                        chkSize++;
+                    }
+                } while (chkSize < 0);
+            }
 
-        //Check if there are too many correspondences per region as every correspondence needs a minimum distance to its neighbor
-        double minCorr, maxCorr;
-        cv::minMaxLoc(newCorrsPerRegion, &minCorr, &maxCorr);
-        double regA = (double) imgSize.area() / 9.0;
-        double areaCorrs = maxCorr * pars.minKeypDist * pars.minKeypDist *
-                           1.33;//Multiply by 1.33 to take gaps into account that are a result of randomness
+            Mat usedTNonNoOverlapRat;
+            Mat newCorrsPerRegiond;
+            int cnt1 = 0;
+            const int cnt1Max = 3;
+            const double enlargeKPDist = 1.33;//Multiply the max. corrs per area by 1.33 to take gaps into account that are a result of randomness
+            while ((cv::sum(corrsRemain)[0] > 0) && (cnt1 < cnt1Max)) {
+                //Check if there are too many correspondences per region as every correspondence needs a minimum distance to its neighbor
+                double minCorr, maxCorr;
+                cv::minMaxLoc(newCorrsPerRegion, &minCorr, &maxCorr);
+                double regA = (double) imgSize.area() / activeRegions;
+                double areaCorrs = maxCorr * pars.minKeypDist * pars.minKeypDist *
+                                   enlargeKPDist;//Multiply by 1.33 to take gaps into account that are a result of randomness
 
-        if (areaCorrs > regA) {
-            cout << "There are too many keypoints per region when demanding a minimum keypoint distance of "
-                 << pars.minKeypDist << ". Changing it!" << endl;
-            double mKPdist = floor(10.0 * sqrt(regA / (1.33 * maxCorr))) / 10.0;
-            if (mKPdist <= 1.414214) {
-                cout
-                        << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!"
-                        << endl;
-                pars.minKeypDist = 1.0;
-                genMasks();
-                //Get max # of correspondences
-                double maxFC = (double) *std::max_element(nrCorrs.begin(), nrCorrs.end());
-                //Get the largest portion of correspondences within a single region
-                vector<double> cMaxV(pars.corrsPerRegion.size());
-                for (size_t k = 0; k < pars.corrsPerRegion.size(); k++) {
-                    cv::minMaxLoc(pars.corrsPerRegion[k], &minCorr, &maxCorr);
-                    cMaxV[k] = maxCorr;
-                }
-                maxCorr = *std::max_element(cMaxV.begin(), cMaxV.end());
-                maxCorr *= maxFC;
-                //# KPs reduction factor
-                double reduF = regA / (2.0 * maxCorr);
-                //Get worst inlier ratio
-                double minILR = *std::min_element(inlRat.begin(), inlRat.end());
-                //Calc max true positives
-                size_t maxTPNew = (size_t) floor(maxCorr * reduF * minILR);
-                cout << "Changing max. true positives to " << maxTPNew << endl;;
-                if ((pars.truePosRange.second - pars.truePosRange.first) == 0) {
-                    pars.truePosRange.first = pars.truePosRange.second = maxTPNew;
-                } else {
-                    if (pars.truePosRange.first >= maxTPNew) {
-                        pars.truePosRange.first = maxTPNew / 2;
-                        pars.truePosRange.second = maxTPNew;
+                if (areaCorrs > regA) {
+                    cout << "There are too many keypoints per region when demanding a minimum keypoint distance of "
+                         << pars.minKeypDist << ". Changing it!" << endl;
+                    double mKPdist = floor(10.0 * sqrt(regA / (enlargeKPDist * maxCorr))) / 10.0;
+                    if (mKPdist <= 1.414214) {
+                        cout
+                                << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!"
+                                << endl;
+                        pars.minKeypDist = 1.0;
+                        genMasks();
+                        //Get max # of correspondences
+                        double maxFC = (double) *std::max_element(nrCorrs.begin(), nrCorrs.end());
+                        //Get the largest portion of correspondences within a single region
+                        vector<double> cMaxV(pars.corrsPerRegion.size());
+                        for (size_t k = 0; k < pars.corrsPerRegion.size(); k++) {
+                            cv::minMaxLoc(pars.corrsPerRegion[k], &minCorr, &maxCorr);
+                            cMaxV[k] = maxCorr;
+                        }
+                        maxCorr = *std::max_element(cMaxV.begin(), cMaxV.end());
+                        maxCorr *= maxFC;
+                        //# KPs reduction factor
+                        double reduF = regA / (2.0 * maxCorr);
+                        //Get worst inlier ratio
+                        double minILR = *std::min_element(inlRat.begin(), inlRat.end());
+                        //Calc max true positives
+                        size_t maxTPNew = (size_t) floor(maxCorr * reduF * minILR);
+                        cout << "Changing max. true positives to " << maxTPNew << endl;;
+                        if ((pars.truePosRange.second - pars.truePosRange.first) == 0) {
+                            pars.truePosRange.first = pars.truePosRange.second = maxTPNew;
+                        } else {
+                            if (pars.truePosRange.first >= maxTPNew) {
+                                pars.truePosRange.first = maxTPNew / 2;
+                                pars.truePosRange.second = maxTPNew;
+                            } else {
+                                pars.truePosRange.second = maxTPNew;
+                            }
+                        }
+                        nrTruePosRegs.clear();
+                        nrCorrsRegs.clear();
+                        nrTrueNegRegs.clear();
+                        return false;
                     } else {
-                        pars.truePosRange.second = maxTPNew;
+                        cout << "Changed the minimum keypoint distance to " << mKPdist << endl;
+                        pars.minKeypDist = mKPdist;
+                        genMasks();
                     }
                 }
-                nrTruePosRegs.clear();
-                nrCorrsRegs.clear();
-                nrTrueNegRegs.clear();
-                return false;
-            } else {
-                cout << "Changed the minimum keypoint distance to " << mKPdist << endl;
-                pars.minKeypDist = mKPdist;
-                genMasks();
-            }
-        }
 
-        nrCorrsRegs.push_back(newCorrsPerRegion.clone());
+                //Get number of true negatives per region
 
-        //Get number of true negatives per region
-        Mat negsReg(3, 3, CV_64FC1);
-        cv::randu(negsReg, Scalar(0), Scalar(1.0));
-        negsReg = negsReg.mul(fracUseableTPperRegionNeg);
-        negsReg /= sum(negsReg)[0];
-        Mat newCorrsPerRegiond;
-        newCorrsPerRegion.convertTo(newCorrsPerRegiond, CV_64FC1);
-        negsReg = negsReg.mul(newCorrsPerRegiond);//Max number of true negatives per region
-        negsReg *= (double) nrTrueNeg[i] / sum(negsReg)[0];
-        negsReg.convertTo(negsReg, CV_32SC1, 1.0, 0.5);//Corresponds to round
-        for (size_t j = 0; j < 9; j++) {
-            while (negsReg.at<int32_t>(j) > newCorrsPerRegion.at<int32_t>(j))
-                negsReg.at<int32_t>(j)--;
-        }
-        chkSize = sum(negsReg)[0] - (int32_t) nrTrueNeg[i];
-        if (chkSize > 0) {
-            do {
-                int pos = std::rand() % 9;
-                if (negsReg.at<int32_t>(pos) > 0) {
-                    negsReg.at<int32_t>(pos)--;
-                    chkSize--;
-                } /*else
+                if (cnt1 == 0) {
+                    int maxit = 5;
+                    maxCorr = 1.0;
+                    while ((maxCorr > 0.5) && (maxit > 0)) {
+                        negsReg = Mat(3,3,CV_64FC1);
+                        cv::randu(negsReg, Scalar(0), Scalar(1.0));
+                        negsReg /= sum(negsReg)[0];
+                        negsReg = 0.33 * negsReg + negsReg.mul(fUTPpRNSum1);
+                        negsReg /= sum(negsReg)[0];
+                        cv::minMaxLoc(negsReg, &minCorr, &maxCorr);
+                        maxit--;
+                    }
+                    if (maxit == 0) {
+                        minCorr = maxCorr / 16.0;
+                        for (int y = 0; y < 3; ++y) {
+                            for (int x = 0; x < 3; ++x) {
+                                if (nearZero(negsReg.at<double>(y, x) - maxCorr)) {
+                                    negsReg.at<double>(y, x) /= 2.0;
+                                } else {
+                                    negsReg.at<double>(y, x) += minCorr;
+                                }
+                            }
+                        }
+                        negsReg /= sum(negsReg)[0];
+                    }
+                    newCorrsPerRegion.convertTo(newCorrsPerRegiond, CV_64FC1);
+                    corrsTooMuch = fracUseableTPperRegionNeg.mul(newCorrsPerRegiond);
+                    corrsTooMuch.convertTo(corrsTooMuch, CV_32SC1, 1.0, 0.5);//Corresponds to round
+                } else {
+                    negsReg.convertTo(negsReg, CV_64FC1);
+                    negsReg = 0.66 * negsReg + 0.33 * negsReg.mul(fUTPpRNSum1);
+                    negsReg /= sum(negsReg)[0];
+                    cv::minMaxLoc(negsReg, &minCorr, &maxCorr);
+                    if (maxCorr > 0.5) {
+                        minCorr = maxCorr / 16.0;
+                        for (int y = 0; y < 3; ++y) {
+                            for (int x = 0; x < 3; ++x) {
+                                if (nearZero(negsReg.at<double>(y, x) - maxCorr)) {
+                                    negsReg.at<double>(y, x) /= 2.0;
+                                } else {
+                                    negsReg.at<double>(y, x) += minCorr;
+                                }
+                            }
+                        }
+                        negsReg /= sum(negsReg)[0];
+                    }
+                }
+                negsReg = negsReg.mul(newCorrsPerRegiond);//Max number of true negatives per region
+                negsReg *= (double) nrTrueNeg[i] / sum(negsReg)[0];
+                negsReg.convertTo(negsReg, CV_32SC1, 1.0, 0.5);//Corresponds to round
+                for (size_t j = 0; j < 9; j++) {
+                    while (negsReg.at<int32_t>(j) > newCorrsPerRegion.at<int32_t>(j))
+                        negsReg.at<int32_t>(j)--;
+                }
+                chkSize = sum(negsReg)[0] - (int32_t) nrTrueNeg[i];
+                if (chkSize > 0) {
+                    do {
+                        int pos = std::rand() % 9;
+                        if (negsReg.at<int32_t>(pos) > 0) {
+                            negsReg.at<int32_t>(pos)--;
+                            chkSize--;
+                        } /*else
                 {
                     cout << "Zero neg corrs in region " << pos << "of frame " << i << endl;
                 }*/
-            } while (chkSize > 0);
-        } else if (chkSize < 0) {
-            do {
-                int pos = std::rand() % 9;
-                if (negsReg.at<int32_t>(pos) < newCorrsPerRegion.at<int32_t>(pos)) {
-                    negsReg.at<int32_t>(pos)++;
-                    chkSize++;
+                    } while (chkSize > 0);
+                } else if (chkSize < 0) {
+                    do {
+                        int pos = std::rand() % 9;
+                        if (negsReg.at<int32_t>(pos) < newCorrsPerRegion.at<int32_t>(pos)) {
+                            negsReg.at<int32_t>(pos)++;
+                            chkSize++;
+                        }
+                    } while (chkSize < 0);
                 }
-            } while (chkSize < 0);
-        }
+
+                //Check, if there are still TP outside the intersection of the 2 stereo camera views
+                corrsRemain = corrsTooMuch - negsReg;
+                usedTNonNoOverlapRat = Mat::ones(3, 3, CV_64FC1);
+                double areaPerKP = pars.minKeypDist * pars.minKeypDist * enlargeKPDist;
+                for (int y = 0; y < 3; ++y) {
+                    for (int x = 0; x < 3; ++x) {
+                        if (corrsRemain.at<int32_t>(y, x) > 0) {
+                            usedTNonNoOverlapRat.at<double>(y, x) =
+                                    (double) negsReg.at<int32_t>(y, x) / (double) corrsTooMuch.at<int32_t>(y, x);
+                            double neededArea = (newCorrsPerRegiond.at<double>(y, x) - (double) negsReg.at<int32_t>(y, x)) * areaPerKP;
+                            double usableArea = fracUseableTPperRegion_tmp.at<double>(y, x) * (double) regROIs[y][x].area();
+                            if (neededArea > usableArea) {
+                                double diffArea = neededArea - usableArea;
+                                corrsRemain.at<int32_t>(y, x) = (int32_t) round(diffArea / areaPerKP);
+                            } else {
+                                corrsRemain.at<int32_t>(y, x) = 0;
+                            }
+
+                        } else {
+                            corrsRemain.at<int32_t>(y, x) = 0;
+                        }
+                    }
+                }
+                activeRegions = cv::sum(usedTNonNoOverlapRat)[0];
+
+                cnt1++;
+            }
+            if ((cv::sum(corrsRemain)[0] > 0) && (cnt1 >= cnt1Max)) {
+                //Adapt number of correspondences per region
+                pars.corrsPerRegion[cnt] = pars.corrsPerRegion[cnt].mul(usedTNonNoOverlapRat);
+                pars.corrsPerRegion[cnt] /= cv::sum(pars.corrsPerRegion[cnt])[0];
+                recalcCorrsPerRegion = true;
+                cnt1 = 0;
+                corrsRemain = Mat::ones(3,3,CV_32SC1);
+                activeRegions = 9.0;
+            }
+            else{
+                recalcCorrsPerRegion = false;
+            }
+        }while(recalcCorrsPerRegion);
+
+        nrCorrsRegs.push_back(newCorrsPerRegion.clone());
         nrTrueNegRegs.push_back(negsReg.clone());
 
         //Get number of true positives per region
@@ -1572,21 +1689,27 @@ void genStereoSequ::checkDepthSeeds() {
         //Add the seeds to their regions
         for (size_t i = 0; i < seedsNear_tmp1.size(); i++) {
             int32_t ix = seedsNear_tmp1[i].x / regSi.width;
+            ix = (ix > 2) ? 2:ix;
             int32_t iy = seedsNear_tmp1[i].y / regSi.height;
+            iy = (iy > 2) ? 2:iy;
             seedsNear[iy][ix].push_back(seedsNear_tmp1[i]);
         }
 
         //Add the seeds to their regions
         for (size_t i = 0; i < seedsMid_tmp1.size(); i++) {
             int32_t ix = seedsMid_tmp1[i].x / regSi.width;
+            ix = (ix > 2) ? 2:ix;
             int32_t iy = seedsMid_tmp1[i].y / regSi.height;
+            iy = (iy > 2) ? 2:iy;
             seedsMid[iy][ix].push_back(seedsMid_tmp1[i]);
         }
 
         //Add the seeds to their regions
         for (size_t i = 0; i < seedsFar_tmp1.size(); i++) {
             int32_t ix = seedsFar_tmp1[i].x / regSi.width;
+            ix = (ix > 2) ? 2:ix;
             int32_t iy = seedsFar_tmp1[i].y / regSi.height;
+            iy = (iy > 2) ? 2:iy;
             seedsFar[iy][ix].push_back(seedsFar_tmp1[i]);
         }
     }
@@ -3892,7 +4015,12 @@ void genStereoSequ::getKeypoints() {
         Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
         csurr.copyTo(s_tmp);
 
-        x1pTN[pt.y / rSl.height][pt.x / rSl.width].push_back(pt);
+        int yreg_idx = pt.y / rSl.height;
+        yreg_idx = (yreg_idx > 2) ? 2:yreg_idx;
+        int xreg_idx = pt.x / rSl.width;
+        xreg_idx = (xreg_idx > 2) ? 2:xreg_idx;
+
+        x1pTN[yreg_idx][xreg_idx].push_back(pt);
     }
 
     //For visualization
@@ -4466,6 +4594,12 @@ void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
 
     if (((nrTP <= 0) && (nrTN <= 0)) || (idx_xy >= (maxCnt - 1))) {
         return;
+    }
+    if(nrTP < 0){
+        nrTP = 0;
+    }
+    if(nrTN < 0){
+        nrTN = 0;
     }
     double reductionFactor = (double) (*ptrTP[idx_xy] - nrTP + *ptrTN[idx_xy] - nrTN) /
                              (double) (*ptrTP[idx_xy] + *ptrTN[idx_xy]);
@@ -5160,6 +5294,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             movObjOverlap[y][x] = (double) (cv::countNonZero(combMovObjLabels(regROIs[y][x])) +
                                             cv::countNonZero(mask(regROIs[y][x]))) /
                                   (double) (regROIs[y][x].area());
+            CV_Assert(movObjOverlap[y][x] >= 0);
             if (movObjOverlap[y][x] > 0.9) {
                 movObjHasArea[y][x] = true;
                 movObjCorrsFromStatic[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
@@ -5258,7 +5393,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
         {
             int32_t remStat = actCorrsOnMovObj - absNrCorrsFromStatic;
+            CV_Assert(remStat >= 0);
             int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+            CV_Assert(actStatCorrs >= 0);
             int32_t remStatrem = remStat;
             for (size_t y = 0; y < 3; y++) {
                 for (size_t x = 0; x < 3; x++) {
@@ -5279,6 +5416,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                             if (remStatrem < 0) {
                                 statCorrsPRegNew.at<int32_t>(y, x) = -remStatrem;
                                 remStatrem = 0;
+                            }
+                            else{
+                                statCorrsPRegNew.at<int32_t>(y, x) = 0;
                             }
                         }
                     }
@@ -5317,10 +5457,18 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                    r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
         {
             int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObj;
-
+            CV_Assert(remMov >= 0);
             int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+            CV_Assert(actStatCorrs >= 0);
             int32_t remMovrem = remMov;
             vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
+            cv::Mat fracUseableTPperRegion_tmp;
+            cv::Mat mask_tmp = (combMovObjLabels == 0) | (mask == 0);
+            getInterSecFracRegions(fracUseableTPperRegion_tmp,
+                                   actR,
+                                   actT,
+                                   actDepthMid,
+                                   mask_tmp);
             for (size_t y = 0; y < 3; y++) {
                 for (size_t x = 0; x < 3; x++) {
                     if (!movObjHasArea[y][x] && (remMovrem > 0)) {
@@ -5328,9 +5476,20 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                                 (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
                         int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
                         //Get the maximum # of correspondences per area using the minimum distance between keypoints
-                        cmaxreg[y][x] = (int32_t) ((double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
-                                                   (1.0 - movObjOverlap[y][x]) /
-                                                   (1.5 * pars.minKeypDist * pars.minKeypDist));
+                        if(nearZero(actFracUseableTPperRegion.at<double>(y,x))){
+                            cmaxreg[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+                        }else if(!nearZero(actFracUseableTPperRegion.at<double>(y,x) - 1.0)){
+                            cmaxreg[y][x] = (int32_t) (
+                                    (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
+                                    (1.0 - movObjOverlap[y][x]) * fracUseableTPperRegion_tmp.at<double>(y,x) /
+                                    (1.5 * pars.minKeypDist * pars.minKeypDist));
+                        }
+                        else {
+                            cmaxreg[y][x] = (int32_t) (
+                                    (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
+                                    (1.0 - movObjOverlap[y][x]) /
+                                    (1.5 * pars.minKeypDist * pars.minKeypDist));
+                        }
                         if (newval <= cmaxreg[y][x]) {
                             remMovrem -= val;
                             if (remMovrem < 0) {
@@ -5396,6 +5555,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                                                 (double) nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) /
                                                 (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x));
                 int32_t TNnew = statCorrsPRegNew.at<int32_t>(y, x) - TPnew;
+                CV_Assert(TNnew >= 0);
                 nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = TNnew;
                 nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) = TPnew;
                 nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
@@ -6436,11 +6596,11 @@ void genStereoSequ::backProjectMovObj() {
 //                movObjDistTNtoReal[i] = vector<double>(cnt1, fakeDistTNCorrespondences);
             }
             if (missingCImg2[i] > 0) {
+                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].begin() + movObjCorrsImg1TNFromLast[i].cols -
+                                            missingCImg2[i], movObjDistTNtoReal[i].end());
                 movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].colRange(0,
                                                                                      movObjCorrsImg1TNFromLast[i].cols -
                                                                                      missingCImg2[i]);
-                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].begin() + movObjCorrsImg1TNFromLast[i].cols -
-                                                                            missingCImg2[i], movObjDistTNtoReal[i].end());
             }
         } else if (missingCImg1[i] > 0) {
             Mat elemnew = Mat::ones(missingCImg1[i], 3, CV_64FC1);
@@ -6501,11 +6661,11 @@ void genStereoSequ::backProjectMovObj() {
 //                movObjDistTNtoReal[i] = vector<double>(cnt1, fakeDistTNCorrespondences);
             }
             if (missingCImg1[i] > 0) {
+                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].begin() + movObjCorrsImg2TNFromLast[i].cols -
+                                            missingCImg1[i], movObjDistTNtoReal[i].end());
                 movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].colRange(0,
                                                                                      movObjCorrsImg2TNFromLast[i].cols -
                                                                                      missingCImg1[i]);
-                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].begin() + movObjCorrsImg2TNFromLast[i].cols -
-                                            missingCImg1[i], movObjDistTNtoReal[i].end());
             }
         }
     }
@@ -7626,6 +7786,7 @@ void genStereoSequ::updateFrameParameters() {
     actDepthNear = depthNear[actStereoCIdx];
     actDepthMid = depthMid[actStereoCIdx];
     actDepthFar = depthFar[actStereoCIdx];
+    actFracUseableTPperRegion = fracUseableTPperRegion[actStereoCIdx];
 
     if (((actFrameCnt % (pars.corrsPerRegRepRate)) == 0) && (actFrameCnt > 0)) {
         actCorrsPRIdx++;
@@ -8382,6 +8543,9 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
                 cloudsFar[delList[i].first]->erase(cloudsFar[delList[i].first]->begin() + delList[i].second);
             }
         }
+    }
+    else if(!success1 && !success2){
+        return false;
     }
 
     //Filter near occluded 3D points with a smaller voxel size

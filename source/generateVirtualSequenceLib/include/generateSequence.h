@@ -393,8 +393,16 @@ private:
                                 int y = 0);
     void clearNewMovObjVars();
     void adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew);
-    void getImgIntersection(std::vector<cv::Point> &img1Poly, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use);
-    void getInterSecFracRegions(cv::Mat &fracUseableTPperRegion, const cv::Mat &R_use, const cv::Mat &t_use, const double depth_use);
+    void getImgIntersection(std::vector<cv::Point> &img1Poly,
+                            const cv::Mat &R_use,
+                            const cv::Mat &t_use,
+                            const double depth_use,
+                            bool visualize = true);
+    void getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
+                                const cv::Mat &R_use,
+                                const cv::Mat &t_use,
+                                const double depth_use,
+                                cv::InputArray mask = cv::noArray());
 
 public:
 	uint32_t verbose = 0;
@@ -530,6 +538,9 @@ private:
 	cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
 	std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
+
+    std::vector<cv::Mat> fracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas (cv::Mat) and every stereo configuration (std::vector)
+    cv::Mat actFracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas of the current stereo configuration
 };
 
 
