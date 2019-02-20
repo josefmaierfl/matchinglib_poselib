@@ -2209,8 +2209,8 @@ void genStereoSequ::genDepthMaps() {
                             cv::Point3_<int32_t> pt = seedsNear[y][x][j];
                             Mat part, rmask;
                             int32_t nnd = seedsNearNNDist[y][x][j];
-                            int32_t useRad = min(max((nnd - 1) / 2, meanNearA.at<cv::Vec<int32_t, 2>>(y, x)[1]),
-                                                 nnd - 2);
+                            int32_t useRad = max(min(max((nnd - 1) / 2, meanNearA.at<cv::Vec<int32_t, 2>>(y, x)[1]),
+                                                 nnd - 2),1);
                             int32_t offset = maskEnlarge - useRad;
                             int32_t offset2 = maskEnlarge + useRad;
                             getRandMask(rmask, meanNearA.at<cv::Vec<int32_t, 2>>(y, x)[0], useRad, minSi);
@@ -2229,8 +2229,8 @@ void genStereoSequ::genDepthMaps() {
                             cv::Point3_<int32_t> pt = seedsMid[y][x][j];
                             Mat part, rmask;
                             int32_t nnd = seedsMidNNDist[y][x][j];
-                            int32_t useRad = min(max((nnd - 1) / 2, meanMidA.at<cv::Vec<int32_t, 2>>(y, x)[1]),
-                                                 nnd - 2);
+                            int32_t useRad = max(min(max((nnd - 1) / 2, meanMidA.at<cv::Vec<int32_t, 2>>(y, x)[1]),
+                                                 nnd - 2),1);
                             int32_t offset = maskEnlarge - useRad;
                             int32_t offset2 = maskEnlarge + useRad;
                             getRandMask(rmask, meanMidA.at<cv::Vec<int32_t, 2>>(y, x)[0], useRad, minSi);
@@ -2249,8 +2249,8 @@ void genStereoSequ::genDepthMaps() {
                             cv::Point3_<int32_t> pt = seedsFar[y][x][j];
                             Mat part, rmask;
                             int32_t nnd = seedsFarNNDist[y][x][j];
-                            int32_t useRad = min(max((nnd - 1) / 2, meanFarA.at<cv::Vec<int32_t, 2>>(y, x)[1]),
-                                                 nnd - 2);
+                            int32_t useRad = max(min(max((nnd - 1) / 2, meanFarA.at<cv::Vec<int32_t, 2>>(y, x)[1]),
+                                                 nnd - 2),1);
                             int32_t offset = maskEnlarge - useRad;
                             int32_t offset2 = maskEnlarge + useRad;
                             getRandMask(rmask, meanFarA.at<cv::Vec<int32_t, 2>>(y, x)[0], useRad, minSi);
@@ -3074,6 +3074,10 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
     int32_t kSize = useRad / 3;
     kSize -= (kSize + 1) % 2;
     kSize = max(kSize, 3);
+    if(usedist <= 3){
+        mask = 255 * cv::Mat::ones(usedist, usedist, CV_8UC1);
+        return usedist * usedist;
+    }
     Mat mask_t = cv::Mat::zeros(usedist, usedist, CV_64FC1);
     /*Mat minVals = Mat::zeros(usedist, usedist, CV_64FC1);
     Mat maxVals = Mat::ones(usedist, usedist, CV_64FC1) * 255.0;*/
@@ -4036,7 +4040,7 @@ void genStereoSequ::getKeypoints() {
     cImg2(Rect(Point(posadd, posadd), imgSize)) |= movObjMask2All;
 
     //Get regions of backprojected TN in first image and mark their positions; add true negatives from backprojection to the new outlier data
-    vector<vector<vector<Point_<int32_t>>>> x1pTN(3, vector<vector<Point_<int32_t>>>(3));
+    vector<vector<vector<Point2d>>> x1pTN(3, vector<vector<Point2d>>(3));
     Size rSl(imgSize.width / 3, imgSize.height / 3);
     for (int i = 0; i < actCorrsImg1TNFromLast.cols; i++) {
         Point_<int32_t> pt((int32_t) round(actCorrsImg1TNFromLast.at<double>(0, i)),
@@ -4048,8 +4052,20 @@ void genStereoSequ::getKeypoints() {
         yreg_idx = (yreg_idx > 2) ? 2 : yreg_idx;
         int xreg_idx = pt.x / rSl.width;
         xreg_idx = (xreg_idx > 2) ? 2 : xreg_idx;
+        if(pt.y < regROIs[yreg_idx][xreg_idx].y){
+            yreg_idx--;
+        }
+        else if(pt.y >= (regROIs[yreg_idx][xreg_idx].y + regROIs[yreg_idx][xreg_idx].height)){
+            yreg_idx++;
+        }
+        if(pt.x < regROIs[yreg_idx][xreg_idx].x){
+            xreg_idx--;
+        }
+        else if(pt.x >= (regROIs[yreg_idx][xreg_idx].x + regROIs[yreg_idx][xreg_idx].width)){
+            xreg_idx++;
+        }
 
-        x1pTN[yreg_idx][xreg_idx].push_back(pt);
+        x1pTN[yreg_idx][xreg_idx].push_back(Point2d(actCorrsImg1TNFromLast.at<double>(0, i), actCorrsImg1TNFromLast.at<double>(1, i)));
     }
 
     //For visualization
@@ -4319,6 +4335,11 @@ void genStereoSequ::getKeypoints() {
                 dispMask = (cImg2 > 0);
             }
 
+            //Add backprojected TN to the found ones
+            if(!x1pTN[y][x].empty()){
+                x1TN[y][x].insert(x1TN[y][x].end(), x1pTN[y][x].begin(), x1pTN[y][x].end());
+            }
+
             //Select for true negatives in image 1 (already generated ones) true negatives in image 2
             size_t selTN2 = 0;
             if (nrBPTN2cnt < nrBPTN2)//First take backprojected TN from the second image
@@ -4546,7 +4567,15 @@ void genStereoSequ::getKeypoints() {
 
     //Check number of static TP and TN per region and the overall inlier ratio
     size_t nrCorrsR = 0, nrCorrsRGiven = 0;
-    nrCorrsR = nrTPCorrs + nrTNCorrs;
+    size_t nrTPCorrsAll = nrTPCorrs;
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 3; ++x) {
+            nrTPCorrsAll += seedsNearFromLast[y][x].size();
+            nrTPCorrsAll += seedsMidFromLast[y][x].size();
+            nrTPCorrsAll += seedsFarFromLast[y][x].size();
+        }
+    }
+    nrCorrsR = nrTPCorrsAll + nrTNCorrs;
     nrCorrsRGiven = (size_t) sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0];
     if (nrCorrsR != nrCorrsRGiven) {
         double chRate = (double) nrCorrsR / (double) nrCorrsRGiven;
@@ -4554,16 +4583,21 @@ void genStereoSequ::getKeypoints() {
             cout << "Number of correspondences on static objects is " << 100.0 * (chRate - 1.0)
                  << "% different to given values!" << endl;
             cout << "Actual #: " << nrCorrsR << " Given #: " << nrCorrsRGiven << endl;
+            Mat baproTN = Mat::zeros(3,3,CV_32SC1);
             for (size_t k = 0; k < 3; ++k) {
                 for (size_t k1 = 0; k1 < 3; ++k1) {
-                    if ((int32_t) nrTPperR[k][k1] != nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)) {
+                    size_t allnrTPperR = nrTPperR[k][k1] +
+                            seedsNearFromLast[k][k1].size() +
+                            seedsMidFromLast[k][k1].size() +
+                            seedsFarFromLast[k][k1].size();
+                    if ((int32_t) allnrTPperR != nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)) {
                         cout << "# of TP for static region (x, y): (" <<
                              k1 <<
                              ", " << k
                              << ") differs by "
-                             << (int32_t) nrTPperR[k][k1] - nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)
+                             << (int32_t) allnrTPperR - nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)
                              <<
-                             " correspondences (Actual #: " << nrTPperR[k][k1]
+                             " correspondences (Actual #: " << allnrTPperR
                              << " Given #: " << nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
                              << endl;
                     }
@@ -4582,7 +4616,7 @@ void genStereoSequ::getKeypoints() {
             }
         }
     }
-    double inlRatDiffSR = (double) nrTPCorrs / (double) nrCorrsR - inlRat[actFrameCnt];
+    double inlRatDiffSR = (double) nrTPCorrsAll / (double) nrCorrsR - inlRat[actFrameCnt];
     if (!nearZero(inlRatDiffSR / 100.0)) {
         cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
              << inlRatDiffSR << endl;
@@ -8533,7 +8567,7 @@ void genStereoSequ::getMovObjPtsCam() {
                 }
             }
 
-            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
                 namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
                 imshow("Backprojected moving object keypoints", locMOmask > 0);
                 waitKey(0);
@@ -8554,14 +8588,14 @@ void genStereoSequ::getMovObjPtsCam() {
                 locMOmask &= hullMat;
             }
 
-            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
                 namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
                 imshow("Backprojected moving object area final", locMOmask);
             }
 
             Mat overlaps = globMOmask & locMOmask;
 
-            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
                 namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
                 imshow("Overlap with other moving objects", overlaps);
                 waitKey(0);
@@ -8595,7 +8629,7 @@ void genStereoSequ::getMovObjPtsCam() {
             }
             globMOmask |= locMOmask;
 
-            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
                 namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
                 imshow("Global backprojected moving objects mask", globMOmask);
                 waitKey(0);
@@ -8668,7 +8702,7 @@ void genStereoSequ::getCamPtsFromWorld() {
     }
 
     if (!filteredOccludedPtsAll->empty() || !occludedPtsAll->empty()) {
-        if (verbose & SHOW_BACKPROJECT_OCCLUSIONS) {
+        if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ) {
             visualizeOcclusions(filteredOccludedPtsAll, occludedPtsAll, 1.0);
         }
     }
@@ -9153,12 +9187,12 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         int ret = voxelFilter.occlusionEstimation(grid_state, grid_coordinates);
         if ((ret == 0) && (grid_state == 0)) {
             cloudOut->push_back(cloudIn->points[i]);
-        } else if ((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS)) {
+        } else if ((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ)) {
             cloudOccluded_->push_back(cloudIn->points[i]);
         }
     }
 
-    if (visRes && (verbose & SHOW_BACKPROJECT_OCCLUSIONS)) {
+    if (visRes && (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ)) {
         visualizeOcclusions(cloudOut, cloudOccluded_, (double) leaf_size);
     }
 
