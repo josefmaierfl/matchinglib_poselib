@@ -91,6 +91,10 @@ void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Poin
 
 void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
 
+bool checkPointValidity(const cv::Mat &mask, const cv::Point_<int32_t> &pt);
+
+bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect);
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -351,7 +355,8 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
                                            const cv::Mat &R_use,
                                            const cv::Mat &t_use,
                                            const double depth_use,
-                                           cv::InputArray mask) {
+                                           cv::InputArray mask,
+                                           cv::OutputArray imgUsableMask) {
     //Check overlap of the stereo images
     std::vector<cv::Point> img1Poly;
     getImgIntersection(img1Poly, R_use, t_use, depth_use, mask.empty());
@@ -365,6 +370,14 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
 
     if (!mask.empty()) {
         wimg &= mask.getMat();
+    }
+
+    if (imgUsableMask.needed()) {
+        if (imgUsableMask.empty()) {
+            imgUsableMask.create(imgSize, CV_8UC1);
+        }
+        Mat outmat_tmp = imgUsableMask.getMat();
+        wimg.copyTo(outmat_tmp);
     }
 
     fracUseableTPperRegion_ = Mat(3, 3, CV_64FC1);
@@ -433,14 +446,21 @@ bool genStereoSequ::initFracCorrImgReg() {
     nrCorrsRegs.reserve(totalNrFrames);
     nrTrueNegRegs.reserve(totalNrFrames);
     size_t cnt = 0, stereoIdx = 0;
-    cv::Mat fracUseableTPperRegion_tmp, fracUseableTPperRegionNeg, fUTPpRNSum1;
+    cv::Mat fracUseableTPperRegion_tmp, fracUseableTPperRegionNeg, fUTPpRNSum1, stereoImgsOverlapMask_tmp;
     for (size_t i = 0; i < totalNrFrames; i++) {
         //Get intersection of stereo images at medium distance plane for every image region in camera 1
         if ((i % pars.nFramesPerCamConf) == 0) {
             if (i > 0) {
                 stereoIdx++;
             }
-            getInterSecFracRegions(fracUseableTPperRegion_tmp, R[stereoIdx], t[stereoIdx], depthMid[stereoIdx]);
+
+            getInterSecFracRegions(fracUseableTPperRegion_tmp,
+                                   R[stereoIdx],
+                                   t[stereoIdx],
+                                   depthMid[stereoIdx],
+                                   cv::noArray(),
+                                   stereoImgsOverlapMask_tmp);
+            stereoImgsOverlapMask.push_back(stereoImgsOverlapMask_tmp.clone());
             fracUseableTPperRegion.push_back(fracUseableTPperRegion_tmp.clone());
             fracUseableTPperRegionNeg = Mat::ones(3, 3, CV_64FC1) - fracUseableTPperRegion_tmp;
             fUTPpRNSum1 = fracUseableTPperRegionNeg / cv::sum(fracUseableTPperRegionNeg)[0];
@@ -3554,8 +3574,8 @@ size_t &nrAdds			In/Out: Number of times this function was called for this depth
 bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                                        cv::Mat &imgD,
                                        cv::Mat &imgSD,
-                                       cv::Mat &mask,
-                                       cv::Mat &regMask,
+                                       const cv::Mat &mask,
+                                       const cv::Mat &regMask,
                                        cv::Point_<int32_t> &startpos,
                                        cv::Point_<int32_t> &endpos,
                                        int32_t &addArea,
@@ -3795,8 +3815,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
 
 //Get valid directions to expand the depth area given a start position
 std::vector<int32_t>
-genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD,
-                                     cv::Size &siM1, cv::Mat &imgSD, bool escArea) {
+genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos,
+                                     const cv::Mat &mask,
+                                     const cv::Mat &regMask,
+                                     const cv::Mat &imgD,
+                                     const cv::Size &siM1,
+                                     const cv::Mat &imgSD,
+                                    bool escArea) {
     static int maxFixDirChange = 8;
     int fixDirChange = 0;
     Mat directions;
@@ -4845,7 +4870,14 @@ void genStereoSequ::getNrSizePosMovObj() {
         }
     }
 
+    //Calculate the minimal usable image area
     int imgArea = imgSize.area();
+    for (size_t j = 0; j < stereoImgsOverlapMask.size(); ++j) {
+        int overlapArea = cv::countNonZero(stereoImgsOverlapMask[j]);
+        if(overlapArea < imgArea){
+            imgArea = overlapArea;
+        }
+    }
     maxOPerReg = (int) ceil((float) pars.nrMovObjs / (float) nrStartA);
     int area23 = 2 * imgArea / 3;//The moving objects should not be larger than that
     minOArea = (int) round(pars.relAreaRangeMovObjs.first * (double) imgArea);
@@ -4886,7 +4918,8 @@ void genStereoSequ::getNrSizePosMovObj() {
         for (int y = 0; y < 3; y++) {
             for (int x = 0; x < 3; x++) {
                 if (startPosMovObjs.at<unsigned char>(y, x) &&
-                    (maxOPerReg > (int) nrPerReg.at<unsigned char>(y, x))) {
+                    (maxOPerReg > (int) nrPerReg.at<unsigned char>(y, x)) &&
+                        (fracUseableTPperRegion[0].at<double>(y,x) > 0.25)) {
                     int addit = rand() % 2;
                     if (addit) {
                         nrPerReg.at<unsigned char>(y, x)++;
@@ -4916,19 +4949,30 @@ void genStereoSequ::getNrSizePosMovObj() {
     }
 
     //Get seed positions
+    std::vector<std::vector<std::pair<bool,cv::Rect>>> validRects;
+    getValidImgRegBorders(stereoImgsOverlapMask[0], validRects);
     minODist = imgSize.height / (3 * (maxOPerReg + 1));
     movObjSeeds = vector<vector<vector<cv::Point_<int32_t>>>>(3, vector<vector<cv::Point_<int32_t>>>(3));
     for (int y = 0; y < 3; y++) {
         for (int x = 0; x < 3; x++) {
             int nr_tmp = (int) nrPerReg.at<unsigned char>(y, x);
             if (nr_tmp > 0) {
+                if(!validRects[y][x].first){
+                    nrPerReg.at<unsigned char>(y, x) = 0;
+                    movObjAreas[y][x].clear();
+                    continue;
+                }
                 rand_gen = std::default_random_engine(
                         (unsigned int) std::rand());//Prevent getting the same starting positions for equal ranges
-                std::uniform_int_distribution<int> distributionX(regROIs[y][x].x,
-                                                                 regROIs[y][x].x + regROIs[y][x].width - 1);
-                std::uniform_int_distribution<int> distributionY(regROIs[y][x].y,
-                                                                 regROIs[y][x].y + regROIs[y][x].height - 1);
-                movObjSeeds[y][x].push_back(cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen)));
+                std::uniform_int_distribution<int> distributionX(validRects[y][x].second.x,
+                                                                 validRects[y][x].second.x + validRects[y][x].second.width - 1);
+                std::uniform_int_distribution<int> distributionY(validRects[y][x].second.y,
+                                                                 validRects[y][x].second.y + validRects[y][x].second.height - 1);
+                cv::Point_<int32_t> seedPt(distributionX(rand_gen), distributionY(rand_gen));
+                while(!checkPointValidity(stereoImgsOverlapMask[0], seedPt)){
+                    seedPt = cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen));
+                }
+                movObjSeeds[y][x].push_back(seedPt);
                 nr_tmp--;
                 if (nr_tmp > 0) {
                     vector<int> xposes, yposes;
@@ -4937,15 +4981,29 @@ void genStereoSequ::getNrSizePosMovObj() {
                     while (nr_tmp > 0) {
                         vector<double> xInterVals, yInterVals;
                         vector<double> xWeights, yWeights;
-                        buildDistributionRanges(xposes, yposes, x, y, xInterVals, xWeights, yInterVals, yWeights);
+                        buildDistributionRanges(xposes, yposes, x, y, xInterVals, xWeights, yInterVals, yWeights, &validRects);
 
                         //Create piecewise uniform distribution and get a random seed
                         piecewise_constant_distribution<double> distrPieceX(xInterVals.begin(), xInterVals.end(),
                                                                             xWeights.begin());
                         piecewise_constant_distribution<double> distrPieceY(yInterVals.begin(), yInterVals.end(),
                                                                             yWeights.begin());
-                        movObjSeeds[y][x].push_back(cv::Point_<int32_t>((int32_t) floor(distrPieceX(rand_gen)),
-                                                                        (int32_t) floor(distrPieceY(rand_gen))));
+                        seedPt = cv::Point_<int32_t>(cv::Point_<int32_t>((int32_t) floor(distrPieceX(rand_gen)),
+                                                                         (int32_t) floor(distrPieceY(rand_gen))));
+                        int max_trys = 50;
+                        while(!checkPointValidity(stereoImgsOverlapMask[0], seedPt) && (max_trys > 0)){
+                            seedPt = cv::Point_<int32_t>(cv::Point_<int32_t>((int32_t) floor(distrPieceX(rand_gen)),
+                                                                             (int32_t) floor(distrPieceY(rand_gen))));
+                            max_trys--;
+                        }
+                        if(max_trys <= 0){
+                            for (int i = 0; i < nr_tmp; ++i) {
+                                nrPerReg.at<unsigned char>(y, x)--;
+                                movObjAreas[y][x].pop_back();
+                            }
+                            break;
+                        }
+                        movObjSeeds[y][x].push_back(seedPt);
                         xposes.push_back(movObjSeeds[y][x].back().x);
                         yposes.push_back(movObjSeeds[y][x].back().y);
                         nr_tmp--;
@@ -4954,6 +5012,43 @@ void genStereoSequ::getNrSizePosMovObj() {
             }
         }
     }
+}
+
+bool checkPointValidity(const cv::Mat &mask, const cv::Point_<int32_t> &pt){
+    if(mask.at<unsigned char>(pt) > 0){
+        return true;
+    }
+
+    return false;
+}
+
+void genStereoSequ::getValidImgRegBorders(const cv::Mat &mask, std::vector<std::vector<std::pair<bool,cv::Rect>>> &validRects){
+    validRects = std::vector<std::vector<std::pair<bool,cv::Rect>>>(3, std::vector<std::pair<bool,cv::Rect>>(3));
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 3; ++x) {
+            Rect validRect;
+            bool usable = getValidRegBorders(mask(regROIs[y][x]), validRect);
+            if(usable){
+                validRect.x += regROIs[y][x].x;
+                validRect.y += regROIs[y][x].y;
+                validRects[y][x] = make_pair(true, validRect);
+            }
+            else{
+                validRects[y][x] = make_pair(false, cv::Rect());
+            }
+        }
+    }
+}
+
+bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect){
+    if(countNonZero(mask) < 100) return false;
+    Mat mask_tmp = mask.clone();
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+    validRect = cv::boundingRect(contours[0]);
+
+    return true;
 }
 
 void genStereoSequ::adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew) {
@@ -4971,20 +5066,29 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
                                             std::vector<double> &xInterVals,
                                             std::vector<double> &xWeights,
                                             std::vector<double> &yInterVals,
-                                            std::vector<double> &yWeights) {
+                                            std::vector<double> &yWeights,
+                                            std::vector<std::vector<std::pair<bool,cv::Rect>>> *validRects) {
     sort(xposes.begin(), xposes.end());
     sort(yposes.begin(), yposes.end());
 
+    Rect validRect = regROIs[y][x];
+    if(validRects != NULL){
+        if(!validRects->at(y)[x].first){
+            throw SequenceException("Area is not valid. Cannot build a valid distribution.");
+        }
+        validRect = validRects->at(y)[x].second;
+    }
+
     //Get possible selection ranges for x-values
-    int start = max(xposes[0] - minODist, regROIs[y][x].x);
-    int maxEnd = regROIs[y][x].x + regROIs[y][x].width - 1;
+    int start = max(xposes[0] - minODist, validRect.x);
+    int maxEnd = validRect.x + validRect.width - 1;
     int xyend = min(xposes[0] + minODist, maxEnd);
-    if (start == regROIs[y][x].x) {
+    if (start == validRect.x) {
         xInterVals.push_back((double) start);
         xInterVals.push_back((double) (xposes[0] + minODist));
         xWeights.push_back(0);
     } else {
-        xInterVals.push_back((double) regROIs[y][x].x);
+        xInterVals.push_back((double) validRect.x);
         xInterVals.push_back((double) start);
         xWeights.push_back(1.0);
         if (xyend != maxEnd) {
@@ -5030,15 +5134,15 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
     }
 
     //Get possible selection ranges for y-values
-    start = max(yposes[0] - minODist, regROIs[y][x].y);
-    maxEnd = regROIs[y][x].y + regROIs[y][x].height - 1;
+    start = max(yposes[0] - minODist, validRect.y);
+    maxEnd = validRect.y + validRect.height - 1;
     xyend = min(yposes[0] + minODist, maxEnd);
-    if (start == regROIs[y][x].y) {
+    if (start == validRect.y) {
         yInterVals.push_back((double) start);
         yInterVals.push_back((double) (yposes[0] + minODist));
         yWeights.push_back(0);
     } else {
-        yInterVals.push_back((double) regROIs[y][x].y);
+        yInterVals.push_back((double) validRect.y);
         yInterVals.push_back((double) start);
         yWeights.push_back(1.0);
         if (xyend != maxEnd) {
@@ -5092,9 +5196,11 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
 //corrsOnMovObjLF must hold the number of correspondences on moving objects that were backprojected (thus the objects were created one or more frames beforehand)
 //					from 3D (including TN calculated using the inlier ratio).
 void
-genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds,
+genStereoSequ::generateMovObjLabels(const cv::Mat &mask,
+                                    std::vector<cv::Point_<int32_t>> &seeds,
                                     std::vector<int32_t> &areas,
-                                    int32_t corrsOnMovObjLF) {
+                                    int32_t corrsOnMovObjLF,
+                                    cv::InputArray validImgMask) {
     CV_Assert(seeds.size() == areas.size());
 
     size_t nr_movObj = areas.size();
@@ -5127,6 +5233,11 @@ genStereoSequ::generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_
     }
     Size siM1(imgSize.width - 1, imgSize.height - 1);
 
+    Mat maskValid = mask;
+    if(!validImgMask.empty()){
+        maskValid = mask | (validImgMask.getMat() == 0);
+    }
+
 #define MOV_OBJ_ONLY_IN_REGIONS 0
 #if MOV_OBJ_ONLY_IN_REGIONS
     vector<cv::Point_<int32_t>> objRegionIndices(nr_movObj);
@@ -5158,7 +5269,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 if (!addAdditionalDepth((unsigned char) (i + convhullPtsObj.size() + 1),
                                         combMovObjLabels,
                                         movObjLabels[i],
-                                        mask,
+                                        maskValid,
 #if MOV_OBJ_ONLY_IN_REGIONS
                         regmasks[objRegionIndices[i].y][objRegionIndices[i].x],
 #else
@@ -7389,7 +7500,9 @@ bool genStereoSequ::getSeedsAreasMovObj() {
         for (int x = 0; x < 3; x++) {
             if (startPosMovObjs.at<unsigned char>(y, x) == 0)
                 continue;
-            int moarea = countNonZero(movObjMaskFromLast(regROIs[y][x]));
+            if(actFracUseableTPperRegion.at<double>(y,x) <= 0.25)
+                continue;
+            int moarea = countNonZero(movObjMaskFromLast(regROIs[y][x]) | (actStereoImgsOverlapMask(regROIs[y][x]) == 0));
             if (moarea < minOArea23) {
                 nrPerRegMax.at<unsigned char>(y, x) = (unsigned char) maxOPerReg;
             } else if ((moarea <= maxOArea) && (maxOPerReg > 1)) {
@@ -7483,6 +7596,8 @@ bool genStereoSequ::getSeedsAreasMovObj() {
     }
 
     //Get seed positions
+    std::vector<std::vector<std::pair<bool,cv::Rect>>> validRects;
+    getValidImgRegBorders(actStereoImgsOverlapMask, validRects);
     minODist = imgSize.height / (3 * (maxOPerReg + 1));
     movObjSeeds.clear();
     movObjSeeds = vector<vector<vector<cv::Point_<int32_t>>>>(3, vector<vector<cv::Point_<int32_t>>>(3));
@@ -7491,17 +7606,22 @@ bool genStereoSequ::getSeedsAreasMovObj() {
         for (int x = 0; x < 3; x++) {
             int nr_tmp = (int) nrPerReg.at<unsigned char>(y, x);
             if (nr_tmp > 0) {
+                if(!validRects[y][x].first){
+                    nrPerReg.at<unsigned char>(y, x) = 0;
+                    movObjAreas[y][x].clear();
+                    continue;
+                }
                 rand_gen = std::default_random_engine(
                         (unsigned int) std::rand());//Prevent getting the same starting positions for equal ranges
-                std::uniform_int_distribution<int> distributionX(regROIs[y][x].x,
-                                                                 regROIs[y][x].x + regROIs[y][x].width - 1);
-                std::uniform_int_distribution<int> distributionY(regROIs[y][x].y,
-                                                                 regROIs[y][x].y + regROIs[y][x].height - 1);
+                std::uniform_int_distribution<int> distributionX(validRects[y][x].second.x,
+                                                                 validRects[y][x].second.x + validRects[y][x].second.width - 1);
+                std::uniform_int_distribution<int> distributionY(validRects[y][x].second.y,
+                                                                 validRects[y][x].second.y + validRects[y][x].second.height - 1);
                 cv::Point_<int32_t> pt;
                 int cnt = 0;
                 while (cnt < maxIt) {
                     pt = cv::Point_<int32_t>(distributionX(rand_gen), distributionY(rand_gen));
-                    if (movObjMaskFromLast.at<unsigned char>(pt) == 0) {
+                    if ((movObjMaskFromLast.at<unsigned char>(pt) == 0) && (actStereoImgsOverlapMask.at<unsigned char>(pt) > 0)) {
                         break;
                     }
                     cnt++;
@@ -7520,7 +7640,7 @@ bool genStereoSequ::getSeedsAreasMovObj() {
                     while (nr_tmp > 0) {
                         vector<double> xInterVals, yInterVals;
                         vector<double> xWeights, yWeights;
-                        buildDistributionRanges(xposes, yposes, x, y, xInterVals, xWeights, yInterVals, yWeights);
+                        buildDistributionRanges(xposes, yposes, x, y, xInterVals, xWeights, yInterVals, yWeights, &validRects);
 
                         //Create piecewise uniform distribution and get a random seed
                         piecewise_constant_distribution<double> distrPieceX(xInterVals.begin(), xInterVals.end(),
@@ -7532,7 +7652,7 @@ bool genStereoSequ::getSeedsAreasMovObj() {
                         while (cnt < maxIt) {
                             pt = cv::Point_<int32_t>((int32_t) floor(distrPieceX(rand_gen)),
                                                      (int32_t) floor(distrPieceY(rand_gen)));
-                            if (movObjMaskFromLast.at<unsigned char>(pt) == 0) {
+                            if ((movObjMaskFromLast.at<unsigned char>(pt) == 0) && (actStereoImgsOverlapMask.at<unsigned char>(pt) > 0)) {
                                 break;
                             }
                             cnt++;
@@ -7787,6 +7907,7 @@ void genStereoSequ::updateFrameParameters() {
     actDepthMid = depthMid[actStereoCIdx];
     actDepthFar = depthFar[actStereoCIdx];
     actFracUseableTPperRegion = fracUseableTPperRegion[actStereoCIdx];
+    actStereoImgsOverlapMask = stereoImgsOverlapMask[actStereoCIdx];
 
     if (((actFrameCnt % (pars.corrsPerRegRepRate)) == 0) && (actFrameCnt > 0)) {
         actCorrsPRIdx++;
@@ -9029,7 +9150,7 @@ void genStereoSequ::getNewCorrs() {
             std::vector<int32_t> areas;
             if (getSeedAreaListFromReg(seeds, areas)) {
                 //Generate new moving objects and adapt the number of static correspondences per region
-                generateMovObjLabels(movObjMask, seeds, areas, corrsOnMovObjLF);
+                generateMovObjLabels(movObjMask, seeds, areas, corrsOnMovObjLF, actStereoImgsOverlapMask);
 
                 //Assign a depth category to each new moving object label and calculate all depth values for each label
                 genNewDepthMovObj();

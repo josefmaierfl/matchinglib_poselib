@@ -282,8 +282,8 @@ private:
 	bool addAdditionalDepth(unsigned char pixVal,
 		cv::Mat &imgD,
 		cv::Mat &imgSD,
-		cv::Mat &mask,
-		cv::Mat &regMask,
+		const cv::Mat &mask,
+		const cv::Mat &regMask,
 		cv::Point_<int32_t> &startpos,
 		cv::Point_<int32_t> &endpos,
 		int32_t &addArea,
@@ -295,7 +295,13 @@ private:
 		unsigned char &usedDilate,
 		cv::InputOutputArray neighborRegMask = cv::noArray(),
 		unsigned char regIdx = 0);
-	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos, cv::Mat &mask, cv::Mat &regMask, cv::Mat &imgD, cv::Size &siM1, cv::Mat &imgSD, bool escArea = true);
+	std::vector<int32_t> getPossibleDirections(cv::Point_<int32_t> &startpos,
+                                               const cv::Mat &mask,
+                                               const cv::Mat &regMask,
+                                               const cv::Mat &imgD,
+                                               const cv::Size &siM1,
+                                               const cv::Mat &imgSD,
+	        bool escArea = true);
     void nextPosition(cv::Point_<int32_t> &position, int32_t direction);
 	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);
 	void getDepthVals(cv::OutputArray dout, const cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
@@ -323,8 +329,13 @@ private:
 								 std::vector<double> &xInterVals,
 								 std::vector<double> &xWeights,
 								 std::vector<double> &yInterVals,
-								 std::vector<double> &yWeights);
-	void generateMovObjLabels(cv::Mat &mask, std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas, int32_t corrsOnMovObjLF);
+								 std::vector<double> &yWeights,
+                                 std::vector<std::vector<std::pair<bool,cv::Rect>>> *validRects = NULL);
+	void generateMovObjLabels(const cv::Mat &mask,
+                            std::vector<cv::Point_<int32_t>> &seeds,
+                            std::vector<int32_t> &areas,
+                            int32_t corrsOnMovObjLF,
+                              cv::InputArray validImgMask = cv::noArray());
 	void genNewDepthMovObj();
 	void backProjectMovObj();
 	void genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = NULL);
@@ -402,7 +413,9 @@ private:
                                 const cv::Mat &R_use,
                                 const cv::Mat &t_use,
                                 const double depth_use,
-                                cv::InputArray mask = cv::noArray());
+                                cv::InputArray mask = cv::noArray(),
+                                cv::OutputArray imgUsableMask = cv::noArray());
+    void getValidImgRegBorders(const cv::Mat &mask, std::vector<std::vector<std::pair<bool,cv::Rect>>> &validRects);
 
 public:
 	uint32_t verbose = 0;
@@ -541,6 +554,8 @@ private:
 
     std::vector<cv::Mat> fracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas (cv::Mat) and every stereo configuration (std::vector)
     cv::Mat actFracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas of the current stereo configuration
+    std::vector<cv::Mat> stereoImgsOverlapMask;//Mask for the area in the first stereo camera image which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255). Holds masks for every stereo configuration.
+    cv::Mat actStereoImgsOverlapMask;//Mask for the area in the first stereo camera image of the actual stereo configuration which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255).
 };
 
 
