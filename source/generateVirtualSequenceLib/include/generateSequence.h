@@ -91,7 +91,8 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_MOV_OBJ_MOVEMENT = 0x200,
 	SHOW_BACKPROJECT_OCCLUSIONS = 0x400,
 	SHOW_BACKPROJECT_MOV_OBJ_CORRS = 0x800,
-	SHOW_STEREO_INTERSECTION = 0x1000
+	SHOW_STEREO_INTERSECTION = 0x1000,
+	SHOW_COMBINED_CORRESPONDENCES = 0x2000
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -386,6 +387,7 @@ private:
 	void visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudVisible,
 							 pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded,
 							 double ptSize);
+    void visualizeAllCorrespondences();
     int32_t getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, int32_t midR);
     bool fillRemainingAreas(cv::Mat &depthArea,
                             const cv::Mat &usedAreas,

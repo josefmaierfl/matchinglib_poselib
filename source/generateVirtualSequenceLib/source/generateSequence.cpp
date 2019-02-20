@@ -7894,6 +7894,108 @@ void genStereoSequ::combineCorrespondences() {
     }
 
     CV_Assert((size_t) combCorrsImg1TN.cols == combDistTNtoReal.size());
+
+    if(verbose & SHOW_COMBINED_CORRESPONDENCES){
+        visualizeAllCorrespondences();
+    }
+}
+
+void genStereoSequ::visualizeAllCorrespondences(){
+    Mat allCorrs = cv::Mat::zeros(imgSize, CV_8UC3);
+
+    for (int i = 0; i < actCorrsImg1TPFromLast.cols; ++i) {
+        int x = (int)round(actCorrsImg1TPFromLast.at<double>(0,i));
+        int y = (int)round(actCorrsImg1TPFromLast.at<double>(1,i));
+        allCorrs.at<cv::Vec3b>(y,x)[1] = 255;
+    }
+    int cnt_overlaps = 0;
+    for (int i = 0; i < actCorrsImg1TP.cols; ++i) {
+        int x = (int)round(actCorrsImg1TP.at<double>(0,i));
+        int y = (int)round(actCorrsImg1TP.at<double>(1,i));
+        if((allCorrs.at<cv::Vec3b>(y,x)[0] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[1] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[2] == 0)){
+            allCorrs.at<cv::Vec3b>(y,x)[1] = 255;
+        }
+        else{
+            allCorrs.at<cv::Vec3b>(y,x)[1] = 0;
+            allCorrs.at<cv::Vec3b>(y,x)[2] = 255;
+            cnt_overlaps++;
+        }
+    }
+    for (auto j : movObjCorrsImg1TPFromLast) {
+        for (int i = 0; i < j.cols; ++i) {
+            int x = (int)round(j.at<double>(0,i));
+            int y = (int)round(j.at<double>(1,i));
+            if((allCorrs.at<cv::Vec3b>(y,x)[0] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[1] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[2] == 0)){
+                allCorrs.at<cv::Vec3b>(y,x)[0] = 255;
+            }
+            else{
+                allCorrs.at<cv::Vec3b>(y,x)[2] = 255;
+                cnt_overlaps++;
+            }
+        }
+    }
+    for (auto j : movObjCorrsImg1TP) {
+        for (int i = 0; i < j.cols; ++i) {
+            int x = (int)round(j.at<double>(0,i));
+            int y = (int)round(j.at<double>(1,i));
+            if((allCorrs.at<cv::Vec3b>(y,x)[0] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[1] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[2] == 0)){
+                allCorrs.at<cv::Vec3b>(y,x)[0] = 255;
+            }
+            else{
+                allCorrs.at<cv::Vec3b>(y,x)[2] = 255;
+                cnt_overlaps++;
+            }
+        }
+    }
+
+    for (int i = 0; i < actCorrsImg1TN.cols; ++i) {
+        int x = (int)round(actCorrsImg1TN.at<double>(0,i));
+        int y = (int)round(actCorrsImg1TN.at<double>(1,i));
+        if((allCorrs.at<cv::Vec3b>(y,x)[0] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[1] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[2] == 0)){
+            allCorrs.at<cv::Vec3b>(y,x)[1] = 127;
+        }
+        else{
+            allCorrs.at<cv::Vec3b>(y,x)[1] = 0;
+            allCorrs.at<cv::Vec3b>(y,x)[2] = 127;
+            cnt_overlaps++;
+        }
+    }
+
+    for (auto j : movObjCorrsImg1TNFromLast) {
+        for (int i = 0; i < j.cols; ++i) {
+            int x = (int)round(j.at<double>(0,i));
+            int y = (int)round(j.at<double>(1,i));
+            if((allCorrs.at<cv::Vec3b>(y,x)[0] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[1] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[2] == 0)){
+                allCorrs.at<cv::Vec3b>(y,x)[0] = 127;
+            }
+            else{
+                allCorrs.at<cv::Vec3b>(y,x)[2] = 127;
+                cnt_overlaps++;
+            }
+        }
+    }
+    for (auto j : movObjCorrsImg1TN) {
+        for (int i = 0; i < j.cols; ++i) {
+            int x = (int)round(j.at<double>(0,i));
+            int y = (int)round(j.at<double>(1,i));
+            if((allCorrs.at<cv::Vec3b>(y,x)[0] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[1] == 0) && (allCorrs.at<cv::Vec3b>(y,x)[2] == 0)){
+                allCorrs.at<cv::Vec3b>(y,x)[0] = 127;
+            }
+            else{
+                allCorrs.at<cv::Vec3b>(y,x)[2] = 127;
+                cnt_overlaps++;
+            }
+        }
+    }
+
+    if(cnt_overlaps > 0){
+        cout << "Found " << cnt_overlaps << " overlapping correspondences!" << endl;
+    }
+
+    namedWindow("Combined correspondences in image 1", WINDOW_AUTOSIZE);
+    imshow("Combined correspondences in image 1", allCorrs);
+    waitKey(0);
+    destroyWindow("Combined correspondences in image 1");
 }
 
 //Get the paramters and indices for the actual frame. This function must be called before simulating a new stereo frame
