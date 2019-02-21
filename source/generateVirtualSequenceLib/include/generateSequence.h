@@ -420,6 +420,7 @@ private:
                                 cv::InputArray mask = cv::noArray(),
                                 cv::OutputArray imgUsableMask = cv::noArray());
     void getValidImgRegBorders(const cv::Mat &mask, std::vector<std::vector<std::pair<bool,cv::Rect>>> &validRects);
+    void adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew);
 
 public:
 	uint32_t verbose = 0;
@@ -535,6 +536,7 @@ private:
 	std::vector<int32_t> actTNPerMovObj;//Number of true negative correspondences on every single moving object (size corresponds to number of newly to add moving objects)
 	std::vector<int32_t> actTNPerMovObjFromLast;//Number of true negative correspondences for every single backprojected moving object (size corresponds to number of already existing moving objects)
 	std::vector<cv::Mat> movObjLabelsFromLast;//Every vector element (size corresponds to number of backprojected moving objects) holds a mask with the size of the image marking the area of the moving object
+    std::vector<cv::Mat> movObjMaskFromLastLargeAdd;//Every vector element (size corresponds to number of backprojected moving objects) holds the backprojected keypoint positions in the first image of a single moving object marked with the minimum keypoint distance mask csurr. csurr was added (mask(area) += csurr) to each corresponding Mat which enables removing correspondences later on from the mask.
 	cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
 	cv::Mat movObjMaskFromLast2;//Mask with the same size as the image masking correspondences of moving objects that were backprojected (mask for second stereo image)
 	/*noch nicht angelegt*///cv::Mat movObjMask2;//Mask with the same size as the image masking correspondences of new moving objects (mask for second stereo image)
