@@ -1048,8 +1048,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 
 	//Initialize system
 	int32_t verbose = SHOW_STATIC_OBJ_3D_PTS | SHOW_MOV_OBJ_3D_PTS | SHOW_MOV_OBJ_MOVEMENT |
-            SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ | SHOW_BACKPROJECT_MOV_OBJ_CORRS | SHOW_STEREO_INTERSECTION |
-            SHOW_COMBINED_CORRESPONDENCES;
+            SHOW_STEREO_INTERSECTION | SHOW_COMBINED_CORRESPONDENCES | PRINT_WARNING_MESSAGES;
 
 	genStereoSequ stereoSequ(imgSize, K_1, K_2, Rv, tv, stereoSequPars, verbose);
 

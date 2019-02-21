@@ -124,43 +124,6 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     //Construct the camera path
     constructCamPath();
 
-    /*while(1){
-        actDepthNear = 1.0;
-        actDepthFar = 100.0;
-        actCamPose = Eigen::Matrix4f().setIdentity();
-        Eigen::Matrix4f cam2robot;
-        cam2robot
-                << 0, 0, 1.f, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
-                0, -1.f, 0, 0,
-                1.f, 0, 0, 0,
-                0, 0, 0, 1.f;
-        *//*cam2robot
-                << 0, 0, -1.f, 0,//To convert from the traditional camera coordinate system (X right, Y down, Z forward) to (X is forward, Y is up, and Z is right)
-                0, -1.f, 0, 0,
-                -1.f, 0, 0, 0,
-                0, 0, 0, 1.f;*//*
-        actCamPose *= cam2robot;
-        pcl::PointCloud<pcl::PointXYZ> ptr_movObj3DPtsWorld;//(new pcl::PointCloud<pcl::PointXYZ>());
-        float anghor = (float) imgSize.width / (2.f * (float) K1.at<double>(0, 0));
-        float angver = (float) imgSize.height / (2.f * (float) K1.at<double>(1, 1));
-        for (int i = 0; i < 50; i++) {
-            pcl::PointXYZ pt;
-            pt.z = (float) getRandDoubleValRng(actDepthNear, maxFarDistMultiplier * actDepthFar);
-
-            float mimax = anghor * pt.z;
-            float mimay = angver * pt.z;
-            pt.y = (float) getRandDoubleValRng(-mimay, mimay);
-            pt.x = (float) getRandDoubleValRng(-mimax, mimax);
-            ptr_movObj3DPtsWorld.push_back(pt);
-        }
-        pcl::PointCloud<pcl::PointXYZ>::Ptr inputPts(ptr_movObj3DPtsWorld.makeShared());
-        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
-//        pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts1(new pcl::PointCloud<pcl::PointXYZ>());
-        bool success = getVisibleCamPointCloud(inputPts, camFilteredPts);
-//        pcl::copyPointCloud(*camFilteredPts.get(), *camFilteredPts1.get());
-//        inputPts.reset();
-    }*/
-
     //Calculate the thresholds for the depths near, mid, and far for every camera configuration
     if (!getDepthRanges()) {
         throw SequenceException("Depth ranges are negative!\n");
@@ -336,7 +299,7 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
 
 
     //Draw intersection area
-    if (verbose & SHOW_STEREO_INTERSECTION) {
+    if (visualize && (verbose & SHOW_STEREO_INTERSECTION)) {
         vector<vector<Point>> intersectCont(1);
 
         intersectCont[0] = img1Poly;
@@ -513,13 +476,17 @@ bool genStereoSequ::initFracCorrImgReg() {
                                    enlargeKPDist;//Multiply by 1.33 to take gaps into account that are a result of randomness
 
                 if (areaCorrs > regA) {
-                    cout << "There are too many keypoints per region when demanding a minimum keypoint distance of "
-                         << pars.minKeypDist << ". Changing it!" << endl;
+                    if(verbose & PRINT_WARNING_MESSAGES) {
+                        cout << "There are too many keypoints per region when demanding a minimum keypoint distance of "
+                             << pars.minKeypDist << ". Changing it!" << endl;
+                    }
                     double mKPdist = floor(10.0 * sqrt(regA / (enlargeKPDist * maxCorr))) / 10.0;
                     if (mKPdist <= 1.414214) {
-                        cout
-                                << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!"
-                                << endl;
+                        if(verbose & PRINT_WARNING_MESSAGES) {
+                            cout
+                                    << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!"
+                                    << endl;
+                        }
                         pars.minKeypDist = 1.0;
                         genMasks();
                         //Get max # of correspondences
@@ -538,7 +505,9 @@ bool genStereoSequ::initFracCorrImgReg() {
                         double minILR = *std::min_element(inlRat.begin(), inlRat.end());
                         //Calc max true positives
                         size_t maxTPNew = (size_t) floor(maxCorr * reduF * minILR);
-                        cout << "Changing max. true positives to " << maxTPNew << endl;;
+                        if(verbose & PRINT_WARNING_MESSAGES) {
+                            cout << "Changing max. true positives to " << maxTPNew << endl;
+                        }
                         if ((pars.truePosRange.second - pars.truePosRange.first) == 0) {
                             pars.truePosRange.first = pars.truePosRange.second = maxTPNew;
                         } else {
@@ -554,7 +523,9 @@ bool genStereoSequ::initFracCorrImgReg() {
                         nrTrueNegRegs.clear();
                         return false;
                     } else {
-                        cout << "Changed the minimum keypoint distance to " << mKPdist << endl;
+                        if(verbose & PRINT_WARNING_MESSAGES) {
+                            cout << "Changed the minimum keypoint distance to " << mKPdist << endl;
+                        }
                         pars.minKeypDist = mKPdist;
                         genMasks();
                     }
@@ -1118,15 +1089,17 @@ void genStereoSequ::adaptDepthsPerRegion() {
 
 #if 1
         //Now, the sum of mid depth regions should correspond to the global requirement
-        double portSum = 0;
-        for (size_t i = 0; i < 3; i++) {
-            for (size_t j = 0; j < 3; j++) {
-                portSum += depthsPerRegion[k][i][j].mid * pars.corrsPerRegion[k].at<double>(i, j);
+        if(verbose & PRINT_WARNING_MESSAGES) {
+            double portSum = 0;
+            for (size_t i = 0; i < 3; i++) {
+                for (size_t j = 0; j < 3; j++) {
+                    portSum += depthsPerRegion[k][i][j].mid * pars.corrsPerRegion[k].at<double>(i, j);
+                }
             }
-        }
-        double c1 = pars.corrsPerDepth.mid - portSum;
-        if (!nearZero(c1 / 10.0)) {
-            cout << "Adaption of depth fractions in regions failed!" << endl;
+            double c1 = pars.corrsPerDepth.mid - portSum;
+            if (!nearZero(c1 / 10.0)) {
+                cout << "Adaption of depth fractions in regions failed!" << endl;
+            }
         }
 #endif
     }
@@ -2192,9 +2165,11 @@ void genStereoSequ::genDepthMaps() {
                         (double) meanFarA.at<cv::Vec<int32_t, 2>>(y, x)[0] / M_PI);
                 checkArea += areaPRegFar[actCorrsPRIdx].at<int32_t>(y, x);
             }
-            if (checkArea != regROIs[y][x].area()) {
-                cout << "Sum of static depth areas (" << checkArea << ") does not correspond to area of region ("
-                     << regROIs[y][x].area() << ")!" << endl;
+            if(verbose & PRINT_WARNING_MESSAGES) {
+                if (checkArea != regROIs[y][x].area()) {
+                    cout << "Sum of static depth areas (" << checkArea << ") does not correspond to area of region ("
+                         << regROIs[y][x].area() << ")!" << endl;
+                }
             }
         }
     }
@@ -3746,13 +3721,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         endpos = startpos;
         nextPosition(endpos, directions[diri]);
         //Set the pixel
-        if (imgD.at<unsigned char>(endpos) != 0) {
+        /*if (imgD.at<unsigned char>(endpos) != 0) {
             cout << "Found" << endl;
-        }
+        }*/
         imgD.at<unsigned char>(endpos) = pixVal;
-        if (imgSD.at<unsigned char>(endpos) != 0) {
+        /*if (imgSD.at<unsigned char>(endpos) != 0) {
             cout << "Found" << endl;
-        }
+        }*/
         imgSD.at<unsigned char>(endpos) = 1;
         if (!neighborRegMask_.empty()) {
             neighborRegMask_.at<unsigned char>(endpos) = regIdx;
@@ -3793,13 +3768,13 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                         const int pos = (beginExt + i) % (int) extension.size();
                         nextPosition(singleExt, extension[pos]);
                         //Set the pixel
-                        if (imgD.at<unsigned char>(singleExt) != 0) {
+                        /*if (imgD.at<unsigned char>(singleExt) != 0) {
                             cout << "Found" << endl;
-                        }
+                        }*/
                         imgD.at<unsigned char>(singleExt) = pixVal;
-                        if (imgSD.at<unsigned char>(singleExt) != 0) {
+                        /*if (imgSD.at<unsigned char>(singleExt) != 0) {
                             cout << "Found" << endl;
-                        }
+                        }*/
                         imgSD.at<unsigned char>(singleExt) = 1;
                         if (!neighborRegMask_.empty()) {
                             neighborRegMask_.at<unsigned char>(singleExt) = regIdx;
@@ -4566,60 +4541,62 @@ void genStereoSequ::getKeypoints() {
     }
 
     //Check number of static TP and TN per region and the overall inlier ratio
-    size_t nrCorrsR = 0, nrCorrsRGiven = 0;
-    size_t nrTPCorrsAll = nrTPCorrs;
-    for (int y = 0; y < 3; ++y) {
-        for (int x = 0; x < 3; ++x) {
-            nrTPCorrsAll += seedsNearFromLast[y][x].size();
-            nrTPCorrsAll += seedsMidFromLast[y][x].size();
-            nrTPCorrsAll += seedsFarFromLast[y][x].size();
+    if(verbose & PRINT_WARNING_MESSAGES) {
+        size_t nrCorrsR = 0, nrCorrsRGiven = 0;
+        size_t nrTPCorrsAll = nrTPCorrs;
+        for (int y = 0; y < 3; ++y) {
+            for (int x = 0; x < 3; ++x) {
+                nrTPCorrsAll += seedsNearFromLast[y][x].size();
+                nrTPCorrsAll += seedsMidFromLast[y][x].size();
+                nrTPCorrsAll += seedsFarFromLast[y][x].size();
+            }
         }
-    }
-    nrCorrsR = nrTPCorrsAll + nrTNCorrs;
-    nrCorrsRGiven = (size_t) sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0];
-    if (nrCorrsR != nrCorrsRGiven) {
-        double chRate = (double) nrCorrsR / (double) nrCorrsRGiven;
-        if ((chRate < 0.95) || (chRate > 1.05)) {
-            cout << "Number of correspondences on static objects is " << 100.0 * (chRate - 1.0)
-                 << "% different to given values!" << endl;
-            cout << "Actual #: " << nrCorrsR << " Given #: " << nrCorrsRGiven << endl;
-            Mat baproTN = Mat::zeros(3,3,CV_32SC1);
-            for (size_t k = 0; k < 3; ++k) {
-                for (size_t k1 = 0; k1 < 3; ++k1) {
-                    size_t allnrTPperR = nrTPperR[k][k1] +
-                            seedsNearFromLast[k][k1].size() +
-                            seedsMidFromLast[k][k1].size() +
-                            seedsFarFromLast[k][k1].size();
-                    if ((int32_t) allnrTPperR != nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)) {
-                        cout << "# of TP for static region (x, y): (" <<
-                             k1 <<
-                             ", " << k
-                             << ") differs by "
-                             << (int32_t) allnrTPperR - nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)
-                             <<
-                             " correspondences (Actual #: " << allnrTPperR
-                             << " Given #: " << nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
-                             << endl;
-                    }
-                    if ((int32_t) nrTNperR[k][k1] != nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1)) {
-                        cout << "# of TN for static region (x, y): (" <<
-                             k1 <<
-                             ", " << k
-                             << ") differs by "
-                             << (int32_t) nrTNperR[k][k1] - nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1)
-                             <<
-                             " correspondences (Actual #: " << nrTNperR[k][k1]
-                             << " Given #: " << nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
-                             << endl;
+        nrCorrsR = nrTPCorrsAll + nrTNCorrs;
+        nrCorrsRGiven = (size_t) sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0];
+        if (nrCorrsR != nrCorrsRGiven) {
+            double chRate = (double) nrCorrsR / (double) nrCorrsRGiven;
+            if ((chRate < 0.95) || (chRate > 1.05)) {
+                cout << "Number of correspondences on static objects is " << 100.0 * (chRate - 1.0)
+                     << "% different to given values!" << endl;
+                cout << "Actual #: " << nrCorrsR << " Given #: " << nrCorrsRGiven << endl;
+                Mat baproTN = Mat::zeros(3, 3, CV_32SC1);
+                for (size_t k = 0; k < 3; ++k) {
+                    for (size_t k1 = 0; k1 < 3; ++k1) {
+                        size_t allnrTPperR = nrTPperR[k][k1] +
+                                             seedsNearFromLast[k][k1].size() +
+                                             seedsMidFromLast[k][k1].size() +
+                                             seedsFarFromLast[k][k1].size();
+                        if ((int32_t) allnrTPperR != nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)) {
+                            cout << "# of TP for static region (x, y): (" <<
+                                 k1 <<
+                                 ", " << k
+                                 << ") differs by "
+                                 << (int32_t) allnrTPperR - nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1)
+                                 <<
+                                 " correspondences (Actual #: " << allnrTPperR
+                                 << " Given #: " << nrTruePosRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
+                                 << endl;
+                        }
+                        if ((int32_t) nrTNperR[k][k1] != nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1)) {
+                            cout << "# of TN for static region (x, y): (" <<
+                                 k1 <<
+                                 ", " << k
+                                 << ") differs by "
+                                 << (int32_t) nrTNperR[k][k1] - nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1)
+                                 <<
+                                 " correspondences (Actual #: " << nrTNperR[k][k1]
+                                 << " Given #: " << nrTrueNegRegs[actFrameCnt].at<int32_t>(k, k1) << ")"
+                                 << endl;
+                        }
                     }
                 }
             }
         }
-    }
-    double inlRatDiffSR = (double) nrTPCorrsAll / (double) nrCorrsR - inlRat[actFrameCnt];
-    if (!nearZero(inlRatDiffSR / 100.0)) {
-        cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
-             << inlRatDiffSR << endl;
+        double inlRatDiffSR = (double) nrTPCorrsAll / (double) nrCorrsR - inlRat[actFrameCnt];
+        if (!nearZero(inlRatDiffSR / 100.0)) {
+            cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
+                 << inlRatDiffSR << endl;
+        }
     }
 }
 
@@ -5511,22 +5488,24 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         }
 
         //Check, if the areas of moving objects are valid
-        int32_t initAsum = 0;
-        for (auto i : areas) {
-            initAsum += i;
-        }
-        if (initAsum != areassum) {
-            double areaChange = (double) areassum / (double) initAsum;
-            if ((areaChange < 0.95) || (areaChange > 1.05)) {
-                cout << "Areas of moving objects are more than 5% different compared to given values." << endl;
-                for (size_t i = 0; i < areas.size(); i++) {
-                    areaChange = (double) actArea[i] / (double) areas[i];
-                    if (!nearZero(areaChange - 1.0)) {
-                        cout << "Area " << i << " with seed position (x, y): (" << seeds[i].x << ", " << seeds[i].y
-                             <<
-                             ") differs by " << 100.0 * (areaChange - 1.0) << "% or " << actArea[i] - areas[i]
-                             << " pixels."
-                             << endl;
+        if(verbose & PRINT_WARNING_MESSAGES) {
+            int32_t initAsum = 0;
+            for (auto i : areas) {
+                initAsum += i;
+            }
+            if (initAsum != areassum) {
+                double areaChange = (double) areassum / (double) initAsum;
+                if ((areaChange < 0.95) || (areaChange > 1.05)) {
+                    cout << "Areas of moving objects are more than 5% different compared to given values." << endl;
+                    for (size_t i = 0; i < areas.size(); i++) {
+                        areaChange = (double) actArea[i] / (double) areas[i];
+                        if (!nearZero(areaChange - 1.0)) {
+                            cout << "Area " << i << " with seed position (x, y): (" << seeds[i].x << ", " << seeds[i].y
+                                 <<
+                                 ") differs by " << 100.0 * (areaChange - 1.0) << "% or " << actArea[i] - areas[i]
+                                 << " pixels."
+                                 << endl;
+                        }
                     }
                 }
             }
@@ -5813,29 +5792,31 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     combMovObjLabelsAll = combMovObjLabels | movObjMaskFromLast;
 
     //Check the inlier ratio, TP, TN, and number of correspondences
-    int32_t sumTPMO = 0, sumTNMO = 0, sumCorrsMO = 0;
-    for (auto i:actTPPerMovObj) {
-        sumTPMO += i;
-    }
-    for (auto i:actTNPerMovObj) {
-        sumTNMO += i;
-    }
-    sumCorrsMO = sumTPMO + sumTNMO;
-    if (sumCorrsMO != actCorrsOnMovObj) {
-        cout << "Sum of number of correspondences on moving objects is different to given number." << endl;
-        if (sumTPMO != actTruePosOnMovObj) {
-            cout << "Sum of number of TP correspondences on moving objects is different to given number. Sum: " <<
-                 sumTPMO << " Given: " << actTruePosOnMovObj << endl;
+    if(verbose & PRINT_WARNING_MESSAGES) {
+        int32_t sumTPMO = 0, sumTNMO = 0, sumCorrsMO = 0;
+        for (auto i:actTPPerMovObj) {
+            sumTPMO += i;
         }
-        if (sumTNMO != actTrueNegOnMovObj) {
-            cout << "Sum of number of TN correspondences on moving objects is different to given number. Sum: " <<
-                 sumTNMO << " Given: " << actTrueNegOnMovObj << endl;
+        for (auto i:actTNPerMovObj) {
+            sumTNMO += i;
         }
-    }
-    double inlRatDiffMO = (double) sumTPMO / (double) sumCorrsMO - inlRat[actFrameCnt];
-    if (!nearZero(inlRatDiffMO / 100.0)) {
-        cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
-             << inlRatDiffMO << endl;
+        sumCorrsMO = sumTPMO + sumTNMO;
+        if (sumCorrsMO != actCorrsOnMovObj) {
+            cout << "Sum of number of correspondences on moving objects is different to given number." << endl;
+            if (sumTPMO != actTruePosOnMovObj) {
+                cout << "Sum of number of TP correspondences on moving objects is different to given number. Sum: " <<
+                     sumTPMO << " Given: " << actTruePosOnMovObj << endl;
+            }
+            if (sumTNMO != actTrueNegOnMovObj) {
+                cout << "Sum of number of TN correspondences on moving objects is different to given number. Sum: " <<
+                     sumTNMO << " Given: " << actTrueNegOnMovObj << endl;
+            }
+        }
+        double inlRatDiffMO = (double) sumTPMO / (double) sumCorrsMO - inlRat[actFrameCnt];
+        if (!nearZero(inlRatDiffMO / 100.0)) {
+            cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
+                 << inlRatDiffMO << endl;
+        }
     }
 
 }
@@ -6283,53 +6264,55 @@ void genStereoSequ::getMovObjCorrs() {
     movObjMask2All = movObjMask2All(Rect(Point(posadd, posadd), imgSize));
 
     //Check number of TP and TN per moving object and the overall inlier ratio
-    size_t nrCorrsMO = 0, nrTPMO = 0, nrTNMO = 0;
-    vector<int> nrTPperMO(nr_movObj, 0), nrTNperMO(nr_movObj, 0);
-    for (size_t k = 0; k < nr_movObj; ++k) {
-        nrTPperMO[k] = movObjCorrsImg1TP[k].cols;
-        nrTPMO += nrTPperMO[k];
-        nrTNperMO[k] = movObjCorrsImg1TN[k].cols;
-        nrTNMO += nrTNperMO[k];
-    }
-    nrCorrsMO = nrTPMO + nrTNMO;
-    if (nrCorrsMO != actCorrsOnMovObj) {
-        double chRate = (double) nrCorrsMO / (double) actCorrsOnMovObj;
-        if ((chRate < 0.95) || (chRate > 1.05)) {
-            cout << "Number of correspondences on moving objects is " << 100.0 * (chRate - 1.0)
-                 << "% different to given values!" << endl;
-            cout << "Actual #: " << nrCorrsMO << " Given #: " << actCorrsOnMovObj << endl;
-            for (size_t k = 0; k < nr_movObj; ++k) {
-                if ((int32_t) nrTPperMO[k] != actTPPerMovObj[k]) {
-                    cout << "# of TP for moving object " << k << " at position (x, y): (" <<
-                         movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
-                         ", " << movObjLabelsROIs[k].y +
-                                 movObjLabelsROIs[k].height / 2
-                         << ") differs by "
-                         << (int32_t) nrTPperMO[k] - actTPPerMovObj[k]
-                         <<
-                         " correspondences (Actual #: " << nrTPperMO[k]
-                         << " Given #: " << actTPPerMovObj[k] << ")"
-                         << endl;
-                }
-                if ((int32_t) nrTNperMO[k] != actTNPerMovObj[k]) {
-                    cout << "# of TN for moving object " << k << " at position (x, y): (" <<
-                         movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
-                         ", " << movObjLabelsROIs[k].y +
-                                 movObjLabelsROIs[k].height / 2
-                         << ") differs by "
-                         << (int32_t) nrTNperMO[k] - actTNPerMovObj[k]
-                         <<
-                         " correspondences (Actual #: " << nrTNperMO[k]
-                         << " Given #: " << actTNPerMovObj[k] << ")"
-                         << endl;
+    if(verbose & PRINT_WARNING_MESSAGES) {
+        size_t nrCorrsMO = 0, nrTPMO = 0, nrTNMO = 0;
+        vector<int> nrTPperMO(nr_movObj, 0), nrTNperMO(nr_movObj, 0);
+        for (size_t k = 0; k < nr_movObj; ++k) {
+            nrTPperMO[k] = movObjCorrsImg1TP[k].cols;
+            nrTPMO += nrTPperMO[k];
+            nrTNperMO[k] = movObjCorrsImg1TN[k].cols;
+            nrTNMO += nrTNperMO[k];
+        }
+        nrCorrsMO = nrTPMO + nrTNMO;
+        if (nrCorrsMO != actCorrsOnMovObj) {
+            double chRate = (double) nrCorrsMO / (double) actCorrsOnMovObj;
+            if ((chRate < 0.95) || (chRate > 1.05)) {
+                cout << "Number of correspondences on moving objects is " << 100.0 * (chRate - 1.0)
+                     << "% different to given values!" << endl;
+                cout << "Actual #: " << nrCorrsMO << " Given #: " << actCorrsOnMovObj << endl;
+                for (size_t k = 0; k < nr_movObj; ++k) {
+                    if ((int32_t) nrTPperMO[k] != actTPPerMovObj[k]) {
+                        cout << "# of TP for moving object " << k << " at position (x, y): (" <<
+                             movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
+                             ", " << movObjLabelsROIs[k].y +
+                                     movObjLabelsROIs[k].height / 2
+                             << ") differs by "
+                             << (int32_t) nrTPperMO[k] - actTPPerMovObj[k]
+                             <<
+                             " correspondences (Actual #: " << nrTPperMO[k]
+                             << " Given #: " << actTPPerMovObj[k] << ")"
+                             << endl;
+                    }
+                    if ((int32_t) nrTNperMO[k] != actTNPerMovObj[k]) {
+                        cout << "# of TN for moving object " << k << " at position (x, y): (" <<
+                             movObjLabelsROIs[k].x + movObjLabelsROIs[k].width / 2 <<
+                             ", " << movObjLabelsROIs[k].y +
+                                     movObjLabelsROIs[k].height / 2
+                             << ") differs by "
+                             << (int32_t) nrTNperMO[k] - actTNPerMovObj[k]
+                             <<
+                             " correspondences (Actual #: " << nrTNperMO[k]
+                             << " Given #: " << actTNPerMovObj[k] << ")"
+                             << endl;
+                    }
                 }
             }
         }
-    }
-    double inlRatDiffMO = (double) nrTPMO / (double) nrCorrsMO - inlRat[actFrameCnt];
-    if (!nearZero(inlRatDiffMO / 100.0)) {
-        cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
-             << inlRatDiffMO << endl;
+        double inlRatDiffMO = (double) nrTPMO / (double) nrCorrsMO - inlRat[actFrameCnt];
+        if (!nearZero(inlRatDiffMO / 100.0)) {
+            cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
+                 << inlRatDiffMO << endl;
+        }
     }
 
     //Remove empty moving object point clouds
@@ -7931,6 +7914,16 @@ void genStereoSequ::combineCorrespondences() {
 
     if(verbose & SHOW_COMBINED_CORRESPONDENCES){
         visualizeAllCorrespondences();
+    }
+
+    //Check global inlier ratio of backprojected and new static and moving objects
+    if(verbose & PRINT_WARNING_MESSAGES) {
+        double inlRatDiffSR = (double) combNrCorrsTP / ((double) combNrCorrsTP + combNrCorrsTN) - inlRat[actFrameCnt];
+        if (!nearZero(inlRatDiffSR / 100.0)) {
+            cout
+                    << "Inlier ratio of combined static and moving correspondences differs from global inlier ratio (0 - 1.0) by "
+                    << inlRatDiffSR << endl;
+        }
     }
 }
 
