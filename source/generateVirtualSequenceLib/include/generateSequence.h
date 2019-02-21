@@ -421,6 +421,17 @@ private:
                                 cv::OutputArray imgUsableMask = cv::noArray());
     void getValidImgRegBorders(const cv::Mat &mask, std::vector<std::vector<std::pair<bool,cv::Rect>>> &validRects);
     void adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew);
+    void adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask);
+    void distributeStatObjCorrsOnMovObj(int32_t remStat,
+                                        int32_t absNrCorrsFromStatic,
+                                        std::vector<std::vector<int32_t>> movObjCorrsFromStaticInv,
+                                        cv::Mat &statCorrsPRegNew);
+    void distributeMovObjCorrsOnStatObj(int32_t remMov,
+                                        int32_t absNrCorrsFromStatic,
+                                        const cv::Mat &movObjMask,
+                                        std::vector<std::vector<int32_t>> movObjCorrsFromStaticInv,
+                                        std::vector<std::vector<double>> movObjOverlap,
+                                        cv::Mat &statCorrsPRegNew);
 
 public:
 	uint32_t verbose = 0;

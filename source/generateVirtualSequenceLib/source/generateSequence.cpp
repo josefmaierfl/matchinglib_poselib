@@ -5605,155 +5605,21 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             r_areaFracStaticCorrs)//Remove additional static correspondences and add them to the moving objects
         {
             int32_t remStat = actCorrsOnMovObj - absNrCorrsFromStatic;
-            CV_Assert(remStat >= 0);
-            int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
-            CV_Assert(actStatCorrs >= 0);
-            int32_t remStatrem = remStat;
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
-                    if (!movObjHasArea[y][x] && (remStatrem > 0)) {
-                        int32_t val = (int32_t) round(
-                                (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remStat);
-                        int32_t newval = movObjCorrsFromStaticInv[y][x] - val;
-                        if (newval > 0) {
-                            remStatrem -= val;
-                            if (remStatrem < 0) {
-                                val += remStatrem;
-                                newval = movObjCorrsFromStaticInv[y][x] - val;
-                                remStatrem = 0;
-                            }
-                            statCorrsPRegNew.at<int32_t>(y, x) = newval;
-                        } else {
-                            remStatrem -= val + newval;
-                            if (remStatrem < 0) {
-                                statCorrsPRegNew.at<int32_t>(y, x) = -remStatrem;
-                                remStatrem = 0;
-                            } else {
-                                statCorrsPRegNew.at<int32_t>(y, x) = 0;
-                            }
-                        }
-                    }
-                }
-            }
-            if (remStatrem > 0) {
-                vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
-                for (size_t y = 0; y < 3; y++) {
-                    for (size_t x = 0; x < 3; x++) {
-                        const size_t idx = y * 3 + x;
-                        movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x));
-                    }
-                }
-                sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
-                     [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
-                         return first.second > second.second;
-                     });
-                int maxIt = remStatrem;
-                while ((remStatrem > 0) && (maxIt > 0)) {
-                    for (size_t i = 0; i < 9; i++) {
-                        if (movObjCorrsFromStaticInv_tmp[i].second > 0) {
-                            size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
-                            size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
-                            statCorrsPRegNew.at<int32_t>(y, x)--;
-                            remStatrem--;
-                            movObjCorrsFromStaticInv_tmp[i].second--;
-                            if (remStatrem == 0) {
-                                break;
-                            }
-                        }
-                    }
-                    maxIt--;
-                }
-            }
+            distributeStatObjCorrsOnMovObj(remStat,
+                                           absNrCorrsFromStatic,
+                                           movObjCorrsFromStaticInv,
+                                           statCorrsPRegNew);
         } else if (r_effectiveFracMovObj <
                    r_areaFracStaticCorrs)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
         {
             int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObj;
-            CV_Assert(remMov >= 0);
-            int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
-            CV_Assert(actStatCorrs >= 0);
-            int32_t remMovrem = remMov;
-            vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
-            cv::Mat fracUseableTPperRegion_tmp;
             cv::Mat mask_tmp = (combMovObjLabels == 0) | (mask == 0);
-            getInterSecFracRegions(fracUseableTPperRegion_tmp,
-                                   actR,
-                                   actT,
-                                   actDepthMid,
-                                   mask_tmp);
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
-                    if (!movObjHasArea[y][x] && (remMovrem > 0)) {
-                        int32_t val = (int32_t) round(
-                                (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
-                        int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
-                        //Get the maximum # of correspondences per area using the minimum distance between keypoints
-                        if (nearZero(actFracUseableTPperRegion.at<double>(y, x))) {
-                            cmaxreg[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
-                        } else if (!nearZero(actFracUseableTPperRegion.at<double>(y, x) - 1.0)) {
-                            cmaxreg[y][x] = (int32_t) (
-                                    (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
-                                    (1.0 - movObjOverlap[y][x]) * fracUseableTPperRegion_tmp.at<double>(y, x) /
-                                    (1.5 * pars.minKeypDist * pars.minKeypDist));
-                        } else {
-                            cmaxreg[y][x] = (int32_t) (
-                                    (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
-                                    (1.0 - movObjOverlap[y][x]) /
-                                    (1.5 * pars.minKeypDist * pars.minKeypDist));
-                        }
-                        if (newval <= cmaxreg[y][x]) {
-                            remMovrem -= val;
-                            if (remMovrem < 0) {
-                                val += remMovrem;
-                                newval = movObjCorrsFromStaticInv[y][x] + val;
-                                remMovrem = 0;
-                            }
-                            statCorrsPRegNew.at<int32_t>(y, x) = newval;
-                            cmaxreg[y][x] -= newval;
-                        } else {
-                            if (movObjCorrsFromStaticInv[y][x] < cmaxreg[y][x]) {
-                                statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
-                                remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
-                                if (remMovrem < 0) {
-                                    statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
-                                    remMovrem = 0;
-                                }
-                                cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
-                            } else {
-                                cmaxreg[y][x] = 0;
-                            }
-                        }
-                    }
-                }
-            }
-            if (remMovrem > 0) {
-                vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
-                for (size_t y = 0; y < 3; y++) {
-                    for (size_t x = 0; x < 3; x++) {
-                        const size_t idx = y * 3 + x;
-                        movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, cmaxreg[y][x]);
-                    }
-                }
-                sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
-                     [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
-                         return first.second > second.second;
-                     });
-                int maxIt = remMovrem;
-                while ((remMovrem > 0) && (maxIt > 0)) {
-                    for (size_t i = 0; i < 9; i++) {
-                        size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
-                        size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
-                        if ((movObjCorrsFromStaticInv_tmp[i].second > 0) && (statCorrsPRegNew.at<int32_t>(y, x) > 0)) {
-                            statCorrsPRegNew.at<int32_t>(y, x)++;
-                            remMovrem--;
-                            movObjCorrsFromStaticInv_tmp[i].second--;
-                            if (remMovrem == 0) {
-                                break;
-                            }
-                        }
-                    }
-                    maxIt--;
-                }
-            }
+            distributeMovObjCorrsOnStatObj(remMov,
+                                           absNrCorrsFromStatic,
+                                           mask_tmp,
+                                           movObjCorrsFromStaticInv,
+                                           movObjOverlap,
+                                           statCorrsPRegNew);
         }
     }
 
@@ -5907,9 +5773,258 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
             }
         }
     }
+
+    //Check the inlier ratio
+    if(verbose & PRINT_WARNING_MESSAGES) {
+        double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0];
+        double nrCorrs = (double) sum(nrCorrsRegs[actFrameCnt])[0];
+        double inlRatDiffSR = tps / nrCorrs - inlRat[actFrameCnt];
+        if (!nearZero(inlRatDiffSR / 100.0)) {
+            cout << "Inlier ratio of static correspondences after changing it because of moving objects differs "
+                    "from global inlier ratio (0 - 1.0) by "
+                 << inlRatDiffSR << endl;
+        }
+    }
 }
 
+void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
 
+    if(actCorrsOnMovObjFromLast <= 0){
+        return;
+    }
+
+    //Get overlap of regions and the portion of correspondences that is covered by the moving objects
+    vector<vector<double>> movObjOverlap(3, vector<double>(3, 0));
+    movObjHasArea = vector<vector<bool>>(3, vector<bool>(3, false));
+    vector<vector<int32_t>> movObjCorrsFromStatic(3, vector<int32_t>(3, 0));
+    vector<vector<int32_t>> movObjCorrsFromStaticInv(3, vector<int32_t>(3, 0));
+    int32_t absNrCorrsFromStatic = 0;
+    Mat statCorrsPRegNew = Mat::zeros(3, 3, CV_32SC1);
+    double oldMovObjAreaImgRat = (double) cv::countNonZero(mask) / (double) imgSize.area();
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            movObjOverlap[y][x] = (double) (cv::countNonZero(mask(regROIs[y][x]))) /
+                                  (double) (regROIs[y][x].area());
+            CV_Assert(movObjOverlap[y][x] >= 0);
+            if (movObjOverlap[y][x] > 0.9) {
+                movObjHasArea[y][x] = true;
+                movObjCorrsFromStatic[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+                movObjCorrsFromStaticInv[y][x] = 0;
+                absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
+            } else if (nearZero(movObjOverlap[y][x])) {
+                statCorrsPRegNew.at<int32_t>(y, x) = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+                movObjCorrsFromStatic[y][x] = 0;
+                movObjCorrsFromStaticInv[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+            } else {
+                movObjCorrsFromStatic[y][x] = (int32_t) round(
+                        (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
+                int32_t maxFromOld = (int32_t) round(
+                        (double) actCorrsOnMovObjFromLast * movObjOverlap[y][x] / oldMovObjAreaImgRat);
+                movObjCorrsFromStatic[y][x] =
+                        movObjCorrsFromStatic[y][x] > maxFromOld ? maxFromOld : movObjCorrsFromStatic[y][x];
+                movObjCorrsFromStaticInv[y][x] =
+                        nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) - movObjCorrsFromStatic[y][x];
+                absNrCorrsFromStatic += movObjCorrsFromStatic[y][x];
+                statCorrsPRegNew.at<int32_t>(y, x) = movObjCorrsFromStaticInv[y][x];
+            }
+        }
+    }
+
+    //Distribute the remaining # of correspondences on the regions
+    int corrDiff = absNrCorrsFromStatic - actCorrsOnMovObjFromLast;
+
+    if (corrDiff < 0)//Remove additional static correspondences and add them to the moving objects
+    {
+        int32_t remStat = actCorrsOnMovObjFromLast - absNrCorrsFromStatic;
+        distributeStatObjCorrsOnMovObj(remStat,
+                absNrCorrsFromStatic,
+                movObjCorrsFromStaticInv,
+                statCorrsPRegNew);
+
+    } else if (corrDiff > 0)//Distribute a part of the correspondences from moving objects over the static elements not covered by moving objects
+    {
+        int32_t remMov = absNrCorrsFromStatic - actCorrsOnMovObjFromLast;
+        cv::Mat mask_tmp = (mask == 0);
+        distributeMovObjCorrsOnStatObj(remMov,
+                                       absNrCorrsFromStatic,
+                                       mask_tmp,
+                                       movObjCorrsFromStaticInv,
+                                       movObjOverlap,
+                                       statCorrsPRegNew);
+
+    }
+
+    //Set new number of static correspondences
+    adaptStatNrCorrsReg(statCorrsPRegNew);
+
+    actCorrsOnMovObj = 0;
+    actTruePosOnMovObj = 0;
+    actTrueNegOnMovObj = 0;
+    actTPPerMovObj.clear();
+    actTNPerMovObj.clear();
+    movObjLabels.clear();
+    combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+    movObjLabelsROIs.clear();
+}
+
+void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
+                                    int32_t absNrCorrsFromStatic,
+                                    const cv::Mat &movObjMask,
+                                    std::vector<std::vector<int32_t>> movObjCorrsFromStaticInv,
+                                    std::vector<std::vector<double>> movObjOverlap,
+                                    cv::Mat &statCorrsPRegNew){
+    CV_Assert(remMov >= 0);
+    int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+    CV_Assert(actStatCorrs >= 0);
+    int32_t remMovrem = remMov;
+    vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
+    cv::Mat fracUseableTPperRegion_tmp;
+
+    getInterSecFracRegions(fracUseableTPperRegion_tmp,
+                           actR,
+                           actT,
+                           actDepthMid,
+                           movObjMask);
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            if (!movObjHasArea[y][x] && (remMovrem > 0)) {
+                int32_t val = (int32_t) round(
+                        (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
+                int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
+                //Get the maximum # of correspondences per area using the minimum distance between keypoints
+                if (nearZero(actFracUseableTPperRegion.at<double>(y, x))) {
+                    cmaxreg[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
+                } else if (!nearZero(actFracUseableTPperRegion.at<double>(y, x) - 1.0)) {
+                    cmaxreg[y][x] = (int32_t) (
+                            (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
+                            (1.0 - movObjOverlap[y][x]) * fracUseableTPperRegion_tmp.at<double>(y, x) /
+                            (1.5 * pars.minKeypDist * pars.minKeypDist));
+                } else {
+                    cmaxreg[y][x] = (int32_t) (
+                            (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
+                            (1.0 - movObjOverlap[y][x]) /
+                            (1.5 * pars.minKeypDist * pars.minKeypDist));
+                }
+                if (newval <= cmaxreg[y][x]) {
+                    remMovrem -= val;
+                    if (remMovrem < 0) {
+                        val += remMovrem;
+                        newval = movObjCorrsFromStaticInv[y][x] + val;
+                        remMovrem = 0;
+                    }
+                    statCorrsPRegNew.at<int32_t>(y, x) = newval;
+                    cmaxreg[y][x] -= newval;
+                } else {
+                    if (movObjCorrsFromStaticInv[y][x] < cmaxreg[y][x]) {
+                        statCorrsPRegNew.at<int32_t>(y, x) = cmaxreg[y][x];
+                        remMovrem -= cmaxreg[y][x] - movObjCorrsFromStaticInv[y][x];
+                        if (remMovrem < 0) {
+                            statCorrsPRegNew.at<int32_t>(y, x) += remMovrem;
+                            remMovrem = 0;
+                        }
+                        cmaxreg[y][x] -= statCorrsPRegNew.at<int32_t>(y, x);
+                    } else {
+                        cmaxreg[y][x] = 0;
+                    }
+                }
+            }
+        }
+    }
+    if (remMovrem > 0) {
+        vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+        for (size_t y = 0; y < 3; y++) {
+            for (size_t x = 0; x < 3; x++) {
+                const size_t idx = y * 3 + x;
+                movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, cmaxreg[y][x]);
+            }
+        }
+        sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
+             [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                 return first.second > second.second;
+             });
+        int maxIt = remMovrem;
+        while ((remMovrem > 0) && (maxIt > 0)) {
+            for (size_t i = 0; i < 9; i++) {
+                size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+                size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+                if ((movObjCorrsFromStaticInv_tmp[i].second > 0) && (statCorrsPRegNew.at<int32_t>(y, x) > 0)) {
+                    statCorrsPRegNew.at<int32_t>(y, x)++;
+                    remMovrem--;
+                    movObjCorrsFromStaticInv_tmp[i].second--;
+                    if (remMovrem == 0) {
+                        break;
+                    }
+                }
+            }
+            maxIt--;
+        }
+    }
+}
+
+void genStereoSequ::distributeStatObjCorrsOnMovObj(int32_t remStat,
+                                    int32_t absNrCorrsFromStatic,
+                                    std::vector<std::vector<int32_t>> movObjCorrsFromStaticInv,
+                                    cv::Mat &statCorrsPRegNew){
+    CV_Assert(remStat >= 0);
+    int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+    CV_Assert(actStatCorrs >= 0);
+    int32_t remStatrem = remStat;
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            if (!movObjHasArea[y][x] && (remStatrem > 0)) {
+                int32_t val = (int32_t) round(
+                        (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remStat);
+                int32_t newval = movObjCorrsFromStaticInv[y][x] - val;
+                if (newval > 0) {
+                    remStatrem -= val;
+                    if (remStatrem < 0) {
+                        val += remStatrem;
+                        newval = movObjCorrsFromStaticInv[y][x] - val;
+                        remStatrem = 0;
+                    }
+                    statCorrsPRegNew.at<int32_t>(y, x) = newval;
+                } else {
+                    remStatrem -= val + newval;
+                    if (remStatrem < 0) {
+                        statCorrsPRegNew.at<int32_t>(y, x) = -remStatrem;
+                        remStatrem = 0;
+                    } else {
+                        statCorrsPRegNew.at<int32_t>(y, x) = 0;
+                    }
+                }
+            }
+        }
+    }
+    if (remStatrem > 0) {
+        vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+        for (size_t y = 0; y < 3; y++) {
+            for (size_t x = 0; x < 3; x++) {
+                const size_t idx = y * 3 + x;
+                movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x));
+            }
+        }
+        sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
+             [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                 return first.second > second.second;
+             });
+        int maxIt = remStatrem;
+        while ((remStatrem > 0) && (maxIt > 0)) {
+            for (size_t i = 0; i < 9; i++) {
+                if (movObjCorrsFromStaticInv_tmp[i].second > 0) {
+                    size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+                    size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+                    statCorrsPRegNew.at<int32_t>(y, x)--;
+                    remStatrem--;
+                    movObjCorrsFromStaticInv_tmp[i].second--;
+                    if (remStatrem == 0) {
+                        break;
+                    }
+                }
+            }
+            maxIt--;
+        }
+    }
+}
 
 //Assign a depth category to each new object label and calculate all depth values for each label
 void genStereoSequ::genNewDepthMovObj() {
@@ -9430,6 +9545,8 @@ void genStereoSequ::getNewCorrs() {
                 transMovObjPtsToWorld();
             }
         } else {
+            //Adapt the number of static correspondences based on the backprojected moving objects
+            adaptNrStaticCorrsBasedOnMovCorrs(movObjMask);
             //Set the global mask for moving objects
             combMovObjLabelsAll = movObjMaskFromLast;
             movObjMask2All = movObjMaskFromLast2;
