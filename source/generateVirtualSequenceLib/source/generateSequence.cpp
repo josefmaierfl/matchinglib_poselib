@@ -447,7 +447,7 @@ bool genStereoSequ::initFracCorrImgReg() {
         Mat negsReg(3, 3, CV_64FC1);
         bool recalcCorrsPerRegion = false;
         do {
-            newCorrsPerRegion = pars.corrsPerRegion[cnt] * nrCorrs[i];
+            newCorrsPerRegion = pars.corrsPerRegion[cnt] * (double)nrCorrs[i];
             newCorrsPerRegion.convertTo(newCorrsPerRegion, CV_32SC1, 1.0, 0.5);//Corresponds to round
             int32_t chkSize = sum(newCorrsPerRegion)[0] - (int32_t) nrCorrs[i];
             if (chkSize > 0) {
@@ -471,6 +471,14 @@ bool genStereoSequ::initFracCorrImgReg() {
                 } while (chkSize < 0);
             }
 
+            //Check, if the overall number of correspondences is still correct
+            if(verbose & PRINT_WARNING_MESSAGES) {
+                int corrsDiff = sum(newCorrsPerRegion)[0] - nrCorrs[i];
+                if (((double) abs(corrsDiff) / (double) nrCorrs[i]) > 0.01) {
+                    cout << "The distribution of correspondences over the regions did not work!" << endl;
+                }
+            }
+
             Mat usedTNonNoOverlapRat;
             Mat newCorrsPerRegiond;
             int cnt1 = 0;
@@ -481,7 +489,7 @@ bool genStereoSequ::initFracCorrImgReg() {
                 double minCorr, maxCorr;
                 cv::minMaxLoc(newCorrsPerRegion, &minCorr, &maxCorr);
                 double regA = (double) imgSize.area() / activeRegions;
-                double areaCorrs = maxCorr * pars.minKeypDist * pars.minKeypDist *
+                double areaCorrs = maxCorr * ceil(pars.minKeypDist) * ceil(pars.minKeypDist) *
                                    enlargeKPDist;//Multiply by 1.33 to take gaps into account that are a result of randomness
 
                 if (areaCorrs > regA) {
@@ -663,6 +671,14 @@ bool genStereoSequ::initFracCorrImgReg() {
 
         nrCorrsRegs.push_back(newCorrsPerRegion.clone());
         nrTrueNegRegs.push_back(negsReg.clone());
+
+        //Check, if the overall number of correspondences is still correct
+        if(verbose & PRINT_WARNING_MESSAGES) {
+            int corrsDiff = sum(newCorrsPerRegion)[0] - nrCorrs[i];
+            if (((double) abs(corrsDiff) / (double) nrCorrs[i]) > 0.01) {
+                cout << "The distribution of correspondences over the regions did not work!" << endl;
+            }
+        }
 
         //Get number of true positives per region
         newCorrsPerRegion = newCorrsPerRegion - negsReg;
@@ -2117,7 +2133,7 @@ int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
     }
     sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second){return first < second;});
 
-    deleteVecEntriesbyIdx(delListCorrs, delList);
+    deleteVecEntriesbyIdx(seedsFromLast, delList);
 
     if(nrToDel_tmp != (int)delListCorrs.size()){
         cout << "Could not find every backprojected keypoint in the given array!" << endl;
@@ -4276,6 +4292,8 @@ void genStereoSequ::getKeypoints() {
                     (double) nrTruePosRegs[actFrameCnt].at<int32_t>(y, x));
             int32_t nrMid = nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) - nrNear - nrFar;
 
+            CV_Assert(nrMid >= 0);
+
             int32_t nrTN = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) - (int32_t) x1pTN[y][x].size();
 
             int32_t maxSelect = max(3 * nrTruePosRegs[actFrameCnt].at<int32_t>(y, x), 1000);
@@ -5146,14 +5164,19 @@ void genStereoSequ::getNrSizePosMovObj() {
     }
 
     //Get the number of moving object seeds per region
+    Mat useableAreas = (fracUseableTPperRegion[0] > actFracUseableTPperRegionTH) & (startPosMovObjs > 0);
+    int maxMovObj = countNonZero(useableAreas) * maxOPerReg;
     int nrMovObjs_tmp = (int) pars.nrMovObjs;
+    if(nrMovObjs_tmp > maxMovObj){
+        nrMovObjs_tmp = maxMovObj;
+    }
     Mat nrPerReg = Mat::zeros(3, 3, CV_8UC1);
     while (nrMovObjs_tmp > 0) {
         for (int y = 0; y < 3; y++) {
             for (int x = 0; x < 3; x++) {
                 if (startPosMovObjs.at<unsigned char>(y, x) &&
                     (maxOPerReg > (int) nrPerReg.at<unsigned char>(y, x)) &&
-                        (fracUseableTPperRegion[0].at<double>(y,x) > 0.25)) {
+                        (fracUseableTPperRegion[0].at<double>(y,x) > actFracUseableTPperRegionTH)) {
                     int addit = rand() % 2;
                     if (addit) {
                         nrPerReg.at<unsigned char>(y, x)++;
@@ -5849,6 +5872,15 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     //Set new number of static correspondences
     adaptStatNrCorrsReg(statCorrsPRegNew);
 
+    //Check the number of overall correspondences
+    if(verbose & PRINT_WARNING_MESSAGES){
+        int nrCorrs1 = sum(nrCorrsRegs[actFrameCnt])[0] + actCorrsOnMovObj;
+        if(nrCorrs1 != nrCorrs[actFrameCnt]){
+            cout << "Total number of correspondencs differs after partitioning them between moving and static objects by " <<
+            nrCorrs1 - nrCorrs[actFrameCnt] << endl;
+        }
+    }
+
     //Calculate number of correspondences on newly created moving objects
     if (nr_movObj > 0) {
         actCorrsOnMovObj -= corrsOnMovObjLF;
@@ -5975,6 +6007,16 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffMO << endl;
         }
+
+        //Check the overall inlier ratio
+        double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0] + sumTPMO;
+        double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0] + sumCorrsMO;
+        double inlRatDiffSR = tps / nrCorrs1 - inlRat[actFrameCnt];
+        if (!nearZero(inlRatDiffSR / 100.0)) {
+            cout << "Inlier ratio of combined static and moving correspondences after changing it because of moving objects differs "
+                    "from global inlier ratio (0 - 1.0) by "
+                 << inlRatDiffSR << ". THIS SHOULD NOT HAPPEN!" << endl;
+        }
     }
 
 }
@@ -6000,8 +6042,8 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
     //Check the inlier ratio
     if(verbose & PRINT_WARNING_MESSAGES) {
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0];
-        double nrCorrs = (double) sum(nrCorrsRegs[actFrameCnt])[0];
-        double inlRatDiffSR = tps / nrCorrs - inlRat[actFrameCnt];
+        double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0];
+        double inlRatDiffSR = tps / nrCorrs1 - inlRat[actFrameCnt];
         if (!nearZero(inlRatDiffSR / 100.0)) {
             cout << "Inlier ratio of static correspondences after changing it because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
@@ -7994,7 +8036,7 @@ bool genStereoSequ::getSeedsAreasMovObj() {
         for (int x = 0; x < 3; x++) {
             if (startPosMovObjs.at<unsigned char>(y, x) == 0)
                 continue;
-            if(actFracUseableTPperRegion.at<double>(y,x) <= 0.25)
+            if(actFracUseableTPperRegion.at<double>(y,x) <= actFracUseableTPperRegionTH)
                 continue;
             int moarea = countNonZero(movObjMaskFromLast(regROIs[y][x]) | (actStereoImgsOverlapMask(regROIs[y][x]) == 0));
             if (moarea < minOArea23) {

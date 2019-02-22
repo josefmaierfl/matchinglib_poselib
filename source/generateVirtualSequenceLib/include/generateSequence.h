@@ -444,6 +444,7 @@ private:
 	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
 	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is
 	const double fakeDistTNCorrespondences = 50.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
+    const double actFracUseableTPperRegionTH = 0.25;//Minimum fraction of a region for which the 2 stereo images must overlap at medium depth (backprojected to camera 1) to allow seeds for moving objects in that region
 
 	cv::Size imgSize;
 	cv::Mat K1, K1i;//Camera matrix 1 and its inverse
