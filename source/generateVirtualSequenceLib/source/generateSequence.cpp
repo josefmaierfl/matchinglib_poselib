@@ -95,6 +95,15 @@ bool checkPointValidity(const cv::Mat &mask, const cv::Point_<int32_t> &pt);
 
 bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect);
 
+int deletedepthCatsByIdx(std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> &seedsFromLast,
+                         std::vector<size_t> &delListCorrs,
+                         const cv::Mat &ptMat);
+
+int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
+                        int32_t nrToDel,
+                        const cv::Mat &ptMat,
+                        std::vector<size_t> &delListCorrs);
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -1595,7 +1604,8 @@ void genStereoSequ::checkDepthSeeds() {
                     delList3D.push_back(actCorrsImg12TPFromLast_Idx[delListCorrs.back()]);
                     continue;
                 }
-                csurr.copyTo(s_tmp);
+//                csurr.copyTo(s_tmp);
+                s_tmp += csurr;
                 seedsNear_tmp1.push_back(seedsNear_tmp[i]);
             }
         }
@@ -1608,7 +1618,8 @@ void genStereoSequ::checkDepthSeeds() {
                     delList3D.push_back(actCorrsImg12TPFromLast_Idx[delListCorrs.back()]);
                     continue;
                 }
-                csurr.copyTo(s_tmp);
+//                csurr.copyTo(s_tmp);
+                s_tmp += csurr;
                 seedsMid_tmp1.push_back(seedsMid_tmp[i]);
             }
         }
@@ -1621,7 +1632,8 @@ void genStereoSequ::checkDepthSeeds() {
                     delList3D.push_back(actCorrsImg12TPFromLast_Idx[delListCorrs.back()]);
                     continue;
                 }
-                csurr.copyTo(s_tmp);
+//                csurr.copyTo(s_tmp);
+                s_tmp += csurr;
                 seedsFar_tmp1.push_back(seedsFar_tmp[i]);
             }
         }
@@ -2032,6 +2044,120 @@ void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<s
     for (size_t i = 0; i < idxVec_tmp.size(); i++) {
         idxVec[i] = idxVec_tmp[i].first;
     }
+}
+
+//Search for the corresponding index entries and delete it
+int deletedepthCatsByIdx(std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> &seedsFromLast,
+                        std::vector<size_t> &delListCorrs,
+                        const cv::Mat &ptMat){
+    cv::Point_<int32_t> pt;
+    int nrDel = 0;
+    vector<size_t> delList;
+    for (size_t j = 0; j < delListCorrs.size(); ++j) {
+        size_t idx = delListCorrs[j];
+        pt = cv::Point_<int32_t>((int32_t)round(ptMat.at<double>(0,idx)),
+                                 (int32_t)round(ptMat.at<double>(1,idx)));
+        bool found = false;
+        for (int y = 0; y < 3; ++y) {
+            for (int x = 0; x < 3; ++x) {
+                for (size_t i = 0; i < seedsFromLast[y][x].size(); ++i) {
+                    int32_t diff = abs(seedsFromLast[y][x][i].x - pt.x) + abs(seedsFromLast[y][x][i].y - pt.y);
+                    if(diff == 0){
+                        seedsFromLast[y][x].erase(seedsFromLast[y][x].begin() + i);
+                        delList.push_back(j);
+                        nrDel++;
+                        found  = true;
+                        break;
+                    }
+                }
+                if(found) break;
+            }
+            if(found) break;
+        }
+    }
+
+    for (int k = (int)delList.size() - 1; k >= 0; --k) {
+        delListCorrs.erase(delListCorrs.begin() + delList[k]);
+    }
+
+    return nrDel;
+}
+
+int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
+                         int32_t nrToDel,
+                         const cv::Mat &ptMat,
+                         std::vector<size_t> &delListCorrs){
+    delListCorrs.clear();
+    if(nrToDel <= 0) return 0;
+    int nrToDel_tmp = (int)nrToDel;
+    std::vector<size_t> delList(seedsFromLast.size());
+    std::iota(delList.begin(), delList.end(), 0);
+
+    if(nrToDel_tmp < (int)seedsFromLast.size()){
+        std::shuffle(delList.begin(), delList.end(), std::mt19937{std::random_device{}()});
+        delList.erase(delList.begin() + nrToDel_tmp, delList.end());
+        sort(delList.begin(), delList.end(), [](size_t first, size_t second){return first < second;});
+    }
+    else{
+        nrToDel_tmp = (int)seedsFromLast.size();
+    }
+
+    cv::Point_<int32_t> pts, ptg;
+    for (int32_t i = 0; i < nrToDel_tmp; ++i) {
+        ptg = seedsFromLast[delList[i]];
+        for (size_t j = 0; j < (size_t)ptMat.cols; ++j) {
+            pts = cv::Point_<int32_t>((int32_t)round(ptMat.at<double>(0,j)),
+                                      (int32_t)round(ptMat.at<double>(1,j)));
+            int32_t diff = abs(ptg.x - pts.x) + abs(ptg.y - pts.y);
+            if(diff == 0){
+                delListCorrs.push_back(j);
+                break;
+            }
+        }
+    }
+    sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second){return first < second;});
+
+    deleteVecEntriesbyIdx(delListCorrs, delList);
+
+    if(nrToDel_tmp != (int)delListCorrs.size()){
+        cout << "Could not find every backprojected keypoint in the given array!" << endl;
+    }
+
+    return nrToDel_tmp;
+}
+
+int genStereoSequ::deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &seedsFromLast,
+                        int32_t nrToDel){
+    std::vector<size_t> delListCorrs, delList3D;
+    int actDelNr = deletedepthCatsByNr(seedsFromLast, nrToDel, actCorrsImg1TPFromLast, delListCorrs);
+    delList3D.reserve(delListCorrs.size());
+    for(auto &i: delListCorrs){
+        delList3D.push_back(actCorrsImg12TPFromLast_Idx[i]);
+    }
+
+    if (!delListCorrs.empty()) {
+        sort(delList3D.begin(), delList3D.end(),
+             [](size_t first, size_t second) { return first < second; });//Ascending order
+
+        if (!actCorrsImg1TNFromLast_Idx.empty())//Adapt the indices for TN (single keypoints without a match)
+        {
+            adaptIndicesNoDel(actCorrsImg1TNFromLast_Idx, delList3D);
+        }
+        if (!actCorrsImg2TNFromLast_Idx.empty())//Adapt the indices for TN (single keypoints without a match)
+        {
+            adaptIndicesNoDel(actCorrsImg2TNFromLast_Idx, delList3D);
+        }
+        adaptIndicesNoDel(actCorrsImg12TPFromLast_Idx, delList3D);
+        deleteVecEntriesbyIdx(actImgPointCloudFromLast, delList3D);
+
+//        sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) { return first < second; });
+
+        deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_Idx, delListCorrs);
+        deleteMatEntriesByIdx(actCorrsImg1TPFromLast, delListCorrs, false);
+        deleteMatEntriesByIdx(actCorrsImg2TPFromLast, delListCorrs, false);
+    }
+
+    return actDelNr;
 }
 
 //Initialize region ROIs and masks
@@ -3996,32 +4122,94 @@ void genStereoSequ::getKeypoints() {
 
     //Mark used areas (by correspondences, TN, and moving objects) in the second image
     Mat cImg2 = Mat::zeros(imgSize.height + kSi - 1, imgSize.width + kSi - 1, CV_8UC1);
+    vector<size_t> delListCorrs, delList3D;
     for (int i = 0; i < actCorrsImg2TPFromLast.cols; i++) {
         Point_<int32_t> pt((int32_t) round(actCorrsImg2TPFromLast.at<double>(0, i)),
                            (int32_t) round(actCorrsImg2TPFromLast.at<double>(1, i)));
         Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
+        if (s_tmp.at<unsigned char>(posadd, posadd) > 0) {
+            delListCorrs.push_back(i);
+            delList3D.push_back(actCorrsImg12TPFromLast_Idx[i]);
+            continue;
+        }
         s_tmp.at<unsigned char>(posadd, posadd) = 1;
-//        csurr.copyTo(s_tmp);
     }
-    const int nrBPTN2 = actCorrsImg2TNFromLast.cols;
+
+    //Delete correspondences and 3D points that were to near to each other in the 2nd image
+    int TPfromLastRedu = 0;
+    if (!delListCorrs.empty()) {
+        TPfromLastRedu = delListCorrs.size();
+        sort(delList3D.begin(), delList3D.end(),
+             [](size_t first, size_t second) { return first < second; });//Ascending order
+
+        if (!actCorrsImg1TNFromLast_Idx.empty())//Adapt the indices for TN (single keypoints without a match)
+        {
+            adaptIndicesNoDel(actCorrsImg1TNFromLast_Idx, delList3D);
+        }
+        if (!actCorrsImg2TNFromLast_Idx.empty())//Adapt the indices for TN (single keypoints without a match)
+        {
+            adaptIndicesNoDel(actCorrsImg2TNFromLast_Idx, delList3D);
+        }
+        adaptIndicesNoDel(actCorrsImg12TPFromLast_Idx, delList3D);
+        deleteVecEntriesbyIdx(actImgPointCloudFromLast, delList3D);
+
+        sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) { return first < second; });
+
+        TPfromLastRedu -= deletedepthCatsByIdx(seedsNearFromLast, delListCorrs, actCorrsImg1TPFromLast);
+        if(TPfromLastRedu > 0){
+            TPfromLastRedu -= deletedepthCatsByIdx(seedsMidFromLast, delListCorrs, actCorrsImg1TPFromLast);
+        }
+        if(TPfromLastRedu > 0){
+            TPfromLastRedu -= deletedepthCatsByIdx(seedsFarFromLast, delListCorrs, actCorrsImg1TPFromLast);
+        }
+        if(TPfromLastRedu > 0){
+            cout << "Keypoints from last frames which should be deleted were not found!" << endl;
+        }
+
+        deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_Idx, delListCorrs);
+        deleteMatEntriesByIdx(actCorrsImg1TPFromLast, delListCorrs, false);
+        deleteMatEntriesByIdx(actCorrsImg2TPFromLast, delListCorrs, false);
+    }
+
+    int nrBPTN2 = actCorrsImg2TNFromLast.cols;
     int nrBPTN2cnt = 0;
+    vector<size_t> delListTNlast;
     for (int i = 0; i < nrBPTN2; i++) {
         Point_<int32_t> pt((int32_t) round(actCorrsImg2TNFromLast.at<double>(0, i)),
                            (int32_t) round(actCorrsImg2TNFromLast.at<double>(1, i)));
         Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
+        if (s_tmp.at<unsigned char>(posadd, posadd) > 0) {
+            delListTNlast.push_back(i);
+            nrBPTN2--;
+            continue;
+        }
         s_tmp.at<unsigned char>(posadd, posadd) = 1;
-//        csurr.copyTo(s_tmp);
     }
     cImg2(Rect(Point(posadd, posadd), imgSize)) |= movObjMask2All;
+
+    if (!delListTNlast.empty()) {
+        sort(delListTNlast.begin(), delListTNlast.end(), [](size_t first, size_t second) { return first < second; });
+        deleteVecEntriesbyIdx(actCorrsImg2TNFromLast_Idx, delListTNlast);
+        deleteMatEntriesByIdx(actCorrsImg2TNFromLast, delListTNlast, false);
+    }
 
     //Get regions of backprojected TN in first image and mark their positions; add true negatives from backprojection to the new outlier data
     vector<vector<vector<Point2d>>> x1pTN(3, vector<vector<Point2d>>(3));
     Size rSl(imgSize.width / 3, imgSize.height / 3);
+    delListTNlast.clear();
     for (int i = 0; i < actCorrsImg1TNFromLast.cols; i++) {
+
+
+
         Point_<int32_t> pt((int32_t) round(actCorrsImg1TNFromLast.at<double>(0, i)),
                            (int32_t) round(actCorrsImg1TNFromLast.at<double>(1, i)));
         Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
-        csurr.copyTo(s_tmp);
+        if (s_tmp.at<unsigned char>(posadd, posadd) > 0) {
+            delListTNlast.push_back(i);
+            continue;
+        }
+        s_tmp += csurr;
+//        csurr.copyTo(s_tmp);
 
         int yreg_idx = pt.y / rSl.height;
         yreg_idx = (yreg_idx > 2) ? 2 : yreg_idx;
@@ -4040,7 +4228,19 @@ void genStereoSequ::getKeypoints() {
             xreg_idx++;
         }
 
+        if(x1pTN[yreg_idx][xreg_idx].size() >= nrTrueNegRegs[actFrameCnt].at<int32_t>(yreg_idx, xreg_idx)){
+            delListTNlast.push_back(i);
+            s_tmp -= csurr;
+            continue;
+        }
+
         x1pTN[yreg_idx][xreg_idx].push_back(Point2d(actCorrsImg1TNFromLast.at<double>(0, i), actCorrsImg1TNFromLast.at<double>(1, i)));
+    }
+
+    if (!delListTNlast.empty()) {
+        sort(delListTNlast.begin(), delListTNlast.end(), [](size_t first, size_t second) { return first < second; });
+        deleteVecEntriesbyIdx(actCorrsImg1TNFromLast_Idx, delListTNlast);
+        deleteMatEntriesByIdx(actCorrsImg1TNFromLast, delListTNlast, false);
     }
 
     //For visualization
@@ -4105,6 +4305,22 @@ void genStereoSequ::getKeypoints() {
                 nrFar += nrNear;
             if (nrFar < 0)
                 nrMid += nrFar;
+
+            //Delete backprojected correspondences if there are too much of them
+            if(nrMid < 0){
+                int nrToDel = -1 * (int)nrMid;
+                nrToDel -= deleteBackProjTPByDepth(seedsMidFromLast[y][x], nrToDel);
+                nrMid = 0;
+                if(nrToDel > 0){
+                    nrToDel -= deleteBackProjTPByDepth(seedsFarFromLast[y][x], nrToDel);
+                    nrFar = 0;
+                    if(nrToDel > 0){
+                        nrToDel -= deleteBackProjTPByDepth(seedsNearFromLast[y][x], nrToDel);
+                        nrNear = 0;
+                    }
+                }
+                CV_Assert(nrToDel == 0);
+            }
 
             int32_t nrNMF = nrNear + nrMid + nrFar;
 
@@ -8965,7 +9181,7 @@ void genStereoSequ::getCamPtsFromWorld() {
                                  (double) filteredOccludedPtsAll->at(j).z);
         Mat ptm = Mat(pt, false).reshape(1, 3);
         ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
-                                                      absCamCoordinates[actFrameCnt].t);//does this work???????? -> physical memory of pt and ptm must be the same
+                                                      absCamCoordinates[actFrameCnt].t);//physical memory of pt and ptm must be the same
         actImgPointCloudFromLast.push_back(pt);
     }
 }

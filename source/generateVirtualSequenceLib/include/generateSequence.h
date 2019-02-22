@@ -432,6 +432,8 @@ private:
                                         std::vector<std::vector<int32_t>> movObjCorrsFromStaticInv,
                                         std::vector<std::vector<double>> movObjOverlap,
                                         cv::Mat &statCorrsPRegNew);
+    int deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &seedsFromLast,
+                                int32_t nrToDel);
 
 public:
 	uint32_t verbose = 0;
