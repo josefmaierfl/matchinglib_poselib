@@ -2137,7 +2137,7 @@ int genStereoSequ::deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &see
         delList3D.push_back(actCorrsImg12TPFromLast_Idx[i]);
 
         Point pt = Point((int)round(actCorrsImg1TPFromLast.at<double>(0,i)),
-                         (int)round(actCorrsImg1TPFromLast.at<double>(1,i)))
+                         (int)round(actCorrsImg1TPFromLast.at<double>(1,i)));
         Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
         s_tmp -= csurr;
     }
