@@ -423,6 +423,12 @@ private:
                                 const double depth_use,
                                 cv::InputArray mask = cv::noArray(),
                                 cv::OutputArray imgUsableMask = cv::noArray());
+	void getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
+								const cv::Mat &R_use,
+								const cv::Mat &t_use,
+								const std::vector<double> &depth_use,
+								cv::InputArray mask = cv::noArray(),
+								cv::OutputArray imgUsableMask = cv::noArray());
     void getValidImgRegBorders(const cv::Mat &mask, std::vector<std::vector<std::pair<bool,cv::Rect>>> &validRects);
     void adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew);
     void adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask);

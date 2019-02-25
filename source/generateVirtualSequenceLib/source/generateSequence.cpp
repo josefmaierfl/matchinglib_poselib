@@ -372,6 +372,63 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
 
 }
 
+//Get the fraction of intersection between the stereo images for every image region (3x3) and for various depths (combined, smallest area)
+void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
+                            const cv::Mat &R_use,
+                            const cv::Mat &t_use,
+                            const std::vector<double> &depth_use,
+                            cv::InputArray mask,
+                            cv::OutputArray imgUsableMask){
+    //Check overlap of the stereo images
+    Mat combDepths = Mat::ones(imgSize, CV_8UC1) * 255;
+    for(auto d: depth_use) {
+        std::vector<cv::Point> img1Poly;
+        getImgIntersection(img1Poly, R_use, t_use, d, false);
+
+        //Create a mask for overlapping views
+        vector<vector<Point>> intersectCont(1);
+
+        intersectCont[0] = img1Poly;
+        Mat wimg = Mat::zeros(imgSize, CV_8UC1);
+        drawContours(wimg, intersectCont, 0, Scalar(255), CV_FILLED);
+
+        combDepths &= wimg;
+    }
+
+    //Draw intersection area
+    if(mask.empty() && (verbose & SHOW_STEREO_INTERSECTION)){
+        namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
+        imshow("Stereo intersection", combDepths);
+        waitKey(0);
+        destroyWindow("Stereo intersection");
+    }
+
+    if (!mask.empty()) {
+        combDepths &= mask.getMat();
+    }
+
+    if (imgUsableMask.needed()) {
+        if (imgUsableMask.empty()) {
+            imgUsableMask.create(imgSize, CV_8UC1);
+        }
+        Mat outmat_tmp = imgUsableMask.getMat();
+        combDepths.copyTo(outmat_tmp);
+    }
+
+    fracUseableTPperRegion_ = Mat(3, 3, CV_64FC1);
+    for (int y = 0; y < 3; ++y) {
+        for (int x = 0; x < 3; ++x) {
+            if (mask.empty()) {
+                fracUseableTPperRegion_.at<double>(y, x) =
+                        (double) countNonZero(combDepths(regROIs[y][x])) / (double) regROIs[y][x].area();
+            } else {
+                fracUseableTPperRegion_.at<double>(y, x) =
+                        (double) countNonZero(combDepths(regROIs[y][x])) / (double) countNonZero(mask.getMat());
+            }
+        }
+    }
+}
+
 //Get number of correspondences per image and Correspondences per image regions
 //Check if there are too many correspondences per region as every correspondence needs a minimum distance to its neighbor. If yes, the minimum distance and/or number of correspondences are adapted.
 void genStereoSequ::initNrCorrespondences() {
@@ -431,10 +488,15 @@ bool genStereoSequ::initFracCorrImgReg() {
                 stereoIdx++;
             }
 
+            vector<double> combDepths(3);
+            combDepths[0] = depthMid[stereoIdx];
+            combDepths[1] = depthFar[stereoIdx] + (maxFarDistMultiplier - 1.0) * depthFar[stereoIdx] * pars.corrsPerDepth.far;
+            combDepths[2] = depthNear[stereoIdx] + (1.0 - pars.corrsPerDepth.near) * (depthMid[stereoIdx] - depthNear[stereoIdx]);
+
             getInterSecFracRegions(fracUseableTPperRegion_tmp,
                                    R[stereoIdx],
                                    t[stereoIdx],
-                                   depthMid[stereoIdx],
+                                   combDepths,
                                    cv::noArray(),
                                    stereoImgsOverlapMask_tmp);
             stereoImgsOverlapMask.push_back(stereoImgsOverlapMask_tmp.clone());
@@ -5437,14 +5499,46 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
     if (nearZero(wsum)) {
         xWeights.clear();
         xInterVals.clear();
-        vector<int> xIntervalDiffs(xposes.size() - 1);
-        for (int i = 1; i < xposes.size(); ++i) {
-            xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
+        if(xposes.size() > 1) {
+            vector<int> xIntervalDiffs(xposes.size() - 1);
+            for (int i = 1; i < xposes.size(); ++i) {
+                xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
+            }
+            int maxdiff = std::distance(xIntervalDiffs.begin(),
+                                        std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
+            int thisDist = xposes[maxdiff + 1] - xposes[maxdiff];
+            if(thisDist >= minODist) {
+                xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
+                xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
+            }
+            else if(thisDist >= 3){
+                thisDist /= 3;
+                xInterVals.push_back((double) (xposes[maxdiff] + thisDist));
+                xInterVals.push_back((double) (xposes[maxdiff + 1] - thisDist));
+            }
+            else{
+                throw SequenceException("Cannot select a distribution range as the border values are too near to each other!");
+            }
         }
-        int maxdiff = std::distance(xIntervalDiffs.begin(),
-                                    std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
-        xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
-        xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
+        else{
+            int xIntervalDiffs[2], idx = 0;
+            xIntervalDiffs[0] = xposes[0] - validRect.x;
+            xIntervalDiffs[1] = maxEnd - xposes[0];
+            if(xIntervalDiffs[1] > xIntervalDiffs[0]) idx = 1;
+            if(xIntervalDiffs[idx] >= 2){
+                int thisDist = xIntervalDiffs[idx] / 2;
+                if(idx){
+                    xInterVals.push_back((double) (xposes[0] + thisDist));
+                    xInterVals.push_back((double) maxEnd);
+                }else{
+                    xInterVals.push_back((double) validRect.x);
+                    xInterVals.push_back((double) (xposes[0] - thisDist));
+                }
+            }
+            else{
+                throw SequenceException("Cannot select a distribution range as the border values are too near to each other!");
+            }
+        }
         xWeights.push_back(1.0);
     }
 
@@ -5491,14 +5585,46 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
     if (nearZero(wsum)) {
         yWeights.clear();
         yInterVals.clear();
-        vector<int> yIntervalDiffs(yposes.size() - 1);
-        for (int i = 1; i < yposes.size(); ++i) {
-            yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
+        if(yposes.size() > 1) {
+            vector<int> yIntervalDiffs(yposes.size() - 1);
+            for (int i = 1; i < yposes.size(); ++i) {
+                yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
+            }
+            int maxdiff = std::distance(yIntervalDiffs.begin(),
+                                        std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
+            int thisDist = yposes[maxdiff + 1] - yposes[maxdiff];
+            if(thisDist >= minODist) {
+                yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
+                yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
+            }
+            else if(thisDist >= 3){
+                thisDist /= 3;
+                yInterVals.push_back((double) (yposes[maxdiff] + thisDist));
+                yInterVals.push_back((double) (yposes[maxdiff + 1] - thisDist));
+            }
+            else{
+                throw SequenceException("Cannot select a distribution range as the border values are too near to each other!");
+            }
         }
-        int maxdiff = std::distance(yIntervalDiffs.begin(),
-                                    std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
-        yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
-        yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
+        else{
+            int yIntervalDiffs[2], idx = 0;
+            yIntervalDiffs[0] = yposes[0] - validRect.y;
+            yIntervalDiffs[1] = maxEnd - yposes[0];
+            if(yIntervalDiffs[1] > yIntervalDiffs[0]) idx = 1;
+            if(yIntervalDiffs[idx] >= 2){
+                int thisDist = yIntervalDiffs[idx] / 2;
+                if(idx){
+                    yInterVals.push_back((double) (yposes[0] + thisDist));
+                    yInterVals.push_back((double) maxEnd);
+                }else{
+                    yInterVals.push_back((double) validRect.y);
+                    yInterVals.push_back((double) (yposes[0] - thisDist));
+                }
+            }
+            else{
+                throw SequenceException("Cannot select a distribution range as the border values are too near to each other!");
+            }
+        }
         yWeights.push_back(1.0);
     }
 }
@@ -5830,7 +5956,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                                             cv::countNonZero(mask(regROIs[y][x]))) /
                                   (double) (regROIs[y][x].area());
             CV_Assert(movObjOverlap[y][x] >= 0);
-            if (movObjOverlap[y][x] > 0.9) {
+            if (movObjOverlap[y][x] > 0.95) {
                 movObjHasArea[y][x] = true;
                 movObjCorrsFromStatic[y][x] = nrCorrsRegs[actFrameCnt].at<int32_t>(y, x);
                 movObjCorrsFromStaticInv[y][x] = 0;
@@ -5867,8 +5993,8 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
 //		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
         //reduce the initial area by reducing the radius of a circle with corresponding area by reduceRadius
         double reduceRadius = pars.minKeypDist < 5.0 ? 5.0 : pars.minKeypDist;
-        double tmp = sqrt((double) (areassum) * M_PI) - reduceRadius;
-        maxCorrs = max((int32_t) ((tmp * tmp) / (1.5 * M_PI * pars.minKeypDist * pars.minKeypDist)), 1);
+        double tmp = max(sqrt((double) (areassum) / M_PI) - reduceRadius, pars.minKeypDist);
+        maxCorrs = max((int32_t) ((tmp * tmp * M_PI) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
         if ((actCorrsOnMovObj - corrsOnMovObjLF) > maxCorrs) {
             actCorrsOnMovObj = maxCorrs + corrsOnMovObjLF;
         }
@@ -6289,10 +6415,15 @@ void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
     vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
     cv::Mat fracUseableTPperRegion_tmp;
 
+    vector<double> combDepths(3);
+    combDepths[0] = actDepthMid;
+    combDepths[1] = actDepthFar + (maxFarDistMultiplier - 1.0) * actDepthFar / 2.0;
+    combDepths[2] = actDepthNear + (actDepthMid - actDepthNear) / 2.0;
+
     getInterSecFracRegions(fracUseableTPperRegion_tmp,
                            actR,
                            actT,
-                           actDepthMid,
+                           combDepths,
                            movObjMask);
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
