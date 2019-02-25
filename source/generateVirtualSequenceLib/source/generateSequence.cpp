@@ -104,6 +104,11 @@ int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
                         const cv::Mat &ptMat,
                         std::vector<size_t> &delListCorrs);
 
+int deletedepthCatsByNr(std::vector<cv::Point2d> &seedsFromLast,
+                        int32_t nrToDel,
+                        const cv::Mat &ptMat,
+                        std::vector<size_t> &delListCorrs);
+
 /* -------------------------- Functions -------------------------- */
 
 genStereoSequ::genStereoSequ(cv::Size imgSize_,
@@ -2126,6 +2131,48 @@ int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
                                       (int32_t)round(ptMat.at<double>(1,j)));
             int32_t diff = abs(ptg.x - pts.x) + abs(ptg.y - pts.y);
             if(diff == 0){
+                delListCorrs.push_back(j);
+                break;
+            }
+        }
+    }
+    sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second){return first < second;});
+
+    deleteVecEntriesbyIdx(seedsFromLast, delList);
+
+    if(nrToDel_tmp != (int)delListCorrs.size()){
+        cout << "Could not find every backprojected keypoint in the given array!" << endl;
+    }
+
+    return nrToDel_tmp;
+}
+
+int deletedepthCatsByNr(std::vector<cv::Point2d> &seedsFromLast,
+                        int32_t nrToDel,
+                        const cv::Mat &ptMat,
+                        std::vector<size_t> &delListCorrs){
+    delListCorrs.clear();
+    if(nrToDel <= 0) return 0;
+    int nrToDel_tmp = (int)nrToDel;
+    std::vector<size_t> delList(seedsFromLast.size());
+    std::iota(delList.begin(), delList.end(), 0);
+
+    if(nrToDel_tmp < (int)seedsFromLast.size()){
+        std::shuffle(delList.begin(), delList.end(), std::mt19937{std::random_device{}()});
+        delList.erase(delList.begin() + nrToDel_tmp, delList.end());
+        sort(delList.begin(), delList.end(), [](size_t first, size_t second){return first < second;});
+    }
+    else{
+        nrToDel_tmp = (int)seedsFromLast.size();
+    }
+
+    cv::Point2d pts, ptg;
+    for (int32_t i = 0; i < nrToDel_tmp; ++i) {
+        ptg = seedsFromLast[delList[i]];
+        for (size_t j = 0; j < (size_t)ptMat.cols; ++j) {
+            pts = cv::Point2d(ptMat.at<double>(0,j), ptMat.at<double>(1,j));
+            int32_t diff = abs(ptg.x - pts.x) + abs(ptg.y - pts.y);
+            if(nearZero(diff)){
                 delListCorrs.push_back(j);
                 break;
             }
@@ -4296,6 +4343,15 @@ void genStereoSequ::getKeypoints() {
 
             int32_t nrTN = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) - (int32_t) x1pTN[y][x].size();
 
+            if(nrTN < 0){
+                std::vector<size_t> delListCorrsTN;
+                nrTN += deletedepthCatsByNr(x1pTN[y][x], -nrTN, actCorrsImg1TNFromLast, delListCorrsTN);
+                if(!delListCorrsTN.empty()){
+                    deleteVecEntriesbyIdx(actCorrsImg1TNFromLast_Idx, delListCorrsTN);
+                    deleteMatEntriesByIdx(actCorrsImg1TNFromLast, delListCorrsTN, false);
+                }
+            }
+
             int32_t maxSelect = max(3 * nrTruePosRegs[actFrameCnt].at<int32_t>(y, x), 1000);
             int32_t maxSelect2 = 50;
             int32_t maxSelect3 = 50;
@@ -4346,6 +4402,8 @@ void genStereoSequ::getKeypoints() {
                 }
                 CV_Assert(nrToDel == 0);
             }
+            if(nrNear < 0) nrNear = 0;
+            if(nrFar < 0) nrFar = 0;
 
             int32_t nrNMF = nrNear + nrMid + nrFar;
 
@@ -5884,10 +5942,22 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     //Calculate number of correspondences on newly created moving objects
     if (nr_movObj > 0) {
         actCorrsOnMovObj -= corrsOnMovObjLF;
-        actTruePosOnMovObj = (int32_t) round(inlRat[actFrameCnt] * (double) actCorrsOnMovObj);
-        actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj;
-        actTPPerMovObj.resize(nr_movObj, 0);
-        actTNPerMovObj.resize(nr_movObj, 0);
+        if(actCorrsOnMovObj == 0){
+            actTruePosOnMovObj = 0;
+            actTrueNegOnMovObj = 0;
+            actTPPerMovObj.clear();
+            actTNPerMovObj.clear();
+            movObjLabels.clear();
+            combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+            movObjLabelsROIs.clear();
+            nr_movObj = 0;
+        }
+        else {
+            actTruePosOnMovObj = (int32_t) round(inlRat[actFrameCnt] * (double) actCorrsOnMovObj);
+            actTrueNegOnMovObj = actCorrsOnMovObj - actTruePosOnMovObj;
+            actTPPerMovObj.resize(nr_movObj, 0);
+            actTNPerMovObj.resize(nr_movObj, 0);
+        }
         if (nr_movObj > 1) {
             //First sort the areas and begin with the smallest as rounding for the number of TP and TN for every area can lead to a larger rest of correspondences that must be taken from the last area. Thus, it should be the largest.
             vector<pair<size_t, int32_t>> actAreaIdx(nr_movObj);
@@ -5925,12 +5995,93 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 if (restTP <= 0) {
                     seeds.erase(seeds.begin() + actAreaIdx[nr_movObj - 1].first);
                     areas.erase(areas.begin() + actAreaIdx[nr_movObj - 1].first);
+                    combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+                    for (int j = 0; j < nr_movObj - 1; ++j) {
+                        unsigned char pixVal;
+                        if(actAreaIdx[nr_movObj - 1].first > actAreaIdx[j].first){
+                            pixVal = (unsigned char) (actAreaIdx[j].first + convhullPtsObj.size() + 1);
+                        }
+                        else{
+                            pixVal = (unsigned char) (actAreaIdx[j].first + convhullPtsObj.size());
+                        }
+                        combMovObjLabels |= movObjLabels[actAreaIdx[j].first] * pixVal;
+                    }
                     movObjLabels.erase(movObjLabels.begin() + actAreaIdx[nr_movObj - 1].first);
                     actTPPerMovObj.erase(actTPPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
                     actTNPerMovObj.erase(actTNPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
                     movObjLabelsROIs.erase(movObjLabelsROIs.begin() + actAreaIdx[nr_movObj - 1].first);
+                    actArea.erase(actArea.begin() + actAreaIdx[nr_movObj - 1].first);
                     nr_movObj--;
-                    isValid = false;
+                    vector<size_t> delList;
+                    for (size_t i = 0; i < nr_movObj; ++i) {
+                        if(actTPPerMovObj[i] <= 0){
+                            delList.push_back(i);
+                        }else if((actTPPerMovObj[i] == 1) && ((restTP < 0))){
+                            restTP++;
+                            delList.push_back(i);
+                        }
+                    }
+                    if(!delList.empty()){
+                        combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+                        unsigned char delCnt = 0;
+                        for (unsigned char j = 0; j < (unsigned char)nr_movObj; ++j) {
+                            if(j == (unsigned char)delList[delCnt]){
+                                delCnt++;
+                                continue;
+                            }
+                            unsigned char pixVal = j - delCnt + (unsigned char) (convhullPtsObj.size() + 1);
+                            combMovObjLabels |= movObjLabels[actAreaIdx[j].first] * pixVal;
+                        }
+                        for(int i = (int)delList.size() - 1; i >= 0; i--){
+                            seeds.erase(seeds.begin() + delList[i]);
+                            areas.erase(areas.begin() + delList[i]);
+                            movObjLabels.erase(movObjLabels.begin() + delList[i]);
+                            actTPPerMovObj.erase(actTPPerMovObj.begin() + delList[i]);
+                            actTNPerMovObj.erase(actTNPerMovObj.begin() + delList[i]);
+                            movObjLabelsROIs.erase(movObjLabelsROIs.begin() + delList[i]);
+                            actArea.erase(actArea.begin() + delList[i]);
+                            nr_movObj--;
+                        }
+                    }
+                    if(nr_movObj == 0){
+                        actCorrsOnMovObj = 0;
+                        actTruePosOnMovObj = 0;
+                        actTrueNegOnMovObj = 0;
+                        actTPPerMovObj.clear();
+                        actTNPerMovObj.clear();
+                        movObjLabels.clear();
+                        combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
+                        movObjLabelsROIs.clear();
+                        isValid = false;
+                    }
+                    else if(nr_movObj == 1){
+                        actTPPerMovObj[0] = actTruePosOnMovObj;
+                        actTNPerMovObj[0] = actTrueNegOnMovObj;
+                        isValid = false;
+                    }
+                    else{
+                        areassum = 0;
+                        for (auto i : actArea) {
+                            areassum += i;
+                        }
+                        actAreaIdx = vector<pair<size_t, int32_t>>(nr_movObj);
+                        for (size_t i = 0; i < nr_movObj; i++) {
+                            actAreaIdx[i] = make_pair(i, actArea[i]);
+                        }
+                        sort(actAreaIdx.begin(), actAreaIdx.end(),
+                             [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                                 return first.second < second.second;
+                             });
+                        sumTN = 0;
+                        for (size_t i = 0; i < nr_movObj - 1; i++) {
+                            int32_t actTN = (int32_t) round(
+                                    (double) actTrueNegOnMovObj * (double) actAreaIdx[i].second / (double) areassum);
+                            actTNPerMovObj[actAreaIdx[i].first] = actTN;
+                            sumTN += actTN;
+                        }
+                        restTN = actTrueNegOnMovObj - sumTN;
+                    }
+
                 } else {
                     actTPPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTP;
                 }
@@ -5938,32 +6089,25 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 actTPPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTP;
             }
             if (isValid) {
-                if (restTN <= 0) {
+                if (restTN < 0) {
+                    actTNPerMovObj[actAreaIdx[nr_movObj - 1].first] = 0;
                     int idx = 0;
-                    while ((restTN <= 0) && (idx < nr_movObj - 1)) {
-                        if (actTNPerMovObj[actAreaIdx[idx].first] > 1) {
+                    while ((restTN < 0) && (idx < nr_movObj - 1)) {
+                        if (actTNPerMovObj[actAreaIdx[idx].first] > 0) {
                             actTNPerMovObj[actAreaIdx[idx].first]--;
                             restTN++;
                         } else {
                             idx++;
                         }
                     }
-                    if (restTN <= 0) {
-                        seeds.erase(seeds.begin() + actAreaIdx[nr_movObj - 1].first);
-                        areas.erase(areas.begin() + actAreaIdx[nr_movObj - 1].first);
-                        movObjLabels.erase(movObjLabels.begin() + actAreaIdx[nr_movObj - 1].first);
-                        actTPPerMovObj.erase(actTPPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
-                        actTNPerMovObj.erase(actTNPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
-                        movObjLabelsROIs.erase(movObjLabelsROIs.begin() + actAreaIdx[nr_movObj - 1].first);
-                        nr_movObj--;
-                    } else {
-                        actTNPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTN;
+                    if (restTN < 0) {
+                        throw SequenceException("Found a negative number of TN for a moving object!");
                     }
                 } else {
                     actTNPerMovObj[actAreaIdx[nr_movObj - 1].first] = restTN;
                 }
             }
-        } else {
+        } else if (nr_movObj > 0){
             actTPPerMovObj[0] = actTruePosOnMovObj;
             actTNPerMovObj[0] = actTrueNegOnMovObj;
         }
@@ -6296,6 +6440,11 @@ void genStereoSequ::genNewDepthMovObj() {
     if (pars.nrMovObjs == 0)
         return;
 
+    if(movObjLabels.size() == 0) {
+        movObjDepthClassNew.clear();
+        return;
+    }
+
     //Get the depth classes that should be used for the new generated moving objects
     if (pars.movObjDepth.empty()) {
         pars.movObjDepth.push_back(depthClass::MID);
@@ -6484,6 +6633,11 @@ void genStereoSequ::clearNewMovObjVars() {
 //Generate correspondences and TN for newly generated moving objects
 void genStereoSequ::getMovObjCorrs() {
     size_t nr_movObj = actTPPerMovObj.size();
+    if(nr_movObj == 0) {
+        clearNewMovObjVars();
+        movObjMaskFromLast2.copyTo(movObjMask2All);
+        return;
+    }
     int32_t kSi = csurr.rows;
     int32_t posadd = (kSi - 1) / 2;
     Point_<int32_t> pt;
@@ -9173,6 +9327,7 @@ void genStereoSequ::getCamPtsFromWorld() {
 
     actImgPointCloudFromLast.clear();
     pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
+#if FILTER_OCCLUDED_POINTS
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
     const int partsx = 5;
     const int partsy = 5;
@@ -9224,6 +9379,13 @@ void genStereoSequ::getCamPtsFromWorld() {
             return;
         }
     }
+#else
+    pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
+    bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, filteredOccludedPtsAll);
+    if (!success) {
+        return;
+    }
+#endif
 
     for (size_t j = 0; j < filteredOccludedPtsAll->size(); j++) {
         cv::Point3d pt = Point3d((double) filteredOccludedPtsAll->at(j).x, (double) filteredOccludedPtsAll->at(j).y,
