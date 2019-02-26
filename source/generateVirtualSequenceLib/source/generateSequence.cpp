@@ -535,6 +535,9 @@ bool genStereoSequ::initFracCorrImgReg() {
     }
 
     //Generate absolute number of correspondences per image region and frame
+    nrTruePosRegs.clear();
+    nrCorrsRegs.clear();
+    nrTrueNegRegs.clear();
     nrTruePosRegs.reserve(totalNrFrames);
     nrCorrsRegs.reserve(totalNrFrames);
     nrTrueNegRegs.reserve(totalNrFrames);
@@ -814,6 +817,18 @@ bool genStereoSequ::initFracCorrImgReg() {
         //Get number of true positives per region
         newCorrsPerRegion = newCorrsPerRegion - negsReg;
         nrTruePosRegs.push_back(newCorrsPerRegion.clone());
+
+        //Check the overall inlier ratio
+        if(verbose & PRINT_WARNING_MESSAGES) {
+            int32_t allRegTP = sum(nrTruePosRegs.back())[0];
+            int32_t allRegCorrs = sum(nrCorrsRegs.back())[0];
+            double thisInlRatDiff = (double)allRegTP / (double)allRegCorrs - inlRat[i];
+            double testVal = min((double)allRegCorrs / 100.0, 1.0) * thisInlRatDiff / 100.0;
+            if (!nearZero(testVal)) {
+                cout << "Initial inlier ratio differs from given values (0 - 1.0) by "
+                     << thisInlRatDiff << endl;
+            }
+        }
 
         //Check if the fraction of corrspondences per region must be changend
         if ((((i + 1) % (pars.corrsPerRegRepRate)) == 0)) {
@@ -5018,7 +5033,8 @@ void genStereoSequ::getKeypoints() {
             }
         }
         double inlRatDiffSR = (double) nrTPCorrsAll / ((double) nrCorrsR + DBL_EPSILON) - inlRat[actFrameCnt];
-        if (!nearZero(inlRatDiffSR / 100.0)) {
+        double testVal = min((double) nrCorrsR / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        if (!nearZero(testVal)) {
             cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffSR << endl;
         }
@@ -5482,12 +5498,19 @@ void genStereoSequ::getValidImgRegBorders(const cv::Mat &mask, std::vector<std::
 }
 
 bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect){
-    if(countNonZero(mask) < 100) return false;
+    if(countNonZero(mask) < 100)
+        return false;
     Mat mask_tmp = mask.clone();
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
     validRect = cv::boundingRect(contours[0]);
+
+    if(validRect.width < (int)floor(0.2 * (double)mask.cols))
+        return false;
+
+    if(validRect.height < (int)floor(0.2 * (double)mask.rows))
+        return false;
 
     return true;
 }
@@ -6337,7 +6360,8 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             }
         }
         double inlRatDiffMO = (double) sumTPMO / (double) sumCorrsMO - inlRat[actFrameCnt];
-        if (!nearZero(inlRatDiffMO / 100.0)) {
+        double testVal = min((double) sumCorrsMO / 100.0, 1.0) * inlRatDiffMO / 100.0;
+        if (!nearZero(testVal)) {
             cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffMO << endl;
         }
@@ -6346,7 +6370,8 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0] + sumTPMO;
         double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0] + sumCorrsMO;
         double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
-        if (!nearZero(inlRatDiffSR / 100.0)) {
+        testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        if (!nearZero(testVal)) {
             cout << "Inlier ratio of combined static and moving correspondences after changing it because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffSR << ". THIS SHOULD NOT HAPPEN!" << endl;
@@ -6358,18 +6383,102 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
 void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
     CV_Assert((statCorrsPRegNew.cols == 3) && (statCorrsPRegNew.rows == 3) && (statCorrsPRegNew.type() == CV_32SC1));
 
+    //Calculate the TN per region first as this is an indicator for regions where the camera views of the 2 stereo
+    // cameras are not intersecting
+    Mat TNdistr, TNdistr1;
+    nrTrueNegRegs[actFrameCnt].convertTo(TNdistr, CV_64FC1);
+    TNdistr /= sum(TNdistr)[0];
+    double allRegCorrsNew = (double)sum(statCorrsPRegNew)[0];
+    double nrTPallReg = allRegCorrsNew * inlRat[actFrameCnt];
+    double nrTNallReg = allRegCorrsNew - nrTPallReg;
+    TNdistr1 = TNdistr * nrTNallReg;
+    nrTrueNegRegs[actFrameCnt].release();
+    TNdistr1.convertTo(nrTrueNegRegs[actFrameCnt], CV_32SC1, 1.0, 0.5);//Corresponds to round
+    nrTrueNegRegs[actFrameCnt].copyTo(TNdistr1);
+    Mat areaFull = Mat::zeros(3,3,CV_8UC1);
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
-            if (nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) > 0) {
-                int32_t TPnew = (int32_t) round((double) statCorrsPRegNew.at<int32_t>(y, x) *
-                                                (double) nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) /
-                                                (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x));
-                int32_t TNnew = statCorrsPRegNew.at<int32_t>(y, x) - TPnew;
-                CV_Assert(TNnew >= 0);
-                nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = TNnew;
-                nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) = TPnew;
-                nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
+            if(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) > statCorrsPRegNew.at<int32_t>(y, x)){
+                nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
+                areaFull.at<bool>(y,x) = true;
             }
+        }
+    }
+
+    int32_t remStatrem = sum(TNdistr1)[0] - sum(nrTrueNegRegs[actFrameCnt])[0];
+    if(remStatrem > 0) {
+        int32_t remStat = remStatrem;
+        for (size_t y = 0; y < 3; y++) {
+            for (size_t x = 0; x < 3; x++) {
+                if (!areaFull.at<bool>(y, x) && (remStatrem > 0)) {
+                    int32_t val = (int32_t) round(
+                            TNdistr.at<double>(y, x) * (double) remStat);
+                    int32_t newval = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) + val;
+                    if (newval > statCorrsPRegNew.at<int32_t>(y, x)) {
+                        int32_t diff = newval - statCorrsPRegNew.at<int32_t>(y, x);
+                        val -= diff;
+                        newval -= diff;
+                        remStatrem -= val;
+                        if (remStatrem < 0) {
+                            val += remStatrem;
+                            newval = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) + val;
+                            remStatrem = 0;
+                        }
+                        nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = newval;
+                    } else {
+                        remStatrem -= val;
+                        if (remStatrem < 0) {
+                            nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = newval + remStatrem;
+                            remStatrem = 0;
+                        } else {
+                            nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = newval;
+                        }
+                    }
+                }
+            }
+        }
+        if (remStatrem > 0) {
+            vector<pair<size_t, int32_t>> availableCorrs(9);
+            for (size_t y = 0; y < 3; y++) {
+                for (size_t x = 0; x < 3; x++) {
+                    const size_t idx = y * 3 + x;
+                    availableCorrs[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x) -
+                            nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
+                }
+            }
+            sort(availableCorrs.begin(), availableCorrs.end(),
+                 [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                     return first.second > second.second;
+                 });
+            int maxIt = remStatrem;
+            while ((remStatrem > 0) && (maxIt > 0)) {
+                for (size_t i = 0; i < 9; i++) {
+                    if (availableCorrs[i].second > 0) {
+                        size_t y = availableCorrs[i].first / 3;
+                        size_t x = availableCorrs[i].first - y * 3;
+                        nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x)++;
+                        remStatrem--;
+                        availableCorrs[i].second--;
+                        if (remStatrem == 0) {
+                            break;
+                        }
+                    }
+                }
+                maxIt--;
+            }
+        }
+    }
+
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            if(verbose & PRINT_WARNING_MESSAGES) {
+                if ((nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) == 0) && (statCorrsPRegNew.at<int32_t>(y, x) != 0)) {
+                    cout << "Distributed correspondences on areas that should not hold correspondences!" << endl;
+                }
+            }
+            nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x) -
+                    nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x);
+            nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
         }
     }
 
@@ -6378,8 +6487,10 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0];
         double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0];
         double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
-        if (!nearZero(inlRatDiffSR / 100.0)) {
-            cout << "Inlier ratio of static correspondences after changing it because of moving objects differs "
+        double testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        if (!nearZero(testVal)) {
+            cout << "Inlier ratio of static correspondences after changing th number of correspondences per region"
+                    " because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffSR << endl;
         }
@@ -6451,6 +6562,13 @@ void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
                                        movObjOverlap,
                                        statCorrsPRegNew);
 
+    }
+
+    if(verbose & PRINT_WARNING_MESSAGES) {
+        int32_t nrCorrsDiff = sum(statCorrsPRegNew)[0] + actCorrsOnMovObjFromLast - nrCorrs[actFrameCnt];
+        if (nrCorrsDiff != 0) {
+            cout << "Number of total correspondences differs by " << nrCorrsDiff << endl;
+        }
     }
 
     //Set new number of static correspondences
@@ -7128,7 +7246,8 @@ void genStereoSequ::getMovObjCorrs() {
             }
         }
         double inlRatDiffMO = (double) nrTPMO / (double) nrCorrsMO - inlRat[actFrameCnt];
-        if (!nearZero(inlRatDiffMO / 100.0)) {
+        double testVal = min((double)nrCorrsMO / 100.0, 1.0) * inlRatDiffMO / 100.0;
+        if (!nearZero(testVal)) {
             cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffMO << endl;
         }
@@ -8786,8 +8905,9 @@ void genStereoSequ::combineCorrespondences() {
 
     //Check global inlier ratio of backprojected and new static and moving objects
     if(verbose & PRINT_WARNING_MESSAGES) {
-        double inlRatDiffSR = (double) combNrCorrsTP / ((double) combNrCorrsTP + combNrCorrsTN) - inlRat[actFrameCnt];
-        if (!nearZero(inlRatDiffSR / 100.0)) {
+        double inlRatDiffSR = (double) combNrCorrsTP / (double) (combNrCorrsTP + combNrCorrsTN) - inlRat[actFrameCnt];
+        double testVal = min((double) (combNrCorrsTP + combNrCorrsTN) / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        if (!nearZero(testVal)) {
             cout
                     << "Inlier ratio of combined static and moving correspondences differs from global inlier ratio (0 - 1.0) by "
                     << inlRatDiffSR << endl;
