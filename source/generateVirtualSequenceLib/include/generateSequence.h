@@ -444,6 +444,7 @@ private:
                                         cv::Mat &statCorrsPRegNew);
     int deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &seedsFromLast,
                                 int32_t nrToDel);
+	void calcAvgMaskingArea();
 
 public:
 	uint32_t verbose = 0;
@@ -455,6 +456,7 @@ private:
 	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is
 	const double fakeDistTNCorrespondences = 50.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
     const double actFracUseableTPperRegionTH = 0.25;//Minimum fraction of a region for which the 2 stereo images must overlap at medium depth (backprojected to camera 1) to allow seeds for moving objects in that region
+	const double enlargeKPDist = 1.15;//Multiply the max. corrs per area by 1.15 to take gaps into account that are a result of randomness
 
 	cv::Size imgSize;
 	cv::Mat K1, K1i;//Camera matrix 1 and its inverse
@@ -509,6 +511,7 @@ private:
 	std::vector<double> distTNtoReal;//Distance values of the TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
 	cv::Mat corrsIMG;//Every keypoint location is marked within this Mat with a square (ones) of the size of the minimal keypoint distance. The size is img-size plus 2 * ceil(min. keypoint dist)
 	cv::Mat csurr;//Mat of ones with the size 2 * ceil(min. keypoint dist) + 1
+	double avgMaskingArea;//Corresponds to the average area a selected keypoint occupies using the mask csurr (which size is based on pars.minKeypDist) based on propabilities of mask overlaps
 
 	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
 	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT

@@ -139,7 +139,7 @@ set(sources
 	${source_path}/getStereoCameraExtr.cpp
 	${source_path}/generateSequence.cpp
 	${source_path}/helper_funcs.cpp
-
+	${source_path}/polygon_helper.c
 )
 
 # Group source files

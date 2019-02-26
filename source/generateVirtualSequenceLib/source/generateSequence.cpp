@@ -35,6 +35,8 @@ a view restrictions like depth ranges, moving objects, ...
 #include "nanoflann_utils.h"
 #include <nanoflann.hpp>
 
+#include "polygon_helper.h"
+
 
 using namespace std;
 using namespace cv;
@@ -184,6 +186,28 @@ void genStereoSequ::genMasks() {
 
     //Generate a mask for marking used areas in the first stereo image
     corrsIMG = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
+
+    //Calculate the average area a keypoint occupies if it is masked by csurr taking into account the probabilies of
+    //different mask overlaps
+    calcAvgMaskingArea();
+}
+
+void genStereoSequ::calcAvgMaskingArea(){
+    double csurrArea = (double)(csurr.rows * csurr.cols) + DBL_EPSILON;
+    avgMaskingArea = 0;
+    double tmp = 0;
+    /*avg. A = Sum(i^2)/Sum(i) with i = [1, 2, ...,d^2] and d the edge length of the mask used for reserving the
+     * minimal distance for keypoints. i^2 is used as a bigger free area has a higher probability (proportional to
+     * its area) to be hit by a random generator to generate a new keypoint e.g. a non-masked area of 1 pixel
+     * (all other areas are already covered by masks) has only half the probability to be hit by a random generator
+     * as a non-masked area of 2 pixels. Furthermore, a non-masked area of 3 pixels has a higher probability compared
+     * to 2 pixels.
+     */
+    for(double i = 1.0; i <= csurrArea; i++){
+        avgMaskingArea += i * i;
+        tmp += i;
+    }
+    avgMaskingArea /= tmp;
 }
 
 //Function can only be called after the medium depth for the actual frame is calculated
@@ -243,6 +267,7 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
             }*/
             ptm /= ptm.at<double>(2); //Projection into a plane at medium depth
             imgCorners2[y * 2 + x] = Point2f((float) pt.x, (float) pt.y);
+            CV_Assert(nearZero(pt.x - ptm.at<double>(0)) && nearZero(pt.y - ptm.at<double>(1)));
             if (negXY[0] > pt.x) {
                 negXY[0] = pt.x;
             }
@@ -262,10 +287,44 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
         }
     }
 
+    //Get the correct order of the points
+    vector<Point2f> imgCorners1ch, imgCorners2ch;
+    convexHull(imgCorners1, imgCorners1ch);
+    convexHull(imgCorners2, imgCorners2ch);
+    CV_Assert(imgCorners2ch.size() == 4);
+
+    //Convert into double
+    vector<Point2d> imgCorners1chd(4), imgCorners2chd(4);
+    for (int k = 0; k < 4; ++k) {
+        imgCorners1chd[k] = Point2d((double)imgCorners1ch[k].x, (double)imgCorners1ch[k].y);
+        imgCorners2chd[k] = Point2d((double)imgCorners2ch[k].x, (double)imgCorners2ch[k].y);
+    }
+
+    //Get the polygon intersection
+    polygon_contour c1={0}, c2={0}, res={0};
+    add_contour_from_array((double*)&imgCorners1chd[0].x, (int)imgCorners1chd.size(), &c1);
+    add_contour_from_array((double*)&imgCorners2chd[0].x, (int)imgCorners2chd.size(), &c2);
+    calc_polygon_clipping(POLYGON_OP_INTERSECT, &c1, &c2, &res);
+    CV_Assert(res.num_contours == 1);
+    std::vector<cv::Point2d> midZPoly;
+    for(int v = 0; v < res.contour[0].num_vertices; ++v) {
+        midZPoly.push_back(cv::Point2d(res.contour[0].vertex[v].x,res.contour[0].vertex[v].y));
+    }
+    /*for(int c = 0; c < res.num_contours; ++c) {
+        std::vector<cv::Point2f> pntsRes;
+        for(int v = 0; v < res.contour[c].num_vertices; ++v) {
+            pntsRes.push_back(cv::Point2d(res.contour[c].vertex[v].x,res.contour[c].vertex[v].y));
+        }
+    }*/
+    free_polygon(&c1);
+    free_polygon(&c2);
+    free_polygon(&res);
+
     //Get rotated rectangles
-    cv::RotatedRect r1, r2, r3;
+    /*cv::RotatedRect r1, r2, r3;
     r1 = cv::minAreaRect(imgCorners1);
     r2 = cv::minAreaRect(imgCorners2);
+
 
     //Get intersections
     std::vector<cv::Point2f> midZPoly;
@@ -273,18 +332,18 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
 
     if (ti == INTERSECT_NONE) {
         throw SequenceException("No intersection of stereo images at medium depth!");
-    }
+    }*/
 
     //Transform the points back to their initial coordinate system
     for (size_t i = 0; i < midZPoly.size(); ++i) {
-        midZPoly[i].x += (float) negXY[0];
-        midZPoly[i].y += (float) negXY[1];
+        midZPoly[i].x += negXY[0];
+        midZPoly[i].y += negXY[1];
     }
 
     //Backproject the found intersections to the first image
     std::vector<cv::Point> img1Poly1;
     for (size_t i = 0; i < midZPoly.size(); ++i) {
-        Mat ptm = (Mat_<double>(3, 1) << (double) midZPoly[i].x, (double) midZPoly[i].y, 1.0);
+        Mat ptm = (Mat_<double>(3, 1) << midZPoly[i].x, midZPoly[i].y, 1.0);
         ptm *= depth_use;
         ptm = K1 * ptm;
         ptm /= ptm.at<double>(2);
@@ -550,28 +609,22 @@ bool genStereoSequ::initFracCorrImgReg() {
             Mat newCorrsPerRegiond;
             int cnt1 = 0;
             const int cnt1Max = 3;
-            const double enlargeKPDist = 1.33;//Multiply the max. corrs per area by 1.33 to take gaps into account that are a result of randomness
             while ((cv::sum(corrsRemain)[0] > 0) && (cnt1 < cnt1Max)) {
                 //Check if there are too many correspondences per region as every correspondence needs a minimum distance to its neighbor
                 double minCorr, maxCorr;
                 cv::minMaxLoc(newCorrsPerRegion, &minCorr, &maxCorr);
                 double regA = (double) imgSize.area() / activeRegions;
-                double areaCorrs = maxCorr * ceil(pars.minKeypDist) * ceil(pars.minKeypDist) *
-                                   enlargeKPDist;//Multiply by 1.33 to take gaps into account that are a result of randomness
+                double areaCorrs = maxCorr * avgMaskingArea *
+                                   enlargeKPDist;//Multiply by 1.15 to take gaps into account that are a result of randomness
 
                 if (areaCorrs > regA) {
                     if(verbose & PRINT_WARNING_MESSAGES) {
                         cout << "There are too many keypoints per region when demanding a minimum keypoint distance of "
                              << pars.minKeypDist << ". Changing it!" << endl;
                     }
-                    double mKPdist = floor(10.0 * sqrt(regA / (enlargeKPDist * maxCorr))) / 10.0;
+                    double mKPdist = floor((sqrt(regA / (enlargeKPDist * maxCorr)) - 1.0) / 2.0) - DBL_EPSILON;
                     if (mKPdist <= 1.414214) {
-                        if(verbose & PRINT_WARNING_MESSAGES) {
-                            cout
-                                    << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!"
-                                    << endl;
-                        }
-                        pars.minKeypDist = 1.0;
+                        pars.minKeypDist = 1.0 - DBL_EPSILON;
                         genMasks();
                         //Get max # of correspondences
                         double maxFC = (double) *std::max_element(nrCorrs.begin(), nrCorrs.end());
@@ -584,28 +637,39 @@ bool genStereoSequ::initFracCorrImgReg() {
                         maxCorr = *std::max_element(cMaxV.begin(), cMaxV.end());
                         maxCorr *= maxFC;
                         //# KPs reduction factor
-                        double reduF = regA / (2.0 * maxCorr);
-                        //Get worst inlier ratio
-                        double minILR = *std::min_element(inlRat.begin(), inlRat.end());
-                        //Calc max true positives
-                        size_t maxTPNew = (size_t) floor(maxCorr * reduF * minILR);
-                        if(verbose & PRINT_WARNING_MESSAGES) {
-                            cout << "Changing max. true positives to " << maxTPNew << endl;
-                        }
-                        if ((pars.truePosRange.second - pars.truePosRange.first) == 0) {
-                            pars.truePosRange.first = pars.truePosRange.second = maxTPNew;
-                        } else {
-                            if (pars.truePosRange.first >= maxTPNew) {
-                                pars.truePosRange.first = maxTPNew / 2;
-                                pars.truePosRange.second = maxTPNew;
+                        double reduF = regA / (enlargeKPDist * avgMaskingArea * maxCorr);
+                        if(reduF < 1.0) {
+                            if (verbose & PRINT_WARNING_MESSAGES) {
+                                cout
+                                        << "Changed the minimum keypoint distance to 1.0. There are still too many keypoints. Changing the number of keypoints!"
+                                        << endl;
+                            }
+                            //Get worst inlier ratio
+                            double minILR = *std::min_element(inlRat.begin(), inlRat.end());
+                            //Calc max true positives
+                            size_t maxTPNew = (size_t) floor(maxCorr * reduF * minILR);
+                            if (verbose & PRINT_WARNING_MESSAGES) {
+                                cout << "Changing max. true positives to " << maxTPNew << endl;
+                            }
+                            if ((pars.truePosRange.second - pars.truePosRange.first) == 0) {
+                                pars.truePosRange.first = pars.truePosRange.second = maxTPNew;
                             } else {
-                                pars.truePosRange.second = maxTPNew;
+                                if (pars.truePosRange.first >= maxTPNew) {
+                                    pars.truePosRange.first = maxTPNew / 2;
+                                    pars.truePosRange.second = maxTPNew;
+                                } else {
+                                    pars.truePosRange.second = maxTPNew;
+                                }
+                            }
+                            nrTruePosRegs.clear();
+                            nrCorrsRegs.clear();
+                            nrTrueNegRegs.clear();
+                            return false;
+                        }else{
+                            if(verbose & PRINT_WARNING_MESSAGES) {
+                                cout << "Changed the minimum keypoint distance to " << pars.minKeypDist << endl;
                             }
                         }
-                        nrTruePosRegs.clear();
-                        nrCorrsRegs.clear();
-                        nrTrueNegRegs.clear();
-                        return false;
                     } else {
                         if(verbose & PRINT_WARNING_MESSAGES) {
                             cout << "Changed the minimum keypoint distance to " << mKPdist << endl;
@@ -696,7 +760,7 @@ bool genStereoSequ::initFracCorrImgReg() {
                 //Check, if there are still TP outside the intersection of the 2 stereo camera views
                 corrsRemain = corrsTooMuch - negsReg;
                 usedTNonNoOverlapRat = Mat::ones(3, 3, CV_64FC1);
-                double areaPerKP = pars.minKeypDist * pars.minKeypDist * enlargeKPDist;
+                double areaPerKP = avgMaskingArea * enlargeKPDist;
                 for (int y = 0; y < 3; ++y) {
                     for (int x = 0; x < 3; ++x) {
                         if (corrsRemain.at<int32_t>(y, x) > 0) {
@@ -4953,7 +5017,7 @@ void genStereoSequ::getKeypoints() {
                 }
             }
         }
-        double inlRatDiffSR = (double) nrTPCorrsAll / (double) nrCorrsR - inlRat[actFrameCnt];
+        double inlRatDiffSR = (double) nrTPCorrsAll / ((double) nrCorrsR + DBL_EPSILON) - inlRat[actFrameCnt];
         if (!nearZero(inlRatDiffSR / 100.0)) {
             cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffSR << endl;
@@ -5992,9 +6056,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         //reduce the initial area by reducing the radius of a circle with corresponding area by 1: are_new = area - 2*sqrt(pi)*sqrt(area)+pi
 //		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
         //reduce the initial area by reducing the radius of a circle with corresponding area by reduceRadius
-        double reduceRadius = pars.minKeypDist < 5.0 ? 5.0 : pars.minKeypDist;
+        double reduceRadius = pars.minKeypDist < 3.0 ? 3.0 : pars.minKeypDist;
         double tmp = max(sqrt((double) (areassum) / M_PI) - reduceRadius, pars.minKeypDist);
-        maxCorrs = max((int32_t) ((tmp * tmp * M_PI) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
+        maxCorrs = max((int32_t) ((tmp * tmp * M_PI) / (enlargeKPDist * avgMaskingArea)), 1);
         if ((actCorrsOnMovObj - corrsOnMovObjLF) > maxCorrs) {
             actCorrsOnMovObj = maxCorrs + corrsOnMovObjLF;
         }
@@ -6281,7 +6345,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         //Check the overall inlier ratio
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0] + sumTPMO;
         double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0] + sumCorrsMO;
-        double inlRatDiffSR = tps / nrCorrs1 - inlRat[actFrameCnt];
+        double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
         if (!nearZero(inlRatDiffSR / 100.0)) {
             cout << "Inlier ratio of combined static and moving correspondences after changing it because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
@@ -6313,7 +6377,7 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
     if(verbose & PRINT_WARNING_MESSAGES) {
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0];
         double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0];
-        double inlRatDiffSR = tps / nrCorrs1 - inlRat[actFrameCnt];
+        double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
         if (!nearZero(inlRatDiffSR / 100.0)) {
             cout << "Inlier ratio of static correspondences after changing it because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
@@ -6438,12 +6502,12 @@ void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
                     cmaxreg[y][x] = (int32_t) (
                             (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
                             (1.0 - movObjOverlap[y][x]) * fracUseableTPperRegion_tmp.at<double>(y, x) /
-                            (1.5 * pars.minKeypDist * pars.minKeypDist));
+                            (enlargeKPDist * avgMaskingArea));
                 } else {
                     cmaxreg[y][x] = (int32_t) (
                             (double) ((regROIs[y][x].width - 1) * (regROIs[y][x].height - 1)) *
                             (1.0 - movObjOverlap[y][x]) /
-                            (1.5 * pars.minKeypDist * pars.minKeypDist));
+                            (enlargeKPDist * avgMaskingArea));
                 }
                 if (newval <= cmaxreg[y][x]) {
                     remMovrem -= val;
@@ -8922,7 +8986,7 @@ void genStereoSequ::transMovObjPtsToWorld() {
         tdiff += movObjDir;
         tdiff /= norm(tdiff);
         tdiff *= velocity;
-        movObjWorldMovement[i] = tdiff.clone();
+        movObjWorldMovement[idx] = tdiff.clone();
     }
     if (verbose & SHOW_MOV_OBJ_3D_PTS) {
         visualizeMovObjPtCloud();
