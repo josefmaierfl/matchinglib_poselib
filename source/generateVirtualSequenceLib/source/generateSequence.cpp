@@ -7557,11 +7557,16 @@ void genStereoSequ::backProjectMovObj() {
     Mat movObjMaskFromLastOld = movObjMaskFromLast.clone();
     movObjMaskFromLast = Mat::zeros(imgSize, CV_8UC1);
     //vector<double> actAreaMovObj(actNrMovObj, 0);
+    delList.clear();
     for (size_t i = 0; i < actNrMovObj; i++) {
         Mat movObjMaskFromLastLargePiece = movObjMaskFromLastLarge[i](Rect(Point(posadd, posadd), imgSize));
         genMovObjHulls(movObjMaskFromLastLargePiece, movObjPt1[i], movObjLabelsFromLast[i]);
         if (i > 0) {
             movObjLabelsFromLast[i] &= (movObjMaskFromLast == 0);
+            int movObjLabelSizePix = countNonZero(movObjLabelsFromLast[i]);
+            if(movObjLabelSizePix == 0){
+                delList.push_back(i);
+            }
         }
 
         Mat dispMask;
@@ -7587,11 +7592,52 @@ void genStereoSequ::backProjectMovObj() {
         }
     }
 
+    if(!delList.empty()){
+        for (int i = (int) delList.size() - 1; i >= 0; i--) {
+            movObjCorrsImg1TNFromLast.erase(movObjCorrsImg1TNFromLast.begin() + delList[i]);
+            movObjCorrsImg2TNFromLast.erase(movObjCorrsImg2TNFromLast.begin() + delList[i]);
+            movObjCorrsImg1TPFromLast.erase(movObjCorrsImg1TPFromLast.begin() + delList[i]);
+            movObjCorrsImg2TPFromLast.erase(movObjCorrsImg2TPFromLast.begin() + delList[i]);
+            movObjCorrsImg12TPFromLast_Idx.erase(movObjCorrsImg12TPFromLast_Idx.begin() + delList[i]);
+            movObjMaskFromLastOld &= (movObjMaskFromLastLarge[delList[i]](Rect(Point(posadd, posadd), imgSize)) == 0);
+            movObjMaskFromLast2 &= (movObjMaskFromLastLarge2[delList[i]](Rect(Point(posadd, posadd), imgSize)) == 0);
+            movObjMaskFromLastLarge.erase(movObjMaskFromLastLarge.begin() + delList[i]);
+            movObjMaskFromLastLarge2.erase(movObjMaskFromLastLarge2.begin() + delList[i]);
+            movObjMaskFromLastLargeAdd.erase(movObjMaskFromLastLargeAdd.begin() + delList[i]);
+            movObjPt1.erase(movObjPt1.begin() + delList[i]);
+            movObjPt2.erase(movObjPt2.begin() + delList[i]);
+
+            movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
+            movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+            movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
+            movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
+            movObjDistTNtoReal.erase(movObjDistTNtoReal.begin() + delList[i]);
+
+            movObjLabelsFromLast.erase(movObjLabelsFromLast.begin() + delList[i]);
+            convhullPtsObj.erase(convhullPtsObj.begin() + delList[i]);
+        }
+        actNrMovObj = movObj3DPtsCam.size();
+        if (actNrMovObj == 0)
+            return;
+    }
+
     //Enlarge the object areas if they are too small
     Mat element = cv::getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
     const int maxCnt = 40;
     for (size_t i = 0; i < actNrMovObj; i++) {
         int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
+        if(areaMO == 0){
+            if(verbose & SHOW_IMGS_AT_ERROR) {
+                namedWindow("Error - Backprojected moving object area zero - whole mask", WINDOW_AUTOSIZE);
+                imshow("Error - Backprojected moving object area zero - whole mask", movObjMaskFromLast);
+                namedWindow("Error - Backprojected moving object area zero - marked keypoints", WINDOW_AUTOSIZE);
+                imshow("Error - Backprojected moving object area zero - marked keypoints", movObjMaskFromLastLarge[i]);
+                waitKey(0);
+                destroyWindow("Error - Backprojected moving object area zero - whole mask");
+                destroyWindow("Error - Backprojected moving object area zero - marked keypoints");
+            }
+            throw SequenceException("Label area of backprojected moving object is zero!");
+        }
         int cnt = 0;
         while ((areaMO < minOArea) && (cnt < maxCnt)) {
             Mat imgSDdilate;
@@ -8378,6 +8424,14 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
         contours.clear();
         contours.resize(1);
         contours[0] = bigAreaContour;
+    }else if(contSize == 0){
+        if(verbose & SHOW_IMGS_AT_ERROR) {
+            namedWindow("Error - No contour found", WINDOW_AUTOSIZE);
+            imshow("Error - No contour found", mask > 0);
+            waitKey(0);
+            destroyWindow("Error - No contour found");
+        }
+        throw SequenceException("No contour found for backprojected moving object!");
     }
 
     //Simplify the contour

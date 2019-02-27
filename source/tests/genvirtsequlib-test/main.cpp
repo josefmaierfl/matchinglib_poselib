@@ -1047,7 +1047,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	);
 
 	//Initialize system
-	int32_t verbose = PRINT_WARNING_MESSAGES;
+	int32_t verbose = PRINT_WARNING_MESSAGES | SHOW_IMGS_AT_ERROR;
 
 	genStereoSequ stereoSequ(imgSize, K_1, K_2, Rv, tv, stereoSequPars, verbose);
 
