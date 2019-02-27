@@ -5587,21 +5587,25 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
         xWeights.clear();
         xInterVals.clear();
         if(xposes.size() > 1) {
-            vector<int> xIntervalDiffs(xposes.size() - 1);
-            for (int i = 1; i < xposes.size(); ++i) {
-                xIntervalDiffs[i] = xposes[i] - xposes[i - 1];
+            vector<int> xposesAndEnds;
+            xposesAndEnds.push_back(validRect.x);
+            xposesAndEnds.insert(xposesAndEnds.end(), xposes.begin(), xposes.end());
+            xposesAndEnds.push_back(maxEnd);
+            vector<int> xIntervalDiffs(xposesAndEnds.size() - 1);
+            for (int i = 1; i < xposesAndEnds.size(); ++i) {
+                xIntervalDiffs[i-1] = xposesAndEnds[i] - xposesAndEnds[i - 1];
             }
             int maxdiff = std::distance(xIntervalDiffs.begin(),
                                         std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
-            int thisDist = xposes[maxdiff + 1] - xposes[maxdiff];
+            int thisDist = xposesAndEnds[maxdiff + 1] - xposesAndEnds[maxdiff];
             if(thisDist >= minODist) {
-                xInterVals.push_back((double) (xposes[maxdiff] + minODist / 2));
-                xInterVals.push_back((double) (xposes[maxdiff + 1] - minODist / 2));
+                xInterVals.push_back((double) (xposesAndEnds[maxdiff] + minODist / 2));
+                xInterVals.push_back((double) (xposesAndEnds[maxdiff + 1] - minODist / 2));
             }
             else if(thisDist >= 3){
                 thisDist /= 3;
-                xInterVals.push_back((double) (xposes[maxdiff] + thisDist));
-                xInterVals.push_back((double) (xposes[maxdiff + 1] - thisDist));
+                xInterVals.push_back((double) (xposesAndEnds[maxdiff] + thisDist));
+                xInterVals.push_back((double) (xposesAndEnds[maxdiff + 1] - thisDist));
             }
             else{
                 throw SequenceException("Cannot select a distribution range as the border values are too near to each other!");
@@ -5673,21 +5677,25 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
         yWeights.clear();
         yInterVals.clear();
         if(yposes.size() > 1) {
-            vector<int> yIntervalDiffs(yposes.size() - 1);
-            for (int i = 1; i < yposes.size(); ++i) {
-                yIntervalDiffs[i] = yposes[i] - yposes[i - 1];
+            vector<int> yposesAndEnds;
+            yposesAndEnds.push_back(validRect.y);
+            yposesAndEnds.insert(yposesAndEnds.end(), yposes.begin(), yposes.end());
+            yposesAndEnds.push_back(maxEnd);
+            vector<int> yIntervalDiffs(yposesAndEnds.size() - 1);
+            for (int i = 1; i < yposesAndEnds.size(); ++i) {
+                yIntervalDiffs[i-1] = yposesAndEnds[i] - yposesAndEnds[i - 1];
             }
             int maxdiff = std::distance(yIntervalDiffs.begin(),
                                         std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
-            int thisDist = yposes[maxdiff + 1] - yposes[maxdiff];
+            int thisDist = yposesAndEnds[maxdiff + 1] - yposesAndEnds[maxdiff];
             if(thisDist >= minODist) {
-                yInterVals.push_back((double) (yposes[maxdiff] + minODist / 2));
-                yInterVals.push_back((double) (yposes[maxdiff + 1] - minODist / 2));
+                yInterVals.push_back((double) (yposesAndEnds[maxdiff] + minODist / 2));
+                yInterVals.push_back((double) (yposesAndEnds[maxdiff + 1] - minODist / 2));
             }
             else if(thisDist >= 3){
                 thisDist /= 3;
-                yInterVals.push_back((double) (yposes[maxdiff] + thisDist));
-                yInterVals.push_back((double) (yposes[maxdiff + 1] - thisDist));
+                yInterVals.push_back((double) (yposesAndEnds[maxdiff] + thisDist));
+                yInterVals.push_back((double) (yposesAndEnds[maxdiff + 1] - thisDist));
             }
             else{
                 throw SequenceException("Cannot select a distribution range as the border values are too near to each other!");
