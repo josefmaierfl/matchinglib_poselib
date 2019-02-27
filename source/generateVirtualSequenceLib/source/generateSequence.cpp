@@ -5839,6 +5839,7 @@ genStereoSequ::generateMovObjLabels(const cv::Mat &mask,
                             idx--;
                             rd_tmp--;
                         }
+                        movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].end() - nr_reduceTPTN[i].second, movObjDistTNtoReal[i].end());
                         movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].colRange(0,
                                                                                              movObjCorrsImg1TNFromLast[i].cols -
                                                                                              nr_reduceTPTN[i].second);
@@ -6146,9 +6147,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     //Check the number of overall correspondences
     if(verbose & PRINT_WARNING_MESSAGES){
         int nrCorrs1 = sum(nrCorrsRegs[actFrameCnt])[0] + actCorrsOnMovObj;
-        if(nrCorrs1 != nrCorrs[actFrameCnt]){
+        if(nrCorrs1 != (int)nrCorrs[actFrameCnt]){
             cout << "Total number of correspondencs differs after partitioning them between moving and static objects by " <<
-            nrCorrs1 - nrCorrs[actFrameCnt] << endl;
+            nrCorrs1 - (int)nrCorrs[actFrameCnt] << endl;
         }
     }
 
@@ -6489,7 +6490,7 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
         double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
         double testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 100.0;
         if (!nearZero(testVal)) {
-            cout << "Inlier ratio of static correspondences after changing th number of correspondences per region"
+            cout << "Inlier ratio of static correspondences after changing the number of correspondences per region"
                     " because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffSR << endl;
@@ -6565,7 +6566,7 @@ void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
     }
 
     if(verbose & PRINT_WARNING_MESSAGES) {
-        int32_t nrCorrsDiff = sum(statCorrsPRegNew)[0] + actCorrsOnMovObjFromLast - nrCorrs[actFrameCnt];
+        int32_t nrCorrsDiff = (int32_t)sum(statCorrsPRegNew)[0] + actCorrsOnMovObjFromLast - (int32_t)nrCorrs[actFrameCnt];
         if (nrCorrsDiff != 0) {
             cout << "Number of total correspondences differs by " << nrCorrsDiff << endl;
         }
@@ -7418,6 +7419,9 @@ void genStereoSequ::backProjectMovObj() {
         double actGoodPortion = 0;
         if (!movObj3DPtsCam[i].empty()) {
             actGoodPortion = (double) (movObj3DPtsCam[i].size() - oor) / (double) movObj3DPtsCam[i].size();
+            if(movObjCorrsImg12TPFromLast_Idx[i].empty()){
+                actGoodPortion = 0;
+            }
         }
         if ((actGoodPortion < pars.minMovObjCorrPortion) || nearZero(actGoodPortion)) {
             delList.push_back(i);
@@ -8193,6 +8197,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                     std::ptrdiff_t pdiff = max_element(areas, areas + 4) - areas;
 
                     bool selfintersection = true;
+                    bool hullUsedasOutPt = false;
                     while (selfintersection) {
                         Rect conRe;
                         conRe = cv::boundingRect(testCont[pdiff]);
@@ -8232,6 +8237,36 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                         if (foundIntSec) {
                             areas[pdiff] = 0;
                             pdiff = max_element(areas, areas + 4) - areas;
+                            if(areas[pdiff] == 0){
+                                if((hullPts1.size() <= 2) && (hullPts2.size() > 2) && !hullUsedasOutPt){
+                                    testCont[1] = hullPts1;
+                                    testCont[1].insert(testCont[1].end(), bigAreaContourNew22.begin(), bigAreaContourNew22.end());
+                                    areas[1] = cv::contourArea(testCont[1]);
+                                    testCont[3] = hullPts1;
+                                    testCont[3].insert(testCont[3].end(), bigAreaContourNew22.begin(), bigAreaContourNew22.end());
+                                    areas[3] = cv::contourArea(testCont[3]);
+                                    pdiff = max_element(areas, areas + 4) - areas;
+                                }
+                                else if((hullPts1.size() > 2) && (hullPts2.size() <= 2) && !hullUsedasOutPt){
+                                    testCont[0] = bigAreaContourNew1;
+                                    testCont[0].insert(testCont[0].end(), hullPts2.begin(), hullPts2.end());
+                                    areas[0] = cv::contourArea(testCont[0]);
+                                    testCont[2] = bigAreaContourNew12;
+                                    testCont[2].insert(testCont[2].end(), hullPts2.begin(), hullPts2.end());
+                                    areas[2] = cv::contourArea(testCont[2]);
+                                    pdiff = max_element(areas, areas + 4) - areas;
+                                }
+                                else{
+                                    testCont[0].clear();
+                                    testCont[0].resize(hullIdxs.size());
+                                    for (size_t j = 0; j < hullIdxs.size(); ++j) {
+                                        testCont[0][j] = comb2Areas[hullIdxs[j]];
+                                    }
+                                    pdiff = 0;
+                                    selfintersection = false;
+                                }
+                                hullUsedasOutPt = true;
+                            }
                         } else {
                             selfintersection = false;
                         }
@@ -9538,7 +9573,7 @@ void genStereoSequ::getMovObjPtsCam() {
                 csurr.copyTo(s_tmp);
             }
             if (!keyPDelList.empty()) {
-                for (int j = (int) keyPDelList.size(); j >= 0; j--) {
+                for (int j = (int) keyPDelList.size() - 1; j >= 0; j--) {
                     keypointsMO.erase(keypointsMO.begin() + keyPDelList[j]);
                     filteredOccludedCamPts[idx]->erase(filteredOccludedCamPts[idx]->begin() + keyPDelList[j]);
                 }
@@ -9631,6 +9666,8 @@ void genStereoSequ::getMovObjPtsCam() {
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
             movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() +
                                    delList[i]);//at this time, also moving objects that are only occluded are deleted
+            movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
+            movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
         }
     }
 }
