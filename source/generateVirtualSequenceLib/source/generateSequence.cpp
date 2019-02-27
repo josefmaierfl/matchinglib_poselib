@@ -5716,6 +5716,118 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
     }
 }
 
+void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
+    //Remove backprojected moving object correspondences based on the ratio of the number of correspondences
+    size_t nr_bp_movObj = movObjMaskFromLastLargeAdd.size();
+    if(remSize > (actCorrsOnMovObjFromLast - (int32_t)nr_bp_movObj * 2)){
+        remSize = actCorrsOnMovObjFromLast - (int32_t)nr_bp_movObj * 2;
+    }
+
+    vector<int> nr_reduce(nr_bp_movObj);
+    int sumRem = 0;
+    for (int i = 0; i < nr_bp_movObj; ++i) {
+        nr_reduce[i] = (int)round((double)remSize *
+                                  (double)(movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols) /
+                                  (double)actCorrsOnMovObjFromLast);
+        sumRem += nr_reduce[i];
+    }
+    while(sumRem < remSize){
+        for (int i = 0; i < nr_bp_movObj; ++i){
+            if((movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols - nr_reduce[i]) > 2){
+                nr_reduce[i]++;
+                sumRem++;
+                if(sumRem == remSize) break;
+            }
+        }
+    }
+    while(sumRem > remSize){
+        for (int i = 0; i < nr_bp_movObj; ++i){
+            if(nr_reduce[i] > 0){
+                nr_reduce[i]--;
+                sumRem--;
+                if(sumRem == remSize) break;
+            }
+        }
+    }
+
+    actCorrsOnMovObjFromLast -= remSize;
+
+    //Calculate number of TP and TN to remove for every moving object
+    vector<pair<int,int>> nr_reduceTPTN(nr_bp_movObj);
+    for (int i = 0; i < nr_bp_movObj; ++i){
+        if(nr_reduce[i] > 0){
+            double inlrat_tmp = (double)movObjCorrsImg1TPFromLast[i].cols /
+                                (double)(movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols);
+            int rdTP = (int)round(inlrat_tmp * (double)nr_reduce[i]);
+            while(rdTP > movObjCorrsImg1TPFromLast[i].cols)
+                rdTP--;
+            int rdTN = nr_reduce[i] - rdTP;
+            nr_reduceTPTN[i] = make_pair(rdTP,rdTN);
+        }else{
+            nr_reduceTPTN[i] = make_pair(0,0);
+        }
+    }
+
+    //Remove the correspondences
+    cv::Size masi = Size(csurr.cols, csurr.rows);
+    for (int i = 0; i < nr_bp_movObj; ++i){
+        if(nr_reduce[i] > 0){
+            //Delete TP
+            int rd_tmp = 0;
+            int idx = 0;
+            Point pt;
+            if(nr_reduceTPTN[i].first > 0) {
+                rd_tmp = nr_reduceTPTN[i].first;
+                idx = movObjCorrsImg1TPFromLast[i].cols - 1;
+                while (rd_tmp > 0) {
+                    pt = Point((int) round(movObjCorrsImg1TPFromLast[i].at<double>(0, idx)),
+                               (int) round(movObjCorrsImg1TPFromLast[i].at<double>(1, idx)));
+                    Mat s_tmp = movObjMaskFromLastLargeAdd[i](Rect(pt, masi));
+                    s_tmp -= csurr;
+                    pt = Point((int) round(movObjCorrsImg2TPFromLast[i].at<double>(0, idx)),
+                               (int) round(movObjCorrsImg2TPFromLast[i].at<double>(1, idx)));
+                    movObjMaskFromLast2.at<unsigned char>(pt) = 0;
+                    idx--;
+                    rd_tmp--;
+                }
+
+                movObjCorrsImg1TPFromLast[i] = movObjCorrsImg1TPFromLast[i].colRange(0,
+                                                                                     movObjCorrsImg1TPFromLast[i].cols -
+                                                                                     nr_reduceTPTN[i].first);
+                movObjCorrsImg2TPFromLast[i] = movObjCorrsImg2TPFromLast[i].colRange(0,
+                                                                                     movObjCorrsImg2TPFromLast[i].cols -
+                                                                                     nr_reduceTPTN[i].first);
+                movObjCorrsImg12TPFromLast_Idx[i].erase(movObjCorrsImg12TPFromLast_Idx[i].end() - nr_reduceTPTN[i].first,
+                                                        movObjCorrsImg12TPFromLast_Idx[i].end());
+            }
+
+            //Delete TN
+            if(nr_reduceTPTN[i].second > 0) {
+                rd_tmp = nr_reduceTPTN[i].second;
+                idx = movObjCorrsImg1TNFromLast[i].cols - 1;
+                while (rd_tmp > 0) {
+                    pt = Point((int) round(movObjCorrsImg1TNFromLast[i].at<double>(0, idx)),
+                               (int) round(movObjCorrsImg1TNFromLast[i].at<double>(1, idx)));
+                    Mat s_tmp = movObjMaskFromLastLargeAdd[i](Rect(pt, masi));
+                    s_tmp -= csurr;
+                    pt = Point((int) round(movObjCorrsImg2TNFromLast[i].at<double>(0, idx)),
+                               (int) round(movObjCorrsImg2TNFromLast[i].at<double>(1, idx)));
+                    movObjMaskFromLast2.at<unsigned char>(pt) = 0;
+                    idx--;
+                    rd_tmp--;
+                }
+                movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].end() - nr_reduceTPTN[i].second, movObjDistTNtoReal[i].end());
+                movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].colRange(0,
+                                                                                     movObjCorrsImg1TNFromLast[i].cols -
+                                                                                     nr_reduceTPTN[i].second);
+                movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].colRange(0,
+                                                                                     movObjCorrsImg2TNFromLast[i].cols -
+                                                                                     nr_reduceTPTN[i].second);
+            }
+        }
+    }
+}
+
 //Generates labels of moving objects within the image and calculates the percentage of overlap for each region
 //Moreover, the number of static correspondences per region is adapted and the number of correspondences on the moving objects is calculated
 //mask is used to exclude areas from generating labels and must have the same size as the image; mask holds the areas from backprojected moving objects
@@ -5730,6 +5842,7 @@ genStereoSequ::generateMovObjLabels(const cv::Mat &mask,
                                     int32_t corrsOnMovObjLF,
                                     cv::InputArray validImgMask) {
     CV_Assert(seeds.size() == areas.size());
+    CV_Assert(corrsOnMovObjLF == actCorrsOnMovObjFromLast);
 
     size_t nr_movObj = areas.size();
 
@@ -5749,106 +5862,7 @@ genStereoSequ::generateMovObjLabels(const cv::Mat &mask,
         if(actCorrsOnMovObj < corrsOnMovObjLF){
             int32_t remSize = corrsOnMovObjLF - actCorrsOnMovObj;
             //Remove them based on the ratio of the number of correspondences
-            size_t nr_bp_movObj = movObjMaskFromLastLargeAdd.size();
-            vector<int> nr_reduce(nr_bp_movObj);
-            int sumRem = 0;
-            for (int i = 0; i < nr_bp_movObj; ++i) {
-                nr_reduce[i] = (int)round((double)remSize *
-                        (double)(movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols) /
-                        (double)corrsOnMovObjLF);
-                sumRem += nr_reduce[i];
-            }
-            while(sumRem < remSize){
-                for (int i = 0; i < nr_bp_movObj; ++i){
-                    if((movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols - nr_reduce[i]) > 2){
-                        nr_reduce[i]++;
-                        sumRem++;
-                        if(sumRem == remSize) break;
-                    }
-                }
-            }
-            while(sumRem > remSize){
-                for (int i = 0; i < nr_bp_movObj; ++i){
-                    if(nr_reduce[i] > 0){
-                        nr_reduce[i]--;
-                        sumRem--;
-                        if(sumRem == remSize) break;
-                    }
-                }
-            }
-
-            //Calculate number of TP and TN to remove for every moving object
-            vector<pair<int,int>> nr_reduceTPTN(nr_bp_movObj);
-            for (int i = 0; i < nr_bp_movObj; ++i){
-                if(nr_reduce[i] > 0){
-                    double inlrat_tmp = (double)movObjCorrsImg1TPFromLast[i].cols /
-                            (double)(movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols);
-                    int rdTP = (int)round(inlrat_tmp * (double)nr_reduce[i]);
-                    int rdTN = nr_reduce[i] - rdTP;
-                    nr_reduceTPTN[i] = make_pair(rdTP,rdTN);
-                }else{
-                    nr_reduceTPTN[i] = make_pair(0,0);
-                }
-            }
-
-            //Remove the correspondences
-            cv::Size masi = Size(csurr.cols, csurr.rows);
-            for (int i = 0; i < nr_bp_movObj; ++i){
-                if(nr_reduce[i] > 0){
-                    //Delete TP
-                    int rd_tmp = 0;
-                    int idx = 0;
-                    Point pt;
-                    if(nr_reduceTPTN[i].first > 0) {
-                        rd_tmp = nr_reduceTPTN[i].first;
-                        idx = movObjCorrsImg1TPFromLast[i].cols - 1;
-                        while (rd_tmp > 0) {
-                            pt = Point((int) round(movObjCorrsImg1TPFromLast[i].at<double>(0, idx)),
-                                       (int) round(movObjCorrsImg1TPFromLast[i].at<double>(1, idx)));
-                            Mat s_tmp = movObjMaskFromLastLargeAdd[i](Rect(pt, masi));
-                            s_tmp -= csurr;
-                            pt = Point((int) round(movObjCorrsImg2TPFromLast[i].at<double>(0, idx)),
-                                       (int) round(movObjCorrsImg2TPFromLast[i].at<double>(1, idx)));
-                            movObjMaskFromLast2.at<unsigned char>(pt) = 0;
-                            idx--;
-                            rd_tmp--;
-                        }
-
-                        movObjCorrsImg1TPFromLast[i] = movObjCorrsImg1TPFromLast[i].colRange(0,
-                                                                                             movObjCorrsImg1TPFromLast[i].cols -
-                                                                                             nr_reduceTPTN[i].first);
-                        movObjCorrsImg2TPFromLast[i] = movObjCorrsImg2TPFromLast[i].colRange(0,
-                                                                                             movObjCorrsImg2TPFromLast[i].cols -
-                                                                                             nr_reduceTPTN[i].first);
-                        movObjCorrsImg12TPFromLast_Idx[i].erase(movObjCorrsImg12TPFromLast_Idx[i].end() - nr_reduceTPTN[i].first,
-                                                                movObjCorrsImg12TPFromLast_Idx[i].end());
-                    }
-
-                    //Delete TN
-                    if(nr_reduceTPTN[i].second > 0) {
-                        rd_tmp = nr_reduceTPTN[i].second;
-                        idx = movObjCorrsImg1TNFromLast[i].cols - 1;
-                        while (rd_tmp > 0) {
-                            pt = Point((int) round(movObjCorrsImg1TNFromLast[i].at<double>(0, idx)),
-                                       (int) round(movObjCorrsImg1TNFromLast[i].at<double>(1, idx)));
-                            Mat s_tmp = movObjMaskFromLastLargeAdd[i](Rect(pt, masi));
-                            s_tmp -= csurr;
-                            pt = Point((int) round(movObjCorrsImg2TNFromLast[i].at<double>(0, idx)),
-                                       (int) round(movObjCorrsImg2TNFromLast[i].at<double>(1, idx)));
-                            movObjMaskFromLast2.at<unsigned char>(pt) = 0;
-                            idx--;
-                            rd_tmp--;
-                        }
-                        movObjDistTNtoReal[i].erase(movObjDistTNtoReal[i].end() - nr_reduceTPTN[i].second, movObjDistTNtoReal[i].end());
-                        movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].colRange(0,
-                                                                                             movObjCorrsImg1TNFromLast[i].cols -
-                                                                                             nr_reduceTPTN[i].second);
-                        movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].colRange(0,
-                                                                                             movObjCorrsImg2TNFromLast[i].cols -
-                                                                                             nr_reduceTPTN[i].second);
-                    }
-                }
-            }
+            adaptNrBPMovObjCorrs(remSize);
         }
     }
 
@@ -6502,6 +6516,14 @@ void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
 
     if(actCorrsOnMovObjFromLast <= 0){
         return;
+    }
+
+    //Remove correspondences from backprojected moving objects if there are too many of them
+    int32_t maxNrOldMovCorrs = (int32_t) round(pars.CorrMovObjPort * (double) nrCorrs[actFrameCnt]);
+    if(actCorrsOnMovObjFromLast > maxNrOldMovCorrs){
+        int32_t remSize = actCorrsOnMovObjFromLast - maxNrOldMovCorrs;
+        //Remove them based on the ratio of the number of correspondences
+        adaptNrBPMovObjCorrs(remSize);
     }
 
     //Get overlap of regions and the portion of correspondences that is covered by the moving objects

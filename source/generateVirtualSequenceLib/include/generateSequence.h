@@ -445,6 +445,7 @@ private:
     int deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &seedsFromLast,
                                 int32_t nrToDel);
 	void calcAvgMaskingArea();
+    void adaptNrBPMovObjCorrs(int32_t remSize);
 
 public:
 	uint32_t verbose = 0;
