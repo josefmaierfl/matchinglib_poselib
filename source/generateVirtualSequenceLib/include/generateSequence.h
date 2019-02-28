@@ -453,6 +453,7 @@ public:
 
 private:
 	std::default_random_engine rand_gen;
+    std::mt19937 rand2;
 
 	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
 	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is

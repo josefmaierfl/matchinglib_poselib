@@ -120,12 +120,13 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
                              std::vector<cv::Mat> t_,
                              StereoSequParameters &pars_,
                              uint32_t verbose_) :
-        imgSize(imgSize_), K1(K1_), K2(K2_), R(std::move(R_)), t(std::move(t_)), verbose(verbose_), pars(pars_) {
+        verbose(verbose_), imgSize(imgSize_), K1(K1_), K2(K2_), R(std::move(R_)), t(std::move(t_)), pars(pars_) {
     CV_Assert((K1.rows == 3) && (K2.rows == 3) && (K1.cols == 3) && (K2.cols == 3) && (K1.type() == CV_64FC1) &&
               (K2.type() == CV_64FC1));
     CV_Assert((imgSize.area() > 0) && (R.size() == t.size()) && !R.empty());
 
-    randSeed(rand_gen);
+    long int seed = randSeed(rand_gen);
+    randSeed(rand2, seed);
 
     //Generate a mask with the minimal distance between keypoints and a mask for marking used areas in the first stereo image
     genMasks();
@@ -216,7 +217,7 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
                                        const cv::Mat &t_use,
                                        const double depth_use,
                                        bool visualize) {
-
+    CV_Assert(depth_use > 0);
     //Project the corners of img1 on a plane at medium depth in 3D
     vector<Point2f> imgCorners1(4);
     double negXY[2] = {0, 0};
@@ -423,8 +424,16 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
                 fracUseableTPperRegion_.at<double>(y, x) =
                         (double) countNonZero(wimg(regROIs[y][x])) / (double) regROIs[y][x].area();
             } else {
-                fracUseableTPperRegion_.at<double>(y, x) =
-                        (double) countNonZero(wimg(regROIs[y][x])) / (double) countNonZero(mask.getMat());
+                Mat regMask = mask.getMat()(regROIs[y][x]);
+                int cntNZMat = countNonZero(regMask);
+                if(cntNZMat == 0){
+                    fracUseableTPperRegion_.at<double>(y, x) = 0;
+                }
+                else {
+                    fracUseableTPperRegion_.at<double>(y, x) =
+                            (double) countNonZero(wimg(regROIs[y][x])) /
+                            (double) cntNZMat;
+                }
             }
         }
     }
@@ -481,8 +490,16 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
                 fracUseableTPperRegion_.at<double>(y, x) =
                         (double) countNonZero(combDepths(regROIs[y][x])) / (double) regROIs[y][x].area();
             } else {
-                fracUseableTPperRegion_.at<double>(y, x) =
-                        (double) countNonZero(combDepths(regROIs[y][x])) / (double) countNonZero(mask.getMat());
+                Mat regMask = mask.getMat()(regROIs[y][x]);
+                int cntNZMat = countNonZero(regMask);
+                if(cntNZMat == 0){
+                    fracUseableTPperRegion_.at<double>(y, x) = 0;
+                }
+                else {
+                    fracUseableTPperRegion_.at<double>(y, x) =
+                            (double) countNonZero(combDepths(regROIs[y][x])) /
+                            (double) cntNZMat;
+                }
             }
         }
     }
@@ -507,8 +524,12 @@ bool genStereoSequ::initFracCorrImgReg() {
     if ((pars.corrsPerRegRepRate == 0) && pars.corrsPerRegion.empty()) {
         for (size_t i = 0; i < totalNrFrames; i++) {
             Mat newCorrsPerRegion(3, 3, CV_64FC1);
-            cv::randu(newCorrsPerRegion, Scalar(0), Scalar(1.0));
-            newCorrsPerRegion /= sum(newCorrsPerRegion)[0];
+            double sumNewCorrsPerRegion = 0;
+            while(nearZero(sumNewCorrsPerRegion)) {
+                cv::randu(newCorrsPerRegion, Scalar(0), Scalar(1.0));
+                sumNewCorrsPerRegion = sum(newCorrsPerRegion)[0];
+            }
+            newCorrsPerRegion /= sumNewCorrsPerRegion;
             pars.corrsPerRegion.push_back(newCorrsPerRegion.clone());
         }
         pars.corrsPerRegRepRate = 1;
@@ -519,8 +540,12 @@ bool genStereoSequ::initFracCorrImgReg() {
         size_t nrMats = totalNrFrames / pars.corrsPerRegRepRate;
         for (size_t i = 0; i < nrMats; i++) {
             Mat newCorrsPerRegion(3, 3, CV_64FC1);
-            cv::randu(newCorrsPerRegion, Scalar(0), Scalar(1.0));
-            newCorrsPerRegion /= sum(newCorrsPerRegion)[0];
+            double sumNewCorrsPerRegion = 0;
+            while(nearZero(sumNewCorrsPerRegion)) {
+                cv::randu(newCorrsPerRegion, Scalar(0), Scalar(1.0));
+                sumNewCorrsPerRegion = sum(newCorrsPerRegion)[0];
+            }
+            newCorrsPerRegion /= sumNewCorrsPerRegion;
             pars.corrsPerRegion.push_back(newCorrsPerRegion.clone());
         }
     }
@@ -553,7 +578,7 @@ bool genStereoSequ::initFracCorrImgReg() {
             vector<double> combDepths(3);
             combDepths[0] = depthMid[stereoIdx];
             combDepths[1] = depthFar[stereoIdx] + (maxFarDistMultiplier - 1.0) * depthFar[stereoIdx] * pars.corrsPerDepth.far;
-            combDepths[2] = depthNear[stereoIdx] + (1.0 - pars.corrsPerDepth.near) * (depthMid[stereoIdx] - depthNear[stereoIdx]);
+            combDepths[2] = depthNear[stereoIdx] + max((1.0 - pars.corrsPerDepth.near), 0.2) * (depthMid[stereoIdx] - depthNear[stereoIdx]);
 
             getInterSecFracRegions(fracUseableTPperRegion_tmp,
                                    R[stereoIdx],
@@ -564,7 +589,10 @@ bool genStereoSequ::initFracCorrImgReg() {
             stereoImgsOverlapMask.push_back(stereoImgsOverlapMask_tmp.clone());
             fracUseableTPperRegion.push_back(fracUseableTPperRegion_tmp.clone());
             fracUseableTPperRegionNeg = Mat::ones(3, 3, CV_64FC1) - fracUseableTPperRegion_tmp;
-            fUTPpRNSum1 = fracUseableTPperRegionNeg / cv::sum(fracUseableTPperRegionNeg)[0];
+            double sumFracUseableTPperRegionNeg = cv::sum(fracUseableTPperRegionNeg)[0];
+            if(nearZero(sumFracUseableTPperRegionNeg))
+                sumFracUseableTPperRegionNeg = 1.0;
+            fUTPpRNSum1 = fracUseableTPperRegionNeg / sumFracUseableTPperRegionNeg;
         }
 
         cv::Mat corrsTooMuch;
@@ -581,7 +609,7 @@ bool genStereoSequ::initFracCorrImgReg() {
             int32_t chkSize = (int32_t)sum(newCorrsPerRegion)[0] - (int32_t) nrCorrs[i];
             if (chkSize > 0) {
                 do {
-                    int pos = std::rand() % 9;
+                    int pos = rand2() % 9;
                     if (newCorrsPerRegion.at<int32_t>(pos) > 0) {
                         newCorrsPerRegion.at<int32_t>(pos)--;
                         chkSize--;
@@ -616,7 +644,8 @@ bool genStereoSequ::initFracCorrImgReg() {
                 //Check if there are too many correspondences per region as every correspondence needs a minimum distance to its neighbor
                 double minCorr, maxCorr;
                 cv::minMaxLoc(newCorrsPerRegion, &minCorr, &maxCorr);
-                double regA = (double) imgSize.area() / activeRegions;
+                if(nearZero(activeRegions)) activeRegions = 0.1;
+                double regA = activeRegions * (double) imgSize.area() / (9.0 * 9.0);
                 double areaCorrs = maxCorr * avgMaskingArea *
                                    enlargeKPDist;//Multiply by 1.15 to take gaps into account that are a result of randomness
 
@@ -689,8 +718,12 @@ bool genStereoSequ::initFracCorrImgReg() {
                     maxCorr = 1.0;
                     while ((maxCorr > 0.5) && (maxit > 0)) {
                         negsReg = Mat(3, 3, CV_64FC1);
-                        cv::randu(negsReg, Scalar(0), Scalar(1.0));
-                        negsReg /= sum(negsReg)[0];
+                        double sumNegsReg = 0;
+                        while(nearZero(sumNegsReg)) {
+                            cv::randu(negsReg, Scalar(0), Scalar(1.0));
+                            sumNegsReg = sum(negsReg)[0];
+                        }
+                        negsReg /= sumNegsReg;
                         negsReg = 0.33 * negsReg + negsReg.mul(fUTPpRNSum1);
                         negsReg /= sum(negsReg)[0];
                         cv::minMaxLoc(negsReg, &minCorr, &maxCorr);
@@ -715,7 +748,9 @@ bool genStereoSequ::initFracCorrImgReg() {
                 } else {
                     negsReg.convertTo(negsReg, CV_64FC1);
                     negsReg = 0.66 * negsReg + 0.33 * negsReg.mul(fUTPpRNSum1);
-                    negsReg /= sum(negsReg)[0];
+                    double sumNegsReg = sum(negsReg)[0];
+                    if(!nearZero(sumNegsReg))
+                        negsReg /= sumNegsReg;
                     cv::minMaxLoc(negsReg, &minCorr, &maxCorr);
                     if (maxCorr > 0.5) {
                         minCorr = maxCorr / 16.0;
@@ -732,7 +767,9 @@ bool genStereoSequ::initFracCorrImgReg() {
                     }
                 }
                 negsReg = negsReg.mul(newCorrsPerRegiond);//Max number of true negatives per region
-                negsReg *= (double) nrTrueNeg[i] / sum(negsReg)[0];
+                double sumNegsReg = sum(negsReg)[0];
+                if(!nearZero(sumNegsReg))
+                    negsReg *= (double) nrTrueNeg[i] / sumNegsReg;
                 negsReg.convertTo(negsReg, CV_32SC1, 1.0, 0.5);//Corresponds to round
                 for (size_t j = 0; j < 9; j++) {
                     while (negsReg.at<int32_t>(j) > newCorrsPerRegion.at<int32_t>(j))
@@ -793,7 +830,17 @@ bool genStereoSequ::initFracCorrImgReg() {
             if ((cv::sum(corrsRemain)[0] > 0) && (cnt1 >= cnt1Max)) {
                 //Adapt number of correspondences per region
                 pars.corrsPerRegion[cnt] = pars.corrsPerRegion[cnt].mul(usedTNonNoOverlapRat);
-                pars.corrsPerRegion[cnt] /= cv::sum(pars.corrsPerRegion[cnt])[0];
+                double sumCorrsPerRegion = cv::sum(pars.corrsPerRegion[cnt])[0];
+                if(nearZero(sumCorrsPerRegion)){
+                    double sumNewCorrsPerRegion = 0;
+                    while(nearZero(sumNewCorrsPerRegion)) {
+                        cv::randu(pars.corrsPerRegion[cnt], Scalar(0), Scalar(1.0));
+                        sumNewCorrsPerRegion = sum(pars.corrsPerRegion[cnt])[0];
+                    }
+                    newCorrsPerRegion /= sumNewCorrsPerRegion;
+                    sumCorrsPerRegion = 1.0;
+                }
+                pars.corrsPerRegion[cnt] /= sumCorrsPerRegion;
                 recalcCorrsPerRegion = true;
                 cnt1 = 0;
                 corrsRemain = Mat::ones(3, 3, CV_32SC1);
@@ -951,8 +998,15 @@ void genStereoSequ::constructCamPath() {
         R0 = pars.R;
     Mat t1 = Mat::zeros(3, 1, CV_64FC1);
     if (nrTracks == 1) {
-        pars.camTrack[0] /= norm(pars.camTrack[0]);
-        Mat R1 = R0 * getTrackRot(pars.camTrack[0]);
+        double camTrackNorm = norm(pars.camTrack[0]);
+        Mat R1;
+        if(!nearZero(camTrackNorm)) {
+            pars.camTrack[0] /= camTrackNorm;
+            R1 = R0 * getTrackRot(pars.camTrack[0]);
+        }
+        else{
+            R1 = R0;
+        }
         Mat t_piece = absCamVelocity * pars.camTrack[0];
         absCamCoordinates[0] = Poses(R1.clone(), t1.clone());
         for (size_t i = 1; i < totalNrFrames; i++) {
@@ -975,6 +1029,9 @@ void genStereoSequ::constructCamPath() {
         }
 
         //Calculate a new scaling for the path based on the original path length, total number of frames and camera velocity
+        if(nearZero(trackNormSum)){
+            throw SequenceException("Provided a track without movement!");
+        }
         double trackScale = (double) (totalNrFrames - 1) * absCamVelocity / trackNormSum;
         //Rescale track diffs
         for (size_t i = 0; i < nrTracks - 1; i++) {
@@ -997,7 +1054,8 @@ void genStereoSequ::constructCamPath() {
             double usedLength = 0;
             while ((actDiffLength < (absCamVelocity - DBL_EPSILON)) && (actTrackNr < (nrTracks - 1))) {
                 if (firstAdd) {
-                    multTracks += actDiffLength * diffTrack[lastTrackNr] / tdiffNorms[lastTrackNr];
+                    if(!nearZero(tdiffNorms[lastTrackNr]))
+                        multTracks += actDiffLength * diffTrack[lastTrackNr] / tdiffNorms[lastTrackNr];
                     usedLength = actDiffLength;
                     firstAdd = false;
                 } else {
@@ -1009,7 +1067,8 @@ void genStereoSequ::constructCamPath() {
 
                 actDiffLength += tdiffNorms[actTrackNr++];
             }
-            multTracks += (absCamVelocity - usedLength) * diffTrack[lastTrackNr] / tdiffNorms[lastTrackNr];
+            if(!nearZero(tdiffNorms[lastTrackNr]))
+                multTracks += (absCamVelocity - usedLength) * diffTrack[lastTrackNr] / tdiffNorms[lastTrackNr];
 
             R_track = getTrackRot(diffTrack[lastTrackNr], R_track_old);
             R_track_old = R_track.clone();
@@ -1323,8 +1382,10 @@ void genStereoSequ::updDepthReg(bool isNear, std::vector<std::vector<depthPortio
                 for (int j = 0; j < 3; j++) {
                     double newval;
                     if (cnt < 3) {
+                        CV_Assert(!nearZero(dsum));
                         newval = oneDepthPerRegion[i][j] + c1 * cpr.at<double>(i, j) * oneDepthPerRegion[i][j] / dsum;
                     } else {
+                        CV_Assert(!nearZero(dsum) && !nearZero(dsum1));
                         c12 = c1 * cpr.at<double>(i, j) *
                               (0.75 * oneDepthPerRegion[i][j] / dsum + 0.25 * (1.0 - oneDepthPerRegion[i][j]) / dsum1);
                         double c1diff = c1 - (c1sum + c12);
@@ -1641,6 +1702,7 @@ void genStereoSequ::backProject3D() {
 
         Mat X = Mat(pt, true).reshape(1, 3);
         Mat x1 = K1 * X;
+        if(nearZero(x1.at<double>(2))) continue;
         x1 /= x1.at<double>(2);
 
         bool outOfR[2] = {false, false};
@@ -1659,6 +1721,7 @@ void genStereoSequ::backProject3D() {
         }
 
         Mat x2 = K2 * (actR * X + actT);
+        if(nearZero(x2.at<double>(2))) continue;
         x2 /= x2.at<double>(2);
 
         if ((x2.at<double>(0) < 0) || (x2.at<double>(0) > dimgWH.width) ||
@@ -3671,6 +3734,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
         }
         if (lareaCnt > 0) {
             double ra = maxVal - minVal;
+            if(nearZero(ra)) ra = 1.0;
             scale = drange / ra;
             for (int y = 0; y < labelBB.height; y++) {
                 for (int x = 0; x < labelBB.width; x++) {
@@ -3813,6 +3877,7 @@ void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete) {
 z = p1 * (p2 - x)^2 * e^(-x^2 - (y - p3)^2) - 10 * (x / p4 - x^p5 - y^p6) * e^(-x^2 - y^2) - p7 / 3 * e^(-(x + 1)^2 - y^2)
 */
 inline double genStereoSequ::getDepthFuncVal(std::vector<double> &pars1, double x, double y) {
+    if(nearZero(pars1[3])) pars1[3] = 1.0;
     double tmp = pars1[1] - x;
     tmp *= tmp;
     double z = pars1[0] * tmp;
@@ -5083,6 +5148,9 @@ void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
     if (nrTN < 0) {
         nrTN = 0;
     }
+    if((*ptrTP[idx_xy] + *ptrTN[idx_xy]) == 0)
+        return;
+
     double reductionFactor = (double) (*ptrTP[idx_xy] - nrTP + *ptrTN[idx_xy] - nrTN) /
                              (double) (*ptrTP[idx_xy] + *ptrTN[idx_xy]);
 
@@ -5125,7 +5193,7 @@ void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
                 }
             }
         }
-    } else {
+    } else if(next_corrs > 0){
         reductionFactor = 1.0 - (double) rest / (double) next_corrs;
         *ptrTP[idx_xy + 1] = (int32_t) round((double) (*ptrTP[idx_xy + 1]) * reductionFactor);
         *ptrTN[idx_xy + 1] = (int32_t) round((double) (*ptrTN[idx_xy + 1]) * reductionFactor);
@@ -5220,10 +5288,14 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
                 int maxAtBorder = 10;
                 do {
                     do {
-                        ptd.x = distributionNX2(rand_gen);
+                        do {
+                            ptd.x = distributionNX2(rand_gen);
+                        }while(nearZero(ptd.x));
                         ptd.x += 0.75 * ptd.x / abs(ptd.x);
                         ptd.x *= 1.5;
-                        ptd.y = distributionNY2(rand_gen);
+                        do {
+                            ptd.y = distributionNY2(rand_gen);
+                        }while(nearZero(ptd.y));
                         ptd.y += 0.75 * ptd.y / abs(ptd.y);
                         ptd.y *= 1.5;
                     } while ((abs(ptd.x) < 1.5) && (abs(ptd.y) < 1.5));
@@ -5275,10 +5347,12 @@ genStereoSequ::checkLKPInlier(cv::Point_<int32_t> pt, cv::Point2d &pt2, cv::Poin
     }
 
     x = K1i * x;
+    if(nearZero(x.at<double>(2))) return false;
     x *= depth / x.at<double>(2);
     pCam = Point3d(x);
 
     Mat x2 = K2 * (actR * x + actT);
+    if(nearZero(x2.at<double>(2))) return false;
     x2 /= x2.at<double>(2);
     pt2 = Point2d(x2.rowRange(0, 2));
 
@@ -5302,7 +5376,7 @@ void genStereoSequ::getNrSizePosMovObj() {
 
     if (pars.startPosMovObjs.empty() || (cv::sum(pars.startPosMovObjs)[0] == 0)) {
         startPosMovObjs = Mat::zeros(3, 3, CV_8UC1);
-        while (cv::sum(startPosMovObjs)[0] == 0) {
+        while (nearZero(cv::sum(startPosMovObjs)[0])) {
             for (size_t y = 0; y < 3; y++) {
                 for (size_t x = 0; x < 3; x++) {
                     startPosMovObjs.at<unsigned char>(y, x) = (unsigned char) (rand() % 2);
@@ -5333,8 +5407,8 @@ void genStereoSequ::getNrSizePosMovObj() {
     }
     maxOPerReg = (int) ceil((float) pars.nrMovObjs / (float) nrStartA);
     int area23 = 2 * imgArea / 3;//The moving objects should not be larger than that
-    minOArea = (int) round(pars.relAreaRangeMovObjs.first * (double) imgArea);
-    maxOArea = (int) round(pars.relAreaRangeMovObjs.second * (double) imgArea);
+    minOArea = max((int) round(pars.relAreaRangeMovObjs.first * (double) imgArea), 3);
+    maxOArea = max((int) round(pars.relAreaRangeMovObjs.second * (double) imgArea), minOArea + 1);
 
     //The maximum image area coverd with moving objects should not exeed 2/3 of the image
     if (minOArea * (int) pars.nrMovObjs > area23) {
@@ -5517,6 +5591,8 @@ bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect){
 }
 
 void genStereoSequ::adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew) {
+    if(pars.nrMovObjs == 0)
+        return;
     float ratMinActMovObj = (float) pars.minNrMovObjs / (float) pars.nrMovObjs;
     pars.minNrMovObjs = (size_t) round(ratMinActMovObj * (float) pars_nrMovObjsNew);
     pars.minNrMovObjs = (pars.minNrMovObjs > pars_nrMovObjsNew) ? pars_nrMovObjsNew : pars.minNrMovObjs;
@@ -5727,6 +5803,7 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
 
 void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
     //Remove backprojected moving object correspondences based on the ratio of the number of correspondences
+    CV_Assert(actCorrsOnMovObjFromLast > 0);
     size_t nr_bp_movObj = movObjMaskFromLastLargeAdd.size();
     if(remSize > (actCorrsOnMovObjFromLast - (int32_t)nr_bp_movObj * 2)){
         remSize = actCorrsOnMovObjFromLast - (int32_t)nr_bp_movObj * 2;
@@ -5765,6 +5842,7 @@ void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
     vector<pair<int,int>> nr_reduceTPTN(nr_bp_movObj);
     for (int i = 0; i < nr_bp_movObj; ++i){
         if(nr_reduce[i] > 0){
+            CV_Assert((movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols) > 0);
             double inlrat_tmp = (double)movObjCorrsImg1TPFromLast[i].cols /
                                 (double)(movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols);
             int rdTP = (int)round(inlrat_tmp * (double)nr_reduce[i]);
@@ -6080,8 +6158,11 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 movObjCorrsFromStatic[y][x] = (int32_t) round(
                         (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
                 if ((nr_movObj == 0) && (actCorrsOnMovObj > 0)) {
-                    int32_t maxFromOld = (int32_t) round(
-                            (double) corrsOnMovObjLF * movObjOverlap[y][x] / oldMovObjAreaImgRat);
+                    int32_t maxFromOld = corrsOnMovObjLF;
+                    if(!nearZero(100.0 * oldMovObjAreaImgRat)) {
+                        maxFromOld = (int32_t) round(
+                                (double) corrsOnMovObjLF * movObjOverlap[y][x] / oldMovObjAreaImgRat);
+                    }
                     movObjCorrsFromStatic[y][x] =
                             movObjCorrsFromStatic[y][x] > maxFromOld ? maxFromOld : movObjCorrsFromStatic[y][x];
                 }
@@ -6100,6 +6181,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         for (auto& i : actArea) {
             areassum += i;
         }
+        CV_Assert(areassum > 0);
         //reduce the initial area by reducing the radius of a circle with corresponding area by 1: are_new = area - 2*sqrt(pi)*sqrt(area)+pi
 //		maxCorrs = max((int32_t)(((double)(areassum)-3.545 * sqrt((double)(areassum)+3.15)) / (1.5 * pars.minKeypDist * pars.minKeypDist)), 1);
         //reduce the initial area by reducing the radius of a circle with corresponding area by reduceRadius
@@ -6411,20 +6493,23 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
     // cameras are not intersecting
     Mat TNdistr, TNdistr1;
     nrTrueNegRegs[actFrameCnt].convertTo(TNdistr, CV_64FC1);
-    TNdistr /= sum(TNdistr)[0];
-    double allRegCorrsNew = (double)sum(statCorrsPRegNew)[0];
-    double nrTPallReg = allRegCorrsNew * inlRat[actFrameCnt];
-    double nrTNallReg = allRegCorrsNew - nrTPallReg;
-    TNdistr1 = TNdistr * nrTNallReg;
-    nrTrueNegRegs[actFrameCnt].release();
-    TNdistr1.convertTo(nrTrueNegRegs[actFrameCnt], CV_32SC1, 1.0, 0.5);//Corresponds to round
-    nrTrueNegRegs[actFrameCnt].copyTo(TNdistr1);
-    Mat areaFull = Mat::zeros(3,3,CV_8UC1);
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
-            if(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) > statCorrsPRegNew.at<int32_t>(y, x)){
-                nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
-                areaFull.at<bool>(y,x) = true;
+    Mat areaFull = Mat::zeros(3, 3, CV_8UC1);
+    double sumTN = sum(TNdistr)[0];
+    if(!nearZero(sumTN)) {
+        TNdistr /= sumTN;
+        double allRegCorrsNew = (double) sum(statCorrsPRegNew)[0];
+        double nrTPallReg = allRegCorrsNew * inlRat[actFrameCnt];
+        double nrTNallReg = allRegCorrsNew - nrTPallReg;
+        TNdistr1 = TNdistr * nrTNallReg;
+        nrTrueNegRegs[actFrameCnt].release();
+        TNdistr1.convertTo(nrTrueNegRegs[actFrameCnt], CV_32SC1, 1.0, 0.5);//Corresponds to round
+        nrTrueNegRegs[actFrameCnt].copyTo(TNdistr1);
+        for (size_t y = 0; y < 3; y++) {
+            for (size_t x = 0; x < 3; x++) {
+                if (nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) > statCorrsPRegNew.at<int32_t>(y, x)) {
+                    nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
+                    areaFull.at<bool>(y, x) = true;
+                }
             }
         }
     }
@@ -6560,8 +6645,11 @@ void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
             } else {
                 movObjCorrsFromStatic[y][x] = (int32_t) round(
                         (double) nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) * movObjOverlap[y][x]);
-                int32_t maxFromOld = (int32_t) round(
-                        (double) actCorrsOnMovObjFromLast * movObjOverlap[y][x] / oldMovObjAreaImgRat);
+                int32_t maxFromOld = actCorrsOnMovObjFromLast;
+                if(!nearZero(100.0 * oldMovObjAreaImgRat)) {
+                    maxFromOld = (int32_t) round(
+                            (double) actCorrsOnMovObjFromLast * movObjOverlap[y][x] / oldMovObjAreaImgRat);
+                }
                 movObjCorrsFromStatic[y][x] =
                         movObjCorrsFromStatic[y][x] > maxFromOld ? maxFromOld : movObjCorrsFromStatic[y][x];
                 movObjCorrsFromStaticInv[y][x] =
@@ -6642,8 +6730,11 @@ void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
             if (!movObjHasArea[y][x] && (remMovrem > 0)) {
-                int32_t val = (int32_t) round(
-                        (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
+                int32_t val = movObjCorrsFromStaticInv[y][x];
+                if(actStatCorrs != 0) {
+                    val = (int32_t) round(
+                            (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remMov);
+                }
                 int32_t newval = movObjCorrsFromStaticInv[y][x] + val;
                 //Get the maximum # of correspondences per area using the minimum distance between keypoints
                 if (nearZero(actFracUseableTPperRegion.at<double>(y, x))) {
@@ -6722,6 +6813,8 @@ void genStereoSequ::distributeStatObjCorrsOnMovObj(int32_t remStat,
     CV_Assert(remStat >= 0);
     int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
     CV_Assert(actStatCorrs >= 0);
+    if(actStatCorrs == 0)
+        return;
     int32_t remStatrem = remStat;
     for (size_t y = 0; y < 3; y++) {
         for (size_t x = 0; x < 3; x++) {
@@ -6934,6 +7027,8 @@ void genStereoSequ::genNewDepthMovObj() {
             }
         }
         double ra = maxVal - minVal;
+        if(nearZero(ra))
+            ra = 1.0;
         scale = drange / ra;
         for (int y = 0; y < movObjLabelsROIs[i].height; y++) {
             for (int x = 0; x < movObjLabelsROIs[i].width; x++) {
@@ -7359,6 +7454,10 @@ void genStereoSequ::backProjectMovObj() {
 
             Mat X = Mat(pt).reshape(1, 3);
             Mat x1 = K1 * X;
+            if(nearZero(x1.at<double>(2))){
+                oor++;
+                continue;
+            }
             x1 /= x1.at<double>(2);
 
             bool outOfR[2] = {false, false};
@@ -7369,6 +7468,10 @@ void genStereoSequ::backProjectMovObj() {
             }
 
             Mat x2 = K2 * (actR * X + actT);
+            if(nearZero(x2.at<double>(2))){
+                oor++;
+                continue;
+            }
             x2 /= x2.at<double>(2);
 
             if ((x2.at<double>(0) < 0) || (x2.at<double>(0) > dimgWH.width) ||
@@ -9221,10 +9324,18 @@ void genStereoSequ::transMovObjPtsToWorld() {
             //Get direction of camera from last to actual frame
             tdiff = absCamCoordinates[actFrameCnt].t - absCamCoordinates[actFrameCnt - 1].t;
         }
-        tdiff /= norm(tdiff);
+        double tnorm = norm(tdiff);
+        if(nearZero(tnorm))
+            tdiff = Mat::zeros(3,1,CV_64FC1);
+        else
+            tdiff /= tnorm;
         //Add the movement direction of the moving object
         tdiff += movObjDir;
-        tdiff /= norm(tdiff);
+        tnorm = norm(tdiff);
+        if(nearZero(tnorm))
+            tdiff = Mat::zeros(3,1,CV_64FC1);
+        else
+            tdiff /= tnorm;
         tdiff *= velocity;
         movObjWorldMovement[idx] = tdiff.clone();
     }
@@ -9470,11 +9581,19 @@ void genStereoSequ::checkMovObjDirection() {
     if (pars.movObjDir.empty()) {
         Mat newMovObjDir(3, 1, CV_64FC1);
         cv::randu(newMovObjDir, Scalar(0), Scalar(1.0));
-        newMovObjDir /= norm(newMovObjDir);
+        double newMovObjDirNorm = norm(newMovObjDir);
+        if(nearZero(newMovObjDirNorm))
+            newMovObjDir = Mat::zeros(3,1,CV_64FC1);
+        else
+            newMovObjDir /= newMovObjDirNorm;
         newMovObjDir.copyTo(movObjDir);
     } else {
         movObjDir = pars.movObjDir;
-        movObjDir /= norm(movObjDir);
+        double movObjDirNorm = norm(movObjDir);
+        if(nearZero(movObjDirNorm))
+            movObjDir = Mat::zeros(3,1,CV_64FC1);
+        else
+            movObjDir /= movObjDirNorm;
     }
 }
 
@@ -9644,6 +9763,10 @@ void genStereoSequ::getMovObjPtsCam() {
                 Mat pt = K1 * (Mat_<double>(3, 1) << (double) (*filteredOccludedCamPts[idx])[j].x,
                         (double) (*filteredOccludedCamPts[idx])[j].y,
                         (double) (*filteredOccludedCamPts[idx])[j].z);
+                if(nearZero(pt.at<double>(2))){
+                    keyPDelList.push_back(j);
+                    continue;
+                }
                 pt /= pt.at<double>(2);
                 keypointsMO[j].x = (int) round(pt.at<double>(0));
                 keypointsMO[j].y = (int) round(pt.at<double>(1));
@@ -10141,14 +10264,21 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
         if (bothAngNotZero) {
             resalpha = rotDiff(actCamPose, rotBoth);
         }
-        if (!nearZero((double) resalpha)) {
+        if (!nearZero(resalpha)) {
             resalpha = resalpha < 0 ? -resalpha : resalpha;
-            double tmp = cos(resalpha);
-            tmp *= tmp * tmp;
-            //Adapt the minimum and maximum distance as the given distances which form 2 planes appear
-            // under a different angle compared to the original planes without slicing
-            mimaDistance[0] = (mimaDistance[0] * cos(2 * resalpha)) / tmp;
-            mimaDistance[1] = mimaDistance[1] / tmp;
+            while(resalpha > 2 * M_PI){
+                resalpha -= 2 * M_PI;
+            }
+            if (!nearZero(resalpha)) {
+                double tmp = cos(resalpha);
+                tmp *= tmp * tmp;
+                if(!nearZero(tmp)) {
+                    //Adapt the minimum and maximum distance as the given distances which form 2 planes appear
+                    // under a different angle compared to the original planes without slicing
+                    mimaDistance[0] = (mimaDistance[0] * cos(2 * resalpha)) / tmp;
+                    mimaDistance[1] = mimaDistance[1] / tmp;
+                }
+            }
         }
 
     } else {
@@ -10224,7 +10354,12 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         usedZ = Xc.at<double>(2);
         leaf_size = (float) usedZ;
     }
+    if(nearZero(usedZ))
+        usedZ = 1.0;
     leaf_size /= (float) K1.at<double>(0, 0);
+
+    if(nearZero(leaf_size))
+        leaf_size = 0.1;
 
     //Check if leaf size is too small for PCL (as there is a limitation within PCL)
     Eigen::Vector4f min_p, max_p;
@@ -10238,7 +10373,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     int64_t dz = static_cast<int64_t>(d3 / leaf_size) + 1;
     int64_t maxIdxSize = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
     if ((dx * dy * dz) > maxIdxSize) {
-        double kSi = (double) ((csurr.rows - 1) / 2);
+        double kSi = (double) max(((csurr.rows - 1) / 2), 1);
         kSi = kSi > 3.0 ? 3.0 : kSi;
         leaf_size = (float) (kSi * usedZ / K1.at<double>(0, 0));
         dx = static_cast<int64_t>(d1 / leaf_size) + 1;

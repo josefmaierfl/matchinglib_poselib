@@ -33,13 +33,19 @@ using namespace cv;
 
 /* -------------------------- Functions -------------------------- */
 
-void randSeed(std::default_random_engine& rand_generator)
+long int randSeed(std::default_random_engine& rand_generator)
 {
 	// construct a trivial random generator engine from a time-based seed:
-	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	long int seed = std::chrono::system_clock::now().time_since_epoch().count();
 	rand_generator = std::default_random_engine(seed);
 
-	srand(time(NULL));
+	srand((unsigned int)time(nullptr));
+
+    return seed;
+}
+
+void randSeed(std::mt19937& rand_generator, long int seed){
+	rand_generator = std::mt19937(seed);
 }
 
 double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator)

@@ -33,7 +33,10 @@ DISCRIPTION: This file provides some helper functions.
 /* --------------------- Function prototypes --------------------- */
 
 //Initializes the random number generator with a seed based on the current time
-void randSeed(std::default_random_engine& rand_generator);
+long int randSeed(std::default_random_engine& rand_generator);
+
+//Initializes the random number generator with a given seed based on the current time
+void randSeed(std::mt19937& rand_generator, long int seed);
 
 //Get a random number within a given range
 double getRandDoubleValRng(double lowerBound, double upperBound, std::default_random_engine rand_generator = std::default_random_engine((unsigned int)std::rand()));
