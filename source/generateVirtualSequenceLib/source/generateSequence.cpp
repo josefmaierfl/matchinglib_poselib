@@ -47,7 +47,7 @@ using namespace cv;
 
 void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete);
 
-void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B);
+void color_HSV2RGB(float H, float S, float V, unsigned char &R, unsigned char &G, unsigned char &B);
 
 void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask);
 
@@ -302,7 +302,7 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
     }
 
     //Get the polygon intersection
-    polygon_contour c1={0}, c2={0}, res={0};
+    polygon_contour c1={0, nullptr, nullptr}, c2={0, nullptr, nullptr}, res={0, nullptr, nullptr};
     add_contour_from_array((double*)&imgCorners1chd[0].x, (int)imgCorners1chd.size(), &c1);
     add_contour_from_array((double*)&imgCorners2chd[0].x, (int)imgCorners2chd.size(), &c2);
     calc_polygon_clipping(POLYGON_OP_INTERSECT, &c1, &c2, &res);
@@ -609,7 +609,7 @@ bool genStereoSequ::initFracCorrImgReg() {
             int32_t chkSize = (int32_t)sum(newCorrsPerRegion)[0] - (int32_t) nrCorrs[i];
             if (chkSize > 0) {
                 do {
-                    int pos = rand2() % 9;
+                    int pos = (int)(rand2() % 9);
                     if (newCorrsPerRegion.at<int32_t>(pos) > 0) {
                         newCorrsPerRegion.at<int32_t>(pos)--;
                         chkSize--;
@@ -620,7 +620,7 @@ bool genStereoSequ::initFracCorrImgReg() {
                 } while (chkSize > 0);
             } else if (chkSize < 0) {
                 do {
-                    int pos = std::rand() % 9;
+                    int pos = (int)(rand2() % 9);
                     if (!nearZero(pars.corrsPerRegion[cnt].at<double>(pos))) {
                         newCorrsPerRegion.at<int32_t>(pos)++;
                         chkSize++;
@@ -778,7 +778,7 @@ bool genStereoSequ::initFracCorrImgReg() {
                 chkSize = (int32_t) sum(negsReg)[0] - (int32_t) nrTrueNeg[i];
                 if (chkSize > 0) {
                     do {
-                        int pos = std::rand() % 9;
+                        int pos = (int)(rand2() % 9);
                         if (negsReg.at<int32_t>(pos) > 0) {
                             negsReg.at<int32_t>(pos)--;
                             chkSize--;
@@ -789,7 +789,7 @@ bool genStereoSequ::initFracCorrImgReg() {
                     } while (chkSize > 0);
                 } else if (chkSize < 0) {
                     do {
-                        int pos = std::rand() % 9;
+                        int pos = (int)(rand2() % 9);
                         if (negsReg.at<int32_t>(pos) < newCorrsPerRegion.at<int32_t>(pos)) {
                             negsReg.at<int32_t>(pos)++;
                             chkSize++;
@@ -1518,10 +1518,10 @@ void genStereoSequ::checkDepthAreas() {
                             if ((cnt > 0) && (tmp == -10)) {
                                 if ((pars.nrDepthAreasPReg[y][x].second - pars.nrDepthAreasPReg[y][x].first) != 0) {
                                     tmp = cnt - (int) pars.nrDepthAreasPReg[y][x].second;
-                                    tmp += pars.nrDepthAreasPReg[y][x].first + (std::rand() %
+                                    tmp += (int)(pars.nrDepthAreasPReg[y][x].first + (rand2() %
                                                                                 (pars.nrDepthAreasPReg[y][x].second -
                                                                                  pars.nrDepthAreasPReg[y][x].first +
-                                                                                 1));
+                                                                                 1)));
                                     cnt = tmp;
                                 }
                                 if (cnt > 0) {
@@ -1547,7 +1547,7 @@ void genStereoSequ::checkDepthAreas() {
                 }
             } else {
                 for (size_t i = 0; i < depthsPerRegion.size(); i++) {
-                    int nra = (int)pars.nrDepthAreasPReg[y][x].first + (std::rand() % ((int)pars.nrDepthAreasPReg[y][x].second -
+                    int nra = (int)pars.nrDepthAreasPReg[y][x].first + ((int)(rand2() % INT_MAX) % ((int)pars.nrDepthAreasPReg[y][x].second -
                             (int)pars.nrDepthAreasPReg[y][x].first +
                                                                                   1));
                     int32_t maxAPReg[3];
@@ -1687,7 +1687,7 @@ void genStereoSequ::backProject3D() {
         double width;
         double height;
         double maxDist;
-    } dimgWH;
+    } dimgWH = {0,0,0};
     dimgWH.width = (double) (imgSize.width - 1);
     dimgWH.height = (double) (imgSize.height - 1);
     dimgWH.maxDist = maxFarDistMultiplier * actDepthFar;
@@ -2076,7 +2076,7 @@ void genStereoSequ::checkDepthSeeds() {
     }*/
 
     //Get distances between neighboring seeds
-    SeedCloud sc;
+    SeedCloud sc = {nullptr, nullptr, nullptr};
     sc.seedsNear = &seedsNear;
     sc.seedsMid = &seedsMid;
     sc.seedsFar = &seedsFar;
@@ -2373,11 +2373,11 @@ int deletedepthCatsByNr(std::vector<cv::Point2d> &seedsFromLast,
     cv::Point2d pts, ptg;
     for (int32_t i = 0; i < nrToDel_tmp; ++i) {
         ptg = seedsFromLast[delList[i]];
-        for (size_t j = 0; j < (size_t)ptMat.cols; ++j) {
-            pts = cv::Point2d(ptMat.at<double>(0,j), ptMat.at<double>(1,j));
+        for (int j = 0; j < ptMat.cols; ++j) {
+            pts = cv::Point2d(ptMat.at<double>(0, j), ptMat.at<double>(1, j));
             double diff = abs(ptg.x - pts.x) + abs(ptg.y - pts.y);
             if(nearZero(diff)){
-                delListCorrs.push_back(j);
+                delListCorrs.push_back((size_t)j);
                 break;
             }
         }
@@ -2444,7 +2444,7 @@ void genStereoSequ::genRegMasks() {
     Mat validRect = Mat::ones(imgSize, CV_8UC1);
     const float overSi = 1.25f;//Allows the expension of created areas outside its region by a given percentage
 
-    for (size_t y = 0; y < 3; y++) {
+    for (int y = 0; y < 3; y++) {
         cv::Point2i pl1, pr1, pl2, pr2;
         pl1.y = y * imgSi13.height;
         pl2.y = pl1.y;
@@ -2458,7 +2458,7 @@ void genStereoSequ::genRegMasks() {
         if (y > 0) {
             pl1.y -= (int) ((overSi - 1.f) * (float) imgSi13.height);
         }
-        for (size_t x = 0; x < 3; x++) {
+        for (int x = 0; x < 3; x++) {
             pl1.x = x * imgSi13.width;
             pl2.x = pl1.x;
             if (x < 2) {
@@ -2519,20 +2519,20 @@ void genStereoSequ::genDepthMaps() {
 
     //Get an ordering of the different depth area sizes for every region
     cv::Mat beginDepth = cv::Mat(3, 3, CV_32SC3);
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             int32_t maxAPReg[3];
             maxAPReg[0] = areaPRegNear[actCorrsPRIdx].at<int32_t>(y, x);
             maxAPReg[1] = areaPRegMid[actCorrsPRIdx].at<int32_t>(y, x);
             maxAPReg[2] = areaPRegFar[actCorrsPRIdx].at<int32_t>(y, x);
             std::ptrdiff_t pdiff = min_element(maxAPReg, maxAPReg + 3) - maxAPReg;
-            beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[0] = pdiff;
+            beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[0] = (int32_t)pdiff;
             if (maxAPReg[(pdiff + 1) % 3] < maxAPReg[(pdiff + 2) % 3]) {
-                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[1] = (pdiff + 1) % 3;
-                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] = (pdiff + 2) % 3;
+                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[1] = ((int32_t)pdiff + 1) % 3;
+                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] = ((int32_t)pdiff + 2) % 3;
             } else {
-                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] = (pdiff + 1) % 3;
-                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[1] = (pdiff + 2) % 3;
+                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] = ((int32_t)pdiff + 1) % 3;
+                beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[1] = ((int32_t)pdiff + 2) % 3;
             }
         }
     }
@@ -2541,8 +2541,8 @@ void genStereoSequ::genDepthMaps() {
     Mat meanNearA = Mat::zeros(3, 3, CV_32SC2);
     Mat meanMidA = Mat::zeros(3, 3, CV_32SC2);
     Mat meanFarA = Mat::zeros(3, 3, CV_32SC2);
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             int32_t checkArea = 0;
             if (!seedsNear[y][x].empty()) {
                 meanNearA.at<cv::Vec<int32_t, 2>>(y, x)[0] =
@@ -2575,8 +2575,8 @@ void genStereoSequ::genDepthMaps() {
     }
 
     //Reserve a little bit of space for depth areas generated later on (as they are larger)
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             for (int i = 2; i >= 1; i--) {
                 switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[i]) {
                     case 0:
@@ -2693,8 +2693,8 @@ void genStereoSequ::genDepthMaps() {
     Mat actUsedAreaFar = Mat::zeros(imgSize, CV_8UC1);
     Mat neighborRegMask = Mat::zeros(imgSize, CV_8UC1);
     //Init actual positions
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             if (!seedsNear[y][x].empty() && (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2] != 0)) {
                 actPosSeedsNear[y][x].resize(seedsNear[y][x].size());
                 nrIterPerSeedNear[y][x].resize(seedsNear[y][x].size(), 0);
@@ -2748,12 +2748,12 @@ void genStereoSequ::genDepthMaps() {
         if (j > 0) {
             noGenMask = noGenMask2;
         }
-        bool areasNFinish[3][3] = {true, true, true, true, true, true, true, true, true};
+        bool areasNFinish[3][3] = {{true, true, true}, {true, true, true}, {true, true, true}};
         while (areasNFinish[0][0] || areasNFinish[0][1] || areasNFinish[0][2] ||
                areasNFinish[1][0] || areasNFinish[1][1] || areasNFinish[1][2] ||
                areasNFinish[2][0] || areasNFinish[2][1] || areasNFinish[2][2]) {
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
+            for (int y = 0; y < 3; y++) {
+                for (int x = 0; x < 3; x++) {
                     if (!areasNFinish[y][x]) continue;
                     switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[j]) {
                         case 0:
@@ -3008,8 +3008,8 @@ void genStereoSequ::genDepthMaps() {
     Mat maskMid = Mat::zeros(imgSize, CV_8UC1);
     Mat maskFar = Mat::zeros(imgSize, CV_8UC1);
     int32_t fillAreas[3] = {0, 0, 0};
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             switch (beginDepth.at<cv::Vec<int32_t, 3>>(y, x)[2]) {
                 case 0:
                     maskNear(regROIs[y][x]) |= noGenMask2(regROIs[y][x]);
@@ -3188,8 +3188,8 @@ void genStereoSequ::genDepthMaps() {
 
     //Fill the remaining areas
 //    if(nFinished[0] || nFinished[1] || nFinished[2]) {
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             Mat fillMask =
                     (depthAreaMap(regROIs[y][x]) == 0) &
                     Mat::ones(regROIs[y][x].height, regROIs[y][x].width, CV_8UC1);
@@ -3343,10 +3343,10 @@ bool genStereoSequ::fillRemainingAreas(cv::Mat &depthArea,
            (cnt < maxCnt)) {
         cnt++;
         Mat element;
-        int elSel = rand() % 3;
-        strElmSiAdd = rand() % strElmSi;
-        strElmSiDir[0] = rand() % 2;
-        strElmSiDir[1] = rand() % 2;
+        int elSel = (int)(rand2() % 3);
+        strElmSiAdd = (rand2() % INT_MAX) % strElmSi;
+        strElmSiDir[0] = (int)(rand2() % 2);
+        strElmSiDir[1] = (int)(rand2() % 2);
         switch (elSel) {
             case 0:
                 element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi + strElmSiDir[0] * strElmSiAdd,
@@ -3470,7 +3470,7 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
         double mv = getRandDoubleValRng(mi + 1.0, ma - 1.0);
         double mrr = 0;
         do {
-            mrr = (double) (rand() % (int) floor((mr - 2.0) / 2.0));
+            mrr = (double) ((int)(rand2() % INT_MAX) % (int) floor((mr - 2.0) / 2.0));
         } while (nearZero(mrr));
         ma = mv + mrr;
         mi = mv - mrr;
@@ -3581,15 +3581,15 @@ void genStereoSequ::getDepthMaps(cv::OutputArray dout, cv::Mat &din, double dmin
                     initSeedInArea.push_back(initSeeds[y][x][i]);
                     switch (dNr) {
                         case 0:
-                            seedsNearFromLast[y][x].push_back(
+                            seedsNearFromLast[y][x].emplace_back(
                                     cv::Point_<int32_t>(initSeedInArea.back().x, initSeedInArea.back().y));
                             break;
                         case 1:
-                            seedsMidFromLast[y][x].push_back(
+                            seedsMidFromLast[y][x].emplace_back(
                                     cv::Point_<int32_t>(initSeedInArea.back().x, initSeedInArea.back().y));
                             break;
                         case 2:
-                            seedsFarFromLast[y][x].push_back(
+                            seedsFarFromLast[y][x].emplace_back(
                                     cv::Point_<int32_t>(initSeedInArea.back().x, initSeedInArea.back().y));
                             break;
                         default:
@@ -3642,7 +3642,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
                             actUsedAreaStats.at<int32_t>(i, cv::ConnectedComponentsTypes::CC_STAT_HEIGHT));
 
         if (labelBB.area() == 1) {
-            singlePixelAreas.push_back(Point(labelBB.x, labelBB.y));
+            singlePixelAreas.emplace_back(Point(labelBB.x, labelBB.y));
             continue;
         }
 
@@ -3674,12 +3674,12 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
             int32_t minY = labelBB.y;
             int32_t maxY = minY + labelBB.height;
             vector<double> initDepths;
-            for (size_t j = 0; j < initSeedInArea.size(); j++) {
-                if ((initSeedInArea[j].x >= minX) && (initSeedInArea[j].x < maxX) &&
-                    (initSeedInArea[j].y >= minY) && (initSeedInArea[j].y < maxY)) {
-                    if (actUsedAreaLabel.at<uint16_t>(initSeedInArea[j].y, initSeedInArea[j].x) == i) {
+            for (auto& j : initSeedInArea) {
+                if ((j.x >= minX) && (j.x < maxX) &&
+                    (j.y >= minY) && (j.y < maxY)) {
+                    if (actUsedAreaLabel.at<uint16_t>(j.y, j.x) == i) {
                         initDepths.push_back(
-                                actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[initSeedInArea[j].z]].z);
+                                actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[j.z]].z);
                     }
                 }
             }
@@ -3756,8 +3756,8 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
         const int mSi = extBord * 2 + 1;
         Size mSi_ = Size(mSi, mSi);
         cv::copyMakeBorder(dout_, dout_big, extBord, extBord, extBord, extBord, BORDER_CONSTANT, Scalar(0));
-        for (size_t i = 0; i < singlePixelAreas.size(); ++i) {
-            Mat doutBigSlice = dout_big(Rect(singlePixelAreas[i], mSi_));
+        for (auto& i : singlePixelAreas) {
+            Mat doutBigSlice = dout_big(Rect(i, mSi_));
             double dmsum = 0;
             int nrN0 = 0;
             for (int y = 0; y < mSi; ++y) {
@@ -3773,7 +3773,7 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
                 dmsum = sum(doutBigSlice)[0];
                 dmsum /= (double) nrN0;
             }
-            dout_.at<double>(singlePixelAreas[i]) = dmsum;
+            dout_.at<double>(i) = dmsum;
         }
     }
 
@@ -3806,10 +3806,10 @@ void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels,
     }
 }
 
-void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B) {
+void color_HSV2RGB(float H, float S, float V, unsigned char &R, unsigned char &G, unsigned char &B) {
     if (S == 0)                       //HSV values = 0 ÷ 1
     {
-        R = (int) (V * 255.);
+        R = (unsigned char) round(min(V * 255.f, 255.f));
         G = R;
         B = R;
     } else {
@@ -3852,9 +3852,9 @@ void color_HSV2RGB(float H, float S, float V, int &R, int &G, int &B) {
             var_b = var_2;
         }
 
-        R = (int) (var_r * 255);    //RGB results = 0 ÷ 255
-        G = (int) (var_g * 255);
-        B = (int) (var_b * 255);
+        R = (unsigned char) round(min((var_r * 255.f), 255.f));    //RGB results = 0 ÷ 255
+        G = (unsigned char) round(min((var_g * 255.f), 255.f));
+        B = (unsigned char) round(min((var_b * 255.f), 255.f));
     }
 }
 
@@ -3863,7 +3863,7 @@ void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete) {
     float currHue = 0.0f;
 
     for (int k = 0; k < num_labels; ++k) {
-        int R = 0, G = 0, B = 0;
+        unsigned char R = 0, G = 0, B = 0;
         float H = currHue - floor(currHue);
         float V = 0.75f + 0.25f * ((float) (k % 4) / 3.f);
         color_HSV2RGB(H, V, V, R, G, B);
@@ -3988,10 +3988,10 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         while (((siAfterDil - addArea) == 0) && (cnt < maxCnt)) {
             cnt++;
             Mat element;
-            int elSel = rand() % 3;
-            strElmSiAdd = rand() % strElmSi;
-            strElmSiDir[0] = rand() % 2;
-            strElmSiDir[1] = rand() % 2;
+            int elSel = (int)(rand2() % 3);
+            strElmSiAdd = (int)(rand2() % INT_MAX) % strElmSi;
+            strElmSiDir[0] = (int)(rand2() % 2);
+            strElmSiDir[1] = (int)(rand2() % 2);
             switch (elSel) {
                 case 0:
                     element = cv::getStructuringElement(MORPH_ELLIPSE, Size(strElmSi + strElmSiDir[0] * strElmSiAdd,
@@ -4119,7 +4119,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         }
     } else {
         //Get a random direction where to add a pixel
-        int diri = rand() % (int) directions.size();
+        int diri = (int)(rand2() % directions.size());
         endpos = startpos;
         nextPosition(endpos, directions[diri]);
         //Set the pixel
@@ -4150,7 +4150,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             noExt[0] = (directions[diri] + 1) % 8;
             noExt[1] = directions[diri];
             noExt[2] = (directions[diri] + 7) % 8;
-            for (vector<int32_t>::reverse_iterator itr = extension.rbegin(); itr != extension.rend(); itr++) {
+            for (auto itr = extension.rbegin(); itr != extension.rend(); itr++) {
                 if ((*itr == noExt[0]) ||
                     (*itr == noExt[1]) ||
                     (*itr == noExt[2])) {
@@ -4159,12 +4159,12 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             }
             if (extension.size() > 1) {
                 //Choose a random number of additional pixels to add (based on possible directions of expansion)
-                int addsi = rand() % ((int) extension.size() + 1);
+                int addsi = (int)(rand2() % (extension.size() + 1));
                 if (addsi) {
                     if ((addsi + addArea) > maxAreaReg) {
                         addsi = maxAreaReg - addArea;
                     }
-                    const int beginExt = rand() % (int) extension.size();
+                    const int beginExt = (int)(rand2() % extension.size());
                     for (int i = 0; i < addsi; i++) {
                         cv::Point_<int32_t> singleExt = endpos;
                         const int pos = (beginExt + i) % (int) extension.size();
@@ -4346,7 +4346,7 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos,
                     fixedDir = dirs[0];
                 } else {
                     //Get a random direction where to go next
-                    fixedDir = dirs[rand() % (int) dirs.size()];
+                    fixedDir = dirs[rand2() % dirs.size()];
                 }
                 dirFixed = true;
             }
@@ -4405,7 +4405,7 @@ void genStereoSequ::getKeypoints() {
                            (int32_t) round(actCorrsImg2TPFromLast.at<double>(1, i)));
         Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
         if (s_tmp.at<unsigned char>(posadd, posadd) > 0) {
-            delListCorrs.push_back(i);
+            delListCorrs.push_back((size_t)i);
             delList3D.push_back(actCorrsImg12TPFromLast_Idx[i]);
             continue;
         }
@@ -4415,7 +4415,7 @@ void genStereoSequ::getKeypoints() {
     //Delete correspondences and 3D points that were to near to each other in the 2nd image
     int TPfromLastRedu = 0;
     if (!delListCorrs.empty()) {
-        TPfromLastRedu = delListCorrs.size();
+        TPfromLastRedu = (int)delListCorrs.size();
         sort(delList3D.begin(), delList3D.end(),
              [](size_t first, size_t second) { return first < second; });//Ascending order
 
@@ -4456,7 +4456,7 @@ void genStereoSequ::getKeypoints() {
                            (int32_t) round(actCorrsImg2TNFromLast.at<double>(1, i)));
         Mat s_tmp = cImg2(Rect(pt, Size(kSi, kSi)));
         if (s_tmp.at<unsigned char>(posadd, posadd) > 0) {
-            delListTNlast.push_back(i);
+            delListTNlast.push_back((size_t)i);
             nrBPTN2--;
             continue;
         }
@@ -4482,7 +4482,7 @@ void genStereoSequ::getKeypoints() {
                            (int32_t) round(actCorrsImg1TNFromLast.at<double>(1, i)));
         Mat s_tmp = corrsIMG(Rect(pt, Size(kSi, kSi)));
         if (s_tmp.at<unsigned char>(posadd, posadd) > 0) {
-            delListTNlast.push_back(i);
+            delListTNlast.push_back((size_t)i);
             continue;
         }
         s_tmp += csurr;
@@ -4505,7 +4505,7 @@ void genStereoSequ::getKeypoints() {
             xreg_idx++;
         }
 
-        if(x1pTN[yreg_idx][xreg_idx].size() >= nrTrueNegRegs[actFrameCnt].at<int32_t>(yreg_idx, xreg_idx)){
+        if((int)x1pTN[yreg_idx][xreg_idx].size() >= nrTrueNegRegs[actFrameCnt].at<int32_t>(yreg_idx, xreg_idx)){
             delListTNlast.push_back(i);
             s_tmp -= csurr;
             continue;
@@ -4533,15 +4533,15 @@ void genStereoSequ::getKeypoints() {
     vector<vector<vector<Point2d>>> x1TN(3, vector<vector<Point2d>>(3));
     vector<vector<vector<Point2d>>> x2TN(3, vector<vector<Point2d>>(3));
     vector<vector<vector<double>>> x2TNdistCorr(3, vector<vector<double>>(3));
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             if (movObjHasArea[y][x])
                 continue;
 
-            int32_t nrNear = (int32_t) floor(
+            auto nrNear = (int32_t) floor(
                     depthsPerRegion[actCorrsPRIdx][y][x].near *
                     (double) nrTruePosRegs[actFrameCnt].at<int32_t>(y, x));
-            int32_t nrFar = (int32_t) floor(
+            auto nrFar = (int32_t) floor(
                     depthsPerRegion[actCorrsPRIdx][y][x].far *
                     (double) nrTruePosRegs[actFrameCnt].at<int32_t>(y, x));
             int32_t nrMid = nrTruePosRegs[actFrameCnt].at<int32_t>(y, x) - nrNear - nrFar;
@@ -4573,14 +4573,14 @@ void genStereoSequ::getKeypoints() {
             //vector<Point3d> p3DTPnewR, p3DTNnewR;
             vector<Point3d> p3DTPnewRNear, p3DTPnewRMid, p3DTPnewRFar;
             //vector<Point2d> x1TNR;
-            corrsNearR.reserve(nrNear);
-            corrsMidR.reserve(nrMid);
-            corrsFarR.reserve(nrFar);
-            p3DTPnew[y][x].reserve(nrNear + nrMid + nrFar);
-            corrsAllD[y][x].reserve(nrNear + nrMid + nrFar);
-            p3DTPnewRNear.reserve(nrNear);
-            p3DTPnewRMid.reserve(nrNear);
-            p3DTPnewRFar.reserve(nrFar);
+            corrsNearR.reserve((size_t)nrNear);
+            corrsMidR.reserve((size_t)nrMid);
+            corrsFarR.reserve((size_t)nrFar);
+            p3DTPnew[y][x].reserve((size_t)(nrNear + nrMid + nrFar));
+            corrsAllD[y][x].reserve((size_t)(nrNear + nrMid + nrFar));
+            p3DTPnewRNear.reserve((size_t)nrNear);
+            p3DTPnewRMid.reserve((size_t)nrNear);
+            p3DTPnewRFar.reserve((size_t)nrFar);
             x1TN[y][x].reserve(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
             x2TN[y][x].reserve(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
             x2TNdistCorr[y][x].reserve(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
@@ -4812,7 +4812,7 @@ void genStereoSequ::getKeypoints() {
 
             //Generate mask for visualization before adding keypoints
             Mat dispMask;
-            if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && (x1TN[y][x].size() > 0)) {
+            if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && !x1TN[y][x].empty()) {
                 dispMask = (cImg2 > 0);
             }
 
@@ -4867,8 +4867,8 @@ void genStereoSequ::getKeypoints() {
             }
 
             //Visualize the mask afterwards
-            if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && (x1TN[y][x].size() > 0)) {
-                if (x2TN[y][x].size() > 0) {
+            if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && !x1TN[y][x].empty()) {
+                if (!x2TN[y][x].empty()) {
                     namedWindow("Static rand TN Corrs mask img2", WINDOW_AUTOSIZE);
                     Mat dispMask2 = (cImg2 > 0);
                     vector<Mat> channels;
@@ -5058,7 +5058,7 @@ void genStereoSequ::getKeypoints() {
             }
         }
         nrCorrsR = nrTPCorrsAll + nrTNCorrs;
-        nrCorrsRGiven = (size_t) sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0];
+        nrCorrsRGiven = (size_t) floor(sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0]);
         if (nrCorrsR != nrCorrsRGiven) {
             double chRate = (double) nrCorrsR / (double) nrCorrsRGiven;
             if ((chRate < 0.95) || (chRate > 1.05)) {
@@ -5066,8 +5066,8 @@ void genStereoSequ::getKeypoints() {
                      << "% different to given values!" << endl;
                 cout << "Actual #: " << nrCorrsR << " Given #: " << nrCorrsRGiven << endl;
                 Mat baproTN = Mat::zeros(3, 3, CV_32SC1);
-                for (size_t k = 0; k < 3; ++k) {
-                    for (size_t k1 = 0; k1 < 3; ++k1) {
+                for (int k = 0; k < 3; ++k) {
+                    for (int k1 = 0; k1 < 3; ++k1) {
                         size_t allnrTPperR = nrTPperR[k][k1] +
                                              seedsNearFromLast[k][k1].size() +
                                              seedsMidFromLast[k][k1].size() +
@@ -5131,10 +5131,10 @@ void genStereoSequ::adaptNRCorrespondences(int32_t nrTP,
     } else {
         idx_xy = idx_x;
         maxCnt = nr_movObj;
-        for (vector<int32_t>::iterator it = actTPPerMovObj.begin(); it != actTPPerMovObj.end(); it++) {
+        for (auto it = actTPPerMovObj.begin(); it != actTPPerMovObj.end(); it++) {
             ptrTP.push_back(&(*it));
         }
-        for (vector<int32_t>::iterator it = actTNPerMovObj.begin(); it != actTNPerMovObj.end(); it++) {
+        for (auto it = actTNPerMovObj.begin(); it != actTNPerMovObj.end(); it++) {
             ptrTN.push_back(&(*it));
         }
     }
@@ -5262,7 +5262,7 @@ int32_t genStereoSequ::genTrueNegCorrs(int32_t nrTN,
         }
         maxSelect2 = 75;
         s_tmp += csurr;
-        x1TN.push_back(Point2d((double) pt.x, (double) pt.y));
+        x1TN.emplace_back(Point2d((double) pt.x, (double) pt.y));
         int max_try = 10;
         double perfDist = fakeDistTNCorrespondences;
         if (!checkLKPInlier(pt, pt2, pCam,
@@ -5377,9 +5377,9 @@ void genStereoSequ::getNrSizePosMovObj() {
     if (pars.startPosMovObjs.empty() || (cv::sum(pars.startPosMovObjs)[0] == 0)) {
         startPosMovObjs = Mat::zeros(3, 3, CV_8UC1);
         while (nearZero(cv::sum(startPosMovObjs)[0])) {
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
-                    startPosMovObjs.at<unsigned char>(y, x) = (unsigned char) (rand() % 2);
+            for (int y = 0; y < 3; y++) {
+                for (int x = 0; x < 3; x++) {
+                    startPosMovObjs.at<unsigned char>(y, x) = (unsigned char) (rand2() % 2);
                 }
             }
         }
@@ -5399,8 +5399,8 @@ void genStereoSequ::getNrSizePosMovObj() {
 
     //Calculate the minimal usable image area
     int imgArea = imgSize.area();
-    for (size_t j = 0; j < stereoImgsOverlapMask.size(); ++j) {
-        int overlapArea = cv::countNonZero(stereoImgsOverlapMask[j]);
+    for (auto& j : stereoImgsOverlapMask) {
+        int overlapArea = cv::countNonZero(j);
         if(overlapArea < imgArea){
             imgArea = overlapArea;
         }
@@ -5452,7 +5452,7 @@ void genStereoSequ::getNrSizePosMovObj() {
                 if (startPosMovObjs.at<unsigned char>(y, x) &&
                     (maxOPerReg > (int) nrPerReg.at<unsigned char>(y, x)) &&
                         (fracUseableTPperRegion[0].at<double>(y,x) > actFracUseableTPperRegionTH)) {
-                    int addit = rand() % 2;
+                    int addit = (int)(rand2() % 2);
                     if (addit) {
                         nrPerReg.at<unsigned char>(y, x)++;
                         nrMovObjs_tmp--;
@@ -5495,7 +5495,7 @@ void genStereoSequ::getNrSizePosMovObj() {
                     continue;
                 }
                 rand_gen = std::default_random_engine(
-                        (unsigned int) std::rand());//Prevent getting the same starting positions for equal ranges
+                        rand2());//Prevent getting the same starting positions for equal ranges
                 std::uniform_int_distribution<int> distributionX(validRects[y][x].second.x,
                                                                  validRects[y][x].second.x + validRects[y][x].second.width - 1);
                 std::uniform_int_distribution<int> distributionY(validRects[y][x].second.y,
@@ -5613,11 +5613,11 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
     sort(yposes.begin(), yposes.end());
 
     Rect validRect = regROIs[y][x];
-    if(validRects != NULL){
-        if(!validRects->at(y)[x].first){
+    if(validRects != nullptr){
+        if(!validRects->at((size_t)y)[x].first){
             throw SequenceException("Area is not valid. Cannot build a valid distribution.");
         }
-        validRect = validRects->at(y)[x].second;
+        validRect = validRects->at((size_t)y)[x].second;
     }
 
     //Get possible selection ranges for x-values
