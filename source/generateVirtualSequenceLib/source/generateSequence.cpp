@@ -2705,7 +2705,7 @@ void genStereoSequ::genDepthMaps() {
                     actPosSeedsNear[y][x][i].y = iy;
                     depthAreaMap.at<unsigned char>(iy, ix) = 1;
                     actUsedAreaNear.at<unsigned char>(iy, ix) = 1;
-                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char) (y * 3 + x);
+                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char) (y * 3 + x + 1);
                     actAreaNear[y][x]++;
                 }
             }
@@ -2719,7 +2719,7 @@ void genStereoSequ::genDepthMaps() {
                     actPosSeedsMid[y][x][i].y = iy;
                     depthAreaMap.at<unsigned char>(iy, ix) = 2;
                     actUsedAreaMid.at<unsigned char>(iy, ix) = 1;
-                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char) (y * 3 + x);
+                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char) (y * 3 + x + 1);
                     actAreaMid[y][x]++;
                 }
             }
@@ -2733,7 +2733,7 @@ void genStereoSequ::genDepthMaps() {
                     actPosSeedsFar[y][x][i].y = iy;
                     depthAreaMap.at<unsigned char>(iy, ix) = 3;
                     actUsedAreaFar.at<unsigned char>(iy, ix) = 1;
-                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char) (y * 3 + x);
+                    neighborRegMask.at<unsigned char>(iy, ix) = (unsigned char) (y * 3 + x + 1);
                     actAreaFar[y][x]++;
                 }
             }
@@ -2783,7 +2783,7 @@ void genStereoSequ::genDepthMaps() {
                                                                                 nrIterPerSeedNear[y][x][i],
                                                                                 dilateOpNear[y][x],
                                                                                 neighborRegMask,
-                                                                                (unsigned char) (y * 3 + x));
+                                                                                (unsigned char) (y * 3 + x + 1));
 
                                         /*Mat afterAdding =  actUsedAreaNear(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
                                         int realAreaBeforeDil = cv::countNonZero(afterAdding);
@@ -2851,7 +2851,7 @@ void genStereoSequ::genDepthMaps() {
                                                                                 nrIterPerSeedMid[y][x][i],
                                                                                 dilateOpMid[y][x],
                                                                                 neighborRegMask,
-                                                                                (unsigned char) (y * 3 + x));
+                                                                                (unsigned char) (y * 3 + x + 1));
 
                                         /*Mat afterAdding =  actUsedAreaMid(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
                                         int realAreaBeforeDil = cv::countNonZero(afterAdding);
@@ -2919,7 +2919,7 @@ void genStereoSequ::genDepthMaps() {
                                                                                 nrIterPerSeedFar[y][x][i],
                                                                                 dilateOpFar[y][x],
                                                                                 neighborRegMask,
-                                                                                (unsigned char) (y * 3 + x));
+                                                                                (unsigned char) (y * 3 + x + 1));
 
                                         /*Mat afterAdding =  actUsedAreaFar(regmasksROIs[y][x]) & (neighborRegMask(regmasksROIs[y][x]) == (unsigned char) (y * 3 + x));
                                         int realAreaBeforeDil = cv::countNonZero(afterAdding);
@@ -3977,7 +3977,12 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
     //get possible directions for expanding (max. 8 possibilities) by checking the masks
     vector<int32_t> directions;
     if ((nrAdds <= max_iter) && !usedDilate && ((nrAdds % midDilateCnt != 0) || (nrAdds < midDilateCnt))) {
-        directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true);
+        if (!neighborRegMask_.empty()) {
+            directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true, neighborRegMask, regIdx);
+        }
+        else{
+            directions = getPossibleDirections(startpos, mask, regMask, imgD, siM1, imgSD, true);
+        }
     }
 
     if (directions.empty() || (nrAdds > max_iter) || usedDilate || ((nrAdds % midDilateCnt == 0) && (nrAdds >=
@@ -4014,8 +4019,9 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             strElmSi += 2;
             Mat imgSDdilate;
             Mat neighborRegMaskROI;
+            Mat newImgSDROI;
             if (!neighborRegMask_.empty()) {
-                Mat newImgSDROI = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
+                newImgSDROI = imgSD(vROI) & (neighborRegMask_(vROI) == regIdx);
 
                 dilate(newImgSDROI, imgSDdilate, element);
 
@@ -4031,7 +4037,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
                 imshow("specific objLabels without neighbors dilated and mask", (imgSDdilate > 0));*/
 
                 siAfterDil = (int32_t) cv::countNonZero(imgSDdilate);
-                imgSDdilate |= imgSD(vROI);
+//                imgSDdilate |= imgSD(vROI);//Removed later on
 
                 /*namedWindow("specific objLabels with neighbors dilated and mask", WINDOW_AUTOSIZE);
                 imshow("specific objLabels with neighbors dilated and mask", (imgSDdilate > 0));
@@ -4077,7 +4083,11 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             if (siAfterDil >= maxAreaReg) {
                 if (siAfterDil > maxAreaReg) {
                     int32_t diff = siAfterDil - maxAreaReg;
-                    imgSDdilate ^= imgSD(vROI);
+                    if (!neighborRegMask_.empty()) {
+                        imgSDdilate ^= newImgSDROI;
+                    }else{
+                        imgSDdilate ^= imgSD(vROI);
+                    }
                     removeNrFilledPixels(element.size(), vROI.size(), imgSDdilate, diff);
                 }
                 if (!neighborRegMask_.empty()) {
@@ -4095,6 +4105,7 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
             } else if ((siAfterDil - addArea) > 0) {
                 if (!neighborRegMask_.empty()) {
                     neighborRegMask_(vROI) |= neighborRegMaskROI;
+                    imgSDdilate |= imgSD(vROI);
                 }
                 imgSDdilate.copyTo(imgSD(vROI));
                 imgD(vROI) &= (imgSDdilate == 0);
@@ -4141,7 +4152,12 @@ bool genStereoSequ::addAdditionalDepth(unsigned char pixVal,
         }
         //Add additional pixels in the local neighbourhood (other possible directions) of the actual added pixel
         //and prevent adding new pixels in similar directions compared to the added one
-        vector<int32_t> extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1, imgSD, false);
+        vector<int32_t> extension;
+        if (!neighborRegMask_.empty()) {
+            extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1, imgSD, false, neighborRegMask, regIdx);
+        }else{
+            extension = getPossibleDirections(endpos, mask, regMask, imgD, siM1, imgSD, false);
+        }
         if (extension.size() >
             1)//Check if we can add addition pixels without blocking the way for the next iteration
         {
@@ -4202,7 +4218,9 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos,
                                      const cv::Mat &imgD,
                                      const cv::Size &siM1,
                                      const cv::Mat &imgSD,
-                                    bool escArea) {
+                                     bool escArea,
+                                     cv::InputArray neighborRegMask,
+                                     unsigned char regIdx) {
     static int maxFixDirChange = 8;
     int fixDirChange = 0;
     Mat directions;
@@ -4212,6 +4230,10 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos,
     int32_t fixedDir = 0;
     bool dirFixed = false;
     bool inOwnArea = false;
+    Mat neighborRegMaskLoc;
+    if (!neighborRegMask.empty()) {
+        neighborRegMaskLoc = neighborRegMask.getMat();
+    }
     do {
         directions = Mat::ones(3, 3, CV_8UC1);
         directions.at<unsigned char>(1,1) = 0;
@@ -4270,10 +4292,27 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos,
 
 
         directions.copyTo(directions_dist);
-        directions(dry, drx) &= (imgD(iry, irx) == 0) & (mask(iry, irx) == 0) & (regMask(iry, irx) > 0);
+        if(neighborRegMaskLoc.empty()) {
+            directions(dry, drx) &= (imgD(iry, irx) == 0) & (mask(iry, irx) == 0) & (regMask(iry, irx) > 0);
+        }
+        else{
+            directions(dry, drx) &= (imgD(iry, irx) == 0) &
+                    (mask(iry, irx) == 0) &
+                    (regMask(iry, irx) > 0) &
+                    (neighborRegMaskLoc(iry, irx) == 0);
+        }
         if ((sum(directions)[0] == 0) && escArea) {
-            directions_dist(dry, drx) &=
-                    ((imgD(iry, irx) == 0) | imgSD(iry, irx)) & (mask(iry, irx) == 0) & (regMask(iry, irx) > 0);
+            if(neighborRegMaskLoc.empty()) {
+                directions_dist(dry, drx) &=
+                        ((imgD(iry, irx) == 0) | imgSD(iry, irx)) & (mask(iry, irx) == 0) & (regMask(iry, irx) > 0);
+            }
+            else{
+                directions_dist(dry, drx) &=
+                        ((imgD(iry, irx) == 0) | imgSD(iry, irx)) &
+                        (mask(iry, irx) == 0) &
+                        (regMask(iry, irx) > 0) &
+                                ((neighborRegMaskLoc(iry, irx) == 0) | (neighborRegMaskLoc(iry, irx) == regIdx));
+            }
             if (sum(directions_dist)[0] != 0) {
                 if (!dirFixed) {
                     directions_dist.copyTo(directions);

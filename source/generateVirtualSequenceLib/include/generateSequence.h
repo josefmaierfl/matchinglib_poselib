@@ -309,7 +309,9 @@ private:
                                                const cv::Mat &imgD,
                                                const cv::Size &siM1,
                                                const cv::Mat &imgSD,
-	        bool escArea = true);
+											   bool escArea = true,
+											   cv::InputArray neighborRegMask = cv::noArray(),
+											   unsigned char regIdx = 0);
     void nextPosition(cv::Point_<int32_t> &position, int32_t direction);
 	void getRandDepthFuncPars(std::vector<std::vector<double>> &pars1, size_t n_pars);
 	void getDepthVals(cv::OutputArray dout, const cv::Mat &din, double dmin, double dmax, std::vector<cv::Point3_<int32_t>> &initSeedInArea);
