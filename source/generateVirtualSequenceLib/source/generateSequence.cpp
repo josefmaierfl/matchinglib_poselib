@@ -1694,13 +1694,13 @@ void genStereoSequ::backProject3D() {
 
     std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
     size_t idx1 = 0;
-    for (auto &pt : actImgPointCloudFromLast) {
+    for (const auto &pt : actImgPointCloudFromLast) {
         if ((pt.z < actDepthNear) ||
             (pt.z > dimgWH.maxDist)) {
             continue;
         }
 
-        Mat X = Mat(pt, true).reshape(1, 3);
+        Mat X = Mat(pt, false).reshape(1, 3);
         Mat x1 = K1 * X;
         if(nearZero(x1.at<double>(2))) continue;
         x1 /= x1.at<double>(2);
@@ -4260,8 +4260,8 @@ genStereoSequ::getPossibleDirections(cv::Point_<int32_t> &startpos,
         if (atBorderX) {
             const unsigned char atBorderXn = ~atBorderX;
             const unsigned char v1 = (atBorderXn &
-                                      0x1);//results in 0x0 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
-            const unsigned char v2 = (atBorderXn & 0x2) + ((atBorderX & 0x2)
+                    (unsigned char)0x1);//results in 0x0 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
+            const unsigned char v2 = (atBorderXn & (unsigned char)0x2) + ((atBorderX & (unsigned char)0x2)
                     >> 1);//results in 0x2 (for atBorderX=0x1) or 0x1 (for atBorderX=0x2)
             irx = Range(startpos.x - (int32_t) v1, startpos.x + (int32_t) v2);
             drx = Range((int32_t) (~v1 & 0x1), 1 + (int32_t) v2);
@@ -4620,9 +4620,9 @@ void genStereoSequ::getKeypoints() {
             p3DTPnewRNear.reserve((size_t)nrNear);
             p3DTPnewRMid.reserve((size_t)nrNear);
             p3DTPnewRFar.reserve((size_t)nrFar);
-            x1TN[y][x].reserve(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
-            x2TN[y][x].reserve(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
-            x2TNdistCorr[y][x].reserve(nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
+            x1TN[y][x].reserve((size_t)nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
+            x2TN[y][x].reserve((size_t)nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
+            x2TNdistCorr[y][x].reserve((size_t)nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
 
             //Ckeck for backprojected correspondences
             nrNear -= (int32_t) seedsNearFromLast[y][x].size();
@@ -5050,14 +5050,14 @@ void genStereoSequ::getKeypoints() {
             nrTNCorrs += nrTNperR[y][x];
         }
     }
-    actCorrsImg1TP = Mat::ones(3, nrTPCorrs, CV_64FC1);
-    actCorrsImg2TP = Mat::ones(3, nrTPCorrs, CV_64FC1);
-    actCorrsImg1TN = Mat::ones(3, nrTNCorrs, CV_64FC1);
-    actCorrsImg2TN = Mat::ones(3, nrTNCorrs, CV_64FC1);
+    actCorrsImg1TP = Mat::ones(3, (int)nrTPCorrs, CV_64FC1);
+    actCorrsImg2TP = Mat::ones(3, (int)nrTPCorrs, CV_64FC1);
+    actCorrsImg1TN = Mat::ones(3, (int)nrTNCorrs, CV_64FC1);
+    actCorrsImg2TN = Mat::ones(3, (int)nrTNCorrs, CV_64FC1);
 
-    size_t cnt = 0, cnt2 = 0;
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    int cnt = 0, cnt2 = 0;
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             if (!p3DTPnew[y][x].empty()) {
                 //std::copy(p3DTPnew[y][x].begin(), p3DTPnew[y][x].end(), actImgPointCloud.end());
                 actImgPointCloud.insert(actImgPointCloud.end(), p3DTPnew[y][x].begin(), p3DTPnew[y][x].end());
@@ -5711,7 +5711,7 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
             for (int i = 1; i < xposesAndEnds.size(); ++i) {
                 xIntervalDiffs[i-1] = xposesAndEnds[i] - xposesAndEnds[i - 1];
             }
-            int maxdiff = std::distance(xIntervalDiffs.begin(),
+            int maxdiff = (int)std::distance(xIntervalDiffs.begin(),
                                         std::max_element(xIntervalDiffs.begin(), xIntervalDiffs.end()));
             int thisDist = xposesAndEnds[maxdiff + 1] - xposesAndEnds[maxdiff];
             if(thisDist >= minODist) {
@@ -5801,7 +5801,7 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
             for (int i = 1; i < yposesAndEnds.size(); ++i) {
                 yIntervalDiffs[i-1] = yposesAndEnds[i] - yposesAndEnds[i - 1];
             }
-            int maxdiff = std::distance(yIntervalDiffs.begin(),
+            int maxdiff = (int)std::distance(yIntervalDiffs.begin(),
                                         std::max_element(yIntervalDiffs.begin(), yIntervalDiffs.end()));
             int thisDist = yposesAndEnds[maxdiff + 1] - yposesAndEnds[maxdiff];
             if(thisDist >= minODist) {
@@ -5850,14 +5850,14 @@ void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
 
     vector<int> nr_reduce(nr_bp_movObj);
     int sumRem = 0;
-    for (int i = 0; i < nr_bp_movObj; ++i) {
+    for (size_t i = 0; i < nr_bp_movObj; ++i) {
         nr_reduce[i] = (int)round((double)remSize *
                                   (double)(movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols) /
                                   (double)actCorrsOnMovObjFromLast);
         sumRem += nr_reduce[i];
     }
     while(sumRem < remSize){
-        for (int i = 0; i < nr_bp_movObj; ++i){
+        for (size_t i = 0; i < nr_bp_movObj; ++i){
             if((movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols - nr_reduce[i]) > 2){
                 nr_reduce[i]++;
                 sumRem++;
@@ -5866,7 +5866,7 @@ void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
         }
     }
     while(sumRem > remSize){
-        for (int i = 0; i < nr_bp_movObj; ++i){
+        for (size_t i = 0; i < nr_bp_movObj; ++i){
             if(nr_reduce[i] > 0){
                 nr_reduce[i]--;
                 sumRem--;
@@ -5879,7 +5879,7 @@ void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
 
     //Calculate number of TP and TN to remove for every moving object
     vector<pair<int,int>> nr_reduceTPTN(nr_bp_movObj);
-    for (int i = 0; i < nr_bp_movObj; ++i){
+    for (size_t i = 0; i < nr_bp_movObj; ++i){
         if(nr_reduce[i] > 0){
             CV_Assert((movObjCorrsImg1TPFromLast[i].cols + movObjCorrsImg1TNFromLast[i].cols) > 0);
             double inlrat_tmp = (double)movObjCorrsImg1TPFromLast[i].cols /
@@ -5896,7 +5896,7 @@ void genStereoSequ::adaptNrBPMovObjCorrs(int32_t remSize){
 
     //Remove the correspondences
     cv::Size masi = Size(csurr.cols, csurr.rows);
-    for (int i = 0; i < nr_bp_movObj; ++i){
+    for (size_t i = 0; i < nr_bp_movObj; ++i){
         if(nr_reduce[i] > 0){
             //Delete TP
             int rd_tmp = 0;
@@ -6094,7 +6094,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         if (verbose & SHOW_BUILD_PROC_MOV_OBJ) {
             if (visualizeMask % 200 == 0) {
                 Mat colorMapImg;
-                unsigned char clmul = 255 / nr_movObj;
+                unsigned char clmul = (unsigned char)255 / (unsigned char)nr_movObj;
                 // Apply the colormap:
                 applyColorMap(combMovObjLabels * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
                 namedWindow("combined ObjLabels", WINDOW_AUTOSIZE);
@@ -6110,11 +6110,11 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     //Finally visualize the labels
     if ((nr_movObj > 0) && (verbose & (SHOW_BUILD_PROC_MOV_OBJ | SHOW_MOV_OBJ_3D_PTS))) {
         //Generate colormap for moving obejcts (every object has a different color)
-        Mat colors = Mat(nr_movObj, 1, CV_8UC1);
-        unsigned char addc = nr_movObj > 255 ? 255 : (unsigned char) nr_movObj;
-        addc = addc < 2 ? 255 : (255 / (addc - 1));
+        Mat colors = Mat((int)nr_movObj, 1, CV_8UC1);
+        unsigned char addc = nr_movObj > 255 ? (unsigned char)255 : (unsigned char) nr_movObj;
+        addc = addc < (unsigned char)2 ? (unsigned char)255 : ((unsigned char)255 / (addc - (unsigned char)1));
         colors.at<unsigned char>(0) = 0;
-        for (size_t k = 1; k < nr_movObj; ++k) {
+        for (int k = 1; k < (int)nr_movObj; ++k) {
             colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
         }
         Mat colormap_img;
@@ -6157,7 +6157,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             }
             if (dilTries >= 5) {
                 vector<vector<Point> > contours_new(1);
-                for (vector<vector<Point> >::reverse_iterator cit = contours.rbegin();
+                for (auto cit = contours.rbegin();
                      cit != contours.rend(); cit++) {
                     contours_new[0].insert(contours_new[0].end(), cit->begin(), cit->end());
                 }
@@ -6178,8 +6178,8 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
     if ((nr_movObj == 0) && (actCorrsOnMovObj > 0)) {
         oldMovObjAreaImgRat = (double) cv::countNonZero(mask) / (double) imgSize.area();
     }
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             movObjOverlap[y][x] = (double) (cv::countNonZero(combMovObjLabels(regROIs[y][x])) +
                                             cv::countNonZero(mask(regROIs[y][x]))) /
                                   (double) (regROIs[y][x].area());
@@ -6290,7 +6290,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
 
     //Check the number of overall correspondences
     if(verbose & PRINT_WARNING_MESSAGES){
-        int nrCorrs1 = sum(nrCorrsRegs[actFrameCnt])[0] + actCorrsOnMovObj;
+        int nrCorrs1 = (int)sum(nrCorrsRegs[actFrameCnt])[0] + (int)actCorrsOnMovObj;
         if(nrCorrs1 != (int)nrCorrs[actFrameCnt]){
             cout << "Total number of correspondencs differs after partitioning them between moving and static objects by " <<
             nrCorrs1 - (int)nrCorrs[actFrameCnt] << endl;
@@ -6328,9 +6328,9 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                  });
             int32_t sumTP = 0, sumTN = 0;
             for (size_t i = 0; i < nr_movObj - 1; i++) {
-                int32_t actTP = (int32_t) round(
+                auto actTP = (int32_t) round(
                         (double) actTruePosOnMovObj * (double) actAreaIdx[i].second / (double) areassum);
-                int32_t actTN = (int32_t) round(
+                auto actTN = (int32_t) round(
                         (double) actTrueNegOnMovObj * (double) actAreaIdx[i].second / (double) areassum);
                 actTPPerMovObj[actAreaIdx[i].first] = actTP;
                 actTNPerMovObj[actAreaIdx[i].first] = actTN;
@@ -6342,7 +6342,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             bool isValid = true;
             if (restTP <= 0) {
                 int idx = 0;
-                while ((restTP <= 0) && (idx < nr_movObj - 1)) {
+                while ((restTP <= 0) && (idx < (int)nr_movObj - 1)) {
                     if (actTPPerMovObj[actAreaIdx[idx].first] > 1) {
                         actTPPerMovObj[actAreaIdx[idx].first]--;
                         restTP++;
@@ -6354,7 +6354,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                     seeds.erase(seeds.begin() + actAreaIdx[nr_movObj - 1].first);
                     areas.erase(areas.begin() + actAreaIdx[nr_movObj - 1].first);
                     combMovObjLabels = cv::Mat::zeros(imgSize, CV_8UC1);
-                    for (int j = 0; j < nr_movObj - 1; ++j) {
+                    for (int j = 0; j < (int)nr_movObj - 1; ++j) {
                         unsigned char pixVal;
                         if(actAreaIdx[nr_movObj - 1].first > actAreaIdx[j].first){
                             pixVal = (unsigned char) (actAreaIdx[j].first + convhullPtsObj.size() + 1);
@@ -6432,7 +6432,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                              });
                         sumTN = 0;
                         for (size_t i = 0; i < nr_movObj - 1; i++) {
-                            int32_t actTN = (int32_t) round(
+                            auto actTN = (int32_t) round(
                                     (double) actTrueNegOnMovObj * (double) actAreaIdx[i].second / (double) areassum);
                             actTNPerMovObj[actAreaIdx[i].first] = actTN;
                             sumTN += actTN;
@@ -6450,7 +6450,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 if (restTN < 0) {
                     actTNPerMovObj[actAreaIdx[nr_movObj - 1].first] = 0;
                     int idx = 0;
-                    while ((restTN < 0) && (idx < nr_movObj - 1)) {
+                    while ((restTN < 0) && (idx < (int)nr_movObj - 1)) {
                         if (actTNPerMovObj[actAreaIdx[idx].first] > 0) {
                             actTNPerMovObj[actAreaIdx[idx].first]--;
                             restTN++;
@@ -6543,8 +6543,8 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
         nrTrueNegRegs[actFrameCnt].release();
         TNdistr1.convertTo(nrTrueNegRegs[actFrameCnt], CV_32SC1, 1.0, 0.5);//Corresponds to round
         nrTrueNegRegs[actFrameCnt].copyTo(TNdistr1);
-        for (size_t y = 0; y < 3; y++) {
-            for (size_t x = 0; x < 3; x++) {
+        for (int y = 0; y < 3; y++) {
+            for (int x = 0; x < 3; x++) {
                 if (nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) > statCorrsPRegNew.at<int32_t>(y, x)) {
                     nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) = statCorrsPRegNew.at<int32_t>(y, x);
                     areaFull.at<bool>(y, x) = true;
@@ -6553,13 +6553,13 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
         }
     }
 
-    int32_t remStatrem = sum(TNdistr1)[0] - sum(nrTrueNegRegs[actFrameCnt])[0];
+    auto remStatrem = (int32_t)round(sum(TNdistr1)[0] - sum(nrTrueNegRegs[actFrameCnt])[0]);
     if(remStatrem > 0) {
         int32_t remStat = remStatrem;
-        for (size_t y = 0; y < 3; y++) {
-            for (size_t x = 0; x < 3; x++) {
+        for (int y = 0; y < 3; y++) {
+            for (int x = 0; x < 3; x++) {
                 if (!areaFull.at<bool>(y, x) && (remStatrem > 0)) {
-                    int32_t val = (int32_t) round(
+                    auto val = (int32_t) round(
                             TNdistr.at<double>(y, x) * (double) remStat);
                     int32_t newval = nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x) + val;
                     if (newval > statCorrsPRegNew.at<int32_t>(y, x)) {
@@ -6586,24 +6586,24 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
             }
         }
         if (remStatrem > 0) {
-            vector<pair<size_t, int32_t>> availableCorrs(9);
-            for (size_t y = 0; y < 3; y++) {
-                for (size_t x = 0; x < 3; x++) {
-                    const size_t idx = y * 3 + x;
+            vector<pair<int, int32_t>> availableCorrs(9);
+            for (int y = 0; y < 3; y++) {
+                for (int x = 0; x < 3; x++) {
+                    const int idx = y * 3 + x;
                     availableCorrs[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x) -
                             nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x));
                 }
             }
             sort(availableCorrs.begin(), availableCorrs.end(),
-                 [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+                 [](pair<int, int32_t> first, pair<int, int32_t> second) {
                      return first.second > second.second;
                  });
             int maxIt = remStatrem;
             while ((remStatrem > 0) && (maxIt > 0)) {
-                for (size_t i = 0; i < 9; i++) {
+                for (int i = 0; i < 9; i++) {
                     if (availableCorrs[i].second > 0) {
-                        size_t y = availableCorrs[i].first / 3;
-                        size_t x = availableCorrs[i].first - y * 3;
+                        int y = availableCorrs[i].first / 3;
+                        int x = availableCorrs[i].first - y * 3;
                         nrTrueNegRegs[actFrameCnt].at<int32_t>(y, x)++;
                         remStatrem--;
                         availableCorrs[i].second--;
@@ -6617,8 +6617,8 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
         }
     }
 
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             if(verbose & PRINT_WARNING_MESSAGES) {
                 if ((nrCorrsRegs[actFrameCnt].at<int32_t>(y, x) == 0) && (statCorrsPRegNew.at<int32_t>(y, x) != 0)) {
                     cout << "Distributed correspondences on areas that should not hold correspondences!" << endl;
@@ -6652,7 +6652,7 @@ void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
     }
 
     //Remove correspondences from backprojected moving objects if there are too many of them
-    int32_t maxNrOldMovCorrs = (int32_t) round(pars.CorrMovObjPort * (double) nrCorrs[actFrameCnt]);
+    auto maxNrOldMovCorrs = (int32_t) round(pars.CorrMovObjPort * (double) nrCorrs[actFrameCnt]);
     if(actCorrsOnMovObjFromLast > maxNrOldMovCorrs){
         int32_t remSize = actCorrsOnMovObjFromLast - maxNrOldMovCorrs;
         //Remove them based on the ratio of the number of correspondences
@@ -6667,8 +6667,8 @@ void genStereoSequ::adaptNrStaticCorrsBasedOnMovCorrs(const cv::Mat &mask){
     int32_t absNrCorrsFromStatic = 0;
     Mat statCorrsPRegNew = Mat::zeros(3, 3, CV_32SC1);
     double oldMovObjAreaImgRat = (double) cv::countNonZero(mask) / (double) imgSize.area();
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             movObjOverlap[y][x] = (double) (cv::countNonZero(mask(regROIs[y][x]))) /
                                   (double) (regROIs[y][x].area());
             CV_Assert(movObjOverlap[y][x] >= 0);
@@ -6750,7 +6750,7 @@ void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
                                     std::vector<std::vector<double>> movObjOverlap,
                                     cv::Mat &statCorrsPRegNew){
     CV_Assert(remMov >= 0);
-    int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+    int32_t actStatCorrs = (int32_t)nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
     CV_Assert(actStatCorrs >= 0);
     int32_t remMovrem = remMov;
     vector<vector<int32_t>> cmaxreg(3, vector<int32_t>(3, 0));
@@ -6766,8 +6766,8 @@ void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
                            actT,
                            combDepths,
                            movObjMask);
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             if (!movObjHasArea[y][x] && (remMovrem > 0)) {
                 int32_t val = movObjCorrsFromStaticInv[y][x];
                 if(actStatCorrs != 0) {
@@ -6815,22 +6815,22 @@ void genStereoSequ::distributeMovObjCorrsOnStatObj(int32_t remMov,
         }
     }
     if (remMovrem > 0) {
-        vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
-        for (size_t y = 0; y < 3; y++) {
-            for (size_t x = 0; x < 3; x++) {
-                const size_t idx = y * 3 + x;
+        vector<pair<int, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+        for (int y = 0; y < 3; y++) {
+            for (int x = 0; x < 3; x++) {
+                const int idx = y * 3 + x;
                 movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, cmaxreg[y][x]);
             }
         }
         sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
-             [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+             [](pair<int, int32_t> first, pair<int, int32_t> second) {
                  return first.second > second.second;
              });
         int maxIt = remMovrem;
         while ((remMovrem > 0) && (maxIt > 0)) {
-            for (size_t i = 0; i < 9; i++) {
-                size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
-                size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+            for (int i = 0; i < 9; i++) {
+                int y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+                int x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
                 if ((movObjCorrsFromStaticInv_tmp[i].second > 0) && (statCorrsPRegNew.at<int32_t>(y, x) > 0)) {
                     statCorrsPRegNew.at<int32_t>(y, x)++;
                     remMovrem--;
@@ -6850,15 +6850,15 @@ void genStereoSequ::distributeStatObjCorrsOnMovObj(int32_t remStat,
                                     std::vector<std::vector<int32_t>> movObjCorrsFromStaticInv,
                                     cv::Mat &statCorrsPRegNew){
     CV_Assert(remStat >= 0);
-    int32_t actStatCorrs = nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
+    int32_t actStatCorrs = (int32_t)nrCorrs[actFrameCnt] - absNrCorrsFromStatic;
     CV_Assert(actStatCorrs >= 0);
     if(actStatCorrs == 0)
         return;
     int32_t remStatrem = remStat;
-    for (size_t y = 0; y < 3; y++) {
-        for (size_t x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
             if (!movObjHasArea[y][x] && (remStatrem > 0)) {
-                int32_t val = (int32_t) round(
+                auto val = (int32_t) round(
                         (double) movObjCorrsFromStaticInv[y][x] / (double) actStatCorrs * (double) remStat);
                 int32_t newval = movObjCorrsFromStaticInv[y][x] - val;
                 if (newval > 0) {
@@ -6882,23 +6882,23 @@ void genStereoSequ::distributeStatObjCorrsOnMovObj(int32_t remStat,
         }
     }
     if (remStatrem > 0) {
-        vector<pair<size_t, int32_t>> movObjCorrsFromStaticInv_tmp(9);
-        for (size_t y = 0; y < 3; y++) {
-            for (size_t x = 0; x < 3; x++) {
-                const size_t idx = y * 3 + x;
+        vector<pair<int, int32_t>> movObjCorrsFromStaticInv_tmp(9);
+        for (int y = 0; y < 3; y++) {
+            for (int x = 0; x < 3; x++) {
+                const int idx = y * 3 + x;
                 movObjCorrsFromStaticInv_tmp[idx] = make_pair(idx, statCorrsPRegNew.at<int32_t>(y, x));
             }
         }
         sort(movObjCorrsFromStaticInv_tmp.begin(), movObjCorrsFromStaticInv_tmp.end(),
-             [](pair<size_t, int32_t> first, pair<size_t, int32_t> second) {
+             [](pair<int, int32_t> first, pair<int, int32_t> second) {
                  return first.second > second.second;
              });
         int maxIt = remStatrem;
         while ((remStatrem > 0) && (maxIt > 0)) {
-            for (size_t i = 0; i < 9; i++) {
+            for (int i = 0; i < 9; i++) {
                 if (movObjCorrsFromStaticInv_tmp[i].second > 0) {
-                    size_t y = movObjCorrsFromStaticInv_tmp[i].first / 3;
-                    size_t x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
+                    int y = movObjCorrsFromStaticInv_tmp[i].first / 3;
+                    int x = movObjCorrsFromStaticInv_tmp[i].first - y * 3;
                     statCorrsPRegNew.at<int32_t>(y, x)--;
                     remStatrem--;
                     movObjCorrsFromStaticInv_tmp[i].second--;
@@ -6917,7 +6917,7 @@ void genStereoSequ::genNewDepthMovObj() {
     if (pars.nrMovObjs == 0)
         return;
 
-    if(movObjLabels.size() == 0) {
+    if(movObjLabels.empty()) {
         movObjDepthClassNew.clear();
         return;
     }
@@ -6928,7 +6928,7 @@ void genStereoSequ::genNewDepthMovObj() {
     }
     if (pars.movObjDepth.size() == pars.nrMovObjs)//Take for every moving object its corresponding depth
     {
-        if ((movObjDepthClass.size() > 0) && (movObjDepthClass.size() < pars.nrMovObjs)) {
+        if (!movObjDepthClass.empty() && (movObjDepthClass.size() < pars.nrMovObjs)) {
             vector<bool> usedDepths(pars.movObjDepth.size(), false);
             for (size_t i = 0; i < pars.movObjDepth.size(); i++) {
                 for (size_t j = 0; j < movObjDepthClass.size(); j++) {
@@ -6948,7 +6948,7 @@ void genStereoSequ::genNewDepthMovObj() {
                     }
                 }
             }
-        } else if (movObjDepthClass.size() == 0) {
+        } else if (movObjDepthClass.empty()) {
             movObjDepthClassNew.clear();
             //copy(pars.movObjDepth.begin(), pars.movObjDepth.begin() + movObjLabels.size(), movObjDepthClassNew.begin());
             movObjDepthClassNew.insert(movObjDepthClassNew.end(), pars.movObjDepth.begin(),
@@ -6967,7 +6967,7 @@ void genStereoSequ::genNewDepthMovObj() {
         movObjDepthClassNew.clear();
         movObjDepthClassNew.resize(movObjLabels.size());
         for (size_t i = 0; i < movObjLabels.size(); i++) {
-            int rval = rand() % (int) pars.movObjDepth.size();
+            int rval = (int)(rand2() % pars.movObjDepth.size());
             movObjDepthClassNew[i] = pars.movObjDepth[rval];
         }
     } else//Use the given distribution of depth classes based on the number of given depth classes
@@ -6975,8 +6975,8 @@ void genStereoSequ::genNewDepthMovObj() {
         movObjDepthClassNew.clear();
         movObjDepthClassNew.resize(movObjLabels.size());
         std::array<double, 3> depthDist = {0, 0, 0};
-        for (size_t i = 0; i < pars.movObjDepth.size(); i++) {
-            switch (pars.movObjDepth[i]) {
+        for (auto& i : pars.movObjDepth) {
+            switch (i) {
                 case depthClass::NEAR:
                     depthDist[0]++;
                     break;
@@ -7039,9 +7039,9 @@ void genStereoSequ::genNewDepthMovObj() {
         double drange = dmax_tmp - dmin_tmp;
         double rXr = getRandDoubleValRng(1.5, 3.0);
         double rYr = getRandDoubleValRng(1.5, 3.0);
-        double h2 = (double) movObjLabelsROIs[i].height;
+        auto h2 = (double) movObjLabelsROIs[i].height;
         h2 *= h2;
-        double w2 = (double) movObjLabelsROIs[i].width;
+        auto w2 = (double) movObjLabelsROIs[i].width;
         w2 *= w2;
         double scale = sqrt(h2 + w2) / 2.0;
         double rXrSc = rXr / scale;
@@ -7139,7 +7139,7 @@ void genStereoSequ::getMovObjCorrs() {
     movObjCorrsImg2TN.resize(nr_movObj);
     movObj3DPtsCamNew.resize(nr_movObj);
     movObjDistTNtoRealNew.resize(nr_movObj);
-    for (size_t i = 0; i < nr_movObj; i++) {
+    for (int i = 0; i < (int)nr_movObj; i++) {
         std::uniform_int_distribution<int32_t> distributionX(movObjLabelsROIs[i].x,
                                                              movObjLabelsROIs[i].x + movObjLabelsROIs[i].width - 1);
         std::uniform_int_distribution<int32_t> distributionY(movObjLabelsROIs[i].y,
@@ -7180,7 +7180,7 @@ void genStereoSequ::getMovObjCorrs() {
             s_tmp += csurr;
             if (!isInl) {
                 if (nrTN > 0) {
-                    x1TN.push_back(Point2d((double) pt.x, (double) pt.y));
+                    x1TN.emplace_back(Point2d((double) pt.x, (double) pt.y));
                     nrTN--;
                 } else {
                     maxSelect3--;
@@ -7190,7 +7190,7 @@ void genStereoSequ::getMovObjCorrs() {
             }
             maxSelect3 = 50;
             nrTP--;
-            x1TP.push_back(Point2d((double) pt.x, (double) pt.y));
+            x1TP.emplace_back(Point2d((double) pt.x, (double) pt.y));
             x2TP.push_back(pt2);
             movObj3DPtsCamNew[i].push_back(pCam);
 
@@ -7237,7 +7237,7 @@ void genStereoSequ::getMovObjCorrs() {
                     }
                     //csurr.copyTo(s_tmp);
                     s_tmp.at<unsigned char>(posadd, posadd) = 1;
-                    x2TN.push_back(Point2d((double) pt.x, (double) pt.y));
+                    x2TN.emplace_back(Point2d((double) pt.x, (double) pt.y));
                     movObjDistTNtoRealNew[i].push_back(fakeDistTNCorrespondences);
                     break;
                 }
@@ -7346,7 +7346,7 @@ void genStereoSequ::getMovObjCorrs() {
         }
 
         //Adapt the number of TP and TN in the next objects based on the remaining number of TP and TN of the current object
-        adaptNRCorrespondences(nrTP, nrTN, corrsNotVisible, x1TP.size(), i, nr_movObj);
+        adaptNRCorrespondences(nrTP, nrTN, corrsNotVisible, x1TP.size(), i, (int32_t)nr_movObj);
 
         //Store correspondences
         if (!x1TP.empty()) {
@@ -7368,7 +7368,7 @@ void genStereoSequ::getMovObjCorrs() {
 
     //Check number of TP and TN per moving object and the overall inlier ratio
     if(verbose & PRINT_WARNING_MESSAGES) {
-        size_t nrCorrsMO = 0, nrTPMO = 0, nrTNMO = 0;
+        int nrCorrsMO = 0, nrTPMO = 0, nrTNMO = 0;
         vector<int> nrTPperMO(nr_movObj, 0), nrTNperMO(nr_movObj, 0);
         for (size_t k = 0; k < nr_movObj; ++k) {
             nrTPperMO[k] = movObjCorrsImg1TP[k].cols;
@@ -7420,7 +7420,7 @@ void genStereoSequ::getMovObjCorrs() {
     }
 
     //Remove empty moving object point clouds
-    for (vector<vector<Point3d>>::reverse_iterator itr = movObj3DPtsCamNew.rbegin();
+    for (auto itr = movObj3DPtsCamNew.rbegin();
          itr != movObj3DPtsCamNew.rend(); itr++) {
         if (itr->empty()) {
             movObj3DPtsCamNew.erase(std::next(itr).base());
@@ -7466,7 +7466,7 @@ void genStereoSequ::backProjectMovObj() {
         double width;
         double height;
         double maxDist;
-    } dimgWH;
+    } dimgWH = {0, 0, 0};
     dimgWH.width = (double) (imgSize.width - 1);
     dimgWH.height = (double) (imgSize.height - 1);
     dimgWH.maxDist = maxFarDistMultiplier * actDepthFar;
@@ -7483,7 +7483,7 @@ void genStereoSequ::backProjectMovObj() {
         movObjMaskFromLastLarge2[i] = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
         size_t oor = 0;
         size_t i2 = 0;
-        for (auto pt : movObj3DPtsCam[i]) {
+        for (const auto& pt : movObj3DPtsCam[i]) {
             i2++;
             if ((pt.z < actDepthNear) ||
                 (pt.z > dimgWH.maxDist)) {
@@ -7491,7 +7491,7 @@ void genStereoSequ::backProjectMovObj() {
                 continue;
             }
 
-            Mat X = Mat(pt).reshape(1, 3);
+            Mat X = Mat(pt, false).reshape(1, 3);
             Mat x1 = K1 * X;
             if(nearZero(x1.at<double>(2))){
                 oor++;
@@ -7671,7 +7671,7 @@ void genStereoSequ::backProjectMovObj() {
 
     //Remove TN if we have too much of them based on the used inlier ratio
     for (size_t i = 0; i < actNrMovObj; ++i) {
-        int32_t maxTNthisMO =
+        auto maxTNthisMO =
                 (int) round((double) movObjCorrsImg1TPFromLast[i].cols * (1.0 / inlRat[actFrameCnt] - 1.0));
         //Remove TN in the first image
         if(maxTNthisMO < movObjCorrsImg1TNFromLast[i].cols){
@@ -7843,19 +7843,19 @@ void genStereoSequ::backProjectMovObj() {
         if (!movObjCorrsImg1TNFromLast[i].empty() && !movObjCorrsImg2TNFromLast[i].empty()) {
             if (movObjCorrsImg1TNFromLast[i].cols > movObjCorrsImg2TNFromLast[i].cols) {
                 missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols - movObjCorrsImg2TNFromLast[i].cols;
-                movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
+                movObjDistTNtoReal[i] = vector<double>((size_t)movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
             } else if (movObjCorrsImg1TNFromLast[i].cols < movObjCorrsImg2TNFromLast[i].cols) {
                 missingCImg1[i] = movObjCorrsImg2TNFromLast[i].cols - movObjCorrsImg1TNFromLast[i].cols;
-                movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg2TNFromLast[i].cols, fakeDistTNCorrespondences);
+                movObjDistTNtoReal[i] = vector<double>((size_t)movObjCorrsImg2TNFromLast[i].cols, fakeDistTNCorrespondences);
             } else {
-                movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
+                movObjDistTNtoReal[i] = vector<double>((size_t)movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
             }
         } else if (!movObjCorrsImg1TNFromLast[i].empty()) {
             missingCImg2[i] = movObjCorrsImg1TNFromLast[i].cols;
-            movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
+            movObjDistTNtoReal[i] = vector<double>((size_t)movObjCorrsImg1TNFromLast[i].cols, fakeDistTNCorrespondences);
         } else if (!movObjCorrsImg2TNFromLast[i].empty()) {
             missingCImg1[i] = movObjCorrsImg2TNFromLast[i].cols;
-            movObjDistTNtoReal[i] = vector<double>(movObjCorrsImg2TNFromLast[i].cols, fakeDistTNCorrespondences);
+            movObjDistTNtoReal[i] = vector<double>((size_t)movObjCorrsImg2TNFromLast[i].cols, fakeDistTNCorrespondences);
         }
     }
 
@@ -8108,7 +8108,7 @@ void genStereoSequ::backProjectMovObj() {
                 movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize)) |= movObjLabelsFromLastN(
                         Rect(Point(posadd, posadd), imgSize));
 
-                int32_t nelem = (int32_t) x1TN.size();
+                auto nelem = (int32_t) x1TN.size();
                 Mat elemnew = Mat::ones(nelem, 3, CV_64FC1);
                 Mat elemnew2 = Mat::ones(nelem, 3, CV_64FC1);
                 for (int32_t j = 0; j < nelem; j++) {
@@ -8178,11 +8178,11 @@ void genStereoSequ::backProjectMovObj() {
     //Finally visualize the labels
     if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
         //Generate colormap for moving obejcts (every object has a different color)
-        Mat colors = Mat(actNrMovObj, 1, CV_8UC1);
-        unsigned char addc = actNrMovObj > 255 ? 255 : (unsigned char) actNrMovObj;
-        addc = addc < 2 ? 255 : (255 / (addc - 1));
+        Mat colors = Mat((int)actNrMovObj, 1, CV_8UC1);
+        unsigned char addc = actNrMovObj > 255 ? (unsigned char)255 : (unsigned char) actNrMovObj;
+        addc = addc < (unsigned char)2 ? (unsigned char)255 : ((unsigned char)255 / (addc - (unsigned char)1));
         colors.at<unsigned char>(0) = 0;
-        for (size_t k = 1; k < actNrMovObj; ++k) {
+        for (int k = 1; k < (int)actNrMovObj; ++k) {
             colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
         }
         Mat colormap_img;
@@ -8234,19 +8234,21 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
         Point2f bigAreaCenter;
         vector<Point> bigAreaContour = contours[idx];
         cv::Moments bigAreaMoments = moments(bigAreaContour, true);
-        bigAreaCenter = Point2f(bigAreaMoments.m10 / bigAreaMoments.m00, bigAreaMoments.m01 / bigAreaMoments.m00);
+        bigAreaCenter = Point2f((float)(bigAreaMoments.m10 / bigAreaMoments.m00),
+                                (float)(bigAreaMoments.m01 / bigAreaMoments.m00));
         vector<pair<int, Point2f>> areaCenters;
         for (int i = 0; i < contSize; ++i) {
             if (i == idx) continue;
             cv::Moments areaMoment = moments(contours[i], true);
-            areaCenters.push_back(
-                    make_pair(i, Point2f(areaMoment.m10 / areaMoment.m00, areaMoment.m01 / areaMoment.m00)));
+            areaCenters.emplace_back(
+                    make_pair(i, Point2f((float)(areaMoment.m10 / areaMoment.m00),
+                                         (float)(areaMoment.m01 / areaMoment.m00))));
         }
         //Begin with the nearest element and combine every 2 nearest elements
         for (int i = 0; i < contSize - 1; ++i) {
             float minDist = FLT_MAX;
             pair<int, int> minDistIdx;
-            for (int j = 0; j < areaCenters.size(); ++j) {
+            for (int j = 0; j < (int)areaCenters.size(); ++j) {
                 Point2f ptdiff = bigAreaCenter - areaCenters[j].second;
                 float dist = sqrt(ptdiff.x * ptdiff.x + ptdiff.y * ptdiff.y);
                 if (dist < minDist) {
@@ -8267,7 +8269,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
             bool advIdx[2][2] = {{false, false},
                                  {false, false}};
             bool branchChk[4] = {false, false, false, false};
-            for (int k = 0; k < hullIdxs.size(); ++k) {
+            for (int k = 0; k < (int)hullIdxs.size(); ++k) {
                 if (hullIdxs[k] < maxBOSi) {
                     branchChk[0] = true;
                     if (branchChk[0] && branchChk[1]) {
@@ -8494,10 +8496,10 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                 } else {
                     bool selCont[4] = {false, false, false, false};
                     int equCnt[2] = {0, 0};
-                    for (int j = 0; j < (int) hullPts1.size(); ++j) {
-                        for (int k = 0; k < (int) bigAreaContourNew1.size(); ++k) {
-                            if ((abs(hullPts1[j].x - bigAreaContourNew1[k].x) +
-                                 abs(hullPts1[j].y - bigAreaContourNew1[k].y)) == 0) {
+                    for (auto& j : hullPts1) {
+                        for (auto& k : bigAreaContourNew1) {
+                            if ((abs(j.x - k.x) +
+                                 abs(j.y - k.y)) == 0) {
                                 equCnt[0]++;
                                 if (equCnt[0] > 2) {
                                     selCont[0] = true;
@@ -8506,9 +8508,9 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                             }
                         }
                         if (selCont[0]) break;
-                        for (int k = 0; k < (int) bigAreaContourNew12.size(); ++k) {
-                            if ((abs(hullPts1[j].x - bigAreaContourNew12[k].x) +
-                                 abs(hullPts1[j].y - bigAreaContourNew12[k].y)) == 0) {
+                        for (auto& k : bigAreaContourNew12) {
+                            if ((abs(j.x - k.x) +
+                                 abs(j.y - k.y)) == 0) {
                                 equCnt[1]++;
                                 if (equCnt[1] > 2) {
                                     selCont[1] = true;
@@ -8520,10 +8522,10 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                     }
                     equCnt[0] = 0;
                     equCnt[1] = 0;
-                    for (int j = 0; j < (int) hullPts2.size(); ++j) {
-                        for (int k = 0; k < (int) bigAreaContourNew2.size(); ++k) {
-                            if ((abs(hullPts2[j].x - bigAreaContourNew2[k].x) +
-                                 abs(hullPts2[j].y - bigAreaContourNew2[k].y)) == 0) {
+                    for (auto& j : hullPts2) {
+                        for (auto& k : bigAreaContourNew2) {
+                            if ((abs(j.x - k.x) +
+                                 abs(j.y - k.y)) == 0) {
                                 equCnt[0]++;
                                 if (equCnt[0] > 2) {
                                     selCont[2] = true;
@@ -8532,9 +8534,9 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
                             }
                         }
                         if (selCont[2]) break;
-                        for (int k = 0; k < (int) bigAreaContourNew22.size(); ++k) {
-                            if ((abs(hullPts2[j].x - bigAreaContourNew22[k].x) +
-                                 abs(hullPts2[j].y - bigAreaContourNew22[k].y)) == 0) {
+                        for (auto& k : bigAreaContourNew22) {
+                            if ((abs(j.x - k.x) +
+                                 abs(j.y - k.y)) == 0) {
                                 equCnt[1]++;
                                 if (equCnt[1] > 2) {
                                     selCont[3] = true;
@@ -8565,8 +8567,8 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
 
                 //Calculate the new center of the big area
                 bigAreaMoments = moments(bigAreaContour, true);
-                bigAreaCenter = Point2f(bigAreaMoments.m10 / bigAreaMoments.m00,
-                                        bigAreaMoments.m01 / bigAreaMoments.m00);
+                bigAreaCenter = Point2f((float)(bigAreaMoments.m10 / bigAreaMoments.m00),
+                                        (float)(bigAreaMoments.m01 / bigAreaMoments.m00));
             }
 
             //Delete the used area center
@@ -8612,7 +8614,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
 void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
     std::vector<cv::Point>::iterator a1begin, a1end;
     idxEnd++;
-    if (idxEnd >= source.size()) {
+    if (idxEnd >= (int)source.size()) {
         a1end = source.end();
     } else {
         a1end = source.begin() + idxEnd;
@@ -8624,7 +8626,7 @@ void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Poin
 void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
     std::vector<cv::Point>::iterator a1begin, a1end;
     idxStart++;
-    if (idxStart >= source.size()) {
+    if (idxStart >= (int)source.size()) {
         a1end = source.end();
     } else {
         a1end = source.begin() + idxStart;
@@ -8640,7 +8642,7 @@ void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point>
         idxEnd++;
     }
     idxStart++;
-    if (idxStart >= source.size()) {
+    if (idxStart >= (int)source.size()) {
         a1end = source.end();
     } else {
         a1end = source.begin() + idxStart;
@@ -8832,7 +8834,7 @@ bool genStereoSequ::getSeedsAreasMovObj() {
         for (int y = 0; y < 3; y++) {
             for (int x = 0; x < 3; x++) {
                 if (nrPerRegMax.at<unsigned char>(y, x) > 0) {
-                    int addit = rand() % 2;
+                    int addit = (int)(rand2() % 2);
                     if (addit) {
                         nrPerReg.at<unsigned char>(y, x)++;
                         nrPerRegMax.at<unsigned char>(y, x)--;
@@ -8878,7 +8880,7 @@ bool genStereoSequ::getSeedsAreasMovObj() {
                     continue;
                 }
                 rand_gen = std::default_random_engine(
-                        (unsigned int) std::rand());//Prevent getting the same starting positions for equal ranges
+                        rand2());//Prevent getting the same starting positions for equal ranges
                 std::uniform_int_distribution<int> distributionX(validRects[y][x].second.x,
                                                                  validRects[y][x].second.x + validRects[y][x].second.width - 1);
                 std::uniform_int_distribution<int> distributionY(validRects[y][x].second.y,
@@ -9018,7 +9020,7 @@ void genStereoSequ::combineCorrespondences() {
         combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
     }
     comb3DPts.clear();
-    comb3DPts.reserve(combNrCorrsTP);
+    comb3DPts.reserve((size_t)combNrCorrsTP);
 
     //Copy all TP keypoints of first image
     int actColNr = 0;
@@ -9142,7 +9144,7 @@ void genStereoSequ::combineCorrespondences() {
 
     //Copy distances of TN locations to their real matching position
     combDistTNtoReal.clear();
-    combDistTNtoReal.reserve(combNrCorrsTN);
+    combDistTNtoReal.reserve((size_t)combNrCorrsTN);
     if (!distTNtoReal.empty()) {
         combDistTNtoReal.insert(combDistTNtoReal.end(), distTNtoReal.begin(), distTNtoReal.end());
     }
@@ -9399,7 +9401,7 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     getNColors(colormap_img, movObj3DPtsWorld.size(), COLORMAP_PARULA);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr basic_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
-    size_t idx = 0;
+    int idx = 0;
     for (auto &i : movObj3DPtsWorld) {
         for (auto &j : i) {
             pcl::PointXYZRGB point;
@@ -9426,10 +9428,10 @@ void genStereoSequ::visualizeMovObjPtCloud() {
 
 void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap) {
     Mat colors = Mat(nr_Colors, 1, CV_8UC1);
-    unsigned char addc = nr_Colors > 255 ? 255 : (unsigned char) nr_Colors;
-    addc = addc < 2 ? 255 : (255 / (addc - 1));
+    unsigned char addc = nr_Colors > 255 ? (unsigned char)255 : (unsigned char) nr_Colors;
+    addc = addc < (unsigned char)2 ? (unsigned char)255 : ((unsigned char)255 / (addc - (unsigned char)1));
     colors.at<unsigned char>(0) = 0;
-    for (size_t k = 1; k < nr_Colors; ++k) {
+    for (int k = 1; k < (int)nr_Colors; ++k) {
         colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
     }
     applyColorMap(colors, colorMat, colormap);
@@ -9512,7 +9514,7 @@ void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
     Mat colormap_img;
     getNColors(colormap_img, movObj3DPtsWorld.size(), COLORMAP_AUTUMN);
 
-    size_t idx = 0;
+    int idx = 0;
     for (auto &i : movObj3DPtsWorld) {
         for (auto &j : i) {
             pcl::PointXYZRGB point;
@@ -9567,9 +9569,9 @@ void genStereoSequ::visualizeMovObjMovement(std::vector<pcl::PointXYZ> &cloudCen
     colormap_img.convertTo(colormap_img, CV_64FC3);
     colormap_img /= 255.0;
 
-    for (size_t i = 0; i < cloudCentroids_old.size(); ++i) {
-        size_t i2 = 2 * i;
-        size_t i21 = i2 + 1;
+    for (int i = 0; i < (int)cloudCentroids_old.size(); ++i) {
+        int i2 = 2 * i;
+        int i21 = i2 + 1;
         viewer->addSphere(cloudCentroids_old[i],
                           (double) cloudExtensions[i],
                           colormap_img.at<cv::Vec3d>(i2)[2],
@@ -9696,9 +9698,9 @@ void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::Po
 void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
                        std::vector<pcl::PointXYZ> &cloudCentroids) {
     cloudCentroids.reserve(pointclouds.size());
-    for (size_t i = 0; i < pointclouds.size(); ++i) {
+    for (auto& i : pointclouds) {
         pcl::PointXYZ point;
-        getCloudCentroid(pointclouds[i], point);
+        getCloudCentroid(i, point);
         cloudCentroids.push_back(point);
     }
 }
@@ -9706,9 +9708,9 @@ void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
 void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds,
                        std::vector<pcl::PointXYZ> &cloudCentroids) {
     cloudCentroids.reserve(pointclouds.size());
-    for (size_t i = 0; i < pointclouds.size(); ++i) {
+    for (auto& i : pointclouds) {
         pcl::PointXYZ point;
-        getCloudCentroid(*pointclouds[i].get(), point);
+        getCloudCentroid(*i.get(), point);
         cloudCentroids.push_back(point);
     }
 }
@@ -9744,7 +9746,7 @@ void genStereoSequ::getMovObjPtsCam() {
     obj_transform.matrix().block<3, 3>(0, 0) = Re.cast<float>();
     obj_transform.matrix().block<3, 1>(0, 3) = te.cast<float>();
 
-    for (size_t i = 0; i < movObjSize; i++) {
+    for (int i = 0; i < (int)movObjSize; i++) {
         pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(movObj3DPtsWorld[i].makeShared());
         pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
         //Check if the moving object is visible in the camera
@@ -9798,7 +9800,7 @@ void genStereoSequ::getMovObjPtsCam() {
             vector<int> keyPDelList;
             Mat locMOmask = Mat::zeros(imgSize.height + sqrSi - 1, imgSize.width + sqrSi - 1, CV_8UC1);
             std::vector<cv::Point> keypointsMO(filteredOccludedCamPts[idx]->size());
-            for (int j = 0; j < filteredOccludedCamPts[idx]->size(); ++j) {
+            for (int j = 0; j < (int)filteredOccludedCamPts[idx]->size(); ++j) {
                 Mat pt = K1 * (Mat_<double>(3, 1) << (double) (*filteredOccludedCamPts[idx])[j].x,
                         (double) (*filteredOccludedCamPts[idx])[j].y,
                         (double) (*filteredOccludedCamPts[idx])[j].z);
@@ -9873,7 +9875,7 @@ void genStereoSequ::getMovObjPtsCam() {
                 {
                     throw SequenceException("Backprojected image coordinate of moving object is out of range.");
                 }*/
-                for (int j = 0; j < keypointsMO.size(); ++j) {
+                for (int j = 0; j < (int)keypointsMO.size(); ++j) {
                     if (overlaps.at<unsigned char>(keypointsMO[j]) == 0) {
                         movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
                                                                   (double) (*filteredOccludedCamPts[idx])[j].y,
@@ -9884,7 +9886,7 @@ void genStereoSequ::getMovObjPtsCam() {
                     delList.push_back(idx);
                 }
             } else {
-                for (int j = 0; j < filteredOccludedCamPts[idx]->size(); ++j) {
+                for (int j = 0; j < (int)filteredOccludedCamPts[idx]->size(); ++j) {
                     movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
                                                               (double) (*filteredOccludedCamPts[idx])[j].y,
                                                               (double) (*filteredOccludedCamPts[idx])[j].z));
@@ -9900,7 +9902,7 @@ void genStereoSequ::getMovObjPtsCam() {
             }
         }
     } else if (delList.empty()) {
-        for (int j = 0; j < filteredOccludedCamPts[0]->size(); ++j) {
+        for (int j = 0; j < (int)filteredOccludedCamPts[0]->size(); ++j) {
             movObj3DPtsCam[0].push_back(cv::Point3d((double) (*filteredOccludedCamPts[0])[j].x,
                                                     (double) (*filteredOccludedCamPts[0])[j].y,
                                                     (double) (*filteredOccludedCamPts[0])[j].z));
@@ -10057,15 +10059,15 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
 
     //Check for duplicates at the borders
     if (success1 && success2) {
-        vector<pair<int, int>> delList;
-        for (int i = 0; i < (int) cloudsNear.size(); ++i) {
-            for (int j = 0; j < (int) cloudsNear[i]->size(); ++j) {
-                for (int l = 0; l < (int) cloudsFar[i]->size(); ++l) {
+        vector<pair<size_t, size_t>> delList;
+        for (size_t i = 0; i < cloudsNear.size(); ++i) {
+            for (size_t j = 0; j < cloudsNear[i]->size(); ++j) {
+                for (size_t l = 0; l < cloudsFar[i]->size(); ++l) {
                     float dist = abs(cloudsNear[i]->at(j).x - cloudsFar[i]->at(l).x) +
                                  abs(cloudsNear[i]->at(j).y - cloudsFar[i]->at(l).y) +
                                  abs(cloudsNear[i]->at(j).z - cloudsFar[i]->at(l).z);
                     if (nearZero((double) dist)) {
-                        delList.push_back(make_pair(i, l));
+                        delList.emplace_back(make_pair(i, l));
                     }
                 }
             }
@@ -10080,7 +10082,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
     }
 
     //Filter near occluded 3D points with a smaller voxel size
-    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsNear(partsxy);
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsNear((size_t)partsxy);
     if (success1) {
         success1 = false;
         for (int i = 0; i < partsxy; i++) {
@@ -10102,7 +10104,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
     }
 
     //Filter far occluded 3D points with a bigger voxel size
-    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsFar(partsxy);
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsFar((size_t)partsxy);
     if (success2) {
         success2 = false;
         for (int i = 0; i < partsxy; i++) {
@@ -10127,8 +10129,8 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
     success1 = false;
     cloudOut = filteredOccludedPtsNear;
     for (int i = 0; i < partsxy; i++) {
-        if ((filteredOccludedPtsFar[i].get() != NULL) && !filteredOccludedPtsFar[i]->empty()) {
-            if (cloudOut[i].get() != NULL) {
+        if ((filteredOccludedPtsFar[i].get() != nullptr) && !filteredOccludedPtsFar[i]->empty()) {
+            if (cloudOut[i].get() != nullptr) {
                 cloudOut[i]->insert(cloudOut[i]->end(),
                                     filteredOccludedPtsFar[i]->begin(),
                                     filteredOccludedPtsFar[i]->end());
@@ -10156,7 +10158,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
         return false;
     }
 
-    cloudOut = vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>(fovDevideVertical * fovDevideHorizontal);
+    cloudOut = vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>((size_t)(fovDevideVertical * fovDevideHorizontal));
 //    int checkSizePtCld = 0;
     success = false;
     for (int y = 0; y < fovDevideVertical; ++y) {
@@ -10174,16 +10176,16 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
         }
     }
     //Remove duplicates
-    vector<pair<int, int>> delList;
-    for (int i = 0; i < (int) cloudOut.size(); ++i) {
-        for (int j = 0; j < (int) cloudOut[i]->size(); ++j) {
-            for (int k = i; k < (int) cloudOut.size(); ++k) {
-                for (int l = (k == i) ? (j + 1) : 0; l < (int) cloudOut[k]->size(); ++l) {
+    vector<pair<size_t, size_t>> delList;
+    for (size_t i = 0; i < cloudOut.size(); ++i) {
+        for (size_t j = 0; j < cloudOut[i]->size(); ++j) {
+            for (size_t k = i; k < cloudOut.size(); ++k) {
+                for (size_t l = (k == i) ? (j + 1) : 0; l < (int) cloudOut[k]->size(); ++l) {
                     float dist = abs(cloudOut[i]->at(j).x - cloudOut[k]->at(l).x) +
                                  abs(cloudOut[i]->at(j).y - cloudOut[k]->at(l).y) +
                                  abs(cloudOut[i]->at(j).z - cloudOut[k]->at(l).z);
                     if (nearZero((double) dist)) {
-                        delList.push_back(make_pair(i, j));
+                        delList.emplace_back(make_pair(i, j));
                     }
                 }
             }
@@ -10314,8 +10316,8 @@ bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr 
                 if(!nearZero(tmp)) {
                     //Adapt the minimum and maximum distance as the given distances which form 2 planes appear
                     // under a different angle compared to the original planes without slicing
-                    mimaDistance[0] = (mimaDistance[0] * cos(2 * resalpha)) / tmp;
-                    mimaDistance[1] = mimaDistance[1] / tmp;
+                    mimaDistance[0] = (float)(((double)mimaDistance[0] * cos(2.0 * resalpha)) / tmp);
+                    mimaDistance[1] = mimaDistance[1] / (float)tmp;
                 }
             }
         }
@@ -10410,7 +10412,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     int64_t dx = static_cast<int64_t>(d1 / leaf_size) + 1;
     int64_t dy = static_cast<int64_t>(d2 / leaf_size) + 1;
     int64_t dz = static_cast<int64_t>(d3 / leaf_size) + 1;
-    int64_t maxIdxSize = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+    auto maxIdxSize = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
     if ((dx * dy * dz) > maxIdxSize) {
         double kSi = (double) max(((csurr.rows - 1) / 2), 1);
         kSi = kSi > 3.0 ? 3.0 : kSi;
@@ -10433,7 +10435,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                 *cloudOut.get() = *cloudIn.get();
                 return true;
             } else {
-                leaf_size = lNew;
+                leaf_size = (float)lNew;
                 dx = static_cast<int64_t>(d1 / leaf_size) + 1;
                 dy = static_cast<int64_t>(d2 / leaf_size) + 1;
                 dz = static_cast<int64_t>(d3 / leaf_size) + 1;
@@ -10459,7 +10461,7 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     voxelFilter.initializeVoxelGrid();
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded_;//(new pcl::PointCloud<pcl::PointXYZ>);
-    if (cloudOccluded.get() != NULL) {
+    if (cloudOccluded.get() != nullptr) {
         cloudOccluded_ = cloudOccluded;
     } else {
         cloudOccluded_.reset(new pcl::PointCloud<pcl::PointXYZ>);
