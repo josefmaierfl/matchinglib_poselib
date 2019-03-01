@@ -34,7 +34,7 @@ a view restrictions like depth ranges, moving objects, ...
 
 //Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to the image plane
 //As filtering occluded points is very time-consuming it can be disabled
-#define FILTER_OCCLUDED_POINTS 0
+#define FILTER_OCCLUDED_POINTS 1
 
 struct GENERATEVIRTUALSEQUENCELIB_API depthPortion
 {

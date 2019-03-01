@@ -408,8 +408,8 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 	double roll_minmax_change[2] = { 0.7, 1.3 };
 	double pitch_minmax_change[2] = { 0.7, 1.3 };
 	double yaw_minmax_change[2] = { 0.7, 1.3 };
-	double txy_relmax = 0.25;// 0.7; //must be between 0 and 1
-	double tz_relxymax = 0.1;// 0.5; //should be between 0 and 1
+	double txy_relmax = 0.7;//0.25;// 0.7; //must be between 0 and 1
+	double tz_relxymax = 0.5;//0.1;// 0.5; //should be between 0 and 1
 	double hlp = std::max(tx_minmax_change[1] * txy_relmax, ty_minmax_change[1] * txy_relmax);
 	txy_relmax = hlp >= 1.0 ? (0.99 / std::max(tx_minmax_change[1], ty_minmax_change[1])) : txy_relmax;
 
@@ -420,7 +420,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		double tx_minmax[2] = { 0.1, 5.0 };
 		double ty_minmax[2] = { 0, 5.0 };
 
-		int nrCams = 2;// std::rand() % 10 + 1;//1 //Number of different stereo camera configurations (extrinsic) per test
+		int nrCams = std::rand() % 10 + 1;//1 //Number of different stereo camera configurations (extrinsic) per test
 
 		//Calculate, for which extrinsic (tx, ty, tz, roll, ...) its value or range should remain the same for all nrCams different stereo camera configuratuions
 		int roll_equRanges = (std::rand() % 2) & (std::rand() % 2);
@@ -433,7 +433,7 @@ void testStereoCamGeneration(int verbose, bool genSequence)
 		vector<double> txi_start, tyi_start, tzi_start, rolli_start, pitchi_start, yawi_start;
 		if (!testGenericAlignment)//If restrictions apply for the relative distances between cameras in x and y in a specific camera alignment (horizontal or vertical)
 		{
-			int align = 0;// rand() % 2;//0 //Choose either vertical or horizontal camera alignment
+			int align = rand() % 2;//0 //Choose either vertical or horizontal camera alignment
 			if (align)//Vertical camera alignment
 			{
 				initStarVal(rand_generator, ty_minmax, tyi_start);//Generate a random value or range (chosen ramdomly) between ranges for the distance in y
@@ -674,7 +674,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	double closedLoopMaxElevationAngleRange[2] = { 0, 3.14 / 16.0}; //Only for closed loop. Angle range for the z-component (y in the camera coordinate system) of the ellipsoide (must be in the range -pi/2 <= angle <= pi/2). For a fixed angle, it defines the ellipse on the ellipsoide with a fixed value of z (y in the camera coordinate system).
 	const bool enableFlightMode = false; //Only for closed loop. If enabled, the elevation angle teta of the ellipsoide is continuously changed within the range closedLoopMaxElevationAngleRange to get different height values (z-component of ellipsoide (y in the camera coordinate system)) along the track
 
-	size_t nFramesPerCamConf = 5;//Number of consecutive frames on a track with the same stereo configuration
+	size_t nFramesPerCamConf = 1 + (size_t)(rand() % 20);//5;//Number of consecutive frames on a track with the same stereo configuration
 
 	double minInlierRange[2] = { 0.1, 0.5 };//Range of the minimum inlier ratio
 	double maxInlierRange[2] = { 0.55, 1.0 };//Range of the maximum inlier ratio bounded by minInlierRange
@@ -684,7 +684,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 
 	double minKeypDistRange[2] = { 1.0, 10.0 };//Range of the minimum distance between keypoints
 
-	size_t MaxNrDepthAreasPReg = 30;//Maximum number of depth areas per image region
+	size_t MaxNrDepthAreasPReg = 50;//Maximum number of depth areas per image region
 
 	double relCamVelocityRange[2] = { 0.1, 5.0 };//Relative camera velocity compared to the basline length
 

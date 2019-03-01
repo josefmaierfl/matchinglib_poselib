@@ -5100,7 +5100,7 @@ void genStereoSequ::getKeypoints() {
         nrCorrsRGiven = (size_t) floor(sum(nrTruePosRegs[actFrameCnt])[0] + sum(nrTrueNegRegs[actFrameCnt])[0]);
         if (nrCorrsR != nrCorrsRGiven) {
             double chRate = (double) nrCorrsR / (double) nrCorrsRGiven;
-            if ((chRate < 0.95) || (chRate > 1.05)) {
+            if ((chRate < 0.90) || (chRate > 1.10)) {
                 cout << "Number of correspondences on static objects is " << 100.0 * (chRate - 1.0)
                      << "% different to given values!" << endl;
                 cout << "Actual #: " << nrCorrsR << " Given #: " << nrCorrsRGiven << endl;
@@ -5138,7 +5138,7 @@ void genStereoSequ::getKeypoints() {
             }
         }
         double inlRatDiffSR = (double) nrTPCorrsAll / ((double) nrCorrsR + DBL_EPSILON) - inlRat[actFrameCnt];
-        double testVal = min((double) nrCorrsR / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        double testVal = min((double) nrCorrsR / 100.0, 1.0) * inlRatDiffSR / 300.0;
         if (!nearZero(testVal)) {
             cout << "Inlier ratio of static correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffSR << endl;
@@ -6239,7 +6239,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             }
             if (initAsum != areassum) {
                 double areaChange = (double) areassum / (double) initAsum;
-                if ((areaChange < 0.95) || (areaChange > 1.05)) {
+                if ((areaChange < 0.90) || (areaChange > 1.10)) {
                     cout << "Areas of moving objects are more than 5% different compared to given values." << endl;
                     for (size_t i = 0; i < areas.size(); i++) {
                         areaChange = (double) actArea[i] / (double) areas[i];
@@ -6505,7 +6505,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             }
         }
         double inlRatDiffMO = (double) sumTPMO / (double) sumCorrsMO - inlRat[actFrameCnt];
-        double testVal = min((double) sumCorrsMO / 100.0, 1.0) * inlRatDiffMO / 100.0;
+        double testVal = min((double) sumCorrsMO / 100.0, 1.0) * inlRatDiffMO / 300.0;
         if (!nearZero(testVal)) {
             cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffMO << endl;
@@ -6515,7 +6515,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0] + sumTPMO;
         double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0] + sumCorrsMO;
         double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
-        testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 300.0;
         if (!nearZero(testVal)) {
             cout << "Inlier ratio of combined static and moving correspondences after changing it because of moving objects differs "
                     "from global inlier ratio (0 - 1.0) by "
@@ -6635,7 +6635,7 @@ void genStereoSequ::adaptStatNrCorrsReg(const cv::Mat &statCorrsPRegNew){
         double tps = (double) sum(nrTruePosRegs[actFrameCnt])[0];
         double nrCorrs1 = (double) sum(nrCorrsRegs[actFrameCnt])[0];
         double inlRatDiffSR = tps / (nrCorrs1 + DBL_EPSILON) - inlRat[actFrameCnt];
-        double testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        double testVal = min(nrCorrs1 / 100.0, 1.0) * inlRatDiffSR / 300.0;
         if (!nearZero(testVal)) {
             cout << "Inlier ratio of static correspondences after changing the number of correspondences per region"
                     " because of moving objects differs "
@@ -7379,7 +7379,7 @@ void genStereoSequ::getMovObjCorrs() {
         nrCorrsMO = nrTPMO + nrTNMO;
         if (nrCorrsMO != actCorrsOnMovObj) {
             double chRate = (double) nrCorrsMO / (double) actCorrsOnMovObj;
-            if ((chRate < 0.95) || (chRate > 1.05)) {
+            if ((chRate < 0.90) || (chRate > 1.10)) {
                 cout << "Number of correspondences on moving objects is " << 100.0 * (chRate - 1.0)
                      << "% different to given values!" << endl;
                 cout << "Actual #: " << nrCorrsMO << " Given #: " << actCorrsOnMovObj << endl;
@@ -7412,7 +7412,7 @@ void genStereoSequ::getMovObjCorrs() {
             }
         }
         double inlRatDiffMO = (double) nrTPMO / (double) nrCorrsMO - inlRat[actFrameCnt];
-        double testVal = min((double)nrCorrsMO / 100.0, 1.0) * inlRatDiffMO / 100.0;
+        double testVal = min((double)nrCorrsMO / 100.0, 1.0) * inlRatDiffMO / 300.0;
         if (!nearZero(testVal)) {
             cout << "Inlier ratio of moving object correspondences differs from global inlier ratio (0 - 1.0) by "
                  << inlRatDiffMO << endl;
@@ -9170,7 +9170,7 @@ void genStereoSequ::combineCorrespondences() {
     //Check global inlier ratio of backprojected and new static and moving objects
     if(verbose & PRINT_WARNING_MESSAGES) {
         double inlRatDiffSR = (double) combNrCorrsTP / (double) (combNrCorrsTP + combNrCorrsTN) - inlRat[actFrameCnt];
-        double testVal = min((double) (combNrCorrsTP + combNrCorrsTN) / 100.0, 1.0) * inlRatDiffSR / 100.0;
+        double testVal = min((double) (combNrCorrsTP + combNrCorrsTN) / 100.0, 1.0) * inlRatDiffSR / 300.0;
         if (!nearZero(testVal)) {
             cout
                     << "Inlier ratio of combined static and moving correspondences differs from global inlier ratio (0 - 1.0) by "
