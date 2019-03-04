@@ -37,6 +37,8 @@ a view restrictions like depth ranges, moving objects, ...
 
 #include "polygon_helper.h"
 
+#include "side_funcs.h"
+
 
 using namespace std;
 using namespace cv;
@@ -45,71 +47,7 @@ using namespace cv;
 
 /* --------------------- Function prototypes --------------------- */
 
-void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete);
 
-void color_HSV2RGB(float H, float S, float V, unsigned char &R, unsigned char &G, unsigned char &B);
-
-void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask);
-
-void startPCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer);
-
-void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                         Eigen::Matrix4f cam_extrinsics,
-                         const cv::Mat &K1);
-
-Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                                               cv::InputArray R_C2W = cv::noArray(),
-                                               cv::InputArray t_C2W = cv::noArray());
-
-void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap);
-
-void
-getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds, std::vector<pcl::PointXYZ> &cloudCentroids);
-
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds,
-                       std::vector<pcl::PointXYZ> &cloudCentroids);
-
-void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid);
-
-void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
-                              std::vector<float> &cloudExtensions,
-                              std::vector<pcl::PointXYZ> &cloudCentroids);
-
-void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension,
-                             pcl::PointXYZ &cloudCentroid);
-
-Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                                      const cv::Mat &R,
-                                      const cv::Mat &t);
-
-void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim,
-                             pcl::PointXYZ &cloudCentroid);
-
-void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
-
-void getSecPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
-
-void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
-
-void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd);
-
-bool checkPointValidity(const cv::Mat &mask, const cv::Point_<int32_t> &pt);
-
-bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect);
-
-int deletedepthCatsByIdx(std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> &seedsFromLast,
-                         std::vector<size_t> &delListCorrs,
-                         const cv::Mat &ptMat);
-
-int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
-                        int32_t nrToDel,
-                        const cv::Mat &ptMat,
-                        std::vector<size_t> &delListCorrs);
-
-int deletedepthCatsByNr(std::vector<cv::Point2d> &seedsFromLast,
-                        int32_t nrToDel,
-                        const cv::Mat &ptMat,
-                        std::vector<size_t> &delListCorrs);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -1148,38 +1086,6 @@ cv::Mat genStereoSequ::getTrackRot(const cv::Mat tdiff, cv::InputArray R_old) {
     return R_C2W;//return rotation from camera to world
 }
 
-/*Rounds a rotation matrix to its nearest integer values and checks if it is still a rotation matrix and does not change more than 22.5deg from the original rotation matrix.
-As an option, the error of the rounded rotation matrix can be compared to an angular difference of a second given rotation matrix R_fixed to R_old.
-The rotation matrix with the smaller angular difference is selected.
-This function is used to select a proper rotation matrix if the "look at" and "up vector" are nearly equal. I trys to find the nearest rotation matrix aligened to the
-"look at" vector taking into account the rotation matrix calculated from the old/last "look at" vector
-*/
-bool roundR(const cv::Mat R_old, cv::Mat &R_round, cv::InputArray R_fixed) {
-    R_round = roundMat(R_old);
-    if (!isMatRotationMat(R_round)) {
-        return false;
-    }
-
-    double rd = abs(RAD2DEG(rotDiff(R_old, R_round)));
-    double rfd = 360.0;
-
-    if (!R_fixed.empty()) {
-        Mat Rf = R_fixed.getMat();
-        rfd = abs(RAD2DEG(rotDiff(Rf, R_old)));
-
-        if (rfd < rd) {
-            Rf.copyTo(R_round);
-            return true;
-        }
-    }
-
-    if (rd < 22.5) {
-        return true;
-    }
-
-    return false;
-}
-
 void genStereoSequ::visualizeCamPath() {
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Camera path"));
     initPCLViewerCoordinateSystems(viewer);
@@ -1191,22 +1097,6 @@ void genStereoSequ::visualizeCamPath() {
     viewer->initCameraParameters();
 
     startPCLViewer(viewer);
-}
-
-Eigen::Affine3f addVisualizeCamCenter(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                                      const cv::Mat &R,
-                                      const cv::Mat &t) {
-    Eigen::Affine3f m;
-    m.setIdentity();
-    Eigen::Vector3d te;
-    Eigen::Matrix3d Re;
-    cv::cv2eigen(R, Re);
-    cv::cv2eigen(t, te);
-    m.matrix().block<3, 3>(0, 0) = Re.cast<float>();
-    m.matrix().block<3, 1>(0, 3) = te.cast<float>();
-    viewer->addCoordinateSystem(1.0, m);
-
-    return m;
 }
 
 //Calculate the thresholds for the depths near, mid, and far for every camera configuration
@@ -2154,81 +2044,6 @@ void genStereoSequ::checkDepthSeeds() {
     }
 }
 
-//Deletes some entries within a vector using a vector with indices that point to the entries to delete.
-//The deletion vector containing the indices must be sorted in ascending order.
-template<typename T, typename A, typename T1, typename A1>
-void deleteVecEntriesbyIdx(std::vector<T, A> &editVec, std::vector<T1, A1> const &delVec) {
-    size_t nrToDel = delVec.size();
-    CV_Assert(nrToDel <= editVec.size());
-    size_t n_new = editVec.size() - nrToDel;
-    std::vector<T, A> editVecNew(n_new);
-    T1 old_idx = 0;
-    int startRowNew = 0;
-    for (size_t i = 0; i < nrToDel; i++) {
-        if (old_idx == delVec[i]) {
-            old_idx = delVec[i] + 1;
-            continue;
-        }
-        const int nr_new_cpy_elements = (int) delVec[i] - (int) old_idx;
-        const int endRowNew = startRowNew + nr_new_cpy_elements;
-        std::copy(editVec.begin() + old_idx, editVec.begin() + delVec[i], editVecNew.begin() + startRowNew);
-
-        startRowNew = endRowNew;
-        old_idx = delVec[i] + 1;
-    }
-    if (old_idx < editVec.size()) {
-        std::copy(editVec.begin() + old_idx, editVec.end(), editVecNew.begin() + startRowNew);
-    }
-    editVec = editVecNew;
-}
-
-//Deletes some entries within a Mat using a vector with indices that point to the entries to delete.
-//The deletion vector containing the indices must be sorted in ascending order.
-//It can be specified if the entries in Mat are colum ordered (rowOrder=false) or row ordered (rowOrder=true).
-template<typename T, typename A>
-void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const &delVec, bool rowOrder) {
-    size_t nrToDel = delVec.size();
-    size_t nrData;
-    if (rowOrder)
-        nrData = (size_t) editMat.rows;
-    else
-        nrData = (size_t) editMat.cols;
-
-    CV_Assert(nrToDel <= nrData);
-
-    int n_new = (int)nrData - (int)nrToDel;
-    cv::Mat editMatNew;
-    if (rowOrder)
-        editMatNew = Mat(n_new, editMat.cols, editMat.type());
-    else
-        editMatNew = Mat(editMat.rows, n_new, editMat.type());
-
-    T old_idx = 0;
-    int startRowNew = 0;
-    for (size_t i = 0; i < nrToDel; i++) {
-        if (old_idx == delVec[i]) {
-            old_idx = delVec[i] + 1;
-            continue;
-        }
-        const int nr_new_cpy_elements = (int) delVec[i] - (int) old_idx;
-        const int endRowNew = startRowNew + nr_new_cpy_elements;
-        if (rowOrder)
-            editMat.rowRange((int) old_idx, (int) delVec[i]).copyTo(editMatNew.rowRange(startRowNew, endRowNew));
-        else
-            editMat.colRange((int) old_idx, (int) delVec[i]).copyTo(editMatNew.colRange(startRowNew, endRowNew));
-
-        startRowNew = endRowNew;
-        old_idx = delVec[i] + 1;
-    }
-    if ((size_t) old_idx < nrData) {
-        if (rowOrder)
-            editMat.rowRange((int) old_idx, editMat.rows).copyTo(editMatNew.rowRange(startRowNew, n_new));
-        else
-            editMat.colRange((int) old_idx, editMat.cols).copyTo(editMatNew.colRange(startRowNew, n_new));
-    }
-    editMatNew.copyTo(editMat);
-}
-
 //Wrapper function for function adaptIndicesNoDel
 void genStereoSequ::adaptIndicesCVPtNoDel(std::vector<cv::Point3_<int32_t>> &seedVec,
                                           std::vector<size_t> &delListSortedAsc) {
@@ -2272,128 +2087,6 @@ void genStereoSequ::adaptIndicesNoDel(std::vector<size_t> &idxVec, std::vector<s
     for (size_t i = 0; i < idxVec_tmp.size(); i++) {
         idxVec[i] = idxVec_tmp[i].first;
     }
-}
-
-//Search for the corresponding index entries and delete it
-int deletedepthCatsByIdx(std::vector<std::vector<std::vector<cv::Point_<int32_t>>>> &seedsFromLast,
-                        std::vector<size_t> &delListCorrs,
-                        const cv::Mat &ptMat){
-    cv::Point_<int32_t> pt;
-    int nrDel = 0;
-    vector<size_t> delList;
-    for (size_t j = 0; j < delListCorrs.size(); ++j) {
-        int idx = (int)delListCorrs[j];
-        pt = cv::Point_<int32_t>((int32_t)round(ptMat.at<double>(0,idx)),
-                                 (int32_t)round(ptMat.at<double>(1,idx)));
-        bool found = false;
-        for (int y = 0; y < 3; ++y) {
-            for (int x = 0; x < 3; ++x) {
-                for (size_t i = 0; i < seedsFromLast[y][x].size(); ++i) {
-                    int32_t diff = abs(seedsFromLast[y][x][i].x - pt.x) + abs(seedsFromLast[y][x][i].y - pt.y);
-                    if(diff == 0){
-                        seedsFromLast[y][x].erase(seedsFromLast[y][x].begin() + i);
-                        delList.push_back(j);
-                        nrDel++;
-                        found  = true;
-                        break;
-                    }
-                }
-                if(found) break;
-            }
-            if(found) break;
-        }
-    }
-
-    for (int k = (int)delList.size() - 1; k >= 0; --k) {
-        delListCorrs.erase(delListCorrs.begin() + delList[k]);
-    }
-
-    return nrDel;
-}
-
-int deletedepthCatsByNr(std::vector<cv::Point_<int32_t>> &seedsFromLast,
-                         int32_t nrToDel,
-                         const cv::Mat &ptMat,
-                         std::vector<size_t> &delListCorrs){
-    delListCorrs.clear();
-    if(nrToDel <= 0) return 0;
-    int nrToDel_tmp = (int)nrToDel;
-    std::vector<size_t> delList(seedsFromLast.size());
-    std::iota(delList.begin(), delList.end(), 0);
-
-    if(nrToDel_tmp < (int)seedsFromLast.size()){
-        std::shuffle(delList.begin(), delList.end(), std::mt19937{std::random_device{}()});
-        delList.erase(delList.begin() + nrToDel_tmp, delList.end());
-        sort(delList.begin(), delList.end(), [](size_t first, size_t second){return first < second;});
-    }
-    else{
-        nrToDel_tmp = (int)seedsFromLast.size();
-    }
-
-    cv::Point_<int32_t> pts, ptg;
-    for (int32_t i = 0; i < nrToDel_tmp; ++i) {
-        ptg = seedsFromLast[delList[i]];
-        for (size_t j = 0; j < (size_t)ptMat.cols; ++j) {
-            pts = cv::Point_<int32_t>((int32_t)round(ptMat.at<double>(0, (int)j)),
-                                      (int32_t)round(ptMat.at<double>(1, (int)j)));
-            int32_t diff = abs(ptg.x - pts.x) + abs(ptg.y - pts.y);
-            if(diff == 0){
-                delListCorrs.push_back(j);
-                break;
-            }
-        }
-    }
-    sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second){return first < second;});
-
-    deleteVecEntriesbyIdx(seedsFromLast, delList);
-
-    if(nrToDel_tmp != (int)delListCorrs.size()){
-        cout << "Could not find every backprojected keypoint in the given array!" << endl;
-    }
-
-    return nrToDel_tmp;
-}
-
-int deletedepthCatsByNr(std::vector<cv::Point2d> &seedsFromLast,
-                        int32_t nrToDel,
-                        const cv::Mat &ptMat,
-                        std::vector<size_t> &delListCorrs){
-    delListCorrs.clear();
-    if(nrToDel <= 0) return 0;
-    int nrToDel_tmp = (int)nrToDel;
-    std::vector<size_t> delList(seedsFromLast.size());
-    std::iota(delList.begin(), delList.end(), 0);
-
-    if(nrToDel_tmp < (int)seedsFromLast.size()){
-        std::shuffle(delList.begin(), delList.end(), std::mt19937{std::random_device{}()});
-        delList.erase(delList.begin() + nrToDel_tmp, delList.end());
-        sort(delList.begin(), delList.end(), [](size_t first, size_t second){return first < second;});
-    }
-    else{
-        nrToDel_tmp = (int)seedsFromLast.size();
-    }
-
-    cv::Point2d pts, ptg;
-    for (int32_t i = 0; i < nrToDel_tmp; ++i) {
-        ptg = seedsFromLast[delList[i]];
-        for (int j = 0; j < ptMat.cols; ++j) {
-            pts = cv::Point2d(ptMat.at<double>(0, j), ptMat.at<double>(1, j));
-            double diff = abs(ptg.x - pts.x) + abs(ptg.y - pts.y);
-            if(nearZero(diff)){
-                delListCorrs.push_back((size_t)j);
-                break;
-            }
-        }
-    }
-    sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second){return first < second;});
-
-    deleteVecEntriesbyIdx(seedsFromLast, delList);
-
-    if(nrToDel_tmp != (int)delListCorrs.size()){
-        cout << "Could not find every backprojected keypoint in the given array!" << endl;
-    }
-
-    return nrToDel_tmp;
 }
 
 int genStereoSequ::deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &seedsFromLast,
@@ -3786,94 +3479,6 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
     imshow("Normalized Static Obj Depth One Depth", normalizedDepth);
     waitKey(0);
     destroyWindow("Normalized Static Obj Depth One Depth");*/
-}
-
-void buildColorMapHSV2RGB(const cv::Mat &in16, cv::Mat &rgb8, uint16_t nrLabels, cv::InputArray mask) {
-    std::vector<cv::Vec3b> pallete;
-    gen_palette(nrLabels, pallete);
-    Mat mask_;
-    if (!mask.empty()) {
-        mask_ = mask.getMat();
-    } else {
-        mask_ = Mat::ones(in16.size(), CV_8UC1);
-    }
-
-    rgb8 = Mat::zeros(in16.size(), CV_8UC3);
-    for (int y = 0; y < in16.rows; ++y) {
-        for (int x = 0; x < in16.cols; ++x) {
-            if (mask_.at<uint8_t>(y, x) > 0) {
-                uint16_t lnr = in16.at<uint16_t>(y, x);
-                rgb8.at<cv::Vec3b>(y, x) = pallete[lnr];
-            }
-        }
-    }
-}
-
-void color_HSV2RGB(float H, float S, float V, unsigned char &R, unsigned char &G, unsigned char &B) {
-    if (S == 0)                       //HSV values = 0 ÷ 1
-    {
-        R = (unsigned char) round(min(V * 255.f, 255.f));
-        G = R;
-        B = R;
-    } else {
-        float var_h, var_1, var_2, var_3, var_r, var_g, var_b;
-        int var_i;
-
-        var_h = H * 6.0f;
-
-        if (var_h == 6.0f)
-            var_h = 0;      // H must be < 1
-
-        var_i = int(var_h);     // Or ... var_i = floor( var_h )
-        var_1 = V * (1 - S);
-        var_2 = V * (1 - S * (var_h - var_i));
-        var_3 = V * (1 - S * (1 - (var_h - var_i)));
-
-        if (var_i == 0) {
-            var_r = V;
-            var_g = var_3;
-            var_b = var_1;
-        } else if (var_i == 1) {
-            var_r = var_2;
-            var_g = V;
-            var_b = var_1;
-        } else if (var_i == 2) {
-            var_r = var_1;
-            var_g = V;
-            var_b = var_3;
-        } else if (var_i == 3) {
-            var_r = var_1;
-            var_g = var_2;
-            var_b = V;
-        } else if (var_i == 4) {
-            var_r = var_3;
-            var_g = var_1;
-            var_b = V;
-        } else {
-            var_r = V;
-            var_g = var_1;
-            var_b = var_2;
-        }
-
-        R = (unsigned char) round(min((var_r * 255.f), 255.f));    //RGB results = 0 ÷ 255
-        G = (unsigned char) round(min((var_g * 255.f), 255.f));
-        B = (unsigned char) round(min((var_b * 255.f), 255.f));
-    }
-}
-
-void gen_palette(int num_labels, std::vector<cv::Vec3b> &pallete) {
-    const float addHue = sqrt(0.1f); //use an irrational number to achieve many different hues
-    float currHue = 0.0f;
-
-    for (int k = 0; k < num_labels; ++k) {
-        unsigned char R = 0, G = 0, B = 0;
-        float H = currHue - floor(currHue);
-        float V = 0.75f + 0.25f * ((float) (k % 4) / 3.f);
-        color_HSV2RGB(H, V, V, R, G, B);
-        cv::Vec3b col = cv::Vec3b(R, G, B);
-        pallete.push_back(col);
-        currHue += addHue;
-    }
 }
 
 /*Calculates a depth value using the function
@@ -5588,14 +5193,6 @@ void genStereoSequ::getNrSizePosMovObj() {
     }
 }
 
-bool checkPointValidity(const cv::Mat &mask, const cv::Point_<int32_t> &pt){
-    if(mask.at<unsigned char>(pt) > 0){
-        return true;
-    }
-
-    return false;
-}
-
 void genStereoSequ::getValidImgRegBorders(const cv::Mat &mask, std::vector<std::vector<std::pair<bool,cv::Rect>>> &validRects){
     validRects = std::vector<std::vector<std::pair<bool,cv::Rect>>>(3, std::vector<std::pair<bool,cv::Rect>>(3));
     for (int y = 0; y < 3; ++y) {
@@ -5612,24 +5209,6 @@ void genStereoSequ::getValidImgRegBorders(const cv::Mat &mask, std::vector<std::
             }
         }
     }
-}
-
-bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect){
-    if(countNonZero(mask) < 100)
-        return false;
-    Mat mask_tmp = mask.clone();
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;
-    cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-    validRect = cv::boundingRect(contours[0]);
-
-    if(validRect.width < (int)floor(0.2 * (double)mask.cols))
-        return false;
-
-    if(validRect.height < (int)floor(0.2 * (double)mask.rows))
-        return false;
-
-    return true;
 }
 
 void genStereoSequ::adaptMinNrMovObjsAndNrMovObjs(size_t pars_nrMovObjsNew) {
@@ -8614,71 +8193,6 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     }
 }
 
-void getFirstPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
-    std::vector<cv::Point>::iterator a1begin, a1end;
-    idxEnd++;
-    if (idxEnd >= (int)source.size()) {
-        a1end = source.end();
-    } else {
-        a1end = source.begin() + idxEnd;
-    }
-    a1begin = source.begin() + idxStart;
-    target.insert(target.end(), a1begin, a1end);
-}
-
-void getFirstPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
-    std::vector<cv::Point>::iterator a1begin, a1end;
-    idxStart++;
-    if (idxStart >= (int)source.size()) {
-        a1end = source.end();
-    } else {
-        a1end = source.begin() + idxStart;
-    }
-    a1begin = source.begin() + idxEnd;
-    target.insert(target.end(), a1begin, a1end);
-    std::reverse(target.begin(), target.end());
-}
-
-void getSecPartContourPos(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
-    std::vector<cv::Point>::iterator a1begin, a1end;
-    if (idxStart == idxEnd) {
-        idxEnd++;
-    }
-    idxStart++;
-    if (idxStart >= (int)source.size()) {
-        a1end = source.end();
-    } else {
-        a1end = source.begin() + idxStart;
-    }
-    a1begin = source.begin();
-    target.insert(target.end(), a1begin, a1end);
-    std::reverse(target.begin(), target.end());
-    vector<Point> secPosib;
-    if (idxEnd < (int) source.size()) {
-        a1begin = source.begin() + idxEnd;
-        a1end = source.end();
-        secPosib.insert(secPosib.end(), a1begin, a1end);
-        std::reverse(secPosib.begin(), secPosib.end());
-        target.insert(target.end(), secPosib.begin(), secPosib.end());
-    }
-}
-
-void getSecPartContourNeg(std::vector<cv::Point> &target, std::vector<cv::Point> &source, int idxStart, int idxEnd) {
-    std::vector<cv::Point>::iterator a1begin, a1end;
-    if (idxStart == idxEnd) {
-        idxStart++;
-    }
-    if (idxStart < (int) source.size()) {
-        a1begin = source.begin() + idxStart;
-        a1end = source.end();
-        target.insert(target.end(), a1begin, a1end);
-    }
-    idxEnd++;
-    a1begin = source.begin();
-    a1end = source.begin() + idxEnd;
-    target.insert(target.end(), a1begin, a1end);
-}
-
 void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask,
                                    std::vector<cv::Point> *hullPts) {
     int sqrSi = csurr.rows;
@@ -9310,11 +8824,9 @@ void genStereoSequ::transPtsToWorld() {
     size_t nrPts = actImgPointCloud.size();
     size_t nrOldPts = staticWorld3DPts->size();
 
-    if(nrOldPts == 0){
-        actCorrsImg12TPFromLast_IdxWorld.clear();
-        actCorrsImg12TPFromLast_IdxWorld.resize(nrPts);
-        std::iota(actCorrsImg12TPFromLast_IdxWorld.begin(), actCorrsImg12TPFromLast_IdxWorld.end(), 0);
-    }
+    actCorrsImg12TP_IdxWorld.clear();
+    actCorrsImg12TP_IdxWorld.resize(nrPts);
+    std::iota(actCorrsImg12TP_IdxWorld.begin(), actCorrsImg12TP_IdxWorld.end(), nrOldPts);
 
     staticWorld3DPts->reserve(nrOldPts + nrPts);
 
@@ -9436,58 +8948,6 @@ void genStereoSequ::visualizeMovObjPtCloud() {
     startPCLViewer(viewer);
 }
 
-void getNColors(cv::OutputArray colorMat, size_t nr_Colors, int colormap) {
-    Mat colors = Mat(nr_Colors, 1, CV_8UC1);
-    unsigned char addc = nr_Colors > 255 ? (unsigned char)255 : (unsigned char) nr_Colors;
-    addc = addc < (unsigned char)2 ? (unsigned char)255 : ((unsigned char)255 / (addc - (unsigned char)1));
-    colors.at<unsigned char>(0) = 0;
-    for (int k = 1; k < (int)nr_Colors; ++k) {
-        colors.at<unsigned char>(k) = colors.at<unsigned char>(k - 1) + addc;
-    }
-    applyColorMap(colors, colorMat, colormap);
-}
-
-void setPCLViewerCamPars(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                         Eigen::Matrix4f cam_extrinsics,
-                         const cv::Mat &K1) {
-    //Eigen::Matrix4f cam_extrinsics(m.matrix());
-    Eigen::Matrix3f zRotPi;
-    zRotPi << -1.f, 0, 0,
-            0, -1.f, 0,
-            0, 0, 1.f;
-    cam_extrinsics.block<3, 3>(0, 0) = cam_extrinsics.block<3, 3>(0, 0) * zRotPi;
-    Eigen::Matrix3d cam_intrinsicsd;
-    Eigen::Matrix3f cam_intrinsics;
-    cv::cv2eigen(K1, cam_intrinsicsd);
-    cam_intrinsics = cam_intrinsicsd.cast<float>();
-    viewer->setCameraParameters(cam_intrinsics, cam_extrinsics);
-}
-
-void startPCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer) {
-    //--------------------
-    // -----Main loop-----
-    //--------------------
-    while (!viewer->wasStopped()) {
-        viewer->spinOnce(100);
-        boost::this_thread::sleep(boost::posix_time::microseconds(100000));
-    }
-
-    viewer->close();
-}
-
-Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,
-                                               cv::InputArray R_C2W,
-                                               cv::InputArray t_C2W) {
-    viewer->setBackgroundColor(0, 0, 0);
-    viewer->addCoordinateSystem(5.0);
-
-    Eigen::Affine3f m;
-    if (!R_C2W.empty() && !t_C2W.empty()) {
-        m = addVisualizeCamCenter(viewer, R_C2W.getMat(), t_C2W.getMat());
-    }
-
-    return m;
-}
 
 void genStereoSequ::visualizeStaticObjPtCloud() {
     if (staticWorld3DPts->empty())
@@ -9674,63 +9134,6 @@ void genStereoSequ::updateMovObjPositions() {
         getMeanCloudStandardDevs(movObj3DPtsWorld, cloudExtensions, mocentroids2);
         visualizeMovObjMovement(mocentroids, mocentroids2, cloudExtensions);
     }
-}
-
-void getMeanCloudStandardDevs(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
-                              std::vector<float> &cloudExtensions,
-                              std::vector<pcl::PointXYZ> &cloudCentroids) {
-    cloudExtensions.reserve(pointclouds.size());
-    for (size_t i = 0; i < pointclouds.size(); ++i) {
-        float cloudExtension = 0;
-        getMeanCloudStandardDev(pointclouds[i], cloudExtension, cloudCentroids[i]);
-        cloudExtensions.push_back(cloudExtension);
-    }
-}
-
-void getMeanCloudStandardDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, float &cloudExtension,
-                             pcl::PointXYZ &cloudCentroid) {
-    pcl::PointXYZ cloudDim;
-    getCloudDimensionStdDev(pointcloud, cloudDim, cloudCentroid);
-    cloudExtension = (cloudDim.x + cloudDim.y + cloudDim.z) / 3.f;
-}
-
-void getCloudDimensionStdDev(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudDim,
-                             pcl::PointXYZ &cloudCentroid) {
-    Eigen::Matrix<float, 4, 1> pm;
-    Eigen::Matrix<float, 3, 3> covariance_matrix;
-    pm << cloudCentroid.x, cloudCentroid.y, cloudCentroid.z, 1.f;
-    pcl::computeCovarianceMatrixNormalized(pointcloud, pm, covariance_matrix);
-    cloudDim.x = sqrt(covariance_matrix(0, 0));
-    cloudDim.y = sqrt(covariance_matrix(1, 1));
-    cloudDim.z = sqrt(covariance_matrix(2, 2));
-}
-
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>> &pointclouds,
-                       std::vector<pcl::PointXYZ> &cloudCentroids) {
-    cloudCentroids.reserve(pointclouds.size());
-    for (auto& i : pointclouds) {
-        pcl::PointXYZ point;
-        getCloudCentroid(i, point);
-        cloudCentroids.push_back(point);
-    }
-}
-
-void getCloudCentroids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &pointclouds,
-                       std::vector<pcl::PointXYZ> &cloudCentroids) {
-    cloudCentroids.reserve(pointclouds.size());
-    for (auto& i : pointclouds) {
-        pcl::PointXYZ point;
-        getCloudCentroid(*i.get(), point);
-        cloudCentroids.push_back(point);
-    }
-}
-
-void getCloudCentroid(pcl::PointCloud<pcl::PointXYZ> &pointcloud, pcl::PointXYZ &cloudCentroid) {
-    Eigen::Matrix<float, 4, 1> pm;
-    pcl::compute3DCentroid(pointcloud, pm);
-    cloudCentroid.x = pm(0);
-    cloudCentroid.y = pm(1);
-    cloudCentroid.z = pm(2);
 }
 
 //Get 3D-points of moving objects that are visible in the camera and transform them from the world coordinate system into camera coordinate system
@@ -9937,75 +9340,87 @@ void genStereoSequ::getCamPtsFromWorld() {
     }
 
     actImgPointCloudFromLast.clear();
+    actCorrsImg12TPFromLast_IdxWorld.clear();
 //    pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
 #if FILTER_OCCLUDED_POINTS
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
+    vector<vector<int>> camFilteredPtsParts_idx;
     const int partsx = 5;
     const int partsy = 5;
     const int partsxy = partsx * partsy;
 //    bool success = getVisibleCamPointCloudSlices(staticWorld3DPts, camFilteredPtsParts, partsy, partsx, 0, 0);
-    bool success = getVisibleCamPointCloudSlicesAndDepths(staticWorld3DPts, camFilteredPtsParts, partsy,
-                                                          partsx);
+    bool success = getVisibleCamPointCloudSlicesAndDepths(staticWorld3DPts,
+            camFilteredPtsParts,
+            camFilteredPtsParts_idx,
+            partsy,
+            partsx);
     if (!success) {
         return;
     }
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
     success = false;
     for (int i = 0; i < partsxy; i++) {
         if(camFilteredPtsParts[i].get() == nullptr) continue;
         if (camFilteredPtsParts[i]->empty()) continue;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+        vector<int> filteredOccludedPts_idx;
         pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPts(new pcl::PointCloud<pcl::PointXYZ>());
-        bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts, false, false, occludedPts);
+        bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts_idx, false, false, occludedPts);
         if (!success1) {
-            filteredOccludedPts->clear();
+            filteredOccludedPts_idx.clear();
             occludedPts->clear();
-            success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts, true, false, occludedPts);
-            if (!filteredOccludedPts->empty()) {
-                filteredOccludedPtsAll->insert(filteredOccludedPtsAll->end(), filteredOccludedPts->begin(),
-                                               filteredOccludedPts->end());
+            success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts_idx, true, false, occludedPts);
+            if (!filteredOccludedPts_idx.empty()) {
+                actCorrsImg12TPFromLast_IdxWorld.reserve(actCorrsImg12TPFromLast_IdxWorld.size() + filteredOccludedPts_idx.size());
+                for(auto& j : filteredOccludedPts_idx){
+                    actCorrsImg12TPFromLast_IdxWorld.push_back(camFilteredPtsParts_idx[i][j]);
+                }
             }
             if (!occludedPts->empty()) {
                 occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
             }
         } else {
             success = true;
-            filteredOccludedPtsAll->insert(filteredOccludedPtsAll->end(), filteredOccludedPts->begin(),
-                                           filteredOccludedPts->end());
+            actCorrsImg12TPFromLast_IdxWorld.reserve(actCorrsImg12TPFromLast_IdxWorld.size() + filteredOccludedPts_idx.size());
+            for(auto& j : filteredOccludedPts_idx){
+                actCorrsImg12TPFromLast_IdxWorld.push_back(camFilteredPtsParts_idx[i][j]);
+            }
             if (!occludedPts->empty()) {
                 occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
             }
         }
     }
 
-    if (!filteredOccludedPtsAll->empty() || !occludedPtsAll->empty()) {
+    if (!actCorrsImg12TPFromLast_IdxWorld.empty() || !occludedPtsAll->empty()) {
         if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ) {
+            pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
+            filteredOccludedPtsAll->reserve(actCorrsImg12TPFromLast_IdxWorld.size());
+            for(auto& i : actCorrsImg12TPFromLast_IdxWorld){
+                filteredOccludedPtsAll->push_back(staticWorld3DPts->at((size_t)i));
+            }
             visualizeOcclusions(filteredOccludedPtsAll, occludedPtsAll, 1.0);
         }
     }
 
     if (!success) {
-        if (filteredOccludedPtsAll->empty()) {
+        if (actCorrsImg12TPFromLast_IdxWorld.empty()) {
             return;
         }
     }
 #else
-    pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
-    bool success = getVisibleCamPointCloud(staticWorld3DPts, filteredOccludedPtsAll);
+    bool success = getVisibleCamPointCloud(staticWorld3DPts, actCorrsImg12TPFromLast_IdxWorld);
     if (!success) {
         return;
     }
 #endif
 
-    for (size_t j = 0; j < filteredOccludedPtsAll->size(); j++) {
-        cv::Point3d pt = Point3d((double) filteredOccludedPtsAll->at(j).x, (double) filteredOccludedPtsAll->at(j).y,
-                                 (double) filteredOccludedPtsAll->at(j).z);
+    for (auto& j : actCorrsImg12TPFromLast_IdxWorld) {
+        cv::Point3d pt = Point3d((double) staticWorld3DPts->at((size_t)j).x, (double) staticWorld3DPts->at((size_t)j).y,
+                                 (double) staticWorld3DPts->at((size_t)j).z);
         Mat ptm = Mat(pt, false).reshape(1, 3);
         ptm = absCamCoordinates[actFrameCnt].R.t() * (ptm -
                                                       absCamCoordinates[actFrameCnt].t);//physical memory of pt and ptm must be the same
-        actImgPointCloudFromLast.push_back(pt);
+        actImgPointCloudFromLast.emplace_back(pt);
     }
 }
 
@@ -10045,24 +9460,64 @@ void genStereoSequ::getActEigenCamPose() {
 //mean point cloud slice distance (bigger voxels for 3D points more distant to the camera)
 bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                                            std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
+                                                           std::vector<std::vector<int>> &cloudOut_idx,
+                                                           int fovDevideVertical,
+                                                           int fovDevideHorizontal) {
+    if (cloudIn->empty()) return false;
+
+    if(!getVisibleCamPointCloudSlicesAndDepths(cloudIn, cloudOut_idx, fovDevideVertical, fovDevideHorizontal)){
+        return false;
+    }
+
+
+
+    cloudOut.resize(cloudOut_idx.size());
+    for(size_t i = 0; i < cloudOut_idx.size(); i++){
+        if(!cloudOut_idx[i].empty()){
+            cloudOut[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+            cloudOut[i]->reserve(cloudOut_idx[i].size());
+            for(auto& j : cloudOut_idx[i]){
+                cloudOut[i]->push_back(cloudIn->at(j));
+            }
+        }
+    }
+
+    return true;
+}
+
+//Split the visible point cloud (through the camera) into a few slices to be able to use smaller leaf sizes in the
+// pcl::VoxelGridOcclusionEstimation function as the number of useable voxels is bounded by a 32bit index
+//Moreover split each slice in a near and a far part and use for each depth region a different voxel size based on the
+//mean point cloud slice distance (bigger voxels for 3D points more distant to the camera)
+bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+                                                           std::vector<std::vector<int>> &cloudOut,
                                                            int fovDevideVertical,
                                                            int fovDevideHorizontal) {
     if (cloudIn->empty()) return false;
 
     //Get point cloud slices with 3D point depths in the camera coordinate system from near to mid
     int partsxy = fovDevideVertical * fovDevideHorizontal;
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudsNear;
+    std::vector<std::vector<int>> cloudsNear_idx;
     bool success1 = getVisibleCamPointCloudSlices(cloudIn,
-                                                  cloudsNear,
+                                                  cloudsNear_idx,
                                                   fovDevideVertical,
                                                   fovDevideHorizontal,
                                                   (float) actDepthNear,
                                                   (float) actDepthMid);
 
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudsNear(cloudsNear_idx.size());
+    for(size_t i = 0; i < cloudsNear_idx.size(); i++){
+        cloudsNear[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+        cloudsNear[i]->reserve(cloudsNear_idx[i].size());
+        for(auto& j : cloudsNear_idx[i]){
+            cloudsNear[i]->push_back(cloudIn->at((size_t)j));
+        }
+    }
+
     //Get point cloud slices with 3D point depths in the camera coordinate system from mid to far
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudsFar;
+    std::vector<std::vector<int>> cloudsFar_idx;
     bool success2 = getVisibleCamPointCloudSlices(cloudIn,
-                                                  cloudsFar,
+                                                  cloudsFar_idx,
                                                   fovDevideVertical,
                                                   fovDevideHorizontal,
                                                   (float) actDepthMid,
@@ -10071,12 +9526,12 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
     //Check for duplicates at the borders
     if (success1 && success2) {
         vector<pair<size_t, size_t>> delList;
-        for (size_t i = 0; i < cloudsNear.size(); ++i) {
-            for (size_t j = 0; j < cloudsNear[i]->size(); ++j) {
-                for (size_t l = 0; l < cloudsFar[i]->size(); ++l) {
-                    float dist = abs(cloudsNear[i]->at(j).x - cloudsFar[i]->at(l).x) +
-                                 abs(cloudsNear[i]->at(j).y - cloudsFar[i]->at(l).y) +
-                                 abs(cloudsNear[i]->at(j).z - cloudsFar[i]->at(l).z);
+        for (size_t i = 0; i < cloudsNear_idx.size(); ++i) {
+            for (size_t j = 0; j < cloudsNear_idx[i].size(); ++j) {
+                for (size_t l = 0; l < cloudsFar_idx[i].size(); ++l) {
+                    float dist = abs(cloudIn->at(cloudsNear_idx[i][j]).x - cloudIn->at(cloudsFar_idx[i][l]).x) +
+                                 abs(cloudIn->at(cloudsNear_idx[i][j]).y - cloudIn->at(cloudsFar_idx[i][l]).y) +
+                                 abs(cloudIn->at(cloudsNear_idx[i][j]).z - cloudIn->at(cloudsFar_idx[i][l]).z);
                     if (nearZero((double) dist)) {
                         delList.emplace_back(make_pair(i, l));
                     }
@@ -10085,24 +9540,31 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
         }
         if (!delList.empty()) {
             for (int i = (int) delList.size() - 1; i >= 0; i--) {
-                cloudsFar[delList[i].first]->erase(cloudsFar[delList[i].first]->begin() + delList[i].second);
+                cloudsFar_idx[delList[i].first].erase(cloudsFar_idx[delList[i].first].begin() + delList[i].second);
             }
         }
     } else if (!success1 && !success2) {
         return false;
     }
 
+    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudsFar(cloudsFar_idx.size());
+    for(size_t i = 0; i < cloudsFar_idx.size(); i++){
+        cloudsFar[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+        cloudsFar[i]->reserve(cloudsFar_idx[i].size());
+        for(auto& j : cloudsFar_idx[i]){
+            cloudsFar[i]->push_back(cloudIn->at((size_t)j));
+        }
+    }
+
     //Filter near occluded 3D points with a smaller voxel size
-    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsNear((size_t)partsxy);
+    vector<vector<int>> filteredOccludedPtsNear((size_t)partsxy);
     if (success1) {
         success1 = false;
         for (int i = 0; i < partsxy; i++) {
-            filteredOccludedPtsNear[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
-            if (cloudsNear[i]->empty()) continue;
+            if (cloudsNear_idx[i].empty()) continue;
             bool success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear[i], false, false);
             if (!success3) {
-//                filteredOccludedPtsNear[i]->clear();
-                pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsNear2(new pcl::PointCloud<pcl::PointXYZ>());
+                vector<int> filteredOccludedPtsNear2;
                 success3 = filterNotVisiblePts(cloudsNear[i], filteredOccludedPtsNear2, true, false);
                 if (success3) {
                     filteredOccludedPtsNear[i] = filteredOccludedPtsNear2;
@@ -10115,16 +9577,14 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
     }
 
     //Filter far occluded 3D points with a bigger voxel size
-    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPtsFar((size_t)partsxy);
+    vector<vector<int>> filteredOccludedPtsFar((size_t)partsxy);
     if (success2) {
         success2 = false;
         for (int i = 0; i < partsxy; i++) {
-            if (cloudsFar[i]->empty()) continue;
-            filteredOccludedPtsFar[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+            if (cloudsFar_idx[i].empty()) continue;
             bool success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar[i], false, false);
             if (!success3) {
-//                filteredOccludedPtsFar[i]->clear();
-                pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsFar2(new pcl::PointCloud<pcl::PointXYZ>());
+                vector<int> filteredOccludedPtsFar2;
                 success3 = filterNotVisiblePts(cloudsFar[i], filteredOccludedPtsFar2, true, false);
                 if (success3) {
                     filteredOccludedPtsFar[i] = filteredOccludedPtsFar2;
@@ -10138,18 +9598,20 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
 
     //Combine near and far filtered point clouds
     success1 = false;
-    cloudOut = filteredOccludedPtsNear;
+    cloudOut = std::vector<std::vector<int>>(partsxy);
+    for(int i = 0; i < partsxy; i++){
+        for(auto& j : filteredOccludedPtsNear[i]){
+            cloudOut[i].push_back(cloudsNear_idx[i][j]);
+        }
+    }
     for (int i = 0; i < partsxy; i++) {
-        if ((filteredOccludedPtsFar[i].get() != nullptr) && !filteredOccludedPtsFar[i]->empty()) {
-            if (cloudOut[i].get() != nullptr) {
-                cloudOut[i]->insert(cloudOut[i]->end(),
-                                    filteredOccludedPtsFar[i]->begin(),
-                                    filteredOccludedPtsFar[i]->end());
-            } else {
-                cloudOut[i] = filteredOccludedPtsFar[i];
+        if (!filteredOccludedPtsFar[i].empty()) {
+            cloudOut[i].reserve(cloudOut[i].size() + filteredOccludedPtsFar[i].size());
+            for(auto& j : filteredOccludedPtsFar[i]){
+                cloudOut[i].push_back(cloudsFar_idx[i][j]);
             }
         }
-        if ((cloudOut[i].get() != nullptr) && !cloudOut[i]->empty()) success1 = true;
+        if (!cloudOut[i].empty()) success1 = true;
     }
 
     return success1;
@@ -10215,13 +9677,86 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     return success;
 }
 
+bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+                                                  std::vector<std::vector<int>> &cloudOut,
+                                                  int fovDevideVertical,
+                                                  int fovDevideHorizontal,
+                                                  float minDistance,
+                                                  float maxDistance) {
+    if (cloudIn->empty()) return false;
+
+    std::vector<int> camFilteredPts_idx;
+    bool success = getVisibleCamPointCloud(cloudIn, &camFilteredPts_idx, 0, 0, 0, 0, minDistance, maxDistance);
+    if (!success) {
+        return false;
+    }
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+    camFilteredPts->reserve(camFilteredPts_idx.size());
+    for(auto& i : camFilteredPts_idx){
+        camFilteredPts->push_back(cloudIn->at((size_t)i));
+    }
+
+    cloudOut = vector<std::vector<int>>((size_t)(fovDevideVertical * fovDevideHorizontal));
+//    int checkSizePtCld = 0;
+    success = false;
+    for (int y = 0; y < fovDevideVertical; ++y) {
+        for (int x = 0; x < fovDevideHorizontal; ++x) {
+            success |= getVisibleCamPointCloud(camFilteredPts,
+                                               &cloudOut[y * fovDevideHorizontal + x],
+                                               fovDevideVertical,
+                                               fovDevideHorizontal,
+                                               y,
+                                               x,
+                                               minDistance,
+                                               maxDistance);
+//            checkSizePtCld += (int)cloudOut[y * fovDevideHorizontal + x]->size();
+        }
+    }
+    //Remove duplicates
+    vector<pair<size_t, size_t>> delList;
+    for (size_t i = 0; i < cloudOut.size(); ++i) {
+        for (size_t j = 0; j < cloudOut[i].size(); ++j) {
+            for (size_t k = i; k < cloudOut.size(); ++k) {
+                for (size_t l = (k == i) ? (j + 1) : 0; l < (int) cloudOut[k].size(); ++l) {
+                    float dist = abs(camFilteredPts->at(cloudOut[i][j]).x - camFilteredPts->at(cloudOut[k][l]).x) +
+                                 abs(camFilteredPts->at(cloudOut[i][j]).y - camFilteredPts->at(cloudOut[k][l]).y) +
+                                 abs(camFilteredPts->at(cloudOut[i][j]).z - camFilteredPts->at(cloudOut[k][l]).z);
+                    if (nearZero((double) dist)) {
+                        delList.emplace_back(make_pair(i, j));
+                    }
+                }
+            }
+        }
+    }
+    if (!delList.empty()) {
+        for (int i = (int) delList.size() - 1; i >= 0; i--) {
+            cloudOut[delList[i].first].erase(cloudOut[delList[i].first].begin() + delList[i].second);
+//            checkSizePtCld--;
+        }
+    }
+
+    for(auto&& i : cloudOut){
+        for(auto&& j : i){
+            j = camFilteredPts_idx[j];
+        }
+    }
+    //Typically, the returned number of 3D points within all slices is 1 smaller compared to the whole region (why?)
+    /*if(checkSizePtCld != camFilteredPts->size()){
+        cout << "Not working" << endl;
+    }*/
+    return success;
+}
+
 //Get part of a pointcloud visible in a camera.
 // The function supports slicing of the truncated pyramid (frustum of pyramid) given the number of slices in vertical
 // and horizontal direction and their 0-based indices (This function must be called for every slice seperately). Before
 // using slicing, the function should be called without slicing and the results of this call should be provided to the
 // function with slicing
+//The output variables can only be of type pcl::PointCloud<pcl::PointXYZ>::Ptr or *std::vector<int>
+template<typename T>
 bool genStereoSequ::getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
-                                            pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
+                                            T cloudOut,
                                             int fovDevideVertical,
                                             int fovDevideHorizontal,
                                             int returnDevPartNrVer,
@@ -10358,6 +9893,29 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     if (cloudIn->empty())
         return false;
 
+    vector<int> cloudOut_idx;
+    bool success = filterNotVisiblePts(cloudIn, cloudOut_idx, useNearLeafSize, visRes, cloudOccluded);
+
+    if(!cloudOut_idx.empty()){
+        cloudOut->reserve(cloudOut_idx.size());
+        for(auto& i : cloudOut_idx){
+            cloudOut->push_back(cloudIn->at((size_t)i));
+        }
+    }
+
+    return success;
+}
+
+//Filters occluded 3D points based on a voxel size corresponding to 1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
+//Returns false if more than 33% are occluded
+bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+                                        std::vector<int> cloudOut,
+                                        bool useNearLeafSize,
+                                        bool visRes,
+                                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded) {
+    if (cloudIn->empty())
+        return false;
+
     cloudIn->sensor_origin_ = Eigen::Vector4f((float) absCamCoordinates[actFrameCnt].t.at<double>(0),
                                               (float) absCamCoordinates[actFrameCnt].t.at<double>(1),
                                               (float) absCamCoordinates[actFrameCnt].t.at<double>(2), 1.f);
@@ -10443,7 +10001,9 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
             const double maxlsenlarge = 1.2;
             if (lNew > maxlsenlarge * (double) leaf_size) {
                 //Go on without filtering
-                *cloudOut.get() = *cloudIn.get();
+//                *cloudOut.get() = *cloudIn.get();
+                cloudOut.resize(cloudIn->size());
+                std::iota(cloudOut.begin(), cloudOut.end(), 0);
                 return true;
             } else {
                 leaf_size = (float)lNew;
@@ -10460,7 +10020,9 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                 }
                 if ((dx * dy * dz) > maxIdxSize) {
                     //Go on without filtering
-                    *cloudOut.get() = *cloudIn.get();
+//                    *cloudOut.get() = *cloudIn.get();
+                    cloudOut.resize(cloudIn->size());
+                    std::iota(cloudOut.begin(), cloudOut.end(), 0);
                     return true;
                 }
             }
@@ -10477,24 +10039,31 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     } else {
         cloudOccluded_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     }
-    for (size_t i = 0; i < cloudIn->size(); i++) {
+    for (int i = 0; i < (int)cloudIn->size(); i++) {
         Eigen::Vector3i grid_coordinates = voxelFilter.getGridCoordinates(cloudIn->points[i].x,
                                                                           cloudIn->points[i].y,
                                                                           cloudIn->points[i].z);
         int grid_state;
         int ret = voxelFilter.occlusionEstimation(grid_state, grid_coordinates);
         if ((ret == 0) && (grid_state == 0)) {
-            cloudOut->push_back(cloudIn->points[i]);
+            cloudOut.push_back(i);
         } else if ((ret == 0) && (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ)) {
             cloudOccluded_->push_back(cloudIn->points[i]);
         }
     }
 
     if (visRes && (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ)) {
-        visualizeOcclusions(cloudOut, cloudOccluded_, (double) leaf_size);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut_pts(new pcl::PointCloud<pcl::PointXYZ>);
+        if(!cloudOut.empty()){
+            cloudOut_pts->reserve(cloudOut.size());
+            for(auto& i : cloudOut){
+                cloudOut_pts->push_back(cloudIn->at((size_t)i));
+            }
+        }
+        visualizeOcclusions(cloudOut_pts, cloudOccluded_, (double) leaf_size);
     }
 
-    float fracOcc = (float) (cloudOut->size()) / (float) (cloudIn->size());
+    float fracOcc = (float) (cloudOut.size()) / (float) (cloudIn->size());
     if (fracOcc < 0.67)
         return false;
 

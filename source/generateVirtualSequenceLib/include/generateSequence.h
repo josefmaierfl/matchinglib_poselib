@@ -361,8 +361,9 @@ private:
 	void transMovObjPtsToWorld();
 	void updateMovObjPositions();
 	void getActEigenCamPose();
+	template<typename T>
 	bool getVisibleCamPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
-								 pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
+								 T cloudOut,
 								 int fovDevideVertical = 0,
 								 int fovDevideHorizontal = 0,
 								 int returnDevPartNrVer = 0,
@@ -375,15 +376,31 @@ private:
 								  int fovDevideHorizontal,
 								  float minDistance = 0,
 								  float maxDistance = 0);
+	bool getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+									   std::vector<std::vector<int>> &cloudOut,
+									   int fovDevideVertical,
+									   int fovDevideHorizontal,
+									   float minDistance = 0,
+									   float maxDistance = 0);
     bool getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                                                std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &cloudOut,
+                                                std::vector<std::vector<int>> &cloudOut_idx,
                                                int fovDevideVertical,
                                                int fovDevideHorizontal);
+	bool getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+												std::vector<std::vector<int>> &cloudOut,
+												int fovDevideVertical,
+												int fovDevideHorizontal);
 	bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
 	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
 	        bool useNearLeafSize = false,
 	        bool visRes = true,
 	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
+    bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+                             std::vector<int> cloudOut,
+                             bool useNearLeafSize = false,
+                             bool visRes = true,
+                             pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
@@ -603,18 +620,5 @@ private:
 
 /* --------------------- Function prototypes --------------------- */
 
-template<typename T, typename A, typename T1, typename A1>
-void deleteVecEntriesbyIdx(std::vector<T, A> &editVec, std::vector<T1, A1> const& delVec);
-
-template<typename T, typename A>
-void deleteMatEntriesByIdx(cv::Mat &editMat, std::vector<T, A> const& delVec, bool rowOrder);
-
-/*Rounds a rotation matrix to its nearest integer values and checks if it is still a rotation matrix and does not change more than 22.5deg from the original rotation matrix.
-As an option, the error of the rounded rotation matrix can be compared to an angular difference of a second given rotation matrix R_fixed to R_old.
-The rotation matrix with the smaller angular difference is selected.
-This function is used to select a proper rotation matrix if the "look at" and "up vector" are nearly equal. I trys to find the nearest rotation matrix aligened to the
-"look at" vector taking into account the rotation matrix calculated from the old/last "look at" vector
-*/
-bool roundR(const cv::Mat R_old, cv::Mat & R_round, cv::InputArray R_fixed = cv::noArray());
 
 /* -------------------------- Functions -------------------------- */
