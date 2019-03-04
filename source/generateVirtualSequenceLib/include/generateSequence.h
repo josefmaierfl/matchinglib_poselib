@@ -397,7 +397,7 @@ private:
 	        bool visRes = true,
 	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
     bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
-                             std::vector<int> cloudOut,
+                             std::vector<int> &cloudOut,
                              bool useNearLeafSize = false,
                              bool visRes = true,
                              pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
