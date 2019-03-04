@@ -501,12 +501,14 @@ private:
 	std::vector<cv::Mat> areaPRegFar;//Area in pixels per region that should hold far depth values; Type CV_32SC1, same size as depthsPerRegion
 	std::vector<std::vector<cv::Rect>> regROIs;//ROIs of every of the 3x3 image regions
 
-	pcl::PointCloud<pcl::PointXYZ> staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
+	pcl::PointCloud<pcl::PointXYZ>::Ptr staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
 	std::vector<cv::Point3d> actImgPointCloudFromLast;//3D coordiantes that were generated with a different frame. Coordinates are in the camera coordinate system.
 	std::vector<cv::Point3d> actImgPointCloud;//All newly generated 3D coordiantes excluding actImgPointCloudFromLast. Coordinates are in the camera coordinate system.
 	cv::Mat actCorrsImg1TPFromLast, actCorrsImg2TPFromLast;//TP correspondences in the stereo rig from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	std::vector<size_t> actCorrsImg12TPFromLast_Idx;//Index to the corresponding 3D point within actImgPointCloudFromLast of correspondences in actCorrsImg1TPFromLast and actCorrsImg2TPFromLast
+	std::vector<int> actCorrsImg12TPFromLast_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts of correspondences in actCorrsImg1TPFromLast and actCorrsImg2TPFromLast
 	cv::Mat actCorrsImg1TP, actCorrsImg2TP;//TP orrespondences in the stereo rig from actImgPointCloud in homogeneous image coordinates. Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+	std::vector<int> actCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts of newly created correspondences in actCorrsImg1TP and actCorrsImg2TP
 	cv::Mat actCorrsImg1TNFromLast;//TN keypoint in the first stereo rig image from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
 	std::vector<size_t> actCorrsImg1TNFromLast_Idx;//Index to the corresponding 3D point within actImgPointCloudFromLast of actCorrsImg1TNFromLast
 	cv::Mat actCorrsImg2TNFromLast;//TN keypoint in the second stereo rig image from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0
@@ -586,6 +588,8 @@ private:
 
 	cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	std::vector<cv::Point3d> comb3DPts;//Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP
+	std::vector<int> combCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of combined TP correspondences (static and moving objects) in combCorrsImg1TP and combCorrsImg2TP. Indices on static objects are positive. Indices on moving objects are negative: The first 8bit hold the vector index for movObj3DPtsWorld and the next 23bit hold the 3D world coordinate index of the corresponding within the moving object
+	std::vector<int> combCorrsImg12TPContMovObj_IdxWorld; //Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT correspond with vector elements in movObj3DPtsWorld but with a consecutive number pointing to moving object pointclouds that were saved after they emerged. The index number in the first 8 bits can also be found in the corresponding file name where the PCL pointcloud was saved to.
 	cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
 	std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image

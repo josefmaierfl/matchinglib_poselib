@@ -173,6 +173,9 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     actCorrsOnMovObj = 0;
     actCorrsOnMovObjFromLast = 0;
 
+    //Initialize variable for storing static 3D world coordinates
+    staticWorld3DPts.reset(new pcl::PointCloud<pcl::PointXYZ>());
+
     //Calculate the initial number, size, and positions of moving objects in the image
     getNrSizePosMovObj();
 
@@ -9305,13 +9308,20 @@ void genStereoSequ::transPtsToWorld() {
     }
 
     size_t nrPts = actImgPointCloud.size();
+    size_t nrOldPts = staticWorld3DPts->size();
 
-    staticWorld3DPts.reserve(staticWorld3DPts.size() + nrPts);
+    if(nrOldPts == 0){
+        actCorrsImg12TPFromLast_IdxWorld.clear();
+        actCorrsImg12TPFromLast_IdxWorld.resize(nrPts);
+        std::iota(actCorrsImg12TPFromLast_IdxWorld.begin(), actCorrsImg12TPFromLast_IdxWorld.end(), 0);
+    }
+
+    staticWorld3DPts->reserve(nrOldPts + nrPts);
 
     for (size_t i = 0; i < nrPts; i++) {
         Mat ptm = absCamCoordinates[actFrameCnt].R * Mat(actImgPointCloud[i]).reshape(1) +
                   absCamCoordinates[actFrameCnt].t;
-        staticWorld3DPts.push_back(
+        staticWorld3DPts->push_back(
                 pcl::PointXYZ((float) ptm.at<double>(0), (float) ptm.at<double>(1), (float) ptm.at<double>(2)));
     }
 
@@ -9480,7 +9490,7 @@ Eigen::Affine3f initPCLViewerCoordinateSystems(boost::shared_ptr<pcl::visualizat
 }
 
 void genStereoSequ::visualizeStaticObjPtCloud() {
-    if (staticWorld3DPts.empty())
+    if (staticWorld3DPts->empty())
         return;
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
@@ -9489,7 +9499,7 @@ void genStereoSequ::visualizeStaticObjPtCloud() {
     Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, absCamCoordinates[actFrameCnt].R,
                                                        absCamCoordinates[actFrameCnt].t);
 
-    viewer->addPointCloud<pcl::PointXYZ>(staticWorld3DPts.makeShared(), "static objects cloud");
+    viewer->addPointCloud<pcl::PointXYZ>(staticWorld3DPts, "static objects cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1,
                                              "static objects cloud");
 
@@ -9499,7 +9509,7 @@ void genStereoSequ::visualizeStaticObjPtCloud() {
 }
 
 void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
-    if (staticWorld3DPts.empty() || movObj3DPtsWorld.empty())
+    if (staticWorld3DPts->empty() || movObj3DPtsWorld.empty())
         return;
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
@@ -9529,7 +9539,7 @@ void genStereoSequ::visualizeMovingAndStaticObjPtCloud() {
         }
         idx++;
     }
-    for (auto &i : staticWorld3DPts) {
+    for (const auto &i : *(staticWorld3DPts.get())) {
         pcl::PointXYZRGB point;
         point.x = i.x;
         point.y = i.y;
@@ -9922,19 +9932,19 @@ void genStereoSequ::getMovObjPtsCam() {
 }
 
 void genStereoSequ::getCamPtsFromWorld() {
-    if (staticWorld3DPts.empty()) {
+    if (staticWorld3DPts->empty()) {
         return;
     }
 
     actImgPointCloudFromLast.clear();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
+//    pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
 #if FILTER_OCCLUDED_POINTS
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
     const int partsx = 5;
     const int partsy = 5;
     const int partsxy = partsx * partsy;
-//    bool success = getVisibleCamPointCloudSlices(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy, partsx, 0, 0);
-    bool success = getVisibleCamPointCloudSlicesAndDepths(ptr_actImgPointCloudFromLast, camFilteredPtsParts, partsy,
+//    bool success = getVisibleCamPointCloudSlices(staticWorld3DPts, camFilteredPtsParts, partsy, partsx, 0, 0);
+    bool success = getVisibleCamPointCloudSlicesAndDepths(staticWorld3DPts, camFilteredPtsParts, partsy,
                                                           partsx);
     if (!success) {
         return;
@@ -9944,6 +9954,7 @@ void genStereoSequ::getCamPtsFromWorld() {
     pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
     success = false;
     for (int i = 0; i < partsxy; i++) {
+        if(camFilteredPtsParts[i].get() == nullptr) continue;
         if (camFilteredPtsParts[i]->empty()) continue;
         pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPts(new pcl::PointCloud<pcl::PointXYZ>());
         pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPts(new pcl::PointCloud<pcl::PointXYZ>());
@@ -9982,7 +9993,7 @@ void genStereoSequ::getCamPtsFromWorld() {
     }
 #else
     pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
-    bool success = getVisibleCamPointCloud(ptr_actImgPointCloudFromLast, filteredOccludedPtsAll);
+    bool success = getVisibleCamPointCloud(staticWorld3DPts, filteredOccludedPtsAll);
     if (!success) {
         return;
     }
@@ -10138,7 +10149,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlicesAndDepths(pcl::PointCloud<pcl::
                 cloudOut[i] = filteredOccludedPtsFar[i];
             }
         }
-        if (!cloudOut[i]->empty()) success1 = true;
+        if ((cloudOut[i].get() != nullptr) && !cloudOut[i]->empty()) success1 = true;
     }
 
     return success1;

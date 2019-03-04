@@ -675,6 +675,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& 
 	const bool enableFlightMode = false; //Only for closed loop. If enabled, the elevation angle teta of the ellipsoide is continuously changed within the range closedLoopMaxElevationAngleRange to get different height values (z-component of ellipsoide (y in the camera coordinate system)) along the track
 
 	size_t nFramesPerCamConf = 1 + (size_t)(rand() % 20);//5;//Number of consecutive frames on a track with the same stereo configuration
+    if((Rv.size() == 1) && (nFramesPerCamConf == 1)){
+        nFramesPerCamConf++;
+    }
 
 	double minInlierRange[2] = { 0.1, 0.5 };//Range of the minimum inlier ratio
 	double maxInlierRange[2] = { 0.55, 1.0 };//Range of the maximum inlier ratio bounded by minInlierRange
