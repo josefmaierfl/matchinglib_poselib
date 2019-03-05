@@ -110,6 +110,7 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     movObjHasArea = std::vector<std::vector<bool>>(3, std::vector<bool>(3, false));
     actCorrsOnMovObj = 0;
     actCorrsOnMovObjFromLast = 0;
+    movObj3DPtsWorldAllFrames.clear();
 
     //Initialize variable for storing static 3D world coordinates
     staticWorld3DPts.reset(new pcl::PointCloud<pcl::PointXYZ>());
@@ -1586,8 +1587,10 @@ void genStereoSequ::backProject3D() {
     dimgWH.maxDist = maxFarDistMultiplier * actDepthFar;
 
     std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
+    vector<int> actCorrsImg12TPFromLast_IdxWorld_tmp;
     size_t idx1 = 0;
-    for (const auto &pt : actImgPointCloudFromLast) {
+    for (auto i = 0; i < actImgPointCloudFromLast.size(); ++i) {
+        cv::Point3d &pt = actImgPointCloudFromLast[i];
         if ((pt.z < actDepthNear) ||
             (pt.z > dimgWH.maxDist)) {
             continue;
@@ -1644,9 +1647,11 @@ void genStereoSequ::backProject3D() {
             actCorrsImg12TPFromLast_Idx.push_back(idx1);
         }
         actImgPointCloudFromLast_tmp.push_back(pt);
+        actCorrsImg12TPFromLast_IdxWorld_tmp.push_back(actCorrsImg12TPFromLast_IdxWorld[i]);
         idx1++;
     }
     actImgPointCloudFromLast = actImgPointCloudFromLast_tmp;
+    actCorrsImg12TPFromLast_IdxWorld = actCorrsImg12TPFromLast_IdxWorld_tmp;
     if (!actCorrsImg1TNFromLast.empty())
         actCorrsImg1TNFromLast = actCorrsImg1TNFromLast.t();
     if (!actCorrsImg2TNFromLast.empty())
@@ -1796,6 +1801,7 @@ void genStereoSequ::checkDepthSeeds() {
             }
             adaptIndicesNoDel(actCorrsImg12TPFromLast_Idx, delList3D);
             deleteVecEntriesbyIdx(actImgPointCloudFromLast, delList3D);
+            deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_IdxWorld, delList3D);
 
             sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) { return first < second; });
             if (!seedsNear_tmp1.empty())
@@ -2119,6 +2125,7 @@ int genStereoSequ::deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &see
         }
         adaptIndicesNoDel(actCorrsImg12TPFromLast_Idx, delList3D);
         deleteVecEntriesbyIdx(actImgPointCloudFromLast, delList3D);
+        deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_IdxWorld, delList3D);
 
 //        sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) { return first < second; });
 
@@ -4076,6 +4083,7 @@ void genStereoSequ::getKeypoints() {
         }
         adaptIndicesNoDel(actCorrsImg12TPFromLast_Idx, delList3D);
         deleteVecEntriesbyIdx(actImgPointCloudFromLast, delList3D);
+        deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_IdxWorld, delList3D);
 
         sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) { return first < second; });
 
@@ -6689,6 +6697,7 @@ void genStereoSequ::clearNewMovObjVars() {
     movObjCorrsImg2TN.clear();
     movObj3DPtsCamNew.clear();
     movObjDistTNtoRealNew.clear();
+    actCorrsOnMovObj_IdxWorld.clear();
 }
 
 //Generate correspondences and TN for newly generated moving objects
@@ -6721,6 +6730,7 @@ void genStereoSequ::getMovObjCorrs() {
     movObjCorrsImg2TN.resize(nr_movObj);
     movObj3DPtsCamNew.resize(nr_movObj);
     movObjDistTNtoRealNew.resize(nr_movObj);
+    actCorrsOnMovObj_IdxWorld.resize(nr_movObj);
     for (int i = 0; i < (int)nr_movObj; i++) {
         std::uniform_int_distribution<int32_t> distributionX(movObjLabelsROIs[i].x,
                                                              movObjLabelsROIs[i].x + movObjLabelsROIs[i].width - 1);
@@ -6790,6 +6800,8 @@ void genStereoSequ::getMovObjCorrs() {
                 dispit++;
             }
         }
+        actCorrsOnMovObj_IdxWorld[i].resize(movObj3DPtsCamNew[i].size());
+        std::iota(actCorrsOnMovObj_IdxWorld[i].begin(), actCorrsOnMovObj_IdxWorld[i].end(), 0);
         //If there are still correspondences missing, try to use them in the next object
         /*if ((nrTP > 0) && (i < (nr_movObj - 1)))
         {
@@ -7002,12 +7014,24 @@ void genStereoSequ::getMovObjCorrs() {
     }
 
     //Remove empty moving object point clouds
-    for (auto itr = movObj3DPtsCamNew.rbegin();
+    vector<int> delList;
+    for (int l = 0; l < movObj3DPtsCamNew.size(); ++l) {
+        if(movObj3DPtsCamNew[l].empty()){
+            delList.push_back(l);
+        }
+    }
+    if(!delList.empty()){
+        for (int i = (int)delList.size() - 1; i >= 0; --i) {
+            movObj3DPtsCamNew.erase(movObj3DPtsCamNew.begin() + delList[i]);
+            actCorrsOnMovObj_IdxWorld.erase(actCorrsOnMovObj_IdxWorld.begin() + delList[i]);
+        }
+    }
+    /*for (auto itr = movObj3DPtsCamNew.rbegin();
          itr != movObj3DPtsCamNew.rend(); itr++) {
         if (itr->empty()) {
             movObj3DPtsCamNew.erase(std::next(itr).base());
         }
-    }
+    }*/
 }
 
 //Generate (backproject) correspondences from existing moving objects and generate hulls of the objects in the image
@@ -7242,6 +7266,7 @@ void genStereoSequ::backProjectMovObj() {
 
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
             movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+            actCorrsOnMovObjFromLast_IdxWorld.erase(actCorrsOnMovObjFromLast_IdxWorld.begin() + delList[i]);
             movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
         }
@@ -7342,6 +7367,7 @@ void genStereoSequ::backProjectMovObj() {
 
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
             movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+            actCorrsOnMovObjFromLast_IdxWorld.erase(actCorrsOnMovObjFromLast_IdxWorld.begin() + delList[i]);
             movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
             movObjDistTNtoReal.erase(movObjDistTNtoReal.begin() + delList[i]);
@@ -7756,6 +7782,8 @@ void genStereoSequ::backProjectMovObj() {
         actTrueNegOnMovObjFromLast += actTNPerMovObjFromLast[i];
     }
     actCorrsOnMovObjFromLast = actTrueNegOnMovObjFromLast + actTruePosOnMovObjFromLast;
+
+    movObj3DPtsWorldAllFrames.insert(movObj3DPtsWorldAllFrames.end(), movObj3DPtsWorld.begin(), movObj3DPtsWorld.end());
 
     //Finally visualize the labels
     if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
@@ -8696,6 +8724,62 @@ void genStereoSequ::combineCorrespondences() {
     }
 }
 
+void genStereoSequ::combineWorldCoordinateIndices(){
+    combCorrsImg12TP_IdxWorld.clear();
+
+    //Copy all 3D world coordinate indices
+    for (auto& i : actCorrsImg12TPFromLast_Idx) {
+        combCorrsImg12TP_IdxWorld.push_back(static_cast<int64_t>(actCorrsImg12TPFromLast_IdxWorld[i]));
+    }
+    if (!actImgPointCloud.empty()) {
+        CV_Assert(!actCorrsImg12TP_IdxWorld.empty());
+        combCorrsImg12TP_IdxWorld.reserve(combCorrsImg12TP_IdxWorld.size() + actCorrsImg12TP_IdxWorld.size());
+        for(auto& i : actCorrsImg12TP_IdxWorld){
+            combCorrsImg12TP_IdxWorld.push_back(static_cast<int64_t>(i));
+        }
+    }
+    combCorrsImg12TPContMovObj_IdxWorld = combCorrsImg12TP_IdxWorld;
+
+    int64_t idxMOAllFrames = static_cast<int64_t>(movObj3DPtsWorldAllFrames.size()) -
+            static_cast<int64_t>(movObjCorrsImg12TPFromLast_Idx.size()) -
+            static_cast<int64_t>(actCorrsOnMovObj_IdxWorld.size());
+    for (size_t i = 0; i < movObjCorrsImg12TPFromLast_Idx.size(); i++) {
+        combCorrsImg12TP_IdxWorld.reserve(combCorrsImg12TP_IdxWorld.size() + movObjCorrsImg12TPFromLast_Idx[i].size());
+        combCorrsImg12TPContMovObj_IdxWorld.reserve(combCorrsImg12TPContMovObj_IdxWorld.size() +
+        movObjCorrsImg12TPFromLast_Idx[i].size());
+        const int64_t idxMO = static_cast<int64_t>(i + 1);
+        const int64_t idxMOAll = idxMO + idxMOAllFrames;
+        for (auto& j : movObjCorrsImg12TPFromLast_Idx[i]) {
+            int64_t idxPts = static_cast<int64_t>(actCorrsOnMovObjFromLast_IdxWorld[i][j]);
+            CV_Assert(idxPts < static_cast<int64_t>(INT32_MAX));
+            idxPts = idxPts << 32;
+            int64_t idx = -1 * (idxMO | idxPts);
+            combCorrsImg12TP_IdxWorld.push_back(idx);
+            idx = -1 * (idxMOAll | idxPts);
+            combCorrsImg12TPContMovObj_IdxWorld.push_back(idx);
+        }
+    }
+    idxMOAllFrames += static_cast<int64_t>(movObjCorrsImg12TPFromLast_Idx.size());
+    for (size_t i = 0; i < actCorrsOnMovObj_IdxWorld.size(); i++) {
+        if (!actCorrsOnMovObj_IdxWorld[i].empty()) {
+            combCorrsImg12TP_IdxWorld.reserve(combCorrsImg12TP_IdxWorld.size() + actCorrsOnMovObj_IdxWorld[i].size());
+            combCorrsImg12TPContMovObj_IdxWorld.reserve(combCorrsImg12TPContMovObj_IdxWorld.size() +
+            actCorrsOnMovObj_IdxWorld[i].size());
+            const int64_t idxMO = static_cast<int64_t>(i + 1);
+            const int64_t idxMOAll = idxMO + idxMOAllFrames;
+            for (auto& j : actCorrsOnMovObj_IdxWorld[i]) {
+                int64_t idxPts = static_cast<int64_t>(actCorrsOnMovObj_IdxWorld[i][j]);
+                CV_Assert(idxPts < static_cast<int64_t>(INT32_MAX));
+                idxPts = idxPts << 32;
+                int64_t idx = -1 * (idxMO | idxPts);
+                combCorrsImg12TP_IdxWorld.push_back(idx);
+                idx = -1 * (idxMOAll | idxPts);
+                combCorrsImg12TPContMovObj_IdxWorld.push_back(idx);
+            }
+        }
+    }
+}
+
 void genStereoSequ::visualizeAllCorrespondences(){
     Mat allCorrs = cv::Mat::zeros(imgSize, CV_8UC3);
 
@@ -8855,8 +8939,10 @@ void genStereoSequ::transMovObjPtsToWorld() {
 
     size_t nrNewObjs = movObj3DPtsCamNew.size();
     size_t nrOldObjs = movObj3DPtsWorld.size();
+    size_t nrSaveObjs = movObj3DPtsWorldAllFrames.size();
     movObj3DPtsWorld.resize(nrOldObjs + nrNewObjs);
     movObjWorldMovement.resize(nrOldObjs + nrNewObjs);
+    movObj3DPtsWorldAllFrames.resize(nrSaveObjs + nrNewObjs);
     /* WRONG:
      * Mat trans_c2w;//Translation vector for transferring 3D points from camera to world coordinates
     Mat RC2W = absCamCoordinates[actFrameCnt].R.t();
@@ -8872,6 +8958,7 @@ void genStereoSequ::transMovObjPtsToWorld() {
             movObj3DPtsWorld[idx].push_back(
                     pcl::PointXYZ((float) ptm.at<double>(0), (float) ptm.at<double>(1), (float) ptm.at<double>(2)));
         }
+        movObj3DPtsWorldAllFrames[nrSaveObjs + i] = movObj3DPtsWorld[idx];
         double velocity = 0;
         if (nearZero(pars.relMovObjVelRange.first - pars.relMovObjVelRange.second)) {
             velocity = absCamVelocity * pars.relMovObjVelRange.first;
@@ -8902,6 +8989,7 @@ void genStereoSequ::transMovObjPtsToWorld() {
         tdiff *= velocity;
         movObjWorldMovement[idx] = tdiff.clone();
     }
+
     if (verbose & SHOW_MOV_OBJ_3D_PTS) {
         visualizeMovObjPtCloud();
     }
@@ -9146,8 +9234,11 @@ void genStereoSequ::getMovObjPtsCam() {
     vector<int> delList;
     movObj3DPtsCam.clear();
     movObj3DPtsCam.resize(movObjSize);
+    actCorrsOnMovObjFromLast_IdxWorld.clear();
+    actCorrsOnMovObjFromLast_IdxWorld.resize(movObjSize);
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedPts(movObjSize);
     vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> filteredOccludedCamPts(movObjSize);
+    vector<vector<int>> filteredOccludedCamPts_idx(movObjSize);
     vector<pair<float, int>> meanDists(movObjSize, make_pair(0, -1));
 
     Eigen::Affine3f obj_transform = Eigen::Affine3f::Identity();
@@ -9162,25 +9253,36 @@ void genStereoSequ::getMovObjPtsCam() {
     for (int i = 0; i < (int)movObjSize; i++) {
         pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_movObj3DPtsWorld(movObj3DPtsWorld[i].makeShared());
         pcl::PointCloud<pcl::PointXYZ>::Ptr camFilteredPts(new pcl::PointCloud<pcl::PointXYZ>());
+        vector<int> camFilteredPts_idx;
         //Check if the moving object is visible in the camera
-        bool success = getVisibleCamPointCloud(ptr_movObj3DPtsWorld, camFilteredPts);
+        bool success = getVisibleCamPointCloud(ptr_movObj3DPtsWorld, &camFilteredPts_idx);
         if (!success) {
             delList.push_back(i);
             continue;
         }
 
+        camFilteredPts->reserve(camFilteredPts_idx.size());
+        for(auto& j : camFilteredPts_idx){
+            camFilteredPts->push_back(movObj3DPtsWorld[i][j]);
+        }
+
         //Check if due to the changed camera position, some 3D points are occluded from others of the same moving object
-        filteredOccludedPts[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
-        success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts[i]);
+        success = filterNotVisiblePts(camFilteredPts, actCorrsOnMovObjFromLast_IdxWorld[i]);
         if (!success) {
-            filteredOccludedPts[i]->clear();
-            success = filterNotVisiblePts(camFilteredPts, filteredOccludedPts[i], true);
+            actCorrsOnMovObjFromLast_IdxWorld[i].clear();
+            success = filterNotVisiblePts(camFilteredPts, actCorrsOnMovObjFromLast_IdxWorld[i], true);
             if (!success) {
-                if (filteredOccludedPts[i]->size() < 5) {
+                if (actCorrsOnMovObjFromLast_IdxWorld[i].size() < 5) {
                     delList.push_back(i);
                     continue;
                 }
             }
+        }
+
+        filteredOccludedPts[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+        for(auto& j : actCorrsOnMovObjFromLast_IdxWorld[i]){
+            filteredOccludedPts[i]->push_back(camFilteredPts->at((size_t)j));
+            j = camFilteredPts_idx[j];
         }
 
         //Convert 3D points from world into camera coordinates
@@ -9238,6 +9340,7 @@ void genStereoSequ::getMovObjPtsCam() {
                 for (int j = (int) keyPDelList.size() - 1; j >= 0; j--) {
                     keypointsMO.erase(keypointsMO.begin() + keyPDelList[j]);
                     filteredOccludedCamPts[idx]->erase(filteredOccludedCamPts[idx]->begin() + keyPDelList[j]);
+                    actCorrsOnMovObjFromLast_IdxWorld[idx].erase(actCorrsOnMovObjFromLast_IdxWorld[idx].begin() + keyPDelList[j]);
                 }
                 if (filteredOccludedCamPts[idx]->empty()) {
                     delList.push_back(idx);
@@ -9288,16 +9391,20 @@ void genStereoSequ::getMovObjPtsCam() {
                 {
                     throw SequenceException("Backprojected image coordinate of moving object is out of range.");
                 }*/
+                vector<int> filteredOccludedPts_idx_tmp;
+                filteredOccludedPts_idx_tmp.reserve(actCorrsOnMovObjFromLast_IdxWorld.size());
                 for (int j = 0; j < (int)keypointsMO.size(); ++j) {
                     if (overlaps.at<unsigned char>(keypointsMO[j]) == 0) {
                         movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
                                                                   (double) (*filteredOccludedCamPts[idx])[j].y,
                                                                   (double) (*filteredOccludedCamPts[idx])[j].z));
+                        filteredOccludedPts_idx_tmp.push_back(actCorrsOnMovObjFromLast_IdxWorld[idx][j]);
                     }
                 }
                 if (movObj3DPtsCam[idx].empty()) {
                     delList.push_back(idx);
                 }
+                actCorrsOnMovObjFromLast_IdxWorld[idx] = filteredOccludedPts_idx_tmp;
             } else {
                 for (int j = 0; j < (int)filteredOccludedCamPts[idx]->size(); ++j) {
                     movObj3DPtsCam[idx].push_back(cv::Point3d((double) (*filteredOccludedCamPts[idx])[j].x,
@@ -9330,6 +9437,7 @@ void genStereoSequ::getMovObjPtsCam() {
                                    delList[i]);//at this time, also moving objects that are only occluded are deleted
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
             movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
+            actCorrsOnMovObjFromLast_IdxWorld.erase(actCorrsOnMovObjFromLast_IdxWorld.begin() + delList[i]);
         }
     }
 }
@@ -9408,7 +9516,7 @@ void genStereoSequ::getCamPtsFromWorld() {
         }
     }
 #else
-    bool success = getVisibleCamPointCloud(staticWorld3DPts, actCorrsImg12TPFromLast_IdxWorld);
+    bool success = getVisibleCamPointCloud(staticWorld3DPts, &actCorrsImg12TPFromLast_IdxWorld);
     if (!success) {
         return;
     }
@@ -10193,6 +10301,9 @@ void genStereoSequ::getNewCorrs() {
 
     //Insert new 3D coordinates into the world coordinate system
     transPtsToWorld();
+
+    //Combine indices to the 3D world coordinates of all correspondences (from last, new generated, moving objects)
+    combineWorldCoordinateIndices();
 }
 
 //Start calculating the whole sequence

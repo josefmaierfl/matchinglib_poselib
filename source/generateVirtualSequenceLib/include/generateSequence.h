@@ -34,7 +34,7 @@ a view restrictions like depth ranges, moving objects, ...
 
 //Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to the image plane
 //As filtering occluded points is very time-consuming it can be disabled
-#define FILTER_OCCLUDED_POINTS 1
+#define FILTER_OCCLUDED_POINTS 0
 
 struct GENERATEVIRTUALSEQUENCELIB_API depthPortion
 {
@@ -466,6 +466,7 @@ private:
                                 int32_t nrToDel);
 	void calcAvgMaskingArea();
     void adaptNrBPMovObjCorrs(int32_t remSize);
+	void combineWorldCoordinateIndices();
 
 public:
 	uint32_t verbose = 0;
@@ -568,7 +569,10 @@ private:
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in world coordinates
-	std::vector<cv::Mat> movObjWorldMovement;//Holds the absolute 3x1 movement vector scaled by velocity for every moving object 
+	std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorldAllFrames;//Every vector element holds the point cloud of a moving object. It also holds theetransformed point clouds of already transformed moving objects from older frames
+	std::vector<std::vector<int>> actCorrsOnMovObjFromLast_IdxWorld;//Indices to world coordinates of backprojected moving object correspondences
+	std::vector<std::vector<int>> actCorrsOnMovObj_IdxWorld;//Indices to world coordinates of newly generated moving object correspondences
+	std::vector<cv::Mat> movObjWorldMovement;//Holds the absolute 3x1 movement vector scaled by velocity for every moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCamNew;//Every vector element (size corresponds to number of new generated moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
 	std::vector<cv::Mat> movObjLabels;//Every vector element (size corresponds to number of newly to add moving objects) holds a mask with the size of the image marking the area of the moving object
@@ -605,8 +609,8 @@ private:
 
 	cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	std::vector<cv::Point3d> comb3DPts;//Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP
-	std::vector<int> combCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of combined TP correspondences (static and moving objects) in combCorrsImg1TP and combCorrsImg2TP. Indices on static objects are positive. Indices on moving objects are negative: The first 8bit hold the vector index for movObj3DPtsWorld and the next 23bit hold the 3D world coordinate index of the corresponding within the moving object
-	std::vector<int> combCorrsImg12TPContMovObj_IdxWorld; //Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT correspond with vector elements in movObj3DPtsWorld but with a consecutive number pointing to moving object pointclouds that were saved after they emerged. The index number in the first 8 bits can also be found in the corresponding file name where the PCL pointcloud was saved to.
+	std::vector<int64_t> combCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of combined TP correspondences (static and moving objects) in combCorrsImg1TP and combCorrsImg2TP. Indices on static objects are positive. Indices on moving objects are negative: The first 32bit hold the vector index for movObj3DPtsWorld plus 1 and the next 31bit hold the 3D world coordinate index of the corresponding within the moving object: idx = -1 * ((nr_mov_obj + 1) | (index_coordinate << 32))
+	std::vector<int64_t> combCorrsImg12TPContMovObj_IdxWorld; //Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT correspond with vector elements in movObj3DPtsWorld but with a consecutive number pointing to moving object pointclouds that were saved after they emerged. The index number in the first 8 bits can also be found in the corresponding file name where the PCL pointcloud was saved to.
 	cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
 	int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
 	std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
