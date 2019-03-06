@@ -102,6 +102,17 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     //Calculate the area in pixels for every depth and region
     calcPixAreaPerDepth();
 
+    //Reset variables for the moving objects & Initialize variable for storing static 3D world coordinates
+    resetInitVars();
+
+    //Calculate the initial number, size, and positions of moving objects in the image
+    getNrSizePosMovObj();
+
+    //Get the relative movement direction (compared to the camera movement) for every moving object
+    checkMovObjDirection();
+}
+
+void genStereoSequ::resetInitVars(){
     //Reset variables for the moving objects
     combMovObjLabelsAll = Mat::zeros(imgSize, CV_8UC1);
     movObjMask2All = Mat::zeros(imgSize, CV_8UC1);
@@ -114,12 +125,6 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
 
     //Initialize variable for storing static 3D world coordinates
     staticWorld3DPts.reset(new pcl::PointCloud<pcl::PointXYZ>());
-
-    //Calculate the initial number, size, and positions of moving objects in the image
-    getNrSizePosMovObj();
-
-    //Get the relative movement direction (compared to the camera movement) for every moving object
-    checkMovObjDirection();
 }
 
 void genStereoSequ::genMasks() {
@@ -8536,15 +8541,21 @@ bool genStereoSequ::getNewMovObjs() {
 //Combines correspondences from static and moving objects
 void genStereoSequ::combineCorrespondences() {
     //Get number of TP correspondences
-    combNrCorrsTP = actCorrsImg1TPFromLast.cols + actCorrsImg1TP.cols;
+    finalNrTPStatCorrs = actCorrsImg1TP.cols;
+    finalNrTPStatCorrsFromLast = actCorrsImg1TPFromLast.cols;
+    finalNrTPMovCorrs = 0;
+    finalNrTPMovCorrsFromLast = 0;
+    combNrCorrsTP = finalNrTPStatCorrsFromLast + finalNrTPStatCorrs;
     for (auto& i : movObjCorrsImg1TPFromLast) {
         if (!i.empty()) {
             combNrCorrsTP += i.cols;
+            finalNrTPMovCorrsFromLast += i.cols;
         }
     }
     for (auto& i : movObjCorrsImg1TP) {
         if (!i.empty()) {
             combNrCorrsTP += i.cols;
+            finalNrTPMovCorrs += i.cols;
         }
     }
     //Get number of TN correspondences
@@ -8560,6 +8571,8 @@ void genStereoSequ::combineCorrespondences() {
         }
     }
 
+    combCorrsImg1TP.release();
+    combCorrsImg2TP.release();
     if (combNrCorrsTP) {
         combCorrsImg1TP = Mat(3, combNrCorrsTP, CV_64FC1);
         combCorrsImg2TP = Mat(3, combNrCorrsTP, CV_64FC1);
@@ -8640,14 +8653,18 @@ void genStereoSequ::combineCorrespondences() {
         }
     }
 
+    combCorrsImg1TN.release();
+    combCorrsImg2TN.release();
     if (combNrCorrsTN) {
         combCorrsImg1TN = Mat(3, combNrCorrsTN, CV_64FC1);
         combCorrsImg2TN = Mat(3, combNrCorrsTN, CV_64FC1);
     }
 
     //Copy all TN keypoints of first image
+    finalNrTNStatCorrs = actCorrsImg1TN.cols;
+    finalNrTNMovCorrs = 0;
     actColNr = 0;
-    actColNr2 = actCorrsImg1TN.cols;
+    actColNr2 = finalNrTNStatCorrs;
     if (actColNr2 != actColNr) {
         actCorrsImg1TN.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
     }
@@ -8656,6 +8673,7 @@ void genStereoSequ::combineCorrespondences() {
         actColNr2 = actColNr + i.cols;
         if (actColNr2 != actColNr) {
             i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+            finalNrTNMovCorrs += i.cols;
         }
     }
     for (auto& i : movObjCorrsImg1TN) {
@@ -8663,6 +8681,7 @@ void genStereoSequ::combineCorrespondences() {
         actColNr2 = actColNr + i.cols;
         if (actColNr2 != actColNr) {
             i.copyTo(combCorrsImg1TN.colRange(actColNr, actColNr2));
+            finalNrTNMovCorrs += i.cols;
         }
     }
 
@@ -10307,13 +10326,29 @@ void genStereoSequ::getNewCorrs() {
 }
 
 //Start calculating the whole sequence
-void genStereoSequ::startCalc() {
-    actFrameCnt = 0;
-    actCorrsPRIdx = 0;
-    actStereoCIdx = 0;
+bool genStereoSequ::startCalc_internal() {
+    static unsigned char init = 1;
+    if(init > 0) {
+        actFrameCnt = 0;
+        actCorrsPRIdx = 0;
+        actStereoCIdx = 0;
+        if(init == 2){
+            resetInitVars();
+        }
+        init = 0;
+    }
 
-    while (actFrameCnt < totalNrFrames) {
+    if (actFrameCnt < totalNrFrames) {
         getNewCorrs();
         actFrameCnt++;
+    }else{
+        init = 2;
+        return false;
     }
+
+    return true;
+}
+
+void genStereoSequ::startCalc(){
+    while(startCalc_internal());
 }

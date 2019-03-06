@@ -140,7 +140,8 @@ set(sources
 	${source_path}/generateSequence.cpp
 	${source_path}/helper_funcs.cpp
 	${source_path}/polygon_helper.c
-	${source_path}/side_funcs.cpp)
+	${source_path}/side_funcs.cpp
+	${source_path}/generateMatches.cpp)
 
 # Group source files
 set(header_group "Header Files (API)")

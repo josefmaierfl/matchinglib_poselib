@@ -104,22 +104,18 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 {
-	StereoSequParameters(std::vector<cv::Mat> camTrack_,
+	explicit StereoSequParameters(std::vector<cv::Mat> camTrack_,
 		size_t nFramesPerCamConf_ = 5,
 		std::pair<double, double> inlRatRange_ = std::make_pair(0.1, 1.0),
 		double inlRatChanges_ = 0,
 		std::pair<size_t, size_t> truePosRange_ = std::make_pair(100, 2000),
 		double truePosChanges_ = 0,
-		bool keypPosErrType_ = false,
-		std::pair<double, double> keypErrDistr_ = std::make_pair(0, 0.5),
-		std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
 		double minKeypDist_ = 3.0,
 		depthPortion corrsPerDepth_ = depthPortion(),
 		std::vector<cv::Mat> corrsPerRegion_ = std::vector<cv::Mat>(),
 		size_t corrsPerRegRepRate_ = 1,
 		std::vector<std::vector<depthPortion>> depthsPerRegion_ = std::vector<std::vector<depthPortion>>(),
 		std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg_ = std::vector<std::vector<std::pair<size_t, size_t>>>(),
-		//double lostCorrPor_ = 0,
 		double relCamVelocity_ = 0.5,
 		cv::InputArray R_ = cv::noArray(),
 		size_t nrMovObjs_ = 0,
@@ -133,29 +129,22 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		size_t minNrMovObjs_ = 0
 		): 
 	nFramesPerCamConf(nFramesPerCamConf_), 
-		inlRatRange(inlRatRange_),
+		inlRatRange(std::move(inlRatRange_)),
 		inlRatChanges(inlRatChanges_),
-		truePosRange(truePosRange_),
+		truePosRange(std::move(truePosRange_)),
 		truePosChanges(truePosChanges_),
-		keypPosErrType(keypPosErrType_),
-		keypErrDistr(keypErrDistr_),
-		imgIntNoise(imgIntNoise_),
 		minKeypDist(minKeypDist_),
 		corrsPerDepth(corrsPerDepth_),
-		corrsPerRegion(corrsPerRegion_),
+		corrsPerRegion(std::move(corrsPerRegion_)),
 		corrsPerRegRepRate(corrsPerRegRepRate_),
-		depthsPerRegion(depthsPerRegion_),
-		nrDepthAreasPReg(nrDepthAreasPReg_),
-		//lostCorrPor(lostCorrPor_),
-		camTrack(camTrack_),
+		depthsPerRegion(std::move(depthsPerRegion_)),
+		nrDepthAreasPReg(std::move(nrDepthAreasPReg_)),
+		camTrack(std::move(camTrack_)),
 		relCamVelocity(relCamVelocity_),
-//		R(R_),
 		nrMovObjs(nrMovObjs_),
-//		startPosMovObjs(startPosMovObjs_),
-		relAreaRangeMovObjs(relAreaRangeMovObjs_),
-		movObjDepth(movObjDepth_),
-//		movObjDir(movObjDir_),
-		relMovObjVelRange(relMovObjVelRange_),
+		relAreaRangeMovObjs(std::move(relAreaRangeMovObjs_)),
+		movObjDepth(std::move(movObjDepth_)),
+		relMovObjVelRange(std::move(relMovObjVelRange_)),
 		minMovObjCorrPortion(minMovObjCorrPortion_),
 		CorrMovObjPort(CorrMovObjPort_),
 		minNrMovObjs(minNrMovObjs_)
@@ -165,14 +154,11 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		CV_Assert((inlRatChanges <= 100.0) && (inlRatChanges >= 0));
 		CV_Assert((truePosRange.first > 0) && (truePosRange.second > 0) && (truePosRange.second >= truePosRange.first));
 		CV_Assert((truePosChanges <= 100.0) && (truePosChanges >= 0));
-		CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first > -5.0) && (keypErrDistr.first < 5.0) && (keypErrDistr.second > -5.0) && (keypErrDistr.second < 5.0)));
-		CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) && (imgIntNoise.second < 25.0));
 		CV_Assert((minKeypDist >= 1.0) && (minKeypDist < 100.0));
 		CV_Assert((corrsPerDepth.near >= 0) && (corrsPerDepth.mid >= 0) && (corrsPerDepth.far >= 0));
 		CV_Assert(corrsPerRegion.empty() || ((corrsPerRegion[0].rows == 3) && (corrsPerRegion[0].cols == 3) && (corrsPerRegion[0].type() == CV_64FC1)));
 		CV_Assert(depthsPerRegion.empty() || ((depthsPerRegion.size() == 3) && (depthsPerRegion[0].size() == 3) && (depthsPerRegion[1].size() == 3) && (depthsPerRegion[2].size() == 3)));
 		CV_Assert(nrDepthAreasPReg.empty() || ((nrDepthAreasPReg.size() == 3) && (nrDepthAreasPReg[0].size() == 3) && (nrDepthAreasPReg[1].size() == 3) && (nrDepthAreasPReg[2].size() == 3)));
-		//CV_Assert((lostCorrPor >= 0) && (lostCorrPor <= 1.0));
 
 		CV_Assert(!camTrack.empty() && (camTrack[0].rows == 3) && (camTrack[0].cols == 1) && (camTrack[0].type() == CV_64FC1));
 		CV_Assert((relCamVelocity > 0) && (relCamVelocity <= 10.0));
@@ -200,16 +186,12 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 	double inlRatChanges;//Inlier ratio change rate from pair to pair. If 0, the inlier ratio within the given range is always the same for every image pair. If 100, the inlier ratio is chosen completely random within the given range.For values between 0 and 100, the inlier ratio selected is not allowed to change more than this factor from the last inlier ratio.
 	std::pair<size_t, size_t> truePosRange;//# true positives range
 	double truePosChanges;//True positives change rate from pair to pair. If 0, the true positives within the given range are always the same for every image pair. If 100, the true positives are chosen completely random within the given range.For values between 0 and 100, the true positives selected are not allowed to change more than this factor from the true positives.
-	bool keypPosErrType;//Keypoint detector error (true) or error normal distribution (false)
-	std::pair<double, double> keypErrDistr;//Keypoint error distribution (mean, std)
-	std::pair<double, double> imgIntNoise;//Noise (mean, std) on the image intensity for descriptor calculation
 	double minKeypDist;//min. distance between keypoints
 	depthPortion corrsPerDepth;//portion of correspondences at depths
 	std::vector<cv::Mat> corrsPerRegion;//List of portions of image correspondences at regions (Matrix must be 3x3). Maybe doesnt hold: Also depends on 3D-points from prior frames.
 	size_t corrsPerRegRepRate;//Repeat rate of portion of correspondences at regions. If more than one matrix of portions of correspondences at regions is provided, this number specifies the number of frames for which such a matrix is valid. After all matrices are used, the first one is used again. If 0 and no matrix of portions of correspondences at regions is provided, as many random matrizes as frames are randomly generated.
 	std::vector<std::vector<depthPortion>> depthsPerRegion;//Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, the portion of near, mid, and far depths can be specified. If the overall depth definition is not met, this tensor is adapted.Maybe doesnt hold: Also depends on 3D - points from prior frames.
 	std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg;//Min and Max number of connected depth areas per region (must be 3x3). The minimum number (first) must be larger 0. The maximum number is bounded by the minimum area which is 16 pixels. Maybe doesnt hold: Also depends on 3D - points from prior frames.
-	//double lostCorrPor;//Portion of lost correspondences from frame to frame. It corresponds to the portion of 3D-points that would be visible in the next frame.
 
 	//Paramters for camera and object movements
 	std::vector<cv::Mat> camTrack;//Movement direction or track of the cameras (Mat must be 3x1). If 1 vector: Direction in the form [tx, ty, tz]. If more vectors: absolute position edges on a track.  The scaling of the track is calculated using the velocity information(The last frame is located at the last edge); tz is the main viewing direction of the first camera which can be changed using the rotation vector for the camera centre.The camera rotation during movement is based on the relative movement direction(like a fixed stereo rig mounted on a car).
@@ -233,10 +215,25 @@ struct Poses
 		R = cv::Mat::eye(3, 3, CV_64FC1);
 		t = cv::Mat::zeros(3, 1, CV_64FC1);
 	}
-	Poses(cv::Mat R_, cv::Mat t_) : R(R_), t(t_) {}
+	Poses(const cv::Mat &R_, const cv::Mat &t_) : R(R_), t(t_) {}
 
 	cv::Mat R;
 	cv::Mat t;
+};
+
+//Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
+struct CorrOrderTP{
+    CorrOrderTP()
+    {
+        statTPfromLast = 0;
+        statTPnew = 1;
+        movTPfromLast = 2;
+        movTPnew = 3;
+    }
+    unsigned char statTPfromLast;
+    unsigned char statTPnew;
+    unsigned char movTPfromLast;
+    unsigned char movTPnew;
 };
 
 
@@ -247,9 +244,9 @@ class SequenceException : public std::exception
     std::string _msg;
 
 public:
-    SequenceException(const std::string &msg) : _msg(msg) {}
+    explicit SequenceException(const std::string &msg) : _msg(msg) {}
 
-    virtual const char *what() const noexcept override
+    const char *what() const noexcept override
     {
         return _msg.c_str();
     }
@@ -265,7 +262,10 @@ public:
 			std::vector<cv::Mat> t_,
 			StereoSequParameters & pars_,
 			uint32_t verbose = 0);
-	void startCalc();
+	virtual void startCalc();
+
+protected:
+	bool startCalc_internal();
 
 private:
 	void constructCamPath();
@@ -340,7 +340,7 @@ private:
 								 std::vector<double> &xWeights,
 								 std::vector<double> &yInterVals,
 								 std::vector<double> &yWeights,
-                                 std::vector<std::vector<std::pair<bool,cv::Rect>>> *validRects = NULL);
+                                 std::vector<std::vector<std::pair<bool,cv::Rect>>> *validRects = nullptr);
 	void generateMovObjLabels(const cv::Mat &mask,
                             std::vector<cv::Point_<int32_t>> &seeds,
                             std::vector<int32_t> &areas,
@@ -348,7 +348,7 @@ private:
                               cv::InputArray validImgMask = cv::noArray());
 	void genNewDepthMovObj();
 	void backProjectMovObj();
-	void genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = NULL);
+	void genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Point> &kps, cv::Mat &finalMask, std::vector<cv::Point> *hullPts = nullptr);
 	void genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> &finalHull);
 	bool getSeedsAreasMovObj();
 	bool getSeedAreaListFromReg(std::vector<cv::Point_<int32_t>> &seeds, std::vector<int32_t> &areas);
@@ -395,12 +395,12 @@ private:
 	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOut,
 	        bool useNearLeafSize = false,
 	        bool visRes = true,
-	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
+	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = nullptr);
     bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
                              std::vector<int> &cloudOut,
                              bool useNearLeafSize = false,
                              bool visRes = true,
-                             pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = NULL);
+                             pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = nullptr);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
@@ -467,6 +467,7 @@ private:
 	void calcAvgMaskingArea();
     void adaptNrBPMovObjCorrs(int32_t remSize);
 	void combineWorldCoordinateIndices();
+	void resetInitVars();
 
 public:
 	uint32_t verbose = 0;
@@ -477,7 +478,7 @@ private:
 
 	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
 	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is
-	const double fakeDistTNCorrespondences = 50.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
+	const double fakeDistTNCorrespondences = 9999.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
     const double actFracUseableTPperRegionTH = 0.25;//Minimum fraction of a region for which the 2 stereo images must overlap at medium depth (backprojected to camera 1) to allow seeds for moving objects in that region
 	const double enlargeKPDist = 1.15;//Multiply the max. corrs per area by 1.15 to take gaps into account that are a result of randomness
 
@@ -491,7 +492,6 @@ private:
 
 	size_t totalNrFrames = 0;//Total number of frames
 	double absCamVelocity;//in baselines from frame to frame
-	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
 
 	std::vector<double> inlRat;//Inlier ratio for every frame
 	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
@@ -519,7 +519,6 @@ private:
 	std::vector<cv::Mat> areaPRegFar;//Area in pixels per region that should hold far depth values; Type CV_32SC1, same size as depthsPerRegion
 	std::vector<std::vector<cv::Rect>> regROIs;//ROIs of every of the 3x3 image regions
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
 	std::vector<cv::Point3d> actImgPointCloudFromLast;//3D coordiantes that were generated with a different frame. Coordinates are in the camera coordinate system.
 	std::vector<cv::Point3d> actImgPointCloud;//All newly generated 3D coordiantes excluding actImgPointCloudFromLast. Coordinates are in the camera coordinate system.
 	cv::Mat actCorrsImg1TPFromLast, actCorrsImg2TPFromLast;//TP correspondences in the stereo rig from actImgPointCloudFromLast in homogeneous image coordinates. Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
@@ -538,9 +537,6 @@ private:
 	cv::Mat csurr;//Mat of ones with the size 2 * ceil(min. keypoint dist) + 1
 	double avgMaskingArea;//Corresponds to the average area a selected keypoint occupies using the mask csurr (which size is based on pars.minKeypDist) based on propabilities of mask overlaps
 
-	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
-	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
-	size_t actFrameCnt = 0;
 	size_t actCorrsPRIdx = 0;//actual index (corresponding to the actual frame) for pars.corrsPerRegion, depthsPerRegion, nrDepthAreasPRegNear, ...
 	size_t actStereoCIdx = 0;//actual index (corresponding to the actual frame) for R, t, depthNear, depthMid, depthFar
 	double actDepthNear;//Lower border of near depths for the actual camera configuration
@@ -569,7 +565,6 @@ private:
 	std::vector<std::vector<cv::Point>> convhullPtsObj;//Every vector element (size corresponds to number of moving objects) holds the convex hull of backprojected (into image) 3D-points from a moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCam;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in world coordinates
-	std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorldAllFrames;//Every vector element holds the point cloud of a moving object. It also holds theetransformed point clouds of already transformed moving objects from older frames
 	std::vector<std::vector<int>> actCorrsOnMovObjFromLast_IdxWorld;//Indices to world coordinates of backprojected moving object correspondences
 	std::vector<std::vector<int>> actCorrsOnMovObj_IdxWorld;//Indices to world coordinates of newly generated moving object correspondences
 	std::vector<cv::Mat> movObjWorldMovement;//Holds the absolute 3x1 movement vector scaled by velocity for every moving object
@@ -607,18 +602,33 @@ private:
 	std::vector<std::vector<double>> movObjDistTNtoReal;//Distance values of the TN keypoint locations for the already existing moving objects in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
 	std::vector<std::vector<double>> movObjDistTNtoRealNew;//Distance values of the TN keypoint locations for new generated moving objects in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
 
-	cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
-	std::vector<cv::Point3d> comb3DPts;//Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP
-	std::vector<int64_t> combCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of combined TP correspondences (static and moving objects) in combCorrsImg1TP and combCorrsImg2TP. Indices on static objects are positive. Indices on moving objects are negative: The first 32bit hold the vector index for movObj3DPtsWorld plus 1 and the next 31bit hold the 3D world coordinate index of the corresponding within the moving object: idx = -1 * ((nr_mov_obj + 1) | (index_coordinate << 32))
-	std::vector<int64_t> combCorrsImg12TPContMovObj_IdxWorld; //Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT correspond with vector elements in movObj3DPtsWorld but with a consecutive number pointing to moving object pointclouds that were saved after they emerged. The index number in the first 8 bits can also be found in the corresponding file name where the PCL pointcloud was saved to.
-	cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
-	int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
-	std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
-
     std::vector<cv::Mat> fracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas (cv::Mat) and every stereo configuration (std::vector)
     cv::Mat actFracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas of the current stereo configuration
     std::vector<cv::Mat> stereoImgsOverlapMask;//Mask for the area in the first stereo camera image which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255). Holds masks for every stereo configuration.
     cv::Mat actStereoImgsOverlapMask;//Mask for the area in the first stereo camera image of the actual stereo configuration which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255).
+
+protected:
+	size_t actFrameCnt = 0;
+	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
+	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
+	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
+	pcl::PointCloud<pcl::PointXYZ>::Ptr staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
+    std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorldAllFrames;//Every vector element holds the point cloud of a moving object. It also holds theetransformed point clouds of already transformed moving objects from older frames
+    cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+    std::vector<cv::Point3d> comb3DPts;//Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP
+    std::vector<int64_t> combCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of combined TP correspondences (static and moving objects) in combCorrsImg1TP and combCorrsImg2TP. Indices on static objects are positive. Indices on moving objects are negative: The first 32bit hold the vector index for movObj3DPtsWorld plus 1 and the next 31bit hold the 3D world coordinate index of the corresponding within the moving object: idx = -1 * ((nr_mov_obj + 1) | (index_coordinate << 32))
+    std::vector<int64_t> combCorrsImg12TPContMovObj_IdxWorld; //Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT correspond with vector elements in movObj3DPtsWorld but with a consecutive number pointing to moving object pointclouds that were saved after they emerged. The index number in the first 8 bits can also be found in the corresponding file name where the PCL pointcloud was saved to.
+    cv::Mat combCorrsImg1TN, combCorrsImg2TN;//Combined TN correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
+    int combNrCorrsTP, combNrCorrsTN;//Number of overall TP and TN correspondences (static and moving objects)
+    std::vector<double> combDistTNtoReal;//Distance values of all (static and moving objects) TN keypoint locations in the 2nd image to the location that would be a perfect correspondence to the TN in image 1. If the value is >= 50, the "perfect location" would be outside the image
+    int finalNrTPStatCorrs;//Final number of new generated TP correspondences for static objects. Corresponds to the number of columns in actCorrsImg1TP
+    int finalNrTPMovCorrs;//Final number of new generated TP correspondences for moving objects. Corresponds to the sum of number of columns in movObjCorrsImg1TP
+    int finalNrTPStatCorrsFromLast;//Final number of backprojected TP correspondences for static objects. Corresponds to the number of columns in actCorrsImg1TPFromLast
+    int finalNrTPMovCorrsFromLast;//Final number of backprojected TP correspondences for moving objects. Corresponds to the sum of number of columns in movObjCorrsImg1TPFromLast
+    int finalNrTNStatCorrs;//Final number of TN correspondences for static objects. Corresponds to the number of columns in actCorrsImg1TN
+    int finalNrTNMovCorrs;//Final number of TN correspondences for moving objects. Corresponds to the sum of number of columns in movObjCorrsImg1TNFromLast and movObjCorrsImg1TN
+    const CorrOrderTP combCorrsImg12TPorder = CorrOrderTP();//Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
+    const bool combCorrsImg12TPstatFirst = true;//Indicates that TN correspondences of static objects are located at the beginning of Mats combCorrsImg1TN and combCorrsImg2TN
 };
 
 
