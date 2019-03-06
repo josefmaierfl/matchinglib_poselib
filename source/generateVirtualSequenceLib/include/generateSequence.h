@@ -490,12 +490,10 @@ private:
 	StereoSequParameters pars;
 	size_t nrStereoConfs;//Number of different stereo camera configurations
 
-	size_t totalNrFrames = 0;//Total number of frames
 	double absCamVelocity;//in baselines from frame to frame
 
 	std::vector<double> inlRat;//Inlier ratio for every frame
 	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
-	std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame
 	std::vector<size_t> nrTrueNeg;//Absolute number of true negative correspondences per frame
 	bool fixedNrCorrs = false;//If the inlier ratio and the absolute number of true positive correspondences are constant over all frames, the # of correspondences are as well const. and fixedNrCorrs = true
 	std::vector<cv::Mat> nrTruePosRegs;//Absolute number of true positive correspondences per image region and frame; Type CV_32SC1
@@ -589,7 +587,6 @@ private:
     std::vector<cv::Mat> movObjMaskFromLastLargeAdd;//Every vector element (size corresponds to number of backprojected moving objects) holds the backprojected keypoint positions in the first image of a single moving object marked with the minimum keypoint distance mask csurr. csurr was added (mask(area) += csurr) to each corresponding Mat which enables removing correspondences later on from the mask.
 	cv::Mat movObjMaskFromLast;//Mask with the same size as the image masking areas with moving objects that were backprojected (mask for first stereo image)
 	cv::Mat movObjMaskFromLast2;//Mask with the same size as the image masking correspondences of moving objects that were backprojected (mask for second stereo image)
-	/*noch nicht angelegt*///cv::Mat movObjMask2;//Mask with the same size as the image masking correspondences of new moving objects (mask for second stereo image)
 	cv::Mat movObjMask2All;//Combination of movObjMaskFromLast2 and movObjMask2. Mask with the same size as the image masking correspondences of moving objects (mask for second stereo image)
 	std::vector<std::vector<bool>> movObjHasArea;//Indicates for every region if it is completely occupied by a moving object
 	std::vector<cv::Mat> movObjCorrsImg1TPFromLast, movObjCorrsImg2TPFromLast;//Every vector element (size corresponds to number of moving objects) holds correspondences within a moving object. Every vector element: Size: 3xn; Last row should be 1.0; Both Mat (same vector index) must have the same size.
@@ -609,6 +606,8 @@ private:
 
 protected:
 	size_t actFrameCnt = 0;
+    size_t totalNrFrames = 0;//Total number of frames
+    std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame
 	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
 	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
 	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t

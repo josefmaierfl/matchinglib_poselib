@@ -9,7 +9,7 @@
 
  DATE: September 2015
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -45,6 +45,10 @@ int loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vecto
 int readHomographyFiles(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl);
 //This function reads a homography from a given file.
 int readHomographyFromFile(std::string filepath, std::string filename, cv::Mat* H);
+
+//Check for supported types if cv::imread
+bool IsImgTypeSupported(std::string const& type);
+std::vector<std::string> GetSupportedImgTypes();
 
 /*!***************************************************************************
 * PURPOSE: returns cv::Mat datastructure with PfePixImgStruct data

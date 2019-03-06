@@ -479,8 +479,11 @@ int loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vecto
 					&& (filename.size() >= fileprefl_use.size()) && filename.find(fileprefl_use) != std::string::npos)
 				|| (bCmpFuzzy && fileprefl_use.empty() && !filepostfx.empty()
 					&& (filename.size() >= filepostfx.size()) && filename.find(filepostfx) != std::string::npos)
-				|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0))
-				filenamesl.push_back(filedir_use + "/" + filename);
+				|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0)) {
+				if(IsImgTypeSupported(filename)) {
+					filenamesl.push_back(filedir_use + "/" + filename);
+				}
+			}
 		}
 		closedir(dir);
 		std::sort(filenamesl.begin(), filenamesl.end());
@@ -495,6 +498,51 @@ int loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vecto
 		return -2;
 
 	return 0;
+}
+
+bool IsImgTypeSupported(std::string const& filename){
+	std::vector<std::string> vecSupportedTypes = GetSupportedImgTypes();
+
+	size_t ptPos = filename.rfind('.');
+	if(ptPos == string::npos){
+		return false;
+	}
+	std::string ending = filename.substr(ptPos + 1);
+
+	std::transform(ending.begin(), ending.end(), ending.begin(), ::tolower);
+
+	if(std::find(vecSupportedTypes.begin(), vecSupportedTypes.end(), ending) != vecSupportedTypes.end())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+std::vector<std::string> GetSupportedImgTypes(){
+	int const nrSupportedTypes = 20;
+	static std::string types [] = {"bmp",
+								   "dib",
+								   "jpeg",
+								   "jpg",
+								   "jpe",
+								   "jp2",
+								   "png",
+								   "webp",
+								   "pbm",
+								   "pgm",
+								   "ppm",
+								   "pxm",
+								   "pnm",
+								   "sr",
+								   "ras",
+								   "tiff",
+								   "tif",
+								   "exr",
+								   "hdr",
+								   "pic"
+	};
+	return std::vector<std::string>(types, types + nrSupportedTypes);
 }
 
 

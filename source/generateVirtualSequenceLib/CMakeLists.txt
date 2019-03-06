@@ -3,7 +3,7 @@
 # External dependencies
 #
 
-#option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." ON)
+option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." ON)
 
 if(WIN32)
 	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
@@ -141,7 +141,10 @@ set(sources
 	${source_path}/helper_funcs.cpp
 	${source_path}/polygon_helper.c
 	${source_path}/side_funcs.cpp
-	${source_path}/generateMatches.cpp)
+	${source_path}/generateMatches.cpp
+	${source_path}/imgFeatures.cpp
+	${source_path}/descriptor-RIFF/riff.cpp
+	${source_path}/descriptor-BOLD/bold.cpp)
 
 # Group source files
 set(header_group "Header Files (API)")
