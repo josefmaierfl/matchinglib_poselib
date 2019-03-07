@@ -199,3 +199,228 @@ void genMatchSequ::createParsHash(){
     hashResult = std::to_string(hash_Sequ);
     hashResult += std::to_string(hash_Matches);
 }
+
+void genMatchSequ::writeSequenceParameters(const std::string &filename){
+    FileStorage fs(filename, FileStorage::WRITE);
+
+    cvWriteComment(*fs, "This file contains all parameters used to generate "
+                        "multiple consecutive frames with stereo correspondences.\n", 0);
+
+    cvWriteComment(*fs, "# of Frames per camera configuration", 0);
+    fs << "nFramesPerCamConf" << pars.nFramesPerCamConf;
+    cvWriteComment(*fs, "Inlier ratio range", 0);
+    fs << "inlRatRange";
+    fs << "{" << "first" << pars.inlRatRange.first;
+    fs << "second" << pars.inlRatRange.second << "}";
+    cvWriteComment(*fs, "Inlier ratio change rate from pair to pair", 0);
+    fs << "inlRatChanges" << pars.inlRatChanges;
+    cvWriteComment(*fs, "# true positives range", 0);
+    fs << "truePosRange";
+    fs << "{" << "first" << pars.truePosRange.first;
+    fs << "second" << pars.truePosRange.second << "}";
+    cvWriteComment(*fs, "True positives change rate from pair to pair", 0);
+    fs << "truePosChanges" << pars.truePosChanges;
+    cvWriteComment(*fs, "min. distance between keypoints", 0);
+    fs << "minKeypDist" << pars.minKeypDist;
+    cvWriteComment(*fs, "portion of correspondences at depths", 0);
+    fs << "corrsPerDepth";
+    fs << "{" << "near" << pars.corrsPerDepth.near;
+    fs << "mid" << pars.corrsPerDepth.mid;
+    fs << "far" << pars.corrsPerDepth.far << "}";
+    cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
+    fs << "corrsPerRegion" << "[";
+    for(auto& i : pars.corrsPerRegion){
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Repeat rate of portion of correspondences at regions.", 0);
+    fs << "corrsPerRegRepRate" << pars.corrsPerRegRepRate;
+    cvWriteComment(*fs, "Portion of depths per region", 0);
+    fs << "depthsPerRegion" << "[";
+    for(auto& i : pars.depthsPerRegion){
+        for(auto& j : i) {
+            fs << "{" << "near" << j.near;
+            fs << "mid" << j.mid;
+            fs << "far" << j.far << "}";
+        }
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Min and Max number of connected depth areas per region", 0);
+    fs << "nrDepthAreasPReg" << "[";
+    for(auto& i : pars.nrDepthAreasPReg){
+        for(auto& j : i) {
+            fs << "{" << "first" << j.first;
+            fs << "second" << j.second << "}";
+        }
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Movement direction or track of the cameras", 0);
+    fs << "camTrack" << "[";
+    for(auto& i : pars.camTrack){
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Relative velocity of the camera movement", 0);
+    fs << "relCamVelocity" << pars.relCamVelocity;
+    cvWriteComment(*fs, "Rotation matrix of the first camera centre", 0);
+    fs << "R" << pars.R;
+    cvWriteComment(*fs, "Number of moving objects in the scene", 0);
+    fs << "nrMovObjs" << pars.nrMovObjs;
+    cvWriteComment(*fs, "Possible starting positions of moving objects in the image", 0);
+    fs << "startPosMovObjs" << pars.startPosMovObjs;
+    cvWriteComment(*fs, "Relative area range of moving objects", 0);
+    fs << "relAreaRangeMovObjs";
+    fs << "{" << "first" << pars.relAreaRangeMovObjs.first;
+    fs << "second" << pars.relAreaRangeMovObjs.second << "}";
+    cvWriteComment(*fs, "Depth of moving objects.", 0);
+    fs << "movObjDepth" << "[";
+    for(auto& i : pars.movObjDepth){
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Movement direction of moving objects relative to camera movement", 0);
+    fs << "movObjDir" << pars.movObjDir;
+    cvWriteComment(*fs, "Relative velocity range of moving objects based on relative camera velocity", 0);
+    fs << "relMovObjVelRange";
+    fs << "{" << "first" << pars.relMovObjVelRange.first;
+    fs << "second" << pars.relMovObjVelRange.second << "}";
+    cvWriteComment(*fs, "Minimal portion of correspondences on moving objects for removing them", 0);
+    fs << "minMovObjCorrPortion" << pars.minMovObjCorrPortion;
+    cvWriteComment(*fs, "Portion of correspondences on moving objects (compared to static objects)", 0);
+    fs << "CorrMovObjPort" << pars.CorrMovObjPort;
+    cvWriteComment(*fs, "Minimum number of moving objects over the whole track", 0);
+    fs << "minNrMovObjs" << pars.minNrMovObjs;
+
+    fs.release();
+}
+
+bool genMatchSequ::readSequenceParameters(const std::string &filename){
+    FileStorage fs(filename, FileStorage::READ);
+
+    if (!fs.isOpened())
+    {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
+
+    fs["nFramesPerCamConf"] >> pars3D.nFramesPerCamConf;
+
+    FileNode n = fs["inlRatRange"];
+    double first_dbl, second_dbl;
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    pars3D.inlRatRange = make_pair(first_dbl, second_dbl);
+
+    fs["inlRatChanges"] >> pars3D.inlRatChanges;
+
+    n = fs["truePosRange"];
+    size_t first_size_t, second_size_t;
+    n["first"] >> first_size_t;
+    n["second"] >> second_size_t;
+    pars3D.truePosRange = make_pair(first_size_t, second_size_t);
+
+    fs["truePosChanges"] >> pars3D.truePosChanges;
+
+    fs["minKeypDist"] >> pars3D.minKeypDist;
+
+    n = fs["corrsPerDepth"];
+    n["near"] >> pars3D.corrsPerDepth.near;
+    n["mid"] >> pars3D.corrsPerDepth.mid;
+    n["far"] >> pars3D.corrsPerDepth.far;
+
+    n = fs["corrsPerRegion"];
+    if (n.type() != FileNode::SEQ)
+    {
+        cerr << "corrsPerRegion is not a sequence! FAIL" << endl;
+        return false;
+    }
+    pars3D.corrsPerRegion.clear();
+    FileNodeIterator it = n.begin(), it_end = n.end();
+    for (; it != it_end; ++it){
+        Mat m;
+        it >> m;
+        pars3D.corrsPerRegion.push_back(m.clone());
+    }
+
+
+
+    fs["corrsPerRegRepRate"] >> pars3D.corrsPerRegRepRate;
+
+    n = fs["depthsPerRegion"];
+    if (n.type() != FileNode::SEQ)
+    {
+        cerr << "depthsPerRegion is not a sequence! FAIL" << endl;
+        return false;
+    }
+    pars3D.depthsPerRegion = vector<vector<depthPortion>>(3, vector<depthPortion>(3));
+    it = n.begin(), it_end = n.end();
+    size_t idx = 0, x = 0, y = 0;
+    for (; it != it_end; ++it){
+        y = idx / 3;
+        x = idx % 3;
+
+        FileNode n1;
+        it >> n1;
+        n1["near"] >> pars3D.depthsPerRegion[y][x].near;
+        n1["mid"] >> pars3D.depthsPerRegion[y][x].mid;
+        n1["far"] >> pars3D.depthsPerRegion[y][x].far;
+        idx++;
+    }
+
+    fs << "depthsPerRegion" << "[";
+    for(auto& i : pars3D.depthsPerRegion){
+        for(auto& j : i) {
+            fs << "{" << "near" << j.near;
+            fs << "mid" << j.mid;
+            fs << "far" << j.far << "}";
+        }
+    }
+    fs << "]";
+
+    fs << "nrDepthAreasPReg" << "[";
+    for(auto& i : pars3D.nrDepthAreasPReg){
+        for(auto& j : i) {
+            fs << "{" << "first" << j.first;
+            fs << "second" << j.second << "}";
+        }
+    }
+    fs << "]";
+
+    fs << "camTrack" << "[";
+    for(auto& i : pars3D.camTrack){
+        fs << i;
+    }
+    fs << "]";
+
+    fs << "relCamVelocity" << pars3D.relCamVelocity;
+
+    fs << "R" << pars3D.R;
+
+    fs << "nrMovObjs" << pars3D.nrMovObjs;
+
+    fs << "startPosMovObjs" << pars3D.startPosMovObjs;
+
+    fs << "relAreaRangeMovObjs";
+    fs << "{" << "first" << pars3D.relAreaRangeMovObjs.first;
+    fs << "second" << pars3D.relAreaRangeMovObjs.second << "}";
+
+    fs << "movObjDepth" << "[";
+    for(auto& i : pars3D.movObjDepth){
+        fs << i;
+    }
+    fs << "]";
+
+    fs << "movObjDir" << pars3D.movObjDir;
+
+    fs << "relMovObjVelRange";
+    fs << "{" << "first" << pars3D.relMovObjVelRange.first;
+    fs << "second" << pars3D.relMovObjVelRange.second << "}";
+
+    fs << "minMovObjCorrPortion" << pars3D.minMovObjCorrPortion;
+
+    fs << "CorrMovObjPort" << pars3D.CorrMovObjPort;
+
+    fs << "minNrMovObjs" << pars3D.minNrMovObjs;
+
+    fs.release();
+}

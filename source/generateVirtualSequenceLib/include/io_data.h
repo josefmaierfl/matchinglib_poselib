@@ -50,6 +50,15 @@ int readHomographyFromFile(std::string filepath, std::string filename, cv::Mat* 
 bool IsImgTypeSupported(std::string const& type);
 std::vector<std::string> GetSupportedImgTypes();
 
+//Check if the given directory exists
+bool checkPathExists(const std::string &path);
+
+//Create a new directory
+bool createDirectory(const std::string &path);
+
+//Concatenate a main and a sub-path
+std::string concatPath(const std::string &mainPath, const std::string &subPath);
+
 /*!***************************************************************************
 * PURPOSE: returns cv::Mat datastructure with PfePixImgStruct data
 *

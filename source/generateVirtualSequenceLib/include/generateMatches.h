@@ -19,6 +19,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
     std::pair<double, double> imgIntNoise;//Noise (mean, std) on the image intensity for descriptor calculation
     double lostCorrPor;//Portion (0 to 0.9) of lost correspondences from frame to frame. It corresponds to the portion of backprojected 3D-points that should not be visible in the frame.
     bool storePtClouds;//If true, all PCL point clouds and necessary information to load a cam sequence with correspondences are stored to disk
+    bool writeXMLinfo;//If true, the parameters and information are stored in XML format. Otherwise it is stored in YML/YAML format
+    bool compressWrittenInfo;//If true, the stored information and parameters are compressed (appends .gz)
     bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available. Otherwise (false), the point clouds and other information are stored to disk and the generation of GT matches is aborted.
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -31,6 +33,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
                            std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
                            double lostCorrPor_ = 0,
                            bool storePtClouds_ = false,
+                           bool writeXMLinfo_ = false,
+                           bool compressWrittenInfo_ = false,
                            bool takeLessFramesIfLessKeyP_ = false):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
@@ -42,6 +46,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
             imgIntNoise(std::move(imgIntNoise_)),
             lostCorrPor(lostCorrPor_),
             storePtClouds(storePtClouds_),
+            writeXMLinfo(writeXMLinfo_),
+            compressWrittenInfo(compressWrittenInfo_),
             takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_){
         CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first > -5.0) && (keypErrDistr.first < 5.0) && (keypErrDistr.second > -5.0) && (keypErrDistr.second < 5.0)));
         CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) && (imgIntNoise.second < 25.0));
@@ -80,6 +86,8 @@ private:
     void totalNrCorrs();
     bool getFeatures();
     bool checkMatchability();
+    void writeSequenceParameters(const std::string &filename);
+    bool readSequenceParameters(const std::string &filename);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -95,6 +103,7 @@ private:
     size_t nrFramesGenMatches;
     size_t hash_Sequ, hash_Matches;
     std::string hashResult;
+    StereoSequParameters pars3D;
 
 };
 
