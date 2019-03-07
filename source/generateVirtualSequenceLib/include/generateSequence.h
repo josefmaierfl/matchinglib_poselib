@@ -487,7 +487,6 @@ private:
 	cv::Mat K2, K2i;//Camera matrix 2 and its inverse
 	std::vector<cv::Mat> R;
 	std::vector<cv::Mat> t;
-	StereoSequParameters pars;
 	size_t nrStereoConfs;//Number of different stereo camera configurations
 
 	double absCamVelocity;//in baselines from frame to frame
@@ -605,6 +604,7 @@ private:
     cv::Mat actStereoImgsOverlapMask;//Mask for the area in the first stereo camera image of the actual stereo configuration which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255).
 
 protected:
+    StereoSequParameters pars;
 	size_t actFrameCnt = 0;
     size_t totalNrFrames = 0;//Total number of frames
     std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame

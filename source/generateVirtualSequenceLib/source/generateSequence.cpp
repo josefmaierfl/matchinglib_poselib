@@ -3173,7 +3173,7 @@ int32_t genStereoSequ::getRandMask(cv::Mat &mask, int32_t area, int32_t useRad, 
             cv::GaussianBlur(mask_t, mask_t, Size(kSize, kSize), 0);
             cv::minMaxLoc(mask_t, &mi, &ma);
             mr = ma - mi;
-        } while (mr < 5.0);
+        } while (mr < 6.01);
 
         double mv = getRandDoubleValRng(mi + 1.0, ma - 1.0);
         double mrr = 0;
