@@ -53,6 +53,12 @@ std::vector<std::string> GetSupportedImgTypes();
 //Check if the given directory exists
 bool checkPathExists(const std::string &path);
 
+//Check if a given file exists
+bool checkFileExists(const std::string &filename);
+
+//Delete a file
+bool deleteFile(const std::string &filename);
+
 //Create a new directory
 bool createDirectory(const std::string &path);
 

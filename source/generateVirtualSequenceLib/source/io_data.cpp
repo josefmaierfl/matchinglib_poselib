@@ -568,12 +568,20 @@ bool checkPathExists(const std::string &path){
 #else
 bool checkPathExists(const std::string &path){
 	boost::filesystem::path path2 = path;
-	return boost::filesystem::exists(path2);
+	return boost::filesystem::is_directory(path2);
 }
 #endif
 
+bool checkFileExists(const std::string &filename){
+	return boost::filesystem::exists(filename);
+}
+
 bool createDirectory(const std::string &path){
 	return boost::filesystem::create_directories(path);
+}
+
+bool deleteFile(const std::string &filename){
+	return boost::filesystem::remove(filename);
 }
 
 std::string concatPath(const std::string &mainPath, const std::string &subPath){

@@ -128,7 +128,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		double CorrMovObjPort_ = 0.25,
 		size_t minNrMovObjs_ = 0
 		): 
-	nFramesPerCamConf(nFramesPerCamConf_), 
+	    nFramesPerCamConf(nFramesPerCamConf_),
 		inlRatRange(std::move(inlRatRange_)),
 		inlRatChanges(inlRatChanges_),
 		truePosRange(std::move(truePosRange_)),
@@ -147,7 +147,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		relMovObjVelRange(std::move(relMovObjVelRange_)),
 		minMovObjCorrPortion(minMovObjCorrPortion_),
 		CorrMovObjPort(CorrMovObjPort_),
-		minNrMovObjs(minNrMovObjs_)
+		minNrMovObjs(minNrMovObjs_),
+        parsAreValid(true)
 	{
 		CV_Assert(nFramesPerCamConf > 0);
 		CV_Assert((inlRatRange.first < 1.0) && (inlRatRange.first >= 0) && (inlRatRange.second <= 1.0) && (inlRatRange.second > 0));
@@ -180,6 +181,32 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
             movObjDir = movObjDir_.getMat();
 	}
 
+    StereoSequParameters():
+        nFramesPerCamConf(5),
+        inlRatRange(std::make_pair(0.1, 1.0)),
+        inlRatChanges(0),
+        truePosRange(std::make_pair(100, 2000)),
+        truePosChanges(0),
+        minKeypDist(3.0),
+        corrsPerDepth(depthPortion()),
+        corrsPerRegion(std::vector<cv::Mat>()),
+        corrsPerRegRepRate(1),
+        depthsPerRegion(std::vector<std::vector<depthPortion>>()),
+        nrDepthAreasPReg(std::vector<std::vector<std::pair<size_t, size_t>>>()),
+        camTrack(std::vector<cv::Mat>()),
+        relCamVelocity(0.5),
+        R(cv::Mat::eye(3,3,CV_64FC1)),
+        nrMovObjs(0),
+        startPosMovObjs(cv::Mat::zeros(3,3,CV_8UC1)),
+        relAreaRangeMovObjs(std::make_pair(0.01, 0.1)),
+        movObjDepth(std::vector<depthClass>()),
+        movObjDir(cv::Mat::ones(3,1,CV_64FC1)),
+        relMovObjVelRange(std::make_pair(0.5, 1.5)),
+        minMovObjCorrPortion(0.5),
+        CorrMovObjPort(0.25),
+        minNrMovObjs(0),
+        parsAreValid(false){}
+
 	//Parameters for generating correspondences
 	size_t nFramesPerCamConf;//# of Frames per camera configuration
 	std::pair<double, double> inlRatRange;//Inlier ratio range
@@ -206,6 +233,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 	double minMovObjCorrPortion;//Minimal portion of correspondences on moving objects for removing them. If the portion of visible correspondences drops below this value, the whole moving object is removed. Zero means, that the moving object is only removed if there is no visible correspondence in the stereo pair. One means, that a single missing correspondence leads to deletion. Values between 0 and 1;
 	double CorrMovObjPort;//Portion of correspondences on moving object (compared to static objects). It is limited by the size of the objects visible in the images and the minimal distance between correspondences.
 	size_t minNrMovObjs;//Minimum number of moving objects over the whole track. If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached. If 0, no new moving objects are inserted if every preceding object is out of sight.
+	bool parsAreValid;//Indicates, if the parameters of this struct are valid (because of the used constructor)
 };
 
 struct Poses
@@ -262,6 +290,7 @@ public:
 			std::vector<cv::Mat> t_,
 			StereoSequParameters & pars_,
 			uint32_t verbose = 0);
+    genStereoSequ():pars(StereoSequParameters()){};
 	virtual void startCalc();
 
 protected:
@@ -626,8 +655,8 @@ protected:
     int finalNrTPMovCorrsFromLast;//Final number of backprojected TP correspondences for moving objects. Corresponds to the sum of number of columns in movObjCorrsImg1TPFromLast
     int finalNrTNStatCorrs;//Final number of TN correspondences for static objects. Corresponds to the number of columns in actCorrsImg1TN
     int finalNrTNMovCorrs;//Final number of TN correspondences for moving objects. Corresponds to the sum of number of columns in movObjCorrsImg1TNFromLast and movObjCorrsImg1TN
-    const CorrOrderTP combCorrsImg12TPorder = CorrOrderTP();//Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
-    const bool combCorrsImg12TPstatFirst = true;//Indicates that TN correspondences of static objects are located at the beginning of Mats combCorrsImg1TN and combCorrsImg2TN
+    CorrOrderTP combCorrsImg12TPorder = CorrOrderTP();//Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
+    bool combCorrsImg12TPstatFirst = true;//Indicates that TN correspondences of static objects are located at the beginning of Mats combCorrsImg1TN and combCorrsImg2TN
 };
 
 

@@ -6689,10 +6689,6 @@ void genStereoSequ::genNewDepthMovObj() {
         waitKey(0);
         destroyWindow("Normalized Moving Obj Depth");
     }
-
-    //Add new depth classes to existing ones
-    //copy(movObjDepthClassNew.begin(), movObjDepthClassNew.end(), movObjDepthClass.end());
-    movObjDepthClass.insert(movObjDepthClass.end(), movObjDepthClassNew.begin(), movObjDepthClassNew.end());
 }
 
 void genStereoSequ::clearNewMovObjVars() {
@@ -7028,6 +7024,7 @@ void genStereoSequ::getMovObjCorrs() {
     if(!delList.empty()){
         for (int i = (int)delList.size() - 1; i >= 0; --i) {
             movObj3DPtsCamNew.erase(movObj3DPtsCamNew.begin() + delList[i]);
+            movObjDepthClassNew.erase(movObjDepthClassNew.begin() + delList[i]);
             actCorrsOnMovObj_IdxWorld.erase(actCorrsOnMovObj_IdxWorld.begin() + delList[i]);
         }
     }
@@ -8962,6 +8959,8 @@ void genStereoSequ::transMovObjPtsToWorld() {
     movObj3DPtsWorld.resize(nrOldObjs + nrNewObjs);
     movObjWorldMovement.resize(nrOldObjs + nrNewObjs);
     movObj3DPtsWorldAllFrames.resize(nrSaveObjs + nrNewObjs);
+    //Add new depth classes to existing ones
+    movObjDepthClass.insert(movObjDepthClass.end(), movObjDepthClassNew.begin(), movObjDepthClassNew.end());
     /* WRONG:
      * Mat trans_c2w;//Translation vector for transferring 3D points from camera to world coordinates
     Mat RC2W = absCamCoordinates[actFrameCnt].R.t();
@@ -10350,5 +10349,9 @@ bool genStereoSequ::startCalc_internal() {
 }
 
 void genStereoSequ::startCalc(){
+    if(!pars.parsAreValid){
+        cout << "Provide parameters for generating a sequence!" << endl;
+        return;
+    }
     while(startCalc_internal());
 }

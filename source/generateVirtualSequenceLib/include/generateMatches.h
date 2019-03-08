@@ -8,7 +8,7 @@
 #include "generateSequence.h"
 #include <opencv2/core/types.hpp>
 
-struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
+struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::string mainStorePath;//Path for storing results
     std::string imgPath;//Path containing the images for producing keypoint patches
     std::string imgPrePostFix;//image pre- and/or postfix (supports wildcards & subfolders) for images within imgPath
@@ -21,7 +21,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
     bool storePtClouds;//If true, all PCL point clouds and necessary information to load a cam sequence with correspondences are stored to disk
     bool writeXMLinfo;//If true, the parameters and information are stored in XML format. Otherwise it is stored in YML/YAML format
     bool compressWrittenInfo;//If true, the stored information and parameters are compressed (appends .gz)
-    bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available. Otherwise (false), the point clouds and other information are stored to disk and the generation of GT matches is aborted.
+    bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available.
 
     GenMatchSequParameters(std::string mainStorePath_,
                            std::string imgPath_,
@@ -35,7 +35,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
                            bool storePtClouds_ = false,
                            bool writeXMLinfo_ = false,
                            bool compressWrittenInfo_ = false,
-                           bool takeLessFramesIfLessKeyP_ = false):
+                           bool takeLessFramesIfLessKeyP_ = false) :
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -48,9 +48,11 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters{
             storePtClouds(storePtClouds_),
             writeXMLinfo(writeXMLinfo_),
             compressWrittenInfo(compressWrittenInfo_),
-            takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_){
-        CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first > -5.0) && (keypErrDistr.first < 5.0) && (keypErrDistr.second > -5.0) && (keypErrDistr.second < 5.0)));
-        CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) && (imgIntNoise.second < 25.0));
+            takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_) {
+        CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first > -5.0) && (keypErrDistr.first < 5.0) &&
+                                     (keypErrDistr.second > -5.0) && (keypErrDistr.second < 5.0)));
+        CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) &&
+                  (imgIntNoise.second < 25.0));
         CV_Assert((lostCorrPor >= 0) && (lostCorrPor <= 0.9));
         CV_Assert(!mainStorePath.empty());
         CV_Assert(!imgPath.empty());
@@ -65,29 +67,49 @@ public:
                  cv::Mat &K2_,
                  std::vector<cv::Mat> &R_,
                  std::vector<cv::Mat> &t_,
-                 StereoSequParameters &pars3D_,
+                 StereoSequParameters pars3D_,
                  GenMatchSequParameters &parsMtch_,
                  uint32_t verboseMatch_ = 0,
                  uint32_t verbose3D = 0) :
-                 genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, verbose3D),
-                 parsMtch(parsMtch_),
-                 verboseMatch(verboseMatch_)
-                 {
+            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, verbose3D),
+            parsMtch(parsMtch_),
+            verboseMatch(verboseMatch_),
+            pars3D(pars3D_),
+            imgSize(imgSize_),
+            K1(K1_),
+            K2(K2_) {
 
     };
 
-    void startCalc() override;
+    genMatchSequ(const std::string &sequLoadFolder,
+                 GenMatchSequParameters &parsMtch_,
+                 uint32_t verboseMatch_ = 0);
+
+//    void startCalc() override;
 
 private:
     bool getImageList();
+
     void createParsHash();
+
     size_t hashFromSequPars();
+
     size_t hashFromMtchPars();
+
     void totalNrCorrs();
+
     bool getFeatures();
+
     bool checkMatchability();
+
     void writeSequenceParameters(const std::string &filename);
+
     bool readSequenceParameters(const std::string &filename);
+
+    void write3DInfoSingleFrame(const std::string &filename);
+    bool read3DInfoSingleFrame(const std::string &filename);
+    bool writePointClouds(const std::string &path, const std::string &basename);
+    bool readPointClouds(const std::string &path, const std::string &basename);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -104,6 +126,10 @@ private:
     size_t hash_Sequ, hash_Matches;
     std::string hashResult;
     StereoSequParameters pars3D;
+    cv::Size imgSize;
+    cv::Mat K1;//Camera matrix 1
+    cv::Mat K2;//Camera matrix 2
+    size_t nrMovObjAllFrames;
 
 };
 
