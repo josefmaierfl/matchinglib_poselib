@@ -15,14 +15,50 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            GenMatchSequParameters &parsMtch_,
                            uint32_t verboseMatch_) :
         genStereoSequ(),
-        //pars3D(pars3D_),
         parsMtch(parsMtch_),
         verboseMatch(verboseMatch_) {
 
-    if(!checkPathExists(sequLoadFolder)){
-        throw SequenceException("Path for loading 3D sequence does not exist!");
+    if (!checkPathExists(sequLoadFolder)) {
+        string errmsg = "Path for loading 3D sequence does not exist: " + sequLoadFolder;
+        throw SequenceException(errmsg);
+    }
+    genSequenceParsFileName();
+
+    string filename = concatPath(sequLoadFolder, sequParFileName);
+    if(checkFileExists(filename)){
+        string errmsg = "Necessary 3D sequence file " +
+                        filename + " does not exist!";
+        throw SequenceException(errmsg);
     }
 
+    if (!readSequenceParameters(filename)) {
+        string errmsg = "Necessary 3D sequence file " +
+                        filename + " could not be loaded!";
+        throw SequenceException(errmsg);
+    }
+}
+
+void genMatchSequ::genSequenceParsFileName() {
+    const std::string sequParFileNameBase = "sequPars";
+
+    if (parsMtch.rwXMLinfo) {
+        sequParFileName = sequParFileNameBase + ".xml";
+    } else {
+        sequParFileName = sequParFileNameBase + ".yaml";
+    }
+
+    if (parsMtch.compressedWrittenInfo) {
+        sequParFileName += ".gz";
+    }
+}
+
+bool genMatchSequ::generateMatches(){
+    totalNrCorrs();
+
+    if(!getFeatures()){
+        cerr << "Unable to calculate necessary keypoints from images!" << endl;
+        return false;
+    }
 }
 
 //Load the images in the given folder with a given image pre- and/or postfix (supports wildcards)
@@ -305,14 +341,15 @@ void genMatchSequ::writeSequenceParameters(const std::string &filename) {
     fs << "minNrMovObjs" << (int) pars.minNrMovObjs;
 
     cvWriteComment(*fs, "Total number of frames in the sequence", 0);
-    fs << "totalNrFrames" << (int)totalNrFrames;
+    fs << "totalNrFrames" << (int) totalNrFrames;
     cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
     fs << "nrCorrs" << "[";
     for (auto &i : nrCorrs) {
-        fs << (int)i;
+        fs << (int) i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
+    cvWriteComment(*fs,
+                   "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
     fs << "absCamCoordinates" << "[";
     for (auto &i : absCamCoordinates) {
         fs << "{" << "R" << i.R;
@@ -322,7 +359,7 @@ void genMatchSequ::writeSequenceParameters(const std::string &filename) {
 
     nrMovObjAllFrames = movObj3DPtsWorldAllFrames.size();
     cvWriteComment(*fs, "Number of moving object point clouds over all frames.", 0);
-    fs << "nrMovObjAllFrames" << (int)nrMovObjAllFrames;
+    fs << "nrMovObjAllFrames" << (int) nrMovObjAllFrames;
 
     //Write camera parameters
     cvWriteComment(*fs, "Camera matrix of cam 1", 0);
@@ -480,7 +517,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     pars3D.minNrMovObjs = (size_t) tmp;
 
     fs["totalNrFrames"] >> tmp;
-    totalNrFrames = (size_t)tmp;
+    totalNrFrames = (size_t) tmp;
 
     n = fs["nrCorrs"];
     if (n.type() != FileNode::SEQ) {
@@ -491,7 +528,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     it = n.begin(), it_end = n.end();
     for (; it != it_end; ++it) {
         it >> tmp;
-        nrCorrs.push_back((size_t)tmp);
+        nrCorrs.push_back((size_t) tmp);
     }
 
     n = fs["absCamCoordinates"];
@@ -510,7 +547,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
 
     fs["nrMovObjAllFrames"] >> tmp;
-    nrMovObjAllFrames = (size_t)tmp;
+    nrMovObjAllFrames = (size_t) tmp;
 
     //Read camera parameters
     fs["K1"] >> K1;
@@ -526,7 +563,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     return true;
 }
 
-void genMatchSequ::write3DInfoSingleFrame(const std::string &filename){
+void genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     FileStorage fs(filename, FileStorage::WRITE);
 
     cvWriteComment(*fs, "This file contains all correspondences of a single frame.\n", 0);
@@ -558,7 +595,7 @@ void genMatchSequ::write3DInfoSingleFrame(const std::string &filename){
     fs << "combCorrsImg12TP_IdxWorld_m32bit" << "[";
     for (auto &i : combCorrsImg12TP_IdxWorld) {
         int64_t mostsig = i >> 32;
-        fs << (int32_t)mostsig;
+        fs << (int32_t) mostsig;
     }
     fs << "]";
     cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
@@ -567,7 +604,7 @@ void genMatchSequ::write3DInfoSingleFrame(const std::string &filename){
     fs << "combCorrsImg12TP_IdxWorld_l32bit" << "[";
     for (auto &i : combCorrsImg12TP_IdxWorld) {
         int64_t leastsig = (i << 32) >> 32;
-        fs << (int32_t)leastsig;
+        fs << (int32_t) leastsig;
     }
     fs << "]";
 
@@ -578,7 +615,7 @@ void genMatchSequ::write3DInfoSingleFrame(const std::string &filename){
     fs << "combCorrsImg12TPContMovObj_IdxWorld_m32bit" << "[";
     for (auto &i : combCorrsImg12TPContMovObj_IdxWorld) {
         int64_t mostsig = i >> 32;
-        fs << (int32_t)mostsig;
+        fs << (int32_t) mostsig;
     }
     fs << "]";
     cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
@@ -588,7 +625,7 @@ void genMatchSequ::write3DInfoSingleFrame(const std::string &filename){
     fs << "combCorrsImg12TPContMovObj_IdxWorld_l32bit" << "[";
     for (auto &i : combCorrsImg12TPContMovObj_IdxWorld) {
         int64_t leastsig = (i << 32) >> 32;
-        fs << (int32_t)leastsig;
+        fs << (int32_t) leastsig;
     }
     fs << "]";
 
@@ -630,20 +667,20 @@ void genMatchSequ::write3DInfoSingleFrame(const std::string &filename){
 
     cvWriteComment(*fs, "Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts", 0);
     fs << "combCorrsImg12TPorder";
-    fs << "{" << "statTPfromLast" << (int)combCorrsImg12TPorder.statTPfromLast;
-    fs << "statTPnew" << (int)combCorrsImg12TPorder.statTPnew;
-    fs << "movTPfromLast" << (int)combCorrsImg12TPorder.movTPfromLast;
-    fs << "movTPnew" << (int)combCorrsImg12TPorder.movTPnew << "}";
+    fs << "{" << "statTPfromLast" << (int) combCorrsImg12TPorder.statTPfromLast;
+    fs << "statTPnew" << (int) combCorrsImg12TPorder.statTPnew;
+    fs << "movTPfromLast" << (int) combCorrsImg12TPorder.movTPfromLast;
+    fs << "movTPnew" << (int) combCorrsImg12TPorder.movTPnew << "}";
 
     cvWriteComment(*fs, "Indicates that TN correspondences of static objects are located at the beginning of Mats "
                         "combCorrsImg1TN and combCorrsImg2TN", 0);
-    if(combCorrsImg12TPstatFirst)
+    if (combCorrsImg12TPstatFirst)
         fs << "finalNrTNMovCorrs" << 1;
     else
         fs << "finalNrTNMovCorrs" << 0;
 }
 
-bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename){
+bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     FileStorage fs(filename, FileStorage::READ);
 
     if (!fs.isOpened()) {
@@ -654,7 +691,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename){
     int tmp;
 
     fs["actFrameCnt"] >> tmp;
-    actFrameCnt = (size_t)tmp;
+    actFrameCnt = (size_t) tmp;
 
     fs["actR"] >> actR;
 
@@ -748,7 +785,6 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename){
         idx++;
     }
 
-
     fs["combCorrsImg1TN"] >> combCorrsImg1TN;
     fs["combCorrsImg2TN"] >> combCorrsImg2TN;
 
@@ -782,16 +818,16 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename){
 
     n = fs["combCorrsImg12TPorder"];
     n["statTPfromLast"] >> tmp;
-    combCorrsImg12TPorder.statTPfromLast = (unsigned char)tmp;
+    combCorrsImg12TPorder.statTPfromLast = (unsigned char) tmp;
     n["statTPnew"] >> tmp;
-    combCorrsImg12TPorder.statTPnew = (unsigned char)tmp;
+    combCorrsImg12TPorder.statTPnew = (unsigned char) tmp;
     n["movTPfromLast"] >> tmp;
-    combCorrsImg12TPorder.movTPfromLast = (unsigned char)tmp;
+    combCorrsImg12TPorder.movTPfromLast = (unsigned char) tmp;
     n["movTPnew"] >> tmp;
-    combCorrsImg12TPorder.movTPnew = (unsigned char)tmp;
+    combCorrsImg12TPorder.movTPnew = (unsigned char) tmp;
 
     fs["finalNrTNMovCorrs"] >> tmp;
-    if(tmp)
+    if (tmp)
         combCorrsImg12TPstatFirst = true;
     else
         combCorrsImg12TPstatFirst = false;
@@ -799,38 +835,37 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename){
     return true;
 }
 
-bool genMatchSequ::writePointClouds(const std::string &path, const std::string &basename){
+bool genMatchSequ::writePointClouds(const std::string &path, const std::string &basename) {
     string filename = concatPath(path, basename);
 
     string staticWorld3DPtsFileName = filename + "_staticWorld3DPts.pcd";
     string uip = "";
     bool overwrite = false;
-    if(checkFileExists(staticWorld3DPtsFileName)){
+    if (checkFileExists(staticWorld3DPtsFileName)) {
         cerr << "Output file for static 3D PCL point cloud already exists: " << staticWorld3DPtsFileName << endl;
         cout << "Do you want to overwrite it and all the other pcd files in this folder? (y/n)";
-        while((uip != "y") && (uip != "n")) {
+        while ((uip != "y") && (uip != "n")) {
             cout << endl << "Try again:";
             cin >> uip;
         }
         cout << endl;
-        if(uip == "y"){
+        if (uip == "y") {
             overwrite = true;
-            if(!deleteFile(staticWorld3DPtsFileName)){
+            if (!deleteFile(staticWorld3DPtsFileName)) {
                 cerr << "Unable to delete file. Exiting." << endl;
                 return false;
             }
-        }
-        else{
+        } else {
             cout << "Exiting." << endl;
             return false;
         }
     }
     pcl::io::savePCDFileBinaryCompressed(staticWorld3DPtsFileName, *staticWorld3DPts.get());
 
-    for(size_t i = 0; i < movObj3DPtsWorldAllFrames.size(); ++i){
+    for (size_t i = 0; i < movObj3DPtsWorldAllFrames.size(); ++i) {
         string fname = filename + "_movObj3DPts_" + std::to_string(i) + ".pcd";
-        if(checkFileExists(fname)){
-            if(!overwrite) {
+        if (checkFileExists(fname)) {
+            if (!overwrite) {
                 cerr << "Output file for moving 3D PCL point cloud already exists: " << fname
                      << endl;
                 cout << "Do you want to overwrite it and all the other pcd files in this folder? (y/n)";
@@ -849,8 +884,7 @@ bool genMatchSequ::writePointClouds(const std::string &path, const std::string &
                     cout << "Exiting." << endl;
                     return false;
                 }
-            }
-            else{
+            } else {
                 if (!deleteFile(fname)) {
                     cerr << "Unable to delete file. Exiting." << endl;
                     return false;
@@ -863,7 +897,7 @@ bool genMatchSequ::writePointClouds(const std::string &path, const std::string &
     return true;
 }
 
-bool genMatchSequ::readPointClouds(const std::string &path, const std::string &basename){
+bool genMatchSequ::readPointClouds(const std::string &path, const std::string &basename) {
     CV_Assert(totalNrFrames > 0);
 
     string filename = concatPath(path, basename);
@@ -871,17 +905,17 @@ bool genMatchSequ::readPointClouds(const std::string &path, const std::string &b
 
     staticWorld3DPts.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-    if(pcl::io::loadPCDFile(staticWorld3DPtsFileName, *staticWorld3DPts) == -1){
+    if (pcl::io::loadPCDFile(staticWorld3DPtsFileName, *staticWorld3DPts) == -1) {
         cerr << "Could not read PCL point cloud " << staticWorld3DPtsFileName << endl;
         return false;
     }
 
-    if(nrMovObjAllFrames > 0) {
+    if (nrMovObjAllFrames > 0) {
         movObj3DPtsWorldAllFrames.clear();
         movObj3DPtsWorldAllFrames.resize(nrMovObjAllFrames);
-        for(size_t i = 0; i < nrMovObjAllFrames; ++i){
+        for (size_t i = 0; i < nrMovObjAllFrames; ++i) {
             string fname = filename + "_movObj3DPts_" + std::to_string(i) + ".pcd";
-            if(pcl::io::loadPCDFile(staticWorld3DPtsFileName, movObj3DPtsWorldAllFrames[i]) == -1){
+            if (pcl::io::loadPCDFile(staticWorld3DPtsFileName, movObj3DPtsWorldAllFrames[i]) == -1) {
                 cerr << "Could not read PCL point cloud " << staticWorld3DPtsFileName << endl;
                 return false;
             }
