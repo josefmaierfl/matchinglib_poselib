@@ -11,20 +11,41 @@
 using namespace std;
 using namespace cv;
 
+/* --------------------- Function prototypes --------------------- */
+
+bool genParsStorePath(const std::string &basePath, const std::string &subpath, std::string &resPath);
+static inline FileStorage& operator << (FileStorage& fs, bool &value);
+
+/* -------------------------- Functions -------------------------- */
+
 genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            GenMatchSequParameters &parsMtch_,
                            uint32_t verboseMatch_) :
         genStereoSequ(),
         parsMtch(parsMtch_),
-        verboseMatch(verboseMatch_) {
+        verboseMatch(verboseMatch_),
+        sequParsLoaded(true){
 
-    if (!checkPathExists(sequLoadFolder)) {
-        string errmsg = "Path for loading 3D sequence does not exist: " + sequLoadFolder;
+    string sequFolder = sequLoadFolder;
+    if(sequFolder.empty()){
+        if(parsMtch.mainStorePath.empty()){
+            throw SequenceException("No path for loading 3D sequence given!");
+        }
+        else{
+            sequFolder = parsMtch.mainStorePath;
+        }
+    }
+    else if(parsMtch.mainStorePath.empty()){
+        parsMtch.mainStorePath = sequFolder;
+    }
+
+    if (!checkPathExists(sequFolder)) {
+        string errmsg = "Path for loading 3D sequence does not exist: " + sequFolder;
         throw SequenceException(errmsg);
     }
     genSequenceParsFileName();
 
-    string filename = concatPath(sequLoadFolder, sequParFileName);
+    string filename = concatPath(sequFolder, sequParFileName);
     if(checkFileExists(filename)){
         string errmsg = "Necessary 3D sequence file " +
                         filename + " does not exist!";
@@ -52,12 +73,70 @@ void genMatchSequ::genSequenceParsFileName() {
     }
 }
 
+bool genMatchSequ::genSequenceParsStorePath(){
+    hash_Sequ = hashFromSequPars();
+    if(!genParsStorePath(parsMtch.mainStorePath, std::to_string(hash_Sequ), sequParPath)){
+        return false;
+    }
+    return true;
+}
+
+bool genParsStorePath(const std::string &basePath, const std::string &subpath, std::string &resPath){
+    if(!checkPathExists(basePath)){
+        cerr << "Given path " << basePath << " to store results does not exist!" << endl;
+        return false;
+    }
+
+    resPath = concatPath(subpath, subpath);
+    int idx = 0;
+    while(checkPathExists(resPath)){
+        resPath = concatPath(subpath, subpath + "_" + std::to_string(idx));
+        idx++;
+        if(idx > 10000){
+            cerr << "Cannot create a path for storing results as more than 10000 variants of the same path exist." << endl;
+            return false;
+        }
+    }
+    if(!createDirectory(resPath)){
+        cerr << "Unable to create directory for storing results: " << resPath << endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool genMatchSequ::genMatchDataStorePath(){
+    hash_Matches = hashFromMtchPars();
+    if(!genParsStorePath(sequParPath, std::to_string(hash_Matches), matchDataPath)){
+        return false;
+    }
+    return true;
+}
+
 bool genMatchSequ::generateMatches(){
+    //Calculate maximum number of TP and TN correspondences
     totalNrCorrs();
 
+    //Calculate features from given images
     if(!getFeatures()){
         cerr << "Unable to calculate necessary keypoints from images!" << endl;
         return false;
+    }
+
+    //Generate path to store results
+    if(!genSequenceParsStorePath()){
+        return false;
+    }
+    if(!genMatchDataStorePath()){
+        return false;
+    }
+    if(!writeMatchingParameters()){
+        cerr << "Unable to store matching parameters!" << endl;
+        return false;
+    }
+
+    while (actFrameCnt < nrFramesGenMatches){
+        startCalc_internal();
     }
 }
 
@@ -242,15 +321,91 @@ size_t genMatchSequ::hashFromMtchPars() {
     return hash_fn(strFromPars);
 }
 
-void genMatchSequ::createParsHash() {
-    hash_Sequ = hashFromSequPars();
-    hash_Matches = hashFromMtchPars();
-    hashResult = std::to_string(hash_Sequ);
-    hashResult += std::to_string(hash_Matches);
+bool genMatchSequ::writeMatchingParameters(){
+    if(!checkPathExists(sequParPath)){
+        cerr << "Given path " << sequParPath << " to store matching parameters does not exist!" << endl;
+        return false;
+    }
+
+    string matchInfoFName = "matchInfos";
+    if (parsMtch.rwXMLinfo) {
+        matchInfoFName += ".xml";
+    } else {
+        matchInfoFName += ".yaml";
+    }
+    string filename = concatPath(sequParPath, matchInfoFName);
+    FileStorage fs;
+    if(checkFileExists(filename)){
+        fs = FileStorage(filename, FileStorage::APPEND);
+        if (!fs.isOpened()) {
+            cerr << "Failed to open " << filename << endl;
+            return false;
+        }
+        cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+    }
+    else{
+        fs = FileStorage(filename, FileStorage::WRITE);
+        if (!fs.isOpened()) {
+            cerr << "Failed to open " << filename << endl;
+            return false;
+        }
+        cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
+                            "generating matches out of given 3D correspondences.\n\n", 0);
+    }
+
+    cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
+                        "using the below parameters.", 0);
+    fs << "hashMatchingPars" << std::to_string(hash_Matches);
+
+    cvWriteComment(*fs, "Path containing the images for producing keypoint patches", 0);
+    fs << "imgPath" << parsMtch.imgPath;
+    cvWriteComment(*fs, "Image pre- and/or postfix for images within imgPath", 0);
+    fs << "imgPrePostFix" << parsMtch.imgPrePostFix;
+    cvWriteComment(*fs, "Name of keypoint detector", 0);
+    fs << "keyPointType" << parsMtch.keyPointType;
+    cvWriteComment(*fs, "Name of descriptor extractor", 0);
+    fs << "descriptorType" << parsMtch.descriptorType;
+    cvWriteComment(*fs, "Keypoint detector error (true) or error normal distribution (false)", 0);
+    fs << "keypPosErrType" << parsMtch.keypPosErrType;
+    cvWriteComment(*fs, "Keypoint error distribution (mean, std)", 0);
+    fs << "keypErrDistr";
+    fs << "{" << "first" << parsMtch.keypErrDistr.first;
+    fs << "second" << parsMtch.keypErrDistr.second << "}";
+    cvWriteComment(*fs, "Noise (mean, std) on the image intensity for descriptor calculation", 0);
+    fs << "imgIntNoise";
+    fs << "{" << "first" << parsMtch.imgIntNoise.first;
+    fs << "second" << parsMtch.imgIntNoise.second << "}";
+    cvWriteComment(*fs, "Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
+    fs << "lostCorrPor" << parsMtch.lostCorrPor;
+    cvWriteComment(*fs, "If true, all PCL point clouds and necessary information to load a cam sequence "
+                        "with correspondences are stored to disk", 0);
+    fs << "storePtClouds" << parsMtch.storePtClouds;
+    cvWriteComment(*fs, "If true, the parameters and information are stored and read in XML format.", 0);
+    fs << "rwXMLinfo" << parsMtch.rwXMLinfo;
+    cvWriteComment(*fs, "If true, the stored information and parameters are compressed", 0);
+    fs << "compressedWrittenInfo" << parsMtch.compressedWrittenInfo;
+    cvWriteComment(*fs, "If true and too less images images are provided (resulting in too less keypoints), "
+                        "only as many frames with GT matches are provided as keypoints are available.", 0);
+    fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
+
+    return true;
 }
 
-void genMatchSequ::writeSequenceParameters(const std::string &filename) {
+static inline FileStorage& operator << (FileStorage& fs, bool &value)
+{
+    if(value){
+        return (fs << 1);
+    }
+
+    return (fs << 0);
+}
+
+bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     FileStorage fs(filename, FileStorage::WRITE);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
 
     cvWriteComment(*fs, "This file contains all parameters used to generate "
                         "multiple consecutive frames with stereo correspondences.\n", 0);
@@ -372,6 +527,8 @@ void genMatchSequ::writeSequenceParameters(const std::string &filename) {
     fs << "height" << imgSize.height << "}";
 
     fs.release();
+
+    return true;
 }
 
 bool genMatchSequ::readSequenceParameters(const std::string &filename) {
@@ -563,8 +720,12 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     return true;
 }
 
-void genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
+bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     FileStorage fs(filename, FileStorage::WRITE);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
 
     cvWriteComment(*fs, "This file contains all correspondences of a single frame.\n", 0);
 
@@ -674,10 +835,13 @@ void genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
 
     cvWriteComment(*fs, "Indicates that TN correspondences of static objects are located at the beginning of Mats "
                         "combCorrsImg1TN and combCorrsImg2TN", 0);
-    if (combCorrsImg12TPstatFirst)
+    /*if (combCorrsImg12TPstatFirst)
         fs << "finalNrTNMovCorrs" << 1;
     else
-        fs << "finalNrTNMovCorrs" << 0;
+        fs << "finalNrTNMovCorrs" << 0;*/
+    fs << "finalNrTNMovCorrs" << combCorrsImg12TPstatFirst;
+
+    return true;
 }
 
 bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {

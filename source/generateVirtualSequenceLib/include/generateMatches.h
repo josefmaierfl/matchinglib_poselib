@@ -9,7 +9,7 @@
 #include <opencv2/core/types.hpp>
 
 struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
-    std::string mainStorePath;//Path for storing results
+    std::string mainStorePath;//Path for storing results. If empty and the 3D correspondences are loaded from file, the path for loading these correspondences is also used for storing the matches
     std::string imgPath;//Path containing the images for producing keypoint patches
     std::string imgPrePostFix;//image pre- and/or postfix (supports wildcards & subfolders) for images within imgPath
     std::string keyPointType;//Name of keypoint detector
@@ -54,7 +54,6 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
         CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) &&
                   (imgIntNoise.second < 25.0));
         CV_Assert((lostCorrPor >= 0) && (lostCorrPor <= 0.9));
-        CV_Assert(!mainStorePath.empty());
         CV_Assert(!imgPath.empty());
 
     }
@@ -77,7 +76,9 @@ public:
             pars3D(pars3D_),
             imgSize(imgSize_),
             K1(K1_),
-            K2(K2_) {
+            K2(K2_),
+            sequParsLoaded(false){
+        CV_Assert(!parsMtch.mainStorePath.empty());
         genSequenceParsFileName();
     };
 
@@ -92,8 +93,6 @@ public:
 private:
     bool getImageList();
 
-    void createParsHash();
-
     size_t hashFromSequPars();
 
     size_t hashFromMtchPars();
@@ -104,15 +103,18 @@ private:
 
     bool checkMatchability();
 
-    void writeSequenceParameters(const std::string &filename);
+    bool writeSequenceParameters(const std::string &filename);
 
     bool readSequenceParameters(const std::string &filename);
 
-    void write3DInfoSingleFrame(const std::string &filename);
+    bool write3DInfoSingleFrame(const std::string &filename);
     bool read3DInfoSingleFrame(const std::string &filename);
     bool writePointClouds(const std::string &path, const std::string &basename);
     bool readPointClouds(const std::string &path, const std::string &basename);
     void genSequenceParsFileName();
+    bool genSequenceParsStorePath();
+    bool genMatchDataStorePath();
+    bool writeMatchingParameters();
 
 public:
     GenMatchSequParameters parsMtch;
@@ -127,13 +129,15 @@ private:
     cv::Mat descriptors1;
     size_t nrFramesGenMatches;
     size_t hash_Sequ, hash_Matches;
-    std::string hashResult;
     StereoSequParameters pars3D;
     cv::Size imgSize;
     cv::Mat K1;//Camera matrix 1
     cv::Mat K2;//Camera matrix 2
     size_t nrMovObjAllFrames;
     std::string sequParFileName;
+    std::string sequParPath;
+    std::string matchDataPath;
+    bool sequParsLoaded = false;
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H
