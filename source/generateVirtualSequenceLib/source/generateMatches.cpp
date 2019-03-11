@@ -15,6 +15,11 @@ using namespace cv;
 
 bool genParsStorePath(const std::string &basePath, const std::string &subpath, std::string &resPath);
 static inline FileStorage& operator << (FileStorage& fs, bool &value);
+static inline void operator >> (const FileNode& n, int64_t& value);
+static inline FileStorage& operator << (FileStorage& fs, int64_t &value);
+static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value);
+bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
+bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -26,26 +31,26 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
         verboseMatch(verboseMatch_),
         sequParsLoaded(true){
 
-    string sequFolder = sequLoadFolder;
-    if(sequFolder.empty()){
+    sequLoadPath = sequLoadFolder;
+    if(sequLoadPath.empty()){
         if(parsMtch.mainStorePath.empty()){
-            throw SequenceException("No path for loading 3D sequence given!");
+            throw SequenceException("No path for loading 3D sequence provided!");
         }
         else{
-            sequFolder = parsMtch.mainStorePath;
+            sequLoadPath = parsMtch.mainStorePath;
         }
     }
     else if(parsMtch.mainStorePath.empty()){
-        parsMtch.mainStorePath = sequFolder;
+        parsMtch.mainStorePath = sequLoadPath;
     }
 
-    if (!checkPathExists(sequFolder)) {
-        string errmsg = "Path for loading 3D sequence does not exist: " + sequFolder;
+    if (!checkPathExists(sequLoadPath)) {
+        string errmsg = "Path for loading 3D sequence does not exist: " + sequLoadPath;
         throw SequenceException(errmsg);
     }
     genSequenceParsFileName();
 
-    string filename = concatPath(sequFolder, sequParFileName);
+    string filename = concatPath(sequLoadPath, sequParFileName);
     if(checkFileExists(filename)){
         string errmsg = "Necessary 3D sequence file " +
                         filename + " does not exist!";
@@ -57,20 +62,33 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                         filename + " could not be loaded!";
         throw SequenceException(errmsg);
     }
+
+    if(!readPointClouds(sequLoadPath, pclBaseFName)){
+        string errmsg = "Necessary 3D PCL point cloud files could not be loaded!";
+        throw SequenceException(errmsg);
+    }
 }
 
 void genMatchSequ::genSequenceParsFileName() {
     const std::string sequParFileNameBase = "sequPars";
 
+    sequParFileName = genSequFileExtension(sequParFileNameBase);
+}
+
+std::string genMatchSequ::genSequFileExtension(const std::string &basename){
+    std::string filename = basename;
+
     if (parsMtch.rwXMLinfo) {
-        sequParFileName = sequParFileNameBase + ".xml";
+        filename += ".xml";
     } else {
-        sequParFileName = sequParFileNameBase + ".yaml";
+        filename += ".yaml";
     }
 
     if (parsMtch.compressedWrittenInfo) {
-        sequParFileName += ".gz";
+        filename += ".gz";
     }
+
+    return filename;
 }
 
 bool genMatchSequ::genSequenceParsStorePath(){
@@ -135,8 +153,67 @@ bool genMatchSequ::generateMatches(){
         return false;
     }
 
+    bool overwriteFiles = false;
+    bool overWriteSuccess = true;
     while (actFrameCnt < nrFramesGenMatches){
-        startCalc_internal();
+        if(!sequParsLoaded) {
+            //Generate 3D correspondences for a single frame
+            startCalc_internal();
+            //Write the result to disk
+            if(parsMtch.storePtClouds && overWriteSuccess){
+                string singleFrameDataFName = sequSingleFrameBaseFName + "_" + std::to_string(actFrameCnt);
+                singleFrameDataFName = genSequFileExtension(singleFrameDataFName);
+                singleFrameDataFName = concatPath(sequParPath, singleFrameDataFName);
+                if(checkOverwriteDelFiles(singleFrameDataFName,
+                                          "Output file for sequence parameters already exists:", overwriteFiles)){
+                    write3DInfoSingleFrame(singleFrameDataFName);
+                }
+                else{
+                    overWriteSuccess = false;
+                }
+            }
+        }else{
+            //Load sequence data for the actual frame
+            string singleFrameDataFName = sequSingleFrameBaseFName + "_" + std::to_string(actFrameCnt);
+            singleFrameDataFName = genSequFileExtension(singleFrameDataFName);
+            singleFrameDataFName = concatPath(sequLoadPath, singleFrameDataFName);
+            if(!checkFileExists(singleFrameDataFName)){
+                cerr << "3D correspondence file for single frame does not exist: " <<
+                singleFrameDataFName << endl;
+                return false;
+            }
+            if(read3DInfoSingleFrame(singleFrameDataFName)){
+                cerr << "Unable to load 3D correspondence file for single frame: " <<
+                     singleFrameDataFName << endl;
+                return false;
+            }
+        }
+
+        //Calculate matches for actual frame
+
+
+        if(sequParsLoaded){
+            actFrameCnt++;
+        }
+    }
+
+    if(!sequParsLoaded && parsMtch.storePtClouds && overWriteSuccess){
+        string sequParFName = concatPath(sequParPath, sequParFileName);
+        if(checkOverwriteDelFiles(sequParFName,
+                "Output file for sequence parameters already exists:", overwriteFiles)) {
+            if (!writeSequenceParameters(sequParFName)){
+                cerr << "Unable to write sequence parameters to disk: " << sequParFName << endl;
+                overWriteSuccess = false;
+            }
+        }else{
+            overWriteSuccess = false;
+        }
+        if(overWriteSuccess) {
+            if(!writePointClouds(sequParPath, pclBaseFName, overwriteFiles)){
+                cerr << "Unable to write PCL point clouds to disk!" << endl;
+                overWriteSuccess = false;
+            }
+        }
     }
 }
 
@@ -398,6 +475,25 @@ static inline FileStorage& operator << (FileStorage& fs, bool &value)
     }
 
     return (fs << 0);
+}
+
+static inline FileStorage& operator << (FileStorage& fs, int64_t &value)
+{
+    string strVal = std::to_string(value);
+    return (fs << strVal);
+}
+
+static inline void operator >> (const FileNode& n, int64_t& value)
+{
+    string strVal;
+    n >> strVal;
+    value = std::stoll(strVal);
+}
+
+static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value)
+{
+    *it >> value;
+    return ++it;
 }
 
 bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
@@ -750,7 +846,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
+    /*cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
                         "combined TP correspondences (static and moving objects) in combCorrsImg1TP and "
                         "combCorrsImg2TP. Contains only the most 32 significant bits of the int64 indices.", 0);
     fs << "combCorrsImg12TP_IdxWorld_m32bit" << "[";
@@ -767,9 +863,18 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
         int64_t leastsig = (i << 32) >> 32;
         fs << (int32_t) leastsig;
     }
+    fs << "]";*/
+
+    cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
+                        "combined TP correspondences (static and moving objects) in combCorrsImg1TP and "
+                        "combCorrsImg2TP.", 0);
+    fs << "combCorrsImg12TP_IdxWorld" << "[";
+    for (auto &i : combCorrsImg12TP_IdxWorld) {
+        fs << i;
+    }
     fs << "]";
 
-    cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
+    /*cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
                         "correspond with vector elements in movObj3DPtsWorld but with a consecutive number "
                         "pointing to moving object pointclouds that were saved after they emerged. "
                         "Contains only the most 32 significant bits of the int64 indices.", 0);
@@ -787,6 +892,15 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     for (auto &i : combCorrsImg12TPContMovObj_IdxWorld) {
         int64_t leastsig = (i << 32) >> 32;
         fs << (int32_t) leastsig;
+    }
+    fs << "]";*/
+
+    cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
+                        "correspond with vector elements in movObj3DPtsWorld but with a consecutive number "
+                        "pointing to moving object pointclouds that were saved after they emerged.", 0);
+    fs << "combCorrsImg12TPContMovObj_IdxWorld" << "[";
+    for (auto &i : combCorrsImg12TPContMovObj_IdxWorld) {
+        fs << i;
     }
     fs << "]";
 
@@ -877,7 +991,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
         comb3DPts.push_back(pt);
     }
 
-    n = fs["combCorrsImg12TP_IdxWorld_m32bit"];
+    /*n = fs["combCorrsImg12TP_IdxWorld_m32bit"];
     if (n.type() != FileNode::SEQ) {
         cerr << "combCorrsImg12TP_IdxWorld_m32bit is not a sequence! FAIL" << endl;
         return false;
@@ -911,9 +1025,22 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
         leastsig = leastsig | static_cast<uint64_t>(combCorrsImg12TP_IdxWorld[idx]);
         combCorrsImg12TP_IdxWorld.push_back(static_cast<int64_t>(leastsig));
         idx++;
+    }*/
+
+    n = fs["combCorrsImg12TP_IdxWorld"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "combCorrsImg12TP_IdxWorld is not a sequence! FAIL" << endl;
+        return false;
+    }
+    combCorrsImg12TP_IdxWorld.clear();
+    it = n.begin(), it_end = n.end();
+    for (; it != it_end; ++it) {
+        int64_t val;
+        it >> val;
+        combCorrsImg12TP_IdxWorld.push_back(val);
     }
 
-    n = fs["combCorrsImg12TPContMovObj_IdxWorld_m32bit"];
+    /*n = fs["combCorrsImg12TPContMovObj_IdxWorld_m32bit"];
     if (n.type() != FileNode::SEQ) {
         cerr << "combCorrsImg12TPContMovObj_IdxWorld_m32bit is not a sequence! FAIL" << endl;
         return false;
@@ -947,6 +1074,19 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
         leastsig = leastsig | static_cast<uint64_t>(combCorrsImg12TPContMovObj_IdxWorld[idx]);
         combCorrsImg12TPContMovObj_IdxWorld.push_back(static_cast<int64_t>(leastsig));
         idx++;
+    }*/
+
+    n = fs["combCorrsImg12TPContMovObj_IdxWorld"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "combCorrsImg12TPContMovObj_IdxWorld is not a sequence! FAIL" << endl;
+        return false;
+    }
+    combCorrsImg12TPContMovObj_IdxWorld.clear();
+    it = n.begin(), it_end = n.end();
+    for (; it != it_end; ++it) {
+        int64_t val;
+        it >> val;
+        combCorrsImg12TPContMovObj_IdxWorld.push_back(val);
     }
 
     fs["combCorrsImg1TN"] >> combCorrsImg1TN;
@@ -999,15 +1139,11 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     return true;
 }
 
-bool genMatchSequ::writePointClouds(const std::string &path, const std::string &basename) {
-    string filename = concatPath(path, basename);
-
-    string staticWorld3DPtsFileName = filename + "_staticWorld3DPts.pcd";
+bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg, bool &overwrite){
     string uip = "";
-    bool overwrite = false;
-    if (checkFileExists(staticWorld3DPtsFileName)) {
-        cerr << "Output file for static 3D PCL point cloud already exists: " << staticWorld3DPtsFileName << endl;
-        cout << "Do you want to overwrite it and all the other pcd files in this folder? (y/n)";
+    if (checkFileExists(filename)) {
+        cerr << errmsg << " " << filename << endl;
+        cout << "Do you want to overwrite it and all the other files in this folder? (y/n)";
         while ((uip != "y") && (uip != "n")) {
             cout << endl << "Try again:";
             cin >> uip;
@@ -1015,7 +1151,7 @@ bool genMatchSequ::writePointClouds(const std::string &path, const std::string &
         cout << endl;
         if (uip == "y") {
             overwrite = true;
-            if (!deleteFile(staticWorld3DPtsFileName)) {
+            if (!deleteFile(filename)) {
                 cerr << "Unable to delete file. Exiting." << endl;
                 return false;
             }
@@ -1024,36 +1160,35 @@ bool genMatchSequ::writePointClouds(const std::string &path, const std::string &
             return false;
         }
     }
+}
+
+bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite){
+    if(!overwrite){
+        if(!checkOverwriteFiles(filename, errmsg, overwrite))
+            return false;
+    } else {
+        if (!deleteFile(filename)) {
+            cerr << "Unable to delete file. Exiting." << endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool genMatchSequ::writePointClouds(const std::string &path, const std::string &basename, bool &overwrite) {
+    string filename = concatPath(path, basename);
+
+    string staticWorld3DPtsFileName = filename + "_staticWorld3DPts.pcd";
+    if(!checkOverwriteDelFiles(staticWorld3DPtsFileName,
+            "Output file for static 3D PCL point cloud already exists:", overwrite)){
+        return false;
+    }
     pcl::io::savePCDFileBinaryCompressed(staticWorld3DPtsFileName, *staticWorld3DPts.get());
 
     for (size_t i = 0; i < movObj3DPtsWorldAllFrames.size(); ++i) {
         string fname = filename + "_movObj3DPts_" + std::to_string(i) + ".pcd";
-        if (checkFileExists(fname)) {
-            if (!overwrite) {
-                cerr << "Output file for moving 3D PCL point cloud already exists: " << fname
-                     << endl;
-                cout << "Do you want to overwrite it and all the other pcd files in this folder? (y/n)";
-                while ((uip != "y") && (uip != "n")) {
-                    cout << endl << "Try again:";
-                    cin >> uip;
-                }
-                cout << endl;
-                if (uip == "y") {
-                    overwrite = true;
-                    if (!deleteFile(fname)) {
-                        cerr << "Unable to delete file. Exiting." << endl;
-                        return false;
-                    }
-                } else {
-                    cout << "Exiting." << endl;
-                    return false;
-                }
-            } else {
-                if (!deleteFile(fname)) {
-                    cerr << "Unable to delete file. Exiting." << endl;
-                    return false;
-                }
-            }
+        if(checkOverwriteDelFiles(fname, "Output file for moving 3D PCL point cloud already exists:", overwrite)){
+            return false;
         }
         pcl::io::savePCDFileBinaryCompressed(staticWorld3DPtsFileName, movObj3DPtsWorldAllFrames[i]);
     }

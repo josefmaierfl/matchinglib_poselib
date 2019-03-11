@@ -109,12 +109,13 @@ private:
 
     bool write3DInfoSingleFrame(const std::string &filename);
     bool read3DInfoSingleFrame(const std::string &filename);
-    bool writePointClouds(const std::string &path, const std::string &basename);
+    bool writePointClouds(const std::string &path, const std::string &basename, bool &overwrite);
     bool readPointClouds(const std::string &path, const std::string &basename);
     void genSequenceParsFileName();
     bool genSequenceParsStorePath();
     bool genMatchDataStorePath();
     bool writeMatchingParameters();
+    std::string genSequFileExtension(const std::string &basename);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -138,6 +139,9 @@ private:
     std::string sequParPath;
     std::string matchDataPath;
     bool sequParsLoaded = false;
+    const std::string pclBaseFName = "pclCloud";
+    const std::string sequSingleFrameBaseFName = "sequSingleFrameData";
+    std::string sequLoadPath = "";
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H
