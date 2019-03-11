@@ -92,9 +92,13 @@ std::string genMatchSequ::genSequFileExtension(const std::string &basename){
 }
 
 bool genMatchSequ::genSequenceParsStorePath(){
-    hash_Sequ = hashFromSequPars();
-    if(!genParsStorePath(parsMtch.mainStorePath, std::to_string(hash_Sequ), sequParPath)){
-        return false;
+    if(!sequParsLoaded || (sequLoadPath != parsMtch.mainStorePath)) {
+        hash_Sequ = hashFromSequPars();
+        if (!genParsStorePath(parsMtch.mainStorePath, std::to_string(hash_Sequ), sequParPath)) {
+            return false;
+        }
+    }else{
+        sequParPath = sequLoadPath;
     }
     return true;
 }
@@ -151,6 +155,13 @@ bool genMatchSequ::generateMatches(){
     if(!writeMatchingParameters()){
         cerr << "Unable to store matching parameters!" << endl;
         return false;
+    }
+
+    if(!sequParsLoaded || (sequLoadPath != parsMtch.mainStorePath)) {
+        if(!writeSequenceOverviewPars()){
+            cerr << "Unable to write file with sequence parameter overview!" << endl;
+            return false;
+        }
     }
 
     bool overwriteFiles = false;
@@ -215,6 +226,8 @@ bool genMatchSequ::generateMatches(){
             }
         }
     }
+
+    return true;
 }
 
 //Load the images in the given folder with a given image pre- and/or postfix (supports wildcards)
@@ -306,7 +319,6 @@ bool genMatchSequ::getFeatures() {
     }
     if (kpCnt < nrCorrsFullSequ) {
         cout << "Too less keypoints - please provide additional images!";
-        bool storeToDiskAndExit = !parsMtch.takeLessFramesIfLessKeyP;
         if (parsMtch.takeLessFramesIfLessKeyP) {
             nrCorrsFullSequ = 0;
             size_t i = 0;
@@ -432,7 +444,9 @@ bool genMatchSequ::writeMatchingParameters(){
 
     cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
                         "using the below parameters.", 0);
-    fs << "hashMatchingPars" << std::to_string(hash_Matches);
+    int posLastSl = (int)matchDataPath.rfind('/');
+    string matchDirName = matchDataPath.substr(posLastSl + 1);
+    fs << "hashMatchingPars" << matchDirName;
 
     cvWriteComment(*fs, "Path containing the images for producing keypoint patches", 0);
     fs << "imgPath" << parsMtch.imgPath;
@@ -468,6 +482,50 @@ bool genMatchSequ::writeMatchingParameters(){
     return true;
 }
 
+bool genMatchSequ::writeSequenceOverviewPars(){
+    if(!checkPathExists(parsMtch.mainStorePath)){
+        cerr << "Given path " << parsMtch.mainStorePath <<
+        " to store sequence parameter overview does not exist!" << endl;
+        return false;
+    }
+
+    string matchInfoFName = "sequInfos";
+    if (parsMtch.rwXMLinfo) {
+        matchInfoFName += ".xml";
+    } else {
+        matchInfoFName += ".yaml";
+    }
+    string filename = concatPath(parsMtch.mainStorePath, matchInfoFName);
+    FileStorage fs;
+    if(checkFileExists(filename)){
+        fs = FileStorage(filename, FileStorage::APPEND);
+        if (!fs.isOpened()) {
+            cerr << "Failed to open " << filename << endl;
+            return false;
+        }
+        cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+    }
+    else{
+        fs = FileStorage(filename, FileStorage::WRITE);
+        if (!fs.isOpened()) {
+            cerr << "Failed to open " << filename << endl;
+            return false;
+        }
+        cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
+                            "generating 3D correspondences.\n\n", 0);
+    }
+
+    cvWriteComment(*fs, "Directory name (within the path containing this file) which holds multiple frames of "
+                        "3D correspondences using the below parameters.", 0);
+    int posLastSl = (int)sequParPath.rfind('/');
+    string sequDirName = sequParPath.substr(posLastSl + 1);
+    fs << "hashMatchingPars" << sequDirName;
+
+    writeSomeSequenceParameters(fs);
+
+    return true;
+}
+
 static inline FileStorage& operator << (FileStorage& fs, bool &value)
 {
     if(value){
@@ -494,6 +552,70 @@ static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & val
 {
     *it >> value;
     return ++it;
+}
+
+void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
+    cvWriteComment(*fs, "Number of different stereo camera configurations", 0);
+    fs << "nrStereoConfs" << (int) nrStereoConfs;
+    cvWriteComment(*fs, "Different rotations between stereo cameras", 0);
+    fs << "R" << "[";
+    for (auto &i : R) {
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Different translation vectors between stereo cameras", 0);
+    fs << "t" << "[";
+    for (auto &i : t) {
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Inlier ratio for every frame", 0);
+    fs << "inlRat" << "[";
+    for (auto &i : inlRat) {
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "# of Frames per camera configuration", 0);
+    fs << "nFramesPerCamConf" << (int) pars.nFramesPerCamConf;
+    cvWriteComment(*fs, "Total number of frames in the sequence", 0);
+    fs << "totalNrFrames" << (int) totalNrFrames;
+    cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
+    fs << "nrCorrs" << "[";
+    for (auto &i : nrCorrs) {
+        fs << (int) i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "portion of correspondences at depths", 0);
+    fs << "corrsPerDepth";
+    fs << "{" << "near" << pars.corrsPerDepth.near;
+    fs << "mid" << pars.corrsPerDepth.mid;
+    fs << "far" << pars.corrsPerDepth.far << "}";
+    cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
+    fs << "corrsPerRegion" << "[";
+    for (auto &i : pars.corrsPerRegion) {
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Number of moving objects in the scene", 0);
+    fs << "nrMovObjs" << (int) pars.nrMovObjs;
+    cvWriteComment(*fs, "Relative area range of moving objects", 0);
+    fs << "relAreaRangeMovObjs";
+    fs << "{" << "first" << pars.relAreaRangeMovObjs.first;
+    fs << "second" << pars.relAreaRangeMovObjs.second << "}";
+    cvWriteComment(*fs, "Depth of moving objects.", 0);
+    fs << "movObjDepth" << "[";
+    for (auto &i : pars.movObjDepth) {
+        fs << (int) i;
+    }
+    fs << "]";
+    cvWriteComment(*fs,
+                   "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
+    fs << "absCamCoordinates" << "[";
+    for (auto &i : absCamCoordinates) {
+        fs << "{" << "R" << i.R;
+        fs << "t" << i.t << "}";
+    }
+    fs << "]";
 }
 
 bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
@@ -1160,6 +1282,8 @@ bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg,
             return false;
         }
     }
+
+    return true;
 }
 
 bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite){

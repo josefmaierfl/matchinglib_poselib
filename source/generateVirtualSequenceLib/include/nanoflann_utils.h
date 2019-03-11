@@ -17,19 +17,19 @@ struct SeedCloud
     // Must return the number of data points
     inline size_t kdtree_get_point_count() const {
         size_t cloudSize = 0;
-        for (int i = 0; i < seedsNear->size(); ++i) {
-            for (int j = 0; j < (*seedsNear)[i].size(); ++j) {
-                cloudSize += (*seedsNear)[i][j].size();
+        for (const auto& i : *seedsNear) {
+            for (const auto& j : i) {
+                cloudSize += j.size();
             }
         }
-        for (int i = 0; i < seedsMid->size(); ++i) {
-            for (int j = 0; j < (*seedsMid)[i].size(); ++j) {
-                cloudSize += (*seedsMid)[i][j].size();
+        for (const auto& i : *seedsMid) {
+            for (const auto& j : i) {
+                cloudSize += j.size();
             }
         }
-        for (int i = 0; i < seedsFar->size(); ++i) {
-            for (int j = 0; j < (*seedsFar)[i].size(); ++j) {
-                cloudSize += (*seedsFar)[i][j].size();
+        for (const auto& i : *seedsFar) {
+            for (const auto& j : i) {
+                cloudSize += j.size();
             }
         }
 
@@ -42,54 +42,56 @@ struct SeedCloud
     inline int32_t kdtree_get_pt(const size_t idx, const size_t dim) const
     {
         size_t idx_tmp = idx + 1;
-        for (int i = 0; i < seedsNear->size(); ++i) {
-            for (int j = 0; j < (*seedsNear)[i].size(); ++j) {
-                if((*seedsNear)[i][j].size() >= idx_tmp)
+        for (const auto& i : *seedsNear) {
+            for (const auto& j : i) {
+                if(j.size() >= idx_tmp)
                 {
                     if (dim == 0)
                     {
-                        return (*seedsNear)[i][j][idx_tmp - 1].x;
+                        return j[idx_tmp - 1].x;
                     } else
                     {
-                        return (*seedsNear)[i][j][idx_tmp - 1].y;
+                        return j[idx_tmp - 1].y;
                     }
                 } else{
-                    idx_tmp -= (*seedsNear)[i][j].size();
+                    idx_tmp -= j.size();
                 }
             }
         }
-        for (int i = 0; i < seedsMid->size(); ++i) {
-            for (int j = 0; j < (*seedsMid)[i].size(); ++j) {
-                if((*seedsMid)[i][j].size() >= idx_tmp)
+        for (const auto& i : *seedsMid) {
+            for (const auto& j : i) {
+                if(j.size() >= idx_tmp)
                 {
                     if (dim == 0)
                     {
-                        return (*seedsMid)[i][j][idx_tmp - 1].x;
+                        return j[idx_tmp - 1].x;
                     } else
                     {
-                        return (*seedsMid)[i][j][idx_tmp - 1].y;
+                        return j[idx_tmp - 1].y;
                     }
                 } else{
-                    idx_tmp -= (*seedsMid)[i][j].size();
+                    idx_tmp -= j.size();
                 }
             }
         }
-        for (int i = 0; i < seedsFar->size(); ++i) {
-            for (int j = 0; j < (*seedsFar)[i].size(); ++j) {
-                if((*seedsFar)[i][j].size() >= idx_tmp)
+        for (const auto& i : *seedsFar) {
+            for (const auto& j : i) {
+                if(j.size() >= idx_tmp)
                 {
                     if (dim == 0)
                     {
-                        return (*seedsFar)[i][j][idx_tmp - 1].x;
+                        return j[idx_tmp - 1].x;
                     } else
                     {
-                        return (*seedsFar)[i][j][idx_tmp - 1].y;
+                        return j[idx_tmp - 1].y;
                     }
                 } else{
-                    idx_tmp -= (*seedsFar)[i][j].size();
+                    idx_tmp -= j.size();
                 }
             }
         }
+        cerr << "Coordinate with Nanoflann index " << idx << "not found!" << endl;
+        return 0;
     }
 
     // Optional bounding-box computation: return false to default to a standard bbox computation loop.

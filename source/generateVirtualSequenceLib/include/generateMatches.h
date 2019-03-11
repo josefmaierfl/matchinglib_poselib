@@ -92,19 +92,14 @@ public:
 
 private:
     bool getImageList();
-
     size_t hashFromSequPars();
-
     size_t hashFromMtchPars();
-
     void totalNrCorrs();
-
     bool getFeatures();
-
     bool checkMatchability();
-
     bool writeSequenceParameters(const std::string &filename);
-
+    void writeSomeSequenceParameters(cv::FileStorage &fs);
+    bool writeSequenceOverviewPars();
     bool readSequenceParameters(const std::string &filename);
 
     bool write3DInfoSingleFrame(const std::string &filename);

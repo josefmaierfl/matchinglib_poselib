@@ -58,7 +58,7 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
                              std::vector<cv::Mat> t_,
                              StereoSequParameters &pars_,
                              uint32_t verbose_) :
-        verbose(verbose_), imgSize(imgSize_), K1(K1_), K2(K2_), R(std::move(R_)), t(std::move(t_)), pars(pars_) {
+        verbose(verbose_), imgSize(imgSize_), K1(K1_), K2(K2_), pars(pars_), R(std::move(R_)), t(std::move(t_)) {
     CV_Assert((K1.rows == 3) && (K2.rows == 3) && (K1.cols == 3) && (K2.cols == 3) && (K1.type() == CV_64FC1) &&
               (K2.type() == CV_64FC1));
     CV_Assert((imgSize.area() > 0) && (R.size() == t.size()) && !R.empty());
@@ -5303,7 +5303,7 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
             xposesAndEnds.insert(xposesAndEnds.end(), xposes.begin(), xposes.end());
             xposesAndEnds.push_back(maxEnd);
             vector<int> xIntervalDiffs(xposesAndEnds.size() - 1);
-            for (int i = 1; i < xposesAndEnds.size(); ++i) {
+            for (int i = 1; i < (int)xposesAndEnds.size(); ++i) {
                 xIntervalDiffs[i-1] = xposesAndEnds[i] - xposesAndEnds[i - 1];
             }
             int maxdiff = (int)std::distance(xIntervalDiffs.begin(),
@@ -5393,7 +5393,7 @@ void genStereoSequ::buildDistributionRanges(std::vector<int> &xposes,
             yposesAndEnds.insert(yposesAndEnds.end(), yposes.begin(), yposes.end());
             yposesAndEnds.push_back(maxEnd);
             vector<int> yIntervalDiffs(yposesAndEnds.size() - 1);
-            for (int i = 1; i < yposesAndEnds.size(); ++i) {
+            for (int i = 1; i < (int)yposesAndEnds.size(); ++i) {
                 yIntervalDiffs[i-1] = yposesAndEnds[i] - yposesAndEnds[i - 1];
             }
             int maxdiff = (int)std::distance(yIntervalDiffs.begin(),
@@ -5633,7 +5633,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
         for (size_t i = 0; i < nr_movObj; i++) {
             if (objNFinished[i]) {
 //                Mat beforeAdding = movObjLabels[i].clone();
-                int32_t Asv = actArea[i];
+//                int32_t Asv = actArea[i];
 
                 if (!addAdditionalDepth((unsigned char) (i + convhullPtsObj.size() + 1),
                                         combMovObjLabels,
@@ -6569,7 +6569,7 @@ void genStereoSequ::genNewDepthMovObj() {
     {
         movObjDepthClassNew.clear();
         movObjDepthClassNew.resize(movObjLabels.size());
-        std::array<double, 3> depthDist = {0, 0, 0};
+        std::array<double, 3> depthDist = {{0, 0, 0}};
         for (auto& i : pars.movObjDepth) {
             switch (i) {
                 case depthClass::NEAR:
@@ -7016,7 +7016,7 @@ void genStereoSequ::getMovObjCorrs() {
 
     //Remove empty moving object point clouds
     vector<int> delList;
-    for (int l = 0; l < movObj3DPtsCamNew.size(); ++l) {
+    for (int l = 0; l < (int)movObj3DPtsCamNew.size(); ++l) {
         if(movObj3DPtsCamNew[l].empty()){
             delList.push_back(l);
         }
@@ -9779,7 +9779,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     for (size_t i = 0; i < cloudOut.size(); ++i) {
         for (size_t j = 0; j < cloudOut[i]->size(); ++j) {
             for (size_t k = i; k < cloudOut.size(); ++k) {
-                for (size_t l = (k == i) ? (j + 1) : 0; l < (int) cloudOut[k]->size(); ++l) {
+                for (size_t l = (k == i) ? (j + 1) : 0; l < cloudOut[k]->size(); ++l) {
                     float dist = abs(cloudOut[i]->at(j).x - cloudOut[k]->at(l).x) +
                                  abs(cloudOut[i]->at(j).y - cloudOut[k]->at(l).y) +
                                  abs(cloudOut[i]->at(j).z - cloudOut[k]->at(l).z);
@@ -9844,7 +9844,7 @@ bool genStereoSequ::getVisibleCamPointCloudSlices(pcl::PointCloud<pcl::PointXYZ>
     for (size_t i = 0; i < cloudOut.size(); ++i) {
         for (size_t j = 0; j < cloudOut[i].size(); ++j) {
             for (size_t k = i; k < cloudOut.size(); ++k) {
-                for (size_t l = (k == i) ? (j + 1) : 0; l < (int) cloudOut[k].size(); ++l) {
+                for (size_t l = (k == i) ? (j + 1) : 0; l < cloudOut[k].size(); ++l) {
                     float dist = abs(camFilteredPts->at(cloudOut[i][j]).x - camFilteredPts->at(cloudOut[k][l]).x) +
                                  abs(camFilteredPts->at(cloudOut[i][j]).y - camFilteredPts->at(cloudOut[k][l]).y) +
                                  abs(camFilteredPts->at(cloudOut[i][j]).z - camFilteredPts->at(cloudOut[k][l]).z);

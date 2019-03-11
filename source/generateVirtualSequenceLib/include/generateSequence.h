@@ -34,7 +34,7 @@ a view restrictions like depth ranges, moving objects, ...
 
 //Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to the image plane
 //As filtering occluded points is very time-consuming it can be disabled
-#define FILTER_OCCLUDED_POINTS 1
+#define FILTER_OCCLUDED_POINTS 0
 
 struct GENERATEVIRTUALSEQUENCELIB_API depthPortion
 {
@@ -514,13 +514,9 @@ private:
 	cv::Size imgSize;
 	cv::Mat K1, K1i;//Camera matrix 1 and its inverse
 	cv::Mat K2, K2i;//Camera matrix 2 and its inverse
-	std::vector<cv::Mat> R;
-	std::vector<cv::Mat> t;
-	size_t nrStereoConfs;//Number of different stereo camera configurations
 
 	double absCamVelocity;//in baselines from frame to frame
 
-	std::vector<double> inlRat;//Inlier ratio for every frame
 	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
 	std::vector<size_t> nrTrueNeg;//Absolute number of true negative correspondences per frame
 	bool fixedNrCorrs = false;//If the inlier ratio and the absolute number of true positive correspondences are constant over all frames, the # of correspondences are as well const. and fixedNrCorrs = true
@@ -636,7 +632,11 @@ protected:
     StereoSequParameters pars;
 	size_t actFrameCnt = 0;
     size_t totalNrFrames = 0;//Total number of frames
+    std::vector<cv::Mat> R;
+    std::vector<cv::Mat> t;
+    size_t nrStereoConfs;//Number of different stereo camera configurations
     std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame
+    std::vector<double> inlRat;//Inlier ratio for every frame
 	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
 	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
 	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
