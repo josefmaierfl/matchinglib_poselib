@@ -91,6 +91,7 @@ struct SeedCloud
             }
         }
         cerr << "Coordinate with Nanoflann index " << idx << "not found!" << endl;
+        CV_Assert(false);
         return 0;
     }
 

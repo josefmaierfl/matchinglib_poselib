@@ -118,25 +118,26 @@ public:
 
 private:
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
-    std::vector<std::string> imageList;
-    size_t nrCorrsFullSequ;
-    std::vector<cv::Mat> imgs;
-    std::vector<cv::KeyPoint> keypoints1;
-    cv::Mat descriptors1;
-    size_t nrFramesGenMatches;
-    size_t hash_Sequ, hash_Matches;
-    StereoSequParameters pars3D;
-    cv::Size imgSize;
+    std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
+    size_t nrCorrsFullSequ;//Number of predicted overall correspondences (TP+TN) for all frames
+    std::vector<cv::Mat> imgs;//Holds all images that where used to extract features
+    std::vector<cv::KeyPoint> keypoints1;//Keypoints from all used images
+    cv::Mat descriptors1;//Descriptors from all used images
+    size_t nrFramesGenMatches;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
+    size_t hash_Sequ, hash_Matches;//Hash values for the generated 3D sequence and the matches based on their input parameters.
+    StereoSequParameters pars3D;//Holds all parameters for calculating a 3D sequence. Is manly used to load existing 3D sequences.
+    cv::Size imgSize;//Size of the images
     cv::Mat K1;//Camera matrix 1
     cv::Mat K2;//Camera matrix 2
-    size_t nrMovObjAllFrames;
-    std::string sequParFileName;
-    std::string sequParPath;
-    std::string matchDataPath;
-    bool sequParsLoaded = false;
-    const std::string pclBaseFName = "pclCloud";
-    const std::string sequSingleFrameBaseFName = "sequSingleFrameData";
-    std::string sequLoadPath = "";
+    size_t nrMovObjAllFrames;//Sum over the number of moving objects in every frame
+    std::string sequParFileName;//File name for storing and loading parameters of 3D sequences
+    std::string sequParPath;//Path for storing and loading parameters of 3D sequences
+    std::string matchDataPath;//Path for storing parameters for generating matches
+    bool sequParsLoaded = false;//Indicates if the 3D sequence was/will be loaded or generated during execution of the program
+    const std::string pclBaseFName = "pclCloud";//Base name for storing PCL point clouds. A specialization is added at the end of this string
+    const std::string sequSingleFrameBaseFName = "sequSingleFrameData";//Base name for storing data of generated frames (correspondences)
+    std::string sequLoadPath = "";//Holds the path for loading a 3D sequence
+    std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

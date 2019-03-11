@@ -129,10 +129,7 @@ bool genParsStorePath(const std::string &basePath, const std::string &subpath, s
 
 bool genMatchSequ::genMatchDataStorePath(){
     hash_Matches = hashFromMtchPars();
-    if(!genParsStorePath(sequParPath, std::to_string(hash_Matches), matchDataPath)){
-        return false;
-    }
-    return true;
+    return genParsStorePath(sequParPath, std::to_string(hash_Matches), matchDataPath);
 }
 
 bool genMatchSequ::generateMatches(){
@@ -222,7 +219,6 @@ bool genMatchSequ::generateMatches(){
         if(overWriteSuccess) {
             if(!writePointClouds(sequParPath, pclBaseFName, overwriteFiles)){
                 cerr << "Unable to write PCL point clouds to disk!" << endl;
-                overWriteSuccess = false;
             }
         }
     }
@@ -234,10 +230,8 @@ bool genMatchSequ::generateMatches(){
 bool genMatchSequ::getImageList() {
     int err = loadImageSequenceNew(parsMtch.imgPath,
                                    parsMtch.imgPrePostFix, imageList);
-    if (err != 0) {
-        return false;
-    }
-    return true;
+
+    return (err == 0);
 }
 
 //Calculate number of TP and TN correspondences of the whole sequence
@@ -279,11 +273,11 @@ bool genMatchSequ::getFeatures() {
     size_t kpCnt = 0;
     for (size_t i = 0; i < imgIdxs.size(); ++i) {
         //Load image
-        imgs[i] = cv::imread(imageList[imgIdxs[i]], CV_LOAD_IMAGE_GRAYSCALE);
+        imgs.emplace_back(cv::imread(imageList[imgIdxs[i]], CV_LOAD_IMAGE_GRAYSCALE));
         std::vector<cv::KeyPoint> keypoints1Img;
 
         //Extract keypoints
-        if (matchinglib::getKeypoints(imgs[i], keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
+        if (matchinglib::getKeypoints(imgs.back(), keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
             errCnt++;
             if (errCnt > maxErrCnt) {
                 cout << "Extraction of keypoints failed for too many images!" << endl;
@@ -293,7 +287,7 @@ bool genMatchSequ::getFeatures() {
 
         //Compute descriptors
         cv::Mat descriptors1Img;
-        if (matchinglib::getDescriptors(imgs[i],
+        if (matchinglib::getDescriptors(imgs.back(),
                                         keypoints1Img,
                                         parsMtch.descriptorType,
                                         descriptors1Img,
@@ -313,10 +307,28 @@ bool genMatchSequ::getFeatures() {
             descriptors1.push_back(descriptors1Img);
         }
         kpCnt += keypoints1Img.size();
+        vector<size_t> imgNr_tmp = vector<size_t>(keypoints1Img.size(), i);
+        featureImgIdx.insert(featureImgIdx.end(), imgNr_tmp.begin(), imgNr_tmp.end());
         if (kpCnt >= nrCorrsFullSequ) {
             break;
         }
     }
+
+    //Shuffle keypoints and descriptors
+    vector<KeyPoint> keypoints1_tmp(keypoints1.size());
+    Mat descriptors1_tmp = Mat(descriptors1.rows, descriptors1.cols, descriptors1.type());
+    vector<size_t> featureImgIdx_tmp(featureImgIdx.size());
+    vector<size_t> featureIdxs(keypoints1.size());
+    std::shuffle(featureIdxs.begin(), featureIdxs.end(), std::mt19937{std::random_device{}()});
+    for(int i = 0; i < (int)featureIdxs.size(); ++i){
+        keypoints1_tmp[i] = keypoints1[featureIdxs[i]];
+        descriptors1.row((int)featureIdxs[i]).copyTo(descriptors1_tmp.row(i));
+        featureImgIdx_tmp[i] = featureImgIdx[featureIdxs[i]];
+    }
+    keypoints1 = keypoints1_tmp;
+    descriptors1 = descriptors1_tmp;
+    featureImgIdx = featureImgIdx_tmp;
+
     if (kpCnt < nrCorrsFullSequ) {
         cout << "Too less keypoints - please provide additional images!";
         if (parsMtch.takeLessFramesIfLessKeyP) {
@@ -444,7 +456,7 @@ bool genMatchSequ::writeMatchingParameters(){
 
     cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
                         "using the below parameters.", 0);
-    int posLastSl = (int)matchDataPath.rfind('/');
+    size_t posLastSl = matchDataPath.rfind('/');
     string matchDirName = matchDataPath.substr(posLastSl + 1);
     fs << "hashMatchingPars" << matchDirName;
 
@@ -517,7 +529,7 @@ bool genMatchSequ::writeSequenceOverviewPars(){
 
     cvWriteComment(*fs, "Directory name (within the path containing this file) which holds multiple frames of "
                         "3D correspondences using the below parameters.", 0);
-    int posLastSl = (int)sequParPath.rfind('/');
+    size_t posLastSl = sequParPath.rfind('/');
     string sequDirName = sequParPath.substr(posLastSl + 1);
     fs << "hashMatchingPars" << sequDirName;
 
@@ -1253,19 +1265,17 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     combCorrsImg12TPorder.movTPnew = (unsigned char) tmp;
 
     fs["finalNrTNMovCorrs"] >> tmp;
-    if (tmp)
-        combCorrsImg12TPstatFirst = true;
-    else
-        combCorrsImg12TPstatFirst = false;
+    combCorrsImg12TPstatFirst = (tmp != 0);
 
     return true;
 }
 
 bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg, bool &overwrite){
-    string uip = "";
+    string uip;
     if (checkFileExists(filename)) {
         cerr << errmsg << " " << filename << endl;
         cout << "Do you want to overwrite it and all the other files in this folder? (y/n)";
+        cin >> uip;
         while ((uip != "y") && (uip != "n")) {
             cout << endl << "Try again:";
             cin >> uip;
