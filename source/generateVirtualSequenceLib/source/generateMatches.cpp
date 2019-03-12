@@ -10,6 +10,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include "helper_funcs.h"
 #include "side_funcs.h"
 
 using namespace std;
@@ -71,6 +72,10 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
         string errmsg = "Necessary 3D PCL point cloud files could not be loaded!";
         throw SequenceException(errmsg);
     }
+
+    long int seed = randSeed(rand_gen);
+    randSeed(rand2, seed);
+
     K1i = K1.inv();
     K2i = K2.inv();
 }
@@ -204,7 +209,13 @@ bool genMatchSequ::generateMatches(){
         }
 
         //Calculate matches for actual frame
+        actTransGlobWorld = Mat::eye(4,4,CV_64FC1);
+        absCamCoordinates[actFrameCnt].R.copyTo(actTransGlobWorld.rowRange(0,3).colRange(0,3));
+        absCamCoordinates[actFrameCnt].t.copyTo(actTransGlobWorld.col(3).rowRange(0,3));
+        actTransGlobWorldit = actTransGlobWorldit.inv().t();//Will be needed to transfer a plane from the local to the world coordinate system
 
+        //Calculate the norm of the translation vector of the actual stereo configuration
+        actNormT = norm(actT);
 
         if(sequParsLoaded){
             actFrameCnt++;
@@ -232,54 +243,152 @@ bool genMatchSequ::generateMatches(){
     return true;
 }
 
+//Create a homography for a TN correspondence
+cv::Mat genMatchSequ::getHomographyForDistortionTN(const cv::Mat& x1,
+                                     bool visualize){
+    //Calculate a 3D point
+    Mat b1 = K1i * x1;
+    double zacc = std::log10(actNormT / 100.0);
+    if(zacc > 0){
+        zacc = 1;
+    }else{
+        zacc = std::pow(10.0, ceil(abs(zacc)));
+    }
+    //Take random depth range
+    size_t depthRegion = rand2() % 3;
+    double z_min, z_max;
+    switch(depthRegion){
+        case 0:
+            z_min = actDepthNear;
+            z_max = actDepthMid;
+            break;
+        case 1:
+            z_min = actDepthMid;
+            z_max = actDepthFar;
+            break;
+        case 2:
+            z_min = actDepthFar;
+            z_max = maxFarDistMultiplier * actDepthFar;
+            break;
+        default:
+            z_min = actDepthMid;
+            z_max = actDepthFar;
+            break;
+    }
+    double z = round(zacc * getRandDoubleValRng(z_min, z_max, rand_gen)) / zacc;
+    double s1 = z / b1.at<double>(2);
+    Mat X = s1 * b1;
+    Mat x2 = K2 * (actR * X + actT);
+    x2 /= x2.at<double>(2);
+
+    return getHomographyForDistortion(X, x1, x2, -1, cv::noArray(), visualize);
+}
+
+//Checks, if a plane was already calculated for the given 3D coordinate and if yes, adapts the plane.
+//If not, a new plane is calculated.
+cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
+                                                 const cv::Mat& x1,
+                                                 const cv::Mat& x2,
+                                                 int64_t idx3D,
+                                                 bool visualize){
+if((idx3D >= 0) && !planeTo3DIdx.empty()){
+    if(planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()){
+        Mat trans = Mat::eye(4,4,CV_64FC1);
+        trans.rowRange(0,3).colRange(0,3) = absCamCoordinates[actFrameCnt].R.t();
+        trans.col(3).rowRange(0,3) = -1.0 * absCamCoordinates[actFrameCnt].R.t() * absCamCoordinates[actFrameCnt].t;
+        trans = trans.inv().t();
+        Mat plane = trans * planeTo3DIdx[idx3D];
+        return getHomographyForDistortion(X, x1, x2, idx3D, plane, visualize);
+    }
+}
+return getHomographyForDistortion(X, x1, x2, idx3D, cv::noArray(), visualize);
+}
+
 /*Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
  * camera 1 & 2) and backprojection of corresponding points on that plane into the second image
  *
  * X ... 3D cooridinate
  * x1 ... projection in cam1
  * x2 ... projection in cam2
- * alpha ... Rotation angle about first vector 'bpa' in the plane which is perpendicular to the plane normal 'bn'
- * beta ... Rotation angle about second vector 'bpb' in the plane which is perpendicular to the plane normal 'bn' and 'bpa'
+ * planeNVec ... Plane parameters for an already calculated plane
  */
 cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
                                                  const cv::Mat& x1,
                                                  const cv::Mat& x2,
-                                                 const double& alpha,
-                                                 const double& beta,
+                                                 int64_t idx3D,
+                                                 cv::InputArray planeNVec,
                                                  bool visualize){
     CV_Assert((X.rows == 3) && (X.cols == 1));
     CV_Assert((x1.rows == 3) && (x1.cols == 1));
     CV_Assert((x2.rows == 3) && (x2.cols == 1));
 
-    //Get the ray to X from cam 1
-    Mat b1 = K1i * x1;
-    //Get the ray direction to X from cam 2
-    Mat b2 = actR.t() * K2i * x2;
+    Mat pn, bn, p1;
+    double d;
+    if(planeNVec.empty()) {
+        //Get the ray to X from cam 1
+        Mat b1 = K1i * x1;
+        //Get the ray direction to X from cam 2
+        Mat b2 = actR.t() * K2i * x2;
 
-    //Calculate the normal vector of the plane by taking the mean vector of both camera rays
-    b1 /= norm(b1);
-    b2 /= norm(b2);
-    Mat bn = (b1 + b2) / 2.0;
+        //Calculate the normal vector of the plane by taking the mean vector of both camera rays
+        b1 /= norm(b1);
+        b2 /= norm(b2);
+        bn = (b1 + b2) / 2.0;
 
-    //Get the line on the plane normal to both viewing rays
-    Mat bpa = b1.cross(b2);
-    bpa /= norm(bpa);
+        //Get the line on the plane normal to both viewing rays
+        Mat bpa = b1.cross(b2);
+        bpa /= norm(bpa);
 
-    //Get the normal to bn and bpa
-    Mat bpb = bpa.cross(bn);
-    bpb /= norm(bpb);
+        //Get the normal to bn and bpa
+        Mat bpb = bpa.cross(bn);
+        bpb /= norm(bpb);
 
-    //Rotate bpb about line bpa using alpha
-    Mat bpbr = rotateAboutLine(bpa, alpha, bpb);
+        //Get the rotation angles
+        const double maxRotAngleAlpha = 3.0 * (M_PI - acos(b1.dot(b2) / (norm(b1) * norm(b2)))) / 8.0;
+        const double maxRotAngleBeta = 3.0 * M_PI / 8.0;
+        //alpha ... Rotation angle about first vector 'bpa' in the plane which is perpendicular to the plane normal 'bn'
+        double alpha = getRandDoubleValRng(-maxRotAngleAlpha, maxRotAngleAlpha, rand_gen);
+        //beta ... Rotation angle about second vector 'bpb' in the plane which is perpendicular to the plane normal 'bn' and 'bpa'
+        double beta = getRandDoubleValRng(-maxRotAngleBeta, maxRotAngleBeta, rand_gen);
 
-    //Rotate bpa about line bpb using beta
-    Mat bpar = rotateAboutLine(bpb, alpha, bpa);
+        //Rotate bpb about line bpa using alpha
+        Mat bpbr = rotateAboutLine(bpa, alpha, bpb);
 
-    //Construct a plane from bpar and bpbr
-    Mat pn = bpbr.cross(bpar);//Normal of the plane
-    pn /= norm(pn);
-    //Plane parameters
-    double d = pn.dot(X);
+        //Rotate bpa about line bpb using beta
+        Mat bpar = rotateAboutLine(bpb, beta, bpa);
+
+        //Construct a plane from bpar and bpbr
+        pn = bpbr.cross(bpar);//Normal of the plane
+        pn /= norm(pn);
+        //Plane parameters
+        d = pn.dot(X);
+        p1 = pn.clone();
+        p1.push_back(d);
+        /*Transform the plane into the world coordinate system
+         * actTransGlobWorld T = [R,t;[0,0,1]]
+         * actTransGlobWorldit = (T^-1)^t
+         * A point p is on the plane q if p.q=0
+         * p' = T p
+         * q' = (T^-1)^t q
+         * Point p' is on plane q' when:  p'.q'=0
+         * Then: p'.q' = p^t T^t (T^-1)^t q = p^t q = p.q
+        */
+        if(idx3D >= 0) {
+            planeTo3DIdx[idx3D] = actTransGlobWorldit * p1;
+        }
+    }else{
+        p1 = planeNVec.getMat();
+        CV_Assert((p1.rows == 4) && (p1.cols == 1));
+        //Check if the plane is valid
+        Mat Xh = X.clone();
+        Xh.push_back(1.0);
+        double errorVal = p1.dot(Xh);
+        if(!nearZero(errorVal)){
+            throw SequenceException("Used plane is not compatible with 3D coordinate!");
+        }
+        pn = p1.rowRange(0, 3).clone();
+        d = p1.at<double>(3);
+    }
 
     //Generate 3 additional image points in cam 1
     //Calculate a distance to the given projection for the additional points based on the distance and
@@ -303,14 +412,11 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     t0 = d / pn.dot(b14);
     Mat X4 = t0 * b14;
 
-    if(visualize) {
+    if(visualize && planeNVec.empty()) {
         //First plane parameters
         Mat p0 = bn.clone();
         double d0 = p0.dot(X);
         p0.push_back(d0);
-        //Second plane parameters
-        Mat p1 = pn.clone();
-        p1.push_back(d);
         vector<Mat> pts3D;
         pts3D.push_back(X);
         pts3D.push_back(X2);
@@ -1207,6 +1313,10 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     cvWriteComment(*fs, "Actual translation vector of the stereo rig: x2 = actR * x1 + actT", 0);
     fs << "actT" << actT;
 
+    fs << "actDepthNear" << actDepthNear;
+    fs << "actDepthMid" << actDepthMid;
+    fs << "actDepthFar" << actDepthFar;
+
     cvWriteComment(*fs, "Combined TP correspondences (static and moving objects) of camera 1", 0);
     fs << "combCorrsImg1TP" << combCorrsImg1TP;
     cvWriteComment(*fs, "Combined TP correspondences (static and moving objects) of camera 2", 0);
@@ -1347,6 +1457,10 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     fs["actR"] >> actR;
 
     fs["actT"] >> actT;
+
+    fs["actDepthNear"] >> actDepthNear;
+    fs["actDepthMid"] >> actDepthMid;
+    fs["actDepthFar"] >> actDepthFar;
 
     fs["combCorrsImg1TP"] >> combCorrsImg1TP;
     fs["combCorrsImg2TP"] >> combCorrsImg2TP;

@@ -7,6 +7,7 @@
 
 #include "generateSequence.h"
 #include <opencv2/core/types.hpp>
+#include <map>
 
 struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::string mainStorePath;//Path for storing results. If empty and the 3D correspondences are loaded from file, the path for loading these correspondences is also used for storing the matches
@@ -59,6 +60,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     }
 };
 
+
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
 public:
     genMatchSequ(cv::Size &imgSize_,
@@ -77,7 +79,7 @@ public:
             imgSize(imgSize_),
             K1(K1_),
             K2(K2_),
-            sequParsLoaded(false){
+            sequParsLoaded(false) {
         CV_Assert(!parsMtch.mainStorePath.empty());
         genSequenceParsFileName();
         K1i = K1.inv();
@@ -94,37 +96,67 @@ public:
 
 private:
     bool getImageList();
+
     size_t hashFromSequPars();
+
     size_t hashFromMtchPars();
+
     void totalNrCorrs();
+
     bool getFeatures();
+
     bool checkMatchability();
+
     bool writeSequenceParameters(const std::string &filename);
+
     void writeSomeSequenceParameters(cv::FileStorage &fs);
+
     bool writeSequenceOverviewPars();
+
     bool readSequenceParameters(const std::string &filename);
 
     bool write3DInfoSingleFrame(const std::string &filename);
+
     bool read3DInfoSingleFrame(const std::string &filename);
+
     bool writePointClouds(const std::string &path, const std::string &basename, bool &overwrite);
+
     bool readPointClouds(const std::string &path, const std::string &basename);
+
     void genSequenceParsFileName();
+
     bool genSequenceParsStorePath();
+
     bool genMatchDataStorePath();
+
     bool writeMatchingParameters();
+
     std::string genSequFileExtension(const std::string &basename);
+
     //Rotates a line 'b' about a line 'a' (only direction vector) using the given angle
     cv::Mat rotateAboutLine(const cv::Mat &a, const double &angle, const cv::Mat &b);
+
     //Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into camera 1 & 2) and backprojection of corresponding points on that plane into the second image
-    cv::Mat getHomographyForDistortion(const cv::Mat& X,
-                                       const cv::Mat& x1,
-                                       const cv::Mat& x2,
-                                       const double& alpha,
-                                       const double& beta,
-                                       bool visualize = false);
+    cv::Mat getHomographyForDistortion(const cv::Mat &X,
+                                       const cv::Mat &x1,
+                                       const cv::Mat &x2,
+                                       int64_t idx3D,
+                                       cv::InputArray planeNVec,
+                                       bool visualize);
+
+    cv::Mat getHomographyForDistortionChkOld(const cv::Mat& X,
+                                                           const cv::Mat& x1,
+                                                           const cv::Mat& x2,
+                                                           int64_t idx3D,
+                                                           bool visualize);
+
+    //Create a homography for a TN correspondence
+    cv::Mat getHomographyForDistortionTN(const cv::Mat& x1,
+                                         bool visualize);
+
     void visualizePlanes(std::vector<cv::Mat> &pts3D,
-                         const cv::Mat& plane1,
-                         const cv::Mat& plane2);
+                         const cv::Mat &plane1,
+                         const cv::Mat &plane2);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -152,6 +184,10 @@ private:
     const std::string sequSingleFrameBaseFName = "sequSingleFrameData";//Base name for storing data of generated frames (correspondences)
     std::string sequLoadPath = "";//Holds the path for loading a 3D sequence
     std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
+    cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
+    cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
+    std::map<int64_t,cv::Mat> planeTo3DIdx;
+    double actNormT;//Norm of the actual translation vector between the stereo cameras
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

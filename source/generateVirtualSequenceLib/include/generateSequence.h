@@ -502,12 +502,8 @@ public:
 	uint32_t verbose = 0;
 
 private:
-	std::default_random_engine rand_gen;
-    std::mt19937 rand2;
 
 	const int32_t minDArea = 36;//6*6: minimum area for a depth region in the image
-	const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is
-	const double fakeDistTNCorrespondences = 9999.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
     const double actFracUseableTPperRegionTH = 0.25;//Minimum fraction of a region for which the 2 stereo images must overlap at medium depth (backprojected to camera 1) to allow seeds for moving objects in that region
 	const double enlargeKPDist = 1.15;//Multiply the max. corrs per area by 1.15 to take gaps into account that are a result of randomness
 
@@ -626,6 +622,10 @@ private:
     cv::Mat actStereoImgsOverlapMask;//Mask for the area in the first stereo camera image of the actual stereo configuration which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255).
 
 protected:
+    const double fakeDistTNCorrespondences = 9999.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
+    const double maxFarDistMultiplier = 20.0;//the maximum possible depth used is actDepthFar multiplied by this value
+    std::default_random_engine rand_gen;
+    std::mt19937 rand2;
     StereoSequParameters pars;
 	size_t actFrameCnt = 0;
     double actDepthNear;//Lower border of near depths for the actual camera configuration
