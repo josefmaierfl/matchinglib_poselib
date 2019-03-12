@@ -120,7 +120,11 @@ private:
                                        const cv::Mat& x1,
                                        const cv::Mat& x2,
                                        const double& alpha,
-                                       const double& beta);
+                                       const double& beta,
+                                       bool visualize = false);
+    void visualizePlanes(std::vector<cv::Mat> &pts3D,
+                         const cv::Mat& plane1,
+                         const cv::Mat& plane2);
 
 public:
     GenMatchSequParameters parsMtch;

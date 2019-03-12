@@ -9,6 +9,9 @@
 #include <pcl/io/pcd_io.h>
 #include <opencv2/imgproc.hpp>
 
+#include <pcl/visualization/pcl_visualizer.h>
+#include "side_funcs.h"
+
 using namespace std;
 using namespace cv;
 
@@ -229,13 +232,21 @@ bool genMatchSequ::generateMatches(){
     return true;
 }
 
-//Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
-// camera 1 & 2) and backprojection of corresponding points on that plane into the second image
+/*Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
+ * camera 1 & 2) and backprojection of corresponding points on that plane into the second image
+ *
+ * X ... 3D cooridinate
+ * x1 ... projection in cam1
+ * x2 ... projection in cam2
+ * alpha ... Rotation angle about first vector 'bpa' in the plane which is perpendicular to the plane normal 'bn'
+ * beta ... Rotation angle about second vector 'bpb' in the plane which is perpendicular to the plane normal 'bn' and 'bpa'
+ */
 cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
                                                  const cv::Mat& x1,
                                                  const cv::Mat& x2,
                                                  const double& alpha,
-                                                 const double& beta){
+                                                 const double& beta,
+                                                 bool visualize){
     CV_Assert((X.rows == 3) && (X.cols == 1));
     CV_Assert((x1.rows == 3) && (x1.cols == 1));
     CV_Assert((x2.rows == 3) && (x2.cols == 1));
@@ -243,7 +254,7 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     //Get the ray to X from cam 1
     Mat b1 = K1i * x1;
     //Get the ray direction to X from cam 2
-    Mat b2 = actR.t() * K1i * x2;
+    Mat b2 = actR.t() * K2i * x2;
 
     //Calculate the normal vector of the plane by taking the mean vector of both camera rays
     b1 /= norm(b1);
@@ -269,7 +280,6 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     pn /= norm(pn);
     //Plane parameters
     double d = pn.dot(X);
-    pn.push_back(d);
 
     //Generate 3 additional image points in cam 1
     //Calculate a distance to the given projection for the additional points based on the distance and
@@ -293,6 +303,22 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     t0 = d / pn.dot(b14);
     Mat X4 = t0 * b14;
 
+    if(visualize) {
+        //First plane parameters
+        Mat p0 = bn.clone();
+        double d0 = p0.dot(X);
+        p0.push_back(d0);
+        //Second plane parameters
+        Mat p1 = pn.clone();
+        p1.push_back(d);
+        vector<Mat> pts3D;
+        pts3D.push_back(X);
+        pts3D.push_back(X2);
+        pts3D.push_back(X3);
+        pts3D.push_back(X4);
+        visualizePlanes(pts3D, p0, p1);
+    }
+
     //Project the 3 3D points into the second image
     Mat x22 = K2 * (actR * X2 + actT);
     x22 /= x22.at<double>(2);
@@ -315,13 +341,64 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     Mat H = getPerspectiveTransform(x1all, x2all);
     //Eliminate the translation
     Mat tm = H * x1;
-    tm /= norm(tm);
+    tm /= tm.at<double>(2);
     tm = x1 - tm;
     Mat tback = Mat::eye(3,3,CV_64FC1);
     tback.at<double>(0,2) = tm.at<double>(0);
     tback.at<double>(1,2) = tm.at<double>(1);
     H = tback * H;
     return H.clone();
+}
+
+void genMatchSequ::visualizePlanes(std::vector<cv::Mat> &pts3D,
+        const cv::Mat& plane1,
+        const cv::Mat& plane2){
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+            new pcl::visualization::PCLVisualizer("Plane for calculating homography"));
+
+    Eigen::Affine3f m = initPCLViewerCoordinateSystems(viewer, Mat::eye(3,3,CV_64FC1),
+                                                       Mat::zeros(3,1,CV_64FC1));
+    Mat RC2 = actR.t();
+    Mat tC2 = -1.0 * RC2 * actT;
+    addVisualizeCamCenter(viewer, RC2, tC2);
+
+    pcl::PointXYZ p1(0, 0, 0);
+    pcl::PointXYZ p3((float)tC2.at<double>(0), (float)tC2.at<double>(1), (float)tC2.at<double>(2));
+    for(size_t i = 0; i < pts3D.size(); ++i) {
+        pcl::PointXYZ p2((float)pts3D[i].at<double>(0), (float)pts3D[i].at<double>(1), (float)pts3D[i].at<double>(2));
+        viewer->addLine(p1, p2, "LineCam1_" + std::to_string(i));
+        viewer->addLine(p3, p2, "LineCam2_" + std::to_string(i));
+    }
+
+    pcl::ModelCoefficients plane_coeff;
+    plane_coeff.values.resize (4);
+    plane_coeff.values[0] = (float)plane1.at<double>(0);
+    plane_coeff.values[1] = (float)plane1.at<double>(1);
+    plane_coeff.values[2] = (float)plane1.at<double>(2);
+    plane_coeff.values[3] = (float)plane1.at<double>(3);
+    /*viewer->addPlane(plane_coeff,
+                     (float)pts3D[0].at<double>(0),
+                     (float)pts3D[0].at<double>(1),
+                     (float)pts3D[0].at<double>(2),
+                     "initPlane");*/
+    viewer->addPlane(plane_coeff,
+                     "initPlane");
+    plane_coeff.values[0] = (float)plane2.at<double>(0);
+    plane_coeff.values[1] = (float)plane2.at<double>(1);
+    plane_coeff.values[2] = (float)plane2.at<double>(2);
+    plane_coeff.values[3] = (float)plane2.at<double>(3);
+    /*viewer->addPlane(plane_coeff,
+                     (float)pts3D[0].at<double>(0),
+                     (float)pts3D[0].at<double>(1),
+                     (float)pts3D[0].at<double>(2),
+                     "resPlane");*/
+    viewer->addPlane(plane_coeff,
+                     "resPlane");
+
+    setPCLViewerCamPars(viewer, m.matrix(), K1);
+
+    startPCLViewer(viewer);
 }
 
 //Rotates a line 'b' about a line 'a' (only direction vector) using the given angle
@@ -334,7 +411,7 @@ cv::Mat genMatchSequ::rotateAboutLine(const cv::Mat &a, const double &angle, con
     a_ /= norm(a_);
 
     double checkSum = cv::sum(a_)[0];
-    if(nearZero(checkSum)){
+    if(nearZero(checkSum) || nearZero(angle)){
         return b.clone();
     }
 
@@ -361,15 +438,15 @@ cv::Mat genMatchSequ::rotateAboutLine(const cv::Mat &a, const double &angle, con
         return R_z * b;
     }
 
-    double c = sqrt(a_.at<double>(1) * a_.at<double>(1) + a_.at<double>(2) * a_.at<double>(2));
-    double sinx = a_.at<double>(1) / c;
-    double cosx = a_.at<double>(2) / c;
+    const double c = sqrt(a_.at<double>(1) * a_.at<double>(1) + a_.at<double>(2) * a_.at<double>(2));
+    const double sinx = a_.at<double>(1) / c;
+    const double cosx = a_.at<double>(2) / c;
     Mat R_x = (Mat_<double>(3,3) <<
             1.0, 0, 0,
             0, cosx, -sinx,
             0, sinx, cosx);
-    double siny = a_.at<double>(0);
-    double cosy = c;
+    double &siny = a_.at<double>(0);
+    const double &cosy = c;
     Mat R_y = (Mat_<double>(3,3) <<
             cosy, 0, siny,
             0, 1.0, 0,
