@@ -7,6 +7,7 @@
 #include "imgFeatures.h"
 #include <iomanip>
 #include <pcl/io/pcd_io.h>
+#include <opencv2/imgproc.hpp>
 
 using namespace std;
 using namespace cv;
@@ -67,6 +68,8 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
         string errmsg = "Necessary 3D PCL point cloud files could not be loaded!";
         throw SequenceException(errmsg);
     }
+    K1i = K1.inv();
+    K2i = K2.inv();
 }
 
 void genMatchSequ::genSequenceParsFileName() {
@@ -226,6 +229,158 @@ bool genMatchSequ::generateMatches(){
     return true;
 }
 
+//Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
+// camera 1 & 2) and backprojection of corresponding points on that plane into the second image
+cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
+                                                 const cv::Mat& x1,
+                                                 const cv::Mat& x2,
+                                                 const double& alpha,
+                                                 const double& beta){
+    CV_Assert((X.rows == 3) && (X.cols == 1));
+    CV_Assert((x1.rows == 3) && (x1.cols == 1));
+    CV_Assert((x2.rows == 3) && (x2.cols == 1));
+
+    //Get the ray to X from cam 1
+    Mat b1 = K1i * x1;
+    //Get the ray direction to X from cam 2
+    Mat b2 = actR.t() * K1i * x2;
+
+    //Calculate the normal vector of the plane by taking the mean vector of both camera rays
+    b1 /= norm(b1);
+    b2 /= norm(b2);
+    Mat bn = (b1 + b2) / 2.0;
+
+    //Get the line on the plane normal to both viewing rays
+    Mat bpa = b1.cross(b2);
+    bpa /= norm(bpa);
+
+    //Get the normal to bn and bpa
+    Mat bpb = bpa.cross(bn);
+    bpb /= norm(bpb);
+
+    //Rotate bpb about line bpa using alpha
+    Mat bpbr = rotateAboutLine(bpa, alpha, bpb);
+
+    //Rotate bpa about line bpb using beta
+    Mat bpar = rotateAboutLine(bpb, alpha, bpa);
+
+    //Construct a plane from bpar and bpbr
+    Mat pn = bpbr.cross(bpar);//Normal of the plane
+    pn /= norm(pn);
+    //Plane parameters
+    double d = pn.dot(X);
+    pn.push_back(d);
+
+    //Generate 3 additional image points in cam 1
+    //Calculate a distance to the given projection for the additional points based on the distance and
+    // account for numerical accuracy
+    double dacc = max(5.0, 1e-3 * X.at<double>(2));
+    Mat x12 = x1 + (Mat_<double>(3,1) << dacc, 0, 0);
+    Mat x13 = x1 + (Mat_<double>(3,1) << 0, dacc, 0);
+    Mat x14 = x1 + (Mat_<double>(3,1) << dacc, dacc, 0);
+
+    //Generate lines from image points and their intersection with the plane
+    Mat b12 = K1i * x12;
+    b12 /= norm(b12);
+    Mat b13 = K1i * x13;
+    b13 /= norm(b13);
+    Mat b14 = K1i * x14;
+    b14 /= norm(b14);
+    double t0 = d / pn.dot(b12);
+    Mat X2 = t0 * b12;
+    t0 = d / pn.dot(b13);
+    Mat X3 = t0 * b13;
+    t0 = d / pn.dot(b14);
+    Mat X4 = t0 * b14;
+
+    //Project the 3 3D points into the second image
+    Mat x22 = K2 * (actR * X2 + actT);
+    x22 /= x22.at<double>(2);
+    Mat x23 = K2 * (actR * X3 + actT);
+    x23 /= x23.at<double>(2);
+    Mat x24 = K2 * (actR * X4 + actT);
+    x24 /= x24.at<double>(2);
+
+    //Calculate projective/perspective homography
+    Mat x1all = Mat::ones(4,2, CV_64FC1);
+    x1all.row(0) = x1.rowRange(0,2).t();
+    x1all.row(1) = x12.rowRange(0,2).t();
+    x1all.row(2) = x13.rowRange(0,2).t();
+    x1all.row(3) = x14.rowRange(0,2).t();
+    Mat x2all = Mat::ones(4,2, CV_64FC1);
+    x2all.row(0) = x2.rowRange(0,2).t();
+    x2all.row(1) = x22.rowRange(0,2).t();
+    x2all.row(2) = x23.rowRange(0,2).t();
+    x2all.row(3) = x24.rowRange(0,2).t();
+    Mat H = getPerspectiveTransform(x1all, x2all);
+    //Eliminate the translation
+    Mat tm = H * x1;
+    tm /= norm(tm);
+    tm = x1 - tm;
+    Mat tback = Mat::eye(3,3,CV_64FC1);
+    tback.at<double>(0,2) = tm.at<double>(0);
+    tback.at<double>(1,2) = tm.at<double>(1);
+    H = tback * H;
+    return H.clone();
+}
+
+//Rotates a line 'b' about a line 'a' (only direction vector) using the given angle
+cv::Mat genMatchSequ::rotateAboutLine(const cv::Mat &a, const double &angle, const cv::Mat &b){
+    CV_Assert((a.rows == 3) && (a.cols == 1));
+    CV_Assert((b.rows == 3) && (b.cols == 1));
+    CV_Assert((angle < M_PI) && (angle > -M_PI));
+
+    Mat a_ = a.clone();
+    a_ /= norm(a_);
+
+    double checkSum = cv::sum(a_)[0];
+    if(nearZero(checkSum)){
+        return b.clone();
+    }
+
+    //Check if the rotation axis is identical to the x, y, or z-axis
+    if(nearZero(a_.at<double>(1)) && nearZero(a_.at<double>(2))){
+        Mat R_x = (Mat_<double>(3,3) <<
+                1.0, 0, 0,
+                0, cos(angle), -sin(angle),
+                0, sin(angle), cos(angle));
+        return R_x * b;
+    }
+    else if(nearZero(a_.at<double>(0)) && nearZero(a_.at<double>(2))){
+        Mat R_y = (Mat_<double>(3,3) <<
+                cos(angle), 0, sin(angle),
+                0, 1.0, 0,
+                -sin(angle), 0, cos(angle));
+        return R_y * b;
+    }
+    else if(nearZero(a_.at<double>(0)) && nearZero(a_.at<double>(1))){
+        Mat R_z = (Mat_<double>(3,3) <<
+                cos(angle), -sin(angle), 0,
+                sin(angle), cos(angle), 0,
+                0, 0, 1.0);
+        return R_z * b;
+    }
+
+    double c = sqrt(a_.at<double>(1) * a_.at<double>(1) + a_.at<double>(2) * a_.at<double>(2));
+    double sinx = a_.at<double>(1) / c;
+    double cosx = a_.at<double>(2) / c;
+    Mat R_x = (Mat_<double>(3,3) <<
+            1.0, 0, 0,
+            0, cosx, -sinx,
+            0, sinx, cosx);
+    double siny = a_.at<double>(0);
+    double cosy = c;
+    Mat R_y = (Mat_<double>(3,3) <<
+            cosy, 0, siny,
+            0, 1.0, 0,
+            -siny, 0, cosy);
+    Mat R_z = (Mat_<double>(3,3) <<
+            cos(angle), -sin(angle), 0,
+            sin(angle), cos(angle), 0,
+            0, 0, 1.0);
+    return R_x.t() * R_y.t() * R_z * R_y * R_x * b;
+}
+
 //Load the images in the given folder with a given image pre- and/or postfix (supports wildcards)
 bool genMatchSequ::getImageList() {
     int err = loadImageSequenceNew(parsMtch.imgPath,
@@ -253,6 +408,12 @@ bool genMatchSequ::getFeatures() {
     //Get random sequence of images
     vector<size_t> imgIdxs(imageList.size());
     std::shuffle(imgIdxs.begin(), imgIdxs.end(), std::mt19937{std::random_device{}()});
+    vector<string> imageList_tmp;
+    imageList_tmp.reserve(imageList.size());
+    for(auto& i : imageList){
+        imageList_tmp.emplace_back(std::move(i));
+    }
+    imageList = std::move(imageList_tmp);
 
     //Check for the correct keypoint & descriptor types
     if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
@@ -267,17 +428,18 @@ bool genMatchSequ::getFeatures() {
     //Load images and extract features & descriptors
     keypoints1.clear();
     descriptors1.release();
-    imgs.reserve(imageList.size());
+//    imgs.reserve(imageList.size());
     int errCnt = 0;
     const int maxErrCnt = 10;
     size_t kpCnt = 0;
-    for (size_t i = 0; i < imgIdxs.size(); ++i) {
+    for (size_t i = 0; i < imageList.size(); ++i) {
         //Load image
-        imgs.emplace_back(cv::imread(imageList[imgIdxs[i]], CV_LOAD_IMAGE_GRAYSCALE));
+        Mat img = cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE);
+//        imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
         std::vector<cv::KeyPoint> keypoints1Img;
 
         //Extract keypoints
-        if (matchinglib::getKeypoints(imgs.back(), keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
+        if (matchinglib::getKeypoints(img, keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
             errCnt++;
             if (errCnt > maxErrCnt) {
                 cout << "Extraction of keypoints failed for too many images!" << endl;
@@ -287,7 +449,7 @@ bool genMatchSequ::getFeatures() {
 
         //Compute descriptors
         cv::Mat descriptors1Img;
-        if (matchinglib::getDescriptors(imgs.back(),
+        if (matchinglib::getDescriptors(img,
                                         keypoints1Img,
                                         parsMtch.descriptorType,
                                         descriptors1Img,
@@ -321,13 +483,13 @@ bool genMatchSequ::getFeatures() {
     vector<size_t> featureIdxs(keypoints1.size());
     std::shuffle(featureIdxs.begin(), featureIdxs.end(), std::mt19937{std::random_device{}()});
     for(int i = 0; i < (int)featureIdxs.size(); ++i){
-        keypoints1_tmp[i] = keypoints1[featureIdxs[i]];
+        keypoints1_tmp[i] = std::move(keypoints1[featureIdxs[i]]);
         descriptors1.row((int)featureIdxs[i]).copyTo(descriptors1_tmp.row(i));
-        featureImgIdx_tmp[i] = featureImgIdx[featureIdxs[i]];
+        featureImgIdx_tmp[i] = std::move(featureImgIdx[featureIdxs[i]]);
     }
-    keypoints1 = keypoints1_tmp;
+    keypoints1 = std::move(keypoints1_tmp);
     descriptors1 = descriptors1_tmp;
-    featureImgIdx = featureImgIdx_tmp;
+    featureImgIdx = std::move(featureImgIdx_tmp);
 
     if (kpCnt < nrCorrsFullSequ) {
         cout << "Too less keypoints - please provide additional images!";

@@ -80,6 +80,8 @@ public:
             sequParsLoaded(false){
         CV_Assert(!parsMtch.mainStorePath.empty());
         genSequenceParsFileName();
+        K1i = K1.inv();
+        K2i = K2.inv();
     };
 
     genMatchSequ(const std::string &sequLoadFolder,
@@ -111,6 +113,14 @@ private:
     bool genMatchDataStorePath();
     bool writeMatchingParameters();
     std::string genSequFileExtension(const std::string &basename);
+    //Rotates a line 'b' about a line 'a' (only direction vector) using the given angle
+    cv::Mat rotateAboutLine(const cv::Mat &a, const double &angle, const cv::Mat &b);
+    //Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into camera 1 & 2) and backprojection of corresponding points on that plane into the second image
+    cv::Mat getHomographyForDistortion(const cv::Mat& X,
+                                       const cv::Mat& x1,
+                                       const cv::Mat& x2,
+                                       const double& alpha,
+                                       const double& beta);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -120,15 +130,15 @@ private:
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
     size_t nrCorrsFullSequ;//Number of predicted overall correspondences (TP+TN) for all frames
-    std::vector<cv::Mat> imgs;//Holds all images that where used to extract features
+//    std::vector<cv::Mat> imgs;//Holds all images that where used to extract features
     std::vector<cv::KeyPoint> keypoints1;//Keypoints from all used images
     cv::Mat descriptors1;//Descriptors from all used images
     size_t nrFramesGenMatches;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
     size_t hash_Sequ, hash_Matches;//Hash values for the generated 3D sequence and the matches based on their input parameters.
     StereoSequParameters pars3D;//Holds all parameters for calculating a 3D sequence. Is manly used to load existing 3D sequences.
     cv::Size imgSize;//Size of the images
-    cv::Mat K1;//Camera matrix 1
-    cv::Mat K2;//Camera matrix 2
+    cv::Mat K1, K1i;//Camera matrix 1 & its inverse
+    cv::Mat K2, K2i;//Camera matrix 2 & its inverse
     size_t nrMovObjAllFrames;//Sum over the number of moving objects in every frame
     std::string sequParFileName;//File name for storing and loading parameters of 3D sequences
     std::string sequParPath;//Path for storing and loading parameters of 3D sequences

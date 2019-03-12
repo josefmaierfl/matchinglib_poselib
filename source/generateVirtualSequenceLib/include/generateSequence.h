@@ -561,9 +561,6 @@ private:
 
 	size_t actCorrsPRIdx = 0;//actual index (corresponding to the actual frame) for pars.corrsPerRegion, depthsPerRegion, nrDepthAreasPRegNear, ...
 	size_t actStereoCIdx = 0;//actual index (corresponding to the actual frame) for R, t, depthNear, depthMid, depthFar
-	double actDepthNear;//Lower border of near depths for the actual camera configuration
-	double actDepthMid;//Upper border of near and lower border of mid depths for the actual camera configuration
-	double actDepthFar;//Upper border of mid and lower border of far depths for the actual camera configuration
 	Eigen::Matrix4f actCamPose;//actual camera pose in camera coordinates in a different camera coordinate system (X forward, Y is up, and Z is right) to use the PCL filter FrustumCulling
 	Eigen::Quaternionf actCamRot;//actual camerea rotation from world to camera (rotation w.r.t the origin)
 
@@ -631,14 +628,17 @@ private:
 protected:
     StereoSequParameters pars;
 	size_t actFrameCnt = 0;
+    double actDepthNear;//Lower border of near depths for the actual camera configuration
+    double actDepthMid;//Upper border of near and lower border of mid depths for the actual camera configuration
+    double actDepthFar;//Upper border of mid and lower border of far depths for the actual camera configuration
+    cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
+    cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
     size_t totalNrFrames = 0;//Total number of frames
     std::vector<cv::Mat> R;
     std::vector<cv::Mat> t;
     size_t nrStereoConfs;//Number of different stereo camera configurations
     std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame
     std::vector<double> inlRat;//Inlier ratio for every frame
-	cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
-	cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
 	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
 	pcl::PointCloud<pcl::PointXYZ>::Ptr staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
     std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorldAllFrames;//Every vector element holds the point cloud of a moving object. It also holds theetransformed point clouds of already transformed moving objects from older frames
