@@ -70,11 +70,9 @@ public:
                  std::vector<cv::Mat> &t_,
                  StereoSequParameters pars3D_,
                  GenMatchSequParameters &parsMtch_,
-                 uint32_t verboseMatch_ = 0,
-                 uint32_t verbose3D = 0) :
-            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, verbose3D),
+                 uint32_t verbose_ = 0) :
+            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, verbose_),
             parsMtch(parsMtch_),
-            verboseMatch(verboseMatch_),
             pars3D(pars3D_),
             imgSize(imgSize_),
             K1(K1_),
@@ -141,14 +139,16 @@ private:
                                        const cv::Mat &x1,
                                        const cv::Mat &x2,
                                        int64_t idx3D,
+                                       size_t keyPIdx,
                                        cv::InputArray planeNVec,
                                        bool visualize);
 
     cv::Mat getHomographyForDistortionChkOld(const cv::Mat& X,
-                                                           const cv::Mat& x1,
-                                                           const cv::Mat& x2,
-                                                           int64_t idx3D,
-                                                           bool visualize);
+                                             const cv::Mat& x1,
+                                             const cv::Mat& x2,
+                                             int64_t idx3D,
+                                             size_t keyPIdx,
+                                             bool visualize);
 
     //Create a homography for a TN correspondence
     cv::Mat getHomographyForDistortionTN(const cv::Mat& x1,
@@ -158,15 +158,25 @@ private:
                          const cv::Mat &plane1,
                          const cv::Mat &plane2);
 
+    void addImgNoiseGauss(const cv::Mat &patchIn, cv::Mat &patchOut, bool visualize = false);
+    void addImgNoiseSaltAndPepper(const cv::Mat &patchIn,
+            cv::Mat &patchOut,
+            int minTH = 30,
+            int maxTH = 225,
+            bool visualize = false);
+    void generateCorrespondingFeatures();
+    void generateCorrespondingFeaturesTP(size_t featureIdxBegin);
+    void generateCorrespondingFeaturesTN(size_t featureIdxBegin);
+
 public:
     GenMatchSequParameters parsMtch;
-    uint32_t verboseMatch = 0;
 
 private:
+    const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
+    std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
     size_t nrCorrsFullSequ;//Number of predicted overall correspondences (TP+TN) for all frames
-//    std::vector<cv::Mat> imgs;//Holds all images that where used to extract features
     std::vector<cv::KeyPoint> keypoints1;//Keypoints from all used images
     cv::Mat descriptors1;//Descriptors from all used images
     size_t nrFramesGenMatches;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
@@ -186,8 +196,10 @@ private:
     std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
     cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
-    std::map<int64_t,cv::Mat> planeTo3DIdx;
+    std::map<int64_t,std::pair<cv::Mat,size_t>> planeTo3DIdx;//Holds the plane coefficients and keypoint index for every used keypoint in correspondence to the index of the 3D point in the point cloud
     double actNormT;//Norm of the actual translation vector between the stereo cameras
+    std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains to most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
+    bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

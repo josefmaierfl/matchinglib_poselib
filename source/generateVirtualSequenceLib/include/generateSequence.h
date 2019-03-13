@@ -99,7 +99,9 @@ enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
 	SHOW_STEREO_INTERSECTION = 0x2000,
 	SHOW_COMBINED_CORRESPONDENCES = 0x4000,
 	PRINT_WARNING_MESSAGES = 0x8000,
-	SHOW_IMGS_AT_ERROR = 0x10000
+	SHOW_IMGS_AT_ERROR = 0x10000,
+	SHOW_PLANES_FOR_HOMOGRAPHY = 0x20000,
+	SHOW_PATCHES_WITH_NOISE = 0x40000
 };
 
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
@@ -290,7 +292,7 @@ public:
 			std::vector<cv::Mat> t_,
 			StereoSequParameters & pars_,
 			uint32_t verbose = 0);
-    genStereoSequ():pars(StereoSequParameters()){};
+    genStereoSequ(uint32_t verbose_ = 0):verbose(verbose_), pars(StereoSequParameters()){};
 	virtual void startCalc();
 
 protected:

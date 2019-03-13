@@ -7,7 +7,7 @@
 #include "imgFeatures.h"
 #include <iomanip>
 #include <pcl/io/pcd_io.h>
-#include <opencv2/imgproc.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include "helper_funcs.h"
@@ -30,10 +30,9 @@ bool checkOverwriteDelFiles(const std::string &filename, const std::string &errm
 
 genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            GenMatchSequParameters &parsMtch_,
-                           uint32_t verboseMatch_) :
-        genStereoSequ(),
+                           uint32_t verbose_) :
+        genStereoSequ(verbose_),
         parsMtch(parsMtch_),
-        verboseMatch(verboseMatch_),
         sequParsLoaded(true){
 
     sequLoadPath = sequLoadFolder;
@@ -217,6 +216,8 @@ bool genMatchSequ::generateMatches(){
         //Calculate the norm of the translation vector of the actual stereo configuration
         actNormT = norm(actT);
 
+
+
         if(sequParsLoaded){
             actFrameCnt++;
         }
@@ -241,6 +242,54 @@ bool genMatchSequ::generateMatches(){
     }
 
     return true;
+}
+
+
+
+void genMatchSequ::addImgNoiseGauss(const cv::Mat &patchIn, cv::Mat &patchOut, bool visualize){
+    Mat mSrc_16SC;
+    Mat mGaussian_noise = Mat(patchIn.size(),CV_16SC1);
+    randn(mGaussian_noise,Scalar::all(parsMtch.imgIntNoise.first), Scalar::all(parsMtch.imgIntNoise.second));
+
+    patchIn.convertTo(mSrc_16SC,CV_16SC1);
+    addWeighted(mSrc_16SC, 1.0, mGaussian_noise, 1.0, 0.0, mSrc_16SC);
+    mSrc_16SC.convertTo(patchOut,patchIn.type());
+
+    if(visualize){
+        Mat bothpatches;
+        hconcat(patchIn,patchOut,bothpatches);
+        namedWindow("Feature patch with and without gaussian noise", WINDOW_AUTOSIZE);
+        imshow("Feature patch with and without gaussian noise", bothpatches);
+
+        waitKey(0);
+        destroyWindow("Feature patch with and without gaussian noise");
+    }
+}
+
+void genMatchSequ::addImgNoiseSaltAndPepper(const cv::Mat &patchIn,
+        cv::Mat &patchOut,
+        int minTH,
+        int maxTH,
+        bool visualize){
+    Mat saltpepper_noise = Mat::zeros(patchIn.size(),CV_8UC1);
+    randu(saltpepper_noise,0,255);
+
+    Mat black = saltpepper_noise < minTH;
+    Mat white = saltpepper_noise > maxTH;
+
+    patchOut = patchIn.clone();
+    patchOut.setTo(255,white);
+    patchOut.setTo(0,black);
+
+    if(visualize){
+        Mat bothpatches;
+        hconcat(patchIn,patchOut,bothpatches);
+        namedWindow("Feature patch with and without salt and pepper noise", WINDOW_AUTOSIZE);
+        imshow("Feature patch with and without salt and pepper noise", bothpatches);
+
+        waitKey(0);
+        destroyWindow("Feature patch with and without salt and pepper noise");
+    }
 }
 
 //Create a homography for a TN correspondence
@@ -281,7 +330,7 @@ cv::Mat genMatchSequ::getHomographyForDistortionTN(const cv::Mat& x1,
     Mat x2 = K2 * (actR * X + actT);
     x2 /= x2.at<double>(2);
 
-    return getHomographyForDistortion(X, x1, x2, -1, cv::noArray(), visualize);
+    return getHomographyForDistortion(X, x1, x2, -1, 0, cv::noArray(), visualize);
 }
 
 //Checks, if a plane was already calculated for the given 3D coordinate and if yes, adapts the plane.
@@ -290,6 +339,7 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
                                                  const cv::Mat& x1,
                                                  const cv::Mat& x2,
                                                  int64_t idx3D,
+                                                 size_t keyPIdx,
                                                  bool visualize){
 if((idx3D >= 0) && !planeTo3DIdx.empty()){
     if(planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()){
@@ -297,11 +347,11 @@ if((idx3D >= 0) && !planeTo3DIdx.empty()){
         trans.rowRange(0,3).colRange(0,3) = absCamCoordinates[actFrameCnt].R.t();
         trans.col(3).rowRange(0,3) = -1.0 * absCamCoordinates[actFrameCnt].R.t() * absCamCoordinates[actFrameCnt].t;
         trans = trans.inv().t();
-        Mat plane = trans * planeTo3DIdx[idx3D];
-        return getHomographyForDistortion(X, x1, x2, idx3D, plane, visualize);
+        Mat plane = trans * planeTo3DIdx[idx3D].first;
+        return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
     }
 }
-return getHomographyForDistortion(X, x1, x2, idx3D, cv::noArray(), visualize);
+return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
 }
 
 /*Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
@@ -316,6 +366,7 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
                                                  const cv::Mat& x1,
                                                  const cv::Mat& x2,
                                                  int64_t idx3D,
+                                                 size_t keyPIdx,
                                                  cv::InputArray planeNVec,
                                                  bool visualize){
     CV_Assert((X.rows == 3) && (X.cols == 1));
@@ -344,8 +395,8 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
         bpb /= norm(bpb);
 
         //Get the rotation angles
-        const double maxRotAngleAlpha = 3.0 * (M_PI - acos(b1.dot(b2) / (norm(b1) * norm(b2)))) / 8.0;
-        const double maxRotAngleBeta = 3.0 * M_PI / 8.0;
+        const double maxRotAngleAlpha = 5.0 * (M_PI - acos(b1.dot(b2) / (norm(b1) * norm(b2)))) / 16.0;
+        const double maxRotAngleBeta = 5.0 * M_PI / 16.0;
         //alpha ... Rotation angle about first vector 'bpa' in the plane which is perpendicular to the plane normal 'bn'
         double alpha = getRandDoubleValRng(-maxRotAngleAlpha, maxRotAngleAlpha, rand_gen);
         //beta ... Rotation angle about second vector 'bpb' in the plane which is perpendicular to the plane normal 'bn' and 'bpa'
@@ -374,7 +425,7 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
          * Then: p'.q' = p^t T^t (T^-1)^t q = p^t q = p.q
         */
         if(idx3D >= 0) {
-            planeTo3DIdx[idx3D] = actTransGlobWorldit * p1;
+            planeTo3DIdx[idx3D] = make_pair(actTransGlobWorldit * p1, keyPIdx);
         }
     }else{
         p1 = planeNVec.getMat();
@@ -587,12 +638,13 @@ bool genMatchSequ::getFeatures() {
     if (!getImageList()) {
         return false;
     }
+    size_t nrImgs = imageList.size();
 
     //Get random sequence of images
-    vector<size_t> imgIdxs(imageList.size());
+    vector<size_t> imgIdxs(nrImgs);
     std::shuffle(imgIdxs.begin(), imgIdxs.end(), std::mt19937{std::random_device{}()});
     vector<string> imageList_tmp;
-    imageList_tmp.reserve(imageList.size());
+    imageList_tmp.reserve(nrImgs);
     for(auto& i : imageList){
         imageList_tmp.emplace_back(std::move(i));
     }
@@ -615,9 +667,19 @@ bool genMatchSequ::getFeatures() {
     int errCnt = 0;
     const int maxErrCnt = 10;
     size_t kpCnt = 0;
-    for (size_t i = 0; i < imageList.size(); ++i) {
+    if(nrImgs <= maxImgLoad) {
+        imgs.reserve(nrImgs);
+    }
+    for (size_t i = 0; i < nrImgs; ++i) {
         //Load image
-        Mat img = cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE);
+        Mat img;
+        if(nrImgs <= maxImgLoad){
+            imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
+            img = imgs.back();
+        }
+        else{
+            img = cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE);
+        }
 //        imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
         std::vector<cv::KeyPoint> keypoints1Img;
 
@@ -674,6 +736,7 @@ bool genMatchSequ::getFeatures() {
     descriptors1 = descriptors1_tmp;
     featureImgIdx = std::move(featureImgIdx_tmp);
 
+
     if (kpCnt < nrCorrsFullSequ) {
         cout << "Too less keypoints - please provide additional images!";
         if (parsMtch.takeLessFramesIfLessKeyP) {
@@ -701,7 +764,100 @@ bool genMatchSequ::getFeatures() {
         nrFramesGenMatches = totalNrFrames;
     }
 
+    //Get most used keypoint images per frame
+    if(nrImgs > maxImgLoad){
+        size_t featureIdx = 0;
+        loadImgsEveryFrame = true;
+        imgFrameIdxMap.resize(nrFramesGenMatches);
+        for(size_t i = 0; i < nrFramesGenMatches; ++i){
+            vector<pair<size_t,size_t>> imgUsageFrequ;
+            map<size_t,size_t> imgIdx;
+            imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdx], 1));
+            imgIdx[featureImgIdx[featureIdx]] = 0;
+            featureIdx++;
+            size_t idx = 1;
+            for (size_t j = 1; j < nrCorrs[i]; ++j) {
+                if(imgIdx.find(featureImgIdx[featureIdx]) != imgIdx.end()){
+                    imgUsageFrequ[imgIdx[featureImgIdx[featureIdx]]].second++;
+                }else{
+                    imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdx], 1));
+                    imgIdx[featureImgIdx[featureIdx]] = idx;
+                    idx++;
+                }
+                featureIdx++;
+            }
+            //Sort based on frequency of usage
+            sort(imgUsageFrequ.begin(),
+                    imgUsageFrequ.end(),
+                    [](pair<size_t,size_t> &first, pair<size_t,size_t> &second){return first.second > second.second;});
+            for(size_t j = 0; j < min(maxImgLoad, imgUsageFrequ.size()); ++j){
+                imgFrameIdxMap[i].first[imgUsageFrequ[j].first] = j;
+                imgFrameIdxMap[i].second.push_back(imgUsageFrequ[j].first);
+            }
+        }
+    }
+
     return true;
+}
+
+void genMatchSequ::generateCorrespondingFeatures(){
+    static size_t featureIdxBegin = 0;
+    //Load images if not already done
+    if(loadImgsEveryFrame){
+        imgs.clear();
+        imgs.reserve(imgFrameIdxMap[actFrameCnt].second.size());
+        for(auto& i : imgFrameIdxMap[actFrameCnt].second){
+            imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
+        }
+    }
+    size_t featureIdxBegin_tmp = featureIdxBegin;
+    generateCorrespondingFeaturesTP(featureIdxBegin);
+    featureIdxBegin_tmp += combNrCorrsTP;
+    generateCorrespondingFeaturesTN(featureIdxBegin_tmp);
+    featureIdxBegin += nrCorrs[actFrameCnt];
+}
+
+void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
+    //Generate feature for every TP
+    int show_cnt = 0;
+    size_t featureIdx = featureIdxBegin;
+    for (int i = 0; i < combNrCorrsTP; ++i) {
+        //Calculate homography
+        Mat X = Mat(comb3DPts[i], true).reshape(1);
+        bool visualize = false;
+        if(verbose & SHOW_PLANES_FOR_HOMOGRAPHY){
+            if((show_cnt % 40) == 0){
+                visualize = true;
+            }
+            show_cnt++;
+        }
+        Mat H = getHomographyForDistortionChkOld(X,
+                                                 combCorrsImg1TP.col(i),
+                                                 combCorrsImg2TP.col(i),
+                                                 combCorrsImg12TP_IdxWorld[i],
+                                                 featureIdx,
+                                                 visualize);
+        //Extract image patch
+        //Get image
+        Mat img;
+        if(loadImgsEveryFrame){
+            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdx]) != imgFrameIdxMap[actFrameCnt].first.end()){
+                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdx]]];
+            }
+            else{
+                img = cv::imread(imageList[featureImgIdx[featureIdx]], CV_LOAD_IMAGE_GRAYSCALE);
+            }
+        } else{
+            img = imgs[featureImgIdx[featureIdx]];
+        }
+
+
+        featureIdx++;
+    }
+}
+
+void genMatchSequ::generateCorrespondingFeaturesTN(size_t featureIdxBegin){
+
 }
 
 size_t genMatchSequ::hashFromSequPars() {
