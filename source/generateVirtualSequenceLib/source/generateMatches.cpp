@@ -738,7 +738,9 @@ bool genMatchSequ::getFeatures() {
 
 
     if (kpCnt < nrCorrsFullSequ) {
-        cout << "Too less keypoints - please provide additional images!";
+        cout << "Too less keypoints - please provide additional images! "
+        << nrCorrsFullSequ << " features are required but only "
+        << kpCnt << " could be extracted from the images." << endl;
         if (parsMtch.takeLessFramesIfLessKeyP) {
             nrCorrsFullSequ = 0;
             size_t i = 0;
@@ -764,7 +766,8 @@ bool genMatchSequ::getFeatures() {
         nrFramesGenMatches = totalNrFrames;
     }
 
-    //Get most used keypoint images per frame
+    //Get most used keypoint images per frame to avoid holding all images in memory in the case a huge amount of images is used
+    //Thus, only the maxImgLoad images from which the most keypoints for a single frame are used are loaded into memory
     if(nrImgs > maxImgLoad){
         size_t featureIdx = 0;
         loadImgsEveryFrame = true;
@@ -837,8 +840,7 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                                                  combCorrsImg12TP_IdxWorld[i],
                                                  featureIdx,
                                                  visualize);
-        //Extract image patch
-        //Get image
+        //Get image (check if already in memory)
         Mat img;
         if(loadImgsEveryFrame){
             if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdx]) != imgFrameIdxMap[actFrameCnt].first.end()){
@@ -850,10 +852,194 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         } else{
             img = imgs[featureImgIdx[featureIdx]];
         }
+        //Extract image patch
+        int patchSize = 64;
+        int patchSize2 = patchSize / 2;
+        KeyPoint kp = keypoints1[featureIdx];
+        Point2i pt((int)round(kp.pt.x) - patchSize2, (int)round(kp.pt.y) - patchSize2);
+        Rect imgROI(pt, Size(patchSize, patchSize));
+        if(imgROI.x < 0){
+            imgROI.width += imgROI.x;
+            imgROI.x = 0;
+        }else if((imgROI.x + imgROI.width) >= imgSize.width){
+            imgROI.width = imgSize.width - imgROI.x;
+        }
+        if(imgROI.y < 0){
+            imgROI.height += imgROI.y;
+            imgROI.y = 0;
+        }else if((imgROI.y + imgROI.height) >= imgSize.height){
+            imgROI.height = imgSize.height - imgROI.y;
+        }
+        //Check size after warping
+        Mat corners = Mat::ones(3,4,CV_64FC1);
+        corners.col(0) = (Mat_<double>(3,1) << (double)imgROI.x, (double)imgROI.y, 1.0);
+        corners.col(1) = (Mat_<double>(3,1) << (double)(imgROI.x + imgROI.width), (double)imgROI.y, 1.0);
+        corners.col(2) = (Mat_<double>(3,1) << (double)(imgROI.x + imgROI.width), (double)(imgROI.y + imgROI.height), 1.0);
+        corners.col(3) = (Mat_<double>(3,1) << (double)imgROI.x, (double)(imgROI.y + imgROI.height), 1.0);
+        Mat corners2 = Mat::ones(3,4,CV_64FC1);
+        for (int j = 0; j < 4; ++j) {
+            corners2.col(j) = H * corners.col(j);
+            corners2.col(j) /= corners2.at<double>(2,j);
+            if(corners2.at<double>(0,j) < 0){
+                corners2.at<double>(0,j) = 0;
+            }else if(corners2.at<double>(0,j) > (double)(imgSize.width - 1)){
+                corners2.at<double>(0,j) = (double)(imgSize.width - 1);
+            }
+            if(corners2.at<double>(1,j) < 0){
+                corners2.at<double>(1,j) = 0;
+            }else if(corners2.at<double>(1,j) > (double)(imgSize.height - 1)){
+                corners2.at<double>(1,j) = (double)(imgSize.height - 1);
+            }
+        }
+        double minx, maxx, miny, maxy;
+        if(corners2.at<double>(0,0) > corners2.at<double>(0,1)){//Reflection about y-axis
+            minx = max(corners2.at<double>(0,1), corners2.at<double>(0,2));
+            maxx = min(corners2.at<double>(0,0), corners2.at<double>(0,3));
+        }
+        else{
+            minx = max(corners2.at<double>(0,0), corners2.at<double>(0,3));
+            maxx = min(corners2.at<double>(0,1), corners2.at<double>(0,2));
+        }
+        if(corners2.at<double>(1,0) > corners2.at<double>(1,3)) {//Reflection about x-axis
+            miny = max(corners2.at<double>(1,3), corners2.at<double>(1,2));
+            maxy = min(corners2.at<double>(1,0), corners2.at<double>(1,1));
+        }else{
+            miny = max(corners2.at<double>(1,0), corners2.at<double>(1,1));
+            maxy = min(corners2.at<double>(1,3), corners2.at<double>(1,2));
+        }
+        double width = maxx - minx;
+        double height = maxy - miny;
+
+        //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
+        // to estimate to minimal necessary patch size
+        if(kp.size > 0) {
+            double r = (double) kp.size / 2.0;//Radius of the keypoint area
+            //Build a matrix representation of the circle
+            //see https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections
+            //and https://en.wikipedia.org/wiki/Conic_section
+            Mat Q = Mat::eye(3,3,CV_64FC1);
+            Q.at<double>(2,2) = -1.0 * r * r;
+            //Transform the circle to get a rotated and translated ellipse
+            //from https://math.stackexchange.com/questions/1572225/circle-homography
+            Mat Hi = H.inv();
+            Mat QH = Hi.t() * Q * Hi;
+            //Check if it is an ellipse
+            //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
+            double chk = 4.0 * QH.at<double>(0,1) * QH.at<double>(0,1) - 4.0 * QH.at<double>(0,0) * QH.at<double>(1,1);
+            if(chk >= 0)//We have an parabola if chk == 0 or a hyperbola if chk > 0
+
+            //Calculate the angle of the major axis
+            //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
+            //and http://mathworld.wolfram.com/Ellipse.html
+
+
+        }
+
+
 
 
         featureIdx++;
     }
+}
+
+bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minSquare){
+    //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
+    // to estimate to minimal necessary patch size
+    if(kp.size <= 0) {
+        return false;
+    }
+
+    double r = (double) kp.size / 2.0;//Radius of the keypoint area
+    /*Build a matrix representation of the circle
+     * see https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections
+     * and https://en.wikipedia.org/wiki/Conic_section
+     * Generic formula for conic sections: Ax^2 + Bxy + Cy^2 + Dx + Ey + F = 0
+     * Matrix representation: Q = [A,   B/2, D/2;
+     *                             B/2, C,   E/2,
+     *                             D/2, E/2, F]
+     */
+    Mat Q = Mat::eye(3,3,CV_64FC1);
+    Q.at<double>(2,2) = -1.0 * r * r;
+    //Transform the circle to get a rotated and translated ellipse
+    //from https://math.stackexchange.com/questions/1572225/circle-homography
+    Mat Hi = H.inv();
+    Mat QH = Hi.t() * Q * Hi;
+    //Check if it is an ellipse
+    //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
+    double chk = 4.0 * QH.at<double>(0,1) * QH.at<double>(0,1) - 4.0 * QH.at<double>(0,0) * QH.at<double>(1,1);
+    if(chk >= 0) {//We have an parabola if chk == 0 or a hyperbola if chk > 0
+        return false;
+    }
+
+    //Calculate the angle of the major axis
+    //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
+    //and http://mathworld.wolfram.com/Ellipse.html
+    double teta = 0;
+    if(nearZero(QH.at<double>(0,0) - QH.at<double>(1,1)) || (nearZero(QH.at<double>(0,1)) &&
+    (QH.at<double>(0,0) < QH.at<double>(1,1)))){
+        teta = 0;
+    }else if(nearZero(QH.at<double>(0,1)) && (QH.at<double>(0,0) > QH.at<double>(1,1))){
+        teta = M_PI_2;
+    }else {
+        teta = std::atan(QH.at<double>(0,1) / (QH.at<double>(0,0) - QH.at<double>(1,1))) / 2.0;
+        if(QH.at<double>(0,0) > QH.at<double>(1,1)){
+            teta += M_PI_2;
+        }
+    }
+
+    //Calculate center of ellipse
+    //First, get equation for NOT rotated ellipse
+    double cosTeta = cos(teta);
+    double sinTeta = sin(teta);
+    double cosTeta2 = cosTeta * cosTeta;
+    double sinTeta2 = sinTeta * sinTeta;
+    double A1 = QH.at<double>(0,0) * cosTeta2
+            + 2.0 * QH.at<double>(0,1) * cosTeta * sinTeta
+            + QH.at<double>(1,1) * sinTeta2;
+    //double B1 = 0;
+    double C1 = QH.at<double>(0,0) * sinTeta2
+            - 2.0 * QH.at<double>(0,1) * cosTeta * sinTeta
+            + QH.at<double>(1,1) * cosTeta2;
+    double D1 = 2.0 * QH.at<double>(0,2) * cosTeta
+            + 2.0 * QH.at<double>(1,2) * sinTeta;
+    double E1 = -2.0 * QH.at<double>(0,2) * sinTeta
+                + 2.0 * QH.at<double>(1,2) * cosTeta;
+    double F1 = QH.at<double>(2,2);
+
+    //Get backrotated centerpoints
+    double x01 = -D1 / (2.0 * A1);
+    double y01 = -E1 / (2.0 * C1);
+    //Get rotated (original) center points of the ellipse
+    double x0 = x01 * cosTeta - y01 * sinTeta;
+    double y0 = x01 * sinTeta + y01 * cosTeta;
+
+    //Get division coefficients a^2 and b^2 of backrotated ellipse
+    //(x' - x0')^2 / a^2 + (y' - y0')^2 / b^2 = 1
+    double dom = -4.0 * F1 * A1 * C1 + C1 * D1 * D1 + A1 * E1 * E1;
+    double a2 = dom / (4.0 * A1 * C1 * C1);//Corresponds to half length of major axis
+    double b2 = dom / (4.0 * A1 * A1 * C1);//Corresponds to half length of minor axis
+
+    //Calculate 2D vector of major and minor axis
+    Mat ma = (Mat_<double>(2,1) << a2 * cosTeta, a2 * sinTeta);
+    Mat mi = (Mat_<double>(2,1) << -b2 * sinTeta, b2 * cosTeta);
+
+    //Calculate corner points of rotated rectangle enclosing ellipse
+    Mat corners = Mat(2,4,CV_64FC1);
+    corners.col(0) = ma + mi;
+    corners.col(0) = ma - mi;
+    corners.col(0) = -1.0 * ma + mi;
+    corners.col(0) = -1.0 * ma - mi;
+
+    //Get dimensions of rectangle enclosing the rotated rectangle
+    double minx, maxx, miny, maxy;
+    cv::minMaxLoc(corners.row(0), &minx, &maxx);
+    cv::minMaxLoc(corners.row(1), &miny, &maxy);
+    double dimx = abs(maxx - minx);
+    double dimy = abs(maxy - miny);
+    //Finally get the dimensions of a square into which the rectangle fits
+    minSquare = max(dimx, dimy);
+
+    return true;
 }
 
 void genMatchSequ::generateCorrespondingFeaturesTN(size_t featureIdxBegin){
