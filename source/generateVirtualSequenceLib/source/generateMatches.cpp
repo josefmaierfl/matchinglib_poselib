@@ -828,12 +828,10 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         //Calculate homography
         Mat X = Mat(comb3DPts[i], true).reshape(1);
         bool visualize = false;
-        if(verbose & SHOW_PLANES_FOR_HOMOGRAPHY){
-            if((show_cnt % 40) == 0){
-                visualize = true;
-            }
-            show_cnt++;
+        if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((show_cnt % 40) == 0)){
+            visualize = true;
         }
+        show_cnt++;
         Mat H = getHomographyForDistortionChkOld(X,
                                                  combCorrsImg1TP.col(i),
                                                  combCorrsImg2TP.col(i),
@@ -852,87 +850,340 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         } else{
             img = imgs[featureImgIdx[featureIdx]];
         }
+
         //Extract image patch
-        int patchSize = 64;
-        int patchSize2 = patchSize / 2;
         KeyPoint kp = keypoints1[featureIdx];
-        Point2i pt((int)round(kp.pt.x) - patchSize2, (int)round(kp.pt.y) - patchSize2);
-        Rect imgROI(pt, Size(patchSize, patchSize));
-        if(imgROI.x < 0){
-            imgROI.width += imgROI.x;
-            imgROI.x = 0;
-        }else if((imgROI.x + imgROI.width) >= imgSize.width){
-            imgROI.width = imgSize.width - imgROI.x;
-        }
-        if(imgROI.y < 0){
-            imgROI.height += imgROI.y;
-            imgROI.y = 0;
-        }else if((imgROI.y + imgROI.height) >= imgSize.height){
-            imgROI.height = imgSize.height - imgROI.y;
-        }
-        //Check size after warping
-        Mat corners = Mat::ones(3,4,CV_64FC1);
-        corners.col(0) = (Mat_<double>(3,1) << (double)imgROI.x, (double)imgROI.y, 1.0);
-        corners.col(1) = (Mat_<double>(3,1) << (double)(imgROI.x + imgROI.width), (double)imgROI.y, 1.0);
-        corners.col(2) = (Mat_<double>(3,1) << (double)(imgROI.x + imgROI.width), (double)(imgROI.y + imgROI.height), 1.0);
-        corners.col(3) = (Mat_<double>(3,1) << (double)imgROI.x, (double)(imgROI.y + imgROI.height), 1.0);
-        Mat corners2 = Mat::ones(3,4,CV_64FC1);
-        for (int j = 0; j < 4; ++j) {
-            corners2.col(j) = H * corners.col(j);
-            corners2.col(j) /= corners2.at<double>(2,j);
-            if(corners2.at<double>(0,j) < 0){
-                corners2.at<double>(0,j) = 0;
-            }else if(corners2.at<double>(0,j) > (double)(imgSize.width - 1)){
-                corners2.at<double>(0,j) = (double)(imgSize.width - 1);
-            }
-            if(corners2.at<double>(1,j) < 0){
-                corners2.at<double>(1,j) = 0;
-            }else if(corners2.at<double>(1,j) > (double)(imgSize.height - 1)){
-                corners2.at<double>(1,j) = (double)(imgSize.height - 1);
-            }
-        }
-        double minx, maxx, miny, maxy;
-        if(corners2.at<double>(0,0) > corners2.at<double>(0,1)){//Reflection about y-axis
-            minx = max(corners2.at<double>(0,1), corners2.at<double>(0,2));
-            maxx = min(corners2.at<double>(0,0), corners2.at<double>(0,3));
-        }
-        else{
-            minx = max(corners2.at<double>(0,0), corners2.at<double>(0,3));
-            maxx = min(corners2.at<double>(0,1), corners2.at<double>(0,2));
-        }
-        if(corners2.at<double>(1,0) > corners2.at<double>(1,3)) {//Reflection about x-axis
-            miny = max(corners2.at<double>(1,3), corners2.at<double>(1,2));
-            maxy = min(corners2.at<double>(1,0), corners2.at<double>(1,1));
-        }else{
-            miny = max(corners2.at<double>(1,0), corners2.at<double>(1,1));
-            maxy = min(corners2.at<double>(1,3), corners2.at<double>(1,2));
-        }
-        double width = maxx - minx;
-        double height = maxy - miny;
 
         //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
-        // to estimate to minimal necessary patch size
-        if(kp.size > 0) {
-            double r = (double) kp.size / 2.0;//Radius of the keypoint area
-            //Build a matrix representation of the circle
-            //see https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections
-            //and https://en.wikipedia.org/wiki/Conic_section
-            Mat Q = Mat::eye(3,3,CV_64FC1);
-            Q.at<double>(2,2) = -1.0 * r * r;
-            //Transform the circle to get a rotated and translated ellipse
-            //from https://math.stackexchange.com/questions/1572225/circle-homography
-            Mat Hi = H.inv();
-            Mat QH = Hi.t() * Q * Hi;
-            //Check if it is an ellipse
-            //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
-            double chk = 4.0 * QH.at<double>(0,1) * QH.at<double>(0,1) - 4.0 * QH.at<double>(0,0) * QH.at<double>(1,1);
-            if(chk >= 0)//We have an parabola if chk == 0 or a hyperbola if chk > 0
+        // to estimate the minimal necessary patch size
+        cv::Rect patchROIimg1, patchROIimg2;
+        cv::Point2d ellipseCenter;
+        double ellipseRot = 0;
+        cv::Size2d axes;
+        bool useFallBack = false;
+        bool noEllipse = false;
+        if(!getRectFitsInEllipse(H, kp, patchROIimg1, patchROIimg2, ellipseCenter, ellipseRot, axes)){
+            //If the calculation of the necessary patch size failed, calculate a standard patch
+            noEllipse = true;
+            const double minPatchSize = 41.0;
+            do {
+                useFallBack = false;
+                int patchSize = minPatchSize2;//Must be an odd number
+                int patchSize2 = (patchSize - 1) / 2;
+                double width;
+                double height;
+                double minx, maxx, miny, maxy;
+                Rect imgROI;
+                do {
+                    Point2i pt((int) round(kp.pt.x) - patchSize2, (int) round(kp.pt.y) - patchSize2);
+                    imgROI = Rect(pt, Size(patchSize, patchSize));
+                    if (imgROI.x < 0) {
+                        imgROI.width += imgROI.x;
+                        imgROI.x = 0;
+                    } else if ((imgROI.x + imgROI.width) >= imgSize.width) {
+                        imgROI.width = imgSize.width - imgROI.x;
+                    }
+                    if (imgROI.y < 0) {
+                        imgROI.height += imgROI.y;
+                        imgROI.y = 0;
+                    } else if ((imgROI.y + imgROI.height) >= imgSize.height) {
+                        imgROI.height = imgSize.height - imgROI.y;
+                    }
+                    //Check size after warping
+                    Mat corners = Mat::ones(3, 4, CV_64FC1);
+                    corners.col(0) = (Mat_<double>(3, 1) << (double) imgROI.x, (double) imgROI.y, 1.0);
+                    corners.col(1) = (Mat_<double>(3, 1) << (double) (imgROI.x + imgROI.width), (double) imgROI.y, 1.0);
+                    corners.col(2) = (Mat_<double>(3, 1) << (double) (imgROI.x + imgROI.width), (double) (imgROI.y +
+                                                                                                          imgROI.height), 1.0);
+                    corners.col(3) = (Mat_<double>(3, 1) << (double) imgROI.x, (double) (imgROI.y +
+                                                                                         imgROI.height), 1.0);
+                    Mat corners2 = Mat::ones(3, 4, CV_64FC1);
+                    for (int j = 0; j < 4; ++j) {
+                        corners2.col(j) = H * corners.col(j);
+                        if (!isfinite(corners2.at<double>(0, j))
+                            || !isfinite(corners2.at<double>(1, j))
+                            || !isfinite(corners2.at<double>(2, j))) {
+                            useFallBack = true;
+                            break;
+                        }
+                        corners2.col(j) /= corners2.at<double>(2, j);
+                        if (corners2.at<double>(0, j) < 0) {
+                            corners2.at<double>(0, j) = 0;
+                        } else if (corners2.at<double>(0, j) > (double) (imgSize.width - 1)) {
+                            corners2.at<double>(0, j) = (double) (imgSize.width - 1);
+                        }
+                        if (corners2.at<double>(1, j) < 0) {
+                            corners2.at<double>(1, j) = 0;
+                        } else if (corners2.at<double>(1, j) > (double) (imgSize.height - 1)) {
+                            corners2.at<double>(1, j) = (double) (imgSize.height - 1);
+                        }
+                    }
+                    if (useFallBack)
+                        break;
+                    if (corners2.at<double>(0, 0) > corners2.at<double>(0, 1)) {//Reflection about y-axis
+                        minx = max(corners2.at<double>(0, 1), corners2.at<double>(0, 2));
+                        maxx = min(corners2.at<double>(0, 0), corners2.at<double>(0, 3));
+                    } else {
+                        minx = max(corners2.at<double>(0, 0), corners2.at<double>(0, 3));
+                        maxx = min(corners2.at<double>(0, 1), corners2.at<double>(0, 2));
+                    }
+                    if (corners2.at<double>(1, 0) > corners2.at<double>(1, 3)) {//Reflection about x-axis
+                        miny = max(corners2.at<double>(1, 3), corners2.at<double>(1, 2));
+                        maxy = min(corners2.at<double>(1, 0), corners2.at<double>(1, 1));
+                    } else {
+                        miny = max(corners2.at<double>(1, 0), corners2.at<double>(1, 1));
+                        maxy = min(corners2.at<double>(1, 3), corners2.at<double>(1, 2));
+                    }
+                    width = maxx - minx;
+                    height = maxy - miny;
+                    if ((width > (double) (maxPatchSizeMult2 * minPatchSize2))
+                        || (height > (double) (maxPatchSizeMult2 * minPatchSize2))) {
+                        useFallBack = true;
+                        break;
+                    }
+                    int patchSize_tmp = (int) ceil(1.2f * (float) patchSize);//Must be an odd number
+                    patchSize_tmp += (patchSize_tmp + 1) % 2;
+                    int patchSize2_tmp = (patchSize_tmp - 1) / 2;
+                    if ((width < minPatchSize) || (height < minPatchSize)) {
+                        patchSize = patchSize_tmp;
+                        patchSize2 = patchSize2_tmp;
+                    }
+                } while (((width < minPatchSize) || (height < minPatchSize)) && !useFallBack);
+                if (!useFallBack) {
+                    patchROIimg2 = Rect((int) ceil(minx - DBL_EPSILON),
+                                        (int) ceil(miny - DBL_EPSILON),
+                                        (int) floor(width + DBL_EPSILON),
+                                        (int) floor(height + DBL_EPSILON));
+                    patchROIimg1 = imgROI;
+                } else {
+                    //Construct a random affine homography
+                    //Generate the non-isotropic scaling of the deformation (shear)
+                    double d1, d2;
+                    d1 = getRandDoubleValRng(0.8, 1.0, rand_gen);
+                    d2 = getRandDoubleValRng(0.8, 1.0, rand_gen);
+                    size_t sign1 = rand2() % 2;
+                    for (int j = 0; j < 2; ++j) {//Higher propability to get a positive sign (sign1==0)
+                        sign1 *= rand2() % 2;
+                    }
+                    if (sign1) {
+                        d1 *= -1.0;
+                    }
+                    sign1 = rand2() % 2;
+                    for (int j = 0; j < 2; ++j) {//Higher propability to get a positive sign (sign1==0)
+                        sign1 *= rand2() % 2;
+                    }
+                    if (sign1) {
+                        d2 *= -1.0;
+                    }
+                    Mat D = Mat::eye(2, 2, CV_64FC1);
+                    D.at<double>(0, 0) = d1;
+                    D.at<double>(1, 1) = d2;
+                    //Generate a rotation for the deformation (shear)
+                    double angle_rot = getRandDoubleValRng(0, M_PI_4, rand_gen);
+                    Mat Rdeform = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
+                            std::sin(angle_rot), std::cos(angle_rot));
+                    //Generate a rotation
+                    angle_rot = getRandDoubleValRng(0, M_PI_2, rand_gen);
+                    Mat Rrot = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
+                            std::sin(angle_rot), std::cos(angle_rot));
+                    double scale = getRandDoubleValRng(0.65, 1.35, rand_gen);
+                    //Calculate the new affine homography (without translation)
+                    Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
+                    H = Mat::eye(3, 3, CV_64FC1);
+                    Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
+                }
+            }while(useFallBack);
+        }
 
-            //Calculate the angle of the major axis
-            //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
-            //and http://mathworld.wolfram.com/Ellipse.html
+        //Extract and warp the patch if the patch size is valid
+
+        //Adapt H to eliminate wrong translation inside the patch
+        //Translation to start at (0,0) in the warped image for the selected ROI arround the original image
+        // (with coordinates in the original image based on the full image)
+        Mat wiTo0 = Mat::eye(3,3,CV_64FC1);
+        wiTo0.at<double>(0,2) = -patchROIimg2.x;
+        wiTo0.at<double>(1,2) = -patchROIimg2.y;
+        Mat H1 = wiTo0 * H;
+        //Translation for the original image to ensure that points starting (left upper corner) at (0,0)
+        // are mapped to the image ROI of the warped image
+        Mat x2 = (Mat_<double>(3,1) << patchROIimg2.x, patchROIimg2.y, 1.0);
+        Mat Hi = H.inv();
+        Mat tm = Hi * x2;
+        tm /= tm.at<double>(2);
+        Mat tback = Mat::eye(3,3,CV_64FC1);
+        tback.at<double>(0,2) = tm.at<double>(0);
+        tback.at<double>(1,2) = tm.at<double>(1);
+        Mat H2 = H1 * tback;
+        Mat patchw;
+        warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg2.size(), INTER_LINEAR, BORDER_REPLICATE);
+
+        //Show the patches
+        if((verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % 40) == 0)){
+            //Show the warped patch with/without warped keypoint size (ellipse)
+            int border1x = 0, border1y = 0, border2x = 0, border2y = 0;
+            if(patchROIimg1.width > patchROIimg2.width){
+                border2x = patchROIimg1.width - patchROIimg2.width;
+            }else{
+                border1x =  patchROIimg2.width - patchROIimg1.width;
+            }
+            if(patchROIimg1.height > patchROIimg2.height){
+                border2y = patchROIimg1.height - patchROIimg2.height;
+            }else{
+                border1y =  patchROIimg2.height - patchROIimg1.height;
+            }
+            if(noEllipse){
+                Mat patchwc, patchc;
+                if(border2x || border2y) {
+                    cv::copyMakeBorder(patchw, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
+                }else{
+                    patchwc = patchw;
+                }
+                if(border1x || border1y) {
+                    cv::copyMakeBorder(img(patchROIimg1), patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
+                }else{
+                    patchc = img(patchROIimg1);
+                }
+                Mat bothPathes;
+                cv::hconcat(patchc, patchwc, bothPathes);
+                namedWindow("Original and warped patch", WINDOW_AUTOSIZE);
+                imshow("Original and warped patch", bothPathes);
+
+                waitKey(0);
+                destroyWindow("Original and warped patch");
+            }else{
+                //Transform the ellipse center position
+                cv::Point2d ellipseCenter1 = ellipseCenter;
+                ellipseCenter1.x -= patchROIimg2.x;
+                ellipseCenter1.y -= patchROIimg2.y;
+                cv::Point c((int)round(ellipseCenter1.x), (int)round(ellipseCenter1.y));
+                CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
+                && (ellipseCenter1.x < (double)patchROIimg2.width)
+                && (ellipseCenter1.y < (double)patchROIimg2.height));
+                cv::Size si((int)round(axes.width), (int)round(axes.height));
+                Mat patchwc;
+                cvtColor(patchw, patchwc, cv::COLOR_GRAY2BGR);
+                cv::ellipse(patchwc, c, si, ellipseRot, 0, 360.0, Scalar(0,0,255));
+                if(border2x || border2y) {
+                    cv::copyMakeBorder(patchwc, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
+                }
+                Mat patchc;
+                cvtColor(img(patchROIimg1), patchc, cv::COLOR_GRAY2BGR);
+                c = Point((int)round(kp.pt.x) - patchROIimg1.x, (int)round(kp.pt.y) - patchROIimg1.y);
+                cv::circle(patchc, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
+                if(border1x || border1y) {
+                    cv::copyMakeBorder(patchc, patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
+                }
+                Mat bothPathes;
+                cv::hconcat(patchc, patchwc, bothPathes);
+                namedWindow("Original and warped patch with keypoint", WINDOW_AUTOSIZE);
+                imshow("Original and warped patch with keypoint", bothPathes);
+
+                waitKey(0);
+                destroyWindow("Original and warped patch with keypoint");
+            }
+        }
+
+        //Get the exact position of the keypoint in the patch
+        Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x, (double)kp.pt.y, 1.0);
+        kpm = H1 * kpm;
+        kpm /= kpm.at<double>(2);
+        Point2f ptm = Point2f((float)kpm.at<double>(0), (float)kpm.at<double>(1));
+
+        //Check if we have to use a keypoint detector
+        bool keypDetNeed = (noEllipse || !nearZero((double)kp.angle + 1.0) || (kp.octave != 0) || (kp.class_id != -1));
+        cv::KeyPoint kp2;
+        if(parsMtch.keypPosErrType || keypDetNeed){
+            vector<KeyPoint> kps2;
+            if (matchinglib::getKeypoints(patchw, kps2, parsMtch.keyPointType, false) != 0) {
+                if(kps2.empty()){
+                    useFallBack = true;
+                }
+            }
+            if(!useFallBack){
+                vector<pair<size_t,float>> dists(kps2.size());
+                for (size_t j = 0; j < kps2.size(); ++j) {
+                    float diffx = kps2[j].pt.x - ptm.x;
+                    float diffy = kps2[j].pt.y - ptm.y;
+                    dists[j] = make_pair(j, sqrt(diffx * diffx + diffy * diffy));
+                }
+                sort(dists.begin(), dists.end(),
+                        [](pair<size_t,float> &first, pair<size_t,float> &second){return first.second < second.second;});
+                if(dists[0].second > 5.f){
+                    useFallBack = true;
+                }else if(noEllipse){
+                    kp2 = kps2[dists[0].first];
+                } else{
+                    size_t j = 0;
+                    for (; j < dists.size(); ++j) {
+                        if(dists[0].second > 5.f){
+                            break;
+                        }
+                    }
+                    if(j > 0) {
+                        //Calculate the overlap area between the found keypoints and the ellipse
+                        cv::Point2d ellipseCenter1 = ellipseCenter;
+                        ellipseCenter1.x -= patchROIimg2.x;
+                        ellipseCenter1.y -= patchROIimg2.y;
+                        cv::Point c((int) round(ellipseCenter1.x), (int) round(ellipseCenter1.y));
+                        CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
+                                  && (ellipseCenter1.x < (double) patchROIimg2.width)
+                                  && (ellipseCenter1.y < (double) patchROIimg2.height));
+                        cv::Size si((int) round(axes.width), (int) round(axes.height));
+                        Mat patchmask = Mat::zeros(patchw.size(), patchw.type());
+                        cv::ellipse(patchmask, c, si, ellipseRot, 0, 360.0, Scalar::all(255), -1);
+                        vector<size_t, int> overlapareas(j + 1);
+                        for (size_t k = 0; k < overlapareas.size(); ++k) {
+                            Mat patchmask1 = Mat::zeros(patchw.size(), patchw.type());
+                            Point c1 = Point((int) round(kps2[dists[k].first].pt.x),
+                                             (int) round(kps2[dists[k].first].pt.y));
+                            cv::circle(patchmask1, c1, (int) round(kps2[dists[k].first].size / 2.f), Scalar::all(255),
+                                       -1);
+                            Mat resmask = patchmask & patchmask1;
+                            int ovlap = cv::countNonZero(resmask);
+                            overlapareas[k] = make_pair(dists[k].first, ovlap);
+                        }
+                        sort(overlapareas.begin(), overlapareas.end(),
+                             [](pair<size_t,int> &first, pair<size_t,int> &second){return first.second > second.second;});
+                        //Take the keypoint with the largest overlap
+                        kp2 = kps2[overlapareas[0].first];
+                    }else{
+                        kp2 = kps2[dists[0].first];
+                    }
+                }
+                if(!parsMtch.keypPosErrType){
+                    //Correct the keypoint position to the exact location
+                    kp2.pt = ptm;
+                }
+            }
+        } else if(!noEllipse){
+            //Use the dimension of the ellipse to get the scale/size of the keypoint
+            kp2 = kp;
+            kp2.pt = ptm;
+            kp2.size = (float)axes.width;
+        }
+
+        //Calculate the descriptor
+        if(!useFallBack){
+            //Apply noise
 
 
+
+            vector<KeyPoint> pkp21(1);
+            pkp21[0] = kp2;
+            Mat descr21;
+            if (matchinglib::getDescriptors(img,
+                                            pkp21,
+                                            parsMtch.descriptorType,
+                                            descr21,
+                                            parsMtch.keyPointType) != 0) {
+                useFallBack = true;
+            }else{
+                //Check matchability
+            }
+        }
+
+        if(useFallBack){
+            //Only add gaussian noise and salt and pepper noise to the original patch
         }
 
 
@@ -942,14 +1193,23 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
     }
 }
 
-bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minSquare){
+bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
+        const cv::KeyPoint &kp,
+        cv::Rect &patchROIimg1,
+        cv::Rect &patchROIimg2,
+        cv::Point2d &ellipseCenter,
+        double &ellipseRot,
+        cv::Size2d &axes){
     //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
     // to estimate to minimal necessary patch size
+    double r = 0;
     if(kp.size <= 0) {
-        return false;
+        r = 30.0;
+    }
+    else{
+        r = (double) kp.size / 2.0;//Radius of the keypoint area
     }
 
-    double r = (double) kp.size / 2.0;//Radius of the keypoint area
     /*Build a matrix representation of the circle
      * see https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections
      * and https://en.wikipedia.org/wiki/Conic_section
@@ -957,9 +1217,17 @@ bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minS
      * Matrix representation: Q = [A,   B/2, D/2;
      *                             B/2, C,   E/2,
      *                             D/2, E/2, F]
+     *
+     * As our circle is centered arround the keypoint location, we have to take into account the shift:
+     * (x - x0)^2 + (y - y0)^2 = r^2
+     * => x^2 + y^2 -2x0*x -2y0*y + x0^2 + y0^2 - r^2 = 0
      */
     Mat Q = Mat::eye(3,3,CV_64FC1);
-    Q.at<double>(2,2) = -1.0 * r * r;
+    Q.at<double>(0,2) = -1.0 * (double)kp.pt.x;
+    Q.at<double>(2,0) = Q.at<double>(0,2);
+    Q.at<double>(1,2) = -1.0 * (double)kp.pt.y;
+    Q.at<double>(2,1) = Q.at<double>(1,2);
+    Q.at<double>(2,2) = (double)(kp.pt.x * kp.pt.x + kp.pt.y * kp.pt.y) - r * r;
     //Transform the circle to get a rotated and translated ellipse
     //from https://math.stackexchange.com/questions/1572225/circle-homography
     Mat Hi = H.inv();
@@ -967,7 +1235,7 @@ bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minS
     //Check if it is an ellipse
     //see https://math.stackexchange.com/questions/280937/finding-the-angle-of-rotation-of-an-ellipse-from-its-general-equation-and-the-ot
     double chk = 4.0 * QH.at<double>(0,1) * QH.at<double>(0,1) - 4.0 * QH.at<double>(0,0) * QH.at<double>(1,1);
-    if(chk >= 0) {//We have an parabola if chk == 0 or a hyperbola if chk > 0
+    if((chk > 0) || nearZero(chk)) {//We have an parabola if chk == 0 or a hyperbola if chk > 0
         return false;
     }
 
@@ -986,6 +1254,7 @@ bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minS
             teta += M_PI_2;
         }
     }
+    ellipseRot = teta;
 
     //Calculate center of ellipse
     //First, get equation for NOT rotated ellipse
@@ -1009,15 +1278,25 @@ bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minS
     //Get backrotated centerpoints
     double x01 = -D1 / (2.0 * A1);
     double y01 = -E1 / (2.0 * C1);
+    if(!isfinite(x01) || !isfinite(y01)){
+        return false;
+    }
     //Get rotated (original) center points of the ellipse
     double x0 = x01 * cosTeta - y01 * sinTeta;
     double y0 = x01 * sinTeta + y01 * cosTeta;
+
+    ellipseCenter = Point2d(x0, y0);
 
     //Get division coefficients a^2 and b^2 of backrotated ellipse
     //(x' - x0')^2 / a^2 + (y' - y0')^2 / b^2 = 1
     double dom = -4.0 * F1 * A1 * C1 + C1 * D1 * D1 + A1 * E1 * E1;
     double a2 = dom / (4.0 * A1 * C1 * C1);//Corresponds to half length of major axis
     double b2 = dom / (4.0 * A1 * A1 * C1);//Corresponds to half length of minor axis
+    if(!isfinite(a2) || !isfinite(b2)){
+        return false;
+    }
+
+    axes = Size2d(a2, b2);
 
     //Calculate 2D vector of major and minor axis
     Mat ma = (Mat_<double>(2,1) << a2 * cosTeta, a2 * sinTeta);
@@ -1036,8 +1315,90 @@ bool getRectFitsInEllispe(const cv::Mat &H, const cv::KeyPoint &kp, double &minS
     cv::minMaxLoc(corners.row(1), &miny, &maxy);
     double dimx = abs(maxx - minx);
     double dimy = abs(maxy - miny);
-    //Finally get the dimensions of a square into which the rectangle fits
-    minSquare = max(dimx, dimy);
+    if((dimx > (double)(maxPatchSizeMult2 * minPatchSize2))
+    || (dimy > (double)(maxPatchSizeMult2 * minPatchSize2))){
+        return false;
+    }
+    //Finally get the dimensions of a square into which the rectangle fits and enlarge it by 20%
+    int minSquare = (int)ceil(1.2 * max(dimx, dimy));
+    //Make it an odd number
+    minSquare += (minSquare + 1) % 2;
+    if(minSquare < minPatchSize2){
+        minSquare = minPatchSize2;
+    }
+    double minSquare2 = (double)((minSquare - 1) / 2);
+
+
+    //Transform the square back into the original image
+    Mat corners1 = Mat::ones(3,4,CV_64FC1);
+    x0 = round(x0);
+    y0 = round(y0);
+    corners1.col(0) = (Mat_<double>(3,1) << x0 - minSquare2, y0 - minSquare2, 1.0);
+    corners1.col(1) = (Mat_<double>(3,1) << x0 + minSquare2, y0 - minSquare2, 1.0);
+    corners1.col(2) = (Mat_<double>(3,1) << x0 + minSquare2, y0 + minSquare2, 1.0);
+    corners1.col(3) = (Mat_<double>(3,1) << x0 - minSquare2, y0 + minSquare2, 1.0);
+    patchROIimg2 = cv::Rect((int)floor(x0 - minSquare2 + DBL_EPSILON),
+            (int)floor(y0 - minSquare2 + DBL_EPSILON),
+            minSquare,
+            minSquare);
+    Mat corners2 = Mat::ones(3,4,CV_64FC1);
+    bool atBorder = false;
+    for (int j = 0; j < 4; ++j) {
+        corners2.col(j) = Hi * corners1.col(j);
+        corners2.col(j) /= corners2.at<double>(2,j);
+        if(corners2.at<double>(0,j) < 0){
+            corners2.at<double>(0,j) = 0;
+            atBorder = true;
+        }else if(corners2.at<double>(0,j) > (double)(imgSize.width - 1)){
+            corners2.at<double>(0,j) = (double)(imgSize.width - 1);
+            atBorder = true;
+        }
+        if(corners2.at<double>(1,j) < 0){
+            corners2.at<double>(1,j) = 0;
+            atBorder = true;
+        }else if(corners2.at<double>(1,j) > (double)(imgSize.height - 1)){
+            corners2.at<double>(1,j) = (double)(imgSize.height - 1);
+            atBorder = true;
+        }
+    }
+    //Adapt the ROI in the transformed image if we are at the border
+    if(atBorder){
+        for (int j = 0; j < 4; ++j) {
+            corners1.col(j) = H * corners2.col(j);
+            corners1.col(j) /= corners1.at<double>(2,j);
+        }
+        if(corners1.at<double>(0,0) > corners1.at<double>(0,1)){//Reflection about y-axis
+            minx = max(corners1.at<double>(0,1), corners1.at<double>(0,2));
+            maxx = min(corners1.at<double>(0,0), corners1.at<double>(0,3));
+        }
+        else{
+            minx = max(corners1.at<double>(0,0), corners1.at<double>(0,3));
+            maxx = min(corners1.at<double>(0,1), corners1.at<double>(0,2));
+        }
+        if(corners1.at<double>(1,0) > corners1.at<double>(1,3)) {//Reflection about x-axis
+            miny = max(corners1.at<double>(1,3), corners1.at<double>(1,2));
+            maxy = min(corners1.at<double>(1,0), corners1.at<double>(1,1));
+        }else{
+            miny = max(corners1.at<double>(1,0), corners1.at<double>(1,1));
+            maxy = min(corners1.at<double>(1,3), corners1.at<double>(1,2));
+        }
+        double width = maxx - minx;
+        double height = maxy - miny;
+        patchROIimg2 = cv::Rect((int)ceil(minx - DBL_EPSILON),
+                (int)ceil(miny - DBL_EPSILON),
+                (int)floor(width + DBL_EPSILON),
+                (int)floor(height + DBL_EPSILON));
+    }
+
+    //Calculate the necessary ROI in the original image
+    cv::minMaxLoc(corners2.row(0), &minx, &maxx);
+    cv::minMaxLoc(corners2.row(1), &miny, &maxy);
+    dimx = abs(maxx - minx);
+    dimy = abs(maxy - miny);
+    patchROIimg1 = cv::Rect((int)ceil(minx - DBL_EPSILON),
+                            (int)ceil(miny - DBL_EPSILON),
+                            (int)floor(dimx + DBL_EPSILON),
+                            (int)floor(dimy + DBL_EPSILON));
 
     return true;
 }

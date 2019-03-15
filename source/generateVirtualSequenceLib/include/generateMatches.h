@@ -167,11 +167,20 @@ private:
     void generateCorrespondingFeatures();
     void generateCorrespondingFeaturesTP(size_t featureIdxBegin);
     void generateCorrespondingFeaturesTN(size_t featureIdxBegin);
+    bool getRectFitsInEllipse(const cv::Mat &H,
+                              const cv::KeyPoint &kp,
+                              cv::Rect &patchROIimg1,
+                              cv::Rect &patchROIimg2,
+                              cv::Point2d &ellipseCenter,
+                              double &ellipseRot,
+                              cv::Size2d &axes);
 
 public:
     GenMatchSequParameters parsMtch;
 
 private:
+    const int minPatchSize2 = 65;//Corresponds to the minimal patch size (must be an odd number) we want after warping. It is also used to define the maximum patch size by multiplying it with maxPatchSizeMult2
+    const int maxPatchSizeMult2 = 3;//Multiplication factor for minPatchSize2 to define the maximum allowed patch size of the warped image
     const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
     std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
