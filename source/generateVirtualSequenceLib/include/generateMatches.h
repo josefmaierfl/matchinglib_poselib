@@ -60,6 +60,14 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     }
 };
 
+struct stats{
+    double median;
+    double mean;
+    double standardDev;
+    double minVal;
+    double maxVal;
+};
+
 
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
 public:
@@ -103,7 +111,7 @@ private:
 
     bool getFeatures();
 
-    bool checkMatchability();
+    double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2);
 
     bool writeSequenceParameters(const std::string &filename);
 
@@ -158,7 +166,11 @@ private:
                          const cv::Mat &plane1,
                          const cv::Mat &plane2);
 
-    void addImgNoiseGauss(const cv::Mat &patchIn, cv::Mat &patchOut, bool visualize = false);
+    void addImgNoiseGauss(const cv::Mat &patchIn,
+            cv::Mat &patchOut,
+                          double meanNoise,
+                          double stdNoise,
+                          bool visualize = false);
     void addImgNoiseSaltAndPepper(const cv::Mat &patchIn,
             cv::Mat &patchOut,
             int minTH = 30,
@@ -174,6 +186,7 @@ private:
                               cv::Point2d &ellipseCenter,
                               double &ellipseRot,
                               cv::Size2d &axes);
+    void calcGoodBadDescriptorTH();
 
 public:
     GenMatchSequParameters parsMtch;
@@ -209,6 +222,7 @@ private:
     double actNormT;//Norm of the actual translation vector between the stereo cameras
     std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains to most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
     bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame
+    stats badDescrTH;//Descriptor distance statistics for not matching descriptors. E.g. a descriptor distance larger the median could be considered as not matching descriptors
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

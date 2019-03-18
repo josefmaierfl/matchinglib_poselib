@@ -246,10 +246,14 @@ bool genMatchSequ::generateMatches(){
 
 
 
-void genMatchSequ::addImgNoiseGauss(const cv::Mat &patchIn, cv::Mat &patchOut, bool visualize){
+void genMatchSequ::addImgNoiseGauss(const cv::Mat &patchIn,
+        cv::Mat &patchOut,
+        double meanNoise,
+        double stdNoise,
+        bool visualize){
     Mat mSrc_16SC;
     Mat mGaussian_noise = Mat(patchIn.size(),CV_16SC1);
-    randn(mGaussian_noise,Scalar::all(parsMtch.imgIntNoise.first), Scalar::all(parsMtch.imgIntNoise.second));
+    randn(mGaussian_noise,Scalar::all(meanNoise), Scalar::all(stdNoise));
 
     patchIn.convertTo(mSrc_16SC,CV_16SC1);
     addWeighted(mSrc_16SC, 1.0, mGaussian_noise, 1.0, 0.0, mSrc_16SC);
@@ -642,6 +646,7 @@ bool genMatchSequ::getFeatures() {
 
     //Get random sequence of images
     vector<size_t> imgIdxs(nrImgs);
+    std::iota(imgIdxs.begin(), imgIdxs.end(), 0);
     std::shuffle(imgIdxs.begin(), imgIdxs.end(), std::mt19937{std::random_device{}()});
     vector<string> imageList_tmp;
     imageList_tmp.reserve(nrImgs);
@@ -721,11 +726,15 @@ bool genMatchSequ::getFeatures() {
         }
     }
 
+    //Calculate statistics for bad descriptor distances
+    calcGoodBadDescriptorTH();
+
     //Shuffle keypoints and descriptors
     vector<KeyPoint> keypoints1_tmp(keypoints1.size());
     Mat descriptors1_tmp = Mat(descriptors1.rows, descriptors1.cols, descriptors1.type());
     vector<size_t> featureImgIdx_tmp(featureImgIdx.size());
     vector<size_t> featureIdxs(keypoints1.size());
+    std::iota(featureIdxs.begin(), featureIdxs.end(), 0);
     std::shuffle(featureIdxs.begin(), featureIdxs.end(), std::mt19937{std::random_device{}()});
     for(int i = 0; i < (int)featureIdxs.size(); ++i){
         keypoints1_tmp[i] = std::move(keypoints1[featureIdxs[i]]);
@@ -961,18 +970,12 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                     double d1, d2;
                     d1 = getRandDoubleValRng(0.8, 1.0, rand_gen);
                     d2 = getRandDoubleValRng(0.8, 1.0, rand_gen);
-                    size_t sign1 = rand2() % 2;
-                    for (int j = 0; j < 2; ++j) {//Higher propability to get a positive sign (sign1==0)
-                        sign1 *= rand2() % 2;
-                    }
-                    if (sign1) {
+                    size_t sign1 = rand2() % 6;
+                    if (sign1 == 0) {
                         d1 *= -1.0;
                     }
-                    sign1 = rand2() % 2;
-                    for (int j = 0; j < 2; ++j) {//Higher propability to get a positive sign (sign1==0)
-                        sign1 *= rand2() % 2;
-                    }
-                    if (sign1) {
+                    sign1 = rand2() % 6;
+                    if (sign1 == 0) {
                         d2 *= -1.0;
                     }
                     Mat D = Mat::eye(2, 2, CV_64FC1);
@@ -1150,7 +1153,7 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                         kp2 = kps2[dists[0].first];
                     }
                 }
-                if(!parsMtch.keypPosErrType){
+                if(!parsMtch.keypPosErrType && !useFallBack){
                     //Correct the keypoint position to the exact location
                     kp2.pt = ptm;
                 }
@@ -1163,14 +1166,23 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         }
 
         //Calculate the descriptor
+        Mat patchwn;
+        Mat descr21;
+        bool visPatchNoise = false;
+        if(!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)){
+            visPatchNoise = true;
+        }
         if(!useFallBack){
             //Apply noise
+            if(!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)){
+                addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second, visPatchNoise);
+            }
 
+            //Change to keypoint position based on the given error range
 
-
+            //Get descriptor
             vector<KeyPoint> pkp21(1);
             pkp21[0] = kp2;
-            Mat descr21;
             if (matchinglib::getDescriptors(img,
                                             pkp21,
                                             parsMtch.descriptorType,
@@ -1179,18 +1191,154 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                 useFallBack = true;
             }else{
                 //Check matchability
+                double descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
+                if(descrDist > badDescrTH.maxVal){
+                    useFallBack = true;
+                }
             }
         }
 
         if(useFallBack){
             //Only add gaussian noise and salt and pepper noise to the original patch
-        }
+            const double minDescrDist = max(min(badDescrTH.median / 8.0, badDescrTH.minVal / 2.0), badDescrTH.minVal / 4.0);
+            double meang, stdg;
+            meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
+            stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
+            Mat patchfb = img(patchROIimg1);
+            patchwn = patchfb.clone();
+            double descrDist = -1.0;
+            bool fullImgUsed = false;
+            kp2 = kp;
+            kp2.pt.x -= (float)patchROIimg1.x;
+            kp2.pt.y -= (float)patchROIimg1.y;
 
+            //Change to keypoint position based on the given error range
+
+            int itCnt = 0;
+            do{
+                Mat patchwgn;
+                if(descrDist > badDescrTH.maxVal){
+                    meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
+                    stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
+                    patchwn = patchfb.clone();
+                    addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
+                    addImgNoiseSaltAndPepper(patchwgn, patchwn, 20, 235, visPatchNoise);
+                }else {
+                    addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
+                    addImgNoiseSaltAndPepper(patchwgn, patchwn, 25, 230, visPatchNoise);
+                }
+                //Get descriptor
+                vector<KeyPoint> pkp21(1);
+                pkp21[0] = kp2;
+                if (matchinglib::getDescriptors(img,
+                                                pkp21,
+                                                parsMtch.descriptorType,
+                                                descr21,
+                                                parsMtch.keyPointType) != 0) {
+                    if(fullImgUsed){
+                        //Use the original descriptor
+                        cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                                "this will result in a descriptor distance of 0 for this particular correspondence!"
+                                << endl;
+                        descr21 = descriptors1.row((int)featureIdx).clone();
+                        break;
+
+                    }else {
+                        //Use the full image instead of a patch
+                        patchfb = img;
+                        patchwn = patchfb.clone();
+                        descrDist = -1.0;
+                        kp2 = kp;
+                        fullImgUsed = true;
+                    }
+                }else{
+                    //Check matchability
+                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
+                }
+                itCnt++;
+            }while(((descrDist < minDescrDist) || (minDescrDist > badDescrTH.maxVal)) && (itCnt < 20));
+            if(itCnt >= 20){
+                //Use the original descriptor
+                cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                        "this will result in a descriptor distance of 0 for this particular correspondence!"
+                     << endl;
+                descr21 = descriptors1.row((int)featureIdx).clone();
+            }
+        }
 
 
 
         featureIdx++;
     }
+}
+
+double genMatchSequ::getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2){
+    if(descriptor1.type() == CV_8U){
+        return norm(descriptor1, descriptor2, NORM_HAMMING);
+    }
+
+    return norm(descriptor1, descriptor2, NORM_L2);
+}
+
+void genMatchSequ::calcGoodBadDescriptorTH(){
+    const int compareNr = min(100, (int)keypoints1.size());
+    vector<int> usedDescriptors(descriptors1.rows);
+    std::iota(usedDescriptors.begin(), usedDescriptors.end(), 0);
+    std::shuffle(usedDescriptors.begin(), usedDescriptors.end(), std::mt19937{std::random_device{}()});
+    usedDescriptors.erase(usedDescriptors.begin() + compareNr, usedDescriptors.end());
+    const int maxComps = compareNr * (compareNr - 1) / 2;
+    vector<double> dist_bad(maxComps);
+
+    //Calculate any possible descriptor distance of not matching descriptors
+    int nrComps = 0;
+    if(descriptors1.type() == CV_8U) {
+        for (int i = 0; i < compareNr - 1; ++i) {
+            for (int j = i + 1; j < compareNr; ++j) {
+                double descr_norm;
+                descr_norm = norm(descriptors1.row(usedDescriptors[i]), descriptors1.row(usedDescriptors[j]),
+                                  NORM_HAMMING);
+                dist_bad[nrComps] = descr_norm;
+                nrComps++;
+            }
+        }
+    }else{
+        for (int i = 0; i < compareNr - 1; ++i) {
+            for (int j = i + 1; j < compareNr; ++j) {
+                double descr_norm;
+                descr_norm = norm(descriptors1.row(usedDescriptors[i]), descriptors1.row(usedDescriptors[j]), NORM_L2);
+                dist_bad[nrComps] = descr_norm;
+                nrComps++;
+            }
+        }
+    }
+
+    //Calculate the median
+    sort(dist_bad.begin(), dist_bad.end());
+    if((maxComps % 2) == 0){
+        badDescrTH.median = (dist_bad[maxComps / 2 - 1] + dist_bad[maxComps / 2]) / 2.0;
+    }else{
+        badDescrTH.median = dist_bad[maxComps / 2];
+    }
+
+    //Calculate the mean
+    badDescrTH.mean = 0;
+    for(auto& i : dist_bad){
+        badDescrTH.mean += i;
+    }
+    badDescrTH.mean /= (double)maxComps;
+
+    //Calculate the standard deviation
+    badDescrTH.standardDev = 0;
+    for(auto& i : dist_bad){
+        const double diff = i - badDescrTH.mean;
+        badDescrTH.standardDev += diff * diff;
+    }
+    badDescrTH.standardDev /= (double)maxComps;
+    badDescrTH.standardDev = sqrt(badDescrTH.standardDev);
+
+    //Get min and max values
+    badDescrTH.minVal = *min_element(dist_bad.begin(), dist_bad.end());
+    badDescrTH.maxVal = *max_element(dist_bad.begin(), dist_bad.end());
 }
 
 bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
