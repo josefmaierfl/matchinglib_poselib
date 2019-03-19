@@ -16,7 +16,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::string keyPointType;//Name of keypoint detector
     std::string descriptorType;//Name of descriptor extractor
     bool keypPosErrType;//Keypoint detector error (true) or error normal distribution (false)
-    std::pair<double, double> keypErrDistr;//Keypoint error distribution (mean, std)
+    std::pair<double, double> keypErrDistr;//Keypoint error distribution (mean, std) for the matching keypoint location
     std::pair<double, double> imgIntNoise;//Noise (mean, std) on the image intensity for descriptor calculation
     double lostCorrPor;//Portion (0 to 0.9) of lost correspondences from frame to frame. It corresponds to the portion of backprojected 3D-points that should not be visible in the frame.
     bool storePtClouds;//If true, all PCL point clouds and necessary information to load a cam sequence with correspondences are stored to disk
@@ -50,10 +50,13 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             rwXMLinfo(rwXMLinfo_),
             compressedWrittenInfo(compressedWrittenInfo_),
             takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_) {
-        CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first > -5.0) && (keypErrDistr.first < 5.0) &&
-                                     (keypErrDistr.second > -5.0) && (keypErrDistr.second < 5.0)));
-        CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second > -25.0) &&
-                  (imgIntNoise.second < 25.0));
+        keypErrDistr.first = abs(keypErrDistr.first);
+        keypErrDistr.second = abs(keypErrDistr.second);
+        CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first < 5.0) &&
+                                     (keypErrDistr.second < 5.0)
+                                     && (keypErrDistr.first + 3.0 * keypErrDistr.second < 10.0)));
+        imgIntNoise.second = abs(imgIntNoise.second);
+        CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0));
         CV_Assert((lostCorrPor >= 0) && (lostCorrPor <= 0.9));
         CV_Assert(!imgPath.empty());
 
@@ -177,16 +180,26 @@ private:
             int maxTH = 225,
             bool visualize = false);
     void generateCorrespondingFeatures();
-    void generateCorrespondingFeaturesTP(size_t featureIdxBegin);
-    void generateCorrespondingFeaturesTN(size_t featureIdxBegin);
+    void generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
+                                           bool useTN,
+                                           std::vector<cv::KeyPoint> &frameKPs1,
+                                           std::vector<cv::KeyPoint> &frameKPs2,
+                                           cv::Mat &frameDescr1,
+                                           cv::Mat &frameDescr2);
     bool getRectFitsInEllipse(const cv::Mat &H,
                               const cv::KeyPoint &kp,
                               cv::Rect &patchROIimg1,
                               cv::Rect &patchROIimg2,
                               cv::Point2d &ellipseCenter,
                               double &ellipseRot,
-                              cv::Size2d &axes);
+                              cv::Size2d &axes,
+                              bool &reflectionX,
+                              bool &reflectionY);
     void calcGoodBadDescriptorTH();
+
+    void distortKeyPointPosition(cv::KeyPoint &kp2,
+                                 const cv::Rect &roi,
+                                 std::normal_distribution<double> &distr);
 
 public:
     GenMatchSequParameters parsMtch;

@@ -823,30 +823,86 @@ void genMatchSequ::generateCorrespondingFeatures(){
         }
     }
     size_t featureIdxBegin_tmp = featureIdxBegin;
-    generateCorrespondingFeaturesTP(featureIdxBegin);
-    featureIdxBegin_tmp += combNrCorrsTP;
-    generateCorrespondingFeaturesTN(featureIdxBegin_tmp);
+    vector<KeyPoint> frameKPsTP1((size_t)combNrCorrsTP), frameKPsTP2((size_t)combNrCorrsTP);
+    Mat frameDescr1TP, frameDescr2TP;
+    generateCorrespondingFeaturesTPTN(featureIdxBegin,
+                                      false,
+                                      frameKPsTP1,
+                                      frameKPsTP2,
+                                      frameDescr1TP,
+                                      frameDescr2TP);
+    CV_Assert((frameDescr1TP.rows == frameDescr2TP.rows) && (frameDescr1TP.rows == combNrCorrsTP));
+    featureIdxBegin_tmp += (size_t)combNrCorrsTP;
+    if(combNrCorrsTN > 0) {
+        vector<KeyPoint> frameKPsTN1((size_t)combNrCorrsTP), frameKPsTN2((size_t)combNrCorrsTP);
+        Mat frameDescr1TN, frameDescr2TN;
+        generateCorrespondingFeaturesTPTN(featureIdxBegin_tmp,
+                                          true,
+                                          frameKPsTN1,
+                                          frameKPsTN2,
+                                          frameDescr1TN,
+                                          frameDescr2TN);
+    }
     featureIdxBegin += nrCorrs[actFrameCnt];
 }
 
-void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
-    //Generate feature for every TP
+void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
+                                                     bool useTN,
+                                                     std::vector<cv::KeyPoint> &frameKPs1,
+                                                     std::vector<cv::KeyPoint> &frameKPs2,
+                                                     cv::Mat &frameDescr1,
+                                                     cv::Mat &frameDescr2){
+    //Generate feature for every TP or TN
     int show_cnt = 0;
+    const int show_interval = 1;
     size_t featureIdx = featureIdxBegin;
-    for (int i = 0; i < combNrCorrsTP; ++i) {
-        //Calculate homography
-        Mat X = Mat(comb3DPts[i], true).reshape(1);
+
+    //Calculate image intensity noise distribution for TNs
+    double stdNoiseTN = getRandDoubleValRng(2.0, 10.0, rand_gen);
+    double meanIntTNNoise = getRandDoubleValRng(0, 2.5 * stdNoiseTN, rand_gen);
+    meanIntTNNoise *= pow(-1.0, (double)(rand2() % 2));
+
+    //Maximum descriptor distance for TP
+    double ThTp = badDescrTH.median + (badDescrTH.maxVal - badDescrTH.median) / 3.0;
+    //Minimum descriptor distance for TP for the fall-back solution
+    const double minDescrDistTP = max(min(badDescrTH.median / 8.0, badDescrTH.minVal / 2.0), badDescrTH.minVal / 4.0);
+    //Minimum descriptor distance for TN
+    double ThTn = min(badDescrTH.mean - 4.0 * badDescrTH.standardDev, 2.0 * badDescrTH.minVal / 3.0);
+    ThTn = (ThTn < badDescrTH.minVal / 3.0) ? (2.0 * badDescrTH.minVal / 3.0):ThTn;
+
+    std::normal_distribution<double> distr;
+    int nrcombCorrs;
+    if(useTN){
+        nrcombCorrs = combNrCorrsTN;
+        double posMeanErr = getRandDoubleValRng(0, 5.0, rand_gen);
+        double maxErr = getRandDoubleValRng(posMeanErr + 1.0, 10.0, rand_gen);
+        double posStdErr = getRandDoubleValRng(0, (maxErr - posMeanErr) / 3.5, rand_gen);
+        distr = std::normal_distribution<double>(posMeanErr, posStdErr);
+    }else{
+        nrcombCorrs = combNrCorrsTP;
+        distr = std::normal_distribution<double>(parsMtch.keypErrDistr.first, parsMtch.keypErrDistr.second);
+    }
+
+    for (int i = 0; i < nrcombCorrs; ++i) {
         bool visualize = false;
-        if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((show_cnt % 40) == 0)){
+        if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((show_cnt % show_interval) == 0)){
             visualize = true;
         }
         show_cnt++;
-        Mat H = getHomographyForDistortionChkOld(X,
+        //Calculate homography
+        Mat H;
+        if(useTN){
+            H = getHomographyForDistortionTN(combCorrsImg1TN.col(i), visualize);
+        }else {
+            Mat X = Mat(comb3DPts[i], true).reshape(1);
+            H = getHomographyForDistortionChkOld(X,
                                                  combCorrsImg1TP.col(i),
                                                  combCorrsImg2TP.col(i),
                                                  combCorrsImg12TP_IdxWorld[i],
                                                  featureIdx,
                                                  visualize);
+        }
+
         //Get image (check if already in memory)
         Mat img;
         if(loadImgsEveryFrame){
@@ -871,7 +927,9 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         cv::Size2d axes;
         bool useFallBack = false;
         bool noEllipse = false;
-        if(!getRectFitsInEllipse(H, kp, patchROIimg1, patchROIimg2, ellipseCenter, ellipseRot, axes)){
+        bool reflectionX = false;
+        bool reflectionY = false;
+        if(!getRectFitsInEllipse(H, kp, patchROIimg1, patchROIimg2, ellipseCenter, ellipseRot, axes, reflectionX, reflectionY)){
             //If the calculation of the necessary patch size failed, calculate a standard patch
             noEllipse = true;
             const double minPatchSize = 41.0;
@@ -932,16 +990,20 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                     if (corners2.at<double>(0, 0) > corners2.at<double>(0, 1)) {//Reflection about y-axis
                         minx = max(corners2.at<double>(0, 1), corners2.at<double>(0, 2));
                         maxx = min(corners2.at<double>(0, 0), corners2.at<double>(0, 3));
+                        reflectionY = true;
                     } else {
                         minx = max(corners2.at<double>(0, 0), corners2.at<double>(0, 3));
                         maxx = min(corners2.at<double>(0, 1), corners2.at<double>(0, 2));
+                        reflectionY = false;
                     }
                     if (corners2.at<double>(1, 0) > corners2.at<double>(1, 3)) {//Reflection about x-axis
                         miny = max(corners2.at<double>(1, 3), corners2.at<double>(1, 2));
                         maxy = min(corners2.at<double>(1, 0), corners2.at<double>(1, 1));
+                        reflectionX = true;
                     } else {
                         miny = max(corners2.at<double>(1, 0), corners2.at<double>(1, 1));
                         maxy = min(corners2.at<double>(1, 3), corners2.at<double>(1, 2));
+                        reflectionX = false;
                     }
                     width = maxx - minx;
                     height = maxy - miny;
@@ -1004,12 +1066,28 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         //Translation to start at (0,0) in the warped image for the selected ROI arround the original image
         // (with coordinates in the original image based on the full image)
         Mat wiTo0 = Mat::eye(3,3,CV_64FC1);
-        wiTo0.at<double>(0,2) = -patchROIimg2.x;
-        wiTo0.at<double>(1,2) = -patchROIimg2.y;
+        wiTo0.at<double>(0,2) = -1.0 * (double)patchROIimg2.x;
+        wiTo0.at<double>(1,2) = -1.0 * (double)patchROIimg2.y;
         Mat H1 = wiTo0 * H;
         //Translation for the original image to ensure that points starting (left upper corner) at (0,0)
         // are mapped to the image ROI of the warped image
-        Mat x2 = (Mat_<double>(3,1) << patchROIimg2.x, patchROIimg2.y, 1.0);
+
+        //Check for reflection
+        Mat x2;
+        if(reflectionX && reflectionY){
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x + (double)patchROIimg2.width - 1.0,
+                    (double)patchROIimg2.y + (double)patchROIimg2.height - 1.0, 1.0);
+        }else if(reflectionX){
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x,
+                    (double)patchROIimg2.y + (double)patchROIimg2.height - 1.0, 1.0);
+        }else if(reflectionY){
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x + (double)patchROIimg2.width - 1.0,
+                    (double)patchROIimg2.y, 1.0);
+        }else{
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x,
+                    (double)patchROIimg2.y, 1.0);
+        }
+
         Mat Hi = H.inv();
         Mat tm = Hi * x2;
         tm /= tm.at<double>(2);
@@ -1021,7 +1099,7 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg2.size(), INTER_LINEAR, BORDER_REPLICATE);
 
         //Show the patches
-        if((verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % 40) == 0)){
+        if((verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % show_interval) == 0)){
             //Show the warped patch with/without warped keypoint size (ellipse)
             int border1x = 0, border1y = 0, border2x = 0, border2y = 0;
             if(patchROIimg1.width > patchROIimg2.width){
@@ -1095,7 +1173,8 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
         //Check if we have to use a keypoint detector
         bool keypDetNeed = (noEllipse || !nearZero((double)kp.angle + 1.0) || (kp.octave != 0) || (kp.class_id != -1));
         cv::KeyPoint kp2;
-        if(parsMtch.keypPosErrType || keypDetNeed){
+        Point2f kp2err;
+        if((!useTN && parsMtch.keypPosErrType) || keypDetNeed){
             vector<KeyPoint> kps2;
             if (matchinglib::getKeypoints(patchw, kps2, parsMtch.keyPointType, false) != 0) {
                 if(kps2.empty()){
@@ -1115,6 +1194,8 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                     useFallBack = true;
                 }else if(noEllipse){
                     kp2 = kps2[dists[0].first];
+                    kp2err.x = kp2.pt.x - ptm.x;
+                    kp2err.y = kp2.pt.y - ptm.y;
                 } else{
                     size_t j = 0;
                     for (; j < dists.size(); ++j) {
@@ -1134,7 +1215,7 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                         cv::Size si((int) round(axes.width), (int) round(axes.height));
                         Mat patchmask = Mat::zeros(patchw.size(), patchw.type());
                         cv::ellipse(patchmask, c, si, ellipseRot, 0, 360.0, Scalar::all(255), -1);
-                        vector<size_t, int> overlapareas(j + 1);
+                        vector<pair<size_t, int>> overlapareas(j + 1);
                         for (size_t k = 0; k < overlapareas.size(); ++k) {
                             Mat patchmask1 = Mat::zeros(patchw.size(), patchw.type());
                             Point c1 = Point((int) round(kps2[dists[k].first].pt.x),
@@ -1152,10 +1233,16 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                     }else{
                         kp2 = kps2[dists[0].first];
                     }
+                    kp2err.x = kp2.pt.x - ptm.x;
+                    kp2err.y = kp2.pt.y - ptm.y;
                 }
-                if(!parsMtch.keypPosErrType && !useFallBack){
+                if((!parsMtch.keypPosErrType || useTN) && !useFallBack){
                     //Correct the keypoint position to the exact location
                     kp2.pt = ptm;
+                    //Change to keypoint position based on the given error range
+                    distortKeyPointPosition(kp2, patchROIimg1, distr);
+                    kp2err.x = kp2.pt.x - ptm.x;
+                    kp2err.y = kp2.pt.y - ptm.y;
                 }
             }
         } else if(!noEllipse){
@@ -1163,27 +1250,37 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
             kp2 = kp;
             kp2.pt = ptm;
             kp2.size = (float)axes.width;
+            //Change to keypoint position based on the given error range
+            distortKeyPointPosition(kp2, patchROIimg1, distr);
+            kp2err.x = kp2.pt.x - ptm.x;
+            kp2err.y = kp2.pt.y - ptm.y;
         }
 
         //Calculate the descriptor
         Mat patchwn;
         Mat descr21;
         bool visPatchNoise = false;
-        if(!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)){
+        if((verbose & SHOW_PATCHES_WITH_NOISE) && (((show_cnt - 1) % show_interval) == 0)){
             visPatchNoise = true;
         }
         if(!useFallBack){
             //Apply noise
-            if(!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)){
-                addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second, visPatchNoise);
+            if(useTN){
+                Mat patchwnsp;
+                addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoise, 2.0 * stdNoiseTN,
+                                 visPatchNoise);
+                addImgNoiseSaltAndPepper(patchwnsp, patchwn, 32, 223, visPatchNoise);
+            }else {
+                if (!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)) {
+                    addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second,
+                                     visPatchNoise);
+                }
             }
-
-            //Change to keypoint position based on the given error range
 
             //Get descriptor
             vector<KeyPoint> pkp21(1);
             pkp21[0] = kp2;
-            if (matchinglib::getDescriptors(img,
+            if (matchinglib::getDescriptors(patchwn,
                                             pkp21,
                                             parsMtch.descriptorType,
                                             descr21,
@@ -1192,15 +1289,20 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
             }else{
                 //Check matchability
                 double descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
-                if(descrDist > badDescrTH.maxVal){
-                    useFallBack = true;
+                if(useTN){
+                    if (descrDist < ThTn) {
+                        useFallBack = true;
+                    }
+                }else {
+                    if (descrDist > ThTp) {
+                        useFallBack = true;
+                    }
                 }
             }
         }
 
         if(useFallBack){
             //Only add gaussian noise and salt and pepper noise to the original patch
-            const double minDescrDist = max(min(badDescrTH.median / 8.0, badDescrTH.minVal / 2.0), badDescrTH.minVal / 4.0);
             double meang, stdg;
             meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
             stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
@@ -1213,11 +1315,26 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
             kp2.pt.y -= (float)patchROIimg1.y;
 
             //Change to keypoint position based on the given error range
+            distortKeyPointPosition(kp2, patchROIimg1, distr);
+            kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
+            kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
 
             int itCnt = 0;
+            bool noPosChange = false;
             do{
                 Mat patchwgn;
-                if(descrDist > badDescrTH.maxVal){
+                if((!useTN && (descrDist > ThTp)) || (useTN && (descrDist > badDescrTH.maxVal))){
+                    if(!noPosChange) {
+                        kp2 = kp;
+                        if(!fullImgUsed) {
+                            kp2.pt.x -= (float) patchROIimg1.x;
+                            kp2.pt.y -= (float) patchROIimg1.y;
+                        }
+                        distortKeyPointPosition(kp2, patchROIimg1, distr);
+                        kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
+                        kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
+                    }
+
                     meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
                     stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
                     patchwn = patchfb.clone();
@@ -1230,45 +1347,154 @@ void genMatchSequ::generateCorrespondingFeaturesTP(size_t featureIdxBegin){
                 //Get descriptor
                 vector<KeyPoint> pkp21(1);
                 pkp21[0] = kp2;
-                if (matchinglib::getDescriptors(img,
-                                                pkp21,
-                                                parsMtch.descriptorType,
-                                                descr21,
-                                                parsMtch.keyPointType) != 0) {
+                int err = matchinglib::getDescriptors(img,
+                                                      pkp21,
+                                                      parsMtch.descriptorType,
+                                                      descr21,
+                                                      parsMtch.keyPointType);
+                if (err != 0) {
                     if(fullImgUsed){
-                        //Use the original descriptor
-                        cerr << "Unable to calculate a matching descriptor! Using the original one - "
-                                "this will result in a descriptor distance of 0 for this particular correspondence!"
-                                << endl;
-                        descr21 = descriptors1.row((int)featureIdx).clone();
-                        break;
-
+                        //Try using the original keypoint position without location change
+                        kp2 = kp;
+                        kp2err = Point2f(0,0);
+                        pkp21[0] = kp2;
+                        err = matchinglib::getDescriptors(img,
+                                                          pkp21,
+                                                          parsMtch.descriptorType,
+                                                          descr21,
+                                                          parsMtch.keyPointType);
+                        if (err != 0) {
+                            //Use the original descriptor
+                            cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                                    "this will result in a descriptor distance of 0 for this particular correspondence!"
+                                 << endl;
+                            descr21 = descriptors1.row((int)featureIdx).clone();
+                            break;
+                        }else{
+                            noPosChange = true;
+                        }
                     }else {
                         //Use the full image instead of a patch
                         patchfb = img;
                         patchwn = patchfb.clone();
+                        patchROIimg1 = Rect(Point(0,0), patchfb.size());
                         descrDist = -1.0;
                         kp2 = kp;
+                        distortKeyPointPosition(kp2, patchROIimg1, distr);
+                        kp2err.x = kp2.pt.x - kp.pt.x;
+                        kp2err.y = kp2.pt.y - kp.pt.y;
                         fullImgUsed = true;
                     }
-                }else{
+                }
+                if(err == 0){
                     //Check matchability
                     descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
                 }
                 itCnt++;
-            }while(((descrDist < minDescrDist) || (minDescrDist > badDescrTH.maxVal)) && (itCnt < 20));
+            }while(((!useTN && ((descrDist < minDescrDistTP) || (descrDist > ThTp)))
+            || (useTN && ((descrDist < ThTn) || (descrDist > badDescrTH.maxVal))))
+               && (itCnt < 20));
             if(itCnt >= 20){
                 //Use the original descriptor
                 cerr << "Unable to calculate a matching descriptor! Using the original one - "
                         "this will result in a descriptor distance of 0 for this particular correspondence!"
                      << endl;
                 descr21 = descriptors1.row((int)featureIdx).clone();
+                kp2 = kp;
+                kp2err = Point2f(0,0);
             }
         }
 
-
+        //Store the keypoints and descriptors
+        if(useTN){
+            kp.pt.x = (float) combCorrsImg1TN.at<double>(0, i);
+            kp.pt.y = (float) combCorrsImg1TN.at<double>(1, i);
+            kp2.pt.x = (float) combCorrsImg2TN.at<double>(0, i);
+            kp2.pt.y = (float) combCorrsImg2TN.at<double>(1, i);
+        }else {
+            kp.pt.x = (float) combCorrsImg1TP.at<double>(0, i);
+            kp.pt.y = (float) combCorrsImg1TP.at<double>(1, i);
+            kp2.pt.x = (float) combCorrsImg2TP.at<double>(0, i) + kp2err.x;
+            kp2.pt.y = (float) combCorrsImg2TP.at<double>(1, i) + kp2err.y;
+            if(kp2.pt.x > ((float)imgSize.width - 1.f)){
+                kp2.pt.x = (float)imgSize.width - 1.f;
+            }else if(kp2.pt.x < 0){
+                kp2.pt.x = 0;
+            }
+            if(kp2.pt.y > ((float)imgSize.height - 1.f)){
+                kp2.pt.y = (float)imgSize.height - 1.f;
+            }else if(kp2.pt.y < 0){
+                kp2.pt.y = 0;
+            }
+        }
+        frameKPs1[i] = kp;
+        frameKPs2[i] = kp2;
+        frameDescr1.push_back(descriptors1.row((int)featureIdx).clone());
+        frameDescr2.push_back(descr21.clone());
 
         featureIdx++;
+    }
+}
+
+void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
+        const cv::Rect &roi,
+        std::normal_distribution<double> &distr){
+    //Change to keypoint position based on the given error range
+    const int usedBorder = 16;
+    if(!nearZero(parsMtch.keypErrDistr.first) || !nearZero(parsMtch.keypErrDistr.second)) {
+        Point2f ptm = kp2.pt;
+        if (((int) round(ptm.x) < usedBorder) || ((int) round(ptm.x) > roi.width - usedBorder - 1)
+            || ((int) round(ptm.y) < usedBorder) || ((int) round(ptm.y) > roi.height - usedBorder - 1)) {
+            //Only change the position with enough border
+            if ((((int) round(ptm.x) < usedBorder)
+                 || ((int) round(ptm.x) > roi.width - usedBorder))
+                && !(((int) round(ptm.y) < usedBorder)
+                     || ((int) round(ptm.y) > roi.height - usedBorder))) {
+                //Change only the y position and check the possible range
+                double maxr = min((double) (roi.height - usedBorder - 1) - (double) ptm.y,
+                                  (double) ptm.y - (double) usedBorder);
+                if (maxr > (parsMtch.keypErrDistr.first + 5.0 * parsMtch.keypErrDistr.second)) {
+                    float r_error = (float) abs(distr(rand_gen)) * pow(-1.f, (float) (rand2() % 2));
+                    kp2.pt.y += r_error;
+                } else if (!nearZero(maxr)) {
+                    auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr, rand_gen);
+                    kp2.pt.y += r_error;
+                }
+            } else if (!(((int) round(ptm.x) < usedBorder)
+                         || ((int) round(ptm.x) > roi.width - usedBorder))
+                       && (((int) round(ptm.y) < usedBorder)
+                           || ((int) round(ptm.y) > roi.height - usedBorder))) {
+                //Change only the x position and check the possible range
+                double maxr = min((double) (roi.width - usedBorder - 1) - (double) ptm.x,
+                                  (double) ptm.x - (double) usedBorder);
+                if (maxr > (parsMtch.keypErrDistr.first + 5.0 * parsMtch.keypErrDistr.second)) {
+                    float r_error = (float) abs(distr(rand_gen)) * pow(-1.f, (float) (rand2() % 2));
+                    kp2.pt.x += r_error;
+                } else if (!nearZero(maxr)) {
+                    auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr, rand_gen);
+                    kp2.pt.x += r_error;
+                }
+            }
+        } else {
+            double r_error = abs(distr(rand_gen));
+            double alpha = getRandDoubleValRng(0, M_PI, rand_gen);
+            auto xe = (float) (r_error * cos(alpha));
+            auto ye = (float) (r_error * sin(alpha));
+            xe += kp2.pt.x;
+            ye += kp2.pt.y;
+            if ((int) round(xe) < usedBorder) {
+                xe = (float) usedBorder;
+            } else if ((int) round(xe) > roi.width - usedBorder - 1) {
+                xe = (float) (roi.width - usedBorder - 1);
+            }
+            if ((int) round(ye) < usedBorder) {
+                ye = (float) usedBorder;
+            } else if ((int) round(ye) > roi.height - usedBorder - 1) {
+                ye = (float) (roi.height - usedBorder - 1);
+            }
+            kp2.pt.x = xe;
+            kp2.pt.y = ye;
+        }
     }
 }
 
@@ -1347,7 +1573,9 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
         cv::Rect &patchROIimg2,
         cv::Point2d &ellipseCenter,
         double &ellipseRot,
-        cv::Size2d &axes){
+        cv::Size2d &axes,
+                                        bool &reflectionX,
+                                        bool &reflectionY){
     //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
     // to estimate to minimal necessary patch size
     double r = 0;
@@ -1509,6 +1737,17 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
             atBorder = true;
         }
     }
+
+    //Check for reflection
+    reflectionY = false;
+    if(corners2.at<double>(0,0) > corners2.at<double>(0,1)){//Reflection about y-axis
+        reflectionY = true;
+    }
+    reflectionX = false;
+    if(corners2.at<double>(1,0) > corners2.at<double>(1,3)) {//Reflection about x-axis
+        reflectionX = true;
+    }
+
     //Adapt the ROI in the transformed image if we are at the border
     if(atBorder){
         for (int j = 0; j < 4; ++j) {
@@ -1549,10 +1788,6 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
                             (int)floor(dimy + DBL_EPSILON));
 
     return true;
-}
-
-void genMatchSequ::generateCorrespondingFeaturesTN(size_t featureIdxBegin){
-
 }
 
 size_t genMatchSequ::hashFromSequPars() {
