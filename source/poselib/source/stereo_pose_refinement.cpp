@@ -2628,6 +2628,9 @@ namespace poselib
         {
             poseIsStable = false;
             mostLikelyPose_stable = false;
+			R_mostLikely = R_new.clone();
+			t_mostLikely = t_new.clone();
+			E_mostLikely = E_new.clone();
             if(err != -2)
                 nr_tries = 0;
             return -1;

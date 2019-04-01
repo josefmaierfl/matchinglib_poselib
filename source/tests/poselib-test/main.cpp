@@ -203,7 +203,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.addErrorCode(1, "Error");
 
     cmd.setHelpOption("h", "help","<Shows this help message.>");
-    cmd.defineOption("img_path", "<Path to the images (all required in one folder) and the calibration file. All images are loaded one after another for matching and the pose estimation using the specified file prefixes for left and right images. If only the left prefix is specified, images with the same prefix flollowing after another are matched and used for pose estimation.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+    cmd.defineOption("img_path", "<Path to the images and the calibration file. All images are loaded one after another for matching and the pose estimation using the specified file prefixes for left and right images. If only the left prefix is specified, images with the same prefix flollowing after another are matched and used for pose estimation.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("l_img_pref", "<Prefix and/or postfix for the left or first images.\n "
 		"It can include a folder structure that follows after the filepath, a file prefix, a '*' indicating the position of the number and a postfix. "
 		"If it is empty, all files from the folder img_path are used (also if l_img_pref only contains a folder ending with '/', every file within this folder is used). "
@@ -649,9 +649,9 @@ void startEvaluation(ArgvParser& cmd)
 
 	//For stereo refinement
 	if (cmd.foundOption("refineRT_stereo"))
-		refineRT = cmd.optionValue("refineRT_stereo");
+		refineRT_stereo = cmd.optionValue("refineRT_stereo");
 	else
-		refineRT = "42";
+		refineRT_stereo = "42";
 	if (refineRT_stereo.size() == 2)
 	{
 		refineRTnr_stereo[0] = atoi(refineRT_stereo.substr(0, 1).c_str());
@@ -1679,6 +1679,10 @@ void startEvaluation(ArgvParser& cmd)
         {
             double rdiff, tdiff, tdiff_angle;
             poselib::compareRTs(R, R1, t, t1, &rdiff, &tdiff, true);
+			cv::Mat R_diff = R * R1.t();
+			double roll_d, pitch_d, yaw_d;
+			poselib::getAnglesRotMat(R_diff, roll_d, pitch_d, yaw_d);
+			std::cout << "Angle between rotation matrices: roll = " << setprecision(4) << roll_d << char(248) << " pitch = " << pitch_d << char(248) << " yaw = " << yaw_d << char(248) << endl;
 			tdiff_angle = poselib::getAnglesBetwVectors(t, t1);
 			std::cout << "Angle between translation vectors: " << setprecision(3) << tdiff_angle << char(248) << endl;
         }
