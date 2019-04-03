@@ -23,6 +23,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     bool rwXMLinfo;//If true, the parameters and information are stored and read in XML format. Otherwise it is stored or read in YAML format
     bool compressedWrittenInfo;//If true, the stored information and parameters are compressed (appends .gz) and it is assumed that paramter files to be read are aslo compressed
     bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available.
+    std::pair<double, double> distortCamMat;//Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices K1 & K2 based on their initial values (only the focal lengths and image centers are randomly distorted)
 
     GenMatchSequParameters(std::string mainStorePath_,
                            std::string imgPath_,
@@ -32,6 +33,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            bool keypPosErrType_ = false,
                            std::pair<double, double> keypErrDistr_ = std::make_pair(0, 0.5),
                            std::pair<double, double> imgIntNoise_ = std::make_pair(0, 5.0),
+                           std::pair<double, double> distortCamMat_ = std::make_pair(0, 0),
                            double lostCorrPor_ = 0,
                            bool storePtClouds_ = false,
                            bool rwXMLinfo_ = false,
@@ -49,7 +51,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             storePtClouds(storePtClouds_),
             rwXMLinfo(rwXMLinfo_),
             compressedWrittenInfo(compressedWrittenInfo_),
-            takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_) {
+            takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_),
+            distortCamMat(std::move(distortCamMat_)){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
         CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first < 5.0) &&
@@ -59,7 +62,11 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
         CV_Assert((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0));
         CV_Assert((lostCorrPor >= 0) && (lostCorrPor <= 0.9));
         CV_Assert(!imgPath.empty());
-
+        CV_Assert((distortCamMat.first >= 0)
+        && (distortCamMat.first <= 1.0)
+        && (distortCamMat.second >= 0)
+        && (distortCamMat.second <= 1.0)
+        && (distortCamMat.first <= distortCamMat.second));
     }
 };
 
@@ -93,6 +100,7 @@ public:
         genSequenceParsFileName();
         K1i = K1.inv();
         K2i = K2.inv();
+        kpErrors.clear();
     };
 
     genMatchSequ(const std::string &sequLoadFolder,
@@ -185,7 +193,8 @@ private:
                                            std::vector<cv::KeyPoint> &frameKPs1,
                                            std::vector<cv::KeyPoint> &frameKPs2,
                                            cv::Mat &frameDescr1,
-                                           cv::Mat &frameDescr2);
+                                           cv::Mat &frameDescr2,
+                                           std::vector<cv::DMatch> &frameMatches);
     bool getRectFitsInEllipse(const cv::Mat &H,
                               const cv::KeyPoint &kp,
                               cv::Rect &patchROIimg1,
@@ -194,12 +203,14 @@ private:
                               double &ellipseRot,
                               cv::Size2d &axes,
                               bool &reflectionX,
-                              bool &reflectionY);
+                              bool &reflectionY,
+                              cv::Size &imgFeatureSi);
     void calcGoodBadDescriptorTH();
 
     void distortKeyPointPosition(cv::KeyPoint &kp2,
                                  const cv::Rect &roi,
                                  std::normal_distribution<double> &distr);
+    void appendKeyPointError(double &meanErr, double &sdErr);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -211,19 +222,19 @@ private:
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
     std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
-    size_t nrCorrsFullSequ;//Number of predicted overall correspondences (TP+TN) for all frames
+    size_t nrCorrsFullSequ = 0;//Number of predicted overall correspondences (TP+TN) for all frames
     std::vector<cv::KeyPoint> keypoints1;//Keypoints from all used images
     cv::Mat descriptors1;//Descriptors from all used images
-    size_t nrFramesGenMatches;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
-    size_t hash_Sequ, hash_Matches;//Hash values for the generated 3D sequence and the matches based on their input parameters.
+    size_t nrFramesGenMatches = 0;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
+    size_t hash_Sequ = 0, hash_Matches = 0;//Hash values for the generated 3D sequence and the matches based on their input parameters.
     StereoSequParameters pars3D;//Holds all parameters for calculating a 3D sequence. Is manly used to load existing 3D sequences.
     cv::Size imgSize;//Size of the images
     cv::Mat K1, K1i;//Camera matrix 1 & its inverse
     cv::Mat K2, K2i;//Camera matrix 2 & its inverse
-    size_t nrMovObjAllFrames;//Sum over the number of moving objects in every frame
-    std::string sequParFileName;//File name for storing and loading parameters of 3D sequences
-    std::string sequParPath;//Path for storing and loading parameters of 3D sequences
-    std::string matchDataPath;//Path for storing parameters for generating matches
+    size_t nrMovObjAllFrames = 0;//Sum over the number of moving objects in every frame
+    std::string sequParFileName = "";//File name for storing and loading parameters of 3D sequences
+    std::string sequParPath = "";//Path for storing and loading parameters of 3D sequences
+    std::string matchDataPath = "";//Path for storing parameters for generating matches
     bool sequParsLoaded = false;//Indicates if the 3D sequence was/will be loaded or generated during execution of the program
     const std::string pclBaseFName = "pclCloud";//Base name for storing PCL point clouds. A specialization is added at the end of this string
     const std::string sequSingleFrameBaseFName = "sequSingleFrameData";//Base name for storing data of generated frames (correspondences)
@@ -232,10 +243,17 @@ private:
     cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     std::map<int64_t,std::pair<cv::Mat,size_t>> planeTo3DIdx;//Holds the plane coefficients and keypoint index for every used keypoint in correspondence to the index of the 3D point in the point cloud
-    double actNormT;//Norm of the actual translation vector between the stereo cameras
+    double actNormT = 0;//Norm of the actual translation vector between the stereo cameras
     std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains to most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
     bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame
-    stats badDescrTH;//Descriptor distance statistics for not matching descriptors. E.g. a descriptor distance larger the median could be considered as not matching descriptors
+    stats badDescrTH = {0,0,0,0,0};//Descriptor distance statistics for not matching descriptors. E.g. a descriptor distance larger the median could be considered as not matching descriptors
+    std::vector<cv::KeyPoint> frameKeypoints1, frameKeypoints2;//Keypoints for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the keypoint order of each of them is the same as in their corresponding descriptor Mat (rows))
+    cv::Mat frameDescriptors1, frameDescriptors2;//Descriptors for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the descriptor order of each of them is the same as in their corresponding keypoint vector)
+    std::vector<cv::DMatch> frameMatches;//Matches between features of a single stereo frame. They are sorted based on the descriptor distance (smallest first)
+    std::vector<bool> frameInliers;//Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) is an inlier.
+    std::vector<double> kpErrors;//Holds distances from the original to the distorted keypoint locations for every correspondence of the whole sequence
+    std::string matchParsFileName = "";//File name (including path) of the parameter file to create matches
+    int nrCallsSameMatchPars = 0;//If this method was called multiple times with the same parameters for generating matches using the same 3D correspondences during the same program call, this number holds the number of calls minus 1
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

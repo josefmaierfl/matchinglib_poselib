@@ -25,6 +25,15 @@ static inline FileStorage& operator << (FileStorage& fs, int64_t &value);
 static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value);
 bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
 bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
+void shuffleVector(std::vector<size_t> &idxs, size_t si);
+template<typename T>
+void reOrderVector(std::vector<T> &reOrderVec, std::vector<size_t> &idxs);
+void reOrderSortMatches(std::vector<cv::DMatch> &matches,
+                        cv::Mat &descriptor1,
+                        cv::Mat &descriptor2,
+                        std::vector<cv::KeyPoint> &kp1,
+                        std::vector<cv::KeyPoint> &kp2,
+                        std::vector<bool> &inliers);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -77,6 +86,7 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
 
     K1i = K1.inv();
     K2i = K2.inv();
+    kpErrors.clear();
 }
 
 void genMatchSequ::genSequenceParsFileName() {
@@ -119,10 +129,10 @@ bool genParsStorePath(const std::string &basePath, const std::string &subpath, s
         return false;
     }
 
-    resPath = concatPath(subpath, subpath);
+    resPath = concatPath(basePath, subpath);
     int idx = 0;
     while(checkPathExists(resPath)){
-        resPath = concatPath(subpath, subpath + "_" + std::to_string(idx));
+        resPath = concatPath(basePath, subpath + "_" + std::to_string(idx));
         idx++;
         if(idx > 10000){
             cerr << "Cannot create a path for storing results as more than 10000 variants of the same path exist." << endl;
@@ -240,6 +250,26 @@ bool genMatchSequ::generateMatches(){
             }
         }
     }
+
+    //Calculate mean and standard deviation for keypoint accuracies
+    //Calculate the mean
+    double mean_kp_error = 0;
+    for(auto& i : kpErrors){
+        mean_kp_error += i;
+    }
+    mean_kp_error /= (double)kpErrors.size();
+
+    //Calculate the standard deviation
+    double std_dev_kp_error = 0;
+    for(auto& i : kpErrors){
+        const double diff = i - mean_kp_error;
+        std_dev_kp_error += diff * diff;
+    }
+    std_dev_kp_error /= (double)kpErrors.size();
+    std_dev_kp_error = sqrt(std_dev_kp_error);
+
+    //Append these values to the end of the parameters file
+    appendKeyPointError(mean_kp_error, std_dev_kp_error);
 
     return true;
 }
@@ -645,15 +675,7 @@ bool genMatchSequ::getFeatures() {
     size_t nrImgs = imageList.size();
 
     //Get random sequence of images
-    vector<size_t> imgIdxs(nrImgs);
-    std::iota(imgIdxs.begin(), imgIdxs.end(), 0);
-    std::shuffle(imgIdxs.begin(), imgIdxs.end(), std::mt19937{std::random_device{}()});
-    vector<string> imageList_tmp;
-    imageList_tmp.reserve(nrImgs);
-    for(auto& i : imageList){
-        imageList_tmp.emplace_back(std::move(i));
-    }
-    imageList = std::move(imageList_tmp);
+    std::random_shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
 
     //Check for the correct keypoint & descriptor types
     if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
@@ -731,19 +753,17 @@ bool genMatchSequ::getFeatures() {
 
     //Shuffle keypoints and descriptors
     vector<KeyPoint> keypoints1_tmp(keypoints1.size());
-    Mat descriptors1_tmp = Mat(descriptors1.rows, descriptors1.cols, descriptors1.type());
+    Mat descriptors1_tmp;
+    descriptors1_tmp.reserve((size_t)descriptors1.rows);
     vector<size_t> featureImgIdx_tmp(featureImgIdx.size());
-    vector<size_t> featureIdxs(keypoints1.size());
-    std::iota(featureIdxs.begin(), featureIdxs.end(), 0);
-    std::shuffle(featureIdxs.begin(), featureIdxs.end(), std::mt19937{std::random_device{}()});
-    for(int i = 0; i < (int)featureIdxs.size(); ++i){
-        keypoints1_tmp[i] = std::move(keypoints1[featureIdxs[i]]);
-        descriptors1.row((int)featureIdxs[i]).copyTo(descriptors1_tmp.row(i));
-        featureImgIdx_tmp[i] = std::move(featureImgIdx[featureIdxs[i]]);
+    vector<size_t> featureIdxs;
+    shuffleVector(featureIdxs, keypoints1.size());
+    reOrderVector(keypoints1, featureIdxs);
+    reOrderVector(featureImgIdx, featureIdxs);
+    for(auto &i : featureIdxs){
+        descriptors1_tmp.push_back(descriptors1.row((int)i));
     }
-    keypoints1 = std::move(keypoints1_tmp);
     descriptors1 = descriptors1_tmp;
-    featureImgIdx = std::move(featureImgIdx_tmp);
 
 
     if (kpCnt < nrCorrsFullSequ) {
@@ -823,27 +843,128 @@ void genMatchSequ::generateCorrespondingFeatures(){
         }
     }
     size_t featureIdxBegin_tmp = featureIdxBegin;
-    vector<KeyPoint> frameKPsTP1((size_t)combNrCorrsTP), frameKPsTP2((size_t)combNrCorrsTP);
-    Mat frameDescr1TP, frameDescr2TP;
+    frameKeypoints1.clear();
+    frameKeypoints2.clear();
+    frameKeypoints1.resize((size_t)combNrCorrsTP);
+    frameKeypoints2.resize((size_t)combNrCorrsTP);
+    frameDescriptors1.release();
+    frameDescriptors2.release();
+    frameMatches.clear();
     generateCorrespondingFeaturesTPTN(featureIdxBegin,
                                       false,
-                                      frameKPsTP1,
-                                      frameKPsTP2,
-                                      frameDescr1TP,
-                                      frameDescr2TP);
-    CV_Assert((frameDescr1TP.rows == frameDescr2TP.rows) && (frameDescr1TP.rows == combNrCorrsTP));
+                                      frameKeypoints1,
+                                      frameKeypoints2,
+                                      frameDescriptors1,
+                                      frameDescriptors2,
+                                      frameMatches);
+    CV_Assert((frameDescriptors1.rows == frameDescriptors2.rows)
+    && (frameDescriptors1.rows == combNrCorrsTP)
+    && (frameMatches.size() == (size_t)combNrCorrsTP));
+    frameInliers = vector<bool>((size_t)combNrCorrsTP, true);
     featureIdxBegin_tmp += (size_t)combNrCorrsTP;
     if(combNrCorrsTN > 0) {
-        vector<KeyPoint> frameKPsTN1((size_t)combNrCorrsTP), frameKPsTN2((size_t)combNrCorrsTP);
+        vector<KeyPoint> frameKPsTN1((size_t)combNrCorrsTN), frameKPsTN2((size_t)combNrCorrsTN);
         Mat frameDescr1TN, frameDescr2TN;
+        vector<DMatch> frameMatchesTN;
         generateCorrespondingFeaturesTPTN(featureIdxBegin_tmp,
                                           true,
                                           frameKPsTN1,
                                           frameKPsTN2,
                                           frameDescr1TN,
-                                          frameDescr2TN);
+                                          frameDescr2TN,
+                                          frameMatchesTN);
+        CV_Assert((frameDescr1TN.rows == frameDescr2TN.rows)
+        && (frameDescr1TN.rows == combNrCorrsTN)
+        && (frameMatchesTN.size() == (size_t)combNrCorrsTN));
+        frameKeypoints1.insert(frameKeypoints1.end(), frameKPsTN1.begin(), frameKPsTN1.end());
+        frameKeypoints2.insert(frameKeypoints2.end(), frameKPsTN2.begin(), frameKPsTN2.end());
+        frameDescriptors1.push_back(frameDescr1TN);
+        frameDescriptors2.push_back(frameDescr2TN);
+        frameMatches.insert(frameMatches.end(), frameMatchesTN.begin(), frameMatchesTN.end());
+        frameInliers.insert(frameInliers.end(), (size_t)combNrCorrsTN, false);
     }
+
+    reOrderSortMatches(frameMatches,
+                       frameDescriptors1,
+                       frameDescriptors2,
+                       frameKeypoints1,
+                       frameKeypoints2,
+                       frameInliers);
+
+    //Write matches to disk
+
+
     featureIdxBegin += nrCorrs[actFrameCnt];
+}
+
+bool writeMatchesToDisk(){
+
+}
+
+void reOrderSortMatches(std::vector<cv::DMatch> &matches,
+                    cv::Mat &descriptor1,
+                    cv::Mat &descriptor2,
+                    std::vector<cv::KeyPoint> &kp1,
+                    std::vector<cv::KeyPoint> &kp2,
+                    std::vector<bool> &inliers){
+    CV_Assert((descriptor1.rows == descriptor2.rows)
+    && (descriptor1.rows == (int)kp1.size())
+    && (kp1.size() == kp2.size())
+    && (kp1.size() == matches.size()));
+
+    //Shuffle descriptors and keypoints of img1
+    sort(matches.begin(),
+         matches.end(),
+         [](DMatch &first, DMatch &second){return first.queryIdx < second.queryIdx;});
+    std::vector<size_t> idxs1, idxs2;
+    shuffleVector(idxs1, kp1.size());
+    cv::Mat descriptor1_tmp;
+    descriptor1_tmp.reserve((size_t)descriptor1.rows);
+    for(size_t i = 0; i < idxs1.size(); ++i){
+        descriptor1_tmp.push_back(descriptor1.row((int)idxs1[i]));
+        matches[idxs1[i]].queryIdx = (int)i;
+    }
+    descriptor1_tmp.copyTo(descriptor1);
+    reOrderVector(kp1, idxs1);
+    reOrderVector(inliers, idxs1);
+
+    //Shuffle descriptors and keypoints of img2
+    sort(matches.begin(),
+         matches.end(),
+         [](DMatch &first, DMatch &second){return first.trainIdx < second.trainIdx;});
+    shuffleVector(idxs2, kp2.size());
+    cv::Mat descriptor2_tmp;
+    descriptor2_tmp.reserve((size_t)descriptor2.rows);
+    for(size_t i = 0; i < idxs2.size(); ++i){
+        descriptor2_tmp.push_back(descriptor2.row((int)idxs2[i]));
+        matches[idxs2[i]].trainIdx = (int)i;
+    }
+    descriptor2_tmp.copyTo(descriptor2);
+    reOrderVector(kp2, idxs2);
+
+    //Sort matches based on descriptor distance
+    sort(matches.begin(),
+         matches.end(),
+         [](DMatch &first, DMatch &second){return first.distance < second.distance;});
+}
+
+template<typename T>
+void reOrderVector(std::vector<T> &reOrderVec, std::vector<size_t> &idxs){
+    CV_Assert(reOrderVec.size() == idxs.size());
+
+    std::vector<T> reOrderVec_tmp;
+    reOrderVec_tmp.reserve(reOrderVec.size());
+    for(auto& i : idxs){
+        reOrderVec_tmp.push_back(reOrderVec[i]);
+    }
+    reOrderVec = std::move(reOrderVec_tmp);
+}
+
+template<typename T>
+void shuffleVector(std::vector<T> &idxs, size_t si){
+    idxs = vector<T>(si);
+    std::iota(idxs.begin(), idxs.end(), 0);
+    std::shuffle(idxs.begin(), idxs.end(), std::mt19937{std::random_device{}()});
 }
 
 void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
@@ -851,7 +972,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                                      std::vector<cv::KeyPoint> &frameKPs1,
                                                      std::vector<cv::KeyPoint> &frameKPs2,
                                                      cv::Mat &frameDescr1,
-                                                     cv::Mat &frameDescr2){
+                                                     cv::Mat &frameDescr2,
+                                                     std::vector<cv::DMatch> &frameMatches){
     //Generate feature for every TP or TN
     int show_cnt = 0;
     const int show_interval = 1;
@@ -929,7 +1051,17 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         bool noEllipse = false;
         bool reflectionX = false;
         bool reflectionY = false;
-        if(!getRectFitsInEllipse(H, kp, patchROIimg1, patchROIimg2, ellipseCenter, ellipseRot, axes, reflectionX, reflectionY)){
+        cv::Size imgFeatureSize = img.size();
+        if(!getRectFitsInEllipse(H,
+                                 kp,
+                                 patchROIimg1,
+                                 patchROIimg2,
+                                 ellipseCenter,
+                                 ellipseRot,
+                                 axes,
+                                 reflectionX,
+                                 reflectionY,
+                                 imgFeatureSize)){
             //If the calculation of the necessary patch size failed, calculate a standard patch
             noEllipse = true;
             const double minPatchSize = 41.0;
@@ -947,14 +1079,14 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     if (imgROI.x < 0) {
                         imgROI.width += imgROI.x;
                         imgROI.x = 0;
-                    } else if ((imgROI.x + imgROI.width) >= imgSize.width) {
-                        imgROI.width = imgSize.width - imgROI.x;
+                    } else if ((imgROI.x + imgROI.width) >= imgFeatureSize.width) {
+                        imgROI.width = imgFeatureSize.width - imgROI.x;
                     }
                     if (imgROI.y < 0) {
                         imgROI.height += imgROI.y;
                         imgROI.y = 0;
-                    } else if ((imgROI.y + imgROI.height) >= imgSize.height) {
-                        imgROI.height = imgSize.height - imgROI.y;
+                    } else if ((imgROI.y + imgROI.height) >= imgFeatureSize.height) {
+                        imgROI.height = imgFeatureSize.height - imgROI.y;
                     }
                     //Check size after warping
                     Mat corners = Mat::ones(3, 4, CV_64FC1);
@@ -976,13 +1108,13 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         corners2.col(j) /= corners2.at<double>(2, j);
                         if (corners2.at<double>(0, j) < 0) {
                             corners2.at<double>(0, j) = 0;
-                        } else if (corners2.at<double>(0, j) > (double) (imgSize.width - 1)) {
-                            corners2.at<double>(0, j) = (double) (imgSize.width - 1);
+                        } else if (corners2.at<double>(0, j) > (double) (imgFeatureSize.width - 1)) {
+                            corners2.at<double>(0, j) = (double) (imgFeatureSize.width - 1);
                         }
                         if (corners2.at<double>(1, j) < 0) {
                             corners2.at<double>(1, j) = 0;
-                        } else if (corners2.at<double>(1, j) > (double) (imgSize.height - 1)) {
-                            corners2.at<double>(1, j) = (double) (imgSize.height - 1);
+                        } else if (corners2.at<double>(1, j) > (double) (imgFeatureSize.height - 1)) {
+                            corners2.at<double>(1, j) = (double) (imgFeatureSize.height - 1);
                         }
                     }
                     if (useFallBack)
@@ -1259,6 +1391,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         //Calculate the descriptor
         Mat patchwn;
         Mat descr21;
+        double descrDist = -1.0;
         bool visPatchNoise = false;
         if((verbose & SHOW_PATCHES_WITH_NOISE) && (((show_cnt - 1) % show_interval) == 0)){
             visPatchNoise = true;
@@ -1288,7 +1421,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 useFallBack = true;
             }else{
                 //Check matchability
-                double descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
+                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
                 if(useTN){
                     if (descrDist < ThTn) {
                         useFallBack = true;
@@ -1308,7 +1441,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
             Mat patchfb = img(patchROIimg1);
             patchwn = patchfb.clone();
-            double descrDist = -1.0;
+            descrDist = -1.0;
             bool fullImgUsed = false;
             kp2 = kp;
             kp2.pt.x -= (float)patchROIimg1.x;
@@ -1402,6 +1535,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 descr21 = descriptors1.row((int)featureIdx).clone();
                 kp2 = kp;
                 kp2err = Point2f(0,0);
+                descrDist = 0;
             }
         }
 
@@ -1417,20 +1551,26 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             kp2.pt.x = (float) combCorrsImg2TP.at<double>(0, i) + kp2err.x;
             kp2.pt.y = (float) combCorrsImg2TP.at<double>(1, i) + kp2err.y;
             if(kp2.pt.x > ((float)imgSize.width - 1.f)){
+                kp2err.x -= kp2.pt.x - (float)imgSize.width - 1.f;
                 kp2.pt.x = (float)imgSize.width - 1.f;
             }else if(kp2.pt.x < 0){
+                kp2err.x -= kp2.pt.x;
                 kp2.pt.x = 0;
             }
             if(kp2.pt.y > ((float)imgSize.height - 1.f)){
+                kp2err.y -= kp2.pt.y - (float)imgSize.height - 1.f;
                 kp2.pt.y = (float)imgSize.height - 1.f;
             }else if(kp2.pt.y < 0){
+                kp2err.y -= kp2.pt.y;
                 kp2.pt.y = 0;
             }
+            kpErrors.push_back((double)sqrt(kp2err.x * kp2err.x + kp2err.y * kp2err.y));
         }
         frameKPs1[i] = kp;
         frameKPs2[i] = kp2;
         frameDescr1.push_back(descriptors1.row((int)featureIdx).clone());
         frameDescr2.push_back(descr21.clone());
+        frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 
         featureIdx++;
     }
@@ -1508,12 +1648,11 @@ double genMatchSequ::getDescriptorDistance(const cv::Mat &descriptor1, const cv:
 
 void genMatchSequ::calcGoodBadDescriptorTH(){
     const int compareNr = min(100, (int)keypoints1.size());
-    vector<int> usedDescriptors(descriptors1.rows);
-    std::iota(usedDescriptors.begin(), usedDescriptors.end(), 0);
-    std::shuffle(usedDescriptors.begin(), usedDescriptors.end(), std::mt19937{std::random_device{}()});
+    vector<int> usedDescriptors;
+    shuffleVector(usedDescriptors, (size_t)descriptors1.rows);
     usedDescriptors.erase(usedDescriptors.begin() + compareNr, usedDescriptors.end());
     const int maxComps = compareNr * (compareNr - 1) / 2;
-    vector<double> dist_bad(maxComps);
+    vector<double> dist_bad((const size_t)maxComps);
 
     //Calculate any possible descriptor distance of not matching descriptors
     int nrComps = 0;
@@ -1575,7 +1714,8 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
         double &ellipseRot,
         cv::Size2d &axes,
                                         bool &reflectionX,
-                                        bool &reflectionY){
+                                        bool &reflectionY,
+                                        cv::Size &imgFeatureSi){
     //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
     // to estimate to minimal necessary patch size
     double r = 0;
@@ -1725,15 +1865,15 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
         if(corners2.at<double>(0,j) < 0){
             corners2.at<double>(0,j) = 0;
             atBorder = true;
-        }else if(corners2.at<double>(0,j) > (double)(imgSize.width - 1)){
-            corners2.at<double>(0,j) = (double)(imgSize.width - 1);
+        }else if(corners2.at<double>(0,j) > (double)(imgFeatureSi.width - 1)){
+            corners2.at<double>(0,j) = (double)(imgFeatureSi.width - 1);
             atBorder = true;
         }
         if(corners2.at<double>(1,j) < 0){
             corners2.at<double>(1,j) = 0;
             atBorder = true;
-        }else if(corners2.at<double>(1,j) > (double)(imgSize.height - 1)){
-            corners2.at<double>(1,j) = (double)(imgSize.height - 1);
+        }else if(corners2.at<double>(1,j) > (double)(imgFeatureSi.height - 1)){
+            corners2.at<double>(1,j) = (double)(imgFeatureSi.height - 1);
             atBorder = true;
         }
     }
@@ -1846,11 +1986,29 @@ size_t genMatchSequ::hashFromMtchPars() {
     ss << parsMtch.mainStorePath;
     ss << parsMtch.storePtClouds;
     ss << parsMtch.takeLessFramesIfLessKeyP;
+    ss << parsMtch.distortCamMat.first << parsMtch.distortCamMat.second;
 
     strFromPars = ss.str();
 
     std::hash<std::string> hash_fn;
     return hash_fn(strFromPars);
+}
+
+void genMatchSequ::appendKeyPointError(double &meanErr, double &sdErr){
+    FileStorage fs;
+    if(!checkFileExists(matchParsFileName)){
+        cerr << "Unable to store keypoint error to matching parameter file as it does not exist." << endl;
+        return;
+    }
+    fs = FileStorage(matchParsFileName, FileStorage::APPEND);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << matchParsFileName << endl;
+        return;
+    }
+    cvWriteComment(*fs, "Mean and standard deviation of keypoint position errors in second stereo images", 0);
+    fs << "kpErrorsStat";
+    fs << "{" << "mean" << meanErr;
+    fs << "SD" << sdErr << "}";
 }
 
 bool genMatchSequ::writeMatchingParameters(){
@@ -1865,24 +2023,27 @@ bool genMatchSequ::writeMatchingParameters(){
     } else {
         matchInfoFName += ".yaml";
     }
-    string filename = concatPath(sequParPath, matchInfoFName);
+    matchParsFileName = concatPath(sequParPath, matchInfoFName);
     FileStorage fs;
-    if(checkFileExists(filename)){
-        fs = FileStorage(filename, FileStorage::APPEND);
+    if(checkFileExists(matchParsFileName)){
+        fs = FileStorage(matchParsFileName, FileStorage::APPEND);
         if (!fs.isOpened()) {
-            cerr << "Failed to open " << filename << endl;
+            cerr << "Failed to open " << matchParsFileName << endl;
             return false;
         }
         cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+        nrCallsSameMatchPars++;
+        fs << "parIdx" << nrCallsSameMatchPars;
     }
     else{
-        fs = FileStorage(filename, FileStorage::WRITE);
+        fs = FileStorage(matchParsFileName, FileStorage::WRITE);
         if (!fs.isOpened()) {
-            cerr << "Failed to open " << filename << endl;
+            cerr << "Failed to open " << matchParsFileName << endl;
             return false;
         }
         cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
                             "generating matches out of given 3D correspondences.\n\n", 0);
+        fs << "parIdx" << 0;
     }
 
     cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
