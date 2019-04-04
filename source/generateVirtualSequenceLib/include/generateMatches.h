@@ -112,41 +112,46 @@ public:
 //    void startCalc() override;
 
 private:
+    //Loads the image names (including folders) of all specified images (used to generate matches) within a given folder
     bool getImageList();
-
+    //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
     size_t hashFromSequPars();
-
+    //Generates a hash value from the parameters used to generate matches from 3D correspondences
     size_t hashFromMtchPars();
-
+    //Calculates the total number of correspondences (Tp+TN) within a whole scene
     void totalNrCorrs();
-
+    //Loads images and extracts keypoints and descriptors from them to generate matches later on
     bool getFeatures();
-
+    //Calculates the descriptor distance between 2 descriptors
     double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2);
-
+    //Writes the parameters used to generate 3D scenes to disk
     bool writeSequenceParameters(const std::string &filename);
-
+    //Writes a subset of parameters used to generate a 3D scene to disk (used within an overview file which holds basic information about all sub-folders that contain parameters and different 3D scenes)
     void writeSomeSequenceParameters(cv::FileStorage &fs);
-
+    //Generates a file or appends information to a file which holds an overview with basic information about all sub-folders that contain parameters and different 3D scenes (within a base-path)
     bool writeSequenceOverviewPars();
-
+    //Reads parameters from a generated file that where used to generate a 3D sequence
     bool readSequenceParameters(const std::string &filename);
-
+    //Writes information and correspondences for a single stereo frame to disk
     bool write3DInfoSingleFrame(const std::string &filename);
-
+    //Reads information and correspondences for a single stereo frame from disk
     bool read3DInfoSingleFrame(const std::string &filename);
-
+    //Writes PCL point clouds for the static scene and PCL point clouds for all moving objects to disk
     bool writePointClouds(const std::string &path, const std::string &basename, bool &overwrite);
-
+    //Reads PCL point clouds for the static scene and PCL point clouds for all moving objects from disk
     bool readPointClouds(const std::string &path, const std::string &basename);
-
+    //Generates the filename used to store/load parameters for generating a 3D sequence
     void genSequenceParsFileName();
-
+    //Generates a path for storing results (matches (in sub-folder(s) of generated path) and if desired, the generated 3D scene. The last folder of this path might be a hash value if a dedicated storing-path is provided or corresponds to a given path used to load a 3D scene.
     bool genSequenceParsStorePath();
-
+    //Generates a folder inside the folder of the 3D scene for storing matches
     bool genMatchDataStorePath();
 
     bool writeMatchingParameters();
+
+    bool writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr);
+
+    bool writeMatchesToDisk();
 
     std::string genSequFileExtension(const std::string &basename);
 
@@ -194,7 +199,9 @@ private:
                                            std::vector<cv::KeyPoint> &frameKPs2,
                                            cv::Mat &frameDescr1,
                                            cv::Mat &frameDescr2,
-                                           std::vector<cv::DMatch> &frameMatches);
+                                           std::vector<cv::DMatch> &frameMatches,
+                                           std::vector<cv::Mat> &homo,
+                                           std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp);
     bool getRectFitsInEllipse(const cv::Mat &H,
                               const cv::KeyPoint &kp,
                               cv::Rect &patchROIimg1,
@@ -210,7 +217,8 @@ private:
     void distortKeyPointPosition(cv::KeyPoint &kp2,
                                  const cv::Rect &roi,
                                  std::normal_distribution<double> &distr);
-    void appendKeyPointError(double &meanErr, double &sdErr);
+    void getErrorFreeKeypoints(const std::vector<cv::KeyPoint> &kpWithErr,
+                               std::vector<cv::KeyPoint> &kpNoErr);
 
 public:
     GenMatchSequParameters parsMtch;
@@ -238,6 +246,7 @@ private:
     bool sequParsLoaded = false;//Indicates if the 3D sequence was/will be loaded or generated during execution of the program
     const std::string pclBaseFName = "pclCloud";//Base name for storing PCL point clouds. A specialization is added at the end of this string
     const std::string sequSingleFrameBaseFName = "sequSingleFrameData";//Base name for storing data of generated frames (correspondences)
+    const std::string matchSingleFrameBaseFName = "matchSingleFrameData";//Base name for storing data of generated matches
     std::string sequLoadPath = "";//Holds the path for loading a 3D sequence
     std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
     cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
@@ -248,12 +257,15 @@ private:
     bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame
     stats badDescrTH = {0,0,0,0,0};//Descriptor distance statistics for not matching descriptors. E.g. a descriptor distance larger the median could be considered as not matching descriptors
     std::vector<cv::KeyPoint> frameKeypoints1, frameKeypoints2;//Keypoints for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the keypoint order of each of them is the same as in their corresponding descriptor Mat (rows))
+    std::vector<cv::KeyPoint> frameKeypoints2NoErr;//Keypoints in the second stereo image without a positioning error (in general, keypoints in the first stereo image are without errors)
     cv::Mat frameDescriptors1, frameDescriptors2;//Descriptors for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the descriptor order of each of them is the same as in their corresponding keypoint vector)
     std::vector<cv::DMatch> frameMatches;//Matches between features of a single stereo frame. They are sorted based on the descriptor distance (smallest first)
     std::vector<bool> frameInliers;//Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) is an inlier.
+    std::vector<cv::Mat> frameHomographies;//Holds the homographies for all patches arround keypoints for warping the patch which is then used to calculate the matching descriptor
+    std::vector<std::pair<size_t,cv::KeyPoint>> srcImgPatchIdxAndKp; //Holds the keypoint and image index of the image used to extract patches
     std::vector<double> kpErrors;//Holds distances from the original to the distorted keypoint locations for every correspondence of the whole sequence
-    std::string matchParsFileName = "";//File name (including path) of the parameter file to create matches
-    int nrCallsSameMatchPars = 0;//If this method was called multiple times with the same parameters for generating matches using the same 3D correspondences during the same program call, this number holds the number of calls minus 1
+    //std::string matchParsFileName = "";//File name (including path) of the parameter file to create matches
+    bool overwriteMatchingFiles = false;//If true (after asking the user), data files holding matches (from a different call to this software) in the same folder (should not happen - only if the user manually copies data) are replaced by the new data files
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

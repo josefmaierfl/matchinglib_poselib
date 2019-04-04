@@ -33,7 +33,11 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         cv::Mat &descriptor2,
                         std::vector<cv::KeyPoint> &kp1,
                         std::vector<cv::KeyPoint> &kp2,
-                        std::vector<bool> &inliers);
+                        std::vector<cv::KeyPoint> &kp2NoError,
+                        std::vector<bool> &inliers,
+                        std::vector<cv::Mat> &homos,
+                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp);
+bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -268,8 +272,8 @@ bool genMatchSequ::generateMatches(){
     std_dev_kp_error /= (double)kpErrors.size();
     std_dev_kp_error = sqrt(std_dev_kp_error);
 
-    //Append these values to the end of the parameters file
-    appendKeyPointError(mean_kp_error, std_dev_kp_error);
+    //Write the error statistic and image names to a separate file
+    writeKeyPointErrorAndSrcImgs(mean_kp_error, std_dev_kp_error);
 
     return true;
 }
@@ -850,38 +854,54 @@ void genMatchSequ::generateCorrespondingFeatures(){
     frameDescriptors1.release();
     frameDescriptors2.release();
     frameMatches.clear();
+    frameHomographies.clear();
+    srcImgPatchIdxAndKp.clear();
+    frameKeypoints2NoErr.clear();
     generateCorrespondingFeaturesTPTN(featureIdxBegin,
                                       false,
                                       frameKeypoints1,
                                       frameKeypoints2,
                                       frameDescriptors1,
                                       frameDescriptors2,
-                                      frameMatches);
+                                      frameMatches,
+                                      frameHomographies,
+                                      srcImgPatchIdxAndKp);
     CV_Assert((frameDescriptors1.rows == frameDescriptors2.rows)
     && (frameDescriptors1.rows == combNrCorrsTP)
-    && (frameMatches.size() == (size_t)combNrCorrsTP));
+    && (frameMatches.size() == (size_t)combNrCorrsTP)
+    && (frameHomographies.size() == (size_t)combNrCorrsTP)
+    && (srcImgPatchIdxAndKp.size() == (size_t)combNrCorrsTP));
     frameInliers = vector<bool>((size_t)combNrCorrsTP, true);
+    getErrorFreeKeypoints(frameKeypoints2, frameKeypoints2NoErr);
     featureIdxBegin_tmp += (size_t)combNrCorrsTP;
     if(combNrCorrsTN > 0) {
         vector<KeyPoint> frameKPsTN1((size_t)combNrCorrsTN), frameKPsTN2((size_t)combNrCorrsTN);
         Mat frameDescr1TN, frameDescr2TN;
         vector<DMatch> frameMatchesTN;
+        vector<Mat> frameHomosTN;
+        vector<std::pair<size_t,cv::KeyPoint>> srcImgPatchIdxAndKpTN;
         generateCorrespondingFeaturesTPTN(featureIdxBegin_tmp,
                                           true,
                                           frameKPsTN1,
                                           frameKPsTN2,
                                           frameDescr1TN,
                                           frameDescr2TN,
-                                          frameMatchesTN);
+                                          frameMatchesTN,
+                                          frameHomosTN,
+                                          srcImgPatchIdxAndKpTN);
         CV_Assert((frameDescr1TN.rows == frameDescr2TN.rows)
         && (frameDescr1TN.rows == combNrCorrsTN)
-        && (frameMatchesTN.size() == (size_t)combNrCorrsTN));
+        && (frameMatchesTN.size() == (size_t)combNrCorrsTN)
+        && (frameHomosTN.size() == (size_t)combNrCorrsTN)
+        && (srcImgPatchIdxAndKpTN.size() == (size_t)combNrCorrsTN));
         frameKeypoints1.insert(frameKeypoints1.end(), frameKPsTN1.begin(), frameKPsTN1.end());
         frameKeypoints2.insert(frameKeypoints2.end(), frameKPsTN2.begin(), frameKPsTN2.end());
         frameDescriptors1.push_back(frameDescr1TN);
         frameDescriptors2.push_back(frameDescr2TN);
         frameMatches.insert(frameMatches.end(), frameMatchesTN.begin(), frameMatchesTN.end());
         frameInliers.insert(frameInliers.end(), (size_t)combNrCorrsTN, false);
+        frameHomographies.insert(frameHomographies.end(), frameHomosTN.begin(), frameHomosTN.end());
+        srcImgPatchIdxAndKp.insert(srcImgPatchIdxAndKp.end(), srcImgPatchIdxAndKpTN.begin(), srcImgPatchIdxAndKpTN.end());
     }
 
     reOrderSortMatches(frameMatches,
@@ -889,7 +909,10 @@ void genMatchSequ::generateCorrespondingFeatures(){
                        frameDescriptors2,
                        frameKeypoints1,
                        frameKeypoints2,
-                       frameInliers);
+                       frameKeypoints2NoErr,
+                       frameInliers,
+                       frameHomographies,
+                       srcImgPatchIdxAndKp);
 
     //Write matches to disk
 
@@ -897,16 +920,54 @@ void genMatchSequ::generateCorrespondingFeatures(){
     featureIdxBegin += nrCorrs[actFrameCnt];
 }
 
-bool writeMatchesToDisk(){
+void genMatchSequ::getErrorFreeKeypoints(const std::vector<cv::KeyPoint> &kpWithErr,
+                           std::vector<cv::KeyPoint> &kpNoErr){
+    kpNoErr = kpWithErr;
+    for (int i = 0; i < combNrCorrsTP; ++i) {
+        kpNoErr[i].pt.x = (float) combCorrsImg2TP.at<double>(0, i);
+        kpNoErr[i].pt.y = (float) combCorrsImg2TP.at<double>(1, i);
+    }
+}
 
+bool genMatchSequ::writeMatchesToDisk(){
+    if(!checkPathExists(matchDataPath)){
+        cerr << "Given path " << matchDataPath << " to store matches does not exist!" << endl;
+        return false;
+    }
+
+    string singleFrameDataFName = matchSingleFrameBaseFName + "_" + std::to_string(actFrameCnt);
+    singleFrameDataFName = genSequFileExtension(singleFrameDataFName);
+    singleFrameDataFName = concatPath(matchDataPath, singleFrameDataFName);
+    if(!checkOverwriteDelFiles(singleFrameDataFName,
+                               "Output file for matching data already exists:", overwriteMatchingFiles)){
+        return false;
+    } else if(checkFileExists(singleFrameDataFName)){
+        cerr << "Unable to write matches to disk. Aborting." << endl;
+        return false;
+    }
+
+    FileStorage fs = FileStorage(singleFrameDataFName, FileStorage::WRITE);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << singleFrameDataFName << endl;
+        return false;
+    }
+
+    cvWriteComment(*fs, "This file contains matches and additional information for a single frame", 0);
+
+    //fs << "hashMatchingPars" << matchDirName;
+
+    return true;
 }
 
 void reOrderSortMatches(std::vector<cv::DMatch> &matches,
-                    cv::Mat &descriptor1,
-                    cv::Mat &descriptor2,
-                    std::vector<cv::KeyPoint> &kp1,
-                    std::vector<cv::KeyPoint> &kp2,
-                    std::vector<bool> &inliers){
+                        cv::Mat &descriptor1,
+                        cv::Mat &descriptor2,
+                        std::vector<cv::KeyPoint> &kp1,
+                        std::vector<cv::KeyPoint> &kp2,
+                        std::vector<cv::KeyPoint> &kp2NoError,
+                        std::vector<bool> &inliers,
+                        std::vector<cv::Mat> &homos,
+                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp){
     CV_Assert((descriptor1.rows == descriptor2.rows)
     && (descriptor1.rows == (int)kp1.size())
     && (kp1.size() == kp2.size())
@@ -927,6 +988,8 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
     descriptor1_tmp.copyTo(descriptor1);
     reOrderVector(kp1, idxs1);
     reOrderVector(inliers, idxs1);
+    reOrderVector(homos, idxs1);
+    reOrderVector(srcImgIdxAndKp, idxs1);
 
     //Shuffle descriptors and keypoints of img2
     sort(matches.begin(),
@@ -941,6 +1004,7 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
     }
     descriptor2_tmp.copyTo(descriptor2);
     reOrderVector(kp2, idxs2);
+    reOrderVector(kp2NoError, idxs2);
 
     //Sort matches based on descriptor distance
     sort(matches.begin(),
@@ -973,7 +1037,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                                      std::vector<cv::KeyPoint> &frameKPs2,
                                                      cv::Mat &frameDescr1,
                                                      cv::Mat &frameDescr2,
-                                                     std::vector<cv::DMatch> &frameMatches){
+                                                     std::vector<cv::DMatch> &frameMatches,
+                                                     std::vector<cv::Mat> &homo,
+                                                     std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp){
     //Generate feature for every TP or TN
     int show_cnt = 0;
     const int show_interval = 1;
@@ -1040,6 +1106,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
 
         //Extract image patch
         KeyPoint kp = keypoints1[featureIdx];
+        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdx], keypoints1[featureIdx]));
 
         //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
         // to estimate the minimal necessary patch size
@@ -1229,6 +1296,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         Mat H2 = H1 * tback;
         Mat patchw;
         warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg2.size(), INTER_LINEAR, BORDER_REPLICATE);
+        homo.push_back(H2.clone());
 
         //Show the patches
         if((verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % show_interval) == 0)){
@@ -1436,6 +1504,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
 
         if(useFallBack){
             //Only add gaussian noise and salt and pepper noise to the original patch
+            homo.back() = Mat::eye(3,3, CV_64FC1);
             double meang, stdg;
             meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
             stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
@@ -1994,21 +2063,35 @@ size_t genMatchSequ::hashFromMtchPars() {
     return hash_fn(strFromPars);
 }
 
-void genMatchSequ::appendKeyPointError(double &meanErr, double &sdErr){
-    FileStorage fs;
-    if(!checkFileExists(matchParsFileName)){
-        cerr << "Unable to store keypoint error to matching parameter file as it does not exist." << endl;
-        return;
+bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
+    if(!checkPathExists(matchDataPath)){
+        cerr << "Given path " << matchDataPath << " to store matches does not exist!" << endl;
+        return false;
     }
-    fs = FileStorage(matchParsFileName, FileStorage::APPEND);
+
+    string kpErrImgInfoFile = "kpErrImgInfo";
+    kpErrImgInfoFile = genSequFileExtension(kpErrImgInfoFile);
+    kpErrImgInfoFile = concatPath(matchDataPath, kpErrImgInfoFile);
+    if(!checkOverwriteDelFiles(kpErrImgInfoFile,
+                              "Output file for keypoint errors and image names already exists:", overwriteMatchingFiles)){
+        return false;
+    }
+
+    FileStorage fs = FileStorage(kpErrImgInfoFile, FileStorage::WRITE);
     if (!fs.isOpened()) {
-        cerr << "Failed to open " << matchParsFileName << endl;
-        return;
+        cerr << "Failed to open " << kpErrImgInfoFile << endl;
+        return false;
     }
     cvWriteComment(*fs, "Mean and standard deviation of keypoint position errors in second stereo images", 0);
     fs << "kpErrorsStat";
     fs << "{" << "mean" << meanErr;
     fs << "SD" << sdErr << "}";
+    cvWriteComment(*fs, "Image names and folders to images used to generate features and extract patches", 0);
+    fs << "imageList" << "[";
+    for (auto &i : imageList) {
+        fs << i;
+    }
+    fs << "]";
 }
 
 bool genMatchSequ::writeMatchingParameters(){
@@ -2023,17 +2106,22 @@ bool genMatchSequ::writeMatchingParameters(){
     } else {
         matchInfoFName += ".yaml";
     }
-    matchParsFileName = concatPath(sequParPath, matchInfoFName);
+    string matchParsFileName = concatPath(sequParPath, matchInfoFName);
     FileStorage fs;
+    int nrEntries = 0;
+    string parSetNr = "parSetNr";
     if(checkFileExists(matchParsFileName)){
+        //Check number of entries first
+        if(!getNrEntriesYAML(matchParsFileName, parSetNr, nrEntries)){
+            return false;
+        }
         fs = FileStorage(matchParsFileName, FileStorage::APPEND);
         if (!fs.isOpened()) {
             cerr << "Failed to open " << matchParsFileName << endl;
             return false;
         }
         cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
-        nrCallsSameMatchPars++;
-        fs << "parIdx" << nrCallsSameMatchPars;
+        parSetNr += std::to_string(nrEntries);
     }
     else{
         fs = FileStorage(matchParsFileName, FileStorage::WRITE);
@@ -2043,8 +2131,10 @@ bool genMatchSequ::writeMatchingParameters(){
         }
         cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
                             "generating matches out of given 3D correspondences.\n\n", 0);
-        fs << "parIdx" << 0;
+        parSetNr += "0";
     }
+    fs << parSetNr;
+    fs << "{";
 
     cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
                         "using the below parameters.", 0);
@@ -2082,6 +2172,14 @@ bool genMatchSequ::writeMatchingParameters(){
     cvWriteComment(*fs, "If true and too less images images are provided (resulting in too less keypoints), "
                         "only as many frames with GT matches are provided as keypoints are available.", 0);
     fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
+    cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
+                        "K1 & K2 based on their initial values (only the focal lengths and image centers are "
+                        "randomly distorted)", 0);
+    fs << "distortCamMat";
+    fs << "{" << "first" << parsMtch.distortCamMat.first;
+    fs << "second" << parsMtch.distortCamMat.second << "}";
+
+    fs << "}";
 
     return true;
 }
@@ -2101,13 +2199,20 @@ bool genMatchSequ::writeSequenceOverviewPars(){
     }
     string filename = concatPath(parsMtch.mainStorePath, matchInfoFName);
     FileStorage fs;
+    int nrEntries = 0;
+    string parSetNr = "parSetNr";
     if(checkFileExists(filename)){
+        //Check number of entries first
+        if(!getNrEntriesYAML(filename, parSetNr, nrEntries)){
+            return false;
+        }
         fs = FileStorage(filename, FileStorage::APPEND);
         if (!fs.isOpened()) {
             cerr << "Failed to open " << filename << endl;
             return false;
         }
         cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+        parSetNr += std::to_string(nrEntries);
     }
     else{
         fs = FileStorage(filename, FileStorage::WRITE);
@@ -2117,15 +2222,40 @@ bool genMatchSequ::writeSequenceOverviewPars(){
         }
         cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
                             "generating 3D correspondences.\n\n", 0);
+        parSetNr += "0";
     }
+    fs << parSetNr;
+    fs << "{";
 
     cvWriteComment(*fs, "Directory name (within the path containing this file) which holds multiple frames of "
                         "3D correspondences using the below parameters.", 0);
     size_t posLastSl = sequParPath.rfind('/');
     string sequDirName = sequParPath.substr(posLastSl + 1);
-    fs << "hashMatchingPars" << sequDirName;
+    fs << "hashSequencePars" << sequDirName;
 
     writeSomeSequenceParameters(fs);
+    fs << "}";
+
+    return true;
+}
+
+bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries){
+    FileStorage fs = FileStorage(filename, FileStorage::READ);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
+
+    cv::FileNode fn = fs.root();
+    nrEntries = 0;
+    for (cv::FileNodeIterator fit = fn.begin(); fit != fn.end(); ++fit)
+    {
+        cv::FileNode item = *fit;
+        std::string somekey = item.name();
+        if(somekey.find(buzzword) != string::npos){
+            nrEntries++;
+        }
+    }
 
     return true;
 }
