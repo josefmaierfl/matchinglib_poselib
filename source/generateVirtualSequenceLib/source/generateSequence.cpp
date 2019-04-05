@@ -73,6 +73,9 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     K1i = K1.inv();
     K2i = K2.inv();
 
+    //Calculate distorted camera matrices (only used for output)
+    calcDistortedIntrinsics();
+
     //Number of stereo configurations
     nrStereoConfs = R.size();
 
@@ -156,6 +159,44 @@ void genStereoSequ::calcAvgMaskingArea(){
         tmp += (double)i;
     }
     avgMaskingArea /= tmp;
+}
+
+//Distorts the intrinsics for every new stereo configuration
+void genStereoSequ::calcDistortedIntrinsics(){
+    if(nearZero(pars.distortCamMat.second)){
+        for(size_t i = 0; i < R.size(); ++i){
+            K1_distorted.emplace_back(K1.clone());
+            K2_distorted.emplace_back(K2.clone());
+        }
+        return;
+    }
+    for(size_t i = 0; i < R.size(); ++i){
+        Mat Kdist1 = K1.clone();
+        calcDisortedK(Kdist1);
+        K1_distorted.emplace_back(Kdist1.clone());
+        Mat Kdist2 = K2.clone();
+        calcDisortedK(Kdist2);
+        K2_distorted.emplace_back(Kdist2.clone());
+    }
+}
+
+void genStereoSequ::calcDisortedK(cv::Mat &Kd){
+    double f_distort = getRandDoubleValRng(pars.distortCamMat.first, pars.distortCamMat.second)
+                       * pow(-1.0, (double)(rand2() % 2));
+    double c_distort = getRandDoubleValRng(pars.distortCamMat.first, pars.distortCamMat.second);
+    double c__dir_distort = getRandDoubleValRng(0, 2.0 * M_PI);
+    f_distort *= Kd.at<double>(0,0);
+    f_distort += Kd.at<double>(0,0);
+    Kd.at<double>(0,0) = f_distort;
+    Kd.at<double>(1,1) = f_distort;
+
+    double cx = Kd.at<double>(0,2);
+    double cy = Kd.at<double>(1,2);
+    c_distort *= sqrt(cx * cx + cy * cy);
+    cx += c_distort * cos(c__dir_distort);
+    cy += c_distort * sin(c__dir_distort);
+    Kd.at<double>(0,2) = cx;
+    Kd.at<double>(1,2) = cy;
 }
 
 //Function can only be called after the medium depth for the actual frame is calculated
@@ -8901,6 +8942,8 @@ void genStereoSequ::updateFrameParameters() {
     }
     actR = R[actStereoCIdx];
     actT = t[actStereoCIdx];
+    actKd1 = K1_distorted[actStereoCIdx];
+    actKd2 = K2_distorted[actStereoCIdx];
     actDepthNear = depthNear[actStereoCIdx];
     actDepthMid = depthMid[actStereoCIdx];
     actDepthFar = depthFar[actStereoCIdx];

@@ -36,7 +36,8 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<cv::KeyPoint> &kp2NoError,
                         std::vector<bool> &inliers,
                         std::vector<cv::Mat> &homos,
-                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp);
+                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                        std::vector<int> &corrType);
 bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries);
 
 /* -------------------------- Functions -------------------------- */
@@ -230,7 +231,10 @@ bool genMatchSequ::generateMatches(){
         //Calculate the norm of the translation vector of the actual stereo configuration
         actNormT = norm(actT);
 
-
+        //Generate matching keypoints and descriptors and store them (in addition to other information) to disk
+        if(!generateCorrespondingFeatures()){
+            return false;
+        }
 
         if(sequParsLoaded){
             actFrameCnt++;
@@ -836,7 +840,7 @@ bool genMatchSequ::getFeatures() {
     return true;
 }
 
-void genMatchSequ::generateCorrespondingFeatures(){
+bool genMatchSequ::generateCorrespondingFeatures(){
     static size_t featureIdxBegin = 0;
     //Load images if not already done
     if(loadImgsEveryFrame){
@@ -857,6 +861,7 @@ void genMatchSequ::generateCorrespondingFeatures(){
     frameHomographies.clear();
     srcImgPatchIdxAndKp.clear();
     frameKeypoints2NoErr.clear();
+    corrType.clear();
     generateCorrespondingFeaturesTPTN(featureIdxBegin,
                                       false,
                                       frameKeypoints1,
@@ -874,6 +879,18 @@ void genMatchSequ::generateCorrespondingFeatures(){
     frameInliers = vector<bool>((size_t)combNrCorrsTP, true);
     getErrorFreeKeypoints(frameKeypoints2, frameKeypoints2NoErr);
     featureIdxBegin_tmp += (size_t)combNrCorrsTP;
+    CV_Assert(combNrCorrsTP == (finalNrTPStatCorrs + finalNrTPMovCorrs + finalNrTPStatCorrsFromLast + finalNrTPMovCorrsFromLast));
+    for (unsigned char j = 0; j < 4; ++j) {
+        if(combCorrsImg12TPorder.statTPnew == j){
+            corrType.insert(corrType.end(), finalNrTPStatCorrs, 0);
+        }else if(combCorrsImg12TPorder.statTPfromLast == j){
+            corrType.insert(corrType.end(), finalNrTPStatCorrsFromLast, 2);
+        }else if(combCorrsImg12TPorder.movTPnew == j){
+            corrType.insert(corrType.end(), finalNrTPMovCorrs, 1);
+        }else{
+            corrType.insert(corrType.end(), finalNrTPMovCorrsFromLast, 3);
+        }
+    }
     if(combNrCorrsTN > 0) {
         vector<KeyPoint> frameKPsTN1((size_t)combNrCorrsTN), frameKPsTN2((size_t)combNrCorrsTN);
         Mat frameDescr1TN, frameDescr2TN;
@@ -902,6 +919,14 @@ void genMatchSequ::generateCorrespondingFeatures(){
         frameInliers.insert(frameInliers.end(), (size_t)combNrCorrsTN, false);
         frameHomographies.insert(frameHomographies.end(), frameHomosTN.begin(), frameHomosTN.end());
         srcImgPatchIdxAndKp.insert(srcImgPatchIdxAndKp.end(), srcImgPatchIdxAndKpTN.begin(), srcImgPatchIdxAndKpTN.end());
+        CV_Assert(combNrCorrsTN == (finalNrTNStatCorrs + finalNrTNMovCorrs));
+        if(combCorrsImg12TNstatFirst){
+            corrType.insert(corrType.end(), finalNrTNStatCorrs, 4);
+            corrType.insert(corrType.end(), finalNrTNMovCorrs, 5);
+        }else{
+            corrType.insert(corrType.end(), finalNrTNMovCorrs, 5);
+            corrType.insert(corrType.end(), finalNrTNStatCorrs, 4);
+        }
     }
 
     reOrderSortMatches(frameMatches,
@@ -912,12 +937,17 @@ void genMatchSequ::generateCorrespondingFeatures(){
                        frameKeypoints2NoErr,
                        frameInliers,
                        frameHomographies,
-                       srcImgPatchIdxAndKp);
+                       srcImgPatchIdxAndKp,
+                       corrType);
 
     //Write matches to disk
-
+    if(!writeMatchesToDisk()){
+        return false;
+    }
 
     featureIdxBegin += nrCorrs[actFrameCnt];
+
+    return true;
 }
 
 void genMatchSequ::getErrorFreeKeypoints(const std::vector<cv::KeyPoint> &kpWithErr,
@@ -952,9 +982,93 @@ bool genMatchSequ::writeMatchesToDisk(){
         return false;
     }
 
-    cvWriteComment(*fs, "This file contains matches and additional information for a single frame", 0);
+    cvWriteComment(*fs, "This file contains matches and additional information for a single frame\n\n", 0);
 
-    //fs << "hashMatchingPars" << matchDirName;
+
+    cvWriteComment(*fs, "Keypoints for the first (left or top) stereo cam (there is no 1:1 correspondence between "
+                        "frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each "
+                        "of them is the same compared to their corresponding descriptor Mat (rows))", 0);
+    fs << "frameKeypoints1" << "[";
+    for (auto &i : frameKeypoints1) {
+        fs << i;
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Keypoints for the second (right or bottom) stereo cam (there is no 1:1 correspondence between "
+                        "frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each "
+                        "of them is the same compared to their corresponding descriptor Mat (rows))", 0);
+    fs << "frameKeypoints2" << "[";
+    for (auto &i : frameKeypoints2) {
+        fs << i;
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Descriptors for first (left or top) stereo cam (there is no 1:1 correspondence between "
+                        "frameDescriptors1 and frameDescriptors2 as they are shuffled but the descriptor order "
+                        "is the same compared to its corresponding keypoint vector frameKeypoints1). "
+                        "Descriptors corresponding to the same static 3D point (not for moving objects) in different "
+                        "stereo frames are equal", 0);
+    fs << "frameDescriptors1" << frameDescriptors1;
+
+    cvWriteComment(*fs, "Descriptors for second (right or bottom) stereo cam (there is no 1:1 correspondence between "
+                        "frameDescriptors1 and frameDescriptors2 as they are shuffled but the descriptor order "
+                        "the same compared to its corresponding keypoint vector frameKeypoints2). "
+                        "Descriptors corresponding to the same static 3D point (not for moving objects) in different "
+                        "stereo frames are similar", 0);
+    fs << "frameDescriptors2" << frameDescriptors2;
+
+    cvWriteComment(*fs, "Matches between features of a single stereo frame. They are sorted based on the descriptor "
+                        "distance (smallest first)", 0);
+    fs << "frameMatches" << "[";
+    for (auto &i : frameMatches) {
+        fs << i;
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) "
+                        "is an inlier.", 0);
+    fs << "frameInliers" << "[";
+    for (auto i : frameInliers) {
+        fs << i;
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Keypoints in the second stereo image without a positioning error (in general, keypoints "
+                        "in the first stereo image are without errors)", 0);
+    fs << "frameKeypoints2NoErr" << "[";
+    for (auto &i : frameKeypoints2NoErr) {
+        fs << i;
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Holds the homographies for all patches arround keypoints for warping the patch which is "
+                        "then used to calculate the matching descriptor. Homographies corresponding to the same "
+                        "static 3D point (not for moving objects) in different stereo frames are similar", 0);
+    fs << "frameHomographies" << "[";
+    for (auto &i : frameHomographies) {
+        fs << i;
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Holds the keypoint and image index of the image used to extract patches", 0);
+    fs << "frameHomographies" << "[";
+    for (auto &i : srcImgPatchIdxAndKp) {
+        fs << "{" << "imgIdx" << i.first;
+        fs << "keypoint" << i.second << "}";
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object, "
+                        "or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3) "
+                        "object (old means, that the corresponding 3D point emerged before this stereo frame and "
+                        "also has one or more correspondences in a different stereo frame))", 0);
+    fs << "corrType" << "[";
+    for (auto &i : corrType) {
+        fs << i;
+    }
+    fs << "]";
+
+    fs.release();
 
     return true;
 }
@@ -967,7 +1081,8 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<cv::KeyPoint> &kp2NoError,
                         std::vector<bool> &inliers,
                         std::vector<cv::Mat> &homos,
-                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp){
+                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                        std::vector<int> &corrType){
     CV_Assert((descriptor1.rows == descriptor2.rows)
     && (descriptor1.rows == (int)kp1.size())
     && (kp1.size() == kp2.size())
@@ -990,6 +1105,7 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
     reOrderVector(inliers, idxs1);
     reOrderVector(homos, idxs1);
     reOrderVector(srcImgIdxAndKp, idxs1);
+    reOrderVector(corrType, idxs1);
 
     //Shuffle descriptors and keypoints of img2
     sort(matches.begin(),
@@ -2033,6 +2149,7 @@ size_t genMatchSequ::hashFromSequPars() {
     ss << pars.relMovObjVelRange.first << pars.relMovObjVelRange.second;
     ss << pars.truePosChanges;
     ss << pars.truePosRange.first << pars.truePosRange.second;
+    ss << pars.distortCamMat.first << pars.distortCamMat.second;
 
     strFromPars = ss.str();
 
@@ -2051,11 +2168,10 @@ size_t genMatchSequ::hashFromMtchPars() {
     ss << std::setprecision(2) << parsMtch.imgIntNoise.first << parsMtch.imgIntNoise.second;
     ss << parsMtch.keypErrDistr.first << parsMtch.keypErrDistr.second;
     ss << parsMtch.keypPosErrType;
-    ss << parsMtch.lostCorrPor;
+//    ss << parsMtch.lostCorrPor;
     ss << parsMtch.mainStorePath;
     ss << parsMtch.storePtClouds;
     ss << parsMtch.takeLessFramesIfLessKeyP;
-    ss << parsMtch.distortCamMat.first << parsMtch.distortCamMat.second;
 
     strFromPars = ss.str();
 
@@ -2092,6 +2208,10 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
         fs << i;
     }
     fs << "]";
+
+    fs.release();
+
+    return true;
 }
 
 bool genMatchSequ::writeMatchingParameters(){
@@ -2160,8 +2280,8 @@ bool genMatchSequ::writeMatchingParameters(){
     fs << "imgIntNoise";
     fs << "{" << "first" << parsMtch.imgIntNoise.first;
     fs << "second" << parsMtch.imgIntNoise.second << "}";
-    cvWriteComment(*fs, "Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
-    fs << "lostCorrPor" << parsMtch.lostCorrPor;
+    /*cvWriteComment(*fs, "Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
+    fs << "lostCorrPor" << parsMtch.lostCorrPor;*/
     cvWriteComment(*fs, "If true, all PCL point clouds and necessary information to load a cam sequence "
                         "with correspondences are stored to disk", 0);
     fs << "storePtClouds" << parsMtch.storePtClouds;
@@ -2180,6 +2300,8 @@ bool genMatchSequ::writeMatchingParameters(){
     fs << "second" << parsMtch.distortCamMat.second << "}";
 
     fs << "}";
+
+    fs.release();
 
     return true;
 }
@@ -2235,6 +2357,8 @@ bool genMatchSequ::writeSequenceOverviewPars(){
 
     writeSomeSequenceParameters(fs);
     fs << "}";
+
+    fs.release();
 
     return true;
 }
@@ -2342,6 +2466,12 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
         fs << (int) i;
     }
     fs << "]";
+    cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
+                        "K1 & K2 based on their initial values (only the focal lengths and image centers are "
+                        "randomly distorted)", 0);
+    fs << "distortCamMat";
+    fs << "{" << "first" << pars.distortCamMat.first;
+    fs << "second" << pars.distortCamMat.second << "}";
     cvWriteComment(*fs,
                    "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
     fs << "absCamCoordinates" << "[";
@@ -2446,6 +2576,12 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     fs << "CorrMovObjPort" << pars.CorrMovObjPort;
     cvWriteComment(*fs, "Minimum number of moving objects over the whole track", 0);
     fs << "minNrMovObjs" << (int) pars.minNrMovObjs;
+    cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
+                        "K1 & K2 based on their initial values (only the focal lengths and image centers are "
+                        "randomly distorted)", 0);
+    fs << "distortCamMat";
+    fs << "{" << "first" << pars.distortCamMat.first;
+    fs << "second" << pars.distortCamMat.second << "}";
 
     cvWriteComment(*fs, "Total number of frames in the sequence", 0);
     fs << "totalNrFrames" << (int) totalNrFrames;
@@ -2461,6 +2597,19 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     for (auto &i : absCamCoordinates) {
         fs << "{" << "R" << i.R;
         fs << "t" << i.t << "}";
+    }
+    fs << "]";
+
+    cvWriteComment(*fs, "Different rotations R between the 2 stereo cameras over the whole scene", 0);
+    fs << "R_stereo" << "[";
+    for (auto &i : R) {
+        fs << i;
+    }
+    fs << "]";
+    cvWriteComment(*fs, "Different translation vectors t between the 2 stereo cameras over the whole scene", 0);
+    fs << "t_stereo" << "[";
+    for (auto &i : t) {
+        fs << i;
     }
     fs << "]";
 
@@ -2625,6 +2774,11 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     fs["minNrMovObjs"] >> tmp;
     pars3D.minNrMovObjs = (size_t) tmp;
 
+    n = fs["distortCamMat"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    pars3D.distortCamMat = make_pair(first_dbl, second_dbl);
+
     fs["totalNrFrames"] >> tmp;
     totalNrFrames = (size_t) tmp;
 
@@ -2653,6 +2807,32 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
         n1["R"] >> m1;
         n1["t"] >> m2;
         absCamCoordinates.emplace_back(Poses(m1.clone(), m2.clone()));
+    }
+
+    n = fs["R_stereo"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "R_stereo is not a sequence! FAIL" << endl;
+        return false;
+    }
+    R.clear();
+    it = n.begin(), it_end = n.end();
+    for (; it != it_end; ++it) {
+        Mat R_stereo;
+        it >> R_stereo;
+        R.emplace_back(R_stereo.clone());
+    }
+
+    n = fs["t_stereo"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "t_stereo is not a sequence! FAIL" << endl;
+        return false;
+    }
+    t.clear();
+    it = n.begin(), it_end = n.end();
+    for (; it != it_end; ++it) {
+        Mat t_stereo;
+        it >> t_stereo;
+        t.emplace_back(t_stereo.clone());
     }
 
     fs["nrMovObjAllFrames"] >> tmp;
@@ -2689,6 +2869,18 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
 
     cvWriteComment(*fs, "Actual translation vector of the stereo rig: x2 = actR * x1 + actT", 0);
     fs << "actT" << actT;
+
+    cvWriteComment(*fs, "Actual correct camera matrix of camera 1", 0);
+    fs << "K1" << K1;
+
+    cvWriteComment(*fs, "Actual correct camera matrix of camera 2", 0);
+    fs << "K1" << K2;
+
+    cvWriteComment(*fs, "Actual distorted camera matrix of camera 1", 0);
+    fs << "actKd1" << actKd1;
+
+    cvWriteComment(*fs, "Actual distorted camera matrix of camera 2", 0);
+    fs << "actKd2" << actKd2;
 
     fs << "actDepthNear" << actDepthNear;
     fs << "actDepthMid" << actDepthMid;
@@ -2813,7 +3005,9 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
         fs << "finalNrTNMovCorrs" << 1;
     else
         fs << "finalNrTNMovCorrs" << 0;*/
-    fs << "finalNrTNMovCorrs" << combCorrsImg12TPstatFirst;
+    fs << "finalNrTNMovCorrs" << combCorrsImg12TNstatFirst;
+
+    fs.release();
 
     return true;
 }
@@ -2834,6 +3028,9 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     fs["actR"] >> actR;
 
     fs["actT"] >> actT;
+
+    fs["actKd1"] >> actKd1;
+    fs["actKd2"] >> actKd2;
 
     fs["actDepthNear"] >> actDepthNear;
     fs["actDepthMid"] >> actDepthMid;
@@ -2995,7 +3192,9 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     combCorrsImg12TPorder.movTPnew = (unsigned char) tmp;
 
     fs["finalNrTNMovCorrs"] >> tmp;
-    combCorrsImg12TPstatFirst = (tmp != 0);
+    combCorrsImg12TNstatFirst = (tmp != 0);
+
+    fs.release();
 
     return true;
 }

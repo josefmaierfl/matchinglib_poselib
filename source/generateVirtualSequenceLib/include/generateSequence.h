@@ -129,7 +129,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		std::pair<double, double> relMovObjVelRange_ = std::make_pair(0.5, 1.5),
 		double minMovObjCorrPortion_ = 0.5,
 		double CorrMovObjPort_ = 0.25,
-		size_t minNrMovObjs_ = 0
+		size_t minNrMovObjs_ = 0,
+		std::pair<double, double> distortCamMat_ = std::make_pair(0, 0)
 		): 
 	    nFramesPerCamConf(nFramesPerCamConf_),
 		inlRatRange(std::move(inlRatRange_)),
@@ -151,7 +152,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		minMovObjCorrPortion(minMovObjCorrPortion_),
 		CorrMovObjPort(CorrMovObjPort_),
 		minNrMovObjs(minNrMovObjs_),
-        parsAreValid(true)
+        parsAreValid(true),
+		distortCamMat(std::move(distortCamMat_))
 	{
 		CV_Assert(nFramesPerCamConf > 0);
 		CV_Assert((inlRatRange.first < 1.0) && (inlRatRange.first >= 0) && (inlRatRange.second <= 1.0) && (inlRatRange.second > 0));
@@ -175,6 +177,11 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		CV_Assert((minMovObjCorrPortion <= 1.0) && (minMovObjCorrPortion >= 0));
 		CV_Assert((CorrMovObjPort > 0) && (CorrMovObjPort <= 1.0));
 		CV_Assert(minNrMovObjs <= nrMovObjs);
+		CV_Assert((distortCamMat.first >= 0)
+				  && (distortCamMat.first <= 1.0)
+				  && (distortCamMat.second >= 0)
+				  && (distortCamMat.second <= 1.0)
+				  && (distortCamMat.first <= distortCamMat.second));
 
 		if(!R_.empty())
 		    R = R_.getMat();
@@ -208,7 +215,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
         minMovObjCorrPortion(0.5),
         CorrMovObjPort(0.25),
         minNrMovObjs(0),
-        parsAreValid(false){}
+        parsAreValid(false),
+		distortCamMat(std::make_pair(0, 0)){}
 
 	//Parameters for generating correspondences
 	size_t nFramesPerCamConf;//# of Frames per camera configuration
@@ -237,6 +245,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 	double CorrMovObjPort;//Portion of correspondences on moving object (compared to static objects). It is limited by the size of the objects visible in the images and the minimal distance between correspondences.
 	size_t minNrMovObjs;//Minimum number of moving objects over the whole track. If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached. If 0, no new moving objects are inserted if every preceding object is out of sight.
 	bool parsAreValid;//Indicates, if the parameters of this struct are valid (because of the used constructor)
+
+	std::pair<double, double> distortCamMat;//Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices K1 & K2 based on their initial values (only the focal lengths and image centers are randomly distorted)
 };
 
 struct Poses
@@ -500,6 +510,8 @@ private:
     void adaptNrBPMovObjCorrs(int32_t remSize);
 	void combineWorldCoordinateIndices();
 	void resetInitVars();
+	void calcDistortedIntrinsics();
+	void calcDisortedK(cv::Mat &Kd);
 
 public:
 	uint32_t verbose = 0;
@@ -623,6 +635,7 @@ private:
     cv::Mat actFracUseableTPperRegion;//Fraction of valid image area in the first stereo camera based on the intersection area of both stereo cameras at medium depth for every of the 3x3 image areas of the current stereo configuration
     std::vector<cv::Mat> stereoImgsOverlapMask;//Mask for the area in the first stereo camera image which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255). Holds masks for every stereo configuration.
     cv::Mat actStereoImgsOverlapMask;//Mask for the area in the first stereo camera image of the actual stereo configuration which overlaps with the second stereo camera at medium depth. The overlapping region is larger 0 (255).
+	std::vector<cv::Mat> K1_distorted, K2_distorted;//Holds distorted variants of the camera matrices K1 & K2 for every stereo configuration ( R & t)
 
 protected:
     const double fakeDistTNCorrespondences = 9999.0;//For completely random TN correspondences, this is the "faked" distance from the correct corresponding keypoint position to the actual TN keypoint position in the image space
@@ -636,6 +649,7 @@ protected:
     double actDepthFar;//Upper border of mid and lower border of far depths for the actual camera configuration
     cv::Mat actR;//actual rotation matrix of the stereo rig: x2 = actR * x1 + actT
     cv::Mat actT;//actual translation vector of the stereo rig: x2 = actR * x1 + actT
+    cv::Mat actKd1, actKd2;//actual distorted camera matrix (only used for output)
     size_t totalNrFrames = 0;//Total number of frames
     std::vector<cv::Mat> R;
     std::vector<cv::Mat> t;
@@ -659,7 +673,7 @@ protected:
     int finalNrTNStatCorrs;//Final number of TN correspondences for static objects. Corresponds to the number of columns in actCorrsImg1TN
     int finalNrTNMovCorrs;//Final number of TN correspondences for moving objects. Corresponds to the sum of number of columns in movObjCorrsImg1TNFromLast and movObjCorrsImg1TN
     CorrOrderTP combCorrsImg12TPorder = CorrOrderTP();//Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
-    bool combCorrsImg12TPstatFirst = true;//Indicates that TN correspondences of static objects are located at the beginning of Mats combCorrsImg1TN and combCorrsImg2TN
+    bool combCorrsImg12TNstatFirst = true;//Indicates that TN correspondences of static objects are located at the beginning of Mats combCorrsImg1TN and combCorrsImg2TN
 };
 
 
