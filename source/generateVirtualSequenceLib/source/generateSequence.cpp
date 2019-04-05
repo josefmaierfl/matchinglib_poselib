@@ -22,6 +22,7 @@ a view restrictions like depth ranges, moving objects, ...
 //#include <opencv2/imgcodecs.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <array>
+#include <chrono>
 
 #include "pcl/filters/frustum_culling.h"
 #include "pcl/common/transforms.h"
@@ -62,6 +63,9 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
     CV_Assert((K1.rows == 3) && (K2.rows == 3) && (K1.cols == 3) && (K2.cols == 3) && (K1.type() == CV_64FC1) &&
               (K2.type() == CV_64FC1));
     CV_Assert((imgSize.area() > 0) && (R.size() == t.size()) && !R.empty());
+
+    chrono::high_resolution_clock::time_point t1, t2;
+    t1 = chrono::high_resolution_clock::now();
 
     long int seed = randSeed(rand_gen);
     randSeed(rand2, seed);
@@ -113,6 +117,10 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
 
     //Get the relative movement direction (compared to the camera movement) for every moving object
     checkMovObjDirection();
+
+    //Calculate the execution time
+    t2 = chrono::high_resolution_clock::now();
+    tus_to_init = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
 }
 
 void genStereoSequ::resetInitVars(){
@@ -10370,10 +10378,13 @@ void genStereoSequ::getNewCorrs() {
 //Start calculating the whole sequence
 bool genStereoSequ::startCalc_internal() {
     static unsigned char init = 1;
+    chrono::high_resolution_clock::time_point t1, t2;
+    t1 = chrono::high_resolution_clock::now();
     if(init > 0) {
         actFrameCnt = 0;
         actCorrsPRIdx = 0;
         actStereoCIdx = 0;
+        timePerFrame.clear();
         if(init == 2){
             resetInitVars();
         }
@@ -10387,6 +10398,9 @@ bool genStereoSequ::startCalc_internal() {
         init = 2;
         return false;
     }
+
+    t2 = chrono::high_resolution_clock::now();
+    timePerFrame.emplace_back(chrono::duration_cast<chrono::microseconds>(t2 - t1).count());
 
     return true;
 }

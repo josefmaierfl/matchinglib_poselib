@@ -28,6 +28,30 @@ DISCRIPTION: This file provides some helper functions.
 
 /* --------------------------- Defines --------------------------- */
 
+struct qualityParm {
+	qualityParm(double medErr_,
+			double arithErr_,
+			double arithStd_,
+			double medStd_,
+			double lowerQuart_,
+			double upperQuart_):
+			medErr(medErr_),
+			arithErr(arithErr_),
+			arithStd(arithStd_),
+			medStd(medStd_),
+			lowerQuart(lowerQuart_),
+			upperQuart(upperQuart_){}
+	qualityParm():
+			medErr(0),
+			arithErr(0),
+			arithStd(0),
+			medStd(0),
+			lowerQuart(0),
+			upperQuart(0){}
+
+	double medErr, arithErr, arithStd, medStd, lowerQuart, upperQuart;
+};
+
 /* --------------------------- Classes --------------------------- */
 
 /* --------------------- Function prototypes --------------------- */
@@ -97,6 +121,9 @@ double quatAngle(Eigen::Vector4d & Q);
 
 //Round every entry of a matrix to its nearest integer
 cv::Mat roundMat(const cv::Mat& m);
+
+//Calculates statistical parameters for the given values
+void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bool rejQuartiles = false);
 
 /* -------------------------- Functions -------------------------- */
 

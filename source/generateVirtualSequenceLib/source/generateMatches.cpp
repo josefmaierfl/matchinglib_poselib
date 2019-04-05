@@ -6,6 +6,7 @@
 #include "io_data.h"
 #include "imgFeatures.h"
 #include <iomanip>
+#include <chrono>
 #include <pcl/io/pcd_io.h>
 #include "opencv2/imgproc/imgproc.hpp"
 
@@ -186,9 +187,12 @@ bool genMatchSequ::generateMatches(){
         }
     }
 
+    chrono::high_resolution_clock::time_point t1, t2, t3;
+
     bool overwriteFiles = false;
     bool overWriteSuccess = true;
     while (actFrameCnt < nrFramesGenMatches){
+        t1 = chrono::high_resolution_clock::now();
         if(!sequParsLoaded) {
             //Generate 3D correspondences for a single frame
             startCalc_internal();
@@ -221,6 +225,7 @@ bool genMatchSequ::generateMatches(){
                 return false;
             }
         }
+        t2 = chrono::high_resolution_clock::now();
 
         //Calculate matches for actual frame
         actTransGlobWorld = Mat::eye(4,4,CV_64FC1);
@@ -239,9 +244,18 @@ bool genMatchSequ::generateMatches(){
         if(sequParsLoaded){
             actFrameCnt++;
         }
+
+        //Calculate execution time
+        t3 = chrono::high_resolution_clock::now();
+        timePerFrameMatch.emplace_back(make_pair(chrono::duration_cast<chrono::microseconds>(t2 - t1).count(),
+                                                 chrono::duration_cast<chrono::microseconds>(t3 - t2).count()));
     }
 
+
     if(!sequParsLoaded && parsMtch.storePtClouds && overWriteSuccess){
+        //Calculate statistics on the execution time for 3D scenes
+        getStatisticfromVec(timePerFrame, time3DStats);
+
         string sequParFName = concatPath(sequParPath, sequParFileName);
         if(checkOverwriteDelFiles(sequParFName,
                 "Output file for sequence parameters already exists:", overwriteFiles)) {
@@ -258,6 +272,14 @@ bool genMatchSequ::generateMatches(){
             }
         }
     }
+
+    //Calculate statistics for the execution time of generating matches
+    vector<double> matchTime;
+    matchTime.reserve(timePerFrameMatch.size());
+    for(auto &i : timePerFrameMatch){
+        matchTime.push_back(i.second);
+    }
+    getStatisticfromVec(matchTime, timeMatchStats);
 
     //Calculate mean and standard deviation for keypoint accuracies
     //Calculate the mean
@@ -276,7 +298,7 @@ bool genMatchSequ::generateMatches(){
     std_dev_kp_error /= (double)kpErrors.size();
     std_dev_kp_error = sqrt(std_dev_kp_error);
 
-    //Write the error statistic and image names to a separate file
+    //Write the error statistic, image names, and execution times to a separate file
     writeKeyPointErrorAndSrcImgs(mean_kp_error, std_dev_kp_error);
 
     return true;
@@ -1173,6 +1195,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
     //Minimum descriptor distance for TN
     double ThTn = min(badDescrTH.mean - 4.0 * badDescrTH.standardDev, 2.0 * badDescrTH.minVal / 3.0);
     ThTn = (ThTn < badDescrTH.minVal / 3.0) ? (2.0 * badDescrTH.minVal / 3.0):ThTn;
+    //Minimum descriptor distance for TN which are near to their correct position
+    double ThTnNear = (minDescrDistTP + ThTn) / 2.0;
 
     std::normal_distribution<double> distr;
     int nrcombCorrs;
@@ -1584,9 +1608,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             //Apply noise
             if(useTN){
                 Mat patchwnsp;
-                addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoise, 2.0 * stdNoiseTN,
-                                 visPatchNoise);
-                addImgNoiseSaltAndPepper(patchwnsp, patchwn, 32, 223, visPatchNoise);
+                if(combDistTNtoReal[i] < 10.0){
+                    double stdNoiseTNNear = 2.0 * max(2.0, stdNoiseTN / (1.0 + (10.0 - combDistTNtoReal[i]) / 10.0));
+                    double meanIntTNNoiseNear = meanIntTNNoise / (1.0 + (10.0 - combDistTNtoReal[i]) / 10.0);
+                    addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoiseNear, stdNoiseTNNear,
+                                     visPatchNoise);
+                    if(combDistTNtoReal[i] > 5.0) {
+                        addImgNoiseSaltAndPepper(patchwnsp, patchwn, 28, 227, visPatchNoise);
+                    }
+                }else {
+                    addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoise, 2.0 * stdNoiseTN,
+                                     visPatchNoise);
+                    addImgNoiseSaltAndPepper(patchwnsp, patchwn, 32, 223, visPatchNoise);
+                }
             }else {
                 if (!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)) {
                     addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second,
@@ -1607,7 +1641,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 //Check matchability
                 descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
                 if(useTN){
-                    if (descrDist < ThTn) {
+                    if (((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear)) {
                         useFallBack = true;
                     }
                 }else {
@@ -1710,7 +1744,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 }
                 itCnt++;
             }while(((!useTN && ((descrDist < minDescrDistTP) || (descrDist > ThTp)))
-            || (useTN && ((descrDist < ThTn) || (descrDist > badDescrTH.maxVal))))
+            || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear))
+            || (descrDist > badDescrTH.maxVal))))
                && (itCnt < 20));
             if(itCnt >= 20){
                 //Use the original descriptor
@@ -2208,6 +2243,14 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
         fs << i;
     }
     fs << "]";
+    cvWriteComment(*fs, "Statistic of the execution time for calculating the matches", 0);
+    fs << "timeMatchStats";
+    fs << "{" << "medErr" << timeMatchStats.medErr;
+    fs << "arithErr" << timeMatchStats.arithErr;
+    fs << "arithStd" << timeMatchStats.arithStd;
+    fs << "medStd" << timeMatchStats.medStd;
+    fs << "lowerQuart" << timeMatchStats.lowerQuart;
+    fs << "upperQuart" << timeMatchStats.upperQuart << "}";
 
     fs.release();
 
@@ -2626,6 +2669,15 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     fs << "imgSize";
     fs << "{" << "width" << imgSize.width;
     fs << "height" << imgSize.height << "}";
+
+    cvWriteComment(*fs, "Statistic of the execution time for calculating the 3D sequence", 0);
+    fs << "time3DStats";
+    fs << "{" << "medErr" << time3DStats.medErr;
+    fs << "arithErr" << time3DStats.arithErr;
+    fs << "arithStd" << time3DStats.arithStd;
+    fs << "medStd" << time3DStats.medStd;
+    fs << "lowerQuart" << time3DStats.lowerQuart;
+    fs << "upperQuart" << time3DStats.upperQuart << "}";
 
     fs.release();
 

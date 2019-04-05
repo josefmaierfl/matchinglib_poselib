@@ -462,3 +462,72 @@ cv::Mat roundMat(const cv::Mat& m)
 
 	return tmp1;
 }
+
+/* Calculates statistical parameters for the given values in the vector. The following parameters
+ * are calculated: median, arithmetic mean value, standard deviation and standard deviation using the median.
+ *
+ * vector<double> vals		Input  -> Input vector from which the statistical parameters should be calculated
+ * qualityParm stats		Output -> Structure holding the statistical parameters
+ * bool rejQuartiles		Input  -> If true, the lower and upper quartiles are rejected before calculating
+ *									  the parameters
+ *
+ * Return value:		 none
+ */
+void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bool rejQuartiles)
+{
+	if(vals.empty())
+	{
+		stats.arithErr = 0;
+		stats.arithStd = 0;
+		stats.medErr = 0;
+		stats.medStd = 0;
+		stats.lowerQuart = 0;
+		stats.upperQuart = 0;
+		return;
+	}
+	size_t n = vals.size();
+	if(rejQuartiles && (n < 4))
+		rejQuartiles = false;
+	auto qrt_si = (size_t)floor(0.25 * (double)n);
+	std::vector<double> vals_tmp(vals);
+
+	std::sort(vals_tmp.begin(),vals_tmp.end(),[](double const & first, double const & second){
+		return first < second;});
+
+	if(n % 2)
+		stats.medErr = vals_tmp[(n-1)/2];
+	else
+		stats.medErr = (vals_tmp[n/2]+vals_tmp[n/2-1])/2;
+
+	stats.lowerQuart = vals_tmp[qrt_si];
+	if(n > 3)
+		stats.upperQuart = vals_tmp[n-qrt_si];
+	else
+		stats.upperQuart = vals_tmp[qrt_si];
+
+	stats.arithErr = 0.0;
+	double err2sum = 0.0;
+	double medstdsum = 0.0;
+	double hlp;
+	for(size_t i = rejQuartiles ? qrt_si:0; i < (rejQuartiles ? (n-qrt_si):n); i++)
+	{
+		stats.arithErr += vals_tmp[i];
+		err2sum += vals_tmp[i] * vals_tmp[i];
+		hlp = (vals_tmp[i] - stats.medErr);
+		medstdsum += hlp * hlp;
+	}
+	if(rejQuartiles)
+		n -= 2 * qrt_si;
+	stats.arithErr /= n;
+
+	hlp = err2sum-n*(stats.arithErr)*(stats.arithErr);
+	if(std::abs(hlp) < 1e-6)
+		stats.arithStd = 0.0;
+	else
+		stats.arithStd = std::sqrt(hlp/(n-1));
+
+	if(std::abs(medstdsum) < 1e-6)
+		stats.medStd = 0.0;
+	else
+		stats.medStd = std::sqrt(medstdsum/(n-1));
+}
