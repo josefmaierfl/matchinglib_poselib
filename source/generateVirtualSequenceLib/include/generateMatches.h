@@ -267,9 +267,9 @@ private:
     std::vector<double> kpErrors;//Holds distances from the original to the distorted keypoint locations for every correspondence of the whole sequence
     //std::string matchParsFileName = "";//File name (including path) of the parameter file to create matches
     bool overwriteMatchingFiles = false;//If true (after asking the user), data files holding matches (from a different call to this software) in the same folder (should not happen - only if the user manually copies data) are replaced by the new data files
-    std::vector<std::pair<double,double>> timePerFrameMatch;//Holds time measurements for every frame. The first value corresponds to the time for loading or calculating 3D information of one stereo frame. The second value holds the time for calculating the matches.
-    qualityParm timeMatchStats = qualityParm();//Statistics for the execution time for calculating matches based on all frames
-    qualityParm time3DStats = qualityParm();//Statistics for the execution time for calculating 3D correspondences based on all frames
+    std::vector<std::pair<double,double>> timePerFrameMatch;//Holds time measurements for every frame in microseconds. The first value corresponds to the time for loading or calculating 3D information of one stereo frame. The second value holds the time for calculating the matches.
+    qualityParm timeMatchStats = qualityParm();//Statistics for the execution time in microseconds for calculating matches based on all frames
+    qualityParm time3DStats = qualityParm();//Statistics for the execution time in microseconds for calculating 3D correspondences based on all frames
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

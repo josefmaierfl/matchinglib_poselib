@@ -34,22 +34,28 @@ struct qualityParm {
 			double arithStd_,
 			double medStd_,
 			double lowerQuart_,
-			double upperQuart_):
-			medErr(medErr_),
-			arithErr(arithErr_),
+			double upperQuart_,
+			double minVal_,
+			double maxVal_):
+			medVal(medErr_),
+			arithVal(arithErr_),
 			arithStd(arithStd_),
 			medStd(medStd_),
 			lowerQuart(lowerQuart_),
-			upperQuart(upperQuart_){}
+			upperQuart(upperQuart_),
+			minVal(minVal_),
+			maxVal(maxVal_){}
 	qualityParm():
-			medErr(0),
-			arithErr(0),
+			medVal(0),
+			arithVal(0),
 			arithStd(0),
 			medStd(0),
 			lowerQuart(0),
-			upperQuart(0){}
+			upperQuart(0),
+			minVal(0),
+			maxVal(0){}
 
-	double medErr, arithErr, arithStd, medStd, lowerQuart, upperQuart;
+	double medVal, arithVal, arithStd, medStd, lowerQuart, upperQuart, minVal, maxVal;
 };
 
 /* --------------------------- Classes --------------------------- */

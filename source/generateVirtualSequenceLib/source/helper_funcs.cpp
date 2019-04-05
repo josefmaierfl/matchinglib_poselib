@@ -477,12 +477,7 @@ void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bo
 {
 	if(vals.empty())
 	{
-		stats.arithErr = 0;
-		stats.arithStd = 0;
-		stats.medErr = 0;
-		stats.medStd = 0;
-		stats.lowerQuart = 0;
-		stats.upperQuart = 0;
+		stats = qualityParm();
 		return;
 	}
 	size_t n = vals.size();
@@ -495,9 +490,9 @@ void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bo
 		return first < second;});
 
 	if(n % 2)
-		stats.medErr = vals_tmp[(n-1)/2];
+		stats.medVal = vals_tmp[(n-1)/2];
 	else
-		stats.medErr = (vals_tmp[n/2]+vals_tmp[n/2-1])/2;
+		stats.medVal = (vals_tmp[n/2]+vals_tmp[n/2-1])/2;
 
 	stats.lowerQuart = vals_tmp[qrt_si];
 	if(n > 3)
@@ -505,22 +500,25 @@ void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bo
 	else
 		stats.upperQuart = vals_tmp[qrt_si];
 
-	stats.arithErr = 0.0;
+	stats.maxVal = vals_tmp.back();
+	stats.minVal = vals_tmp[0];
+
+	stats.arithVal = 0.0;
 	double err2sum = 0.0;
 	double medstdsum = 0.0;
 	double hlp;
 	for(size_t i = rejQuartiles ? qrt_si:0; i < (rejQuartiles ? (n-qrt_si):n); i++)
 	{
-		stats.arithErr += vals_tmp[i];
+		stats.arithVal += vals_tmp[i];
 		err2sum += vals_tmp[i] * vals_tmp[i];
-		hlp = (vals_tmp[i] - stats.medErr);
+		hlp = (vals_tmp[i] - stats.medVal);
 		medstdsum += hlp * hlp;
 	}
 	if(rejQuartiles)
 		n -= 2 * qrt_si;
-	stats.arithErr /= n;
+	stats.arithVal /= n;
 
-	hlp = err2sum-n*(stats.arithErr)*(stats.arithErr);
+	hlp = err2sum-n*(stats.arithVal)*(stats.arithVal);
 	if(std::abs(hlp) < 1e-6)
 		stats.arithStd = 0.0;
 	else

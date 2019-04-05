@@ -675,7 +675,7 @@ protected:
     CorrOrderTP combCorrsImg12TPorder = CorrOrderTP();//Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
     bool combCorrsImg12TNstatFirst = true;//Indicates that TN correspondences of static objects are located at the beginning of Mats combCorrsImg1TN and combCorrsImg2TN
     double tus_to_init = 0;//Time to program needs to initialize (inside constructor)
-    std::vector<double> timePerFrame;//Time the program needs to generate a single stereo frame (for every stereo frame)
+    std::vector<double> timePerFrame;//Time in microseconds the program needs to generate a single stereo frame (for every stereo frame)
 };
 
 

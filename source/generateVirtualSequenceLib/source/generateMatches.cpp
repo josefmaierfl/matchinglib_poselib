@@ -26,7 +26,8 @@ static inline FileStorage& operator << (FileStorage& fs, int64_t &value);
 static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value);
 bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
 bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
-void shuffleVector(std::vector<size_t> &idxs, size_t si);
+template<typename T>
+void shuffleVector(std::vector<T> &idxs, size_t si);
 template<typename T>
 void reOrderVector(std::vector<T> &reOrderVec, std::vector<size_t> &idxs);
 void reOrderSortMatches(std::vector<cv::DMatch> &matches,
@@ -705,7 +706,7 @@ bool genMatchSequ::getFeatures() {
     size_t nrImgs = imageList.size();
 
     //Get random sequence of images
-    std::random_shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
+    std::shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
 
     //Check for the correct keypoint & descriptor types
     if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
@@ -1010,20 +1011,12 @@ bool genMatchSequ::writeMatchesToDisk(){
     cvWriteComment(*fs, "Keypoints for the first (left or top) stereo cam (there is no 1:1 correspondence between "
                         "frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each "
                         "of them is the same compared to their corresponding descriptor Mat (rows))", 0);
-    fs << "frameKeypoints1" << "[";
-    for (auto &i : frameKeypoints1) {
-        fs << i;
-    }
-    fs << "]";
+    fs << "frameKeypoints1" << frameKeypoints1;
 
     cvWriteComment(*fs, "Keypoints for the second (right or bottom) stereo cam (there is no 1:1 correspondence between "
                         "frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each "
                         "of them is the same compared to their corresponding descriptor Mat (rows))", 0);
-    fs << "frameKeypoints2" << "[";
-    for (auto &i : frameKeypoints2) {
-        fs << i;
-    }
-    fs << "]";
+    fs << "frameKeypoints2" << frameKeypoints2;
 
     cvWriteComment(*fs, "Descriptors for first (left or top) stereo cam (there is no 1:1 correspondence between "
                         "frameDescriptors1 and frameDescriptors2 as they are shuffled but the descriptor order "
@@ -1041,11 +1034,7 @@ bool genMatchSequ::writeMatchesToDisk(){
 
     cvWriteComment(*fs, "Matches between features of a single stereo frame. They are sorted based on the descriptor "
                         "distance (smallest first)", 0);
-    fs << "frameMatches" << "[";
-    for (auto &i : frameMatches) {
-        fs << i;
-    }
-    fs << "]";
+    fs << "frameMatches" << frameMatches;
 
     cvWriteComment(*fs, "Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) "
                         "is an inlier.", 0);
@@ -1057,11 +1046,7 @@ bool genMatchSequ::writeMatchesToDisk(){
 
     cvWriteComment(*fs, "Keypoints in the second stereo image without a positioning error (in general, keypoints "
                         "in the first stereo image are without errors)", 0);
-    fs << "frameKeypoints2NoErr" << "[";
-    for (auto &i : frameKeypoints2NoErr) {
-        fs << i;
-    }
-    fs << "]";
+    fs << "frameKeypoints2NoErr" << frameKeypoints2NoErr;
 
     cvWriteComment(*fs, "Holds the homographies for all patches arround keypoints for warping the patch which is "
                         "then used to calculate the matching descriptor. Homographies corresponding to the same "
@@ -1072,11 +1057,19 @@ bool genMatchSequ::writeMatchesToDisk(){
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Holds the keypoint and image index of the image used to extract patches", 0);
-    fs << "frameHomographies" << "[";
+    cvWriteComment(*fs, "Holds the keypoints from the images used to extract patches (image indices for keypoints "
+                        "are stored in srcImgPatchKpImgIdx)", 0);
+    vector<KeyPoint> origKps;
+    origKps.reserve(srcImgPatchIdxAndKp.size());
+    for (auto &i : srcImgPatchIdxAndKp){
+        origKps.push_back(i.second);
+    }
+    fs << "srcImgPatchKp" << origKps;
+    cvWriteComment(*fs, "Holds the image indices of the images used to extract patches for every keypoint in "
+                        "srcImgPatchKp (same order)", 0);
+    fs << "srcImgPatchKpImgIdx" << "[";
     for (auto &i : srcImgPatchIdxAndKp) {
-        fs << "{" << "imgIdx" << i.first;
-        fs << "keypoint" << i.second << "}";
+        fs << (int)i.first;
     }
     fs << "]";
 
@@ -2243,12 +2236,14 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Statistic of the execution time for calculating the matches", 0);
+    cvWriteComment(*fs, "Statistic of the execution time for calculating the matches in microseconds", 0);
     fs << "timeMatchStats";
-    fs << "{" << "medErr" << timeMatchStats.medErr;
-    fs << "arithErr" << timeMatchStats.arithErr;
+    fs << "{" << "medVal" << timeMatchStats.medVal;
+    fs << "arithVal" << timeMatchStats.arithVal;
     fs << "arithStd" << timeMatchStats.arithStd;
     fs << "medStd" << timeMatchStats.medStd;
+    fs << "minVal" << timeMatchStats.minVal;
+    fs << "maxVal" << timeMatchStats.maxVal;
     fs << "lowerQuart" << timeMatchStats.lowerQuart;
     fs << "upperQuart" << timeMatchStats.upperQuart << "}";
 
@@ -2335,14 +2330,6 @@ bool genMatchSequ::writeMatchingParameters(){
     cvWriteComment(*fs, "If true and too less images images are provided (resulting in too less keypoints), "
                         "only as many frames with GT matches are provided as keypoints are available.", 0);
     fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
-    cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
-                        "K1 & K2 based on their initial values (only the focal lengths and image centers are "
-                        "randomly distorted)", 0);
-    fs << "distortCamMat";
-    fs << "{" << "first" << parsMtch.distortCamMat.first;
-    fs << "second" << parsMtch.distortCamMat.second << "}";
-
-    fs << "}";
 
     fs.release();
 
@@ -2670,12 +2657,14 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     fs << "{" << "width" << imgSize.width;
     fs << "height" << imgSize.height << "}";
 
-    cvWriteComment(*fs, "Statistic of the execution time for calculating the 3D sequence", 0);
+    cvWriteComment(*fs, "Statistic of the execution time for calculating the 3D sequence in microseconds", 0);
     fs << "time3DStats";
-    fs << "{" << "medErr" << time3DStats.medErr;
-    fs << "arithErr" << time3DStats.arithErr;
+    fs << "{" << "medVal" << time3DStats.medVal;
+    fs << "arithVal" << time3DStats.arithVal;
     fs << "arithStd" << time3DStats.arithStd;
     fs << "medStd" << time3DStats.medStd;
+    fs << "minVal" << time3DStats.minVal;
+    fs << "maxVal" << time3DStats.maxVal;
     fs << "lowerQuart" << time3DStats.lowerQuart;
     fs << "upperQuart" << time3DStats.upperQuart << "}";
 
