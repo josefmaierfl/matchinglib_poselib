@@ -32,10 +32,6 @@ a view restrictions like depth ranges, moving objects, ...
 
 /* --------------------------- Defines --------------------------- */
 
-//Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to the image plane
-//As filtering occluded points is very time-consuming it can be disabled
-#define FILTER_OCCLUDED_POINTS 0
-
 struct GENERATEVIRTUALSEQUENCELIB_API depthPortion
 {
 	depthPortion()
@@ -181,7 +177,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 				  && (distortCamMat.first <= 1.0)
 				  && (distortCamMat.second >= 0)
 				  && (distortCamMat.second <= 1.0)
-				  && (distortCamMat.first <= distortCamMat.second));
+				  && (distortCamMat.first <= (distortCamMat.second + DBL_EPSILON)));
 
 		if(!R_.empty())
 		    R = R_.getMat();
@@ -302,8 +298,12 @@ public:
 			std::vector<cv::Mat> R_,
 			std::vector<cv::Mat> t_,
 			StereoSequParameters & pars_,
+			bool filter_occluded_points_ = false,
 			uint32_t verbose = 0);
-    genStereoSequ(uint32_t verbose_ = 0):verbose(verbose_), pars(StereoSequParameters()){};
+    genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0):
+    verbose(verbose_),
+    filter_occluded_points(filter_occluded_points_),
+    pars(StereoSequParameters()){};
 	virtual void startCalc();
 
 protected:
@@ -515,6 +515,9 @@ private:
 
 public:
 	uint32_t verbose = 0;
+    //Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to the image plane
+    //As filtering occluded points is very time-consuming it can be disabled
+	bool filter_occluded_points = false;
 
 private:
 

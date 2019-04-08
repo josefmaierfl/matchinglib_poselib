@@ -58,8 +58,16 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
                              std::vector<cv::Mat> R_,
                              std::vector<cv::Mat> t_,
                              StereoSequParameters &pars_,
+                             bool filter_occluded_points_,
                              uint32_t verbose_) :
-        verbose(verbose_), imgSize(imgSize_), K1(K1_), K2(K2_), pars(pars_), R(std::move(R_)), t(std::move(t_)) {
+        verbose(verbose_),
+        filter_occluded_points(filter_occluded_points_),
+        imgSize(imgSize_),
+        K1(K1_),
+        K2(K2_),
+        pars(pars_),
+        R(std::move(R_)),
+        t(std::move(t_)) {
     CV_Assert((K1.rows == 3) && (K2.rows == 3) && (K1.cols == 3) && (K2.cols == 3) && (K1.type() == CV_64FC1) &&
               (K2.type() == CV_64FC1));
     CV_Assert((imgSize.area() > 0) && (R.size() == t.size()) && !R.empty());
@@ -1643,7 +1651,7 @@ void genStereoSequ::backProject3D() {
     std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
     vector<int> actCorrsImg12TPFromLast_IdxWorld_tmp;
     size_t idx1 = 0;
-    for (auto i = 0; i < actImgPointCloudFromLast.size(); ++i) {
+    for (auto i = 0; i < (int)actImgPointCloudFromLast.size(); ++i) {
         cv::Point3d &pt = actImgPointCloudFromLast[i];
         if ((pt.z < actDepthNear) ||
             (pt.z > dimgWH.maxDist)) {
@@ -9519,77 +9527,83 @@ void genStereoSequ::getCamPtsFromWorld() {
     actImgPointCloudFromLast.clear();
     actCorrsImg12TPFromLast_IdxWorld.clear();
 //    pcl::PointCloud<pcl::PointXYZ>::Ptr ptr_actImgPointCloudFromLast(staticWorld3DPts.makeShared());
-#if FILTER_OCCLUDED_POINTS
-    vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
-    vector<vector<int>> camFilteredPtsParts_idx;
-    const int partsx = 5;
-    const int partsy = 5;
-    const int partsxy = partsx * partsy;
+    //Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to
+    //the image plane as filtering occluded points is very time-consuming it can be disabled
+    if(filter_occluded_points) {
+        vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> camFilteredPtsParts;
+        vector<vector<int>> camFilteredPtsParts_idx;
+        const int partsx = 5;
+        const int partsy = 5;
+        const int partsxy = partsx * partsy;
 //    bool success = getVisibleCamPointCloudSlices(staticWorld3DPts, camFilteredPtsParts, partsy, partsx, 0, 0);
-    bool success = getVisibleCamPointCloudSlicesAndDepths(staticWorld3DPts,
-            camFilteredPtsParts,
-            camFilteredPtsParts_idx,
-            partsy,
-            partsx);
-    if (!success) {
-        return;
-    }
+        bool success = getVisibleCamPointCloudSlicesAndDepths(staticWorld3DPts,
+                                                              camFilteredPtsParts,
+                                                              camFilteredPtsParts_idx,
+                                                              partsy,
+                                                              partsx);
+        if (!success) {
+            return;
+        }
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
-    success = false;
-    for (int i = 0; i < partsxy; i++) {
-        if(camFilteredPtsParts[i].get() == nullptr) continue;
-        if (camFilteredPtsParts[i]->empty()) continue;
-        vector<int> filteredOccludedPts_idx;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPts(new pcl::PointCloud<pcl::PointXYZ>());
-        bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts_idx, false, false, occludedPts);
-        if (!success1) {
-            filteredOccludedPts_idx.clear();
-            occludedPts->clear();
-            success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts_idx, true, false, occludedPts);
-            if (!filteredOccludedPts_idx.empty()) {
-                actCorrsImg12TPFromLast_IdxWorld.reserve(actCorrsImg12TPFromLast_IdxWorld.size() + filteredOccludedPts_idx.size());
-                for(auto& j : filteredOccludedPts_idx){
+        pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
+        success = false;
+        for (int i = 0; i < partsxy; i++) {
+            if (camFilteredPtsParts[i].get() == nullptr) continue;
+            if (camFilteredPtsParts[i]->empty()) continue;
+            vector<int> filteredOccludedPts_idx;
+            pcl::PointCloud<pcl::PointXYZ>::Ptr occludedPts(new pcl::PointCloud<pcl::PointXYZ>());
+            bool success1 = filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts_idx, false, false,
+                                                occludedPts);
+            if (!success1) {
+                filteredOccludedPts_idx.clear();
+                occludedPts->clear();
+                success |= filterNotVisiblePts(camFilteredPtsParts[i], filteredOccludedPts_idx, true, false,
+                                               occludedPts);
+                if (!filteredOccludedPts_idx.empty()) {
+                    actCorrsImg12TPFromLast_IdxWorld.reserve(
+                            actCorrsImg12TPFromLast_IdxWorld.size() + filteredOccludedPts_idx.size());
+                    for (auto &j : filteredOccludedPts_idx) {
+                        actCorrsImg12TPFromLast_IdxWorld.push_back(camFilteredPtsParts_idx[i][j]);
+                    }
+                }
+                if (!occludedPts->empty()) {
+                    occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
+                }
+            } else {
+                success = true;
+                actCorrsImg12TPFromLast_IdxWorld.reserve(
+                        actCorrsImg12TPFromLast_IdxWorld.size() + filteredOccludedPts_idx.size());
+                for (auto &j : filteredOccludedPts_idx) {
                     actCorrsImg12TPFromLast_IdxWorld.push_back(camFilteredPtsParts_idx[i][j]);
                 }
-            }
-            if (!occludedPts->empty()) {
-                occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
-            }
-        } else {
-            success = true;
-            actCorrsImg12TPFromLast_IdxWorld.reserve(actCorrsImg12TPFromLast_IdxWorld.size() + filteredOccludedPts_idx.size());
-            for(auto& j : filteredOccludedPts_idx){
-                actCorrsImg12TPFromLast_IdxWorld.push_back(camFilteredPtsParts_idx[i][j]);
-            }
-            if (!occludedPts->empty()) {
-                occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
+                if (!occludedPts->empty()) {
+                    occludedPtsAll->insert(occludedPtsAll->end(), occludedPts->begin(), occludedPts->end());
+                }
             }
         }
-    }
 
-    if (!actCorrsImg12TPFromLast_IdxWorld.empty() || !occludedPtsAll->empty()) {
-        if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ) {
-            pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
-            filteredOccludedPtsAll->reserve(actCorrsImg12TPFromLast_IdxWorld.size());
-            for(auto& i : actCorrsImg12TPFromLast_IdxWorld){
-                filteredOccludedPtsAll->push_back(staticWorld3DPts->at((size_t)i));
+        if (!actCorrsImg12TPFromLast_IdxWorld.empty() || !occludedPtsAll->empty()) {
+            if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ) {
+                pcl::PointCloud<pcl::PointXYZ>::Ptr filteredOccludedPtsAll(new pcl::PointCloud<pcl::PointXYZ>());
+                filteredOccludedPtsAll->reserve(actCorrsImg12TPFromLast_IdxWorld.size());
+                for (auto &i : actCorrsImg12TPFromLast_IdxWorld) {
+                    filteredOccludedPtsAll->push_back(staticWorld3DPts->at((size_t) i));
+                }
+                visualizeOcclusions(filteredOccludedPtsAll, occludedPtsAll, 1.0);
             }
-            visualizeOcclusions(filteredOccludedPtsAll, occludedPtsAll, 1.0);
         }
-    }
 
-    if (!success) {
-        if (actCorrsImg12TPFromLast_IdxWorld.empty()) {
+        if (!success) {
+            if (actCorrsImg12TPFromLast_IdxWorld.empty()) {
+                return;
+            }
+        }
+    }else {
+        bool success = getVisibleCamPointCloud(staticWorld3DPts, &actCorrsImg12TPFromLast_IdxWorld);
+        if (!success) {
             return;
         }
     }
-#else
-    bool success = getVisibleCamPointCloud(staticWorld3DPts, &actCorrsImg12TPFromLast_IdxWorld);
-    if (!success) {
-        return;
-    }
-#endif
 
     for (auto& j : actCorrsImg12TPFromLast_IdxWorld) {
         cv::Point3d pt = Point3d((double) staticWorld3DPts->at((size_t)j).x, (double) staticWorld3DPts->at((size_t)j).y,

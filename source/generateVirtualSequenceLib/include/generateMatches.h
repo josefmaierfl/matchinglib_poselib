@@ -23,6 +23,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     bool rwXMLinfo;//If true, the parameters and information are stored and read in XML format. Otherwise it is stored or read in YAML format
     bool compressedWrittenInfo;//If true, the stored information and parameters are compressed (appends .gz) and it is assumed that paramter files to be read are aslo compressed
     bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available.
+    bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
                            std::string imgPath_,
@@ -49,7 +50,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             storePtClouds(storePtClouds_),
             rwXMLinfo(rwXMLinfo_),
             compressedWrittenInfo(compressedWrittenInfo_),
-            takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_){
+            takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_),
+            parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
         CV_Assert(keypPosErrType || (!keypPosErrType && (keypErrDistr.first < 5.0) &&
@@ -60,6 +62,22 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
 //        CV_Assert((lostCorrPor >= 0) && (lostCorrPor <= 0.9));
         CV_Assert(!imgPath.empty());
     }
+
+    GenMatchSequParameters():
+            mainStorePath(""),
+            imgPath(""),
+            imgPrePostFix(""),
+            keyPointType(""),
+            descriptorType(""),
+            keypPosErrType(false),
+            keypErrDistr(std::make_pair(0, 0.5)),
+            imgIntNoise(std::make_pair(0, 5.0)),
+//            lostCorrPor(lostCorrPor_),
+            storePtClouds(false),
+            rwXMLinfo(false),
+            compressedWrittenInfo(false),
+            takeLessFramesIfLessKeyP(false),
+            parsValid(false){}
 };
 
 struct stats{
@@ -80,8 +98,9 @@ public:
                  std::vector<cv::Mat> &t_,
                  StereoSequParameters pars3D_,
                  GenMatchSequParameters &parsMtch_,
+                 bool filter_occluded_points_,
                  uint32_t verbose_ = 0) :
-            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, verbose_),
+            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, filter_occluded_points_, verbose_),
             parsMtch(parsMtch_),
             pars3D(pars3D_),
             imgSize(imgSize_),
@@ -89,6 +108,7 @@ public:
             K2(K2_),
             sequParsLoaded(false) {
         CV_Assert(!parsMtch.mainStorePath.empty());
+        CV_Assert(parsMtch.parsValid);
         genSequenceParsFileName();
         K1i = K1.inv();
         K2i = K2.inv();
@@ -100,8 +120,6 @@ public:
                  uint32_t verboseMatch_ = 0);
 
     bool generateMatches();
-
-//    void startCalc() override;
 
 private:
     //Loads the image names (including folders) of all specified images (used to generate matches) within a given folder

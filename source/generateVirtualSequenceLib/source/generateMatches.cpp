@@ -47,9 +47,10 @@ bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &
 genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            GenMatchSequParameters &parsMtch_,
                            uint32_t verbose_) :
-        genStereoSequ(verbose_),
+        genStereoSequ(false, verbose_),
         parsMtch(parsMtch_),
         sequParsLoaded(true){
+    CV_Assert(parsMtch.parsValid);
 
     sequLoadPath = sequLoadFolder;
     if(sequLoadPath.empty()){
@@ -667,7 +668,7 @@ cv::Mat genMatchSequ::rotateAboutLine(const cv::Mat &a, const double &angle, con
             1.0, 0, 0,
             0, cosx, -sinx,
             0, sinx, cosx);
-    double &siny = a_.at<double>(0);
+    auto &siny = a_.at<double>(0);
     const double &cosy = c;
     Mat R_y = (Mat_<double>(3,3) <<
             cosy, 0, siny,
@@ -2055,7 +2056,7 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
     if(minSquare < minPatchSize2){
         minSquare = minPatchSize2;
     }
-    double minSquare2 = (double)((minSquare - 1) / 2);
+    auto minSquare2 = (double)((minSquare - 1) / 2);
 
 
     //Transform the square back into the original image
