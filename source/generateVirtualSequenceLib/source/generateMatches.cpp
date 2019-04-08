@@ -1861,12 +1861,132 @@ double genMatchSequ::getDescriptorDistance(const cv::Mat &descriptor1, const cv:
 }
 
 void genMatchSequ::calcGoodBadDescriptorTH(){
-    const int compareNr = min(100, (int)keypoints1.size());
+    int compareNr = min(100, (int)keypoints1.size());
     vector<int> usedDescriptors;
     shuffleVector(usedDescriptors, (size_t)descriptors1.rows);
     usedDescriptors.erase(usedDescriptors.begin() + compareNr, usedDescriptors.end());
     const int maxComps = compareNr * (compareNr - 1) / 2;
     vector<double> dist_bad((const size_t)maxComps);
+
+    //Exclude possible true positive matches between different images
+    //Get image indices
+    vector<pair<size_t,int>> usedImgIdx;
+    usedImgIdx.reserve((size_t)compareNr);
+    for(int i = 0; i < compareNr; ++i){
+        usedImgIdx.emplace_back(make_pair(featureImgIdx[usedDescriptors[i]],i));
+    }
+    sort(usedImgIdx.begin(),
+            usedImgIdx.end(),
+            [](pair<size_t,int> &first, pair<size_t,int> &second){return first.first < second.first;});
+    //Group feature indices from the same images
+    vector<vector<int>> multImgFeatures;
+    for(int i = 0; i < compareNr - 1; ++i){
+        vector<int> sameImgs;
+        for(int j = i + 1; j < compareNr; ++j){
+            sameImgs.push_back(usedImgIdx[i].second);
+            if(usedImgIdx[i].first != usedImgIdx[j].first){
+                break;
+            }
+        }
+        multImgFeatures.push_back(sameImgs);
+    }
+    if(multImgFeatures.size() > 1) {
+        //Calculate descriptor distances between different images
+        vector<DMatch> descrDistMultImg;
+        if(descriptors1.type() == CV_8U) {
+            for (size_t i = 0; i < multImgFeatures.size() - 1; ++i) {
+                for (size_t j = i + 1; j < multImgFeatures.size(); ++j) {
+                    for (size_t k = 0; k < multImgFeatures[i].size(); ++k) {
+                        for (size_t l = 0; l < multImgFeatures[j].size(); ++l) {
+                            double descr_norm = norm(descriptors1.row(multImgFeatures[i][k]),
+                                                     descriptors1.row(multImgFeatures[j][l]),
+                                                     NORM_HAMMING);
+                            descrDistMultImg.emplace_back(DMatch(multImgFeatures[i][k],
+                                    multImgFeatures[j][l], (float)descr_norm));
+                        }
+                    }
+                }
+            }
+        }else{
+            for (size_t i = 0; i < multImgFeatures.size() - 1; ++i) {
+                for (size_t j = i + 1; j < multImgFeatures.size(); ++j) {
+                    for (size_t k = 0; k < multImgFeatures[i].size(); ++k) {
+                        for (size_t l = 0; l < multImgFeatures[j].size(); ++l) {
+                            double descr_norm = norm(descriptors1.row(multImgFeatures[i][k]),
+                                                     descriptors1.row(multImgFeatures[j][l]),
+                                                     NORM_L2);
+                            descrDistMultImg.emplace_back(DMatch(multImgFeatures[i][k],
+                                                                 multImgFeatures[j][l], (float)descr_norm));
+                        }
+                    }
+                }
+            }
+        }
+
+        //Calculate descriptor distances within same images
+        vector<float> descrDistSameImg;
+        if(descriptors1.type() == CV_8U) {
+            for (auto &i : multImgFeatures) {
+                for (size_t j = 0; j < i.size() - 1; ++j) {
+                    for (size_t k = j + 1; k < i.size(); ++k) {
+                        descrDistSameImg.emplace_back((float)norm(descriptors1.row(i[j]),
+                                                           descriptors1.row(i[k]),
+                                                           NORM_HAMMING));
+                    }
+                }
+            }
+        } else{
+            for (auto &i : multImgFeatures) {
+                for (size_t j = 0; j < i.size() - 1; ++j) {
+                    for (size_t k = j + 1; k < i.size(); ++k) {
+                        descrDistSameImg.emplace_back((float)norm(descriptors1.row(i[j]),
+                                                                  descriptors1.row(i[k]),
+                                                                  NORM_L2));
+                    }
+                }
+            }
+        }
+        //Get smallest descriptor distance within images
+        float smallestDescrDistSameImg = *min_element(descrDistSameImg.begin(), descrDistSameImg.end());
+
+        //Mark every descriptor distance between different images that is smaller than the smallest within an image as possible TP
+        vector<int> excludeIdx;
+        for(auto &i : descrDistMultImg){
+            if(i.distance < smallestDescrDistSameImg){
+                excludeIdx.push_back(i.queryIdx);
+            }
+        }
+
+        if(!excludeIdx.empty()){
+            sort(excludeIdx.begin(), excludeIdx.end(), [](int &first, int &second){return first < second;});
+            //Remove duplicates
+            vector<size_t> delIdx;
+            for (size_t i = 0; i < excludeIdx.size() - 1; ++i) {
+                bool nfound = true;
+                for (size_t j = i + 1; j < excludeIdx.size(); ++j) {
+                    if((excludeIdx[i] == excludeIdx[j]) && nfound){
+                        delIdx.push_back(i);
+                        nfound = false;
+                    } else if(excludeIdx[i] != excludeIdx[j]){
+                        i = j - 1;
+                        break;
+                    }
+                }
+            }
+            if(!delIdx.empty()){
+                sort(delIdx.begin(), delIdx.end(), [](size_t &first, size_t &second){return first < second;});
+                for(int i = (int)delIdx.size() - 1; i >= 0; i--){
+                    excludeIdx.erase(excludeIdx.begin() + delIdx[i]);
+                }
+            }
+            //Remove the potential true positives from the index
+            for(int i = (int)excludeIdx.size() - 1; i >= 0; i--){
+                usedDescriptors.erase(usedDescriptors.begin() + excludeIdx[i]);
+            }
+            //Adapt the number of remaining descriptors
+            compareNr = (int)usedDescriptors.size();
+        }
+    }
 
     //Calculate any possible descriptor distance of not matching descriptors
     int nrComps = 0;
