@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: February 2018
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -37,7 +37,15 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	std::vector<std::vector<double>> roll,
 	std::vector<std::vector<double>> pitch,
 	std::vector<std::vector<double>> yaw,
-	double approxImgOverlap, cv::Size imgSize): tx_(tx), ty_(ty), tz_(tz), roll_(roll), pitch_(pitch), yaw_(yaw), approxImgOverlap_(approxImgOverlap), imgSize_(imgSize)
+	double approxImgOverlap, cv::Size imgSize):
+	tx_(move(tx)),
+	ty_(move(ty)),
+	tz_(move(tz)),
+	roll_(move(roll)),
+	pitch_(move(pitch)),
+	yaw_(move(yaw)),
+	approxImgOverlap_(approxImgOverlap),
+	imgSize_(imgSize)
 {
 	//srand(time(NULL));
 	randSeed(rand_generator);
@@ -84,14 +92,14 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 		}
 		if (ty_[i].size() > 1)
 		{
-			if (((ty[i][0] >= 0) && (ty[i][1] > 0)) ||
-				(abs(ty[i][1]) > abs(ty[i][0])))
+			if (((ty_[i][0] >= 0) && (ty_[i][1] > 0)) ||
+				(abs(ty_[i][1]) > abs(ty_[i][0])))
 			{
-				maxY = ty[i][1];
+				maxY = ty_[i][1];
 			}
 			else
 			{
-				maxY = ty[i][0];
+				maxY = ty_[i][0];
 			}
 		}
 		else
@@ -100,14 +108,14 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 		}
 		if (tz_[i].size() > 1)
 		{
-			if (((tz[i][0] >= 0) && (tz[i][1] > 0)) ||
-				(abs(tz[i][1]) > abs(tz[i][0])))
+			if (((tz_[i][0] >= 0) && (tz_[i][1] > 0)) ||
+				(abs(tz_[i][1]) > abs(tz_[i][0])))
 			{
-				maxZ = tz[i][1];
+				maxZ = tz_[i][1];
 			}
 			else
 			{
-				maxZ = tz[i][0];
+				maxZ = tz_[i][0];
 			}
 		}
 		else
@@ -379,13 +387,10 @@ int GenStereoPars::optimizeRtf(int verbose)
 			}
 		}
 	}
+	horizontalCamAlign = false;
 	if (std::abs(tx_use[0]) >= std::abs(ty_use[0]))
 	{
 		horizontalCamAlign = true;
-	}
-	else
-	{
-		horizontalCamAlign = false;
 	}
 
 	//Set the range of the focal length
@@ -407,11 +412,11 @@ int GenStereoPars::optParLM(int verbose)
 	setCoordsForOpti();
 
 	//Generate parameter vector and tolerance vectors
-	Mat p = Mat(nrConditions * 4 + 1, 1, CV_64FC1);
+	Mat p = Mat((int)(nrConditions * 4 + 1), 1, CV_64FC1);
 	Mat xTol = Mat(p.size(), CV_64FC1);
-	Mat funcTol = Mat::ones(nrConditions * nr_residualsPCond, 1, CV_64FC1) * 1e-4;
+	Mat funcTol = Mat::ones((int)(nrConditions * nr_residualsPCond), 1, CV_64FC1) * 1e-4;
 	const double fixedFuncTol[] = { 1e-3, 0.05, 0.05, 0.05, 0.05, 1e-4, 0.35, 0.5, 0.5 };
-	for (size_t i = 0; i < nrConditions; i++)
+	for (int i = 0; i < (int)nrConditions; i++)
 	{
 		p.at<double>(i * 4) = pitch_use[i];
 		p.at<double>(i * 4 + 1) = roll_use[i];
@@ -425,8 +430,8 @@ int GenStereoPars::optParLM(int verbose)
 
 		memcpy(funcTol.data + i * nr_residualsPCond * sizeof(double), fixedFuncTol, nr_residualsPCond * sizeof(double));
 	}
-	p.at<double>(nrConditions * 4) = f;
-	xTol.at<double>(nrConditions * 4) = fTol_;
+	p.at<double>((int)(nrConditions * 4)) = f;
+	xTol.at<double>((int)(nrConditions * 4)) = fTol_;
 
 	//Call Levenberg Marquardt
 	cv::Mat p_new, residuals;
@@ -512,7 +517,7 @@ int GenStereoPars::optParLM(int verbose)
 	if (cnt >= lmCntMax)
 	{
 		//Get configuration with smallest error
-		size_t idxMin = std::distance(ssq_history.begin(), min_element(ssq_history.begin(), ssq_history.end()));
+		auto idxMin = std::distance(ssq_history.begin(), min_element(ssq_history.begin(), ssq_history.end()));
 		p_history[idxMin].copyTo(p_new);
 		r_history[idxMin].copyTo(residuals);
 		ssq = ssq_history[idxMin];
@@ -540,9 +545,9 @@ int GenStereoPars::optParLM(int verbose)
 	}
 
 	double meanOvLapError = 0;
-	for (size_t i = 0; i < nrConditions; i++)
+	for (int i = 0; i < (int)nrConditions; i++)
 	{
-		meanOvLapError += std::abs(residuals.at<double>(i*(size_t)nr_residualsPCond + 5));
+		meanOvLapError += std::abs(residuals.at<double>(i * nr_residualsPCond + 5));
 	}
 	meanOvLapError /= (double)nrConditions;
 	cout << "Approx. overlap error: " << meanOvLapError << endl;
@@ -558,14 +563,14 @@ int GenStereoPars::optParLM(int verbose)
 	}
 
 	//Store parameters back to vectors
-	for (size_t i = 0; i < nrConditions; i++)
+	for (int i = 0; i < (int)nrConditions; i++)
 	{
 		pitch_use[i] = p_new.at<double>(i * 4);
 		roll_use[i] = p_new.at<double>(i * 4 + 1);
 		tx_use[i] = p_new.at<double>(i * 4 + 2);
 		ty_use[i] = p_new.at<double>(i * 4 + 3);
 	}
-	f = p_new.at<double>(nrConditions * 4);
+	f = p_new.at<double>((int)(nrConditions * 4));
 	K1.at<double>(0, 0) = f;
 	K1.at<double>(1, 1) = f;
 	K1.copyTo(K2);
@@ -665,15 +670,15 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 	cv::Mat funcTol_;
 	if (funcTol.empty())
 	{
-		funcTol_ = Mat::ones(nrConditions * (size_t)nr_residualsPCond, 1, p.type()) * 1e-7;
+		funcTol_ = Mat::ones((int)nrConditions * nr_residualsPCond, 1, p.type()) * 1e-7;
 	}
 	else
 	{
 		funcTol_ = funcTol.getMat();
-		if (funcTol_.rows != (nrConditions * (size_t)nr_residualsPCond))
+		if (funcTol_.rows != ((int)nrConditions * nr_residualsPCond))
 		{
 			cout << "Number of tolerance values for the functions to optimize is not correct! Taking default values!" << endl;
-			funcTol_ = Mat::ones(nrConditions * (size_t)nr_residualsPCond, 1, p.type()) * 1e-7;
+			funcTol_ = Mat::ones((int)nrConditions * nr_residualsPCond, 1, p.type()) * 1e-7;
 		}
 	}
 
@@ -724,7 +729,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 	bool noAliChange = true;
 
 	//MAIN ITERATION CYCLE
-	while ((cnt < maxIter) &&
+	while ((cnt < (int)maxIter) &&
 		any_vec_cv(cv::abs(d.mul(deltaValid)) >= xTol_) &&
 		any_vec_cv(cv::abs(r) >= funcTol_) && 
 		!nearZero(cv::sum(cv::abs(r_old - r))[0]) &&
@@ -734,7 +739,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 		bool solA = solveLinEqu(A1, v, d);
 
 		bool randVec = false;
-		if (!solA || /*any_vec_cv(d != d) || /*checks for NaN*/ !isfinite_vec_cv(d))
+		if (!solA || /*any_vec_cv(d != d) || */ !isfinite_vec_cv(d))//checks for NaN
 		{
 			d = getNormalDistributionVals(d.rows, 0, 0.02);
 			randVec = true;
@@ -812,7 +817,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 				}
 				double maxAid;
 				Mat Aida = cv::abs(Ai.diag(0));
-				cv::minMaxLoc(Aida, NULL, &maxAid);
+				cv::minMaxLoc(Aida, nullptr, &maxAid);
 				if (!isfinite(maxAid))
 					maxAid = 1.5;
 				if (nearZero(100.0 * maxAid))
@@ -856,7 +861,7 @@ int GenStereoPars::LMFsolve(cv::Mat p,
 
 	//final solution
 	x.copyTo(xf);
-	if (cnt == maxIter)
+	if (cnt == (int)maxIter)
 	{
 		cnt *= -1;
 	}
@@ -947,7 +952,7 @@ void GenStereoPars::adaptParVec(cv::Mat& parVec, cv::Mat& parVecOut, cv::Mat& de
 		int spar = i % 4;
 		int cond_n = (i - spar) / 4;
 		pair<double, double> parRange;
-		if (cond_n >= nrConditions)
+		if (cond_n >= (int)nrConditions)
 		{
 			parRange = make_pair(fRange[0], fRange[1]);
 		}
@@ -1078,7 +1083,7 @@ double GenStereoPars::getDampingF(double par, int rangeIdx0)
 	int spar = rangeIdx0 % 4;
 	int cond_n = (rangeIdx0 - spar) / 4;
 	pair<double, double> parRange;
-	if (cond_n >= nrConditions)
+	if (cond_n >= (int)nrConditions)
 	{
 		parRange = make_pair(fRange[0], fRange[1]);
 	}
@@ -1394,7 +1399,7 @@ void GenStereoPars::setCoordsForOpti()
 
 bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit, int align)
 {
-	size_t cnt = 0;
+	int cnt = 0;
 	int idx_tmp = idx;
 	bool additionalAdaption = true;
 	if (txRangeEqual && (tx_[0].size() > 1))
@@ -1538,10 +1543,10 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			Mat c3 = br1;
 			Mat c4 = lb1.cross(lb2);
 			c4 /= c4.at<double>(2);
-			contour.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
-			contour.push_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
-			contour.push_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
-			contour.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
+			contour.emplace_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour.emplace_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
+			contour.emplace_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
+			contour.emplace_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			//cax = (Mat_<double>(1, 4) << c1.at<double>(0), c2.at<double>(0), c3.at<double>(0), c4.at<double>(0));
 			//cay = (Mat_<double>(1, 4) << c1.at<double>(1), c2.at<double>(1), c3.at<double>(1), c4.at<double>(1));
 			//Calc virtual remaining image width
@@ -1571,14 +1576,14 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			
 			//cax = (Mat_<double>(1, 8) << c1.at<double>(0), c2.at<double>(0), c3.at<double>(0), c4.at<double>(0), c5.at<double>(0), c6.at<double>(0), c7.at<double>(0), c8.at<double>(0));
 			//cay = (Mat_<double>(1, 8) << c1.at<double>(1), c2.at<double>(1), c3.at<double>(1), c4.at<double>(1), c5.at<double>(1), c6.at<double>(1), c7.at<double>(1), c8.at<double>(1));
-			contour.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
-			contour.push_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
-			contour.push_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
-			contour.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
-			contour.push_back(Point2f((float)c5.at<double>(0), (float)c5.at<double>(1)));
-			contour.push_back(Point2f((float)c6.at<double>(0), (float)c6.at<double>(1)));
-			contour.push_back(Point2f((float)c7.at<double>(0), (float)c7.at<double>(1)));
-			contour.push_back(Point2f((float)c8.at<double>(0), (float)c8.at<double>(1)));
+			contour.emplace_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour.emplace_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
+			contour.emplace_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
+			contour.emplace_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
+			contour.emplace_back(Point2f((float)c5.at<double>(0), (float)c5.at<double>(1)));
+			contour.emplace_back(Point2f((float)c6.at<double>(0), (float)c6.at<double>(1)));
+			contour.emplace_back(Point2f((float)c7.at<double>(0), (float)c7.at<double>(1)));
+			contour.emplace_back(Point2f((float)c8.at<double>(0), (float)c8.at<double>(1)));
 			//Calc virtual remaining image width
 			double h1 = norm(c1.rowRange(0, 2) - bl1.rowRange(0, 2));
 			double h2 = norm(tl1.rowRange(0, 2) - c2.rowRange(0, 2));
@@ -1601,16 +1606,16 @@ void GenStereoPars::getRotRectDiffArea(double yaw_angle, double& perc, double& v
 			c4 /= c4.at<double>(2);
 			//cax = (Mat_<double>(1, 4) << c1.at<double>(0), c2.at<double>(0), c3.at<double>(0), c4.at<double>(0));
 			//cay = (Mat_<double>(1, 4) << c1.at<double>(1), c2.at<double>(1), c3.at<double>(1), c4.at<double>(1));
-			contour.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
-			contour.push_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
-			contour.push_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
-			contour.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
+			contour.emplace_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour.emplace_back(Point2f((float)c2.at<double>(0), (float)c2.at<double>(1)));
+			contour.emplace_back(Point2f((float)c3.at<double>(0), (float)c3.at<double>(1)));
+			contour.emplace_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			//Calc virtual remaining image width
 			vector<Point2f> contour1;
-			contour1.push_back(Point2f((float)bl1.at<double>(0), (float)bl1.at<double>(1)));
-			contour1.push_back(Point2f((float)tl1.at<double>(0), (float)tl1.at<double>(1)));
-			contour1.push_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
-			contour1.push_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
+			contour1.emplace_back(Point2f((float)bl1.at<double>(0), (float)bl1.at<double>(1)));
+			contour1.emplace_back(Point2f((float)tl1.at<double>(0), (float)tl1.at<double>(1)));
+			contour1.emplace_back(Point2f((float)c1.at<double>(0), (float)c1.at<double>(1)));
+			contour1.emplace_back(Point2f((float)c4.at<double>(0), (float)c4.at<double>(1)));
 			double loss_area = cv::contourArea(contour1);
 			double reduceW = 2.0 * loss_area / (double)imgSize_.height;
 			virtWidth1 = (double)imgSize_.width - reduceW;

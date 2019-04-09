@@ -72,9 +72,9 @@ int loadStereoSequence(std::string filepath, std::string fileprefl, std::string 
 {
 	DIR *dir;
 	struct dirent *ent;
-	if((dir = opendir(filepath.c_str())) != NULL)
+	if((dir = opendir(filepath.c_str())) != nullptr)
 	{
-		while ((ent = readdir(dir)) != NULL)
+		while ((ent = readdir(dir)) != nullptr)
 		{
 			string filename;
 			filename = string(ent->d_name);
@@ -98,21 +98,21 @@ int loadStereoSequence(std::string filepath, std::string fileprefl, std::string 
 		}
 
 		sort(filenamesl.begin(),filenamesl.end(),
-			 [](string const &first, string const &second){return atoi(first.substr(first.find_last_of("_")+1).c_str()) <
-			 atoi(second.substr(second.find_last_of("_")+1).c_str());});
+			 [](string const &first, string const &second){return stoi(first.substr(first.find_last_of('_')+1)) <
+			 stoi(second.substr(second.find_last_of('_')+1));});
 
 		sort(filenamesr.begin(),filenamesr.end(),
-			 [](string const &first, string const &second){return atoi(first.substr(first.find_last_of("_")+1).c_str()) <
-			 atoi(second.substr(second.find_last_of("_")+1).c_str());});
+			 [](string const &first, string const &second){return stoi(first.substr(first.find_last_of('_')+1)) <
+			 stoi(second.substr(second.find_last_of('_')+1));});
 
 		size_t i = 0;
 		while((i < filenamesr.size()) && (i < filenamesl.size()))
 		{
-			if(atoi(filenamesl[i].substr(filenamesl[i].find_last_of("_")+1).c_str()) <
-			   atoi(filenamesr[i].substr(filenamesr[i].find_last_of("_")+1).c_str()))
+			if(stoi(filenamesl[i].substr(filenamesl[i].find_last_of('_')+1)) <
+			   stoi(filenamesr[i].substr(filenamesr[i].find_last_of('_')+1)))
 			   filenamesl.erase(filenamesl.begin()+i,filenamesl.begin()+i+1);
-			else if(atoi(filenamesl[i].substr(filenamesl[i].find_last_of("_")+1).c_str()) >
-					atoi(filenamesr[i].substr(filenamesr[i].find_last_of("_")+1).c_str()))
+			else if(stoi(filenamesl[i].substr(filenamesl[i].find_last_of('_')+1)) >
+					stoi(filenamesr[i].substr(filenamesr[i].find_last_of('_')+1)))
 					filenamesr.erase(filenamesr.begin()+i,filenamesr.begin()+i+1);
 			else
 				i++;
@@ -155,9 +155,9 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 {
 	DIR *dir;
 	struct dirent *ent;
-	if((dir = opendir(filepath.c_str())) != NULL)
+	if((dir = opendir(filepath.c_str())) != nullptr)
 	{
-		while ((ent = readdir(dir)) != NULL)
+		while ((ent = readdir(dir)) != nullptr)
 		{
 			string filename;
 			filename = string(ent->d_name);
@@ -173,8 +173,8 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 		}
 
 		sort(filenamesl.begin(),filenamesl.end(),
-			 [](string const &first, string const &second){return atoi(first.substr(first.find_last_of("_")+1).c_str()) <
-			 atoi(second.substr(second.find_last_of("_")+1).c_str());});
+			 [](string const &first, string const &second){return stoi(first.substr(first.find_last_of('_')+1)) <
+			 stoi(second.substr(second.find_last_of('_')+1));});
 	}
 	else
 	{
@@ -221,29 +221,29 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 {
 	DIR *dir;
 	struct dirent *ent;
-	std::string l_frameUsed = "";
+	std::string l_frameUsed;
 	size_t prefxPos1 = 0, prefxPos2 = 0;
 	bool bInputIdent = false;
-	if (filepath.find("\\") != std::string::npos)
+	if (filepath.find('\\') != std::string::npos)
 		std::replace(filepath.begin(), filepath.end(), '\\', '/');
-	if (fileprefl.find("\\") != std::string::npos)
+	if (fileprefl.find('\\') != std::string::npos)
 		std::replace(fileprefl.begin(), fileprefl.end(), '\\', '/');
-	if (fileprefr.find("\\") != std::string::npos)
+	if (fileprefr.find('\\') != std::string::npos)
 		std::replace(fileprefr.begin(), fileprefr.end(), '\\', '/');
-	if (filepath.rfind("/") == filepath.size() - 1)
+	if (filepath.rfind('/') == filepath.size() - 1)
 		filepath = filepath.substr(0, filepath.size() - 1);
 	for (int i = 0; i<2; ++i)
 	{
 		std::string fileprefl_use = (i == 0) ? fileprefl : fileprefr, filedir_use = filepath;
 		std::string filepostfx;
-		int posLastSl = (int)fileprefl_use.rfind("/");
+		int posLastSl = (int)fileprefl_use.rfind('/');
 		if (posLastSl >= 0)
 		{
-			if (fileprefl_use.find("/") == 0)
-				filedir_use += fileprefl_use.substr(0, posLastSl);
+			if (fileprefl_use.find('/') == 0)
+				filedir_use += fileprefl_use.substr(0, (size_t)posLastSl);
 			else
-				filedir_use += "/" + fileprefl_use.substr(0, posLastSl);
-			fileprefl_use = fileprefl_use.substr(posLastSl + 1);
+				filedir_use += "/" + fileprefl_use.substr(0, (size_t)posLastSl);
+			fileprefl_use = fileprefl_use.substr((size_t)posLastSl + 1);
 		}
 		std::string cmp_is_ident = filedir_use + "/" + fileprefl_use;
 		if (i == 0)
@@ -255,18 +255,18 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 		}
 
 
-		int nFuzzyPos = (int)fileprefl_use.find("*");
+		int nFuzzyPos = (int)fileprefl_use.find('*');
 		bool bCmpFuzzy = (nFuzzyPos >= 0);
 		if (bCmpFuzzy)
 		{
 			//fileprefl_use = fileprefl_use.substr(0, nFuzzyPos) + fileprefl_use.substr(nFuzzyPos + 1);
 			std::string fileprefl_use_tmp = fileprefl_use;
-			fileprefl_use = fileprefl_use.substr(0, nFuzzyPos);
-			filepostfx = fileprefl_use_tmp.substr(nFuzzyPos + 1);
+			fileprefl_use = fileprefl_use.substr(0, (size_t)nFuzzyPos);
+			filepostfx = fileprefl_use_tmp.substr((size_t)nFuzzyPos + 1);
 		}
-		if ((dir = opendir(filedir_use.c_str())) != NULL)
+		if ((dir = opendir(filedir_use.c_str())) != nullptr)
 		{
-			while ((ent = readdir(dir)) != NULL)
+			while ((ent = readdir(dir)) != nullptr)
 			{
 				string filename;
 				filename = string(ent->d_name);
@@ -279,10 +279,12 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 					|| (bCmpFuzzy && fileprefl_use.empty() && !filepostfx.empty()
 						&& (filename.size() >= filepostfx.size()) && filename.find(filepostfx) != std::string::npos)
 					|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0))
-					if (i == 0)
+					if (i == 0) {
 						filenamesl.push_back(filedir_use + "/" + filename);
-					else
+					}
+					else {
 						filenamesr.push_back(filedir_use + "/" + filename);
+					}
 			}
 			closedir(dir);
 		}
@@ -302,9 +304,9 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 			prefxPos1 = filedir_use.size() + 1;
 			size_t nrpos = std::string::npos, nrpos1 = prefxPos1;
 			bool firstchar = false;
-			for (int i = 0; i < 10; i++)
+			for (int j = 0; j < 10; j++)
 			{
-				nrpos = filenamesl.back().find_first_of(std::to_string(i), prefxPos1);
+				nrpos = filenamesl.back().find_first_of(std::to_string(j), prefxPos1);
 
 				if (!firstchar && nrpos != std::string::npos)
 					firstchar = true;
@@ -327,9 +329,9 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 			prefxPos2 = filedir_use.size() + 1;
 			size_t nrpos = std::string::npos, nrpos1 = prefxPos2;
 			bool firstchar = false;
-			for (int i = 0; i < 10; i++)
+			for (int j = 0; j < 10; j++)
 			{
-				nrpos = filenamesr.back().find_first_of(std::to_string(i), prefxPos2);
+				nrpos = filenamesr.back().find_first_of(std::to_string(j), prefxPos2);
 
 				if (!firstchar && nrpos != std::string::npos)
 					firstchar = true;
@@ -367,12 +369,14 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 
 			using namespace std::placeholders;
 			sort(filenamesl.begin(), filenamesl.end(),
-				std::bind([](string const &first, string const &second, std::size_t prefxPos) {return atoi(first.substr(prefxPos).c_str()) <
-					atoi(second.substr(prefxPos).c_str()); }, _1, _2, prefxPos1));
+				std::bind([](string const &first, string const &second, std::size_t prefxPos)
+				{return stoi(first.substr(prefxPos)) <
+					stoi(second.substr(prefxPos)); }, _1, _2, prefxPos1));
 
 			sort(filenamesr.begin(), filenamesr.end(),
-				std::bind([](string const &first, string const &second, std::size_t prefxPos) {return atoi(first.substr(prefxPos).c_str()) <
-					atoi(second.substr(prefxPos).c_str()); }, _1, _2, prefxPos2));
+				std::bind([](string const &first, string const &second, std::size_t prefxPos)
+				{return stoi(first.substr(prefxPos)) <
+					stoi(second.substr(prefxPos)); }, _1, _2, prefxPos2));
 
 			makeFrameIdConsistent1(filenamesl, filenamesr, prefxPos1, prefxPos2);
 		}
@@ -393,16 +397,16 @@ int makeFrameIdConsistent1(std::vector<std::string> & filenamesl, std::vector<st
 	size_t i = 0;
 	while ((i < filenamesr.size()) && (i < filenamesl.size()))
 	{
-		if (atoi(filenamesl[i].substr(prefxPos1).c_str()) <
-			atoi(filenamesr[i].substr(prefxPos2).c_str()))
+		if (stoi(filenamesl[i].substr(prefxPos1)) <
+			stoi(filenamesr[i].substr(prefxPos2)))
 		{
 			if (bVerbose)
 				cout << "Warning: removing inconsistent frame " << filenamesl[i] << " vs. " << filenamesr[i] << endl;
 			num_rem++;
 			filenamesl.erase(filenamesl.begin() + i, filenamesl.begin() + i + 1);
 		}
-		else if (atoi(filenamesl[i].substr(prefxPos1).c_str()) >
-			atoi(filenamesr[i].substr(prefxPos2).c_str()))
+		else if (stoi(filenamesl[i].substr(prefxPos1)) >
+			stoi(filenamesr[i].substr(prefxPos2)))
 		{
 			num_rem++;
 			filenamesr.erase(filenamesr.begin() + i, filenamesr.begin() + i + 1);
@@ -449,35 +453,35 @@ int loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vecto
 {
 	DIR *dir;
 	struct dirent *ent;
-	std::string fileprefl_use = fileprefl, filedir_use = filepath;
+	std::string fileprefl_use = std::move(fileprefl), filedir_use = move(filepath);
 	std::string filepostfx;
-	if (filedir_use.find("\\") != std::string::npos)
+	if (filedir_use.find('\\') != std::string::npos)
 		std::replace(filedir_use.begin(), filedir_use.end(), '\\', '/');
-	if (fileprefl_use.find("\\") != std::string::npos)
+	if (fileprefl_use.find('\\') != std::string::npos)
 		std::replace(fileprefl_use.begin(), fileprefl_use.end(), '\\', '/');
-	if (filedir_use.rfind("/") == filedir_use.size() - 1)
+	if (filedir_use.rfind('/') == filedir_use.size() - 1)
 		filedir_use = filedir_use.substr(0, filedir_use.size() - 1);
-	int posLastSl = (int)fileprefl_use.rfind("/");
+	int posLastSl = (int)fileprefl_use.rfind('/');
 	if (posLastSl >= 0)
 	{
-		if (fileprefl_use.find("/") == 0)
+		if (fileprefl_use.find('/') == 0)
 			filedir_use += fileprefl_use.substr(0, posLastSl);
 		else
 			filedir_use += "/" + fileprefl_use.substr(0, posLastSl);
 		fileprefl_use = fileprefl_use.substr(posLastSl + 1);
 	}
-	int nFuzzyPos = (int)fileprefl_use.find("*");
+	int nFuzzyPos = (int)fileprefl_use.find('*');
 	bool bCmpFuzzy = (nFuzzyPos >= 0);
 	if (bCmpFuzzy)
 	{
 		//fileprefl_use = fileprefl_use.substr(0, nFuzzyPos) + fileprefl_use.substr(nFuzzyPos + 1);
 		std::string fileprefl_use_tmp = fileprefl_use;
-		fileprefl_use = fileprefl_use.substr(0, nFuzzyPos);
-		filepostfx = fileprefl_use_tmp.substr(nFuzzyPos + 1);
+		fileprefl_use = fileprefl_use.substr(0, (size_t)nFuzzyPos);
+		filepostfx = fileprefl_use_tmp.substr((size_t)nFuzzyPos + 1);
 	}
-	if ((dir = opendir(filedir_use.c_str())) != NULL)
+	if ((dir = opendir(filedir_use.c_str())) != nullptr)
 	{
-		while ((ent = readdir(dir)) != NULL)
+		while ((ent = readdir(dir)) != nullptr)
 		{
 			string filename;
 			filename = string(ent->d_name);

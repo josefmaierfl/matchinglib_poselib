@@ -1058,7 +1058,8 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 	}
 
 	//Initialize system
-	uint32_t verbose = PRINT_WARNING_MESSAGES | SHOW_IMGS_AT_ERROR;
+	uint32_t verbose = PRINT_WARNING_MESSAGES | SHOW_IMGS_AT_ERROR
+	        | SHOW_PLANES_FOR_HOMOGRAPHY | SHOW_WARPED_PATCHES | SHOW_PATCHES_WITH_NOISE;
 
 	//Only create the 3D scene or additionally create matches for the scene
 	if(!genMatches) {
@@ -1206,24 +1207,24 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 
 			if(sequLoadFolder.empty()) {
 				//Randomly select the storage format
-				idx = (int) (rand2() % 4);
+				/*idx = (int) (rand2() % 4);
 				rwXMLinfo_ = true;
-				if (idx) {
+				if (idx) {*/
 					rwXMLinfo_ = false;
-				}
+//				}
 
 				//Randomly select if the output should be compressed
-				idx = (int) (rand2() % 6);
+				/*idx = (int) (rand2() % 6);
 				compressedWrittenInfo_ = true;
-				if (idx) {
+				if (idx) {*/
 					compressedWrittenInfo_ = false;
-				}
+//				}
 			}
 
-			idx = (int)(rand2() % 2);
-			if(idx) {
+			/*idx = (int)(rand2() % 2);
+			if(idx) {*/
 				storePtClouds = true;
-			}
+//			}
 			if(!sequLoadFolder.empty()){
 				idx = (int)(rand2() % 2);
 				//Resulting matches will either be stored to the location where the sequence is loaded from or to the given store location
