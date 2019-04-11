@@ -401,15 +401,35 @@ namespace matchinglib
             Mat masks = Mat(nkeypoints, DIMS / 8, CV_8U);
             BOLD bold;
 
-            for (size_t i = 0; i < nkeypoints; i++)
+            std::vector<int> delIdx;
+            for (int i = 0; i < nkeypoints; i++)
             {
                 int x = (int)std::round(keypoints[i].pt.x);
                 int y = (int)std::round(keypoints[i].pt.y);
                 Mat patch = img(cv::Range(cv::max(y-N2,0), cv::min(y + N2, img.rows)),
                                 cv::Range(cv::max(x - N2, 0), cv::min(x + N2, img.cols)));
+                if((patch.rows < 24) || (patch.cols < 24)){
+                    delIdx.push_back(i);
+                    continue;
+                }
                 cv::Mat descrs = descriptors(Range((int)i, (int)i+1), Range::all());
                 cv::Mat masks1 = masks(Range((int)i, (int)i + 1), Range::all());
                 bold.compute_patch(patch, descrs, masks1);
+            }
+            if(!delIdx.empty()){
+                if((int)delIdx.size() == nkeypoints){
+                    return -1;
+                }
+                Mat descr_tmp;
+                int cnt = 0;
+                for (int i = 0; i < nkeypoints; i++){
+                    if(delIdx[cnt] == i){
+                        cnt++;
+                    }else{
+                        descr_tmp.push_back(descriptors.row(i));
+                    }
+                }
+                descr_tmp.copyTo(descriptors);
             }
 
         }
@@ -424,6 +444,9 @@ namespace matchinglib
             }
 
             extractor->compute(img, keypoints, descriptors);
+            if(descriptors.empty()){
+                return -1;
+            }
         }
 
         return 0;

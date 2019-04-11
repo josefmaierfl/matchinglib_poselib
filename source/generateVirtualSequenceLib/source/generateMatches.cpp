@@ -198,6 +198,7 @@ bool genMatchSequ::generateMatches(){
         if(!sequParsLoaded) {
             //Generate 3D correspondences for a single frame
             startCalc_internal();
+            actFrameCnt--;
             //Write the result to disk
             if(parsMtch.storePtClouds && overWriteSuccess){
                 string singleFrameDataFName = sequSingleFrameBaseFName + "_" + std::to_string(actFrameCnt);
@@ -243,9 +244,9 @@ bool genMatchSequ::generateMatches(){
             return false;
         }
 
-        if(sequParsLoaded){
+//        if(sequParsLoaded){
             actFrameCnt++;
-        }
+//        }
 
         //Calculate execution time
         t3 = chrono::high_resolution_clock::now();
@@ -557,11 +558,13 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     x1all.row(1) = x12.rowRange(0,2).t();
     x1all.row(2) = x13.rowRange(0,2).t();
     x1all.row(3) = x14.rowRange(0,2).t();
+    x1all.convertTo(x1all, CV_32FC1);
     Mat x2all = Mat::ones(4,2, CV_64FC1);
     x2all.row(0) = x2.rowRange(0,2).t();
     x2all.row(1) = x22.rowRange(0,2).t();
     x2all.row(2) = x23.rowRange(0,2).t();
     x2all.row(3) = x24.rowRange(0,2).t();
+    x2all.convertTo(x2all, CV_32FC1);
     Mat H = getPerspectiveTransform(x1all, x2all);
     //Eliminate the translation
     Mat tm = H * x1;
@@ -600,25 +603,25 @@ void genMatchSequ::visualizePlanes(std::vector<cv::Mat> &pts3D,
     plane_coeff.values[0] = (float)plane1.at<double>(0);
     plane_coeff.values[1] = (float)plane1.at<double>(1);
     plane_coeff.values[2] = (float)plane1.at<double>(2);
-    plane_coeff.values[3] = (float)plane1.at<double>(3);
-    /*viewer->addPlane(plane_coeff,
+    plane_coeff.values[3] = -1.f * (float)plane1.at<double>(3);
+    viewer->addPlane(plane_coeff,
                      (float)pts3D[0].at<double>(0),
                      (float)pts3D[0].at<double>(1),
                      (float)pts3D[0].at<double>(2),
-                     "initPlane");*/
-    viewer->addPlane(plane_coeff,
                      "initPlane");
+    /*viewer->addPlane(plane_coeff,
+                     "initPlane");*/
     plane_coeff.values[0] = (float)plane2.at<double>(0);
     plane_coeff.values[1] = (float)plane2.at<double>(1);
     plane_coeff.values[2] = (float)plane2.at<double>(2);
-    plane_coeff.values[3] = (float)plane2.at<double>(3);
-    /*viewer->addPlane(plane_coeff,
+    plane_coeff.values[3] = -1.f * (float)plane2.at<double>(3);
+    viewer->addPlane(plane_coeff,
                      (float)pts3D[0].at<double>(0),
                      (float)pts3D[0].at<double>(1),
                      (float)pts3D[0].at<double>(2),
-                     "resPlane");*/
-    viewer->addPlane(plane_coeff,
                      "resPlane");
+    /*viewer->addPlane(plane_coeff,
+                     "resPlane");*/
 
     setPCLViewerCamPars(viewer, m.matrix(), K1);
 
@@ -1183,6 +1186,11 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
     double meanIntTNNoise = getRandDoubleValRng(0, 2.5 * stdNoiseTN, rand_gen);
     meanIntTNNoise *= pow(-1.0, (double)(rand2() % 2));
 
+    //Check if we need to calculate a keypoint position in the warped patch
+    bool kpCalcNeeded = !nearZero((double)keypoints1[featureIdx].angle + 1.0)
+            || (keypoints1[featureIdx].octave != 0)
+            || (keypoints1[featureIdx].class_id != -1);
+
     //Maximum descriptor distance for TP
     double ThTp = badDescrTH.median + (badDescrTH.maxVal - badDescrTH.median) / 3.0;
     //Minimum descriptor distance for TP for the fall-back solution
@@ -1245,7 +1253,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
 
         //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
         // to estimate the minimal necessary patch size
-        cv::Rect patchROIimg1, patchROIimg2;
+        cv::Rect patchROIimg1, patchROIimg2, patchROIimg21;
         cv::Point2d ellipseCenter;
         double ellipseRot = 0;
         cv::Size2d axes;
@@ -1258,6 +1266,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                  kp,
                                  patchROIimg1,
                                  patchROIimg2,
+                                 patchROIimg21,
                                  ellipseCenter,
                                  ellipseRot,
                                  axes,
@@ -1292,13 +1301,20 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     }
                     //Check size after warping
                     Mat corners = Mat::ones(3, 4, CV_64FC1);
-                    corners.col(0) = (Mat_<double>(3, 1) << (double) imgROI.x, (double) imgROI.y, 1.0);
-                    corners.col(1) = (Mat_<double>(3, 1) << (double) (imgROI.x + imgROI.width), (double) imgROI.y, 1.0);
-                    corners.col(2) = (Mat_<double>(3, 1) << (double) (imgROI.x + imgROI.width), (double) (imgROI.y +
-                                                                                                          imgROI.height), 1.0);
-                    corners.col(3) = (Mat_<double>(3, 1) << (double) imgROI.x, (double) (imgROI.y +
-                                                                                         imgROI.height), 1.0);
+                    Mat((Mat_<double>(3, 1) << (double) imgROI.x,
+                            (double) imgROI.y,
+                            1.0)).copyTo(corners.col(0));
+                    Mat((Mat_<double>(3, 1) << (double) (imgROI.x + imgROI.width),
+                            (double) imgROI.y,
+                            1.0)).copyTo(corners.col(1));
+                    Mat((Mat_<double>(3, 1) << (double) (imgROI.x + imgROI.width),
+                            (double) (imgROI.y + imgROI.height),
+                            1.0)).copyTo(corners.col(2));
+                    Mat((Mat_<double>(3, 1) << (double) imgROI.x,
+                            (double) (imgROI.y + imgROI.height),
+                            1.0)).copyTo(corners.col(3));
                     Mat corners2 = Mat::ones(3, 4, CV_64FC1);
+                    //Warp corners of original image patch
                     for (int j = 0; j < 4; ++j) {
                         corners2.col(j) = H * corners.col(j);
                         if (!isfinite(corners2.at<double>(0, j))
@@ -1308,7 +1324,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                             break;
                         }
                         corners2.col(j) /= corners2.at<double>(2, j);
-                        if (corners2.at<double>(0, j) < 0) {
+                        /*if (corners2.at<double>(0, j) < 0) {
                             corners2.at<double>(0, j) = 0;
                         } else if (corners2.at<double>(0, j) > (double) (imgFeatureSize.width - 1)) {
                             corners2.at<double>(0, j) = (double) (imgFeatureSize.width - 1);
@@ -1317,10 +1333,11 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                             corners2.at<double>(1, j) = 0;
                         } else if (corners2.at<double>(1, j) > (double) (imgFeatureSize.height - 1)) {
                             corners2.at<double>(1, j) = (double) (imgFeatureSize.height - 1);
-                        }
+                        }*/
                     }
                     if (useFallBack)
                         break;
+                    //Get ROI without black borders after warping
                     if (corners2.at<double>(0, 0) > corners2.at<double>(0, 1)) {//Reflection about y-axis
                         minx = max(corners2.at<double>(0, 1), corners2.at<double>(0, 2));
                         maxx = min(corners2.at<double>(0, 0), corners2.at<double>(0, 3));
@@ -1346,8 +1363,21 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         useFallBack = true;
                         break;
                     }
-                    int patchSize_tmp = (int) ceil(1.2f * (float) patchSize);//Must be an odd number
-                    patchSize_tmp += (patchSize_tmp + 1) % 2;
+
+                    //Get ROI in warped image with black borders
+                    double minx1, maxx1, miny1, maxy1;
+                    cv::minMaxLoc(corners2.row(0), &minx1, &maxx1);
+                    cv::minMaxLoc(corners2.row(1), &miny1, &maxy1);
+                    double dimx = abs(maxx1 - minx1);
+                    double dimy = abs(maxy1 - miny1);
+                    patchROIimg21 = cv::Rect((int)ceil(minx1 - DBL_EPSILON),
+                                             (int)ceil(miny1 - DBL_EPSILON),
+                                             (int)floor(dimx + DBL_EPSILON),
+                                             (int)floor(dimy + DBL_EPSILON));
+
+                    //Calc a bigger patch size for the original image
+                    int patchSize_tmp = (int) ceil(1.2f * (float) patchSize);
+                    patchSize_tmp += (patchSize_tmp + 1) % 2;//Must be an odd number
                     int patchSize2_tmp = (patchSize_tmp - 1) / 2;
                     if ((width < minPatchSize) || (height < minPatchSize)) {
                         patchSize = patchSize_tmp;
@@ -1360,6 +1390,18 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                         (int) floor(width + DBL_EPSILON),
                                         (int) floor(height + DBL_EPSILON));
                     patchROIimg1 = imgROI;
+                    if(patchROIimg21.x > patchROIimg2.x){
+                        patchROIimg21.x = patchROIimg2.x;
+                    }
+                    if(patchROIimg21.y > patchROIimg2.y){
+                        patchROIimg21.y = patchROIimg2.y;
+                    }
+                    if(patchROIimg21.width < (patchROIimg2.width + patchROIimg2.x - patchROIimg21.x)){
+                        patchROIimg21.width = patchROIimg2.width + patchROIimg2.x - patchROIimg21.x;
+                    }
+                    if(patchROIimg21.height < (patchROIimg2.height + patchROIimg2.y - patchROIimg21.y)){
+                        patchROIimg21.height = patchROIimg2.height + patchROIimg2.y - patchROIimg21.y;
+                    }
                 } else {
                     //Construct a random affine homography
                     //Generate the non-isotropic scaling of the deformation (shear)
@@ -1400,8 +1442,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         //Translation to start at (0,0) in the warped image for the selected ROI arround the original image
         // (with coordinates in the original image based on the full image)
         Mat wiTo0 = Mat::eye(3,3,CV_64FC1);
-        wiTo0.at<double>(0,2) = -1.0 * (double)patchROIimg2.x;
-        wiTo0.at<double>(1,2) = -1.0 * (double)patchROIimg2.y;
+        wiTo0.at<double>(0,2) = -1.0 * (double)patchROIimg21.x;
+        wiTo0.at<double>(1,2) = -1.0 * (double)patchROIimg21.y;
         Mat H1 = wiTo0 * H;
         //Translation for the original image to ensure that points starting (left upper corner) at (0,0)
         // are mapped to the image ROI of the warped image
@@ -1409,17 +1451,17 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         //Check for reflection
         Mat x2;
         if(reflectionX && reflectionY){
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x + (double)patchROIimg2.width - 1.0,
-                    (double)patchROIimg2.y + (double)patchROIimg2.height - 1.0, 1.0);
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x + (double)patchROIimg21.width - 1.0,
+                    (double)patchROIimg21.y + (double)patchROIimg21.height - 1.0, 1.0);
         }else if(reflectionX){
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x,
-                    (double)patchROIimg2.y + (double)patchROIimg2.height - 1.0, 1.0);
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x,
+                    (double)patchROIimg21.y + (double)patchROIimg21.height - 1.0, 1.0);
         }else if(reflectionY){
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x + (double)patchROIimg2.width - 1.0,
-                    (double)patchROIimg2.y, 1.0);
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x + (double)patchROIimg21.width - 1.0,
+                    (double)patchROIimg21.y, 1.0);
         }else{
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg2.x,
-                    (double)patchROIimg2.y, 1.0);
+            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x,
+                    (double)patchROIimg21.y, 1.0);
         }
 
         Mat Hi = H.inv();
@@ -1430,8 +1472,26 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         tback.at<double>(1,2) = tm.at<double>(1);
         Mat H2 = H1 * tback;
         Mat patchw;
-        warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg2.size(), INTER_LINEAR, BORDER_REPLICATE);
-        homo.push_back(H2.clone());
+        warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg21.size(), INTER_LINEAR, BORDER_REPLICATE);
+        homo.push_back(H.clone());
+        //Extract warped patch ROI with only valid pixels
+        patchROIimg2.x = patchROIimg2.x - patchROIimg21.x;
+        patchROIimg2.y = patchROIimg2.y - patchROIimg21.y;
+        patchw = patchw(patchROIimg2);
+
+        //Adapt center of ellipse
+        if(!noEllipse){
+            Mat xe = (Mat_<double>(3,1) << ellipseCenter.x,
+                    ellipseCenter.y, 1.0);
+            xe = Hi * xe;
+            xe /= xe.at<double>(2);
+            xe.at<double>(0) -= (double)patchROIimg1.x;
+            xe.at<double>(1) -= (double)patchROIimg1.y;
+            xe = H2 * xe;
+            xe /= xe.at<double>(2);
+            ellipseCenter.x = xe.at<double>(0) - (double)patchROIimg2.x;
+            ellipseCenter.y = xe.at<double>(1) - (double)patchROIimg2.y;
+        }
 
         //Show the patches
         if((verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % show_interval) == 0)){
@@ -1469,8 +1529,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             }else{
                 //Transform the ellipse center position
                 cv::Point2d ellipseCenter1 = ellipseCenter;
-                ellipseCenter1.x -= patchROIimg2.x;
-                ellipseCenter1.y -= patchROIimg2.y;
+                /*ellipseCenter1.x -= patchROIimg21.x + patchROIimg2.x;
+                ellipseCenter1.y -= patchROIimg21.y + patchROIimg2.y;*/
                 cv::Point c((int)round(ellipseCenter1.x), (int)round(ellipseCenter1.y));
                 CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
                 && (ellipseCenter1.x < (double)patchROIimg2.width)
@@ -1479,6 +1539,13 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 Mat patchwc;
                 cvtColor(patchw, patchwc, cv::COLOR_GRAY2BGR);
                 cv::ellipse(patchwc, c, si, ellipseRot, 0, 360.0, Scalar(0,0,255));
+                //Draw exact correspondence location
+                Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x - (double)patchROIimg1.x,
+                        (double)kp.pt.y - (double)patchROIimg1.y, 1.0);
+                kpm = H2 * kpm;
+                kpm /= kpm.at<double>(2);
+                c = Point((int)round(kpm.at<double>(0)) - patchROIimg2.x, (int)round(kpm.at<double>(1)) - patchROIimg2.y);
+                cv::circle(patchwc, c, 1, Scalar(0,255,0));
                 if(border2x || border2y) {
                     cv::copyMakeBorder(patchwc, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
                 }
@@ -1486,27 +1553,44 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 cvtColor(img(patchROIimg1), patchc, cv::COLOR_GRAY2BGR);
                 c = Point((int)round(kp.pt.x) - patchROIimg1.x, (int)round(kp.pt.y) - patchROIimg1.y);
                 cv::circle(patchc, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
+                //Draw exact correspondence location
+                cv::circle(patchc, c, 1, Scalar(0,255,0));
                 if(border1x || border1y) {
                     cv::copyMakeBorder(patchc, patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
                 }
                 Mat bothPathes;
                 cv::hconcat(patchc, patchwc, bothPathes);
+
+                //Show correspondence in original image
+                /*Mat fullimg;
+                cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
+                c = Point((int)round(kp.pt.x), (int)round(kp.pt.y));
+                cv::circle(fullimg, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
+                //Draw exact correspondence location
+                cv::circle(fullimg, c, 1, Scalar(0,255,0));
+                namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
+                imshow("Original image with keypoint", fullimg);*/
+
                 namedWindow("Original and warped patch with keypoint", WINDOW_AUTOSIZE);
                 imshow("Original and warped patch with keypoint", bothPathes);
 
                 waitKey(0);
                 destroyWindow("Original and warped patch with keypoint");
+//                destroyWindow("Original image with keypoint");
             }
         }
 
         //Get the exact position of the keypoint in the patch
-        Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x, (double)kp.pt.y, 1.0);
-        kpm = H1 * kpm;
+        Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x - (double)patchROIimg1.x,
+                (double)kp.pt.y - (double)patchROIimg1.y, 1.0);
+        kpm = H2 * kpm;
         kpm /= kpm.at<double>(2);
+        kpm.at<double>(0) -= (double)patchROIimg2.x;
+        kpm.at<double>(1) -= (double)patchROIimg2.y;
         Point2f ptm = Point2f((float)kpm.at<double>(0), (float)kpm.at<double>(1));
 
         //Check if we have to use a keypoint detector
-        bool keypDetNeed = (noEllipse || !nearZero((double)kp.angle + 1.0) || (kp.octave != 0) || (kp.class_id != -1));
+        bool keypDetNeed = (noEllipse || kpCalcNeeded);
         cv::KeyPoint kp2;
         Point2f kp2err;
         if((!useTN && parsMtch.keypPosErrType) || keypDetNeed){
@@ -1534,15 +1618,15 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 } else{
                     size_t j = 0;
                     for (; j < dists.size(); ++j) {
-                        if(dists[0].second > 5.f){
+                        if(dists[j].second > 5.f){
                             break;
                         }
                     }
-                    if(j > 0) {
+                    if(j > 1) {
                         //Calculate the overlap area between the found keypoints and the ellipse
                         cv::Point2d ellipseCenter1 = ellipseCenter;
-                        ellipseCenter1.x -= patchROIimg2.x;
-                        ellipseCenter1.y -= patchROIimg2.y;
+                        /*ellipseCenter1.x -= patchROIimg21.x + patchROIimg2.x;
+                        ellipseCenter1.y -= patchROIimg21.y + patchROIimg2.y;*/
                         cv::Point c((int) round(ellipseCenter1.x), (int) round(ellipseCenter1.y));
                         CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
                                   && (ellipseCenter1.x < (double) patchROIimg2.width)
@@ -1550,8 +1634,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         cv::Size si((int) round(axes.width), (int) round(axes.height));
                         Mat patchmask = Mat::zeros(patchw.size(), patchw.type());
                         cv::ellipse(patchmask, c, si, ellipseRot, 0, 360.0, Scalar::all(255), -1);
-                        vector<pair<size_t, int>> overlapareas(j + 1);
-                        for (size_t k = 0; k < overlapareas.size(); ++k) {
+                        vector<pair<size_t, int>> overlapareas(j);
+                        for (size_t k = 0; k < j; ++k) {
                             Mat patchmask1 = Mat::zeros(patchw.size(), patchw.type());
                             Point c1 = Point((int) round(kps2[dists[k].first].pt.x),
                                              (int) round(kps2[dists[k].first].pt.y));
@@ -1563,8 +1647,32 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         }
                         sort(overlapareas.begin(), overlapareas.end(),
                              [](pair<size_t,int> &first, pair<size_t,int> &second){return first.second > second.second;});
-                        //Take the keypoint with the largest overlap
-                        kp2 = kps2[overlapareas[0].first];
+                        //Take the highest overlap areas that are equal
+                        int k = 1;
+                        for(;k < (int)j; k++){
+                            if(overlapareas[0].second != overlapareas[k].second){
+                                break;
+                            }
+                        }
+                        if(k > 1){
+                            //Get the keypoint with the smallest distance to the exact location
+                            vector<size_t> kpIdxSm;
+                            for (int l = 0; l < k; ++l) {
+                                for (size_t m = 0; m < j; ++m) {
+                                    if(overlapareas[l].first == dists[m].first){
+                                        kpIdxSm.push_back(m);
+                                        break;
+                                    }
+                                }
+                            }
+                            size_t kpSingleIdx = *min_element(kpIdxSm.begin(), kpIdxSm.end());
+                            //Take the keypoint with the smallest distance and largest overlap
+                            kp2 = kps2[dists[kpSingleIdx].first];
+                        }
+                        else{
+                            //Take the keypoint with the largest overlap
+                            kp2 = kps2[overlapareas[0].first];
+                        }
                     }else{
                         kp2 = kps2[dists[0].first];
                     }
@@ -1575,7 +1683,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     //Correct the keypoint position to the exact location
                     kp2.pt = ptm;
                     //Change to keypoint position based on the given error range
-                    distortKeyPointPosition(kp2, patchROIimg1, distr);
+                    distortKeyPointPosition(kp2, patchROIimg2, distr);
                     kp2err.x = kp2.pt.x - ptm.x;
                     kp2err.y = kp2.pt.y - ptm.y;
                 }
@@ -1584,9 +1692,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             //Use the dimension of the ellipse to get the scale/size of the keypoint
             kp2 = kp;
             kp2.pt = ptm;
-            kp2.size = (float)axes.width;
+            kp2.size = 2.f * (float)axes.width;
             //Change to keypoint position based on the given error range
-            distortKeyPointPosition(kp2, patchROIimg1, distr);
+            distortKeyPointPosition(kp2, patchROIimg2, distr);
             kp2err.x = kp2.pt.x - ptm.x;
             kp2err.y = kp2.pt.y - ptm.y;
         }
@@ -1989,7 +2097,8 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
                 if (!excludeIdx.empty()) {
                     sort(excludeIdx.begin(), excludeIdx.end(), [](int &first, int &second) { return first < second; });
                     //Remove duplicates
-                    vector<size_t> delIdx;
+                    excludeIdx.erase(unique(excludeIdx.begin(), excludeIdx.end()), excludeIdx.end());
+                    /*vector<size_t> delIdx;
                     for (size_t i = 0; i < excludeIdx.size() - 1; ++i) {
                         for (size_t j = i + 1; j < excludeIdx.size(); ++j) {
                             if (excludeIdx[i] == excludeIdx[j]) {
@@ -2006,12 +2115,13 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
                         for (int i = (int) delIdx.size() - 1; i >= 0; i--) {
                             excludeIdx.erase(excludeIdx.begin() + (int)delIdx[i]);
                         }
-                    }
+                    }*/
 
                     //Check the remaining number of descriptors
                     if ((((int) usedDescriptors.size() - (int) excludeIdx.size()) < 25)
                         && ((int) keypoints1.size() > max(typicalNr, compareNr))) {
-                        double enlargeRat = 1.2 * (double) usedDescriptors.size() / (double) excludeIdx.size();
+                        double enlargeRat = max(1.2 * (double) usedDescriptors.size() /
+                                (double) (usedDescriptors.size() - excludeIdx.size() + 1), 3.0);
                         int newDescrSi = (int) ceil(enlargeRat * (double) usedDescriptors.size());
                         compareNr = min(newDescrSi, (int) keypoints1.size());
                         enlargeSelDescr = true;
@@ -2114,6 +2224,7 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
         const cv::KeyPoint &kp,
         cv::Rect &patchROIimg1,
         cv::Rect &patchROIimg2,
+        cv::Rect &patchROIimg21,
         cv::Point2d &ellipseCenter,
         double &ellipseRot,
         cv::Size2d &axes,
@@ -2169,7 +2280,7 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
     }else if(nearZero(QH.at<double>(0,1)) && (QH.at<double>(0,0) > QH.at<double>(1,1))){
         teta = M_PI_2;
     }else {
-        teta = std::atan(QH.at<double>(0,1) / (QH.at<double>(0,0) - QH.at<double>(1,1))) / 2.0;
+        teta = std::atan(2.0 * QH.at<double>(0,1) / (QH.at<double>(0,0) - QH.at<double>(1,1))) / 2.0;
         if(QH.at<double>(0,0) > QH.at<double>(1,1)){
             teta += M_PI_2;
         }
@@ -2205,29 +2316,34 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
     double x0 = x01 * cosTeta - y01 * sinTeta;
     double y0 = x01 * sinTeta + y01 * cosTeta;
 
+    //Check correctness of center point
+    /*Mat ckp = (Mat_<double>(3,1) << (double)kp.pt.x, (double)kp.pt.y, 1.0);
+    Mat cH = H * ckp;
+    cH /= cH.at<double>(2);*/
+
     ellipseCenter = Point2d(x0, y0);
 
     //Get division coefficients a^2 and b^2 of backrotated ellipse
     //(x' - x0')^2 / a^2 + (y' - y0')^2 / b^2 = 1
     double dom = -4.0 * F1 * A1 * C1 + C1 * D1 * D1 + A1 * E1 * E1;
-    double a2 = dom / (4.0 * A1 * C1 * C1);//Corresponds to half length of major axis
-    double b2 = dom / (4.0 * A1 * A1 * C1);//Corresponds to half length of minor axis
-    if(!isfinite(a2) || !isfinite(b2)){
+    double a = sqrt(dom / (4.0 * A1 * C1 * C1));//Corresponds half length of major axis
+    double b = sqrt(dom / (4.0 * A1 * A1 * C1));//Corresponds half length of minor axis
+    if(!isfinite(a) || !isfinite(b)){
         return false;
     }
 
-    axes = Size2d(a2, b2);
+    axes = Size2d(a, b);
 
     //Calculate 2D vector of major and minor axis
-    Mat ma = (Mat_<double>(2,1) << a2 * cosTeta, a2 * sinTeta);
-    Mat mi = (Mat_<double>(2,1) << -b2 * sinTeta, b2 * cosTeta);
+    Mat ma = (Mat_<double>(2,1) << a * cosTeta, a * sinTeta);
+    Mat mi = (Mat_<double>(2,1) << -b * sinTeta, b * cosTeta);
 
     //Calculate corner points of rotated rectangle enclosing ellipse
     Mat corners = Mat(2,4,CV_64FC1);
     corners.col(0) = ma + mi;
-    corners.col(0) = ma - mi;
-    corners.col(0) = -1.0 * ma + mi;
-    corners.col(0) = -1.0 * ma - mi;
+    corners.col(1) = ma - mi;
+    corners.col(2) = -1.0 * ma + mi;
+    corners.col(3) = -1.0 * ma - mi;
 
     //Get dimensions of rectangle enclosing the rotated rectangle
     double minx, maxx, miny, maxy;
@@ -2253,10 +2369,10 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
     Mat corners1 = Mat::ones(3,4,CV_64FC1);
     x0 = round(x0);
     y0 = round(y0);
-    corners1.col(0) = (Mat_<double>(3,1) << x0 - minSquare2, y0 - minSquare2, 1.0);
-    corners1.col(1) = (Mat_<double>(3,1) << x0 + minSquare2, y0 - minSquare2, 1.0);
-    corners1.col(2) = (Mat_<double>(3,1) << x0 + minSquare2, y0 + minSquare2, 1.0);
-    corners1.col(3) = (Mat_<double>(3,1) << x0 - minSquare2, y0 + minSquare2, 1.0);
+    Mat((Mat_<double>(3,1) << x0 - minSquare2, y0 - minSquare2, 1.0)).copyTo(corners1.col(0));
+    Mat((Mat_<double>(3,1) << x0 + minSquare2, y0 - minSquare2, 1.0)).copyTo(corners1.col(1));
+    Mat((Mat_<double>(3,1) << x0 + minSquare2, y0 + minSquare2, 1.0)).copyTo(corners1.col(2));
+    Mat((Mat_<double>(3,1) << x0 - minSquare2, y0 + minSquare2, 1.0)).copyTo(corners1.col(3));
     patchROIimg2 = cv::Rect((int)floor(x0 - minSquare2 + DBL_EPSILON),
             (int)floor(y0 - minSquare2 + DBL_EPSILON),
             minSquare,
@@ -2330,6 +2446,32 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
                             (int)ceil(miny - DBL_EPSILON),
                             (int)floor(dimx + DBL_EPSILON),
                             (int)floor(dimy + DBL_EPSILON));
+
+    //Calculate the image ROI in the warped image holding the full patch information from the original patch
+    for (int j = 0; j < 4; ++j) {
+        corners1.col(j) = H * corners2.col(j);
+        corners1.col(j) /= corners1.at<double>(2,j);
+    }
+    cv::minMaxLoc(corners1.row(0), &minx, &maxx);
+    cv::minMaxLoc(corners1.row(1), &miny, &maxy);
+    dimx = abs(maxx - minx);
+    dimy = abs(maxy - miny);
+    patchROIimg21 = cv::Rect((int)floor(minx + DBL_EPSILON),
+                            (int)floor(miny + DBL_EPSILON),
+                            (int)ceil(dimx - DBL_EPSILON),
+                            (int)ceil(dimy - DBL_EPSILON));
+    if(patchROIimg21.x > patchROIimg2.x){
+        patchROIimg21.x = patchROIimg2.x;
+    }
+    if(patchROIimg21.y > patchROIimg2.y){
+        patchROIimg21.y = patchROIimg2.y;
+    }
+    if(patchROIimg21.width < (patchROIimg2.width + patchROIimg2.x - patchROIimg21.x)){
+        patchROIimg21.width = patchROIimg2.width + patchROIimg2.x - patchROIimg21.x;
+    }
+    if(patchROIimg21.height < (patchROIimg2.height + patchROIimg2.y - patchROIimg21.y)) {
+        patchROIimg21.height = patchROIimg2.height + patchROIimg2.y - patchROIimg21.y;
+    }
 
     return true;
 }
@@ -3094,7 +3236,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     cvWriteComment(*fs, "This file contains all correspondences of a single frame.\n", 0);
 
     cvWriteComment(*fs, "Frame number", 0);
-    fs << "actFrameCnt" << (int) actFrameCnt - 1;
+    fs << "actFrameCnt" << (int) actFrameCnt;
 
     cvWriteComment(*fs, "Actual rotation matrix of the stereo rig: x2 = actR * x1 + actT", 0);
     fs << "actR" << actR;

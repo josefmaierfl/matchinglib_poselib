@@ -461,7 +461,10 @@ int testStereoCamGeneration(int verbose,
 		}
 
 		//Calculate maximum z-distance between cameras based on maximum x- and y-distance (z-distance must be smaller)
-		double tzr = tz_relxymax * std::max(abs(txi_start.back()), abs(tyi_start.back()));
+		double tzr = tz_relxymax * max(std::max(abs(*max_element(txi_start.begin(), txi_start.end())),
+                                            abs(*min_element(txi_start.begin(), txi_start.end()))),
+                                       std::max(abs(*max_element(tyi_start.begin(), tyi_start.end())),
+                                                abs(*min_element(tyi_start.begin(), tyi_start.end()))));
 		double tz_minmax[2];
 		tz_minmax[0] = -tzr;
 		tz_minmax[1] = tzr;
@@ -641,8 +644,9 @@ int testStereoCamGeneration(int verbose,
 										 rwXMLinfo,
 										 compressedWrittenInfo);
 					if(err == -1){
-						cerr << "Existing." << endl;
-						return err;
+						/*cerr << "Existing." << endl;
+						return err;*/
+						break;
 					}
 				}
 			}
@@ -1165,18 +1169,18 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 	//Repeat generation of matches with the same 3D sequence parameters multiple times
 	GenMatchSequParameters matchPars;
 	int useSameSequence = (int)(rand2() % 3) + 1;
+    bool fixp = true;
 	while(useSameSequence > 0){
-		static bool fixp = true;
 		if(fixp){
 			int idx = 0;
 
 			//Get the used keypoint and descriptor types
-			do {
-				idx = (int)(rand2() % 10);
-				kpType = getKeyPointType(idx);
-				idx = (int) (rand2() % 22);
-				descType = getDescriptorType(idx);
-			}while(!checkKpDescrCompability(kpType, descType));
+			/*do {
+				idx = (int)(rand2() % 10);*/
+				kpType = "ORB";//getKeyPointType(idx);
+//				idx = (int) (rand2() % 22);
+				descType = "ORB";//getDescriptorType(idx);
+//			}while(!checkKpDescrCompability(kpType, descType));
 
 			//Use a keypoint position error based on keypoint detection or a given error distribution
 			idx = (int)(rand2() % 6);
@@ -1282,13 +1286,13 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 }
 
 bool checkKpDescrCompability(const std::string &keypointType, const std::string &descriptorType){
-	if ((keypointType == "KAZE") && (descriptorType != "KAZE"))
+	if ((descriptorType == "KAZE") && (keypointType != "KAZE"))
 	{
 //		cout << "KAZE descriptors are only compatible with KAZE keypoints!" << endl;
 		return false;
 	}
 
-	if ((keypointType == "AKAZE") && (descriptorType != "AKAZE"))
+	if ((descriptorType == "AKAZE") && (keypointType != "AKAZE"))
 	{
 //		cout << "AKAZE descriptors are only compatible with AKAZE keypoints!" << endl;
 		return false;
