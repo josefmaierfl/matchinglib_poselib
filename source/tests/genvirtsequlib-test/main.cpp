@@ -1062,8 +1062,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 	}
 
 	//Initialize system
-	uint32_t verbose = PRINT_WARNING_MESSAGES | SHOW_IMGS_AT_ERROR
-	        | SHOW_PLANES_FOR_HOMOGRAPHY | SHOW_WARPED_PATCHES | SHOW_PATCHES_WITH_NOISE;
+	uint32_t verbose = PRINT_WARNING_MESSAGES | SHOW_IMGS_AT_ERROR;
 
 	//Only create the 3D scene or additionally create matches for the scene
 	if(!genMatches) {
