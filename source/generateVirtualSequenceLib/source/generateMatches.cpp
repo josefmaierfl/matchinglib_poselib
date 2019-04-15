@@ -104,6 +104,7 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
     K1i = K1.inv();
     K2i = K2.inv();
     kpErrors.clear();
+    featureIdxBegin = 0;
 }
 
 void genMatchSequ::genSequenceParsFileName() {
@@ -400,7 +401,7 @@ cv::Mat genMatchSequ::getHomographyForDistortionTN(const cv::Mat& x1,
             z_max = actDepthFar;
             break;
     }
-    double z = round(zacc * getRandDoubleValRng(z_min, z_max, rand_gen)) / zacc;
+    double z = round(zacc * getRandDoubleValRng(z_min, z_max)) / zacc;
     double s1 = z / b1.at<double>(2);
     Mat X = s1 * b1;
     Mat x2 = K2 * (actR * X + actT);
@@ -475,9 +476,9 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
         const double maxRotAngleAlpha = 5.0 * (M_PI - acos(b1.dot(b2) / (norm(b1) * norm(b2)))) / 16.0;
         const double maxRotAngleBeta = 5.0 * M_PI / 16.0;
         //alpha ... Rotation angle about first vector 'bpa' in the plane which is perpendicular to the plane normal 'bn'
-        double alpha = getRandDoubleValRng(-maxRotAngleAlpha, maxRotAngleAlpha, rand_gen);
+        double alpha = getRandDoubleValRng(-maxRotAngleAlpha, maxRotAngleAlpha);
         //beta ... Rotation angle about second vector 'bpb' in the plane which is perpendicular to the plane normal 'bn' and 'bpa'
-        double beta = getRandDoubleValRng(-maxRotAngleBeta, maxRotAngleBeta, rand_gen);
+        double beta = getRandDoubleValRng(-maxRotAngleBeta, maxRotAngleBeta);
 
         //Rotate bpb about line bpa using alpha
         Mat bpbr = rotateAboutLine(bpa, alpha, bpb);
@@ -545,11 +546,11 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
         CV_Assert(nearZero(errValOld));*/
 
         double errorVal = p1.dot(Xh);
-        if(!nearZero(errorVal)){
+        if(!nearZero(errorVal / 100.0)){
             throw SequenceException("Used plane is not compatible with 3D coordinate!");
         }
         pn = p1.rowRange(0, 3).clone();
-        d = p1.at<double>(3);
+        d = -1.0 * p1.at<double>(3);
     }
 
     //Generate 3 additional image points in cam 1
@@ -912,7 +913,7 @@ bool genMatchSequ::getFeatures() {
 }
 
 bool genMatchSequ::generateCorrespondingFeatures(){
-    static size_t featureIdxBegin = 0;
+//    static size_t featureIdxBegin = 0;
     //Load images if not already done
     if(loadImgsEveryFrame){
         imgs.clear();
@@ -1226,8 +1227,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
     size_t featureIdx = featureIdxBegin;
 
     //Calculate image intensity noise distribution for TNs
-    double stdNoiseTN = getRandDoubleValRng(2.0, 10.0, rand_gen);
-    double meanIntTNNoise = getRandDoubleValRng(0, 2.5 * stdNoiseTN, rand_gen);
+    double stdNoiseTN = getRandDoubleValRng(2.0, 10.0);
+    double meanIntTNNoise = getRandDoubleValRng(0, 2.5 * stdNoiseTN);
     meanIntTNNoise *= pow(-1.0, (double)(rand2() % 2));
 
     //Check if we need to calculate a keypoint position in the warped patch
@@ -1249,9 +1250,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
     int nrcombCorrs;
     if(useTN){
         nrcombCorrs = combNrCorrsTN;
-        double posMeanErr = getRandDoubleValRng(0, 5.0, rand_gen);
-        double maxErr = getRandDoubleValRng(posMeanErr + 1.0, 10.0, rand_gen);
-        double posStdErr = getRandDoubleValRng(0, (maxErr - posMeanErr) / 3.5, rand_gen);
+        double posMeanErr = getRandDoubleValRng(0, 5.0);
+        double maxErr = getRandDoubleValRng(posMeanErr + 1.0, 10.0);
+        double posStdErr = getRandDoubleValRng(0, (maxErr - posMeanErr) / 3.5);
         distr = std::normal_distribution<double>(posMeanErr, posStdErr);
     }else{
         nrcombCorrs = combNrCorrsTP;
@@ -1259,6 +1260,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
     }
 
     for (int i = 0; i < nrcombCorrs; ++i) {
+        size_t featureIdx_tmp = featureIdx;
         bool visualize = false;
         if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((show_cnt % show_interval) == 0)){
             visualize = true;
@@ -1276,24 +1278,29 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                                  combCorrsImg12TP_IdxWorld[i],
                                                  featureIdx,
                                                  visualize);
+            if((combCorrsImg12TP_IdxWorld[i] >= 0) && !planeTo3DIdx.empty()){
+                if(planeTo3DIdx.find(combCorrsImg12TP_IdxWorld[i]) != planeTo3DIdx.end()) {
+                    featureIdx_tmp = planeTo3DIdx[combCorrsImg12TP_IdxWorld[i]].second;
+                }
+            }
         }
 
         //Get image (check if already in memory)
         Mat img;
         if(loadImgsEveryFrame){
-            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdx]) != imgFrameIdxMap[actFrameCnt].first.end()){
-                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdx]]];
+            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdx_tmp]) != imgFrameIdxMap[actFrameCnt].first.end()){
+                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdx_tmp]]];
             }
             else{
-                img = cv::imread(imageList[featureImgIdx[featureIdx]], CV_LOAD_IMAGE_GRAYSCALE);
+                img = cv::imread(imageList[featureImgIdx[featureIdx_tmp]], CV_LOAD_IMAGE_GRAYSCALE);
             }
         } else{
-            img = imgs[featureImgIdx[featureIdx]];
+            img = imgs[featureImgIdx[featureIdx_tmp]];
         }
 
         //Extract image patch
-        KeyPoint kp = keypoints1[featureIdx];
-        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdx], keypoints1[featureIdx]));
+        KeyPoint kp = keypoints1[featureIdx_tmp];
+        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdx_tmp], keypoints1[featureIdx_tmp]));
 
         //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
         // to estimate the minimal necessary patch size
@@ -1362,8 +1369,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     //Construct a random affine homography
                     //Generate the non-isotropic scaling of the deformation (shear)
                     double d1, d2;
-                    d1 = getRandDoubleValRng(0.8, 1.0, rand_gen);
-                    d2 = getRandDoubleValRng(0.8, 1.0, rand_gen);
+                    d1 = getRandDoubleValRng(0.8, 1.0);
+                    d2 = getRandDoubleValRng(0.8, 1.0);
                     size_t sign1 = rand2() % 6;
                     if (sign1 == 0) {
                         d1 *= -1.0;
@@ -1376,14 +1383,14 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     D.at<double>(0, 0) = d1;
                     D.at<double>(1, 1) = d2;
                     //Generate a rotation for the deformation (shear)
-                    double angle_rot = getRandDoubleValRng(0, M_PI_4, rand_gen);
+                    double angle_rot = getRandDoubleValRng(0, M_PI_4);
                     Mat Rdeform = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
                             std::sin(angle_rot), std::cos(angle_rot));
                     //Generate a rotation
-                    angle_rot = getRandDoubleValRng(0, M_PI_2, rand_gen);
+                    angle_rot = getRandDoubleValRng(0, M_PI_2);
                     Mat Rrot = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
                             std::sin(angle_rot), std::cos(angle_rot));
-                    double scale = getRandDoubleValRng(0.65, 1.35, rand_gen);
+                    double scale = getRandDoubleValRng(0.65, 1.35);
                     //Calculate the new affine homography (without translation)
                     Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
                     H = Mat::eye(3, 3, CV_64FC1);
@@ -1447,10 +1454,14 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             xe /= xe.at<double>(2);
             ellipseCenter.x = xe.at<double>(0) - (double)patchROIimg2.x;
             ellipseCenter.y = xe.at<double>(1) - (double)patchROIimg2.y;
+            if((ellipseCenter.x < 0) || (ellipseCenter.y < 0)){
+                useFallBack = true;
+                noEllipse = true;
+            }
         }
 
         //Show the patches
-        if((verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % show_interval) == 0)){
+        if(!useFallBack && (verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % show_interval) == 0)){
             //Show the warped patch with/without warped keypoint size (ellipse)
             int border1x = 0, border1y = 0, border2x = 0, border2y = 0;
             if(patchROIimg1.width > patchROIimg2.width){
@@ -1709,7 +1720,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 useFallBack = true;
             }else{
                 //Check matchability
-                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
+                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp), descr21);
                 if(useTN){
                     if (((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear)) {
                         useFallBack = true;
@@ -1726,8 +1737,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             //Only add gaussian noise and salt and pepper noise to the original patch
             homo.back() = Mat::eye(3,3, CV_64FC1);
             double meang, stdg;
-            meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
-            stdg = getRandDoubleValRng(-10.0, 10.0, rand_gen);
+            meang = getRandDoubleValRng(-10.0, 10.0);
+            stdg = getRandDoubleValRng(-10.0, 10.0);
             Mat patchfb = img(patchROIimg1);
             patchwn = patchfb.clone();
             descrDist = -1.0;
@@ -1763,8 +1774,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
                     }
 
-                    meang = getRandDoubleValRng(-10.0, 10.0, rand_gen);
-                    stdg = getRandDoubleValRng(-12.0, 12.0, rand_gen);
+                    meang = getRandDoubleValRng(-10.0, 10.0);
+                    stdg = getRandDoubleValRng(-12.0, 12.0);
                     patchwn = patchfb.clone();
                     addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
                     addImgNoiseSaltAndPepper(patchwgn, patchwn, saltPepMinLow, saltPepMaxLow, visPatchNoise);
@@ -1793,8 +1804,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         //Try using the original keypoint position without location change
                         kp2 = kp;
                         kp2err = Point2f(0,0);
-                        pkp21[0] = kp2;
-                        err = matchinglib::getDescriptors(img,
+                        pkp21 = vector<KeyPoint>(1, kp2);
+
+                        /*Mat imgcol;
+                        cvtColor(patchwn, imgcol, cv::COLOR_GRAY2BGR);
+                        Point c((int)round(kp2.pt.x), (int)round(kp2.pt.y));
+                        cv::circle(imgcol, c, (int)round(kp2.size / 2.f), Scalar(0,0,255));
+                        namedWindow("Full image", WINDOW_AUTOSIZE);
+                        imshow("Full image", imgcol);
+
+                        waitKey(0);
+                        destroyWindow("Full image");*/
+
+                        err = matchinglib::getDescriptors(patchwn,
                                                           pkp21,
                                                           parsMtch.descriptorType,
                                                           descr21,
@@ -1804,7 +1826,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                             cerr << "Unable to calculate a matching descriptor! Using the original one - "
                                     "this will result in a descriptor distance of 0 for this particular correspondence!"
                                  << endl;
-                            descr21 = descriptors1.row((int)featureIdx).clone();
+                            descr21 = descriptors1.row((int)featureIdx_tmp).clone();
                             break;
                         }else{
                             noPosChange = true;
@@ -1824,7 +1846,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 }
                 if(err == 0){
                     //Check matchability
-                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx), descr21);
+                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp), descr21);
                 }
                 itCnt++;
             }while(((!useTN && ((descrDist < minDescrDistTP) || (descrDist > ThTp)))
@@ -1836,7 +1858,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 cerr << "Unable to calculate a matching descriptor! Using the original one - "
                         "this will result in a descriptor distance of 0 for this particular correspondence!"
                      << endl;
-                descr21 = descriptors1.row((int)featureIdx).clone();
+                descr21 = descriptors1.row((int)featureIdx_tmp).clone();
                 kp2 = kp;
                 kp2err = Point2f(0,0);
                 descrDist = 0;
@@ -1872,7 +1894,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         }
         frameKPs1[i] = kp;
         frameKPs2[i] = kp2;
-        frameDescr1.push_back(descriptors1.row((int)featureIdx).clone());
+        frameDescr1.push_back(descriptors1.row((int)featureIdx_tmp).clone());
         frameDescr2.push_back(descr21.clone());
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 
@@ -1901,7 +1923,7 @@ void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
                     float r_error = (float) abs(distr(rand_gen)) * pow(-1.f, (float) (rand2() % 2));
                     kp2.pt.y += r_error;
                 } else if (!nearZero(maxr)) {
-                    auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr, rand_gen);
+                    auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr);
                     kp2.pt.y += r_error;
                 }
             } else if (!(((int) round(ptm.x) < usedBorder)
@@ -1915,13 +1937,13 @@ void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
                     float r_error = (float) abs(distr(rand_gen)) * pow(-1.f, (float) (rand2() % 2));
                     kp2.pt.x += r_error;
                 } else if (!nearZero(maxr)) {
-                    auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr, rand_gen);
+                    auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr);
                     kp2.pt.x += r_error;
                 }
             }
         } else {
             double r_error = abs(distr(rand_gen));
-            double alpha = getRandDoubleValRng(0, M_PI, rand_gen);
+            double alpha = getRandDoubleValRng(0, M_PI);
             auto xe = (float) (r_error * cos(alpha));
             auto ye = (float) (r_error * sin(alpha));
             xe += kp2.pt.x;
@@ -2312,6 +2334,10 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
     if(!isfinite(a) || !isfinite(b)){
         return false;
     }
+    double ab = sqrt(a * a + b * b);
+    if((ab < (0.2 * r)) && ((a < 5.0) || (b < 5.0))){
+        return false;
+    }
 
     axes = Size2d(a, b);
 
@@ -2354,167 +2380,6 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
             reflectionX,
             reflectionY,
             imgFeatureSi);
-
-
-
-    /*auto minSquare2 = (double)((minSquare - 1) / 2);
-
-
-    //Transform the square back into the original image
-    Mat corners1 = Mat::ones(3,4,CV_64FC1);
-    x0 = round(x0);
-    y0 = round(y0);
-    Mat((Mat_<double>(3,1) << x0 - minSquare2, y0 - minSquare2, 1.0)).copyTo(corners1.col(0));
-    Mat((Mat_<double>(3,1) << x0 + minSquare2, y0 - minSquare2, 1.0)).copyTo(corners1.col(1));
-    Mat((Mat_<double>(3,1) << x0 + minSquare2, y0 + minSquare2, 1.0)).copyTo(corners1.col(2));
-    Mat((Mat_<double>(3,1) << x0 - minSquare2, y0 + minSquare2, 1.0)).copyTo(corners1.col(3));
-    patchROIimg2 = cv::Rect((int)floor(x0 - minSquare2 + DBL_EPSILON),
-            (int)floor(y0 - minSquare2 + DBL_EPSILON),
-            minSquare,
-            minSquare);
-    Mat corners2 = Mat::ones(3,4,CV_64FC1);
-    bool atBorder = false;
-    for (int j = 0; j < 4; ++j) {
-        corners2.col(j) = Hi * corners1.col(j);
-        corners2.col(j) /= corners2.at<double>(2,j);
-        if(corners2.at<double>(0,j) < 0){
-            corners2.at<double>(0,j) = 0;
-            atBorder = true;
-        }else if(corners2.at<double>(0,j) > (double)(imgFeatureSi.width - 1)){
-            corners2.at<double>(0,j) = (double)(imgFeatureSi.width - 1);
-            atBorder = true;
-        }
-        if(corners2.at<double>(1,j) < 0){
-            corners2.at<double>(1,j) = 0;
-            atBorder = true;
-        }else if(corners2.at<double>(1,j) > (double)(imgFeatureSi.height - 1)){
-            corners2.at<double>(1,j) = (double)(imgFeatureSi.height - 1);
-            atBorder = true;
-        }
-    }
-
-    //Check for reflection
-    reflectionY = false;
-    if(corners2.at<double>(0,0) > corners2.at<double>(0,1)){//Reflection about y-axis
-        reflectionY = true;
-    }
-    reflectionX = false;
-    if(corners2.at<double>(1,0) > corners2.at<double>(1,3)) {//Reflection about x-axis
-        reflectionX = true;
-    }
-
-    //Adapt the ROI in the transformed image if we are at the border
-    if(atBorder){
-        for (int j = 0; j < 4; ++j) {
-            corners1.col(j) = H * corners2.col(j);
-            corners1.col(j) /= corners1.at<double>(2,j);
-        }
-        if(corners1.at<double>(0,0) > corners1.at<double>(0,1)){//Reflection about y-axis
-            minx = max(corners1.at<double>(0,1), corners1.at<double>(0,2));
-            maxx = min(corners1.at<double>(0,0), corners1.at<double>(0,3));
-        }
-        else{
-            minx = max(corners1.at<double>(0,0), corners1.at<double>(0,3));
-            maxx = min(corners1.at<double>(0,1), corners1.at<double>(0,2));
-        }
-        if(corners1.at<double>(1,0) > corners1.at<double>(1,3)) {//Reflection about x-axis
-            miny = max(corners1.at<double>(1,3), corners1.at<double>(1,2));
-            maxy = min(corners1.at<double>(1,0), corners1.at<double>(1,1));
-        }else{
-            miny = max(corners1.at<double>(1,0), corners1.at<double>(1,1));
-            maxy = min(corners1.at<double>(1,3), corners1.at<double>(1,2));
-        }
-        double width = maxx - minx;
-        double height = maxy - miny;
-        patchROIimg2 = cv::Rect((int)ceil(minx - DBL_EPSILON),
-                (int)ceil(miny - DBL_EPSILON),
-                (int)floor(width + DBL_EPSILON),
-                (int)floor(height + DBL_EPSILON));
-    }
-
-    //Calculate the necessary ROI in the original image
-    cv::minMaxLoc(corners2.row(0), &minx, &maxx);
-    cv::minMaxLoc(corners2.row(1), &miny, &maxy);
-    dimx = abs(maxx - minx);
-    dimy = abs(maxy - miny);
-    patchROIimg1 = cv::Rect((int)ceil(minx - DBL_EPSILON),
-                            (int)ceil(miny - DBL_EPSILON),
-                            (int)floor(dimx + DBL_EPSILON),
-                            (int)floor(dimy + DBL_EPSILON));
-
-    //Calculate the image ROI in the warped image holding the full patch information from the original patch
-    Mat((Mat_<double>(3,1) << (double)patchROIimg1.x,
-            (double)patchROIimg1.y, 1.0)).copyTo(corners2.col(0));
-    Mat((Mat_<double>(3,1) << (double)(patchROIimg1.x + patchROIimg1.width - 1),
-            (double)patchROIimg1.y, 1.0)).copyTo(corners2.col(1));
-    Mat((Mat_<double>(3,1) << (double)(patchROIimg1.x + patchROIimg1.width - 1),
-            (double)(patchROIimg1.y + patchROIimg1.height - 1), 1.0)).copyTo(corners2.col(2));
-    Mat((Mat_<double>(3,1) << (double)patchROIimg1.x,
-            (double)(patchROIimg1.y + patchROIimg1.height - 1), 1.0)).copyTo(corners2.col(3));
-    for (int j = 0; j < 4; ++j) {
-        corners1.col(j) = H * corners2.col(j);
-        corners1.col(j) /= corners1.at<double>(2,j);
-    }
-    cv::minMaxLoc(corners1.row(0), &minx, &maxx);
-    cv::minMaxLoc(corners1.row(1), &miny, &maxy);
-    dimx = abs(maxx - minx);
-    dimy = abs(maxy - miny);
-    patchROIimg21 = cv::Rect((int)floor(minx + DBL_EPSILON),
-                            (int)floor(miny + DBL_EPSILON),
-                            (int)ceil(dimx - DBL_EPSILON),
-                            (int)ceil(dimy - DBL_EPSILON));
-    if(patchROIimg21.x > patchROIimg2.x){
-        patchROIimg21.x = patchROIimg2.x;
-    }
-    if(patchROIimg21.y > patchROIimg2.y){
-        patchROIimg21.y = patchROIimg2.y;
-    }
-    if(patchROIimg21.width < (patchROIimg2.width + patchROIimg2.x - patchROIimg21.x)){
-        patchROIimg21.width = patchROIimg2.width + patchROIimg2.x - patchROIimg21.x;
-    }
-    if(patchROIimg21.height < (patchROIimg2.height + patchROIimg2.y - patchROIimg21.y)) {
-        patchROIimg21.height = patchROIimg2.height + patchROIimg2.y - patchROIimg21.y;
-    }
-
-    //Recalculate the patch ROI in the first image
-    Mat((Mat_<double>(3,1) << (double)patchROIimg21.x,
-            (double)patchROIimg21.y, 1.0)).copyTo(corners1.col(0));
-    Mat((Mat_<double>(3,1) << (double)(patchROIimg21.x + patchROIimg21.width - 1),
-            (double)patchROIimg21.y, 1.0)).copyTo(corners1.col(1));
-    Mat((Mat_<double>(3,1) << (double)(patchROIimg21.x + patchROIimg21.width - 1),
-            (double)(patchROIimg21.y + patchROIimg21.height - 1), 1.0)).copyTo(corners1.col(2));
-    Mat((Mat_<double>(3,1) << (double)patchROIimg21.x,
-            (double)(patchROIimg21.y + patchROIimg21.height - 1), 1.0)).copyTo(corners1.col(3));
-    for (int j = 0; j < 4; ++j) {
-        corners2.col(j) = Hi * corners1.col(j);
-        corners2.col(j) /= corners2.at<double>(2,j);
-    }
-    cv::Point img1LT;
-    cv::Size img1WH;
-    if(reflectionY && reflectionX){
-        img1LT = Point(max((int)ceil(corners2.at<double>(0,2) - DBL_EPSILON), 0),
-                       max((int)ceil(corners2.at<double>(1,2) - DBL_EPSILON), 0));
-    }else if(reflectionY){
-        img1LT = Point(max((int)ceil(corners2.at<double>(0,3) - DBL_EPSILON), 0),
-                           max((int)ceil(corners2.at<double>(1,3) - DBL_EPSILON), 0));
-    }else if(reflectionX){
-        img1LT = Point(max((int)ceil(corners2.at<double>(0,1) - DBL_EPSILON), 0),
-                           max((int)ceil(corners2.at<double>(1,1) - DBL_EPSILON), 0));
-    }else{
-        img1LT = Point(max((int)ceil(corners2.at<double>(0,0) - DBL_EPSILON), 0),
-                max((int)ceil(corners2.at<double>(1,0) - DBL_EPSILON), 0));
-    }
-    img1WH = Size(patchROIimg1.x - img1LT.x + patchROIimg1.width,
-                  patchROIimg1.y - img1LT.y + patchROIimg1.height);
-    if((img1LT.x + img1WH.width) > imgFeatureSi.width){
-        img1WH.width = imgFeatureSi.width - img1LT.x;
-    }
-    if((img1LT.y + img1WH.height) > imgFeatureSi.height){
-        img1WH.height = imgFeatureSi.height - img1LT.y;
-    }
-    patchROIimg1 = cv::Rect(img1LT, img1WH);
-
-    return true;*/
 }
 
 bool getImgROIs(const cv::Mat &H,
@@ -2609,6 +2474,9 @@ bool getImgROIs(const cv::Mat &H,
         }
         double width = maxx - minx;
         double height = maxy - miny;
+        if((width < minSquare2) || (height < minSquare2)){
+            return false;
+        }
         patchROIimg2 = cv::Rect((int)ceil(minx - DBL_EPSILON),
                                 (int)ceil(miny - DBL_EPSILON),
                                 (int)floor(width + DBL_EPSILON),
@@ -2620,6 +2488,9 @@ bool getImgROIs(const cv::Mat &H,
     cv::minMaxLoc(corners2.row(1), &miny, &maxy);
     dimx = abs(maxx - minx);
     dimy = abs(maxy - miny);
+    if((dimx < 5.0) || (dimy < 5.0)){
+        return false;
+    }
     patchROIimg1 = cv::Rect((int)ceil(minx - DBL_EPSILON),
                             (int)ceil(miny - DBL_EPSILON),
                             (int)floor(dimx + DBL_EPSILON),
@@ -2647,6 +2518,9 @@ bool getImgROIs(const cv::Mat &H,
     cv::minMaxLoc(corners1.row(1), &miny, &maxy);
     dimx = abs(maxx - minx);
     dimy = abs(maxy - miny);
+    if((dimx < minSquare2) || (dimy < minSquare2)){
+        return false;
+    }
     patchROIimg21 = cv::Rect((int)floor(minx + DBL_EPSILON),
                              (int)floor(miny + DBL_EPSILON),
                              (int)ceil(dimx - DBL_EPSILON),
@@ -2685,12 +2559,21 @@ bool getImgROIs(const cv::Mat &H,
     cv::Point img1LT;
     cv::Size img1WH;
     if(reflectionY && reflectionX){
+        if((corners2.at<double>(0,0) < 0) || (corners2.at<double>(1,0) < 0)){
+            return false;
+        }
         img1LT = Point(max((int)ceil(corners2.at<double>(0,2) - DBL_EPSILON), 0),
                        max((int)ceil(corners2.at<double>(1,2) - DBL_EPSILON), 0));
     }else if(reflectionY){
+        if((corners2.at<double>(0,0) < 0) || (corners2.at<double>(1,0) < 0)){
+            return false;
+        }
         img1LT = Point(max((int)ceil(corners2.at<double>(0,1) - DBL_EPSILON), 0),
                        max((int)ceil(corners2.at<double>(1,1) - DBL_EPSILON), 0));
     }else if(reflectionX){
+        if((corners2.at<double>(0,0) < 0) || (corners2.at<double>(1,0) < 0)){
+            return false;
+        }
         img1LT = Point(max((int)ceil(corners2.at<double>(0,3) - DBL_EPSILON), 0),
                        max((int)ceil(corners2.at<double>(1,3) - DBL_EPSILON), 0));
     }else{
@@ -2699,12 +2582,19 @@ bool getImgROIs(const cv::Mat &H,
     }
     img1WH = Size(patchROIimg1.x - img1LT.x + patchROIimg1.width,
                   patchROIimg1.y - img1LT.y + patchROIimg1.height);
+    if((img1WH.width < 5.0)
+    || (img1WH.height < 5.0)
+    || ((img1LT.x + img1WH.width) > imgFeatureSi.width)
+    || ((img1LT.y + img1WH.height) > imgFeatureSi.height)){
+        return false;
+    }
     if((img1LT.x + img1WH.width) > imgFeatureSi.width){
         img1WH.width = imgFeatureSi.width - img1LT.x;
     }
     if((img1LT.y + img1WH.height) > imgFeatureSi.height){
         img1WH.height = imgFeatureSi.height - img1LT.y;
     }
+
     patchROIimg1 = cv::Rect(img1LT, img1WH);
 
     return true;

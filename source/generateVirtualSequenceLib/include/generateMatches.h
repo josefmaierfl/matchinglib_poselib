@@ -113,6 +113,7 @@ public:
         K1i = K1.inv();
         K2i = K2.inv();
         kpErrors.clear();
+        featureIdxBegin = 0;
     };
 
     genMatchSequ(const std::string &sequLoadFolder,
@@ -247,6 +248,7 @@ private:
     const int maxPatchSizeMult2 = 3;//Multiplication factor for minPatchSize2 to define the maximum allowed patch size of the warped image
     const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
+    size_t featureIdxBegin = 0;//Index for features at the beginning of every calculated frame
     std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
     size_t nrCorrsFullSequ = 0;//Number of predicted overall correspondences (TP+TN) for all frames
