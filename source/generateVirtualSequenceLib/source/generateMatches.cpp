@@ -3757,10 +3757,10 @@ bool genMatchSequ::writePointClouds(const std::string &path, const std::string &
 
     for (size_t i = 0; i < movObj3DPtsWorldAllFrames.size(); ++i) {
         string fname = filename + "_movObj3DPts_" + std::to_string(i) + ".pcd";
-        if(checkOverwriteDelFiles(fname, "Output file for moving 3D PCL point cloud already exists:", overwrite)){
+        if(!checkOverwriteDelFiles(fname, "Output file for moving 3D PCL point cloud already exists:", overwrite)){
             return false;
         }
-        pcl::io::savePCDFileBinaryCompressed(staticWorld3DPtsFileName, movObj3DPtsWorldAllFrames[i]);
+        pcl::io::savePCDFileBinaryCompressed(fname, movObj3DPtsWorldAllFrames[i]);
     }
 
     return true;

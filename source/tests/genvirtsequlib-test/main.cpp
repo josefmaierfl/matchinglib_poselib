@@ -461,7 +461,7 @@ int testStereoCamGeneration(int verbose,
 		}
 
 		//Calculate maximum z-distance between cameras based on maximum x- and y-distance (z-distance must be smaller)
-		double tzr = tz_relxymax * max(std::max(abs(*max_element(txi_start.begin(), txi_start.end())),
+		double tzr = tz_relxymax * min(std::max(abs(*max_element(txi_start.begin(), txi_start.end())),
                                             abs(*min_element(txi_start.begin(), txi_start.end()))),
                                        std::max(abs(*max_element(tyi_start.begin(), tyi_start.end())),
                                                 abs(*min_element(tyi_start.begin(), tyi_start.end()))));
@@ -566,10 +566,45 @@ int testStereoCamGeneration(int verbose,
 			if (cngTxy)//Abort if no valid extrinsic values or ranges were created for this stereo configuration (reference camera must be top or left camera)
 				break;
 
-			if (tz_equRanges)//If true, the tz value or range stays the same for all stereo camera configurations
-				tzi = tzi_start;
-			else
-				initRangeVals(rand_generator, tz_minmax, tz_minmax_change, tzi_start, tzi);//Calculate the new range or value based on the first range (within maximum specified range tz_minmax)
+			if (tz_equRanges) {//If true, the tz value or range stays the same for all stereo camera configurations
+                double maxTzi = max(abs(*max_element(tzi_start.begin(), tzi_start.end())),
+                        abs(*min_element(tzi_start.begin(), tzi_start.end())));
+                double maxTxi = max(abs(*max_element(txi.begin(), txi.end())),
+                                    abs(*min_element(txi.begin(), txi.end())));
+                double maxTyi = max(abs(*max_element(tyi.begin(), tyi.end())),
+                                    abs(*min_element(tyi.begin(), tyi.end())));
+                double maxTxyi = max(maxTxi, maxTyi);
+                if(maxTzi >= maxTxyi){
+                    if(tx_equRanges && ty_equRanges){
+                        return -1;
+                    }
+                    i--;
+                    continue;
+                }
+			    tzi = tzi_start;
+            }
+			else{
+                //Calculate the new range or value based on the first range (within maximum specified range tz_minmax)
+                int tryCnt = 20;
+                double maxTzi = 0;
+                double maxTxyi = 0;
+                do {
+                    tzi.clear();
+                    initRangeVals(rand_generator, tz_minmax, tz_minmax_change, tzi_start, tzi);
+                    maxTzi = max(abs(*max_element(tzi.begin(), tzi.end())),
+                                        abs(*min_element(tzi.begin(), tzi.end())));
+                    double maxTxi = max(abs(*max_element(txi.begin(), txi.end())),
+                                        abs(*min_element(txi.begin(), txi.end())));
+                    double maxTyi = max(abs(*max_element(tyi.begin(), tyi.end())),
+                                        abs(*min_element(tyi.begin(), tyi.end())));
+                    maxTxyi = max(maxTxi, maxTyi);
+                    tryCnt--;
+                }while((tryCnt > 0) && (maxTzi >= maxTxyi));
+                if(tryCnt == 0){
+                    i--;
+                    continue;
+                }
+			}
 			if (roll_equRanges)//If true, the roll value or range stays the same for all stereo camera configurations
 				rolli = rolli_start;
 			else
@@ -1401,11 +1436,11 @@ double getRandDoubleVal(std::default_random_engine rand_generator, double lowerB
 
 void initStarVal(default_random_engine rand_generator, double *range, vector<double>& startVec)
 {
-	int isRange = std::rand() % 2;
-	for (size_t i = 0; i < 1; i++)
+	int isRange = std::rand() % 4;
+	/*for (size_t i = 0; i < 1; i++)
 	{
 		isRange |= std::rand() % 2;
-	}
+	}*/
 	startVec.push_back(getRandDoubleVal(rand_generator, range[0], range[1]));
 	if (isRange)
 		startVec.push_back(getRandDoubleVal(rand_generator, startVec.back(), range[1]));
@@ -1422,12 +1457,12 @@ void initRangeVals(default_random_engine rand_generator,
 	{
 		if (startVec[0] >= 0)
 		{
-			newRange[0] = std::max(startVec[0] * relMinMaxCh[0], range[0]);
+			newRange[0] = std::min(std::max(startVec[0] * relMinMaxCh[0], range[0]), range[1]);
 			newRange[1] = std::min(startVec[0] * relMinMaxCh[1], range[1]);
 		}
 		else
 		{
-			newRange[0] = std::max(startVec[0] * relMinMaxCh[1], range[0]);
+			newRange[0] = std::min(std::max(startVec[0] * relMinMaxCh[1], range[0]), range[1]);
 			newRange[1] = std::min(startVec[0] * relMinMaxCh[0], range[1]);
 		}
 	}
