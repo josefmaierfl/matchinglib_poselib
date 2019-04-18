@@ -3015,6 +3015,15 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     cvWriteComment(*fs, "This file contains all parameters used to generate "
                         "multiple consecutive frames with stereo correspondences.\n", 0);
 
+    cvWriteComment(*fs, "Number of different stereo camera configurations", 0);
+    fs << "nrStereoConfs" << (int) nrStereoConfs;
+    cvWriteComment(*fs, "Inlier ratio for every frame", 0);
+    fs << "inlRat" << "[";
+    for (auto &i : inlRat) {
+        fs << i;
+    }
+    fs << "]";
+
     cvWriteComment(*fs, "# of Frames per camera configuration", 0);
     fs << "nFramesPerCamConf" << (int) pars.nFramesPerCamConf;
     cvWriteComment(*fs, "Inlier ratio range", 0);
@@ -3175,10 +3184,26 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
 
     int tmp = 0;
+    fs["nrStereoConfs"] >> tmp;
+    nrStereoConfs = (size_t)tmp;
+
+    FileNode n = fs["inlRat"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "inlRat is not a sequence! FAIL" << endl;
+        return false;
+    }
+    inlRat.clear();
+    FileNodeIterator it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        double inlRa1 = 0;
+        it >> inlRa1;
+        inlRat.push_back(inlRa1);
+    }
+
     fs["nFramesPerCamConf"] >> tmp;
     pars3D.nFramesPerCamConf = (size_t) tmp;
 
-    FileNode n = fs["inlRatRange"];
+    n = fs["inlRatRange"];
     double first_dbl = 0, second_dbl = 0;
     n["first"] >> first_dbl;
     n["second"] >> second_dbl;
@@ -3207,7 +3232,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
         return false;
     }
     pars3D.corrsPerRegion.clear();
-    FileNodeIterator it = n.begin(), it_end = n.end();
+    it = n.begin(), it_end = n.end();
     while (it != it_end) {
         Mat m;
         it >> m;
