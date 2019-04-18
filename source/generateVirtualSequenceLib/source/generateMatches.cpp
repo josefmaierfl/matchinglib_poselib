@@ -81,7 +81,7 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
     genSequenceParsFileName();
 
     string filename = concatPath(sequLoadPath, sequParFileName);
-    if(checkFileExists(filename)){
+    if(!checkFileExists(filename)){
         string errmsg = "Necessary 3D sequence file " +
                         filename + " does not exist!";
         throw SequenceException(errmsg);
@@ -131,9 +131,26 @@ std::string genMatchSequ::genSequFileExtension(const std::string &basename){
 
 bool genMatchSequ::genSequenceParsStorePath(){
     if(!sequParsLoaded || (sequLoadPath != parsMtch.mainStorePath)) {
+        if(sequParsLoaded){
+            pars = pars3D;
+        }
         hash_Sequ = hashFromSequPars();
-        if (!genParsStorePath(parsMtch.mainStorePath, std::to_string(hash_Sequ), sequParPath)) {
-            return false;
+        bool sequPathExists = false;
+        if(sequParsLoaded){
+            if(!checkPathExists(parsMtch.mainStorePath)){
+                cerr << "Given path " << parsMtch.mainStorePath << " to store results does not exist!" << endl;
+                return false;
+            }
+            string resPath = concatPath(parsMtch.mainStorePath, std::to_string(hash_Sequ));
+            if(checkPathExists(resPath)){
+                sequPathExists = true;
+                sequParPath = resPath;
+            }
+        }
+        if(!sequPathExists) {
+            if (!genParsStorePath(parsMtch.mainStorePath, std::to_string(hash_Sequ), sequParPath)) {
+                return false;
+            }
         }
     }else{
         sequParPath = sequLoadPath;
@@ -193,9 +210,23 @@ bool genMatchSequ::generateMatches(){
     }
 
     if(!sequParsLoaded || (sequLoadPath != parsMtch.mainStorePath)) {
-        if(!writeSequenceOverviewPars()){
-            cerr << "Unable to write file with sequence parameter overview!" << endl;
-            return false;
+        if(sequParsLoaded){
+            string filename;
+            if(!getSequenceOverviewParsFileName(filename)){
+                return false;
+            }
+            if(!checkFileExists(filename)) {
+                //pars = pars3D;
+                if(!writeSequenceOverviewPars()){
+                    cerr << "Unable to write file with sequence parameter overview!" << endl;
+                    return false;
+                }
+            }
+        }else {
+            if (!writeSequenceOverviewPars()) {
+                cerr << "Unable to write file with sequence parameter overview!" << endl;
+                return false;
+            }
         }
     }
 
@@ -232,7 +263,7 @@ bool genMatchSequ::generateMatches(){
                 singleFrameDataFName << endl;
                 return false;
             }
-            if(read3DInfoSingleFrame(singleFrameDataFName)){
+            if(!read3DInfoSingleFrame(singleFrameDataFName)){
                 cerr << "Unable to load 3D correspondence file for single frame: " <<
                      singleFrameDataFName << endl;
                 return false;
@@ -1997,7 +2028,8 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
         vector<vector<int>> multImgFeatures;
         for (int i = 0; i < compareNr - 1; ++i) {
             vector<int> sameImgs;
-            for (int j = i + 1; j < compareNr; ++j) {
+            int j = i + 1;
+            for (; j < compareNr; ++j) {
                 sameImgs.push_back(usedImgIdx[j - 1].second);
                 if (usedImgIdx[i].first != usedImgIdx[j].first) {
                     i = j - 1;
@@ -2005,6 +2037,9 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
                 }
             }
             multImgFeatures.emplace_back(sameImgs);
+            if(j == compareNr){
+                break;
+            }
         }
         if (usedImgIdx[compareNr - 2].first != usedImgIdx[compareNr - 1].first) {
             multImgFeatures.emplace_back(vector<int>(1, usedImgIdx[compareNr - 1].second));
@@ -2065,7 +2100,7 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
                                                        descriptors1.row(usedDescriptors[i[k]]),
                                                        NORM_HAMMING);
                                 if(nearZero(norm_tmp)){
-                                    continue;//There is a bug somewhere in the norm calculation if the first descriptor is zero
+                                    continue;
                                 }
                                 descrDistSameImg.push_back((float)norm_tmp);
                             }
@@ -2101,24 +2136,6 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
                     sort(excludeIdx.begin(), excludeIdx.end(), [](int &first, int &second) { return first < second; });
                     //Remove duplicates
                     excludeIdx.erase(unique(excludeIdx.begin(), excludeIdx.end()), excludeIdx.end());
-                    /*vector<size_t> delIdx;
-                    for (size_t i = 0; i < excludeIdx.size() - 1; ++i) {
-                        for (size_t j = i + 1; j < excludeIdx.size(); ++j) {
-                            if (excludeIdx[i] == excludeIdx[j]) {
-                                delIdx.push_back(j-1);
-                            } else if (excludeIdx[i] != excludeIdx[j]) {
-                                i = j - 1;
-                                break;
-                            }
-                        }
-                    }
-                    if (!delIdx.empty()) {
-                        sort(delIdx.begin(), delIdx.end(),
-                             [](size_t &first, size_t &second) { return first < second; });
-                        for (int i = (int) delIdx.size() - 1; i >= 0; i--) {
-                            excludeIdx.erase(excludeIdx.begin() + (int)delIdx[i]);
-                        }
-                    }*/
 
                     //Check the remaining number of descriptors
                     if ((((int) usedDescriptors.size() - (int) excludeIdx.size()) < 25)
@@ -2793,10 +2810,10 @@ bool genMatchSequ::writeMatchingParameters(){
     return true;
 }
 
-bool genMatchSequ::writeSequenceOverviewPars(){
+bool genMatchSequ::getSequenceOverviewParsFileName(std::string &filename){
     if(!checkPathExists(parsMtch.mainStorePath)){
         cerr << "Given path " << parsMtch.mainStorePath <<
-        " to store sequence parameter overview does not exist!" << endl;
+             " to store sequence parameter overview does not exist!" << endl;
         return false;
     }
 
@@ -2806,7 +2823,17 @@ bool genMatchSequ::writeSequenceOverviewPars(){
     } else {
         matchInfoFName += ".yaml";
     }
-    string filename = concatPath(parsMtch.mainStorePath, matchInfoFName);
+    filename = concatPath(parsMtch.mainStorePath, matchInfoFName);
+
+    return true;
+}
+
+bool genMatchSequ::writeSequenceOverviewPars(){
+    string filename;
+    if(!getSequenceOverviewParsFileName(filename)){
+        return false;
+    }
+
     FileStorage fs;
     int nrEntries = 0;
     string parSetNr = "parSetNr";
@@ -3147,12 +3174,12 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
         return false;
     }
 
-    int tmp;
+    int tmp = 0;
     fs["nFramesPerCamConf"] >> tmp;
     pars3D.nFramesPerCamConf = (size_t) tmp;
 
     FileNode n = fs["inlRatRange"];
-    double first_dbl, second_dbl;
+    double first_dbl = 0, second_dbl = 0;
     n["first"] >> first_dbl;
     n["second"] >> second_dbl;
     pars3D.inlRatRange = make_pair(first_dbl, second_dbl);
@@ -3160,7 +3187,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     fs["inlRatChanges"] >> pars3D.inlRatChanges;
 
     n = fs["truePosRange"];
-    int first_int, second_int;
+    int first_int = 0, second_int = 0;
     n["first"] >> first_int;
     n["second"] >> second_int;
     pars3D.truePosRange = make_pair((size_t) first_int, (size_t) second_int);
@@ -3181,7 +3208,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
     pars3D.corrsPerRegion.clear();
     FileNodeIterator it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         Mat m;
         it >> m;
         pars3D.corrsPerRegion.push_back(m.clone());
@@ -3235,7 +3262,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
     pars3D.camTrack.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         Mat m;
         it >> m;
         pars3D.camTrack.emplace_back(m.clone());
@@ -3262,7 +3289,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
     pars3D.movObjDepth.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         it >> tmp;
         pars3D.movObjDepth.push_back((depthClass) tmp);
     }
@@ -3296,7 +3323,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
     nrCorrs.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         it >> tmp;
         nrCorrs.push_back((size_t) tmp);
     }
@@ -3323,7 +3350,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
     R.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         Mat R_stereo;
         it >> R_stereo;
         R.emplace_back(R_stereo.clone());
@@ -3336,7 +3363,7 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
     }
     t.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         Mat t_stereo;
         it >> t_stereo;
         t.emplace_back(t_stereo.clone());
@@ -3381,7 +3408,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     fs << "K1" << K1;
 
     cvWriteComment(*fs, "Actual correct camera matrix of camera 2", 0);
-    fs << "K1" << K2;
+    fs << "K2" << K2;
 
     cvWriteComment(*fs, "Actual distorted camera matrix of camera 1", 0);
     fs << "actKd1" << actKd1;
@@ -3512,7 +3539,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
         fs << "finalNrTNMovCorrs" << 1;
     else
         fs << "finalNrTNMovCorrs" << 0;*/
-    fs << "finalNrTNMovCorrs" << combCorrsImg12TNstatFirst;
+    fs << "combCorrsImg12TNstatFirst" << combCorrsImg12TNstatFirst;
 
     fs.release();
 
@@ -3527,7 +3554,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
         return false;
     }
 
-    int tmp;
+    int tmp = 0;
 
     fs["actFrameCnt"] >> tmp;
     actFrameCnt = (size_t) tmp;
@@ -3553,7 +3580,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     }
     comb3DPts.clear();
     FileNodeIterator it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         cv::Point3d pt;
         it >> pt;
         comb3DPts.push_back(pt);
@@ -3602,7 +3629,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     }
     combCorrsImg12TP_IdxWorld.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         int64_t val;
         it >> val;
         combCorrsImg12TP_IdxWorld.push_back(val);
@@ -3651,7 +3678,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     }
     combCorrsImg12TPContMovObj_IdxWorld.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while (it != it_end) {
         int64_t val;
         it >> val;
         combCorrsImg12TPContMovObj_IdxWorld.push_back(val);
@@ -3670,8 +3697,8 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     }
     combDistTNtoReal.clear();
     it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
-        double dist;
+    while (it != it_end) {
+        double dist = 0;
         it >> dist;
         combDistTNtoReal.push_back(dist);
     }
@@ -3698,7 +3725,7 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
     n["movTPnew"] >> tmp;
     combCorrsImg12TPorder.movTPnew = (unsigned char) tmp;
 
-    fs["finalNrTNMovCorrs"] >> tmp;
+    fs["combCorrsImg12TNstatFirst"] >> tmp;
     combCorrsImg12TNstatFirst = (tmp != 0);
 
     fs.release();

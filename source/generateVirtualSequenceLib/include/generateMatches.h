@@ -157,6 +157,8 @@ private:
     bool genSequenceParsStorePath();
     //Generates a folder inside the folder of the 3D scene for storing matches
     bool genMatchDataStorePath();
+    //Get the filename for storing an overview of the sequence parameters
+    bool getSequenceOverviewParsFileName(std::string &filename);
     //Generates a YAML/XML file containing parameters for generating matches from 3D scenes for every sub-folder (For every run with the same 3D scene, the parameter set for the matches is appended at the end of the file)
     bool writeMatchingParameters();
     //Generates a new file inside the folder of the matches which holds the mean and standard deviation of keypoint position errors of the whole scene in addition to a list of images (including their folder structure) that were used to extract patches for calculating descriptors and keypoints
