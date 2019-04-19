@@ -1335,7 +1335,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
 
         //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
         // to estimate the minimal necessary patch size
-        cv::Rect patchROIimg1, patchROIimg2, patchROIimg21;
+        cv::Rect patchROIimg1(0,0,3,3), patchROIimg2(0,0,3,3), patchROIimg21(0,0,3,3);
         cv::Point2d ellipseCenter;
         double ellipseRot = 0;
         cv::Size2d axes;
@@ -1343,6 +1343,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         bool noEllipse = false;
         bool reflectionX = false;
         bool reflectionY = false;
+        const double minPatchSize = 41.0;
         cv::Size imgFeatureSize = img.size();
         if(!getRectFitsInEllipse(H,
                                  kp,
@@ -1357,8 +1358,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                  imgFeatureSize)){
             //If the calculation of the necessary patch size failed, calculate a standard patch
             noEllipse = true;
-            const double minPatchSize = 41.0;
+            int fbCnt = 0;
             do {
+                fbCnt++;
                 useFallBack = false;
                 int patchSize = minPatchSize2;//Must be an odd number
                 do {
@@ -1422,12 +1424,15 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     Mat Rrot = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
                             std::sin(angle_rot), std::cos(angle_rot));
                     double scale = getRandDoubleValRng(0.65, 1.35);
+                    if(fbCnt > 5){
+                        scale *= (double)fbCnt / 3.5;
+                    }
                     //Calculate the new affine homography (without translation)
                     Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
                     H = Mat::eye(3, 3, CV_64FC1);
                     Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
                 }
-            }while(useFallBack);
+            }while(useFallBack && (fbCnt < 21));
         }
 
         //Extract and warp the patch if the patch size is valid
@@ -1466,12 +1471,16 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         tback.at<double>(1,2) = tm.at<double>(1);
         Mat H2 = H1 * tback;
         Mat patchw;
-        warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg21.size(), INTER_LINEAR, BORDER_REPLICATE);
+        if (!useFallBack) {
+            warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg21.size(), INTER_LINEAR, BORDER_REPLICATE);
+        }
         homo.push_back(H.clone());
         //Extract warped patch ROI with only valid pixels
-        patchROIimg2.x = patchROIimg2.x - patchROIimg21.x;
-        patchROIimg2.y = patchROIimg2.y - patchROIimg21.y;
-        patchw = patchw(patchROIimg2);
+        if (!useFallBack) {
+            patchROIimg2.x = patchROIimg2.x - patchROIimg21.x;
+            patchROIimg2.y = patchROIimg2.y - patchROIimg21.y;
+            patchw = patchw(patchROIimg2);
+        }
 
         //Adapt center of ellipse
         if(!noEllipse){
@@ -1596,6 +1605,18 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 useFallBack = true;
                 noEllipse = true;
             }
+        }
+
+        //Check if the used keypoint location is too near to the border of the patch
+        const double minPatchSize12 = (double)(minPatchSize - 1) / 2.0;
+        const double distKpBx = (double)patchROIimg2.width - kpm.at<double>(0);
+        const double distKpBy = (double)patchROIimg2.height - kpm.at<double>(1);
+        if((kpm.at<double>(0) < minPatchSize12)
+        || (kpm.at<double>(1) < minPatchSize12)
+        || (distKpBx < minPatchSize12)
+           || (distKpBy < minPatchSize12)){
+            useFallBack = true;
+            noEllipse = true;
         }
 
         //Check if we have to use a keypoint detector
@@ -1885,14 +1906,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             || (descrDist > badDescrTH.maxVal))))
                && (itCnt < 20));
             if(itCnt >= 20){
-                //Use the original descriptor
-                cerr << "Unable to calculate a matching descriptor! Using the original one - "
-                        "this will result in a descriptor distance of 0 for this particular correspondence!"
-                     << endl;
-                descr21 = descriptors1.row((int)featureIdx_tmp).clone();
-                kp2 = kp;
-                kp2err = Point2f(0,0);
-                descrDist = 0;
+                if((!useTN && ((descrDist < 0.75 * minDescrDistTP) || (descrDist > 1.25 * ThTp)))
+                   || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < 0.75 * ThTn))
+                   || (descrDist < 0.75 * ThTnNear))
+                                 || (descrDist > 1.2 * badDescrTH.maxVal)))) {
+                    //Use the original descriptor
+                    cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                            "this will result in a descriptor distance of 0 for this particular correspondence!"
+                         << endl;
+                    descr21 = descriptors1.row((int) featureIdx_tmp).clone();
+                    kp2 = kp;
+                    kp2err = Point2f(0, 0);
+                    descrDist = 0;
+                }
             }
         }
 
@@ -2410,6 +2436,7 @@ bool getImgROIs(const cv::Mat &H,
                 const cv::Size &imgFeatureSi){
     int minSquare = minSqrROIimg2 + ((minSqrROIimg2 + 1) % 2);
     auto minSquare2 = (double)((minSquare - 1) / 2);
+    auto minSquareMin = 0.7 * (double)minSquare;
     auto x0 = (double)midPt.x;
     auto y0 = (double)midPt.y;
     Mat Hi = H.inv();
@@ -2491,7 +2518,7 @@ bool getImgROIs(const cv::Mat &H,
         }
         double width = maxx - minx;
         double height = maxy - miny;
-        if((width < minSquare2) || (height < minSquare2)){
+        if((width < minSquareMin) || (height < minSquareMin)){
             return false;
         }
         patchROIimg2 = cv::Rect((int)ceil(minx - DBL_EPSILON),
