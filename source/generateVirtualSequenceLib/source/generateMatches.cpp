@@ -874,7 +874,7 @@ bool genMatchSequ::getFeatures() {
     for(auto &i : featureIdxs){
         descriptors1_tmp.push_back(descriptors1.row((int)i));
     }
-    descriptors1 = descriptors1_tmp;
+    descriptors1_tmp.copyTo(descriptors1);
 
 
     if (kpCnt < nrCorrsFullSequ) {
@@ -1254,7 +1254,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                                      std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp){
     //Generate feature for every TP or TN
     int show_cnt = 0;
-    const int show_interval = 1;
+    const int show_interval = 50;
     size_t featureIdx = featureIdxBegin;
 
     //Calculate image intensity noise distribution for TNs
@@ -1914,6 +1914,32 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     cerr << "Unable to calculate a matching descriptor! Using the original one - "
                             "this will result in a descriptor distance of 0 for this particular correspondence!"
                          << endl;
+#if 1
+                    //Check if the descriptor extracted again without changes on the patch is the same
+                    vector<KeyPoint> pkp21;
+                    Mat desrc_tmp;
+                    if(fullImgUsed){
+                        pkp21 = vector<KeyPoint>(1, kp);
+                    }else{
+                        KeyPoint kp2_tmp = kp;
+                        kp2_tmp.pt.x -= (float) patchROIimg1.x;
+                        kp2_tmp.pt.y -= (float) patchROIimg1.y;
+                        pkp21 = vector<KeyPoint>(1, kp2_tmp);
+                    }
+                    if(matchinglib::getDescriptors(patchfb,
+                                                   pkp21,
+                                                   parsMtch.descriptorType,
+                                                   desrc_tmp,
+                                                   parsMtch.keyPointType) == 0){
+                        double descrDist_tmp = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp),
+                                                                     desrc_tmp);
+                        if(!nearZero(descrDist_tmp)){
+                            cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
+                                    "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
+                        }
+                    }
+#endif
+
                     descr21 = descriptors1.row((int) featureIdx_tmp).clone();
                     kp2 = kp;
                     kp2err = Point2f(0, 0);
