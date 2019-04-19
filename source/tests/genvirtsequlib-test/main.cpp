@@ -1209,15 +1209,15 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 			int idx = 0;
 
 			//Get the used keypoint and descriptor types
-			/*do {
-				idx = (int)(rand2() % 10);*/
-				kpType = "MSD";//getKeyPointType(idx);
-//				idx = (int) (rand2() % 22);
-				descType = "VGG_80";//getDescriptorType(idx);
-//			}while(!checkKpDescrCompability(kpType, descType));
+			do {
+				idx = (int)(rand2() % 10);
+				kpType = getKeyPointType(idx);
+				idx = (int) (rand2() % 22);
+				descType = getDescriptorType(idx);
+			}while(!checkKpDescrCompability(kpType, descType));
 
 			//Use a keypoint position error based on keypoint detection or a given error distribution
-			/*idx = (int)(rand2() % 6);
+			idx = (int)(rand2() % 6);
 			if(idx){
 				//Use an error distribution
 				//Get mean and standard deviation of positioning error
@@ -1227,12 +1227,12 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 				}while((keypErrDistr_mean + 3.0 * keypErrDistr_SD) > maxKeypErrDistr);
 				keypErrDistr = std::make_pair(keypErrDistr_mean, keypErrDistr_SD);
 				keypPosErrType = false;
-			}else{*/
+			}else{
 				keypPosErrType = true;
-//			}
+			}
 
 			//Get parameters for gaussian noise on the image intensity for generating the matching descriptors
-			/*idx = (int)(rand2() % 4);
+			idx = (int)(rand2() % 4);
 			//Take only small or large range of noise
 			if(idx){
 				IntNoise_mean = getRandDoubleVal(rand_generator, minIntNoiseMean / 4.0, maxIntNoiseMean / 4.0);
@@ -1241,29 +1241,28 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 				IntNoise_mean = getRandDoubleVal(rand_generator, minIntNoiseMean, maxIntNoiseMean);
 				IntNoise_SD = getRandDoubleVal(rand_generator, minIntNoiseSD, maxIntNoiseSD);
 			}
-			imgIntNoise = std::make_pair(IntNoise_mean, IntNoise_SD);*/
-            imgIntNoise = std::make_pair(2.7882264534010108e+00, 1.1726615417840071e+01);
+			imgIntNoise = std::make_pair(IntNoise_mean, IntNoise_SD);
 
 			if(sequLoadFolder.empty()) {
 				//Randomly select the storage format
-				/*idx = (int) (rand2() % 4);
+				idx = (int) (rand2() % 4);
 				rwXMLinfo_ = true;
-				if (idx) {*/
+				if (idx) {
 					rwXMLinfo_ = false;
-//				}
+				}
 
 				//Randomly select if the output should be compressed
-//				idx = (int) (rand2() % 6);
+				idx = (int) (rand2() % 6);
 				compressedWrittenInfo_ = true;
-				/*if (idx) {
+				if (idx) {
 					compressedWrittenInfo_ = false;
-				}*/
+				}
 			}
 
-			/*idx = (int)(rand2() % 2);
-			if(idx) {*/
+			idx = (int)(rand2() % 2);
+			if(idx) {
 				storePtClouds = true;
-//			}
+			}
 			if(!sequLoadFolder.empty()){
 				idx = (int)(rand2() % 2);
 				//Resulting matches will either be stored to the location where the sequence is loaded from or to the given store location
