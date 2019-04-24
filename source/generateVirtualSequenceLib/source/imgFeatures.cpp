@@ -421,15 +421,18 @@ namespace matchinglib
                     return -1;
                 }
                 Mat descr_tmp;
+                std::vector<cv::KeyPoint> kp_tmp;
                 int cnt = 0;
                 for (int i = 0; i < nkeypoints; i++){
                     if(delIdx[cnt] == i){
                         cnt++;
                     }else{
                         descr_tmp.push_back(descriptors.row(i));
+                        kp_tmp.push_back(keypoints[i]);
                     }
                 }
                 descr_tmp.copyTo(descriptors);
+                keypoints = kp_tmp;
             }
 
         }
