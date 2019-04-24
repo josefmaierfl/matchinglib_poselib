@@ -391,6 +391,12 @@ namespace matchinglib
         {
             RIFFDescriptor riff;
             riff.Descriptor_Generation(img, descriptors, keypoints);
+            if(keypoints.empty() || descriptors.empty()){
+                return -1;
+            }
+            if((int)keypoints.size() != descriptors.rows){
+                return -1;
+            }
         }
         else if (!descriptortype.compare("BOLD"))
         {
