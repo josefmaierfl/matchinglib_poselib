@@ -241,6 +241,11 @@ private:
     //Generates keypoints without a position error (Order of correspondences from generating the 3D scene must be the same as for the keypoints)
     void getErrorFreeKeypoints(const std::vector<cv::KeyPoint> &kpWithErr,
                                std::vector<cv::KeyPoint> &kpNoErr);
+    //Calculate statistics about the difference in the camera position from frame to frame in addition to the overall length
+    void getCamCoordinatesStats(double &lenght,
+                                qualityParm &stats_DiffTx,
+                                qualityParm &stats_DiffTy,
+                                qualityParm &stats_DiffTz);
 
 public:
     GenMatchSequParameters parsMtch;

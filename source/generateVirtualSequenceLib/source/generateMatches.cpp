@@ -9,6 +9,7 @@
 #include <chrono>
 #include <pcl/io/pcd_io.h>
 #include "opencv2/imgproc/imgproc.hpp"
+#include <opencv2/core/eigen.hpp>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include "helper_funcs.h"
@@ -50,6 +51,14 @@ bool getImgROIs(const cv::Mat &H,
                 bool &reflectionX,
                 bool &reflectionY,
                 const cv::Size &imgFeatureSi);
+void getRotationStats(const std::vector<cv::Mat> &Rs,
+                      qualityParm &stats_roll,
+                      qualityParm &stats_pitch,
+                      qualityParm &stats_yaw);
+void getTranslationStats(const std::vector<cv::Mat> &ts,
+                         qualityParm &stats_tx,
+                         qualityParm &stats_ty,
+                         qualityParm &stats_tz);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -2988,74 +2997,223 @@ static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & val
     return ++it;
 }
 
+void getRotationStats(const std::vector<cv::Mat> &Rs,
+                      qualityParm &stats_roll,
+                      qualityParm &stats_pitch,
+                      qualityParm &stats_yaw){
+    size_t nr_Rs = Rs.size();
+    vector<double> roll(nr_Rs, 0), pitch(nr_Rs, 0), yaw(nr_Rs, 0);
+    for(size_t i = 0; i < nr_Rs; ++i){
+        getAnglesRotMat(Rs[i], roll[i], pitch[i], yaw[i], true);
+    }
+    getStatisticfromVec(roll, stats_roll);
+    getStatisticfromVec(pitch, stats_pitch);
+    getStatisticfromVec(yaw, stats_yaw);
+}
+
+void getTranslationStats(const std::vector<cv::Mat> &ts,
+                         qualityParm &stats_tx,
+                         qualityParm &stats_ty,
+                         qualityParm &stats_tz){
+    size_t nr_ts = ts.size();
+    vector<double> tx(nr_ts, 0), ty(nr_ts, 0), tz(nr_ts, 0);
+    for(size_t i = 0; i < nr_ts; ++i){
+        tx[i] = ts[i].at<double>(0);
+        ty[i] = ts[i].at<double>(1);
+        tz[i] = ts[i].at<double>(2);
+    }
+    getStatisticfromVec(tx, stats_tx);
+    getStatisticfromVec(ty, stats_ty);
+    getStatisticfromVec(tz, stats_tz);
+}
+
+void genMatchSequ::getCamCoordinatesStats(double &lenght,
+                            qualityParm &stats_DiffTx,
+                            qualityParm &stats_DiffTy,
+                            qualityParm &stats_DiffTz){
+    size_t nr_ts = absCamCoordinates.size();
+    vector<double> tx(nr_ts - 1, 0), ty(nr_ts - 1, 0), tz(nr_ts - 1, 0);
+    lenght = 0;
+    for(size_t i = 1; i < nr_ts; ++i){
+        Mat tdiff = absCamCoordinates[i].t - absCamCoordinates[i-1].t;
+        tx[i-1] = tdiff.at<double>(0);
+        ty[i-1] = tdiff.at<double>(1);
+        tz[i-1] = tdiff.at<double>(2);
+        lenght += norm(tdiff);
+    }
+    getStatisticfromVec(tx, stats_DiffTx);
+    getStatisticfromVec(ty, stats_DiffTy);
+    getStatisticfromVec(tz, stats_DiffTz);
+}
+
 void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     cvWriteComment(*fs, "Number of different stereo camera configurations", 0);
     fs << "nrStereoConfs" << (int) nrStereoConfs;
-    cvWriteComment(*fs, "Different rotations between stereo cameras", 0);
+    /*cvWriteComment(*fs, "Different rotations between stereo cameras", 0);
     fs << "R" << "[";
     for (auto &i : R) {
         fs << i;
     }
-    fs << "]";
-    cvWriteComment(*fs, "Different translation vectors between stereo cameras", 0);
+    fs << "]";*/
+    cvWriteComment(*fs, "Statistic on rotation angles (degrees) between stereo cameras", 0);
+    qualityParm stats_roll, stats_pitch, stats_yaw;
+    getRotationStats(R, stats_roll, stats_pitch, stats_yaw);
+    fs << "stereo_roll_stats";
+    fs << "{" << "mean" << stats_roll.arithVal;
+    fs << "SD" << stats_roll.arithStd;
+    fs << "min" << stats_roll.minVal;
+    fs << "max" << stats_roll.maxVal << "}";
+    fs << "stereo_pitch_stats";
+    fs << "{" << "mean" << stats_pitch.arithVal;
+    fs << "SD" << stats_pitch.arithStd;
+    fs << "min" << stats_pitch.minVal;
+    fs << "max" << stats_pitch.maxVal << "}";
+    fs << "stereo_yaw_stats";
+    fs << "{" << "mean" << stats_yaw.arithVal;
+    fs << "SD" << stats_yaw.arithStd;
+    fs << "min" << stats_yaw.minVal;
+    fs << "max" << stats_yaw.maxVal << "}";
+
+    /*cvWriteComment(*fs, "Different translation vectors between stereo cameras", 0);
     fs << "t" << "[";
     for (auto &i : t) {
         fs << i;
     }
-    fs << "]";
-    cvWriteComment(*fs, "Inlier ratio for every frame", 0);
+    fs << "]";*/
+    cvWriteComment(*fs, "Statistic on translation vector elements between stereo cameras", 0);
+    qualityParm stats_tx, stats_ty, stats_tz;
+    getTranslationStats(t, stats_tx, stats_ty, stats_tz);
+    fs << "stereo_tx_stats";
+    fs << "{" << "mean" << stats_tx.arithVal;
+    fs << "SD" << stats_tx.arithStd;
+    fs << "min" << stats_tx.minVal;
+    fs << "max" << stats_tx.maxVal << "}";
+    fs << "stereo_ty_stats";
+    fs << "{" << "mean" << stats_ty.arithVal;
+    fs << "SD" << stats_ty.arithStd;
+    fs << "min" << stats_ty.minVal;
+    fs << "max" << stats_ty.maxVal << "}";
+    fs << "stereo_tz_stats";
+    fs << "{" << "mean" << stats_tz.arithVal;
+    fs << "SD" << stats_tz.arithStd;
+    fs << "min" << stats_tz.minVal;
+    fs << "max" << stats_tz.maxVal << "}";
+
+    /*cvWriteComment(*fs, "Inlier ratio for every frame", 0);
     fs << "inlRat" << "[";
     for (auto &i : inlRat) {
         fs << i;
     }
-    fs << "]";
+    fs << "]";*/
+    cvWriteComment(*fs, "Statistic on inlier ratios", 0);
+    qualityParm stats_inlRat;
+    getStatisticfromVec(inlRat, stats_inlRat);
+    fs << "inlRat_stats";
+    fs << "{" << "mean" << stats_inlRat.arithVal;
+    fs << "SD" << stats_inlRat.arithStd;
+    fs << "min" << stats_inlRat.minVal;
+    fs << "max" << stats_inlRat.maxVal << "}";
+
     cvWriteComment(*fs, "# of Frames per camera configuration", 0);
     fs << "nFramesPerCamConf" << (int) pars.nFramesPerCamConf;
     cvWriteComment(*fs, "Total number of frames in the sequence", 0);
     fs << "totalNrFrames" << (int) totalNrFrames;
-    cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
+    /*cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
     fs << "nrCorrs" << "[";
     for (auto &i : nrCorrs) {
         fs << (int) i;
     }
-    fs << "]";
+    fs << "]";*/
+    qualityParm stats_nrCorrs;
+    getStatisticfromVec(nrCorrs, stats_nrCorrs);
+    size_t totalNrCorrs = 0;
+    for (auto &i : nrCorrs){
+        totalNrCorrs += i;
+    }
+    cvWriteComment(*fs, "Statistic on the number of correspondences (TP+TN) per frame", 0);
+    fs << "nrCorrs_stats";
+    fs << "{" << "mean" << stats_nrCorrs.arithVal;
+    fs << "SD" << stats_nrCorrs.arithStd;
+    fs << "min" << stats_nrCorrs.minVal;
+    fs << "max" << stats_nrCorrs.maxVal << "}";
+    cvWriteComment(*fs, "Total number of correspondences (TP+TN) over all frames", 0);
+    fs << "totalNrCorrs" << (int)totalNrCorrs;
+
     cvWriteComment(*fs, "portion of correspondences at depths", 0);
     fs << "corrsPerDepth";
     fs << "{" << "near" << pars.corrsPerDepth.near;
     fs << "mid" << pars.corrsPerDepth.mid;
     fs << "far" << pars.corrsPerDepth.far << "}";
-    cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
+    /*cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
     fs << "corrsPerRegion" << "[";
     for (auto &i : pars.corrsPerRegion) {
         fs << i;
     }
-    fs << "]";
+    fs << "]";*/
+    cvWriteComment(*fs, "Mean portions of image correspondences at regions over all frames", 0);
+    Mat meanCorrsPerRegion = Mat::zeros(pars.corrsPerRegion[0].size(), pars.corrsPerRegion[0].type());
+    for (auto &i : pars.corrsPerRegion) {
+        meanCorrsPerRegion += i;
+    }
+    meanCorrsPerRegion /= (double)pars.corrsPerRegion.size();
+    fs << "meanCorrsPerRegion" << meanCorrsPerRegion;
+
     cvWriteComment(*fs, "Number of moving objects in the scene", 0);
     fs << "nrMovObjs" << (int) pars.nrMovObjs;
     cvWriteComment(*fs, "Relative area range of moving objects", 0);
     fs << "relAreaRangeMovObjs";
     fs << "{" << "first" << pars.relAreaRangeMovObjs.first;
     fs << "second" << pars.relAreaRangeMovObjs.second << "}";
-    cvWriteComment(*fs, "Depth of moving objects.", 0);
+    /*cvWriteComment(*fs, "Depth of moving objects.", 0);
     fs << "movObjDepth" << "[";
     for (auto &i : pars.movObjDepth) {
         fs << (int) i;
     }
-    fs << "]";
+    fs << "]";*/
+    cvWriteComment(*fs, "Statistic on the depths of all moving objects.", 0);
+    qualityParm stats_movObjDepth;
+    getStatisticfromVec(pars.movObjDepth, stats_movObjDepth);
+    fs << "movObjDepth_stats";
+    fs << "{" << "mean" << stats_movObjDepth.arithVal;
+    fs << "SD" << stats_movObjDepth.arithStd;
+    fs << "min" << stats_movObjDepth.minVal;
+    fs << "max" << stats_movObjDepth.maxVal << "}";
+
     cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
                         "K1 & K2 based on their initial values (only the focal lengths and image centers are "
                         "randomly distorted)", 0);
     fs << "distortCamMat";
     fs << "{" << "first" << pars.distortCamMat.first;
     fs << "second" << pars.distortCamMat.second << "}";
-    cvWriteComment(*fs,
+    /*cvWriteComment(*fs,
                    "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
     fs << "absCamCoordinates" << "[";
     for (auto &i : absCamCoordinates) {
         fs << "{" << "R" << i.R;
         fs << "t" << i.t << "}";
     }
-    fs << "]";
+    fs << "]";*/
+    double track_lenght = 0;
+    qualityParm stats_DiffTx, stats_DiffTy, stats_DiffTz;
+    getCamCoordinatesStats(track_lenght, stats_DiffTx, stats_DiffTy, stats_DiffTz);
+    cvWriteComment(*fs, "Length of the track (moving camera centers).", 0);
+    fs << "track_lenght" << track_lenght;
+    cvWriteComment(*fs, "Statistic on all camera track vector elements.", 0);
+    fs << "camTrack_tx_stats";
+    fs << "{" << "mean" << stats_DiffTx.arithVal;
+    fs << "SD" << stats_DiffTx.arithStd;
+    fs << "min" << stats_DiffTx.minVal;
+    fs << "max" << stats_DiffTx.maxVal << "}";
+    fs << "camTrack_ty_stats";
+    fs << "{" << "mean" << stats_DiffTy.arithVal;
+    fs << "SD" << stats_DiffTy.arithStd;
+    fs << "min" << stats_DiffTy.minVal;
+    fs << "max" << stats_DiffTy.maxVal << "}";
+    fs << "camTrack_tz_stats";
+    fs << "{" << "mean" << stats_DiffTz.arithVal;
+    fs << "SD" << stats_DiffTz.arithStd;
+    fs << "min" << stats_DiffTz.minVal;
+    fs << "max" << stats_DiffTz.maxVal << "}";
 }
 
 bool genMatchSequ::writeSequenceParameters(const std::string &filename) {

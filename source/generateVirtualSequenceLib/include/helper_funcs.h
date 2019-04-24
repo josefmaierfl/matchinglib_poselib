@@ -74,6 +74,9 @@ double getRandDoubleValRng(double lowerBound, double upperBound, std::default_ra
 //construct a rotation matrix from angles given in RAD
 cv::Mat GENERATEVIRTUALSEQUENCELIB_API eulerAnglesToRotationMatrix(double x, double y, double z);
 
+//Calculates the euler angles from a given rotation matrix.
+void getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & yaw, bool useDegrees = true);
+
 //Returns true, if any element of the boolean (CV_8UC1) Mat vector is also true
 bool any_vec_cv(const cv::Mat& bin);
 
@@ -128,9 +131,6 @@ double quatAngle(Eigen::Vector4d & Q);
 //Round every entry of a matrix to its nearest integer
 cv::Mat roundMat(const cv::Mat& m);
 
-//Calculates statistical parameters for the given values
-void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bool rejQuartiles = false);
-
 /* -------------------------- Functions -------------------------- */
 
 //Checks, if determinants, etc. are too close to 0
@@ -139,4 +139,82 @@ inline bool nearZero(double d)
 	//Decide if determinants, etc. are too close to 0 to bother with
 	const double EPSILON = 1e-4;
 	return (d<EPSILON) && (d>-EPSILON);
+}
+
+/* Calculates statistical parameters for the given values in the vector. The following parameters
+ * are calculated: median, arithmetic mean value, standard deviation and standard deviation using the median.
+ *
+ * vector<double> vals		Input  -> Input vector from which the statistical parameters should be calculated
+ * qualityParm stats		Output -> Structure holding the statistical parameters
+ * bool rejQuartiles		Input  -> If true, the lower and upper quartiles are rejected before calculating
+ *									  the parameters
+ *
+ * Return value:		 none
+ */
+template<typename T>
+void getStatisticfromVec(const std::vector<T> &vals, qualityParm &stats, bool rejQuartiles = false)
+{
+    if(vals.empty())
+    {
+        stats = qualityParm();
+        return;
+    }else if(vals.size() == 1){
+        stats = qualityParm((double)vals[0],
+                            (double)vals[0],
+                            0,
+                            0,
+                            (double)vals[0],
+                            (double)vals[0],
+                            (double)vals[0],
+                            (double)vals[0]);
+        return;
+    }
+    size_t n = vals.size();
+    if(rejQuartiles && (n < 4))
+        rejQuartiles = false;
+    auto qrt_si = (size_t)floor(0.25 * (double)n);
+    std::vector<T> vals_tmp(vals);
+
+    std::sort(vals_tmp.begin(),vals_tmp.end(),[](T const & first, T const & second){
+        return first < second;});
+
+    if(n % 2)
+        stats.medVal = (double)vals_tmp[(n-1)/2];
+    else
+        stats.medVal = ((double)vals_tmp[n/2] + (double)vals_tmp[n/2-1]) / 2.0;
+
+    stats.lowerQuart = (double)vals_tmp[qrt_si];
+    if(n > 3)
+        stats.upperQuart = (double)vals_tmp[n-qrt_si];
+    else
+        stats.upperQuart = (double)vals_tmp[qrt_si];
+
+    stats.maxVal = (double)vals_tmp.back();
+    stats.minVal = (double)vals_tmp[0];
+
+    stats.arithVal = 0.0;
+    double err2sum = 0.0;
+    double medstdsum = 0.0;
+    double hlp;
+    for(size_t i = rejQuartiles ? qrt_si:0; i < (rejQuartiles ? (n-qrt_si):n); i++)
+    {
+        stats.arithVal += (double)vals_tmp[i];
+        err2sum += (double)vals_tmp[i] * (double)vals_tmp[i];
+        hlp = ((double)vals_tmp[i] - stats.medVal);
+        medstdsum += hlp * hlp;
+    }
+    if(rejQuartiles)
+        n -= 2 * qrt_si;
+    stats.arithVal /= (double)n;
+
+    hlp = err2sum - (double)n * stats.arithVal * stats.arithVal;
+    if(std::abs(hlp) < 1e-6)
+        stats.arithStd = 0.0;
+    else
+        stats.arithStd = std::sqrt(hlp/((double)n - 1.0));
+
+    if(std::abs(medstdsum) < 1e-6)
+        stats.medStd = 0.0;
+    else
+        stats.medStd = std::sqrt(medstdsum/((double)n - 1.0));
 }

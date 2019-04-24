@@ -15,6 +15,7 @@ configure_file(version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/${META_PROJECT_N
 # Libraries
 set(IDE_FOLDER "")
 option(ENABLE_GENVIRTSEQULIB  "build with testframework" ON)
+option(ENABLE_CMD_INTERFACE "build with command line interface for the virtual sequence library" ON)
 # add_subdirectory(baselib)
 # add_subdirectory(fiblib)
 
@@ -22,6 +23,11 @@ option(ENABLE_GENVIRTSEQULIB  "build with testframework" ON)
 if(${ENABLE_GENVIRTSEQULIB})
   
   add_subdirectory(generateVirtualSequenceLib)
+endif()
+
+if(${ENABLE_CMD_INTERFACE})
+
+  add_subdirectory(CMD_Interface)
 endif()
 
 # Examples

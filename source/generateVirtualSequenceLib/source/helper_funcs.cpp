@@ -81,6 +81,56 @@ cv::Mat eulerAnglesToRotationMatrix(double x, double y, double z)
 	return R_y * R_z * R_x;
 }
 
+/* Calculates the euler angles from a given rotation matrix. As default the angles are returned in degrees.
+ *
+ * InputArray R							Input  -> Rotation matrix
+ * double roll							Output -> Roll angle or Bank (rotation about x-axis)
+ * double pitch							Output -> Pitch angle or Heading (rotation about y-axis)
+ * double yaw							Output -> Yaw angle or Attitude (rotation about z-axis)
+ * bool useDegrees						Input  -> If true (default), the angles are returned in degrees. Otherwise in radians.
+ *
+ * Return value:						none
+ */
+void getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & yaw, bool useDegrees)
+{
+    Mat m = R.getMat();
+    const double radDegConv = 180.0 / M_PI;
+
+    /** this conversion uses conventions as described on page:
+*   http://www.euclideanspace.com/maths/geometry/rotations/euler/index.htm
+*   Coordinate System: right hand
+*   Positive angle: right hand
+*   Order of euler angles: pitch first, then yaw, then roll
+*   matrix row column ordering:
+*   [m00 m01 m02]
+*   [m10 m11 m12]
+*   [m20 m21 m22]*/
+
+    // Assuming the angles are in radians.
+    if (m.at<double>(1,0) > 0.998) { // singularity at north pole
+        pitch = std::atan2(m.at<double>(0,2),m.at<double>(2,2));
+        yaw = M_PI_2;
+        roll = 0;
+    }
+    else if (m.at<double>(1,0) < -0.998) { // singularity at south pole
+        pitch = std::atan2(m.at<double>(0,2),m.at<double>(2,2));
+        yaw = -M_PI_2;
+        roll = 0;
+    }
+    else
+    {
+        pitch = std::atan2(-m.at<double>(2,0),m.at<double>(0,0));
+        roll = std::atan2(-m.at<double>(1,2),m.at<double>(1,1));
+        yaw = std::asin(m.at<double>(1,0));
+    }
+    if(useDegrees)
+    {
+        pitch *= radDegConv;
+        roll *= radDegConv;
+        yaw *= radDegConv;
+    }
+}
+
 bool any_vec_cv(const cv::Mat& bin)
 {
 	CV_Assert(((bin.rows == 1) || (bin.cols == 1)) && (bin.type() == CV_8UC1));
@@ -461,71 +511,4 @@ cv::Mat roundMat(const cv::Mat& m)
 	tmp.convertTo(tmp1, m.type());
 
 	return tmp1;
-}
-
-/* Calculates statistical parameters for the given values in the vector. The following parameters
- * are calculated: median, arithmetic mean value, standard deviation and standard deviation using the median.
- *
- * vector<double> vals		Input  -> Input vector from which the statistical parameters should be calculated
- * qualityParm stats		Output -> Structure holding the statistical parameters
- * bool rejQuartiles		Input  -> If true, the lower and upper quartiles are rejected before calculating
- *									  the parameters
- *
- * Return value:		 none
- */
-void getStatisticfromVec(const std::vector<double> &vals, qualityParm &stats, bool rejQuartiles)
-{
-	if(vals.empty())
-	{
-		stats = qualityParm();
-		return;
-	}
-	size_t n = vals.size();
-	if(rejQuartiles && (n < 4))
-		rejQuartiles = false;
-	auto qrt_si = (size_t)floor(0.25 * (double)n);
-	std::vector<double> vals_tmp(vals);
-
-	std::sort(vals_tmp.begin(),vals_tmp.end(),[](double const & first, double const & second){
-		return first < second;});
-
-	if(n % 2)
-		stats.medVal = vals_tmp[(n-1)/2];
-	else
-		stats.medVal = (vals_tmp[n/2]+vals_tmp[n/2-1])/2;
-
-	stats.lowerQuart = vals_tmp[qrt_si];
-	if(n > 3)
-		stats.upperQuart = vals_tmp[n-qrt_si];
-	else
-		stats.upperQuart = vals_tmp[qrt_si];
-
-	stats.maxVal = vals_tmp.back();
-	stats.minVal = vals_tmp[0];
-
-	stats.arithVal = 0.0;
-	double err2sum = 0.0;
-	double medstdsum = 0.0;
-	double hlp;
-	for(size_t i = rejQuartiles ? qrt_si:0; i < (rejQuartiles ? (n-qrt_si):n); i++)
-	{
-		stats.arithVal += vals_tmp[i];
-		err2sum += vals_tmp[i] * vals_tmp[i];
-		hlp = (vals_tmp[i] - stats.medVal);
-		medstdsum += hlp * hlp;
-	}
-	if(rejQuartiles)
-		n -= 2 * qrt_si;
-	stats.arithVal /= n;
-
-	hlp = err2sum-n*(stats.arithVal)*(stats.arithVal);
-	if(std::abs(hlp) < 1e-6)
-		stats.arithStd = 0.0;
-	else
-		stats.arithStd = std::sqrt(hlp/(n-1));
-
-	if(std::abs(medstdsum) < 1e-6)
-		stats.medStd = 0.0;
-	else
-		stats.medStd = std::sqrt(medstdsum/(n-1));
 }
