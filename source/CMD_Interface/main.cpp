@@ -208,6 +208,10 @@ bool genTemplateFile(const std::string &filename){
         return false;
     }
 
+    auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rand_generator(seed);
+    std::mt19937 rand2(seed);
+
     cvWriteComment(*fs, "This file contains user specific parameters used to generate "
                         "multiple consecutive stereo frames with correspondences.\n\n", 0);
 
@@ -395,36 +399,91 @@ bool genTemplateFile(const std::string &filename){
 
     cvWriteComment(*fs, "---- Options for generating 3D scenes ----\n\n", 0);
 
-    cvWriteComment(*fs, "Inlier ratio range for all stereo frames", 0);
+    cvWriteComment(*fs, "Inlier ratio range for all stereo frames.", 0);
     fs << "inlRatRange";
     fs << "{" << "first" << 0.4;
     fs << "second" << 0.95 << "}";
-    /*cvWriteComment(*fs, "Inlier ratio change rate from pair to pair", 0);
-    fs << "inlRatChanges" << pars.inlRatChanges;
-    cvWriteComment(*fs, "# true positives range", 0);
+    cvWriteComment(*fs, "Inlier ratio change rate from pair to pair. "
+                        "If 0, the inlier ratio within the given range is always the same for every image pair "
+                        "(it is selected within the given inlier range in the beginning). "
+                        "If 100.0, the inlier ratio is chosen completely random within the given range for every "
+                        "stereo frame separately. For values between 0 and 100.0, the inlier ratio selected is "
+                        "not allowed to change more than this factor from the inlier ratio "
+                        "of the last stereo frame.", 0);
+    fs << "inlRatChanges" << 20.0;
+    cvWriteComment(*fs, "Number of true positives (TP) range for all stereo frames.", 0);
     fs << "truePosRange";
-    fs << "{" << "first" << (int) pars.truePosRange.first;
-    fs << "second" << (int) pars.truePosRange.second << "}";
-    cvWriteComment(*fs, "True positives change rate from pair to pair", 0);
-    fs << "truePosChanges" << pars.truePosChanges;
-    cvWriteComment(*fs, "min. distance between keypoints", 0);
-    fs << "minKeypDist" << pars.minKeypDist;
-    cvWriteComment(*fs, "portion of correspondences at depths", 0);
+    fs << "{" << "first" << 30;
+    fs << "second" << 1000 << "}";
+    cvWriteComment(*fs, "True positives change rate from pair to pair. If 0, the true positives within the "
+                        "given range are always the same for every image pair "
+                        "(it is selected within the given TP range in the beginning). "
+                        "If 100.0, the true positives are chosen completely random within the given range. "
+                        "For values between 0 and 100.0, the true positives selected are not allowed to "
+                        "change more than this factor from the true positives of the last stereo frame.", 0);
+    fs << "truePosChanges" << 40.0;
+    cvWriteComment(*fs, "Minimum distance between keypoints in the first (left or top) "
+                        "stereo image for every frame", 0);
+    fs << "minKeypDist" << 4.0;
+    cvWriteComment(*fs, "Portion of correspondences at depth regions (near, mid, and far). "
+                        "The values are double precision and the values must not sum to 1.0. "
+                        "This is performed internally.", 0);
     fs << "corrsPerDepth";
-    fs << "{" << "near" << pars.corrsPerDepth.near;
-    fs << "mid" << pars.corrsPerDepth.mid;
-    fs << "far" << pars.corrsPerDepth.far << "}";
-    cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
+    fs << "{" << "near" << 0.3;
+    fs << "mid" << 0.1;
+    fs << "far" << 0.6 << "}";
+    cvWriteComment(*fs, "List of portions of image correspondences at regions "
+                        "(Matrices must be 3x3 as the image is divided into 9 regions with similar size). "
+                        "Maybe this values do not hold: Also depends on back-projected 3D-points "
+                        "from prior frames. The values are double precision and the values must not sum to 1.0. "
+                        "This is performed internally."
+                        "If more than one matrix is provided, corrsPerRegRepRate specifies the number of "
+                        "subsequent frames for which a matrix is valid. "
+                        "After all matrices are used, the first one is used again. "
+                        "If only one matrix is provided, it is used for every frame.", 0);
+    std::vector<cv::Mat> corrsPerRegion;
+    for (int i = 0; i < 3; i++) {
+        cv::Mat corrsPReg(3, 3, CV_64FC1);
+        cv::randu(corrsPReg, Scalar(0), Scalar(1.0));
+        corrsPReg /= sum(corrsPReg)[0];
+        corrsPerRegion.push_back(corrsPReg.clone());
+    }
     fs << "corrsPerRegion" << "[";
-    for (auto &i : pars.corrsPerRegion) {
+    for (auto &i : corrsPerRegion) {
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Repeat rate of portion of correspondences at regions.", 0);
-    fs << "corrsPerRegRepRate" << (int) pars.corrsPerRegRepRate;
-    cvWriteComment(*fs, "Portion of depths per region", 0);
+    cvWriteComment(*fs, "Repeat rate of portion of correspondences at regions (corrsPerRegion). If more than one "
+                        "matrix of portions of correspondences at regions is provided, "
+                        "this number specifies the number of subsequent frames for which such a matrix is valid. "
+                        "After all matrices are used, the first one is used again. "
+                        "If 0 and no matrix of portions of correspondences at regions is provided, "
+                        "as many random matrices as frames are randomly generated.", 0);
+    fs << "corrsPerRegRepRate" << 5;
+    cvWriteComment(*fs, "If 1 and corrsPerRegRepRate=0, corrsPerRegion is initialized randomly "
+                        "for every frame seperately. "
+                        "If 1 and 0 < corrsPerRegRepRate < nrTotalFrames, "
+                        "nrTotalFrames / corrsPerRegRepRate different random corrsPerRegion are calculated. "
+                        "If 0, the values from corrsPerRegion are used.", 0);
+    fs << "corrsPerRegionRandInit" << 0;
+    cvWriteComment(*fs, "Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, "
+                        "the portion of near, mid, and far depths can be specified. "
+                        "The values are double precision and they must not sum to 1.0. This is performed internally. "
+                        "If the overall depth definition (corrsPerDepth) is not met, this tensor is adapted. "
+                        "If this list is left empty ([]), it is initialized randomly. "
+                        "Maybe this values do not hold: Also depends on back-projected 3D-points "
+                        "from prior frames.", 0);
+    std::vector<std::vector<depthPortion>> depthsPerRegion;
+    depthsPerRegion.resize(3, std::vector<depthPortion>(3));
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            depthsPerRegion[y][x] = depthPortion(getRandDoubleVal(rand_generator, 0, 1.0),
+                                                 getRandDoubleVal(rand_generator, 0, 1.0),
+                                                 getRandDoubleVal(rand_generator, 0, 1.0));
+        }
+    }
     fs << "depthsPerRegion" << "[";
-    for (auto &i : pars.depthsPerRegion) {
+    for (auto &i : depthsPerRegion) {
         for (auto &j : i) {
             fs << "{" << "near" << j.near;
             fs << "mid" << j.mid;
@@ -432,16 +491,37 @@ bool genTemplateFile(const std::string &filename){
         }
     }
     fs << "]";
-    cvWriteComment(*fs, "Min and Max number of connected depth areas per region", 0);
+    cvWriteComment(*fs, "Min and Max number of connected depth areas "
+                        "(in the image domain (same size as the used image size) where they are generated "
+                        "(each pixel in the image domain holds a depth value)) per region (must be 3x3). "
+                        "The minimum number (first) must be larger 0. The maximum number is bounded by "
+                        "a minimum area with similar depths, which is 16 pixels. "
+                        "The final number of connected depth areas per region is chosen randomly between "
+                        "min and max for every frame"
+                        "If this list is left empty ([]), it is initialized randomly. "
+                        "If min and max are equal, exactly this number of connected depth areas is used. "
+                        "Maybe this values do not hold: Also depends on back-projected 3D-points "
+                        "from prior frames.", 0);
+    std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg;
+    nrDepthAreasPReg.resize(3, std::vector<std::pair<size_t, size_t>>(3));
+    for (size_t y = 0; y < 3; y++) {
+        for (size_t x = 0; x < 3; x++) {
+            nrDepthAreasPReg[y][x] = std::pair<size_t, size_t>(1, (size_t) rand2() % 20 + 1);
+            int nrDepthAreasPRegEqu = (int) (rand2() % 2);
+            if (nrDepthAreasPRegEqu == 1) {
+                nrDepthAreasPReg[y][x].first = nrDepthAreasPReg[y][x].second;
+            }
+        }
+    }
     fs << "nrDepthAreasPReg" << "[";
-    for (auto &i : pars.nrDepthAreasPReg) {
+    for (auto &i : nrDepthAreasPReg) {
         for (auto &j : i) {
             fs << "{" << "first" << (int) j.first;
             fs << "second" << (int) j.second << "}";
         }
     }
     fs << "]";
-    cvWriteComment(*fs, "Movement direction or track of the cameras", 0);
+    /*cvWriteComment(*fs, "Movement direction or track of the cameras", 0);
     fs << "camTrack" << "[";
     for (auto &i : pars.camTrack) {
         fs << i;

@@ -1760,6 +1760,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                      visPatchNoise);
                     if(combDistTNtoReal[i] > 5.0) {
                         addImgNoiseSaltAndPepper(patchwnsp, patchwn, 28, 227, visPatchNoise);
+                    }else{
+                        patchwnsp.copyTo(patchwn);
                     }
                 }else {
                     addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoise, 2.0 * stdNoiseTN,
@@ -1943,11 +1945,35 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                                    parsMtch.descriptorType,
                                                    desrc_tmp,
                                                    parsMtch.keyPointType) == 0){
-                        double descrDist_tmp = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp),
-                                                                     desrc_tmp);
-                        if(!nearZero(descrDist_tmp)){
-                            cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
-                                    "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
+                        if(!pkp21.empty()) {
+                            double descrDist_tmp = getDescriptorDistance(descriptors1.row((int) featureIdx_tmp),
+                                                                         desrc_tmp);
+                            if (!nearZero(descrDist_tmp)) {
+                                cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
+                                        "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
+                                if (verbose & SHOW_IMGS_AT_ERROR) {
+                                    //Show correspondence in original image
+                                    Mat fullimg, patchCol;
+                                    cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
+                                    Point c = Point((int) round(kp.pt.x), (int) round(kp.pt.y));
+                                    cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                    //Draw exact correspondence location
+                                    cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
+
+                                    cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
+                                    c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
+                                    cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                    //Draw exact correspondence location
+                                    cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
+                                    namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
+                                    imshow("Original image with keypoint", fullimg);
+                                    namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
+                                    imshow("Patch with keypoint", patchCol);
+                                    waitKey(0);
+                                    destroyWindow("Original image with keypoint");
+                                    destroyWindow("Patch with keypoint");
+                                }
+                            }
                         }
                     }
 #endif
