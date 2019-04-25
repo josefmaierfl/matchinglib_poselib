@@ -989,7 +989,21 @@ void genStereoSequ::constructCamPath() {
     absCamVelocity *= pars.relCamVelocity;//in baselines from frame to frame
 
     //Calculate total number of frames
-    totalNrFrames = pars.nFramesPerCamConf * t.size();
+//    totalNrFrames = pars.nFramesPerCamConf * t.size();
+    if((pars.nTotalNrFrames >= max(pars.nFramesPerCamConf * (t.size() - 1) + 1, pars.nFramesPerCamConf))
+    && (pars.nTotalNrFrames <= pars.nFramesPerCamConf * t.size())) {
+        totalNrFrames = pars.nTotalNrFrames;
+    }else{
+        if(pars.nTotalNrFrames <= pars.nFramesPerCamConf * t.size()) {
+            cout << "The provided number of total frames would be too small to use all provided stereo configurations."
+                 << endl;
+        }else{
+            cout << "The provided number of total frames is too large. The sequence of different "
+                    "stereo configurations would be repeated." << endl;
+        }
+        totalNrFrames = pars.nFramesPerCamConf * t.size();
+        cout << "Changing number of frames from " << pars.nTotalNrFrames << " to " << totalNrFrames << endl;
+    }
 
     //Number of track elements
     size_t nrTracks = pars.camTrack.size();

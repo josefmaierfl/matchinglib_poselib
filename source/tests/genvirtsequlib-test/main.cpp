@@ -724,6 +724,14 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 		if ((Rv.size() == 1) && (nFramesPerCamConf == 1)) {
 			nFramesPerCamConf++;
 		}
+        int nTotalNrFrames = (int)(tv.size() * nFramesPerCamConf);
+        if((rand2() % 2) == 0){
+            nTotalNrFrames -= (int)(rand2() % nFramesPerCamConf);
+        }else if((rand2() % 7) == 0){
+            nTotalNrFrames += (int)pow(-1.0, (double)(rand2() % 2))
+                              * min(tv.size() - 1, static_cast<size_t>(2))
+                              * (int)nFramesPerCamConf;
+        }
 
 		double minInlierRange[2] = {0.1, 0.5};//Range of the minimum inlier ratio
 		double maxInlierRange[2] = {0.55, 1.0};//Range of the maximum inlier ratio bounded by minInlierRange
@@ -1071,6 +1079,7 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 		//Set parameters
 		stereoSequPars = StereoSequParameters(camTrack,
 											nFramesPerCamConf,
+                                              nTotalNrFrames,
 											inlRatRange,
 											inlRatChanges,
 											truePosRange,

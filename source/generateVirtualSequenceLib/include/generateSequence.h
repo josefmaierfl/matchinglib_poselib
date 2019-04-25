@@ -105,6 +105,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 {
 	explicit StereoSequParameters(std::vector<cv::Mat> camTrack_,
 		size_t nFramesPerCamConf_ = 5,
+		size_t nTotalNrFrames_ = 50,
 		std::pair<double, double> inlRatRange_ = std::make_pair(0.1, 1.0),
 		double inlRatChanges_ = 0,
 		std::pair<size_t, size_t> truePosRange_ = std::make_pair(100, 2000),
@@ -129,6 +130,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		std::pair<double, double> distortCamMat_ = std::make_pair(0, 0)
 		): 
 	    nFramesPerCamConf(nFramesPerCamConf_),
+        nTotalNrFrames(nTotalNrFrames_),
 		inlRatRange(std::move(inlRatRange_)),
 		inlRatChanges(inlRatChanges_),
 		truePosRange(std::move(truePosRange_)),
@@ -152,6 +154,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 		distortCamMat(std::move(distortCamMat_))
 	{
 		CV_Assert(nFramesPerCamConf > 0);
+		CV_Assert(nTotalNrFrames > 0);
 		CV_Assert((inlRatRange.first < 1.0) && (inlRatRange.first >= 0) && (inlRatRange.second <= 1.0) && (inlRatRange.second > 0));
 		CV_Assert((inlRatChanges <= 100.0) && (inlRatChanges >= 0));
 		CV_Assert((truePosRange.first > 0) && (truePosRange.second > 0) && (truePosRange.second >= truePosRange.first));
@@ -189,6 +192,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 
     StereoSequParameters():
         nFramesPerCamConf(5),
+        nTotalNrFrames(50),
         inlRatRange(std::make_pair(0.1, 1.0)),
         inlRatChanges(0),
         truePosRange(std::make_pair(100, 2000)),
@@ -216,6 +220,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 
 	//Parameters for generating correspondences
 	size_t nFramesPerCamConf;//# of Frames per camera configuration
+	size_t nTotalNrFrames;//Total # of stereo frames. Must be at least nFramesPerCamConf
 	std::pair<double, double> inlRatRange;//Inlier ratio range
 	double inlRatChanges;//Inlier ratio change rate from pair to pair. If 0, the inlier ratio within the given range is always the same for every image pair. If 100, the inlier ratio is chosen completely random within the given range.For values between 0 and 100, the inlier ratio selected is not allowed to change more than this factor from the last inlier ratio.
 	std::pair<size_t, size_t> truePosRange;//# true positives range

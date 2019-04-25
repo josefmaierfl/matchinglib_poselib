@@ -395,11 +395,11 @@ bool genTemplateFile(const std::string &filename){
 
     cvWriteComment(*fs, "---- Options for generating 3D scenes ----\n\n", 0);
 
-    /*cvWriteComment(*fs, "Inlier ratio range", 0);
+    cvWriteComment(*fs, "Inlier ratio range for all stereo frames", 0);
     fs << "inlRatRange";
-    fs << "{" << "first" << pars.inlRatRange.first;
-    fs << "second" << pars.inlRatRange.second << "}";
-    cvWriteComment(*fs, "Inlier ratio change rate from pair to pair", 0);
+    fs << "{" << "first" << 0.4;
+    fs << "second" << 0.95 << "}";
+    /*cvWriteComment(*fs, "Inlier ratio change rate from pair to pair", 0);
     fs << "inlRatChanges" << pars.inlRatChanges;
     cvWriteComment(*fs, "# true positives range", 0);
     fs << "truePosRange";

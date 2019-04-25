@@ -50,7 +50,8 @@ bool getImgROIs(const cv::Mat &H,
                 cv::Rect &patchROIimg21,
                 bool &reflectionX,
                 bool &reflectionY,
-                const cv::Size &imgFeatureSi);
+                const cv::Size &imgFeatureSi,
+                const cv::KeyPoint &kp1);
 void getRotationStats(const std::vector<cv::Mat> &Rs,
                       qualityParm &stats_roll,
                       qualityParm &stats_pitch,
@@ -1354,17 +1355,18 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         bool reflectionY = false;
         const double minPatchSize = 41.0;
         cv::Size imgFeatureSize = img.size();
-        if(!getRectFitsInEllipse(H,
-                                 kp,
-                                 patchROIimg1,
-                                 patchROIimg2,
-                                 patchROIimg21,
-                                 ellipseCenter,
-                                 ellipseRot,
-                                 axes,
-                                 reflectionX,
-                                 reflectionY,
-                                 imgFeatureSize)){
+        bool succ = getRectFitsInEllipse(H,
+                                         kp,
+                                         patchROIimg1,
+                                         patchROIimg2,
+                                         patchROIimg21,
+                                         ellipseCenter,
+                                         ellipseRot,
+                                         axes,
+                                         reflectionX,
+                                         reflectionY,
+                                         imgFeatureSize);
+        if(!succ){
             //If the calculation of the necessary patch size failed, calculate a standard patch
             noEllipse = true;
             int fbCnt = 0;
@@ -1386,7 +1388,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                    patchROIimg21,
                                    reflectionX,
                                    reflectionY,
-                                   imgFeatureSize)){
+                                   imgFeatureSize,
+                                   kp)){
                         useFallBack = true;
                         break;
                     }
@@ -2457,7 +2460,8 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
             patchROIimg21,
             reflectionX,
             reflectionY,
-            imgFeatureSi);
+            imgFeatureSi,
+            kp);
 }
 
 bool getImgROIs(const cv::Mat &H,
@@ -2468,7 +2472,8 @@ bool getImgROIs(const cv::Mat &H,
                 cv::Rect &patchROIimg21,
                 bool &reflectionX,
                 bool &reflectionY,
-                const cv::Size &imgFeatureSi){
+                const cv::Size &imgFeatureSi,
+                const cv::KeyPoint &kp1){
     int minSquare = minSqrROIimg2 + ((minSqrROIimg2 + 1) % 2);
     auto minSquare2 = (double)((minSquare - 1) / 2);
     auto minSquareMin = 0.7 * (double)minSquare;
@@ -2672,6 +2677,17 @@ bool getImgROIs(const cv::Mat &H,
     }
     if((img1LT.y + img1WH.height) > imgFeatureSi.height){
         img1WH.height = imgFeatureSi.height - img1LT.y;
+    }
+
+    Point kp1pt = Point((int)round(kp1.pt.x), (int)round(kp1.pt.y));
+    Point distMid = kp1pt - img1LT;
+    if((distMid.x < 3) || (distMid.y < 3)){
+        return false;
+    }
+    Point newMidP = img1LT + Point(img1WH.width / 2, img1WH.height / 2);
+    distMid = kp1pt - newMidP;
+    if((abs(distMid.x) >= img1WH.width / 2) || (abs(distMid.y) >= img1WH.height / 2)){
+        return false;
     }
 
     patchROIimg1 = cv::Rect(img1LT, img1WH);
@@ -3328,6 +3344,8 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
 
     cvWriteComment(*fs, "Total number of frames in the sequence", 0);
     fs << "totalNrFrames" << (int) totalNrFrames;
+    cvWriteComment(*fs, "User specified number of frames in the sequence", 0);
+    fs << "nTotalNrFrames" << (int) pars.nTotalNrFrames;
     cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
     fs << "nrCorrs" << "[";
     for (auto &i : nrCorrs) {
@@ -3551,6 +3569,9 @@ bool genMatchSequ::readSequenceParameters(const std::string &filename) {
 
     fs["totalNrFrames"] >> tmp;
     totalNrFrames = (size_t) tmp;
+
+    fs["nTotalNrFrames"] >> tmp;
+    pars.nTotalNrFrames = (size_t) tmp;
 
     n = fs["nrCorrs"];
     if (n.type() != FileNode::SEQ) {
