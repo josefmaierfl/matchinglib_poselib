@@ -1865,8 +1865,12 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                                       parsMtch.descriptorType,
                                                       descr21,
                                                       parsMtch.keyPointType);
-                if (err != 0) {
-                    if(fullImgUsed){
+                bool itFI = false;
+                if ((err != 0) || (itCnt == 15) || (itCnt == 20)) {
+                    if(err == 0){
+                        itFI = true;
+                    }
+                    if(fullImgUsed && ((err != 0) || (itCnt == 20))){
                         //Try using the original keypoint position without location change
                         kp2 = kp;
                         kp2err = Point2f(0,0);
@@ -1896,6 +1900,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                             break;
                         }else{
                             noPosChange = true;
+                            itFI = false;
                         }
                     }else {
                         //Use the full image instead of a patch
@@ -1910,7 +1915,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         fullImgUsed = true;
                     }
                 }
-                if(err == 0){
+                if((err == 0) && !itFI){
                     //Check matchability
                     descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp), descr21);
                 }
@@ -1918,8 +1923,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             }while(((!useTN && ((descrDist < minDescrDistTP) || (descrDist > ThTp)))
             || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear))
             || (descrDist > badDescrTH.maxVal))))
-               && (itCnt < 20));
-            if(itCnt >= 20){
+               && (itCnt < 25));
+            if(itCnt >= 25){
                 if((!useTN && ((descrDist < 0.75 * minDescrDistTP) || (descrDist > 1.25 * ThTp)))
                    || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < 0.75 * ThTn))
                    || (descrDist < 0.75 * ThTnNear))

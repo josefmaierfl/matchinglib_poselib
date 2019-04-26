@@ -277,31 +277,34 @@ bool genTemplateFile(const std::string &filename){
                         "between the stereo cameras.", 0);
     fs << "yawLinChangeVal" << 0;
 
-    cvWriteComment(*fs, "Start value for tx (x-component of the translation vector "
+    cvWriteComment(*fs, "Start value for tx (x-component (right) of the translation vector "
                         "between the stereo cameras). Only used if the specified range is 0.", 0);
     fs << "txStartVal" << -1.0;
 
-    cvWriteComment(*fs, "Start value for ty (y-component of the translation vector "
+    cvWriteComment(*fs, "Start value for ty (y-component (down) of the translation vector "
                         "between the stereo cameras). Only used if the specified range is 0.", 0);
     fs << "tyStartVal" << 0.1;
 
-    cvWriteComment(*fs, "Start value for tz (z-component of the translation vector "
+    cvWriteComment(*fs, "Start value for tz (z-component (forward) of the translation vector "
                         "between the stereo cameras). Only used if the specified range is 0.", 0);
     fs << "tzStartVal" << 0.01;
 
-    cvWriteComment(*fs, "Start value for the roll angle (angle in degrees about x-axis) "
+    cvWriteComment(*fs, "Start value for the roll angle (angle in degrees about x-axis, "
+                        "right handed coordinate system, R = R_y * R_z * R_x) "
                         "between the stereo cameras. Only used if the specified range is 0.", 0);
     fs << "rollStartVal" << 2.0;
 
-    cvWriteComment(*fs, "Start value for the pitch angle (angle in degrees about y-axis) "
+    cvWriteComment(*fs, "Start value for the pitch angle (angle in degrees about y-axis, "
+                        "right handed coordinate system, R = R_y * R_z * R_x) "
                         "between the stereo cameras. Only used if the specified range is 0.", 0);
     fs << "pitchStartVal" << -8.2;
 
-    cvWriteComment(*fs, "Start value for the yaw angle (angle in degrees about z-axis) "
+    cvWriteComment(*fs, "Start value for the yaw angle (angle in degrees about z-axis, "
+                        "right handed coordinate system, R = R_y * R_z * R_x) "
                         "between the stereo cameras. Only used if the specified range is 0.", 0);
     fs << "yawStartVal" << 0.3;
 
-    cvWriteComment(*fs, "Possible range of the initial tx (x-component of the translation vector "
+    cvWriteComment(*fs, "Possible range of the initial tx (x-component (right) of the translation vector "
                         "between the stereo cameras) to be able to meet a user specific image overlap. "
                         "The optimal tx starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by , the range is used for every new configuration. "
@@ -311,7 +314,7 @@ bool genTemplateFile(const std::string &filename){
     fs << "{" << "first" << 0;
     fs << "second" << 0 << "}";
 
-    cvWriteComment(*fs, "Possible range of the initial ty (y-component of the translation vector "
+    cvWriteComment(*fs, "Possible range of the initial ty (y-component (down) of the translation vector "
                         "between the stereo cameras) to be able to meet a user specific image overlap. "
                         "The optimal ty starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by , the range is used for every new configuration. "
@@ -321,7 +324,7 @@ bool genTemplateFile(const std::string &filename){
     fs << "{" << "first" << -0.1;
     fs << "second" << 0.1 << "}";
 
-    cvWriteComment(*fs, "Possible range of the initial tz (z-component of the translation vector "
+    cvWriteComment(*fs, "Possible range of the initial tz (z-component (forward) of the translation vector "
                         "between the stereo cameras) to be able to meet a user specific image overlap. "
                         "The optimal tz starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by , the range is used for every new configuration. "
@@ -332,7 +335,8 @@ bool genTemplateFile(const std::string &filename){
     fs << "second" << 0 << "}";
 
     cvWriteComment(*fs, "Possible range for the initial roll angle (angle in degrees about x-axis "
-                        "between the stereo cameras) to be able to meet a user specific image overlap. "
+                        "between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x) "
+                        "to be able to meet a user specific image overlap. "
                         "The optimal roll starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by , the range is used for every new configuration. "
                         "If the range (difference between both values) is 0, "
@@ -342,7 +346,8 @@ bool genTemplateFile(const std::string &filename){
     fs << "second" << 7.0 << "}";
 
     cvWriteComment(*fs, "Possible range for the initial pitch angle (angle in degrees about y-axis "
-                        "between the stereo cameras) to be able to meet a user specific image overlap. "
+                        "between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x) "
+                        "to be able to meet a user specific image overlap. "
                         "The optimal pitch starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by , the range is used for every new configuration. "
                         "If the range (difference between both values) is 0, "
@@ -352,7 +357,8 @@ bool genTemplateFile(const std::string &filename){
     fs << "second" << 10.0 << "}";
 
     cvWriteComment(*fs, "Possible range for the initial yaw angle (angle in degrees about z-axis "
-                        "between the stereo cameras) to be able to meet a user specific image overlap. "
+                        "between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x) "
+                        "to be able to meet a user specific image overlap. "
                         "The optimal yaw starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by , the range is used for every new configuration. "
                         "If the range (difference between both values) is 0, "
@@ -468,9 +474,14 @@ bool genTemplateFile(const std::string &filename){
     fs << "corrsPerRegionRandInit" << 0;
     cvWriteComment(*fs, "Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, "
                         "the portion of near, mid, and far depths can be specified. "
-                        "The values are double precision and they must not sum to 1.0. This is performed internally. "
-                        "If the overall depth definition (corrsPerDepth) is not met, this tensor is adapted. "
-                        "If this list is left empty ([]), it is initialized randomly. "
+                        "Far depth beginning corresponds to mid depth end calculated by f_b = f * b^2 / 0.15 with "
+                        "the focal length f, baseline length b and an approximate correspondence accuracy of 0.15; "
+                        "Far depth end f_e = 20 * f_b; Near depth beginning n_b corresponds to the depth where "
+                        "the views of the 2 stereo cameras start to overlap; "
+                        "Mid depth beginning and near depth end are caluclated by m_b = (f_b + n_b) / 2; "
+                        "The values entered here are double precision and they must not sum to 1.0. This is performed "
+                        "internally. If the overall depth definition (corrsPerDepth) is not met, this tensor "
+                        "is adapted. If this list is left empty ([]), it is initialized randomly. "
                         "Maybe this values do not hold: Also depends on back-projected 3D-points "
                         "from prior frames.", 0);
     std::vector<std::vector<depthPortion>> depthsPerRegion;
@@ -521,21 +532,126 @@ bool genTemplateFile(const std::string &filename){
         }
     }
     fs << "]";
-    /*cvWriteComment(*fs, "Movement direction or track of the cameras", 0);
+
+    cvWriteComment(*fs, "If 1, an ellipsoid is used as camera track (consecutive positions of the "
+                        "top/left stereo camera center. "
+                        "If 2, a custom track can be entered into camTrack."
+                        "If 3, a random track will be generated.", 0);
+    fs << "trackOption" << 1;
+    cvWriteComment(*fs, "Ellipsoid parameters: xDirection (either -1 (left) or +1 (right)); "
+                        "xzExpansion (value range -100 to +100.0, no 0) describes how much "
+                        "smaller/larger the expansion in x (right) direction is compared to z (foward) - "
+                        "an absolute value below 1.0 stands for a larger x-expansion, a value equal +/-1.0 for an "
+                        "equal expansion (circle) and an absolute value larger 1.0 for a larger y-expansion; "
+                        "xyExpansion (value range -100.0 to +100.0) describes a factor of the mean used height "
+                        "(down; if no flight mode is used the height stays always the same; "
+                        "height = xyExpansion * sin(theta)) compared to the expansion in x direction; "
+                        "thetaRange holds the minimum and maximum elevation angle (value range -PI/2 to +PI/2) in "
+                        "y-direction (down). If the values of the range are equal, flight mode is disabled "
+                        "and the height (y) stays the same over the whole track. "
+                        "For the camera positions, loop closing is performed whereas the last camera position "
+                        "is not the same as the first, but near to it. The scale of the generated track is not "
+                        "important as it is changed internally that it fits all stereo frames. "
+                        "maxTrackElements (see next option) specifies how many track segments within the "
+                        "ellipsoid are generated.", 0);
+    fs << "ellipsoidTrack";
+    fs << "{" << "xDirection" << 1;
+    fs << "xzExpansion" << 0.3;
+    fs << "xyExpansion" << -0.2;
+    fs << "thetaRange";
+    fs << "{" << "min" << -M_PI_4;
+    fs << "max" << M_PI_4 << "}" << "}";
+
+    cvWriteComment(*fs, "maxTrackElements specifies the number of track segments generated within an ellipsoid or "
+                        "during a randomized track generation (max 10000 segments)", 0);
+    fs << "maxTrackElements" << 100;
+
+    cvWriteComment(*fs, "Parameters for random generation of a track with maxTrackElements segments: "
+                        "xDirection (either -1 (left) or +1 (right)); "
+                        "xzDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in "
+                        "x (right) compared to z (forward) direction - an absolute value below 1.0 stands for a "
+                        "direction mainly in x and an absolute value above 1.0 stands for a direction mainly in z; "
+                        "xyDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in "
+                        "x (right) compared to y (down) direction - an absolute value below 1.0 stands for a "
+                        "direction mainly in x compared to y and an absolute value higher 1.0 for a direction mainly "
+                        "in y compared to x; The direction of a subsequent track element depends on the "
+                        "direction of the track element before - The amount it can change depends on the "
+                        "factor allowedChangeSD (value range 0.05 to 1.0) - it corresponds to the standard deviation "
+                        "centered aground 1.0 (New track sement: tx_new = allowedChange_1 * tx_old, "
+                        "ty_new = (2.0 * allowedChange_2 * ty_old + tx_old * xyDirectionRandInRange_new) / 3.0, "
+                        "tz_new = (2.0 * allowedChange_3 * tz_old + tx_old * xzDirectionRandInRange_new) / 3.0, "
+                        "new_track_position = old_track_position + [tx_new; ty_new; tz_new]). "
+                        "The scale of the generated track is not important as it is changed internally that it "
+                        "fits all stereo frames.", 0);
+    fs << "randomTrack";
+    fs << "{" << "xDirection" << 1;
+    fs << "xzDirectionRange";
+    fs << "{" << "first" << 0.2;
+    fs << "second" << 0.9 << "}";
+    fs << "xyDirectionRange";
+    fs << "{" << "first" << -0.1;
+    fs << "second" << 0.1 << "}";
+    fs << "allowedChangeSD" << 0.3 << "}";
+
+    cvWriteComment(*fs, "Movement direction or track of the cameras (manual input). Input a custom track as a list of"
+                        "cv::Mat with the format [x_pos; y_pos; z_pos]. The scale of the generated track is not "
+                        "important as it is changed internally that it fits all stereo frames. If you enter only "
+                        "1 vector [x_pos; y_pos; z_pos], it is interpreted as a directional vector and the "
+                        "camera center of the left/top stereo camera moves into this direction.", 0);
+    vector<Mat> camTrack;
+    Mat singlePos = (Mat_<double>(3,1) << 2.0, 0, 1.0);
+    camTrack.emplace_back(singlePos.clone());
+    singlePos = (Mat_<double>(3,1) << 3.0, -0.1, 1.3);
+    camTrack.emplace_back(singlePos.clone());
+    singlePos = (Mat_<double>(3,1) << 4.5, -0.05, 1.4);
+    camTrack.emplace_back(singlePos.clone());
     fs << "camTrack" << "[";
-    for (auto &i : pars.camTrack) {
+    for (auto &i : camTrack) {
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Relative velocity of the camera movement", 0);
-    fs << "relCamVelocity" << pars.relCamVelocity;
-    cvWriteComment(*fs, "Rotation matrix of the first camera centre", 0);
-    fs << "R" << pars.R;
-    cvWriteComment(*fs, "Number of moving objects in the scene", 0);
-    fs << "nrMovObjs" << (int) pars.nrMovObjs;
-    cvWriteComment(*fs, "Possible starting positions of moving objects in the image", 0);
-    fs << "startPosMovObjs" << pars.startPosMovObjs;
-    cvWriteComment(*fs, "Relative area range of moving objects", 0);
+
+    cvWriteComment(*fs, "Relative velocity of the camera movement (value between 0 and 10.0; must be larger 0). "
+                        "The velocity is relative to the baseline length between the stereo cameras. "
+                        "Thus, the absolute camera velocity (equals distance between camera centers) "
+                        "along the camera track is relCamVelocity * norm(t_stereo), where t_stereo is "
+                        "the translation vector between the 2 stereo cameras. "
+                        "The total length of a camera track is the absolute camera velocity times the "
+                        "number of frames", 0);
+    fs << "relCamVelocity" << 2.0;
+    cvWriteComment(*fs, "Rotation angle about the x-axis (roll in degrees, right handed) of the stereo pair (centered "
+                        "at camera centre of left/top stereo camera) on the track. This rotation can change the camera "
+                        "orientation for which without rotation the z - component of the relative movement "
+                        "vector coincides with the principal axis of the camera. "
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+    fs << "rollCamTrack" << 0;
+    cvWriteComment(*fs, "Rotation angle about the y-axis (pitch in degrees, right handed) of the stereo pair (centered "
+                        "at camera centre of left/top stereo camera) on the track. This rotation can change the camera "
+                        "orientation for which without rotation the z - component of the relative movement "
+                        "vector coincides with the principal axis of the camera. "
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+    fs << "pitchCamTrack" << -90.0;
+    cvWriteComment(*fs, "Rotation angle about the z-axis (yaw in degrees, right handed) of the stereo pair (centered "
+                        "at camera centre of left/top stereo camera) on the track. This rotation can change the camera "
+                        "orientation for which without rotation the z - component of the relative movement "
+                        "vector coincides with the principal axis of the camera. "
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+    fs << "yawCamTrack" << 1.0;
+    cvWriteComment(*fs, "Number of moving objects in the scene at the beginning. If a moving object is visible again "
+                        "in a subsequent frame, it is backprojected to the image plane. If the portion of "
+                        "backprojected correspondences on a moving object compared to the frame where it was "
+                        "generated drops below a user specified threshold (see minMovObjCorrPortion), "
+                        "it is removed from the scene. If too many moving objects were removed and the number of "
+                        "remaining moving objects drops below minNrMovObjs, new moving objects are inserted.", 0);
+    fs << "nrMovObjs" << 4;
+    cvWriteComment(*fs, "Possible starting positions (regions in the image) of moving objects in the image "
+                        "(must be 3x3 boolean (CV_8UC1))", 0);
+    Mat startPosMovObjs = (Mat_<bool>(3,3) <<
+            true, true, false,
+            true, false, false,
+            false, false, false);
+    fs << "startPosMovObjs" << startPosMovObjs;
+    /*cvWriteComment(*fs, "Relative area range of moving objects. Area range relative to the image area at the beginning.", 0);
     fs << "relAreaRangeMovObjs";
     fs << "{" << "first" << pars.relAreaRangeMovObjs.first;
     fs << "second" << pars.relAreaRangeMovObjs.second << "}";
