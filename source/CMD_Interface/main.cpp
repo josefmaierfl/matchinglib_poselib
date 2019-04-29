@@ -21,6 +21,93 @@ using namespace std;
 using namespace cv;
 using namespace CommandLineProcessing;
 
+struct specificStereoPars{
+    cv::Mat R;
+    cv::Mat t;
+    cv::Mat K1;
+    cv::Mat K2;
+
+    specificStereoPars(){
+        R = cv::Mat::eye(3,3,CV_64FC1);
+        t = cv::Mat::zeros(3,1,CV_64FC1);
+        K1 = cv::Mat::zeros(3,3,CV_64FC1);
+        K2 = cv::Mat::zeros(3,3,CV_64FC1);
+    }
+};
+struct stereoExtrPars{
+    int nrStereoConfigs;
+    int txChangeFRate;
+    int tyChangeFRate;
+    int tzChangeFRate;
+    int rollChangeFRate;
+    int pitchChangeFRate;
+    int yawChangeFRate;
+    double txLinChangeVal;
+    double tyLinChangeVal;
+    double tzLinChangeVal;
+    double rollLinChangeVal;
+    double pitchLinChangeVal;
+    double yawLinChangeVal;
+    double txStartVal;
+    double tyStartVal;
+    double tzStartVal;
+    double rollStartVal;
+    double pitchStartVal;
+    double yawStartVal;
+    std::pair<double,double> txRange;
+    std::pair<double,double> tyRange;
+    std::pair<double,double> tzRange;
+    std::pair<double,double> rollRange;
+    std::pair<double,double> pitchRange;
+    std::pair<double,double> yawRange;
+    bool txVariable;
+    bool tyVariable;
+    bool tzVariable;
+    bool rollVariable;
+    bool pitchVariable;
+    bool yawVariable;
+    bool useSpecificCamPars;
+    std::vector<specificStereoPars> specialCamPars;
+    cv::Size imgSize;
+
+    stereoExtrPars(){
+        nrStereoConfigs = 0;
+        txChangeFRate = 0;
+        tyChangeFRate = 0;
+        tzChangeFRate = 0;
+        rollChangeFRate = 0;
+        pitchChangeFRate = 0;
+        yawChangeFRate = 0;
+        txLinChangeVal = 0;
+        tyLinChangeVal = 0;
+        tzLinChangeVal = 0;
+        rollLinChangeVal = 0;
+        pitchLinChangeVal = 0;
+        yawLinChangeVal = 0;
+        txStartVal = 0;
+        tyStartVal = 0;
+        tzStartVal = 0;
+        rollStartVal = 0;
+        pitchStartVal = 0;
+        yawStartVal = 0;
+        txRange = std::make_pair(0,0);
+        tyRange = std::make_pair(0,0);
+        tzRange = std::make_pair(0,0);
+        rollRange = std::make_pair(0,0);
+        pitchRange = std::make_pair(0,0);
+        yawRange = std::make_pair(0,0);
+        txVariable = false;
+        tyVariable = false;
+        tzVariable = false;
+        rollVariable = false;
+        pitchVariable = false;
+        yawVariable = false;
+        useSpecificCamPars = false;
+        specialCamPars.clear();
+        imgSize = cv::Size(0,0);
+    }
+};
+
 double getRandDoubleVal(std::default_random_engine rand_generator, double lowerBound, double upperBound);
 void initStarVal(default_random_engine rand_generator, double *range, vector<double>& startVec);
 void initRangeVals(default_random_engine rand_generator,
@@ -63,6 +150,7 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 				  bool rwXMLinfo = false,
 				  bool compressedWrittenInfo = false,
 				  uint32_t verbose = 0);
+bool genTemplateFile(const std::string &filename);
 
 depthClass getRandDepthClass();
 std::string getKeyPointType(int idx);
@@ -133,6 +221,26 @@ int startEvaluation(ArgvParser& cmd)
 	        cerr << "The path for generating a template file does not exist!" << endl;
 	        return -1;
 	    }
+	    string tmpFileName = genConfTempl.substr(lastslash + 1);
+	    size_t extNamePos = tmpFileName.find_last_of('.');
+        if(extNamePos == string::npos){
+            cerr << "The given option for generating a template doesnt contain a file type." << endl;
+            return -1;
+        }
+        if(extNamePos == 0){
+            cerr << "The given option for generating a template doesnt contain a file name." << endl;
+            return -1;
+        }
+        string extName = tmpFileName.substr(extNamePos + 1);
+        std::transform(extName.begin(), extName.end(), extName.begin(), ::tolower);
+        if((extName != "yaml") && (extName != "yml") && (extName != "xml")){
+            cerr << "The given option for generating a template doesnt contain a valid file type (yaml/yml/xml)." << endl;
+            return -1;
+        }
+        if(!genTemplateFile(genConfTempl)){
+            cerr << "Unable to generate a template file. Check write permissions." << endl;
+            return -1;
+        }
 	}
 	else{
 		string img_path, store_path, img_pref, load_folder, load_type, conf_file;
@@ -215,7 +323,7 @@ bool genTemplateFile(const std::string &filename){
     cvWriteComment(*fs, "This file contains user specific parameters used to generate "
                         "multiple consecutive stereo frames with correspondences.\n\n", 0);
 
-    cvWriteComment(*fs, "Number of total frames.", 0);
+    cvWriteComment(*fs, "Number of total frames. Max. 10000", 0);
     fs << "nrTotalFrames" << 100;
 
     cvWriteComment(*fs, "---- Options for stereo extrinsics ----\n\n", 0);
@@ -307,8 +415,8 @@ bool genTemplateFile(const std::string &filename){
     cvWriteComment(*fs, "Possible range of the initial tx (x-component (right) of the translation vector "
                         "between the stereo cameras) to be able to meet a user specific image overlap. \n"
                         "The optimal tx starting-value is by default only estimated for the "
-                        "first stereo configuration. If specified by , the range is used for every new configuration. "
-                        "\nIf the range (difference between both values) is 0, "
+                        "first stereo configuration. If specified by txVariable, the range is used for every new "
+                        "configuration. \nIf the range (difference between both values) is 0, "
                         "tx will be kept fixed at the given start value for tx.", 0);
     fs << "txRange";
     fs << "{" << "first" << 0;
@@ -317,8 +425,8 @@ bool genTemplateFile(const std::string &filename){
     cvWriteComment(*fs, "Possible range of the initial ty (y-component (down) of the translation vector "
                         "between the stereo cameras) to be able to meet a user specific image overlap. \n"
                         "The optimal ty starting-value is by default only estimated for the "
-                        "first stereo configuration. If specified by , the range is used for every new configuration. "
-                        "\nIf the range (difference between both values) is 0, "
+                        "first stereo configuration. If specified by tyVariable, the range is used for every new "
+                        "configuration. \nIf the range (difference between both values) is 0, "
                         "ty will be kept fixed at the given start value for ty.", 0);
     fs << "tyRange";
     fs << "{" << "first" << -0.1;
@@ -327,8 +435,8 @@ bool genTemplateFile(const std::string &filename){
     cvWriteComment(*fs, "Possible range of the initial tz (z-component (forward) of the translation vector "
                         "between the stereo cameras) to be able to meet a user specific image overlap. \n"
                         "The optimal tz starting-value is by default only estimated for the "
-                        "first stereo configuration. If specified by , the range is used for every new configuration. "
-                        "\nIf the range (difference between both values) is 0, "
+                        "first stereo configuration. If specified by tzVariable, the range is used for every new "
+                        "configuration. \nIf the range (difference between both values) is 0, "
                         "tz will be kept fixed at the given start value for tz.", 0);
     fs << "tzRange";
     fs << "{" << "first" << 0;
@@ -338,8 +446,8 @@ bool genTemplateFile(const std::string &filename){
                         "between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x) \n"
                         "to be able to meet a user specific image overlap. "
                         "The optimal roll starting-value is by default only estimated for the \n"
-                        "first stereo configuration. If specified by , the range is used for every new configuration. "
-                        "If the range (difference between both values) is 0, \n"
+                        "first stereo configuration. If specified by rollVariable, the range is used for every new "
+                        "configuration. \nIf the range (difference between both values) is 0, "
                         "the roll angle will be kept fixed at the given start value for roll.", 0);
     fs << "rollRange";
     fs << "{" << "first" << -5.0;
@@ -349,8 +457,8 @@ bool genTemplateFile(const std::string &filename){
                         "between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x) \n"
                         "to be able to meet a user specific image overlap. "
                         "The optimal pitch starting-value is by default only estimated for the \n"
-                        "first stereo configuration. If specified by , the range is used for every new configuration. "
-                        "If the range (difference between both values) is 0, \n"
+                        "first stereo configuration. If specified by pitchVariable, the range is used for every new "
+                        "configuration. \nIf the range (difference between both values) is 0, "
                         "the pitch angle will be kept fixed at the given start value for pitch.", 0);
     fs << "pitchRange";
     fs << "{" << "first" << -15.0;
@@ -360,8 +468,8 @@ bool genTemplateFile(const std::string &filename){
                         "between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x) \n"
                         "to be able to meet a user specific image overlap. "
                         "The optimal yaw starting-value is by default only estimated for the \n"
-                        "first stereo configuration. If specified by , the range is used for every new configuration. "
-                        "If the range (difference between both values) is 0, \n"
+                        "first stereo configuration. If specified by yawVariable, the range is used for every new "
+                        "configuration. \nIf the range (difference between both values) is 0, "
                         "the yaw angle will be kept fixed at the given start value for yaw.", 0);
     fs << "yawRange";
     fs << "{" << "first" << 0;
@@ -771,6 +879,432 @@ bool genTemplateFile(const std::string &filename){
                         "set this option to 0. Enabling this option significantly reduces the speed of calculating "
                         "3D scenes.", 0);
     fs << "filterOccluded3D" << 0;
+
+    cvWriteComment(*fs, "---- Options for generating matches ----\n\n", 0);
+
+    cvWriteComment(*fs, "Name of keypoint detector. The following types are supported: \n"
+                        "FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD. \nIf non-free code is enabled "
+                        "in the CMAKE project while building the code, SIFT and SURF are also available.", 0);
+    fs << "keyPointType" << "BRISK";
+    cvWriteComment(*fs, "Name of descriptor extractor. The following types are supported: \n"
+                        "BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, "
+                        "BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48, RIFF, BOLD. \n"
+                        "If non-free code is enabled in the CMAKE project while building the code, SIFT and SURF "
+                        "are also available.", 0);
+    fs << "descriptorType" << "FREAK";
+    cvWriteComment(*fs, "Keypoint detector error (1) or error normal distribution (0). \nIf 1, the position "
+                        "detected by the keypoint detector is used (which typically does not coincide with the "
+                        "GT position. \nIf 0, an normal distributed (parameters from option keypErrDistr) "
+                        "error is added to the GT position.", 0);
+    fs << "keypPosErrType" << 0;
+    cvWriteComment(*fs, "Keypoint error distribution (first=mean, second=standard deviation)", 0);
+    fs << "keypErrDistr";
+    fs << "{" << "first" << 0.1;
+    fs << "second" << 1.2 << "}";
+    cvWriteComment(*fs, "Noise (first=mean, second=standard deviation) on the image intensity (0-255) applied "
+                        "on the image patches for descriptor calculation.", 0);
+    fs << "imgIntNoise";
+    fs << "{" << "first" << 10.0;
+    fs << "second" << 15.0 << "}";
+    cvWriteComment(*fs, "If 1, all PCL point clouds and necessary information to load a cam sequence "
+                        "with correspondences are stored to disk. \nThis is useful if you want to load an "
+                        "already generated 3D sequence later on and calculate a different type of descriptor \n"
+                        "for the correspondences or if you want to use a different keypoint position "
+                        "accuracy, ...", 0);
+    fs << "storePtClouds" << 1;
+    cvWriteComment(*fs, "If 1, the parameters and information are stored and read in XML format. "
+                        "If 0, YAML format is used.", 0);
+    fs << "rwXMLinfo" << 0;
+    cvWriteComment(*fs, "If 1, the stored information and parameters are compressed (appends .gz to the "
+                        "generated files. Otherwise, set this option to 0.", 0);
+    fs << "compressedWrittenInfo" << 1;
+    cvWriteComment(*fs, "If 1 and too less images to extract features are provided (resulting in too less keypoints), "
+                        "only as many frames with GT matches are generated as keypoints are available. \n"
+                        "Otherwise, set this option to 0.", 0);
+    fs << "takeLessFramesIfLessKeyP" << 0;
+
+    fs.release();
+}
+
+bool loadConfigFile(const std::string &filename,
+                    StereoSequParameters &sequPars,
+                    GenMatchSequParameters &matchPars,
+                    stereoExtrPars &stereoPars){
+    FileStorage fs(filename, FileStorage::READ);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
+
+    int tmp = 0;
+    fs["nrTotalFrames"] >> tmp;
+    if((tmp <= 0) || (tmp > 10000)){
+        cerr << "Incorrect nrTotalFrames." << endl;
+        return false;
+    }
+    sequPars.nTotalNrFrames = (size_t)tmp;
+    fs["nrStereoConfigs"] >> stereoPars.nrStereoConfigs;
+    fs["txChangeFRate"] >> stereoPars.txChangeFRate;
+    fs["tyChangeFRate"] >> stereoPars.tyChangeFRate;
+    fs["tzChangeFRate"] >> stereoPars.tzChangeFRate;
+    fs["rollChangeFRate"] >> stereoPars.rollChangeFRate;
+    fs["pitchChangeFRate"] >> stereoPars.pitchChangeFRate;
+    fs["yawChangeFRate"] >> stereoPars.yawChangeFRate;
+    fs["txLinChangeVal"] >> stereoPars.txLinChangeVal;
+    fs["tyLinChangeVal"] >> stereoPars.tyLinChangeVal;
+    fs["tzLinChangeVal"] >> stereoPars.tzLinChangeVal;
+    fs["rollLinChangeVal"] >> stereoPars.rollLinChangeVal;
+    fs["pitchLinChangeVal"] >> stereoPars.pitchLinChangeVal;
+    fs["yawLinChangeVal"] >> stereoPars.yawLinChangeVal;
+    fs["txStartVal"] >> stereoPars.txStartVal;
+    fs["tyStartVal"] >> stereoPars.tyStartVal;
+    fs["tzStartVal"] >> stereoPars.tzStartVal;
+    fs["rollStartVal"] >> stereoPars.rollStartVal;
+    fs["pitchStartVal"] >> stereoPars.pitchStartVal;
+    fs["yawStartVal"] >> stereoPars.yawStartVal;
+    FileNode n = fs["txRange"];
+    double first_dbl = 0, second_dbl = 0;
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    stereoPars.txRange = make_pair(first_dbl, second_dbl);
+    n = fs["tyRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    stereoPars.tyRange = make_pair(first_dbl, second_dbl);
+    n = fs["tzRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    stereoPars.tzRange = make_pair(first_dbl, second_dbl);
+    n = fs["rollRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    stereoPars.rollRange = make_pair(first_dbl, second_dbl);
+    n = fs["pitchRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    stereoPars.pitchRange = make_pair(first_dbl, second_dbl);
+    n = fs["yawRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    stereoPars.yawRange = make_pair(first_dbl, second_dbl);
+    fs["txVariable"] >> stereoPars.txVariable;
+    fs["tyVariable"] >> stereoPars.tyVariable;
+    fs["tzVariable"] >> stereoPars.tzVariable;
+    fs["rollVariable"] >> stereoPars.rollVariable;
+    fs["pitchVariable"] >> stereoPars.pitchVariable;
+    fs["yawVariable"] >> stereoPars.yawVariable;
+    fs["useSpecificCamPars"] >> stereoPars.useSpecificCamPars;
+    n = fs["specificCamPars"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "specificCamPars is not a sequence! FAIL" << endl;
+        return false;
+    }
+    stereoPars.specialCamPars.clear();
+    FileNodeIterator it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        FileNode n1 = *it;
+        specificStereoPars stP;
+        n1["R"] >> stP.R;
+        n1["t"] >> stP.t;
+        n1["K1"] >> stP.K1;
+        n1["K2"] >> stP.K2;
+        stereoPars.specialCamPars.emplace_back(stP);
+    }
+
+    n = fs["inlRatRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    sequPars.inlRatRange = make_pair(first_dbl, second_dbl);
+    fs["inlRatChanges"] >> sequPars.inlRatChanges;
+    n = fs["truePosRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    sequPars.truePosRange = make_pair(first_dbl, second_dbl);
+    fs["truePosChanges"] >> sequPars.truePosChanges;
+    fs["minKeypDist"] >> sequPars.minKeypDist;
+    n = fs["corrsPerDepth"];
+    n["near"] >> sequPars.corrsPerDepth.near;
+    n["mid"] >> sequPars.corrsPerDepth.mid;
+    n["far"] >> sequPars.corrsPerDepth.far;
+
+    n = fs["corrsPerRegion"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "corrsPerRegion is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sequPars.corrsPerRegion.clear();
+    it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        Mat m;
+        it >> m;
+        sequPars.corrsPerRegion.push_back(m.clone());
+    }
+
+    fs["corrsPerRegRepRate"] >> tmp;
+    sequPars.corrsPerRegRepRate = (size_t) tmp;
+
+    n = fs["depthsPerRegion"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "depthsPerRegion is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sequPars.depthsPerRegion = vector<vector<depthPortion>>(3, vector<depthPortion>(3));
+    it = n.begin(), it_end = n.end();
+    size_t idx = 0, x = 0, y = 0;
+    for (; it != it_end; ++it) {
+        y = idx / 3;
+        x = idx % 3;
+
+        FileNode n1 = *it;
+        n1["near"] >> sequPars.depthsPerRegion[y][x].near;
+        n1["mid"] >> sequPars.depthsPerRegion[y][x].mid;
+        n1["far"] >> sequPars.depthsPerRegion[y][x].far;
+        idx++;
+    }
+    if(idx != 9){
+        cerr << "Incorrect # of entries in depthsPerRegion." << endl;
+        return false;
+    }
+
+    n = fs["nrDepthAreasPReg"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "nrDepthAreasPReg is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sequPars.nrDepthAreasPReg = vector<vector<pair<size_t, size_t>>>(3, vector<pair<size_t, size_t>>(3));
+    int first_int = 0, second_int = 0;
+    it = n.begin(), it_end = n.end();
+    idx = 0;
+    for (; it != it_end; ++it) {
+        y = idx / 3;
+        x = idx % 3;
+
+        FileNode n1 = *it;
+        n1["first"] >> first_int;
+        n1["second"] >> second_int;
+        sequPars.nrDepthAreasPReg[y][x] = make_pair((size_t) first_int, (size_t) second_int);
+        idx++;
+    }
+    if(idx != 9){
+        cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
+        return false;
+    }
+
+    n = fs["camTrack"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "camTrack is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sequPars.camTrack.clear();
+    it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        Mat m;
+        it >> m;
+        sequPars.camTrack.emplace_back(m.clone());
+    }
+
+    fs["relCamVelocity"] >> sequPars.relCamVelocity;
+
+    fs["nrMovObjs"] >> tmp;
+    sequPars.nrMovObjs = (size_t) tmp;
+
+    fs["startPosMovObjs"] >> sequPars.startPosMovObjs;
+
+    n = fs["relAreaRangeMovObjs"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    sequPars.relAreaRangeMovObjs = make_pair(first_dbl, second_dbl);
+
+    n = fs["movObjDepth"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "camTrack is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sequPars.movObjDepth.clear();
+    it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        it >> tmp;
+        if((tmp != (int)depthClass::NEAR) && (tmp != (int)depthClass::MID) && (tmp != (int)depthClass::FAR)){
+            cerr << "Values of depth classes are invalid." << endl;
+            return false;
+        }
+        sequPars.movObjDepth.push_back((depthClass) tmp);
+    }
+
+    fs["movObjDir"] >> sequPars.movObjDir;
+
+    n = fs["relMovObjVelRange"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    sequPars.relMovObjVelRange = make_pair(first_dbl, second_dbl);
+
+    fs["minMovObjCorrPortion"] >> sequPars.minMovObjCorrPortion;
+
+    fs["CorrMovObjPort"] >> sequPars.CorrMovObjPort;
+
+    fs["minNrMovObjs"] >> tmp;
+    sequPars.minNrMovObjs = (size_t) tmp;
+
+    n = fs["distortCamMat"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    sequPars.distortCamMat = make_pair(first_dbl, second_dbl);
+
+
+
+    struct ellipsoidTrackPars{
+        int xDirection;
+        double xzExpansion;
+        double xyExpansion;
+        std::pair<double,double> thetaRange;
+
+        ellipsoidTrackPars(){
+            xDirection = 0;
+            xzExpansion = 0;
+            xyExpansion = 0;
+            thetaRange = make_pair(0,0);
+        }
+    };
+    struct randomTrackPars{
+        int xDirection;
+        std::pair<double,double> xzDirectionRange;
+        std::pair<double,double> xyDirectionRange;
+        double allowedChangeSD;
+
+        randomTrackPars(){
+            xDirection = 0;
+            xzDirectionRange = make_pair(0,0);
+            xyDirectionRange = make_pair(0,0);
+            allowedChangeSD = 0;
+        }
+    };
+    struct additionalSequencePars{
+        bool corrsPerRegionRandInit;
+        int trackOption;
+        ellipsoidTrackPars ellipsoidTrack;
+        randomTrackPars randomTrack;
+        double rollCamTrack;
+        double pitchCamTrack;
+        double yawCamTrack;
+        bool filterOccluded3D;
+
+        additionalSequencePars(){
+            corrsPerRegionRandInit = false;
+            trackOption = 0;
+            ellipsoidTrack = ellipsoidTrackPars();
+            randomTrack = randomTrackPars();
+            rollCamTrack = 0;
+            pitchCamTrack = 0;
+            yawCamTrack = 0;
+            filterOccluded3D = false;
+        }
+    };
+
+    cvWriteComment(*fs, "If 1 and corrsPerRegRepRate=0, corrsPerRegion is initialized randomly "
+                        "for every frame seperately. \n"
+                        "If 1 and 0 < corrsPerRegRepRate < nrTotalFrames, "
+                        "nrTotalFrames / corrsPerRegRepRate different random corrsPerRegion are calculated. \n"
+                        "If 0, the values from corrsPerRegion are used.", 0);
+    fs << "corrsPerRegionRandInit" << 0;
+
+
+    cvWriteComment(*fs, "If 1, an ellipsoid is used as camera track (consecutive positions of the "
+                        "top/left stereo camera center. \n"
+                        "If 2, a custom track can be entered into camTrack. \n"
+                        "If 3, a random track will be generated.", 0);
+    fs << "trackOption" << 1;
+    cvWriteComment(*fs, "Ellipsoid parameters: \nxDirection (either -1 (left) or +1 (right)); \n"
+                        "xzExpansion (value range -100 to +100.0, no 0) describes how much "
+                        "smaller/larger the expansion in x (right) direction is compared to z (foward) - \n"
+                        "an absolute value below 1.0 stands for a larger x-expansion, a value equal +/-1.0 for an "
+                        "equal expansion (circle) and an absolute value larger 1.0 for a larger y-expansion; \n"
+                        "xyExpansion (value range -100.0 to +100.0) describes a factor of the mean used height "
+                        "(down; if no flight mode is used the height stays always the same; \n"
+                        "height = xyExpansion * sin(theta)) compared to the expansion in x direction; \n"
+                        "thetaRange holds the minimum and maximum elevation angle (value range -PI/2 to +PI/2) in "
+                        "y-direction (down). \nIf the values of the range are equal, flight mode is disabled "
+                        "and the height (y) stays the same over the whole track. \n"
+                        "For the camera positions, loop closing is performed whereas the last camera position "
+                        "is not the same as the first, but near to it. \nThe scale of the generated track is not "
+                        "important as it is changed internally that it fits all stereo frames. \n"
+                        "maxTrackElements (see next option) specifies how many track segments within the "
+                        "ellipsoid are generated.", 0);
+    fs << "ellipsoidTrack";
+    fs << "{" << "xDirection" << 1;
+    fs << "xzExpansion" << 0.3;
+    fs << "xyExpansion" << -0.2;
+    fs << "thetaRange";
+    fs << "{" << "min" << -M_PI_4;
+    fs << "max" << M_PI_4 << "}" << "}";
+
+    cvWriteComment(*fs, "maxTrackElements specifies the number of track segments generated within an ellipsoid or "
+                        "during a randomized track generation (max 10000 segments)", 0);
+    fs << "maxTrackElements" << 100;
+
+    cvWriteComment(*fs, "Parameters for random generation of a track with maxTrackElements segments: \n"
+                        "xDirection (either -1 (left) or +1 (right)); \n"
+                        "xzDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in "
+                        "x (right) compared to z (forward) direction - \nan absolute value below 1.0 stands for a "
+                        "direction mainly in x and an absolute value above 1.0 stands for a direction mainly in z; \n"
+                        "xyDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in "
+                        "x (right) compared to y (down) direction - \nan absolute value below 1.0 stands for a "
+                        "direction mainly in x compared to y and an absolute value higher 1.0 for a direction mainly "
+                        "in y compared to x; \nThe direction of a subsequent track element depends on the "
+                        "direction of the track element before - \nThe amount it can change depends on the "
+                        "factor allowedChangeSD (value range 0.05 to 1.0) - it corresponds to the standard deviation "
+                        "centered aground 1.0 (New track sement: \ntx_new = allowedChange_1 * tx_old, \n"
+                        "ty_new = (2.0 * allowedChange_2 * ty_old + tx_old * xyDirectionRandInRange_new) / 3.0, \n"
+                        "tz_new = (2.0 * allowedChange_3 * tz_old + tx_old * xzDirectionRandInRange_new) / 3.0, \n"
+                        "new_track_position = old_track_position + [tx_new; ty_new; tz_new]). \n"
+                        "The scale of the generated track is not important as it is changed internally that it "
+                        "fits all stereo frames.", 0);
+    fs << "randomTrack";
+    fs << "{" << "xDirection" << 1;
+    fs << "xzDirectionRange";
+    fs << "{" << "first" << 0.2;
+    fs << "second" << 0.9 << "}";
+    fs << "xyDirectionRange";
+    fs << "{" << "first" << -0.1;
+    fs << "second" << 0.1 << "}";
+    fs << "allowedChangeSD" << 0.3 << "}";
+
+    cvWriteComment(*fs, "Rotation angle about the x-axis (roll in degrees, right handed) of the stereo pair (centered "
+                        "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
+                        "orientation for which without rotation the z - component of the relative movement "
+                        "vector coincides with the principal axis of the camera. \n"
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+    fs << "rollCamTrack" << 0;
+    cvWriteComment(*fs, "Rotation angle about the y-axis (pitch in degrees, right handed) of the stereo pair (centered "
+                        "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
+                        "orientation for which without rotation the z - component of the relative movement "
+                        "vector coincides with the principal axis of the camera. \n"
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+    fs << "pitchCamTrack" << -90.0;
+    cvWriteComment(*fs, "Rotation angle about the z-axis (yaw in degrees, right handed) of the stereo pair (centered "
+                        "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
+                        "orientation for which without rotation the z - component of the relative movement "
+                        "vector coincides with the principal axis of the camera. \n"
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+    fs << "yawCamTrack" << 1.0;
+
+
+    cvWriteComment(*fs, "If 1, filtering occluded static 3D points during backprojection is enabled. \nOtherwise, "
+                        "set this option to 0. Enabling this option significantly reduces the speed of calculating "
+                        "3D scenes.", 0);
+    fs << "filterOccluded3D" << 0;
+
+
+
+
+
+
+
+    n = fs["imgSize"];
+    n["width"] >> first_int;
+    n["height"] >> second_int;
+    stereoPars.imgSize = Size(first_int, second_int);
+
+
 
     cvWriteComment(*fs, "---- Options for generating matches ----\n\n", 0);
 

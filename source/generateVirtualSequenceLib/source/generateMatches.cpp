@@ -21,10 +21,6 @@ using namespace cv;
 /* --------------------- Function prototypes --------------------- */
 
 bool genParsStorePath(const std::string &basePath, const std::string &subpath, std::string &resPath);
-static inline FileStorage& operator << (FileStorage& fs, bool &value);
-static inline void operator >> (const FileNode& n, int64_t& value);
-static inline FileStorage& operator << (FileStorage& fs, int64_t &value);
-static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value);
 bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
 bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
 template<typename T>

@@ -218,6 +218,132 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
         parsAreValid(false),
 		distortCamMat(std::make_pair(0, 0)){}
 
+	bool checkParameters(){
+        if(nFramesPerCamConf == 0){
+            std::cerr << "Incorrect # of frames per camera configuration." << std::endl;
+            return false;
+        }
+        if(nTotalNrFrames == 0){
+            std::cerr << "Incorrect total # of frames." << std::endl;
+            return false;
+        }
+        if(!((inlRatRange.first < 1.0)
+        && (inlRatRange.first >= 0)
+        && (inlRatRange.second <= 1.0)
+        && (inlRatRange.second > 0))){
+            std::cerr << "Wrong inlier ratio range." << std::endl;
+            return false;
+        }
+        if(!((inlRatChanges <= 100.0) && (inlRatChanges >= 0))){
+            std::cerr << "Wrong inlier ratio change rate." << std::endl;
+            return false;
+        }
+        if(!((truePosRange.first > 0) && (truePosRange.second > 0) && (truePosRange.second >= truePosRange.first))){
+            std::cerr << "Wrong true positives range." << std::endl;
+            return false;
+        }
+        if(!((truePosChanges <= 100.0) && (truePosChanges >= 0))){
+            std::cerr << "Wrong true positives change rate." << std::endl;
+            return false;
+        }
+        if(!((minKeypDist >= 1.0) && (minKeypDist < 100.0))){
+            std::cerr << "Wrong keypoint distance." << std::endl;
+            return false;
+        }
+        if(!((corrsPerDepth.near >= 0) && (corrsPerDepth.mid >= 0) && (corrsPerDepth.far >= 0))){
+            std::cerr << "Portion of correspondences per depth is invalid." << std::endl;
+            return false;
+        }
+        if(!(corrsPerRegion.empty()
+        || ((corrsPerRegion[0].rows == 3) && (corrsPerRegion[0].cols == 3) && (corrsPerRegion[0].type() == CV_64FC1)))){
+            std::cerr << "Incorrect portions of correspondences per region." << std::endl;
+            return false;
+        }
+        if(!(depthsPerRegion.empty()
+        || ((depthsPerRegion.size() == 3)
+        && (depthsPerRegion[0].size() == 3)
+        && (depthsPerRegion[1].size() == 3)
+        && (depthsPerRegion[2].size() == 3)))){
+            std::cerr << "Incorrect portions of depths per region." << std::endl;
+            return false;
+        }
+        if(!(nrDepthAreasPReg.empty()
+        || ((nrDepthAreasPReg.size() == 3)
+        && (nrDepthAreasPReg[0].size() == 3)
+        && (nrDepthAreasPReg[1].size() == 3)
+        && (nrDepthAreasPReg[2].size() == 3)))){
+            std::cerr << "Incorrect # of of depth areas per region." << std::endl;
+            return false;
+        }
+        if(!(!camTrack.empty()
+        && (camTrack[0].rows == 3)
+        && (camTrack[0].cols == 1)
+        && (camTrack[0].type() == CV_64FC1))){
+            std::cerr << "Given camera track is invalid." << std::endl;
+            return false;
+        }
+        if(!((relCamVelocity > 0) && (relCamVelocity <= 10.0))){
+            std::cerr << "Relative camera velocity is invalid." << std::endl;
+            return false;
+        }
+        if(!(R.empty() || ((R.rows == 3) && (R.cols == 3) && (R.type() == CV_64FC1)))){
+            std::cerr << "Rotation of stereo camera pair on camera track is invalid." << std::endl;
+            return false;
+        }
+        if(nrMovObjs >= 20){
+            std::cerr << "Too many moving objects." << std::endl;
+            return false;
+        }
+        if(!(startPosMovObjs.empty()
+        || ((startPosMovObjs.rows == 3)
+        && (startPosMovObjs.cols == 3)
+        && (startPosMovObjs.type() == CV_8UC1)))){
+            std::cerr << "Given matrix for possible starting positions of moving objects is invalid." << std::endl;
+            return false;
+        }
+        if(!((relAreaRangeMovObjs.first <= 1.0)
+        && (relAreaRangeMovObjs.first >= 0)
+        && (relAreaRangeMovObjs.second <= 1.0)
+        && (relAreaRangeMovObjs.second > 0)
+        && (relAreaRangeMovObjs.first <= relAreaRangeMovObjs.second))){
+            std::cerr << "Given relative area range of moving objects is invalid." << std::endl;
+            return false;
+        }
+        if(!(movObjDir.empty() || ((movObjDir.rows == 3) && (movObjDir.cols == 1) && (movObjDir.type() == CV_64FC1)))){
+            std::cerr << "Vector of relative direction of moving objects is invalid." << std::endl;
+            return false;
+        }
+        if(!((relMovObjVelRange.first < 100.0)
+        && (relAreaRangeMovObjs.first >= 0)
+        && (relAreaRangeMovObjs.second <= 100.0)
+        && (relAreaRangeMovObjs.second > 0))){
+            std::cerr << "Relative area range of moving objects is invalid." << std::endl;
+            return false;
+        }
+        if(!((minMovObjCorrPortion <= 1.0) && (minMovObjCorrPortion >= 0))){
+            std::cerr << "Value for minimal portion of correspondences on moving objects is invalid." << std::endl;
+            return false;
+        }
+        if(!((CorrMovObjPort > 0) && (CorrMovObjPort <= 1.0))){
+            std::cerr << "Portion of correspondences on moving objects is invalid." << std::endl;
+            return false;
+        }
+        if(minNrMovObjs > nrMovObjs){
+            std::cerr << "Minimum # of moving objects is larger than maximal # of moving objects." << std::endl;
+            return false;
+        }
+        if(!((distortCamMat.first >= 0)
+                  && (distortCamMat.first <= 1.0)
+                  && (distortCamMat.second >= 0)
+                  && (distortCamMat.second <= 1.0)
+                  && (distortCamMat.first <= (distortCamMat.second + DBL_EPSILON)))){
+            std::cerr << "Distortion values for camera matrices are incorrect." << std::endl;
+            return false;
+        }
+
+        return true;
+	}
+
 	//Parameters for generating correspondences
 	size_t nFramesPerCamConf;//# of Frames per camera configuration
 	size_t nTotalNrFrames;//Total # of stereo frames. Must be at least nFramesPerCamConf
