@@ -68,6 +68,7 @@ struct stereoExtrPars{
     bool yawVariable;
     bool useSpecificCamPars;
     std::vector<specificStereoPars> specialCamPars;
+    double imageOverlap;
     cv::Size imgSize;
 
     stereoExtrPars(){
@@ -104,7 +105,56 @@ struct stereoExtrPars{
         yawVariable = false;
         useSpecificCamPars = false;
         specialCamPars.clear();
+        imageOverlap = 0;
         imgSize = cv::Size(0,0);
+    }
+
+    bool checkParameters() const{
+        if((nrStereoConfigs <= 0) || (nrStereoConfigs > 1000)){
+            cerr << "Invalid number of stereo configurations." << endl;
+            return false;
+        }
+        if((txRange.first > txRange.second) && !nearZero(txRange.first - txRange.second)){
+            cerr << "stereo tx value range is invalid." << endl;
+            return false;
+        }
+        if((tyRange.first > tyRange.second) && !nearZero(tyRange.first - tyRange.second)){
+            cerr << "stereo ty value range is invalid." << endl;
+            return false;
+        }
+        if((tzRange.first > tzRange.second) && !nearZero(tzRange.first - tzRange.second)){
+            cerr << "stereo tz value range is invalid." << endl;
+            return false;
+        }
+        if((rollRange.first > rollRange.second) && !nearZero(rollRange.first - rollRange.second)){
+            cerr << "stereo roll value range is invalid." << endl;
+            return false;
+        }
+        if((pitchRange.first > pitchRange.second) && !nearZero(pitchRange.first - pitchRange.second)){
+            cerr << "stereo pitch value range is invalid." << endl;
+            return false;
+        }
+        if((yawRange.first > yawRange.second) && !nearZero(yawRange.first - yawRange.second)){
+            cerr << "stereo yaw value range is invalid." << endl;
+            return false;
+        }
+        double maxXY = max(max(abs(txRange.first), abs(txRange.second)),
+                           max(abs(tyRange.first), abs(tyRange.second)));
+        if(max(abs(tzRange.first), abs(tzRange.second)) > maxXY){
+            cerr << "Max. absolute value of the range of tz (stereo) must be smaller than the max. absolute "
+                    "value of tx and tz" << endl;
+            return false;
+        }
+        maxXY = max(txStartVal, tyStartVal);
+        if(tzStartVal > maxXY){
+            cerr << "Start value for tz must be smaller than start values for tx and ty." << endl;
+            return false;
+        }
+        if((imageOverlap < 0.1) || (imageOverlap > 1.0)){
+            cerr << "Specified image overlap is out of range." << endl;
+            return false;
+        }
+        return true;
     }
 };
 struct ellipsoidTrackPars{
@@ -120,7 +170,7 @@ struct ellipsoidTrackPars{
         thetaRange = make_pair(0,0);
     }
 
-    bool checkParameters(){
+    bool checkParameters() const{
         if((xDirection != -1) && (xDirection != 1)){
             cerr << "Parameter xDirection of ellipsoidal track can only be 1 or -1." << endl;
             return false;
@@ -156,7 +206,7 @@ struct randomTrackPars{
         allowedChangeSD = 0;
     }
 
-    bool checkParameters(){
+    bool checkParameters() const{
         if((xDirection != -1) && (xDirection != 1)){
             cerr << "Parameter xDirection of random track can only be 1 or -1." << endl;
             return false;
@@ -195,6 +245,7 @@ struct additionalSequencePars{
     double yawCamTrack;
     bool filterOccluded3D;
     uint32_t verbose;
+    int LMverbose;
 
     additionalSequencePars(){
         corrsPerRegionRandInit = false;
@@ -207,9 +258,10 @@ struct additionalSequencePars{
         yawCamTrack = 0;
         filterOccluded3D = false;
         verbose = 0;
+        LMverbose = 0;
     }
 
-    bool checkParameters(){
+    bool checkParameters() const{
         if((trackOption < 1) || (trackOption > 3)){
             cerr << "Parameter trackOption is invalid." << endl;
             return false;
@@ -224,6 +276,10 @@ struct additionalSequencePars{
         }
         if((maxTrackElements <= 0) || (maxTrackElements > 10000)){
             cerr << "Parameter maxTrackElements is invalid." << endl;
+            return false;
+        }
+        if(LMverbose > 100){
+            cerr << "LMverbose out of range." << endl;
             return false;
         }
         return true;
@@ -278,6 +334,7 @@ bool loadConfigFile(const std::string &filename,
                     GenMatchSequParameters &matchPars,
                     stereoExtrPars &stereoPars,
                     additionalSequencePars &addPars);
+bool checkConfigFileName(string &filename, const string &errMsgPart);
 
 depthClass getRandDepthClass();
 std::string getKeyPointType(int idx);
@@ -300,7 +357,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 								 "If a prefix is used, all characters until the first number (excluding) must be provided. "
 								 "For a postfix, '*' must be placed before the postfix.\n "
 								 "Valid examples : folder/pre_*post, *post, pre_*, pre_, folder/*post, folder/pre_*, folder/pre_, folder/, folder/folder/, folder/folder/pre_*post, ...>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("store_path", "<Path for storing the generated 3D scenes and matches>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("store_path", "<Path for storing the generated 3D scenes and matches. "
+                                "If load_folder and load_type are given, store_path can be set to store_path=* "
+                                "which indicates that the generated matches should be stored into the load_folder.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("load_folder", "<Path for loading an existing 3D scene for generating new matches. load_type must also be specified.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("load_type", "<File type of the stored 3D scene that must be provided if it is loaded. Options: "
 					 "\n 0\t YAML without compression"
@@ -336,32 +395,7 @@ int startEvaluation(ArgvParser& cmd)
 	}
 	else if(cmd.foundOption("genConfTempl")){
 	    string genConfTempl = cmd.optionValue("genConfTempl");
-        if (genConfTempl.find('\\') != std::string::npos)
-            std::replace(genConfTempl.begin(), genConfTempl.end(), '\\', '/');
-	    size_t lastslash = genConfTempl.find_last_of('/');
-	    if(lastslash == string::npos){
-	        cerr << "The given option for generating a template doesnt contain a path." << endl;
-	        return -1;
-	    }
-	    string templPath = genConfTempl.substr(0, lastslash);
-	    if(!checkPathExists(templPath)){
-	        cerr << "The path for generating a template file does not exist!" << endl;
-	        return -1;
-	    }
-	    string tmpFileName = genConfTempl.substr(lastslash + 1);
-	    size_t extNamePos = tmpFileName.find_last_of('.');
-        if(extNamePos == string::npos){
-            cerr << "The given option for generating a template doesnt contain a file type." << endl;
-            return -1;
-        }
-        if(extNamePos == 0){
-            cerr << "The given option for generating a template doesnt contain a file name." << endl;
-            return -1;
-        }
-        string extName = tmpFileName.substr(extNamePos + 1);
-        std::transform(extName.begin(), extName.end(), extName.begin(), ::tolower);
-        if((extName != "yaml") && (extName != "yml") && (extName != "xml")){
-            cerr << "The given option for generating a template doesnt contain a valid file type (yaml/yml/xml)." << endl;
+        if(!checkConfigFileName(genConfTempl, "generating a template")){
             return -1;
         }
         if(!genTemplateFile(genConfTempl)){
@@ -375,6 +409,21 @@ int startEvaluation(ArgvParser& cmd)
 		img_path = cmd.optionValue("img_path");
 		img_pref = cmd.optionValue("img_pref");
 		store_path = cmd.optionValue("store_path");
+        StereoSequParameters sequPars;
+        GenMatchSequParameters matchPars;
+        stereoExtrPars stereoPars;
+        additionalSequencePars addPars;
+        if(!checkConfigFileName(conf_file, "loading a configuration")){
+            return -1;
+        }
+        if(!checkFileExists(conf_file)){
+            cerr << "Configuration file for generating 3D scene and matches not found." << endl;
+            return -1;
+        }
+        if(!loadConfigFile(conf_file, sequPars, matchPars, stereoPars, addPars)){
+            cerr << "Unable to load configuration file." << endl;
+            return -1;
+        }
 		if(cmd.foundOption("load_folder")){
 			if(!cmd.foundOption("load_type")){
 				cerr << "Unable to load 3D scene as the file type is missing (parameter load_type)." << endl;
@@ -406,26 +455,25 @@ int startEvaluation(ArgvParser& cmd)
 					cerr << "Wrong parameter value for the file type." << endl;
 					return -1;
 			}
-			if(!checkFileExists(conf_file)){
-			    cerr << "Configuration file for generating matches not found." << endl;
-			    return -1;
+			if(store_path == "*"){
+                store_path.clear();//Indicates that the generated matches should be stored into the load path
 			}
-			cout << "Loading 3D scene and generating matches using given parameters" << endl;
-			err = testStereoCamGeneration(0,
-					true,
-					true,
-					&store_path,
-					&img_path,
-					&img_pref,
-					&load_folder,
-										  rwXMLinfo,
-										  compressedWrittenInfo);
-		}else {
-            if(!checkFileExists(conf_file)){
-                cerr << "Configuration file for generating 3D scene and matches not found." << endl;
+            matchPars.mainStorePath = store_path;
+            matchPars.imgPath = img_path;
+            matchPars.imgPrePostFix = img_pref;
+            if(!matchPars.checkParameters()){
                 return -1;
             }
-            cout << "Generating 3D scene and matches using given parameters" << endl;
+            genMatchSequ sequ(load_folder,
+                              matchPars,
+                              addPars.verbose);
+            if(!sequ.generateMatches()){
+                cerr << "Unable to generate matches." << endl;
+                return -1;
+            }
+		}else {
+
+
 			err = testStereoCamGeneration(0, true, true, &store_path, &img_path, &img_pref);
 		}
 		if(err){
@@ -434,6 +482,247 @@ int startEvaluation(ArgvParser& cmd)
 	}
 
 	return 0;
+}
+
+bool genStereoConfigurations(const cv::Size &imgSize,//remove later, is in stereoExtrPars
+                             const int nrFrames,
+                             const stereoExtrPars &stereoPars,
+                             const additionalSequencePars &addPars,
+                             std::vector<cv::Mat>& Rv,
+                             std::vector<cv::Mat>& tv,
+                             cv::Mat& K_1,
+                             cv::Mat& K_2){
+    if(!addPars.checkParameters()){
+        return false;
+    }
+    if(stereoPars.useSpecificCamPars){
+        if(stereoPars.specialCamPars.empty()){
+            cerr << "Flag useSpecificCamPars is set, but not specific stereo configurations are provided." << endl;
+            return false;
+        }
+        stereoPars.specialCamPars[0].K1.copyTo(K_1);
+        stereoPars.specialCamPars[0].K2.copyTo(K_2);
+        Rv.reserve(stereoPars.specialCamPars.size());
+        tv.reserve(stereoPars.specialCamPars.size());
+        for(auto &i : stereoPars.specialCamPars){
+            Rv.push_back(i.R);
+            if((Rv.back().rows != Rv.back().cols) || (Rv.back().rows != 3) || (Rv.back().type() != CV_64FC1)){
+                cerr << "Wrong format of given rotation matrices (stereo configurations)." << endl;
+                return false;
+            }
+            if(!isMatRotationMat(Rv.back())){
+                cerr << "One of the given rotations of the stereo configurations is not a rotation matrix." << endl;
+                return false;
+            }
+            tv.push_back(i.t);
+            if((tv.back().rows != 3) || (tv.back().cols != 1) || (tv.back().type() != CV_64FC1)){
+                cerr << "Wrong format of given translation vectors (stereo configurations)." << endl;
+                return false;
+            }
+            if(abs(tv.back().at<double>(2)) >= max(abs(tv.back().at<double>(0)), abs(tv.back().at<double>(1)))){
+                cerr << "z-compponent of stereo configurations must be smaller than the largest "
+                        "x- or y-vector-component of a single configuration." << endl;
+                return false;
+            }
+        }
+    }else{
+        if(stereoPars.checkParameters()){
+            return false;
+        }
+        if(stereoPars.nrStereoConfigs > nrFrames){
+            cerr << "Too many stereo configurations or too less frames." << endl;
+            return false;
+        }
+        int minStUpDateFrequ = min(min(stereoPars.txChangeFRate, stereoPars.tyChangeFRate),
+                min(stereoPars.tzChangeFRate, stereoPars.rollChangeFRate),
+                min(stereoPars.pitchStartVal, stereoPars.yawStartVal));
+        int maxStUpDateFrequ = max(max(stereoPars.txChangeFRate, stereoPars.tyChangeFRate),
+                                   max(stereoPars.tzChangeFRate, stereoPars.rollChangeFRate),
+                                   max(stereoPars.pitchStartVal, stereoPars.yawStartVal));
+        if(nrFrames / minStUpDateFrequ > stereoPars.nrStereoConfigs){
+            cerr << "Too less stereo configurations or the update frequency of an extrinsic value is too high." << endl;
+            return false;
+        }
+        if(maxStUpDateFrequ > nrFrames){
+            cerr << "One or more extrinsic values would never be updated. Change the "
+                    "update frequency of one or more extrinsic values or set a higher number of frames." << endl;
+            return false;
+        }
+        bool variableExtr = stereoPars.txVariable || stereoPars.tyVariable
+                || stereoPars.tzVariable || stereoPars.rollVariable || stereoPars.pitchVariable
+                || stereoPars.yawVariable;
+        std::vector<std::vector<double>> tx;
+        std::vector<std::vector<double>> ty;
+        std::vector<std::vector<double>> tz;
+        std::vector<std::vector<double>> roll;
+        std::vector<std::vector<double>> pitch;
+        std::vector<std::vector<double>> yaw;
+        if(variableExtr){
+            if(nearZero(stereoPars.txRange.first - stereoPars.txRange.second)){
+                if(stereoPars.txVariable){
+                    cerr << "You specified txVariable=1 but the given txRange is 0." << endl;
+                    return false;
+                }
+                tx.emplace_back(std::vector<double>(1,stereoPars.txStartVal));
+                tx.back().push_back(stereoPars.txStartVal);
+            }else {
+                tx.emplace_back(std::vector<double>(1, stereoPars.txRange.first));
+                tx.back().push_back(stereoPars.txRange.second);
+            }
+            if(nearZero(stereoPars.tyRange.first - stereoPars.tyRange.second)){
+                if(stereoPars.tyVariable){
+                    cerr << "You specified tyVariable=1 but the given tyRange is 0." << endl;
+                    return false;
+                }
+                ty.emplace_back(std::vector<double>(1,stereoPars.tyStartVal));
+                ty.back().push_back(stereoPars.tyStartVal);
+            }else {
+                ty.emplace_back(std::vector<double>(1, stereoPars.tyRange.first));
+                ty.back().push_back(stereoPars.tyRange.second);
+            }
+            if(nearZero(stereoPars.tzRange.first - stereoPars.tzRange.second)){
+                if(stereoPars.tzVariable){
+                    cerr << "You specified tzVariable=1 but the given tzRange is 0." << endl;
+                    return false;
+                }
+                tz.emplace_back(std::vector<double>(1,stereoPars.tzStartVal));
+                tz.back().push_back(stereoPars.tzStartVal);
+            }else {
+                tz.emplace_back(std::vector<double>(1, stereoPars.tzRange.first));
+                tz.back().push_back(stereoPars.tzRange.second);
+            }
+            if(nearZero(stereoPars.rollRange.first - stereoPars.rollRange.second)){
+                if(stereoPars.rollVariable){
+                    cerr << "You specified rollVariable=1 but the given rollRange is 0." << endl;
+                    return false;
+                }
+                roll.emplace_back(std::vector<double>(1,stereoPars.rollStartVal));
+                roll.back().push_back(stereoPars.rollStartVal);
+            }else {
+                roll.emplace_back(std::vector<double>(1, stereoPars.rollRange.first));
+                roll.back().push_back(stereoPars.rollRange.second);
+            }
+            if(nearZero(stereoPars.pitchRange.first - stereoPars.pitchRange.second)){
+                if(stereoPars.pitchVariable){
+                    cerr << "You specified pitchVariable=1 but the given pitchRange is 0." << endl;
+                    return false;
+                }
+                pitch.emplace_back(std::vector<double>(1,stereoPars.pitchStartVal));
+                pitch.back().push_back(stereoPars.pitchStartVal);
+            }else {
+                pitch.emplace_back(std::vector<double>(1, stereoPars.pitchRange.first));
+                pitch.back().push_back(stereoPars.pitchRange.second);
+            }
+            if(nearZero(stereoPars.yawRange.first - stereoPars.yawRange.second)){
+                if(stereoPars.yawVariable){
+                    cerr << "You specified yawVariable=1 but the given yawRange is 0." << endl;
+                    return false;
+                }
+                yaw.emplace_back(std::vector<double>(1,stereoPars.yawStartVal));
+                yaw.back().push_back(stereoPars.yawStartVal);
+            }else {
+                yaw.emplace_back(std::vector<double>(1, stereoPars.yawRange.first));
+                yaw.back().push_back(stereoPars.yawRange.second);
+            }
+            double maxXY = max(max(abs(tx[0][0]), abs(tx[0][1])),
+                               max(abs(ty[0][0]), abs(ty[0][1])));
+            if(max(abs(tz[0][0]), abs(tz[0][1])) > maxXY){
+                cerr << "Max. absolute value of the used range of tz (stereo) must be smaller than the max. absolute "
+                        "value of used tx and tz. Error is due to wrong ranges and starting values." << endl;
+                return false;
+            }
+            //Check if the higher value has negative sign
+            if(max(abs(tx[0][0]), abs(tx[0][1])) > (max(abs(ty[0][0]), abs(ty[0][1])) + DBL_EPSILON)){
+                if((abs(tx[0][1]) > abs(tx[0][0])) && (tx[0][1] > 0)){
+                    cout << "tx (stereo) is bigger than ty but not negative. The bigger value must be negative. "
+                            "Changing sign of the tx range." << endl;
+                    tx[0][0] *= -1.0;
+                    tx[0][1] *= -1.0;
+                }
+            } else if(max(abs(ty[0][0]), abs(ty[0][1])) > (max(abs(tx[0][0]), abs(tx[0][1])) + DBL_EPSILON)){
+                if((abs(ty[0][1]) > abs(ty[0][0])) && (ty[0][1] > 0)){
+                    cout << "ty (stereo) is bigger than tx but not negative. The bigger value must be negative. "
+                            "Changing sign of the ty range." << endl;
+                    ty[0][0] *= -1.0;
+                    ty[0][1] *= -1.0;
+                }
+            }else{
+                cerr << "Stereo configuration is neither horizontal nor vertical (you used the same maximal "
+                        "absolute values for tx and ty." << endl;
+                return false;
+            }
+            vector<cv::Mat> t_new1;
+            vector<double> roll_new1, pitch_new1, yaw_new1;
+            if(!(stereoPars.txVariable
+            && stereoPars.tyVariable
+            && stereoPars.tzVariable
+            && stereoPars.rollVariable
+            && stereoPars.pitchVariable
+            && stereoPars.yawVariable)){
+                //Calculate the extrinsic parameters for the first stereo configuration
+                // within the given ranges to achieve an image overlap nearest to the given value
+                // (in addition to a few other constraints)
+                GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw,
+                        stereoPars.imageOverlap, stereoPars.imgSize);
+                int err = newStereoPars.optimizeRtf(addPars.LMverbose);
+                if(err == -1){
+                    cerr << "Not able to generate a valid random stereo camera configuration. "
+                            "Ranges of tx and ty should be adapted." << endl;
+                    return false;
+                }else if(err){
+                    cerr << "Not able to reach desired extrinsic stereo parameters or "
+                            "input parameters are not usable. Try different parameters." << endl;
+                    return false;
+                }
+                newStereoPars.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
+                t_new1 = newStereoPars.tis;
+            }
+            for (int i = 1; i < nrFrames; ++i) {
+                if((i % stereoPars.txChangeFRate) == 0) {
+                    if (stereoPars.txVariable) {
+                        tx.emplace_back(std::vector<double>(1, stereoPars.txRange.first));
+                        tx.back().push_back(stereoPars.txRange.second);
+                    }else{
+                        tx.emplace_back(std::vector<double>(1, stereoPars.txRange.first));
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+bool checkConfigFileName(string &filename, const string &errMsgPart){
+    if (filename.find('\\') != std::string::npos)
+        std::replace(filename.begin(), filename.end(), '\\', '/');
+    size_t lastslash = filename.find_last_of('/');
+    if(lastslash == string::npos){
+        cerr << "The given option for " << errMsgPart << " file doesnt contain a path." << endl;
+        return false;
+    }
+    string templPath = filename.substr(0, lastslash);
+    if(!checkPathExists(templPath)){
+        cerr << "The path for " << errMsgPart << " file does not exist!" << endl;
+        return false;
+    }
+    string tmpFileName = filename.substr(lastslash + 1);
+    size_t extNamePos = tmpFileName.find_last_of('.');
+    if(extNamePos == string::npos){
+        cerr << "The given option for " << errMsgPart << " file doesnt contain a file type." << endl;
+        return false;
+    }
+    if(extNamePos == 0){
+        cerr << "The given option for " << errMsgPart << " file doesnt contain a file name." << endl;
+        return false;
+    }
+    string extName = tmpFileName.substr(extNamePos + 1);
+    std::transform(extName.begin(), extName.end(), extName.begin(), ::tolower);
+    if((extName != "yaml") && (extName != "yml") && (extName != "xml")){
+        cerr << "The given option for " << errMsgPart << " file doesnt contain a "
+                "valid file type (yaml/yml/xml)." << endl;
+        return false;
+    }
+    return true;
 }
 
 bool genTemplateFile(const std::string &filename){
@@ -455,7 +744,7 @@ bool genTemplateFile(const std::string &filename){
 
     cvWriteComment(*fs, "---- Options for stereo extrinsics ----\n\n", 0);
 
-    cvWriteComment(*fs, "Number of different stereo configurations.", 0);
+    cvWriteComment(*fs, "Number of different stereo configurations (max. 1000).", 0);
     fs << "nrStereoConfigs" << 2;
 
     cvWriteComment(*fs, "Specifies after how many frames the x-component for the translation vector between "
@@ -490,7 +779,7 @@ bool genTemplateFile(const std::string &filename){
 
     cvWriteComment(*fs, "Linear change rate for tx (x-component of the translation vector "
                         "between the stereo cameras).", 0);
-    fs << "txLinChangeVal" << 0.01;
+    fs << "txLinChangeVal" << -0.01;
 
     cvWriteComment(*fs, "Linear change rate for ty (y-component of the translation vector "
                         "between the stereo cameras).", 0);
@@ -602,37 +891,43 @@ bool genTemplateFile(const std::string &filename){
     fs << "{" << "first" << 0;
     fs << "second" << 0 << "}";
 
-    cvWriteComment(*fs, "Use the specified tx-range for every new stereo configuration (not only for the first). \n"
+    cvWriteComment(*fs, "Use the specified tx-range for every new stereo configuration (not only for the first) "
+                        "where tx should change (depends on txChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
                         "Otherwise set the value to 0.", 0);
     fs << "txVariable" << 0;
 
-    cvWriteComment(*fs, "Use the specified ty-range for every new stereo configuration (not only for the first). \n"
+    cvWriteComment(*fs, "Use the specified ty-range for every new stereo configuration (not only for the first) "
+                        "where ty should change (depends on tyChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
                         "Otherwise set the value to 0.", 0);
     fs << "tyVariable" << 0;
 
-    cvWriteComment(*fs, "Use the specified tz-range for every new stereo configuration (not only for the first). \n"
+    cvWriteComment(*fs, "Use the specified tz-range for every new stereo configuration (not only for the first) "
+                        "where tz should change (depends on tzChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
                         "Otherwise set the value to 0.", 0);
     fs << "tzVariable" << 0;
 
-    cvWriteComment(*fs, "Use the specified roll-range for every new stereo configuration (not only for the first). \n"
+    cvWriteComment(*fs, "Use the specified roll-range for every new stereo configuration (not only for the first) "
+                        "where the roll angle should change (depends on rollChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
                         "Otherwise set the value to 0.", 0);
     fs << "rollVariable" << 0;
 
-    cvWriteComment(*fs, "Use the specified pitch-range for every new stereo configuration (not only for the first). \n"
+    cvWriteComment(*fs, "Use the specified pitch-range for every new stereo configuration (not only for the first) "
+                        "where the pitch angle should change (depends on pitchChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
                         "Otherwise set the value to 0.", 0);
     fs << "pitchVariable" << 0;
 
-    cvWriteComment(*fs, "Use the specified yaw-range for every new stereo configuration (not only for the first). \n"
+    cvWriteComment(*fs, "Use the specified yaw-range for every new stereo configuration (not only for the first) "
+                        "where the yaw angle should change (depends on yawChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
                         "Otherwise set the value to 0.", 0);
@@ -646,7 +941,10 @@ bool genTemplateFile(const std::string &filename){
                         "generated by R = R_y * R_z * R_x (right handed coordinate system, "
                         "x-axis: right, y-axis: down, z-axis: forward); x2 = R * x1 + t. \n"
                         "Every list element specifies a new stereo pair. To use these parameters,"
-                        "useSpecificCamPars must be set to 1.", 0);
+                        "useSpecificCamPars must be set to 1. \n"
+                        "Currently there is only support for different extrinsics. The camera matrices "
+                        "stay the same as for the first stereo configuration \nregardless of what is entered "
+                        "for the camera matrices in the subsequent configurations.", 0);
     vector<Mat> Rsu(2), tsu(2), K1su(2), K2su(2);
     Rsu[0] = eulerAnglesToRotationMatrix(2.0 * M_PI / 180.0,
                                          -4.0 * M_PI / 180.0,
@@ -677,6 +975,10 @@ bool genTemplateFile(const std::string &filename){
         fs << "K2" << K2su[k] << "}";
     }
     fs << "]";
+
+    cvWriteComment(*fs, "Desired image overlap of both stereo images at mid depth (see corrsPerRegionRandInit). \n"
+                        "Value range: 0.1 to 1.0", 0);
+    fs << "imageOverlap" << 0.8;
 
     cvWriteComment(*fs, "---- Options for generating 3D scenes ----\n\n", 0);
 
@@ -1073,6 +1375,12 @@ bool genTemplateFile(const std::string &filename){
     fs << "SHOW_WARPED_PATCHES" << 0;
     fs << "SHOW_PATCHES_WITH_NOISE" << 0 << "}";
 
+    cvWriteComment(*fs, "Verbosity option for calculating the stereo camera configurations. "
+                        "Prints the intermediate error values/results of the Levenberg Marquardt iterations. \n"
+                        "Results of every LMverbose'th iteration are printed. Value range: 0-100. "
+                        "Use 0 to disable.", 0);
+    fs << "LMverbose" << 0;
+
     fs.release();
 }
 
@@ -1165,6 +1473,7 @@ bool loadConfigFile(const std::string &filename,
         n1["K2"] >> stP.K2;
         stereoPars.specialCamPars.emplace_back(stP);
     }
+    fs["imageOverlap"] >> stereoPars.imageOverlap;
 
     n = fs["inlRatRange"];
     n["first"] >> first_dbl;
@@ -1404,6 +1713,8 @@ bool loadConfigFile(const std::string &filename,
     if(tmp_bool) addPars.verbose |= SHOW_WARPED_PATCHES;
     n["SHOW_PATCHES_WITH_NOISE"] >> tmp_bool;
     if(tmp_bool) addPars.verbose |= SHOW_PATCHES_WITH_NOISE;
+
+    fs["LMverbose"] >> addPars.LMverbose;
 
     fs.release();
 }
