@@ -78,6 +78,27 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             compressedWrittenInfo(false),
             takeLessFramesIfLessKeyP(false),
             parsValid(false){}
+
+    bool checkParameters(){
+        keypErrDistr.first = abs(keypErrDistr.first);
+        keypErrDistr.second = abs(keypErrDistr.second);
+        if(!(keypPosErrType || (!keypPosErrType && (keypErrDistr.first < 5.0) &&
+                                     (keypErrDistr.second < 5.0)
+                                     && (keypErrDistr.first + 3.0 * keypErrDistr.second < 10.0)))){
+            std::cerr << "Invalid keypErrDistr." << std::endl;
+            return false;
+        }
+        imgIntNoise.second = abs(imgIntNoise.second);
+        if(!((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0))){
+            std::cerr << "Invalid imgIntNoise." << std::endl;
+            return false;
+        }
+        if(imgPath.empty()){
+            std::cerr << "imgPath cannot be empty." << std::endl;
+            return false;
+        }
+        return true;
+    }
 };
 
 struct stats{
@@ -301,6 +322,7 @@ private:
 };
 
 static inline cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
+static inline void operator >> (const cv::FileNode& n, bool& value);
 static inline void operator >> (const cv::FileNode& n, int64_t& value);
 static inline cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
 static inline cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);

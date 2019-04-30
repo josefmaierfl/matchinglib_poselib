@@ -107,6 +107,128 @@ struct stereoExtrPars{
         imgSize = cv::Size(0,0);
     }
 };
+struct ellipsoidTrackPars{
+    int xDirection;
+    double xzExpansion;
+    double xyExpansion;
+    std::pair<double,double> thetaRange;
+
+    ellipsoidTrackPars(){
+        xDirection = 0;
+        xzExpansion = 0;
+        xyExpansion = 0;
+        thetaRange = make_pair(0,0);
+    }
+
+    bool checkParameters(){
+        if((xDirection != -1) && (xDirection != 1)){
+            cerr << "Parameter xDirection of ellipsoidal track can only be 1 or -1." << endl;
+            return false;
+        }
+        if((xzExpansion < -100.0) || (xzExpansion > 100.0)){
+            cerr << "Parameter xzExpansion of ellipsoidal track can only be between -100.0 and +100.0." << endl;
+            return false;
+        }
+        if((xyExpansion < -100.0) || (xyExpansion > 100.0)){
+            cerr << "Parameter xyExpansion of ellipsoidal track can only be between -100.0 and +100.0." << endl;
+            return false;
+        }
+        if((thetaRange.first < -M_PI_2)
+           || (thetaRange.second > M_PI_2)
+           || ((thetaRange.first > thetaRange.second) && !nearZero(thetaRange.first - thetaRange.second))){
+            cerr << "Parameter thetaRange of ellipsoidal track can only be between -PI/2 and +PI/2."
+                    "The first parameter of the range must be smaller or equal the second." << endl;
+            return false;
+        }
+        return true;
+    }
+};
+struct randomTrackPars{
+    int xDirection;
+    std::pair<double,double> xzDirectionRange;
+    std::pair<double,double> xyDirectionRange;
+    double allowedChangeSD;
+
+    randomTrackPars(){
+        xDirection = 0;
+        xzDirectionRange = make_pair(0,0);
+        xyDirectionRange = make_pair(0,0);
+        allowedChangeSD = 0;
+    }
+
+    bool checkParameters(){
+        if((xDirection != -1) && (xDirection != 1)){
+            cerr << "Parameter xDirection of random track can only be 1 or -1." << endl;
+            return false;
+        }
+        if((xzDirectionRange.first < -1000.0)
+           || (xzDirectionRange.second > 1000.0)
+           || ((xzDirectionRange.first > xzDirectionRange.second)
+               && !nearZero(xzDirectionRange.first - xzDirectionRange.second))){
+            cerr << "Parameter xzDirectionRange of random track can only be between -PI/2 and +PI/2."
+                    "The first parameter of the range must be smaller or equal the second." << endl;
+            return false;
+        }
+        if((xyDirectionRange.first < -1000.0)
+           || (xyDirectionRange.second > 1000.0)
+           || ((xyDirectionRange.first > xyDirectionRange.second)
+               && !nearZero(xyDirectionRange.first - xyDirectionRange.second))){
+            cerr << "Parameter xzDirectionRange of random track can only be between -PI/2 and +PI/2."
+                    "The first parameter of the range must be smaller or equal the second." << endl;
+            return false;
+        }
+        if((allowedChangeSD < 0.05) || (allowedChangeSD > 1.0)){
+            cerr << "Parameter allowedChangeSD of random track can only be between 0.05 and 1.0." << endl;
+            return false;
+        }
+        return true;
+    }
+};
+struct additionalSequencePars{
+    bool corrsPerRegionRandInit;
+    int trackOption;
+    ellipsoidTrackPars ellipsoidTrack;
+    randomTrackPars randomTrack;
+    int maxTrackElements;
+    double rollCamTrack;
+    double pitchCamTrack;
+    double yawCamTrack;
+    bool filterOccluded3D;
+    uint32_t verbose;
+
+    additionalSequencePars(){
+        corrsPerRegionRandInit = false;
+        trackOption = 0;
+        ellipsoidTrack = ellipsoidTrackPars();
+        randomTrack = randomTrackPars();
+        maxTrackElements = 0;
+        rollCamTrack = 0;
+        pitchCamTrack = 0;
+        yawCamTrack = 0;
+        filterOccluded3D = false;
+        verbose = 0;
+    }
+
+    bool checkParameters(){
+        if((trackOption < 1) || (trackOption > 3)){
+            cerr << "Parameter trackOption is invalid." << endl;
+            return false;
+        }
+        if(!ellipsoidTrack.checkParameters()){
+            cerr << "Invalid parameters for ellipsoidal track." << endl;
+            return false;
+        }
+        if(!randomTrack.checkParameters()){
+            cerr << "Invalid parameters for random track." << endl;
+            return false;
+        }
+        if((maxTrackElements <= 0) || (maxTrackElements > 10000)){
+            cerr << "Parameter maxTrackElements is invalid." << endl;
+            return false;
+        }
+        return true;
+    }
+};
 
 double getRandDoubleVal(std::default_random_engine rand_generator, double lowerBound, double upperBound);
 void initStarVal(default_random_engine rand_generator, double *range, vector<double>& startVec);
@@ -151,6 +273,11 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 				  bool compressedWrittenInfo = false,
 				  uint32_t verbose = 0);
 bool genTemplateFile(const std::string &filename);
+bool loadConfigFile(const std::string &filename,
+                    StereoSequParameters &sequPars,
+                    GenMatchSequParameters &matchPars,
+                    stereoExtrPars &stereoPars,
+                    additionalSequencePars &addPars);
 
 depthClass getRandDepthClass();
 std::string getKeyPointType(int idx);
@@ -923,13 +1050,41 @@ bool genTemplateFile(const std::string &filename){
                         "Otherwise, set this option to 0.", 0);
     fs << "takeLessFramesIfLessKeyP" << 0;
 
+    cvWriteComment(*fs, "Verbosity options (set them to 1 or 0).", 0);
+    fs << "verbosity";
+    fs << "{" << "SHOW_INIT_CAM_PATH" << 0;
+    fs << "SHOW_BUILD_PROC_MOV_OBJ" << 0;
+    fs << "SHOW_MOV_OBJ_DISTANCES" << 0;
+    fs << "SHOW_MOV_OBJ_3D_PTS" << 0;
+    fs << "SHOW_MOV_OBJ_CORRS_GEN" << 0;
+    fs << "SHOW_BUILD_PROC_STATIC_OBJ" << 0;
+    fs << "SHOW_STATIC_OBJ_DISTANCES" << 0;
+    fs << "SHOW_STATIC_OBJ_CORRS_GEN" << 0;
+    fs << "SHOW_STATIC_OBJ_3D_PTS" << 0;
+    fs << "SHOW_MOV_OBJ_MOVEMENT" << 0;
+    fs << "SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ" << 0;
+    fs << "SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ" << 0;
+    fs << "SHOW_BACKPROJECT_MOV_OBJ_CORRS" << 0;
+    fs << "SHOW_STEREO_INTERSECTION" << 0;
+    fs << "SHOW_COMBINED_CORRESPONDENCES" << 0;
+    fs << "PRINT_WARNING_MESSAGES" << 1;
+    fs << "SHOW_IMGS_AT_ERROR" << 0;
+    fs << "SHOW_PLANES_FOR_HOMOGRAPHY" << 0;
+    fs << "SHOW_WARPED_PATCHES" << 0;
+    fs << "SHOW_PATCHES_WITH_NOISE" << 0 << "}";
+
     fs.release();
 }
 
 bool loadConfigFile(const std::string &filename,
                     StereoSequParameters &sequPars,
                     GenMatchSequParameters &matchPars,
-                    stereoExtrPars &stereoPars){
+                    stereoExtrPars &stereoPars,
+                    additionalSequencePars &addPars){
+    sequPars = StereoSequParameters();
+    matchPars = GenMatchSequParameters();
+    stereoPars = stereoExtrPars();
+    addPars = additionalSequencePars();
     FileStorage fs(filename, FileStorage::READ);
     if (!fs.isOpened()) {
         cerr << "Failed to open " << filename << endl;
@@ -1150,204 +1305,105 @@ bool loadConfigFile(const std::string &filename,
     n["second"] >> second_dbl;
     sequPars.distortCamMat = make_pair(first_dbl, second_dbl);
 
+    randomTrackPars randTrackP = randomTrackPars();
+    ellipsoidTrackPars ellipsTrackP = ellipsoidTrackPars();
 
+    fs["corrsPerRegionRandInit"] >> addPars.corrsPerRegionRandInit;
+    fs["trackOption"] >> addPars.trackOption;
+    n = fs["ellipsoidTrack"];
+    n["xDirection"] >> ellipsTrackP.xDirection;
+    n["xzExpansion"] >> ellipsTrackP.xzExpansion;
+    n["xyExpansion"] >> ellipsTrackP.xyExpansion;
+    FileNode n1 = n["thetaRange"];
+    n1["min"] >> first_dbl;
+    n1["max"] >> second_dbl;
+    ellipsTrackP.thetaRange = make_pair(first_dbl, second_dbl);
 
-    struct ellipsoidTrackPars{
-        int xDirection;
-        double xzExpansion;
-        double xyExpansion;
-        std::pair<double,double> thetaRange;
+    addPars.ellipsoidTrack = ellipsTrackP;
+    fs["maxTrackElements"] >> addPars.maxTrackElements;
 
-        ellipsoidTrackPars(){
-            xDirection = 0;
-            xzExpansion = 0;
-            xyExpansion = 0;
-            thetaRange = make_pair(0,0);
-        }
-    };
-    struct randomTrackPars{
-        int xDirection;
-        std::pair<double,double> xzDirectionRange;
-        std::pair<double,double> xyDirectionRange;
-        double allowedChangeSD;
+    n = fs["randomTrack"];
+    n["xDirection"] >> randTrackP.xDirection;
+    n1 = n["xzDirectionRange"];
+    n1["first"] >> first_dbl;
+    n1["second"] >> second_dbl;
+    randTrackP.xzDirectionRange = make_pair(first_dbl, second_dbl);
+    n1 = n["xyDirectionRange"];
+    n1["first"] >> first_dbl;
+    n1["second"] >> second_dbl;
+    randTrackP.xyDirectionRange = make_pair(first_dbl, second_dbl);
+    n["allowedChangeSD"] >> randTrackP.allowedChangeSD;
 
-        randomTrackPars(){
-            xDirection = 0;
-            xzDirectionRange = make_pair(0,0);
-            xyDirectionRange = make_pair(0,0);
-            allowedChangeSD = 0;
-        }
-    };
-    struct additionalSequencePars{
-        bool corrsPerRegionRandInit;
-        int trackOption;
-        ellipsoidTrackPars ellipsoidTrack;
-        randomTrackPars randomTrack;
-        double rollCamTrack;
-        double pitchCamTrack;
-        double yawCamTrack;
-        bool filterOccluded3D;
-
-        additionalSequencePars(){
-            corrsPerRegionRandInit = false;
-            trackOption = 0;
-            ellipsoidTrack = ellipsoidTrackPars();
-            randomTrack = randomTrackPars();
-            rollCamTrack = 0;
-            pitchCamTrack = 0;
-            yawCamTrack = 0;
-            filterOccluded3D = false;
-        }
-    };
-
-    cvWriteComment(*fs, "If 1 and corrsPerRegRepRate=0, corrsPerRegion is initialized randomly "
-                        "for every frame seperately. \n"
-                        "If 1 and 0 < corrsPerRegRepRate < nrTotalFrames, "
-                        "nrTotalFrames / corrsPerRegRepRate different random corrsPerRegion are calculated. \n"
-                        "If 0, the values from corrsPerRegion are used.", 0);
-    fs << "corrsPerRegionRandInit" << 0;
-
-
-    cvWriteComment(*fs, "If 1, an ellipsoid is used as camera track (consecutive positions of the "
-                        "top/left stereo camera center. \n"
-                        "If 2, a custom track can be entered into camTrack. \n"
-                        "If 3, a random track will be generated.", 0);
-    fs << "trackOption" << 1;
-    cvWriteComment(*fs, "Ellipsoid parameters: \nxDirection (either -1 (left) or +1 (right)); \n"
-                        "xzExpansion (value range -100 to +100.0, no 0) describes how much "
-                        "smaller/larger the expansion in x (right) direction is compared to z (foward) - \n"
-                        "an absolute value below 1.0 stands for a larger x-expansion, a value equal +/-1.0 for an "
-                        "equal expansion (circle) and an absolute value larger 1.0 for a larger y-expansion; \n"
-                        "xyExpansion (value range -100.0 to +100.0) describes a factor of the mean used height "
-                        "(down; if no flight mode is used the height stays always the same; \n"
-                        "height = xyExpansion * sin(theta)) compared to the expansion in x direction; \n"
-                        "thetaRange holds the minimum and maximum elevation angle (value range -PI/2 to +PI/2) in "
-                        "y-direction (down). \nIf the values of the range are equal, flight mode is disabled "
-                        "and the height (y) stays the same over the whole track. \n"
-                        "For the camera positions, loop closing is performed whereas the last camera position "
-                        "is not the same as the first, but near to it. \nThe scale of the generated track is not "
-                        "important as it is changed internally that it fits all stereo frames. \n"
-                        "maxTrackElements (see next option) specifies how many track segments within the "
-                        "ellipsoid are generated.", 0);
-    fs << "ellipsoidTrack";
-    fs << "{" << "xDirection" << 1;
-    fs << "xzExpansion" << 0.3;
-    fs << "xyExpansion" << -0.2;
-    fs << "thetaRange";
-    fs << "{" << "min" << -M_PI_4;
-    fs << "max" << M_PI_4 << "}" << "}";
-
-    cvWriteComment(*fs, "maxTrackElements specifies the number of track segments generated within an ellipsoid or "
-                        "during a randomized track generation (max 10000 segments)", 0);
-    fs << "maxTrackElements" << 100;
-
-    cvWriteComment(*fs, "Parameters for random generation of a track with maxTrackElements segments: \n"
-                        "xDirection (either -1 (left) or +1 (right)); \n"
-                        "xzDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in "
-                        "x (right) compared to z (forward) direction - \nan absolute value below 1.0 stands for a "
-                        "direction mainly in x and an absolute value above 1.0 stands for a direction mainly in z; \n"
-                        "xyDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in "
-                        "x (right) compared to y (down) direction - \nan absolute value below 1.0 stands for a "
-                        "direction mainly in x compared to y and an absolute value higher 1.0 for a direction mainly "
-                        "in y compared to x; \nThe direction of a subsequent track element depends on the "
-                        "direction of the track element before - \nThe amount it can change depends on the "
-                        "factor allowedChangeSD (value range 0.05 to 1.0) - it corresponds to the standard deviation "
-                        "centered aground 1.0 (New track sement: \ntx_new = allowedChange_1 * tx_old, \n"
-                        "ty_new = (2.0 * allowedChange_2 * ty_old + tx_old * xyDirectionRandInRange_new) / 3.0, \n"
-                        "tz_new = (2.0 * allowedChange_3 * tz_old + tx_old * xzDirectionRandInRange_new) / 3.0, \n"
-                        "new_track_position = old_track_position + [tx_new; ty_new; tz_new]). \n"
-                        "The scale of the generated track is not important as it is changed internally that it "
-                        "fits all stereo frames.", 0);
-    fs << "randomTrack";
-    fs << "{" << "xDirection" << 1;
-    fs << "xzDirectionRange";
-    fs << "{" << "first" << 0.2;
-    fs << "second" << 0.9 << "}";
-    fs << "xyDirectionRange";
-    fs << "{" << "first" << -0.1;
-    fs << "second" << 0.1 << "}";
-    fs << "allowedChangeSD" << 0.3 << "}";
-
-    cvWriteComment(*fs, "Rotation angle about the x-axis (roll in degrees, right handed) of the stereo pair (centered "
-                        "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
-                        "orientation for which without rotation the z - component of the relative movement "
-                        "vector coincides with the principal axis of the camera. \n"
-                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
-    fs << "rollCamTrack" << 0;
-    cvWriteComment(*fs, "Rotation angle about the y-axis (pitch in degrees, right handed) of the stereo pair (centered "
-                        "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
-                        "orientation for which without rotation the z - component of the relative movement "
-                        "vector coincides with the principal axis of the camera. \n"
-                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
-    fs << "pitchCamTrack" << -90.0;
-    cvWriteComment(*fs, "Rotation angle about the z-axis (yaw in degrees, right handed) of the stereo pair (centered "
-                        "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
-                        "orientation for which without rotation the z - component of the relative movement "
-                        "vector coincides with the principal axis of the camera. \n"
-                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
-    fs << "yawCamTrack" << 1.0;
-
-
-    cvWriteComment(*fs, "If 1, filtering occluded static 3D points during backprojection is enabled. \nOtherwise, "
-                        "set this option to 0. Enabling this option significantly reduces the speed of calculating "
-                        "3D scenes.", 0);
-    fs << "filterOccluded3D" << 0;
-
-
-
-
-
-
+    addPars.randomTrack = randTrackP;
+    fs["rollCamTrack"] >> addPars.rollCamTrack;
+    fs["pitchCamTrack"] >> addPars.pitchCamTrack;
+    fs["yawCamTrack"] >> addPars.yawCamTrack;
+    fs["filterOccluded3D"] >> addPars.filterOccluded3D;
 
     n = fs["imgSize"];
     n["width"] >> first_int;
     n["height"] >> second_int;
     stereoPars.imgSize = Size(first_int, second_int);
 
+    fs["keyPointType"] >> matchPars.keyPointType;
+    fs["descriptorType"] >> matchPars.descriptorType;
+    fs["keypPosErrType"] >> matchPars.keypPosErrType;
+    n = fs["keypErrDistr"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    matchPars.keypErrDistr = make_pair(first_dbl, second_dbl);
+    n = fs["imgIntNoise"];
+    n["first"] >> first_dbl;
+    n["second"] >> second_dbl;
+    matchPars.imgIntNoise = make_pair(first_dbl, second_dbl);
+    fs["storePtClouds"] >> matchPars.storePtClouds;
+    fs["rwXMLinfo"] >> matchPars.rwXMLinfo;
+    fs["compressedWrittenInfo"] >> matchPars.compressedWrittenInfo;
+    fs["takeLessFramesIfLessKeyP"] >> matchPars.takeLessFramesIfLessKeyP;
 
-
-    cvWriteComment(*fs, "---- Options for generating matches ----\n\n", 0);
-
-    cvWriteComment(*fs, "Name of keypoint detector. The following types are supported: \n"
-                        "FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD. \nIf non-free code is enabled "
-                        "in the CMAKE project while building the code, SIFT and SURF are also available.", 0);
-    fs << "keyPointType" << "BRISK";
-    cvWriteComment(*fs, "Name of descriptor extractor. The following types are supported: \n"
-                        "BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, "
-                        "BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48, RIFF, BOLD. \n"
-                        "If non-free code is enabled in the CMAKE project while building the code, SIFT and SURF "
-                        "are also available.", 0);
-    fs << "descriptorType" << "FREAK";
-    cvWriteComment(*fs, "Keypoint detector error (1) or error normal distribution (0). \nIf 1, the position "
-                        "detected by the keypoint detector is used (which typically does not coincide with the "
-                        "GT position. \nIf 0, an normal distributed (parameters from option keypErrDistr) "
-                        "error is added to the GT position.", 0);
-    fs << "keypPosErrType" << 0;
-    cvWriteComment(*fs, "Keypoint error distribution (first=mean, second=standard deviation)", 0);
-    fs << "keypErrDistr";
-    fs << "{" << "first" << 0.1;
-    fs << "second" << 1.2 << "}";
-    cvWriteComment(*fs, "Noise (first=mean, second=standard deviation) on the image intensity (0-255) applied "
-                        "on the image patches for descriptor calculation.", 0);
-    fs << "imgIntNoise";
-    fs << "{" << "first" << 10.0;
-    fs << "second" << 15.0 << "}";
-    cvWriteComment(*fs, "If 1, all PCL point clouds and necessary information to load a cam sequence "
-                        "with correspondences are stored to disk. \nThis is useful if you want to load an "
-                        "already generated 3D sequence later on and calculate a different type of descriptor \n"
-                        "for the correspondences or if you want to use a different keypoint position "
-                        "accuracy, ...", 0);
-    fs << "storePtClouds" << 1;
-    cvWriteComment(*fs, "If 1, the parameters and information are stored and read in XML format. "
-                        "If 0, YAML format is used.", 0);
-    fs << "rwXMLinfo" << 0;
-    cvWriteComment(*fs, "If 1, the stored information and parameters are compressed (appends .gz to the "
-                        "generated files. Otherwise, set this option to 0.", 0);
-    fs << "compressedWrittenInfo" << 1;
-    cvWriteComment(*fs, "If 1 and too less images to extract features are provided (resulting in too less keypoints), "
-                        "only as many frames with GT matches are generated as keypoints are available. \n"
-                        "Otherwise, set this option to 0.", 0);
-    fs << "takeLessFramesIfLessKeyP" << 0;
+    n = fs["verbosity"];
+    bool tmp_bool = false;
+    addPars.verbose = 0;
+    n["SHOW_INIT_CAM_PATH"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_INIT_CAM_PATH;
+    n["SHOW_BUILD_PROC_MOV_OBJ"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_BUILD_PROC_MOV_OBJ;
+    n["SHOW_MOV_OBJ_DISTANCES"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_MOV_OBJ_DISTANCES;
+    n["SHOW_MOV_OBJ_3D_PTS"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_MOV_OBJ_3D_PTS;
+    n["SHOW_MOV_OBJ_CORRS_GEN"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_MOV_OBJ_CORRS_GEN;
+    n["SHOW_BUILD_PROC_STATIC_OBJ"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_BUILD_PROC_STATIC_OBJ;
+    n["SHOW_STATIC_OBJ_DISTANCES"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_STATIC_OBJ_DISTANCES;
+    n["SHOW_STATIC_OBJ_CORRS_GEN"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_STATIC_OBJ_CORRS_GEN;
+    n["SHOW_STATIC_OBJ_3D_PTS"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_STATIC_OBJ_3D_PTS;
+    n["SHOW_MOV_OBJ_MOVEMENT"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_MOV_OBJ_MOVEMENT;
+    n["SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ;
+    n["SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ;
+    n["SHOW_BACKPROJECT_MOV_OBJ_CORRS"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_BACKPROJECT_MOV_OBJ_CORRS;
+    n["SHOW_STEREO_INTERSECTION"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_STEREO_INTERSECTION;
+    n["SHOW_COMBINED_CORRESPONDENCES"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_COMBINED_CORRESPONDENCES;
+    n["PRINT_WARNING_MESSAGES"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= PRINT_WARNING_MESSAGES;
+    n["SHOW_IMGS_AT_ERROR"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_IMGS_AT_ERROR;
+    n["SHOW_PLANES_FOR_HOMOGRAPHY"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_PLANES_FOR_HOMOGRAPHY;
+    n["SHOW_WARPED_PATCHES"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_WARPED_PATCHES;
+    n["SHOW_PATCHES_WITH_NOISE"] >> tmp_bool;
+    if(tmp_bool) addPars.verbose |= SHOW_PATCHES_WITH_NOISE;
 
     fs.release();
 }

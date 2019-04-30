@@ -3021,6 +3021,17 @@ static inline FileStorage& operator << (FileStorage& fs, bool &value)
     return (fs << 0);
 }
 
+static inline void operator >> (const FileNode& n, bool& value)
+{
+    int bVal;
+    n >> bVal;
+    if(bVal){
+        value = true;
+    }else{
+        value = false;
+    }
+}
+
 static inline FileStorage& operator << (FileStorage& fs, int64_t &value)
 {
     string strVal = std::to_string(value);
