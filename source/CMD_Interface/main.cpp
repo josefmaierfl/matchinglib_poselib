@@ -397,7 +397,6 @@ int startEvaluation(ArgvParser& cmd)
 	        & cmd.foundOption("img_pref")
 	        & cmd.foundOption("store_path")
 	        & cmd.foundOption("conf_file");
-	int err = 0;
 	if(!option_found && !cmd.foundOption("genConfTempl")){
 		cout << "Did not find necessary options for generating 3D scene and matches." << endl;
 		return -1;
@@ -481,16 +480,60 @@ int startEvaluation(ArgvParser& cmd)
                 return -1;
             }
 		}else {
+            std::vector<cv::Mat> Rv, tv;
+            cv::Mat K_1, K_2;
+		    if(!genStereoConfigurations((int)sequPars.nTotalNrFrames,
+                stereoPars,
+                addPars,
+                Rv,
+                tv,
+                K_1,
+                K_2)){
+		        cerr << "Unable to calculate extrinsics." << endl;
+		        return -1;
+		    }
 
 
-			err = testStereoCamGeneration(0, true, true, &store_path, &img_path, &img_pref);
-		}
-		if(err){
-			return -1;
+			testStereoCamGeneration(0, true, true, &store_path, &img_path, &img_pref);
 		}
 	}
 
 	return 0;
+}
+
+bool genSequenceConfig(const int nrStereoConfigs,
+                       const additionalSequencePars &addPars,
+                       StereoSequParameters &sequPars){
+    if(!addPars.checkParameters()){
+        return false;
+    }
+
+    /*bool corrsPerRegionRandInit;
+    int trackOption;
+    ellipsoidTrackPars ellipsoidTrack;
+    randomTrackPars randomTrack;
+    int maxTrackElements;*/
+
+    auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rand_generator(seed);
+    std::mt19937 rand2(seed);
+
+    if(addPars.corrsPerRegionRandInit){
+        if(sequPars.corrsPerRegRepRate == 0){
+            sequPars.corrsPerRegion.clear();
+        }else{
+            size_t corrsPerRegionSi = sequPars.nTotalNrFrames / sequPars.corrsPerRegRepRate;
+            sequPars.corrsPerRegion.clear();
+            for (size_t i = 0; i < corrsPerRegionSi; i++) {
+                cv::Mat corrsPReg(3, 3, CV_64FC1);
+                cv::randu(corrsPReg, Scalar(0), Scalar(1.0));
+                corrsPReg /= sum(corrsPReg)[0];
+                sequPars.corrsPerRegion.emplace_back(corrsPReg.clone());
+            }
+        }
+    }
+
+
 }
 
 bool genStereoConfigurations(const int nrFrames,
@@ -503,6 +546,8 @@ bool genStereoConfigurations(const int nrFrames,
     if(!addPars.checkParameters()){
         return false;
     }
+    Rv.clear();
+    tv.clear();
     if(stereoPars.useSpecificCamPars){
         if(stereoPars.specialCamPars.empty()){
             cerr << "Flag useSpecificCamPars is set, but no specific stereo configurations are provided." << endl;
@@ -532,6 +577,18 @@ bool genStereoConfigurations(const int nrFrames,
                         "x- or y-vector-component of a single configuration." << endl;
                 return false;
             }
+            if((int)tv.size() >= stereoPars.nrStereoConfigs){
+                break;
+            }
+        }
+        if((int)tv.size() < stereoPars.nrStereoConfigs){
+            cerr << "Number of desired stereo configurations does not match the number of provided R&t entries."
+            << endl;
+            return false;
+        }
+        if(stereoPars.nrStereoConfigs > nrFrames){
+            cerr << "Too many stereo configurations or too less frames." << endl;
+            return false;
         }
     }else{
         if(stereoPars.checkParameters()){
@@ -670,8 +727,18 @@ bool genStereoConfigurations(const int nrFrames,
                 //Calculate the extrinsic parameters for the first stereo configuration
                 // within the given ranges to achieve an image overlap nearest to the given value
                 // (in addition to a few other constraints)
-                GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw,
-                        stereoPars.imageOverlap, stereoPars.imgSize);
+                GenStereoPars newStereoPars;
+                try {
+                    newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
+                            stereoPars.imageOverlap, stereoPars.imgSize);
+                }catch(exception &e){
+                    cerr << "Exception: " << e.what() << endl;
+                    return false;
+                }catch(...){
+                    cerr << "Unkown exception." << endl;
+                    return false;
+                }
+
                 int err = newStereoPars.optimizeRtf(addPars.LMverbose);
 
                 newStereoPars.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
@@ -876,6 +943,9 @@ bool genStereoConfigurations(const int nrFrames,
                     }
                     cnt++;
                 }
+                if((int)tx.size() >= stereoPars.nrStereoConfigs){
+                    break;
+                }
             }
 
             CV_Assert(cnt == (int)tx.size());
@@ -889,8 +959,17 @@ bool genStereoConfigurations(const int nrFrames,
             }
 
             //Get the parameters
-            GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                        stereoPars.imageOverlap, stereoPars.imgSize);
+            GenStereoPars newStereoPars;
+            try {
+                newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
+                                              stereoPars.imageOverlap, stereoPars.imgSize);
+            }catch(exception &e){
+                cerr << "Exception: " << e.what() << endl;
+                return false;
+            }catch(...){
+                cerr << "Unkown exception." << endl;
+                return false;
+            }
             int err = newStereoPars.optimizeRtf(addPars.LMverbose);
 
             roll_new1.clear();
@@ -977,8 +1056,17 @@ bool genStereoConfigurations(const int nrFrames,
                     }
                 }
                 //Get the parameters
-                GenStereoPars newStereoPars1(tx, ty, tz, roll, pitch, yaw,
-                                            stereoPars.imageOverlap, stereoPars.imgSize);
+                GenStereoPars newStereoPars1;
+                try {
+                    newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
+                                                  stereoPars.imageOverlap, stereoPars.imgSize);
+                }catch(exception &e){
+                    cerr << "Exception: " << e.what() << endl;
+                    return false;
+                }catch(...){
+                    cerr << "Unkown exception." << endl;
+                    return false;
+                }
                 err = newStereoPars1.optimizeRtf(addPars.LMverbose);
 
                 roll_new1.clear();
@@ -1114,8 +1202,17 @@ bool genStereoConfigurations(const int nrFrames,
             // (in addition to a few other constraints)
             vector<cv::Mat> t_new1;
             vector<double> roll_new1, pitch_new1, yaw_new1;
-            GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                        stereoPars.imageOverlap, stereoPars.imgSize);
+            GenStereoPars newStereoPars;
+            try {
+                newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
+                                              stereoPars.imageOverlap, stereoPars.imgSize);
+            }catch(exception &e){
+                cerr << "Exception: " << e.what() << endl;
+                return false;
+            }catch(...){
+                cerr << "Unkown exception." << endl;
+                return false;
+            }
             int err = newStereoPars.optimizeRtf(addPars.LMverbose);
 
             newStereoPars.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
@@ -1251,11 +1348,23 @@ bool genStereoConfigurations(const int nrFrames,
                     }
                     cnt++;
                 }
+                if((int)tx.size() >= stereoPars.nrStereoConfigs){
+                    break;
+                }
             }
             CV_Assert(cnt == (int)tx.size());
             //Get the parameters (adapt camera matrix and check extrinsics)
-            GenStereoPars newStereoPars1(tx, ty, tz, roll, pitch, yaw,
-                                         stereoPars.imageOverlap, stereoPars.imgSize);
+            GenStereoPars newStereoPars1;
+            try {
+                newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
+                                              stereoPars.imageOverlap, stereoPars.imgSize);
+            }catch(exception &e){
+                cerr << "Exception: " << e.what() << endl;
+                return false;
+            }catch(...){
+                cerr << "Unkown exception." << endl;
+                return false;
+            }
             err = newStereoPars1.optimizeRtf(addPars.LMverbose);
 
             roll_new1.clear();
@@ -1369,7 +1478,7 @@ bool genTemplateFile(const std::string &filename){
     cvWriteComment(*fs, "---- Options for stereo extrinsics ----\n\n", 0);
 
     cvWriteComment(*fs, "Number of different stereo configurations (max. 1000).", 0);
-    fs << "nrStereoConfigs" << 2;
+    fs << "nrStereoConfigs" << 10;
 
     cvWriteComment(*fs, "Specifies after how many frames the x-component for the translation vector between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
@@ -1568,7 +1677,11 @@ bool genTemplateFile(const std::string &filename){
                         "useSpecificCamPars must be set to 1. \n"
                         "Currently there is only support for different extrinsics. The camera matrices "
                         "stay the same as for the first stereo configuration \nregardless of what is entered "
-                        "for the camera matrices in the subsequent configurations.", 0);
+                        "for the camera matrices in the subsequent configurations. \n"
+                        "The update frequence (in frames) is calculated by nrTotalFrames devided by "
+                        "the number of entered stereo configurations (here) or nrStereoConfigs "
+                        "(whatever value is smaller; nrStereoConfigs is not allowed to be larger than the "
+                        "number of entries entered here).", 0);
     vector<Mat> Rsu(2), tsu(2), K1su(2), K2su(2);
     Rsu[0] = eulerAnglesToRotationMatrix(2.0 * M_PI / 180.0,
                                          -4.0 * M_PI / 180.0,
@@ -2119,8 +2232,20 @@ bool loadConfigFile(const std::string &filename,
     fs["minKeypDist"] >> sequPars.minKeypDist;
     n = fs["corrsPerDepth"];
     n["near"] >> sequPars.corrsPerDepth.near;
+    if(sequPars.corrsPerDepth.near < 0){
+        cerr << "Invalid parameter corrsPerDepth (near)." << endl;
+        return false;
+    }
     n["mid"] >> sequPars.corrsPerDepth.mid;
+    if(sequPars.corrsPerDepth.mid < 0){
+        cerr << "Invalid parameter corrsPerDepth (mid)." << endl;
+        return false;
+    }
     n["far"] >> sequPars.corrsPerDepth.far;
+    if(sequPars.corrsPerDepth.far < 0){
+        cerr << "Invalid parameter corrsPerDepth (far)." << endl;
+        return false;
+    }
 
     n = fs["corrsPerRegion"];
     if (n.type() != FileNode::SEQ) {
@@ -2132,10 +2257,32 @@ bool loadConfigFile(const std::string &filename,
     while (it != it_end) {
         Mat m;
         it >> m;
+        if((m.rows != 3) || (m.cols != 3)){
+            cerr << "Invalid parameter corrsPerRegion." << endl;
+            return false;
+        }
+        double sumregs = 0;
+        for (int i = 0; i < m.rows; ++i) {
+            for (int j = 0; j < m.cols; ++j) {
+                if(m.at<double>(i,j) < 0){
+                    cerr << "Invalid parameter corrsPerRegion." << endl;
+                    return false;
+                }
+                sumregs += m.at<double>(i,j);
+            }
+        }
+        if(nearZero(sumregs)){
+            cerr << "Invalid parameter corrsPerRegion." << endl;
+            return false;
+        }
         sequPars.corrsPerRegion.push_back(m.clone());
     }
 
     fs["corrsPerRegRepRate"] >> tmp;
+    if(tmp < 0){
+        cerr << "Invalid parameter corrsPerRegRepRate." << endl;
+        return false;
+    }
     sequPars.corrsPerRegRepRate = (size_t) tmp;
 
     n = fs["depthsPerRegion"];
@@ -2152,13 +2299,25 @@ bool loadConfigFile(const std::string &filename,
 
         FileNode n1 = *it;
         n1["near"] >> sequPars.depthsPerRegion[y][x].near;
+        if(sequPars.depthsPerRegion[y][x].near < 0){
+            cerr << "Invalid parameter depthsPerRegion (near)." << endl;
+            return false;
+        }
         n1["mid"] >> sequPars.depthsPerRegion[y][x].mid;
+        if(sequPars.depthsPerRegion[y][x].mid < 0){
+            cerr << "Invalid parameter depthsPerRegion (mid)." << endl;
+            return false;
+        }
         n1["far"] >> sequPars.depthsPerRegion[y][x].far;
+        if(sequPars.depthsPerRegion[y][x].far < 0){
+            cerr << "Invalid parameter depthsPerRegion (far)." << endl;
+            return false;
+        }
+        if(idx > 8){
+            cerr << "Incorrect # of entries in depthsPerRegion." << endl;
+            return false;
+        }
         idx++;
-    }
-    if(idx != 9){
-        cerr << "Incorrect # of entries in depthsPerRegion." << endl;
-        return false;
     }
 
     n = fs["nrDepthAreasPReg"];
@@ -2177,12 +2336,16 @@ bool loadConfigFile(const std::string &filename,
         FileNode n1 = *it;
         n1["first"] >> first_int;
         n1["second"] >> second_int;
+        if((first_int < 1) || ((second_int < 1))){
+            cerr << "Invalid parameter nrDepthAreasPReg." << endl;
+            return false;
+        }
         sequPars.nrDepthAreasPReg[y][x] = make_pair((size_t) first_int, (size_t) second_int);
+        if(idx > 8){
+            cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
+            return false;
+        }
         idx++;
-    }
-    if(idx != 9){
-        cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
-        return false;
     }
 
     n = fs["camTrack"];
@@ -2201,6 +2364,10 @@ bool loadConfigFile(const std::string &filename,
     fs["relCamVelocity"] >> sequPars.relCamVelocity;
 
     fs["nrMovObjs"] >> tmp;
+    if(tmp < 0){
+        cerr << "Invalid parameter nrMovObjs." << endl;
+        return false;
+    }
     sequPars.nrMovObjs = (size_t) tmp;
 
     fs["startPosMovObjs"] >> sequPars.startPosMovObjs;
@@ -2238,6 +2405,10 @@ bool loadConfigFile(const std::string &filename,
     fs["CorrMovObjPort"] >> sequPars.CorrMovObjPort;
 
     fs["minNrMovObjs"] >> tmp;
+    if(tmp < 0){
+        cerr << "Invalid parameter minNrMovObjs." << endl;
+        return false;
+    }
     sequPars.minNrMovObjs = (size_t) tmp;
 
     n = fs["distortCamMat"];

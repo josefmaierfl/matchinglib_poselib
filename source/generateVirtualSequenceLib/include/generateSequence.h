@@ -259,6 +259,24 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
             std::cerr << "Incorrect portions of correspondences per region." << std::endl;
             return false;
         }
+        if(!corrsPerRegion.empty()){
+            for(auto &k : corrsPerRegion) {
+                double sumregs = 0;
+                for (int i = 0; i < 3; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+                        if (k.at<double>(i, j) < 0) {
+                            std::cerr << "Invalid parameter corrsPerRegion." << std::endl;
+                            return false;
+                        }
+                        sumregs += k.at<double>(i, j);
+                    }
+                }
+                if (nearZero(sumregs)) {
+                    std::cerr << "Invalid parameter corrsPerRegion." << std::endl;
+                    return false;
+                }
+            }
+        }
         if(!(depthsPerRegion.empty()
         || ((depthsPerRegion.size() == 3)
         && (depthsPerRegion[0].size() == 3)
@@ -300,6 +318,24 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
         && (startPosMovObjs.type() == CV_8UC1)))){
             std::cerr << "Given matrix for possible starting positions of moving objects is invalid." << std::endl;
             return false;
+        }
+        if(!startPosMovObjs.empty()) {
+            bool found1 = false;
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    if (startPosMovObjs.at<bool>(i, j)) {
+                        found1 = true;
+                        break;
+                    }
+                }
+                if (found1) {
+                    break;
+                }
+            }
+            if (!found1) {
+                std::cerr << "Given matrix for possible starting positions of moving objects is invalid." << std::endl;
+                return false;
+            }
         }
         if(!((relAreaRangeMovObjs.first <= 1.0)
         && (relAreaRangeMovObjs.first >= 0)

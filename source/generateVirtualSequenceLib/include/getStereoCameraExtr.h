@@ -53,6 +53,46 @@ public:
 		std::vector<std::vector<double>> yaw, 
 		double approxImgOverlap, cv::Size imgSize);
 
+    GenStereoPars(){}
+
+	//Copy constructor
+    GenStereoPars(const GenStereoPars &gsp):
+            tx_(gsp.tx_),
+            ty_(gsp.ty_),
+            tz_(gsp.tz_),
+            roll_(gsp.roll_),
+            pitch_(gsp.pitch_),
+            yaw_(gsp.yaw_),
+            approxImgOverlap_(gsp.approxImgOverlap_),
+            imgSize_(gsp.imgSize_),
+            nrConditions(gsp.nrConditions),
+            txRangeEqual(gsp.txRangeEqual),
+            tyRangeEqual(gsp.tyRangeEqual),
+            tzRangeEqual(gsp.tzRangeEqual),
+            rollRangeEqual(gsp.rollRangeEqual),
+            pitchRangeEqual(gsp.pitchRangeEqual),
+            yawRangeEqual(gsp.yawRangeEqual){}
+
+    //Copy assignment operator
+    GenStereoPars& operator=(const GenStereoPars& gsp){
+        tx_ = gsp.tx_;
+        ty_ = gsp.ty_;
+        tz_ = gsp.tz_;
+        roll_ = gsp.roll_;
+        pitch_ = gsp.pitch_;
+        yaw_ = gsp.yaw_;
+        approxImgOverlap_ = gsp.approxImgOverlap_;
+        imgSize_ = gsp.imgSize_;
+        nrConditions = gsp.nrConditions;
+        txRangeEqual = gsp.txRangeEqual;
+        tyRangeEqual = gsp.tyRangeEqual;
+        tzRangeEqual = gsp.tzRangeEqual;
+        rollRangeEqual = gsp.rollRangeEqual;
+        pitchRangeEqual = gsp.pitchRangeEqual;
+        yawRangeEqual = gsp.yawRangeEqual;
+        return *this;
+    }
+
 	int optimizeRtf(int verbose = 0);
 	void setLMTolerance(double rollTol, double pitchTol, double txTol, double tyTol, double fTol);
 	bool getCamPars(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2);
@@ -72,16 +112,16 @@ private:
 	std::vector<std::vector<double>> roll_;
 	std::vector<std::vector<double>> pitch_;
 	std::vector<std::vector<double>> yaw_;
-	double approxImgOverlap_;
-	cv::Size imgSize_;
-	size_t nrConditions;
+	double approxImgOverlap_ = 0;
+	cv::Size imgSize_ = cv::Size(0,0);
+	size_t nrConditions = 0;
 
-	bool txRangeEqual;
-	bool tyRangeEqual;
-	bool tzRangeEqual;
-	bool rollRangeEqual;
-	bool pitchRangeEqual;
-	bool yawRangeEqual;
+	bool txRangeEqual = false;
+	bool tyRangeEqual = false;
+	bool tzRangeEqual = false;
+	bool rollRangeEqual = false;
+	bool pitchRangeEqual = false;
+	bool yawRangeEqual = false;
 
 	std::vector<double> tx_use;
 	std::vector<double> ty_use;
@@ -89,8 +129,8 @@ private:
 	std::vector<double> roll_use;
 	std::vector<double> pitch_use;
 	std::vector<double> yaw_use;
-	double f;
-	double fRange[2];
+	double f = 0;
+	double fRange[2] = {0,0};
 
 	const double angView[2] = { 45.0 * PI / 180.0, 120.0 * PI / 180.0 };//Min and max viewing angles of the cameras
 
