@@ -278,13 +278,13 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 						&& (filename.size() >= fileprefl_use.size()) && filename.find(fileprefl_use) != std::string::npos)
 					|| (bCmpFuzzy && fileprefl_use.empty() && !filepostfx.empty()
 						&& (filename.size() >= filepostfx.size()) && filename.find(filepostfx) != std::string::npos)
-					|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0))
-					if (i == 0) {
-						filenamesl.push_back(filedir_use + "/" + filename);
-					}
-					else {
-						filenamesr.push_back(filedir_use + "/" + filename);
-					}
+					|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0)) {
+                    if (i == 0) {
+                        filenamesl.push_back(filedir_use + "/" + filename);
+                    } else {
+                        filenamesr.push_back(filedir_use + "/" + filename);
+                    }
+                }
 			}
 			closedir(dir);
 		}

@@ -99,10 +99,10 @@ bool solveLinEqu(const cv::Mat& A, const cv::Mat& b, cv::Mat& x);
 void MatToQuat(const Eigen::Matrix3d & rot, Eigen::Vector4d & quat);
 
 //Checks if a 3x3 matrix is a rotation matrix
-bool isMatRotationMat(const cv::Mat& R);
+bool GENERATEVIRTUALSEQUENCELIB_API isMatRotationMat(const cv::Mat& R);
 
 //Checks if a 3x3 matrix is a rotation matrix
-bool isMatRotationMat(Eigen::Matrix3d R);
+bool GENERATEVIRTUALSEQUENCELIB_API isMatRotationMat(Eigen::Matrix3d R);
 
 //Calculates the difference (rotation angle) between two rotation quaternions.
 double rotDiff(Eigen::Vector4d & R1, Eigen::Vector4d & R2);

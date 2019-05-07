@@ -218,6 +218,31 @@ struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
         parsAreValid(false),
 		distortCamMat(std::make_pair(0, 0)){}
 
+    StereoSequParameters(const StereoSequParameters& ssp):
+            nFramesPerCamConf(ssp.nFramesPerCamConf),
+            nTotalNrFrames(ssp.nTotalNrFrames),
+            inlRatRange(ssp.inlRatRange),
+            inlRatChanges(ssp.inlRatChanges),
+            truePosRange(ssp.truePosRange),
+            truePosChanges(ssp.truePosChanges),
+            minKeypDist(ssp.minKeypDist),
+            corrsPerDepth(ssp.corrsPerDepth),
+            corrsPerRegion(ssp.corrsPerRegion),
+            corrsPerRegRepRate(ssp.corrsPerRegRepRate),
+            depthsPerRegion(ssp.depthsPerRegion),
+            nrDepthAreasPReg(ssp.nrDepthAreasPReg),
+            camTrack(ssp.camTrack),
+            relCamVelocity(ssp.relCamVelocity),
+            nrMovObjs(ssp.nrMovObjs),
+            relAreaRangeMovObjs(ssp.relAreaRangeMovObjs),
+            movObjDepth(ssp.movObjDepth),
+            relMovObjVelRange(ssp.relMovObjVelRange),
+            minMovObjCorrPortion(ssp.minMovObjCorrPortion),
+            CorrMovObjPort(ssp.CorrMovObjPort),
+            minNrMovObjs(ssp.minNrMovObjs),
+            parsAreValid(ssp.parsAreValid),
+            distortCamMat(ssp.distortCamMat){}
+
 	bool checkParameters(){
         if(nFramesPerCamConf == 0){
             std::cerr << "Incorrect # of frames per camera configuration." << std::endl;
@@ -471,6 +496,160 @@ public:
     verbose(verbose_),
     filter_occluded_points(filter_occluded_points_),
     pars(StereoSequParameters()){};
+    genStereoSequ(const genStereoSequ& gss):
+            verbose(gss.verbose),
+            filter_occluded_points(gss.filter_occluded_points),
+            imgSize(gss.imgSize),
+            K1(gss.K1),
+            K1i(gss.K1i),
+            K2(gss.K2),
+            K2i(gss.K2i),
+            absCamVelocity(gss.absCamVelocity),
+            nrTruePos(gss.nrTruePos),
+            nrTrueNeg(gss.nrTrueNeg),
+            fixedNrCorrs(gss.fixedNrCorrs),
+            nrTruePosRegs(gss.nrTruePosRegs),
+            nrCorrsRegs(gss.nrCorrsRegs),
+            nrTrueNegRegs(gss.nrTrueNegRegs),
+            regmasks(gss.regmasks),
+            regmasksROIs(gss.regmasksROIs),
+            depthMap(gss.depthMap),
+            depthAreaMap(gss.depthAreaMap),
+            depthNear(gss.depthNear),
+            depthMid(gss.depthMid),
+            depthFar(gss.depthFar),
+            depthsPerRegion(gss.depthsPerRegion),
+            nrDepthAreasPRegNear(gss.nrDepthAreasPRegNear),
+            nrDepthAreasPRegMid(gss.nrDepthAreasPRegMid),
+            nrDepthAreasPRegFar(gss.nrDepthAreasPRegFar),
+            areaPRegNear(gss.areaPRegNear),
+            areaPRegMid(gss.areaPRegMid),
+            areaPRegFar(gss.areaPRegFar),
+            regROIs(gss.regROIs),
+            csurr(gss.csurr),
+            avgMaskingArea(gss.avgMaskingArea),
+            seedsNear(gss.seedsNear),
+            seedsMid(gss.seedsMid),
+            seedsFar(gss.seedsFar),
+            seedsNearFromLast(gss.seedsNearFromLast),
+            seedsMidFromLast(gss.seedsMidFromLast),
+            seedsFarFromLast(gss.seedsFarFromLast),
+            seedsNearNNDist(gss.seedsNearNNDist),
+            seedsMidNNDist(gss.seedsMidNNDist),
+            seedsFarNNDist(gss.seedsFarNNDist),
+            startPosMovObjs(gss.startPosMovObjs),
+            movObjDir(gss.movObjDir),
+            minOArea(gss.minOArea),
+            maxOArea(gss.maxOArea),
+            minODist(gss.minODist),
+            maxOPerReg(gss.maxOPerReg),
+            movObjAreas(gss.movObjAreas),
+            movObjSeeds(gss.movObjSeeds),
+            fracUseableTPperRegion(gss.fracUseableTPperRegion),
+            actFracUseableTPperRegion(gss.actFracUseableTPperRegion),
+            stereoImgsOverlapMask(gss.stereoImgsOverlapMask),
+            actStereoImgsOverlapMask(gss.actStereoImgsOverlapMask),
+            K1_distorted(gss.K1_distorted),
+            K2_distorted(gss.K2_distorted),
+            rand_gen(gss.rand_gen),
+            rand2(gss.rand2),
+            pars(gss.pars),
+            actFrameCnt(gss.actFrameCnt),
+            actDepthNear(gss.actDepthNear),
+            actDepthMid(gss.actDepthMid),
+            actDepthFar(gss.actDepthFar),
+            actR(gss.actR),
+            actT(gss.actT),
+            actKd1(gss.actKd1),
+            actKd2(gss.actKd2),
+            totalNrFrames(gss.totalNrFrames),
+            R(gss.R),
+            t(gss.t),
+            nrStereoConfs(gss.nrStereoConfs),
+            nrCorrs(gss.nrCorrs),
+            inlRat(gss.inlRat),
+            absCamCoordinates(gss.absCamCoordinates),
+            tus_to_init(gss.tus_to_init),
+            timePerFrame(gss.timePerFrame){}
+
+    genStereoSequ& operator=(const genStereoSequ& gss){
+        verbose = gss.verbose;
+        filter_occluded_points = gss.filter_occluded_points;
+        imgSize = gss.imgSize;
+        K1 = gss.K1;
+        K2 = gss.K2;
+        K1i = gss.K1i;
+        K2i = gss.K2i;
+        absCamVelocity = gss.absCamVelocity;
+        nrTruePos = gss.nrTruePos;
+        nrTrueNeg = gss.nrTrueNeg;
+        fixedNrCorrs = gss.fixedNrCorrs;
+        nrTruePosRegs = gss.nrTruePosRegs;
+        nrCorrsRegs = gss.nrCorrsRegs;
+        nrTrueNegRegs = gss.nrTrueNegRegs;
+        regmasks = gss.regmasks;
+        regmasksROIs = gss.regmasksROIs;
+        depthMap = gss.depthMap;
+        depthAreaMap = gss.depthAreaMap;
+        depthNear = gss.depthNear;
+        depthMid = gss.depthMid;
+        depthFar = gss.depthFar;
+        depthsPerRegion = gss.depthsPerRegion;
+        nrDepthAreasPRegNear = gss.nrDepthAreasPRegNear;
+        nrDepthAreasPRegMid = gss.nrDepthAreasPRegMid;
+        nrDepthAreasPRegFar = gss.nrDepthAreasPRegFar;
+        areaPRegNear = gss.areaPRegNear;
+        areaPRegMid = gss.areaPRegMid;
+        areaPRegFar = gss.areaPRegFar;
+        regROIs = gss.regROIs;
+        csurr = gss.csurr;
+        avgMaskingArea = gss.avgMaskingArea;
+        seedsNear = gss.seedsNear;
+        seedsMid = gss.seedsMid;
+        seedsFar = gss.seedsFar;
+        seedsNearFromLast = gss.seedsNearFromLast;
+        seedsMidFromLast = gss.seedsMidFromLast;
+        seedsFarFromLast = gss.seedsFarFromLast;
+        seedsNearNNDist = gss.seedsNearNNDist;
+        seedsMidNNDist = gss.seedsMidNNDist;
+        seedsFarNNDist = gss.seedsFarNNDist;
+        startPosMovObjs = gss.startPosMovObjs;
+        movObjDir = gss.movObjDir;
+        minOArea = gss.minOArea;
+        maxOArea = gss.maxOArea;
+        minODist = gss.minODist;
+        maxOPerReg = gss.maxOPerReg;
+        movObjAreas = gss.movObjAreas;
+        movObjSeeds = gss.movObjSeeds;
+        fracUseableTPperRegion = gss.fracUseableTPperRegion;
+        actFracUseableTPperRegion = gss.actFracUseableTPperRegion;
+        stereoImgsOverlapMask = gss.stereoImgsOverlapMask;
+        actStereoImgsOverlapMask = gss.actStereoImgsOverlapMask;
+        K1_distorted = gss.K1_distorted;
+        K2_distorted = gss.K2_distorted;
+        rand_gen = gss.rand_gen;
+        rand2 = gss.rand2;
+        pars = gss.pars;
+        actFrameCnt = gss.actFrameCnt;
+        actDepthNear = gss.actDepthNear;
+        actDepthMid = gss.actDepthMid;
+        actDepthFar = gss.actDepthFar;
+        actR = gss.actR;
+        actT = gss.actT;
+        actKd1 = gss.actKd1;
+        actKd2 = gss.actKd2;
+        totalNrFrames = gss.totalNrFrames;
+        R = gss.R;
+        t = gss.t;
+        nrStereoConfs = gss.nrStereoConfs;
+        nrCorrs = gss.nrCorrs;
+        inlRat = gss.inlRat;
+        absCamCoordinates = gss.absCamCoordinates;
+        tus_to_init = gss.tus_to_init;
+        timePerFrame = gss.timePerFrame;
+        return *this;
+    }
+
 	virtual void startCalc();
 
 protected:

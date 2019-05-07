@@ -321,10 +321,10 @@ private:
     qualityParm time3DStats = qualityParm();//Statistics for the execution time in microseconds for calculating 3D correspondences based on all frames
 };
 
-static inline cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
-static inline void operator >> (const cv::FileNode& n, bool& value);
-static inline void operator >> (const cv::FileNode& n, int64_t& value);
-static inline cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
-static inline cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
+GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
+void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, bool& value);
+void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, int64_t& value);
+GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
+GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

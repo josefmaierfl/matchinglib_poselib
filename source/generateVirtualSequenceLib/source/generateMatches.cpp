@@ -3012,7 +3012,7 @@ bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &
     return true;
 }
 
-static inline FileStorage& operator << (FileStorage& fs, bool &value)
+FileStorage& operator << (FileStorage& fs, bool &value)
 {
     if(value){
         return (fs << 1);
@@ -3021,7 +3021,7 @@ static inline FileStorage& operator << (FileStorage& fs, bool &value)
     return (fs << 0);
 }
 
-static inline void operator >> (const FileNode& n, bool& value)
+void operator >> (const FileNode& n, bool& value)
 {
     int bVal;
     n >> bVal;
@@ -3032,20 +3032,20 @@ static inline void operator >> (const FileNode& n, bool& value)
     }
 }
 
-static inline FileStorage& operator << (FileStorage& fs, int64_t &value)
+FileStorage& operator << (FileStorage& fs, int64_t &value)
 {
     string strVal = std::to_string(value);
     return (fs << strVal);
 }
 
-static inline void operator >> (const FileNode& n, int64_t& value)
+void operator >> (const FileNode& n, int64_t& value)
 {
     string strVal;
     n >> strVal;
     value = std::stoll(strVal);
 }
 
-static inline FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value)
+FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value)
 {
     *it >> value;
     return ++it;

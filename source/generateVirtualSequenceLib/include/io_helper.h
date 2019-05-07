@@ -29,6 +29,8 @@ DISCRIPTION: This file provides functionalities for reading multiple files.
 #include <algorithm>
 #include <functional>
 
+#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
+
 using namespace std;
 //using namespace cv;
 
@@ -205,7 +207,7 @@ int makeFrameIdConsistent(std::vector<std::string> & filenamesl, std::vector<std
 *								-2:		  No corresponding images available
 *								-3:		  No images available
 */
-int loadImgStereoSequence(std::string filepath, std::string fileprefl, std::string fileprefr,
+int GENERATEVIRTUALSEQUENCELIB_API loadImgStereoSequence(std::string filepath, std::string fileprefl, std::string fileprefr,
 	std::vector<std::string> & filenamesl, std::vector<std::string> & filenamesr)
 {
 	DIR *dir;
@@ -267,11 +269,12 @@ int loadImgStereoSequence(std::string filepath, std::string fileprefl, std::stri
 						&& (filename.size() >= fileprefl_use.size()) && filename.find(fileprefl_use) != std::string::npos)
 					|| (bCmpFuzzy && fileprefl_use.empty() && !filepostfx.empty()
 						&& (filename.size() >= filepostfx.size()) && filename.find(filepostfx) != std::string::npos)
-					|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0))
-					if (i == 0)
-						filenamesl.push_back(filedir_use + "/" + filename);
-					else
-						filenamesr.push_back(filedir_use + "/" + filename);
+					|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0)) {
+                    if (i == 0)
+                        filenamesl.push_back(filedir_use + "/" + filename);
+                    else
+                        filenamesr.push_back(filedir_use + "/" + filename);
+                }
 			}
 			closedir(dir);
 		}
@@ -434,7 +437,7 @@ int makeFrameIdConsistent(std::vector<std::string> & filenamesl, std::vector<std
 *								-1:		  Could not open directory
 *								-2:		  No images available
 */
-int loadGTMSequence(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl)
+int GENERATEVIRTUALSEQUENCELIB_API loadGTMSequence(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl)
 {
 	DIR *dir;
 	struct dirent *ent;

@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: May 2017
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -119,6 +119,8 @@ int showGTM(std::string img_path, std::string l_img_pref, std::string r_img_pref
 			cout << "Error while reading GTM file " << filenamesgtm[k] << endl << endl;
 		}
 	}
+
+	return 0;
 }
 
 /* Shows the matches and optionally stores the matched keypoints as image to the disk. It can be specified if only true positives (blue),
