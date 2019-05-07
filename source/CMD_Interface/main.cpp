@@ -1263,7 +1263,7 @@ bool genStereoConfigurations(const int nrFrames,
                 }
                 err_cnt = 0;
                 do {
-                    err = newStereoPars.optimizeRtf(addPars.LMverbose);
+                    err = newStereoPars1.optimizeRtf(addPars.LMverbose);
                     err_cnt++;
                 }while(err && (err != -1) && (err_cnt < 10));
 
@@ -1617,7 +1617,7 @@ bool genStereoConfigurations(const int nrFrames,
             }
             err_cnt = 0;
             do {
-                err = newStereoPars.optimizeRtf(addPars.LMverbose);
+                err = newStereoPars1.optimizeRtf(addPars.LMverbose);
                 err_cnt++;
             }while(err && (err != -1) && (err_cnt < 10));
 
