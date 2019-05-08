@@ -1,13 +1,6 @@
-#include "eval_start.h"
 #include "argvparser.h"
 
 #include "io_data.h"
-
-#include "loadGTMfiles.h"
-
-//#include <opencv2/imgproc/imgproc.hpp>
-
-//#include "PfeImgFileIO.h"
 
 #include "getStereoCameraExtr.h"
 #include "generateSequence.h"
