@@ -31,8 +31,8 @@ if(${ENABLE_CMD_INTERFACE})
 endif()
 
 # Examples
-# set(IDE_FOLDER "Examples")
-# add_subdirectory(examples)
+ set(IDE_FOLDER "Examples")
+ add_subdirectory(examples)
 
 # Tests
 set(IDE_FOLDER "Tests")

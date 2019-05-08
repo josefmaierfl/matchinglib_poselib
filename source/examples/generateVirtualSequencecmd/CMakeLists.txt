@@ -23,6 +23,7 @@ message(STATUS "Example ${target}")
 
 set(sources
     main.cpp
+    argvparser.cpp
 )
 
 
@@ -32,7 +33,7 @@ set(sources
 
 # Build executable
 add_executable(${target}
-    MACOSX_BUNDLE
+    #MACOSX_BUNDLE
     ${sources}
 )
 

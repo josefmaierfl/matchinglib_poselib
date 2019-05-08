@@ -6,4 +6,4 @@ endif()
 
 # Example applications
 add_subdirectory(generateVirtualSequencecmd)
-add_subdirectory(generateVirtualSequencegui)
+#add_subdirectory(generateVirtualSequencegui)
