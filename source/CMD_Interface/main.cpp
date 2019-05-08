@@ -364,6 +364,24 @@ int startEvaluation(ArgvParser& cmd)
         if(!checkConfigFileName(genConfTempl, "generating a template")){
             return -1;
         }
+        if(checkFileExists(genConfTempl)){
+            cout << "Config file already exists. Do you want to replace it?(y/n)";
+            string uip;
+            cin >> uip;
+            while ((uip != "y") && (uip != "n")) {
+                cout << endl << "Try again:";
+                cin >> uip;
+            }
+            cout << endl;
+            if (uip == "n") {
+                return -1;
+            }else{
+                if(!deleteFile(genConfTempl)){
+                    cerr << "Unable to delete old config file." << endl;
+                    return -1;
+                }
+            }
+        }
         if(!genTemplateFile(genConfTempl)){
             cerr << "Unable to generate a template file. Check write permissions." << endl;
             return -1;
@@ -701,9 +719,6 @@ bool genStereoConfigurations(const int nrFrames,
         }else if(minStUpDateFrequ == 0){
             minStUpDateFrequ = nrFrames;
         }
-        /*int minStUpDateFrequ = min(min(min(stereoPars.txChangeFRate, stereoPars.tyChangeFRate),
-                min(stereoPars.tzChangeFRate, stereoPars.rollChangeFRate)),
-                min(stereoPars.pitchChangeFRate, stereoPars.yawChangeFRate));*/
         int maxStUpDateFrequ = max(max(max(stereoPars.txChangeFRate, stereoPars.tyChangeFRate),
                                    max(stereoPars.tzChangeFRate, stereoPars.rollChangeFRate)),
                                    max(stereoPars.pitchChangeFRate, stereoPars.yawChangeFRate));
@@ -732,7 +747,6 @@ bool genStereoConfigurations(const int nrFrames,
                     return false;
                 }
                 tx.emplace_back(std::vector<double>(1,stereoPars.txStartVal));
-//                tx.back().push_back(stereoPars.txStartVal);
             }else {
                 tx.emplace_back(std::vector<double>(1, stereoPars.txRange.first));
                 tx.back().push_back(stereoPars.txRange.second);
@@ -743,7 +757,6 @@ bool genStereoConfigurations(const int nrFrames,
                     return false;
                 }
                 ty.emplace_back(std::vector<double>(1,stereoPars.tyStartVal));
-//                ty.back().push_back(stereoPars.tyStartVal);
             }else {
                 ty.emplace_back(std::vector<double>(1, stereoPars.tyRange.first));
                 ty.back().push_back(stereoPars.tyRange.second);
@@ -754,7 +767,6 @@ bool genStereoConfigurations(const int nrFrames,
                     return false;
                 }
                 tz.emplace_back(std::vector<double>(1,stereoPars.tzStartVal));
-//                tz.back().push_back(stereoPars.tzStartVal);
             }else {
                 tz.emplace_back(std::vector<double>(1, stereoPars.tzRange.first));
                 tz.back().push_back(stereoPars.tzRange.second);
@@ -765,7 +777,6 @@ bool genStereoConfigurations(const int nrFrames,
                     return false;
                 }
                 roll.emplace_back(std::vector<double>(1,stereoPars.rollStartVal));
-//                roll.back().push_back(stereoPars.rollStartVal);
             }else {
                 roll.emplace_back(std::vector<double>(1, stereoPars.rollRange.first));
                 roll.back().push_back(stereoPars.rollRange.second);
@@ -776,7 +787,6 @@ bool genStereoConfigurations(const int nrFrames,
                     return false;
                 }
                 pitch.emplace_back(std::vector<double>(1,stereoPars.pitchStartVal));
-//                pitch.back().push_back(stereoPars.pitchStartVal);
             }else {
                 pitch.emplace_back(std::vector<double>(1, stereoPars.pitchRange.first));
                 pitch.back().push_back(stereoPars.pitchRange.second);
@@ -787,7 +797,6 @@ bool genStereoConfigurations(const int nrFrames,
                     return false;
                 }
                 yaw.emplace_back(std::vector<double>(1,stereoPars.yawStartVal));
-//                yaw.back().push_back(stereoPars.yawStartVal);
             }else {
                 yaw.emplace_back(std::vector<double>(1, stereoPars.yawRange.first));
                 yaw.back().push_back(stereoPars.yawRange.second);
@@ -927,32 +936,26 @@ bool genStereoConfigurations(const int nrFrames,
                 if(!stereoPars.txVariable){
                     tx[0].resize(1);
                     tx[0][0] = t_new1[0].at<double>(0);
-//                    tx[0][1] = t_new1[0].at<double>(0);
                 }
                 if(!stereoPars.tyVariable){
                     ty[0].resize(1);
                     ty[0][0] = t_new1[0].at<double>(1);
-//                    ty[0][1] = t_new1[0].at<double>(1);
                 }
                 if(!stereoPars.tzVariable){
                     tz[0].resize(1);
                     tz[0][0] = t_new1[0].at<double>(2);
-//                    tz[0][1] = t_new1[0].at<double>(2);
                 }
                 if(!stereoPars.rollVariable){
                     roll[0].resize(1);
                     roll[0][0] = roll_new1[0];
-//                    roll[0][1] = roll_new1[0];
                 }
                 if(!stereoPars.pitchVariable){
                     pitch[0].resize(1);
                     pitch[0][0] = pitch_new1[0];
-//                    pitch[0][1] = pitch_new1[0];
                 }
                 if(!stereoPars.yawVariable){
                     yaw[0].resize(1);
                     yaw[0][0] = yaw_new1[0];
-//                    yaw[0][1] = yaw_new1[0];
                 }
             }
             enum keepFixed{
@@ -978,7 +981,6 @@ bool genStereoConfigurations(const int nrFrames,
                         tx.back().push_back(stereoPars.txRange.second);
                     }else{
                         tx.emplace_back(std::vector<double>(1, tx.back()[0] + stereoPars.txLinChangeVal));
-//                        tx.back().push_back(tx.back()[0]);
                     }
                 } else if(setNewRanges){
                     tx.push_back(tx.back());
@@ -993,7 +995,6 @@ bool genStereoConfigurations(const int nrFrames,
                         ty.back().push_back(stereoPars.tyRange.second);
                     }else{
                         ty.emplace_back(std::vector<double>(1, ty.back()[0] + stereoPars.tyLinChangeVal));
-//                        ty.back().push_back(ty.back()[0]);
                     }
                 } else if(setNewRanges){
                     ty.push_back(ty.back());
@@ -1008,7 +1009,6 @@ bool genStereoConfigurations(const int nrFrames,
                         tz.back().push_back(stereoPars.tzRange.second);
                     }else{
                         tz.emplace_back(std::vector<double>(1, tz.back()[0] + stereoPars.tzLinChangeVal));
-//                        tz.back().push_back(tz.back()[0]);
                     }
                 } else if(setNewRanges){
                     tz.push_back(tz.back());
@@ -1023,7 +1023,6 @@ bool genStereoConfigurations(const int nrFrames,
                         roll.back().push_back(stereoPars.rollRange.second);
                     }else{
                         roll.emplace_back(std::vector<double>(1, roll.back()[0] + stereoPars.rollLinChangeVal));
-//                        roll.back().push_back(roll.back()[0]);
                     }
                 } else if(setNewRanges){
                     roll.push_back(roll.back());
@@ -1038,7 +1037,6 @@ bool genStereoConfigurations(const int nrFrames,
                         pitch.back().push_back(stereoPars.pitchRange.second);
                     }else{
                         pitch.emplace_back(std::vector<double>(1, pitch.back()[0] + stereoPars.pitchLinChangeVal));
-//                        pitch.back().push_back(pitch.back()[0]);
                     }
                 } else if(setNewRanges){
                     pitch.push_back(pitch.back());
@@ -1053,7 +1051,6 @@ bool genStereoConfigurations(const int nrFrames,
                         yaw.back().push_back(stereoPars.yawRange.second);
                     }else{
                         yaw.emplace_back(std::vector<double>(1, yaw.back()[0] + stereoPars.yawLinChangeVal));
-//                        yaw.back().push_back(yaw.back()[0]);
                     }
                 } else if(setNewRanges){
                     yaw.push_back(yaw.back());
@@ -1202,51 +1199,39 @@ bool genStereoConfigurations(const int nrFrames,
                 for (int i = 0; i < cnt; ++i) {
                     if(fixLater[i] & TX){
                         tx[i][0] =  tx[i - 1][0];
-//                        tx[i][1] =  tx[i - 1][1];
                     }else{
                         tx[i].resize(1);
                         tx[i][0] =  t_new1[i].at<double>(0);
-//                        tx[i][1] =  t_new1[i].at<double>(0);
                     }
                     if(fixLater[i] & TY){
                         ty[i][0] =  ty[i - 1][0];
-//                        ty[i][1] =  ty[i - 1][1];
                     }else{
                         ty[i].resize(1);
                         ty[i][0] =  t_new1[i].at<double>(1);
-//                        ty[i][1] =  t_new1[i].at<double>(1);
                     }
                     if(fixLater[i] & TZ){
                         tz[i][0] =  tz[i - 1][0];
-//                        tz[i][1] =  tz[i - 1][1];
                     }else{
                         tz[i].resize(1);
                         tz[i][0] =  t_new1[i].at<double>(2);
-//                        tz[i][1] =  t_new1[i].at<double>(2);
                     }
                     if(fixLater[i] & ROLL){
                         roll[i][0] =  roll[i - 1][0];
-//                        roll[i][1] =  roll[i - 1][1];
                     }else{
                         roll[i].resize(1);
                         roll[i][0] =  roll_new1[i];
-//                        roll[i][1] =  roll_new1[i];
                     }
                     if(fixLater[i] & PITCH){
                         pitch[i][0] =  pitch[i - 1][0];
-//                        pitch[i][1] =  pitch[i - 1][1];
                     }else{
                         pitch[i].resize(1);
                         pitch[i][0] =  pitch_new1[i];
-//                        pitch[i][1] =  pitch_new1[i];
                     }
                     if(fixLater[i] & YAW){
                         yaw[i][0] =  yaw[i - 1][0];
-//                        yaw[i][1] =  yaw[i - 1][1];
                     }else{
                         yaw[i].resize(1);
                         yaw[i][0] =  yaw_new1[i];
-//                        yaw[i][1] =  yaw_new1[i];
                     }
                 }
                 //Get the parameters
@@ -1327,42 +1312,36 @@ bool genStereoConfigurations(const int nrFrames,
             //Linear change of all stereo parameters
             if(nearZero(stereoPars.txRange.first - stereoPars.txRange.second)){
                 tx.emplace_back(std::vector<double>(1,stereoPars.txStartVal));
-//                tx.back().push_back(stereoPars.txStartVal);
             }else {
                 tx.emplace_back(std::vector<double>(1, stereoPars.txRange.first));
                 tx.back().push_back(stereoPars.txRange.second);
             }
             if(nearZero(stereoPars.tyRange.first - stereoPars.tyRange.second)){
                 ty.emplace_back(std::vector<double>(1,stereoPars.tyStartVal));
-//                ty.back().push_back(stereoPars.tyStartVal);
             }else {
                 ty.emplace_back(std::vector<double>(1, stereoPars.tyRange.first));
                 ty.back().push_back(stereoPars.tyRange.second);
             }
             if(nearZero(stereoPars.tzRange.first - stereoPars.tzRange.second)){
                 tz.emplace_back(std::vector<double>(1,stereoPars.tzStartVal));
-//                tz.back().push_back(stereoPars.tzStartVal);
             }else {
                 tz.emplace_back(std::vector<double>(1, stereoPars.tzRange.first));
                 tz.back().push_back(stereoPars.tzRange.second);
             }
             if(nearZero(stereoPars.rollRange.first - stereoPars.rollRange.second)){
                 roll.emplace_back(std::vector<double>(1,stereoPars.rollStartVal));
-//                roll.back().push_back(stereoPars.rollStartVal);
             }else {
                 roll.emplace_back(std::vector<double>(1, stereoPars.rollRange.first));
                 roll.back().push_back(stereoPars.rollRange.second);
             }
             if(nearZero(stereoPars.pitchRange.first - stereoPars.pitchRange.second)){
                 pitch.emplace_back(std::vector<double>(1,stereoPars.pitchStartVal));
-//                pitch.back().push_back(stereoPars.pitchStartVal);
             }else {
                 pitch.emplace_back(std::vector<double>(1, stereoPars.pitchRange.first));
                 pitch.back().push_back(stereoPars.pitchRange.second);
             }
             if(nearZero(stereoPars.yawRange.first - stereoPars.yawRange.second)){
                 yaw.emplace_back(std::vector<double>(1,stereoPars.yawStartVal));
-//                yaw.back().push_back(stereoPars.yawStartVal);
             }else {
                 yaw.emplace_back(std::vector<double>(1, stereoPars.yawRange.first));
                 yaw.back().push_back(stereoPars.yawRange.second);
@@ -1497,22 +1476,16 @@ bool genStereoConfigurations(const int nrFrames,
             //Fix values for linear changes
             tx[0].resize(1);
             tx[0][0] = t_new1[0].at<double>(0);
-//            tx[0][1] = t_new1[0].at<double>(0);
             ty[0].resize(1);
             ty[0][0] = t_new1[0].at<double>(1);
-//            ty[0][1] = t_new1[0].at<double>(1);
             tz[0].resize(1);
             tz[0][0] = t_new1[0].at<double>(2);
-//            tz[0][1] = t_new1[0].at<double>(2);
             roll[0].resize(1);
             roll[0][0] = roll_new1[0];
-//            roll[0][1] = roll_new1[0];
             pitch[0].resize(1);
             pitch[0][0] = pitch_new1[0];
-//            pitch[0][1] = pitch_new1[0];
             yaw[0].resize(1);
             yaw[0][0] = yaw_new1[0];
-//            yaw[0][1] = yaw_new1[0];
 
             int cnt = 1;
             for (int i = 1; i < nrFrames; ++i) {
@@ -1524,42 +1497,36 @@ bool genStereoConfigurations(const int nrFrames,
                                     || ((stereoPars.yawChangeFRate) && ((i % stereoPars.yawChangeFRate) == 0));
                 if(stereoPars.txChangeFRate && ((i % stereoPars.txChangeFRate) == 0)) {
                     tx.emplace_back(std::vector<double>(1, tx.back()[0] + stereoPars.txLinChangeVal));
-//                    tx.back().push_back(tx.back()[0]);
                 } else if(setNewRanges){
                     tx.push_back(tx.back());
                 }
 
                 if(stereoPars.tyChangeFRate && ((i % stereoPars.tyChangeFRate) == 0)) {
                     ty.emplace_back(std::vector<double>(1, ty.back()[0] + stereoPars.tyLinChangeVal));
-//                    ty.back().push_back(ty.back()[0]);
                 } else if(setNewRanges){
                     ty.push_back(ty.back());
                 }
 
                 if(stereoPars.tzChangeFRate && ((i % stereoPars.tzChangeFRate) == 0)) {
                     tz.emplace_back(std::vector<double>(1, tz.back()[0] + stereoPars.tzLinChangeVal));
-//                    tz.back().push_back(tz.back()[0]);
                 } else if(setNewRanges){
                     tz.push_back(tz.back());
                 }
 
                 if(stereoPars.rollChangeFRate && ((i % stereoPars.rollChangeFRate) == 0)) {
                     roll.emplace_back(std::vector<double>(1, roll.back()[0] + stereoPars.rollLinChangeVal));
-//                    roll.back().push_back(roll.back()[0]);
                 } else if(setNewRanges){
                     roll.push_back(roll.back());
                 }
 
                 if(stereoPars.pitchChangeFRate && ((i % stereoPars.pitchChangeFRate) == 0)) {
                     pitch.emplace_back(std::vector<double>(1, pitch.back()[0] + stereoPars.pitchLinChangeVal));
-//                    pitch.back().push_back(pitch.back()[0]);
                 } else if(setNewRanges){
                     pitch.push_back(pitch.back());
                 }
 
                 if(stereoPars.yawChangeFRate && ((i % stereoPars.yawChangeFRate) == 0)) {
                     yaw.emplace_back(std::vector<double>(1, yaw.back()[0] + stereoPars.yawLinChangeVal));
-//                    yaw.back().push_back(yaw.back()[0]);
                 } else if(setNewRanges){
                     yaw.push_back(yaw.back());
                 }
