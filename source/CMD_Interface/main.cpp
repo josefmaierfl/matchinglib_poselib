@@ -1698,7 +1698,9 @@ bool genTemplateFile(const std::string &filename){
 
     cvWriteComment(*fs, "---- Options for stereo extrinsics ----\n\n", 0);
 
-    cvWriteComment(*fs, "Number of different stereo configurations (max. 1000).", 0);
+    cvWriteComment(*fs, "Number of different stereo configurations (max. 1000). \n"
+                        "The number of frames per camera configuration is controlled by the smallest number of "
+                        "the change rates (e.g. txChangeFRate) for tx, ty, tz, roll, pitch, and yaw.", 0);
     fs << "nrStereoConfigs" << 10;
 
     cvWriteComment(*fs, "Specifies after how many frames the x-component for the translation vector between "
