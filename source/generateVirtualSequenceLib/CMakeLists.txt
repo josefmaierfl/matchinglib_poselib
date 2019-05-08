@@ -129,12 +129,12 @@ set(headers
 
 set(sources
     #${source_path}/argvparser.cpp
-    ${source_path}/base_matcher.cpp
-    ${source_path}/eval_start.cpp
+    #${source_path}/base_matcher.cpp
+    #${source_path}/eval_start.cpp
     ${source_path}/io_data.cpp
     #${source_path}/main.cpp
 
-	${source_path}/loadGTMfiles.cpp
+	#${source_path}/loadGTMfiles.cpp
 	
 	${source_path}/getStereoCameraExtr.cpp
 	${source_path}/generateSequence.cpp
