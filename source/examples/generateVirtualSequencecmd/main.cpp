@@ -11,9 +11,11 @@
      cmd.addErrorCode(0, "Success");
      cmd.addErrorCode(1, "Error");
 
-     cmd.setHelpOption("h", "help","Using option --file is mandatory.");
+     cmd.setHelpOption("h", "help","Using option --file and --fileRt is mandatory.");
      cmd.defineOption("file", "<Path and Filename (including file ending) of the matches.>",
              ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+     cmd.defineOption("fileRt", "<Path and Filename (including file ending) of the sequence data of a single frame.>",
+                      ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
 
      /// finally parse and handle return codes (display help etc...)
      int result = -1;
@@ -31,12 +33,19 @@
      SetupCommandlineParser(cmd, argc, argv);
 
      std::string filename = cmd.optionValue("file");
+     std::string filenameRt = cmd.optionValue("fileRt");
      sequMatches sm;
      if(!readMatchesFromDisk(filename, sm)){
          cerr << "Unable to load matches." << endl;
          return EXIT_FAILURE;
      }else{
          cout << "Loading matches successful" << endl;
+     }
+     if(!readCamParsFromDisk(filenameRt, sm)){
+         cerr << "Unable to load extrinsics." << endl;
+         return EXIT_FAILURE;
+     }else{
+         cout << "Loading extrinsics successful" << endl;
      }
 
      return EXIT_SUCCESS;

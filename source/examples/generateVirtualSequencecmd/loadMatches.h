@@ -58,6 +58,20 @@ struct sequMatches{
      * object (old means, that the corresponding 3D point emerged before this stereo frame and
      * also has one or more correspondences in a different stereo frame))*/
     std::vector<int> corrType;
+    /* Frame number*/
+    size_t actFrameCnt;
+    /* Actual rotation matrix of the stereo rig: x2 = actR * x1 + actT*/
+    cv::Mat actR;
+    /* Actual translation vector of the stereo rig: x2 = actR * x1 + actT*/
+    cv::Mat actT;
+    /* Actual correct camera matrix of camera 1*/
+    cv::Mat K1;
+    /* Actual correct camera matrix of camera 2*/
+    cv::Mat K2;
+    /* Actual distorted camera matrix of camera 1*/
+    cv::Mat actKd1;
+    /* Actual distorted camera matrix of camera 1*/
+    cv::Mat actKd2;
 };
 
 void operator >> (const cv::FileNode& n, bool& value)
@@ -141,6 +155,29 @@ bool readMatchesFromDisk(const std::string &filename,
     }
 
     fs.release();
+
+    return true;
+}
+
+bool readCamParsFromDisk(const std::string &filename,
+                         sequMatches &sm){
+    FileStorage fs(filename, FileStorage::READ);
+
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
+
+    int tmp = 0;
+
+    fs["actFrameCnt"] >> tmp;
+    sm.actFrameCnt = (size_t) tmp;
+    fs["actR"] >> sm.actR;
+    fs["actT"] >> sm.actT;
+    fs["K1"] >> sm.K1;
+    fs["K2"] >> sm.K2;
+    fs["actKd1"] >> sm.actKd1;
+    fs["actKd2"] >> sm.actKd2;
 
     return true;
 }
