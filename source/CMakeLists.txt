@@ -15,7 +15,7 @@ configure_file(version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/${META_PROJECT_N
 # Libraries
 set(IDE_FOLDER "")
 option(ENABLE_MATCHINGLIB  "build with matchinglib" ON)
-option(ENABLE_POSELIB  "build with poselib" OFF)
+option(ENABLE_POSELIB  "build with poselib" ON)
 option(ENABLE_BASELIB  "build with poselib" OFF)
 option(ENABLE_FIBLIB  "build with poselib" OFF)
 # add_subdirectory(baselib)

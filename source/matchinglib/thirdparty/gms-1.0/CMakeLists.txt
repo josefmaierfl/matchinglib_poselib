@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.7)
 project(gms-feature-matching)
 
 
-set(USE_GPU TRUE CACHE BOOL "use cuda for feature matching")
+set(USE_GPU FALSE CACHE BOOL "use cuda for feature matching")
 
 if(USE_GPU)
     find_package(OpenCV 3.1 REQUIRED core imgproc highgui cudafeatures2d)

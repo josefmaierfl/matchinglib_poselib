@@ -441,7 +441,6 @@ void startEvaluation(ArgvParser& cmd)
 
     noPoseDiff = cmd.foundOption("noPoseDiff");
     autoTH = cmd.foundOption("autoTH");
-    refineRT = cmd.foundOption("refineRT");
     absCoord = cmd.foundOption("absCoord");
 
     showRect = cmd.foundOption("showRect");
@@ -1253,10 +1252,10 @@ void startEvaluation(ArgvParser& cmd)
 
 			//Extract coordinates from keypoints
 			vector<cv::Point2f> points1, points2;
-			for (size_t i = 0; i < finalMatches.size(); i++)
+			for (size_t j = 0; j < finalMatches.size(); j++)
 			{
-				points1.push_back(kp1[finalMatches[i].queryIdx].pt);
-				points2.push_back(kp2[finalMatches[i].trainIdx].pt);
+				points1.push_back(kp1[finalMatches[j].queryIdx].pt);
+				points2.push_back(kp2[finalMatches[j].trainIdx].pt);
 			}
 
 			if (verbose > 5)
@@ -1318,12 +1317,12 @@ void startEvaluation(ArgvParser& cmd)
 			cv::Mat R_kneip = cv::Mat::eye(3, 3, CV_64FC1), t_kneip = cv::Mat::zeros(3, 1, CV_64FC1);
 			p1 = cv::Mat((int)points1.size(), 2, CV_64FC1);
 			p2 = cv::Mat((int)points2.size(), 2, CV_64FC1);
-			for (int i = 0; i < (int)points1.size(); i++)
+			for (int k = 0; k < (int)points1.size(); k++)
 			{
-				p1.at<double>(i, 0) = (double)points1[i].x;
-				p1.at<double>(i, 1) = (double)points1[i].y;
-				p2.at<double>(i, 0) = (double)points2[i].x;
-				p2.at<double>(i, 1) = (double)points2[i].y;
+				p1.at<double>(k, 0) = (double)points1[k].x;
+				p1.at<double>(k, 1) = (double)points1[k].y;
+				p2.at<double>(k, 0) = (double)points2[k].x;
+				p2.at<double>(k, 1) = (double)points2[k].y;
 			}
 			double pixToCamFact = 4.0 / (std::sqrt(2.0) * (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)));
 			double th = th_pix_user * pixToCamFact; //Inlier threshold
@@ -1462,9 +1461,9 @@ void startEvaluation(ArgvParser& cmd)
 					cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)))
 			{
 				double sumt = 0;
-				for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 3; j++)
 				{
-					sumt += t_kneip.at<double>(i);
+					sumt += t_kneip.at<double>(j);
 				}
 				if (!poselib::nearZero(sumt) && poselib::isMatRoationMat(R_kneip))
 				{
@@ -1697,11 +1696,11 @@ void startEvaluation(ArgvParser& cmd)
         poselib::getAnglesRotMat(R, roll, pitch, yaw);
         std::cout << "Angles of estimated rotation: roll = " << setprecision(4) << roll << char(248) << " pitch = " << pitch << char(248) << " yaw = " << yaw << char(248) << endl;
 		std::cout << "Rotation matrix:" << std::endl;
-		for (size_t i = 0; i < 3; i++)
+		for (size_t m = 0; m < 3; m++)
 		{
 			for (size_t j = 0; j < 3; j++)
 			{
-				std::cout << setprecision(6) << R.at<double>(i, j) << "  ";
+				std::cout << setprecision(6) << R.at<double>(m, j) << "  ";
 			}
 			std::cout << std::endl;
 		}

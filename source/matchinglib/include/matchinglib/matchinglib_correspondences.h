@@ -54,6 +54,11 @@ int MATCHINGLIB_API getCorrespondences(cv::Mat& img1,
 					   std::string idxPars_NMSLIB = "",
 					   std::string queryPars_NMSLIB = "");
 
+void MATCHINGLIB_API filterMatchesSOF(const std::vector<cv::KeyPoint> &keypoints1,
+                          const std::vector<cv::KeyPoint> &keypoints2,
+                          const cv::Size &imgSi,
+                          std::vector<cv::DMatch> &matches);
+
 bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
 std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();
 

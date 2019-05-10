@@ -1136,6 +1136,10 @@ bool Remove_LensDist(std::vector<cv::Point2f>& points1,
 {
     CV_Assert(points1.size() == points2.size());
 
+    if(nearZero(sum(dist1)[0]) && nearZero(sum(dist2)[0])){
+        return true;
+    }
+
     vector<Point2f> distpoints1, distpoints2;
     int n1, n = (int)points1.size();
     cv::Mat mask = cv::Mat::ones(1, n, CV_8UC1);

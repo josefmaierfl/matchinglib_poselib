@@ -66,4 +66,5 @@ endif()
 
 if(ENABLE_POSELIB)
   add_test_without_ctest(poselib-test)
+  add_test_without_ctest(noMatch_poselib-test)
 endif()

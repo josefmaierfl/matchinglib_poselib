@@ -402,87 +402,7 @@ namespace matchinglib
           t_mea = (double)getTickCount(); //Start time measurement
         }
 
-        vector<int> queryIdxs( finalMatches.size() ), trainIdxs( finalMatches.size() );
-        vector<cv::KeyPoint> keypoints1_tmp, keypoints2_tmp;
-        cv::Mat inliers;
-        std::vector<cv::DMatch> finalMatches_tmp;
-
-        for( size_t i = 0; i < finalMatches.size(); i++ )
-        {
-          queryIdxs[i] = finalMatches[i].queryIdx;
-          trainIdxs[i] = finalMatches[i].trainIdx;
-        }
-
-        for(size_t i = 0; i < finalMatches.size(); i++ )
-        {
-          keypoints1_tmp.push_back(keypoints1.at(queryIdxs[i]));
-          keypoints2_tmp.push_back(keypoints2.at(trainIdxs[i]));
-        }
-
-
-        /* ONLY FOR DEBUGGING START */
-        //Mat drawImg;
-        //drawMatches( *img1, keypoints1, *img2, keypoints2, matches, drawImg );
-        ////imwrite("C:\\work\\bf_matches_cross-check.jpg", drawImg);
-        //cv::namedWindow( "Source_1", CV_WINDOW_NORMAL );
-        //cv::imshow( "Source_1", drawImg );
-        //cv::waitKey(0);
-
-        //vector<char> matchesMask( matches.size(), 0 );
-        /* ONLY FOR DEBUGGING END */
-
-        EMatFloat2 keyP1(keypoints1_tmp.size(),2), keyP2(keypoints2_tmp.size(),2);
-
-        for(unsigned int i = 0; i<keypoints1_tmp.size(); i++)
-        {
-          keyP1(i,0) = keypoints1_tmp[i].pt.x;
-          keyP1(i,1) = keypoints1_tmp[i].pt.y;
-        }
-
-        for(unsigned int i = 0; i<keypoints2_tmp.size(); i++)
-        {
-          keyP2(i,0) = keypoints2_tmp[i].pt.x;
-          keyP2(i,1) = keypoints2_tmp[i].pt.y;
-        }
-
-        std::vector<std::vector<cv::Point3f>> gridSearchParams;
-        float gridElemSize;
-
-        if(getStatisticalMatchingPositions(keyP1, keyP2, imgSi, gridSearchParams, &gridElemSize, inliers) != 0)
-        {
-          //Calculation of flow statistic failed
-          cout << "Filtering with SOF failed! Taking unfiltered matches." << endl;
-        }
-        else
-        {
-
-          /* ONLY FOR DEBUGGING START */
-          //for( size_t i1 = 0; i1 < keypoints1_tmp.size(); i1++)
-          //{
-          //  if( inliers.at<bool>(i1,0) == true )
-          //  {
-          //    matchesMask[i1] = 1;
-          //  }
-          //}
-          //drawMatches( *img1, keypoints1, *img2, keypoints2, matches, drawImg, Scalar::all(-1)/*CV_RGB(0, 255, 0)*/, CV_RGB(0, 0, 255), matchesMask);
-          ////imwrite("C:\\work\\bf_matches_filtered_stat_flow.jpg", drawImg);
-          //cv::imshow( "Source_1", drawImg );
-          //cv::waitKey(0);
-          /* ONLY FOR DEBUGGING END */
-
-          for( size_t i1 = 0; i1 < finalMatches.size(); i1++)
-          {
-            if( inliers.at<bool>((int)i1,0) == true )
-            {
-              finalMatches_tmp.push_back(finalMatches[i1]);
-            }
-          }
-
-          if(finalMatches_tmp.size() >= MIN_FINAL_MATCHES)
-          {
-            finalMatches = finalMatches_tmp;
-          }
-        }
+        filterMatchesSOF(keypoints1, keypoints2, imgSi, finalMatches);
 
         if(verbose > 1)
         {
@@ -573,6 +493,93 @@ namespace matchinglib
     kp2 = keypoints2;
 
     return 0;
+  }
+
+  void filterMatchesSOF(const std::vector<cv::KeyPoint> &keypoints1,
+                       const std::vector<cv::KeyPoint> &keypoints2,
+                       const cv::Size &imgSi,
+                       std::vector<cv::DMatch> &matches){
+      vector<int> queryIdxs( matches.size() ), trainIdxs( matches.size() );
+      vector<cv::KeyPoint> keypoints1_tmp, keypoints2_tmp;
+      cv::Mat inliers;
+      std::vector<cv::DMatch> finalMatches_tmp;
+
+      for( size_t i = 0; i < matches.size(); i++ )
+      {
+          queryIdxs[i] = matches[i].queryIdx;
+          trainIdxs[i] = matches[i].trainIdx;
+      }
+
+      for(size_t i = 0; i < matches.size(); i++ )
+      {
+          keypoints1_tmp.push_back(keypoints1.at(queryIdxs[i]));
+          keypoints2_tmp.push_back(keypoints2.at(trainIdxs[i]));
+      }
+
+
+      /* ONLY FOR DEBUGGING START */
+      //Mat drawImg;
+      //drawMatches( *img1, keypoints1, *img2, keypoints2, matches, drawImg );
+      ////imwrite("C:\\work\\bf_matches_cross-check.jpg", drawImg);
+      //cv::namedWindow( "Source_1", CV_WINDOW_NORMAL );
+      //cv::imshow( "Source_1", drawImg );
+      //cv::waitKey(0);
+
+      //vector<char> matchesMask( matches.size(), 0 );
+      /* ONLY FOR DEBUGGING END */
+
+      EMatFloat2 keyP1(keypoints1_tmp.size(),2), keyP2(keypoints2_tmp.size(),2);
+
+      for(unsigned int i = 0; i<keypoints1_tmp.size(); i++)
+      {
+          keyP1(i,0) = keypoints1_tmp[i].pt.x;
+          keyP1(i,1) = keypoints1_tmp[i].pt.y;
+      }
+
+      for(unsigned int i = 0; i<keypoints2_tmp.size(); i++)
+      {
+          keyP2(i,0) = keypoints2_tmp[i].pt.x;
+          keyP2(i,1) = keypoints2_tmp[i].pt.y;
+      }
+
+      std::vector<std::vector<cv::Point3f>> gridSearchParams;
+      float gridElemSize;
+
+      if(getStatisticalMatchingPositions(keyP1, keyP2, imgSi, gridSearchParams, &gridElemSize, inliers) != 0)
+      {
+          //Calculation of flow statistic failed
+          cout << "Filtering with SOF failed! Taking unfiltered matches." << endl;
+      }
+      else
+      {
+
+          /* ONLY FOR DEBUGGING START */
+          //for( size_t i1 = 0; i1 < keypoints1_tmp.size(); i1++)
+          //{
+          //  if( inliers.at<bool>(i1,0) == true )
+          //  {
+          //    matchesMask[i1] = 1;
+          //  }
+          //}
+          //drawMatches( *img1, keypoints1, *img2, keypoints2, matches, drawImg, Scalar::all(-1)/*CV_RGB(0, 255, 0)*/, CV_RGB(0, 0, 255), matchesMask);
+          ////imwrite("C:\\work\\bf_matches_filtered_stat_flow.jpg", drawImg);
+          //cv::imshow( "Source_1", drawImg );
+          //cv::waitKey(0);
+          /* ONLY FOR DEBUGGING END */
+
+          for( size_t i1 = 0; i1 < matches.size(); i1++)
+          {
+              if( inliers.at<bool>((int)i1,0) )
+              {
+                  finalMatches_tmp.push_back(matches[i1]);
+              }
+          }
+
+          if(finalMatches_tmp.size() >= MIN_FINAL_MATCHES)
+          {
+              matches = finalMatches_tmp;
+          }
+      }
   }
 
 #if USE_FSTREAM
