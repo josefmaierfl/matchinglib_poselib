@@ -76,10 +76,10 @@ namespace poselib
     // problem specific/data-related parameters
     struct POSELIB_API ConfigPoseEstimation
     {
-        ConfigPoseEstimation() : dist0_8(NULL),
-            dist1_8(NULL),
-            K0(NULL),
-            K1(NULL),
+        ConfigPoseEstimation() : dist0_8(nullptr),
+            dist1_8(nullptr),
+            K0(nullptr),
+            K1(nullptr),
             keypointType("FAST"),
             descriptorType("FREAK"),
             th_pix_user(0.8),
@@ -164,38 +164,43 @@ namespace poselib
     private:
         ConfigPoseEstimation cfg_pose;
         poselib::ConfigUSAC cfg_usac;
-        double pixToCamFact;
-        size_t nrEstimation;
-        size_t skipCount;
+        double pixToCamFact = 0;
+        size_t nrEstimation = 0;
+        size_t skipCount = 0;
         std::vector<cv::Point2f> points1new, points2new;//Undistorted point correspondences in the camera coordinate system
         cv::Mat points1newMat, points2newMat;//The same as points1new and points2new but double values in cv::Mat format
         cv::Mat points1newMat_tmp, points2newMat_tmp;//The same as points1newMat and points2newMat but holds also the correspondences that were filtered out
         cv::Mat points1Cam, points2Cam;//Undistorted point correspondences in the camera coordinate system of all valid image pairs
-        size_t newAddedPoolCorrs;//Number of newly added correspondences
-        double th;//Inlier threshold
-        double th2;//Squared inlier threshold
-        double t_mea; //Time measurement
-        double t_oa; //Overall time
-        float descrDist_max;//Maximum observed descriptor distance in the data
-        float keyPRespons_max; //Maximum observed keypoint response in the data
+        size_t newAddedPoolCorrs = 0;//Number of newly added correspondences
+        double th = 0;//Inlier threshold
+        double th2 = 0;//Squared inlier threshold
+        double t_mea = 0; //Time measurement
+        double t_oa = 0; //Overall time
+        float descrDist_max = 0;//Maximum observed descriptor distance in the data
+        float keyPRespons_max = 0; //Maximum observed keypoint response in the data
         cv::Mat mask_E_new; //Newest mask using E only for the newest image pair
         cv::Mat mask_Q_new; //Newest mask using E and triangulated 3D points (excludes correspondences too far away) for the newest image pair
-        size_t nr_inliers_new;//Number of inliers for the newest image pair
-        size_t nr_corrs_new;//Number of initial correspondences of the newest image pair
-        bool maxPoolSizeReached;//Is true if the maximum pool size was reached
-        size_t checkPoolPoseRobust_tmp;//After approximately this number multiplied by the initial number of inliers, a robust estimation is performed on the pool correspondences instead of refinement
-        size_t initNumberInliers;//Initial number of inliers after robust estimation
-		size_t nrConsecStablePoses;//Number of consecutive stable poses
-		size_t maxSkipPairsNew;//Maximum number of times the new Essential matrix E is discarded and restored by the old one (see minInlierRatSkip). If more E's are discarded, the whole system is reinitialized. This value may change if stability of the pose is reached.
+        size_t nr_inliers_new = 0;//Number of inliers for the newest image pair
+        size_t nr_corrs_new = 0;//Number of initial correspondences of the newest image pair
+        bool maxPoolSizeReached = false;//Is true if the maximum pool size was reached
+        size_t checkPoolPoseRobust_tmp = 0;//After approximately this number multiplied by the initial number of inliers, a robust estimation is performed on the pool correspondences instead of refinement
+        size_t initNumberInliers = 0;//Initial number of inliers after robust estimation
+		size_t nrConsecStablePoses = 0;//Number of consecutive stable poses
+		size_t maxSkipPairsNew = 0;//Maximum number of times the new Essential matrix E is discarded and restored by the old one (see minInlierRatSkip). If more E's are discarded, the whole system is reinitialized. This value may change if stability of the pose is reached.
 
         std::list<CoordinateProps> correspondencePool;//Holds all correspondences and their properties over the last valid image pairs
         std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
-        size_t corrIdx;//Continous index starting with 0 counting all correspondences that were ever inserted into correspondencePool. The index is resetted when the KD tree is resetted.
+        size_t corrIdx = 0;//Continous index starting with 0 counting all correspondences that were ever inserted into correspondencePool. The index is resetted when the KD tree is resetted.
         std::unique_ptr<keyPointTreeInterface> kdTreeLeft;//KD-tree using nanoflann holding the keypoint coordinates of the left valid keypoints
 
         struct CoordinatePropsNew
         {
-            CoordinatePropsNew(cv::Point2f pt1_, cv::Point2f pt2_, float descrDist_, float response1, float response2, double sampsonError_) : pt1(pt1_),
+            CoordinatePropsNew(const cv::Point2f &pt1_,
+                    const cv::Point2f &pt2_,
+                    float descrDist_,
+                    float response1,
+                    float response2,
+                    double sampsonError_) : pt1(pt1_),
                 pt2(pt2_),
                 descrDist(descrDist_),
                 keyPResponses{ response1, response2 },
@@ -211,9 +216,9 @@ namespace poselib
 
         struct poseHist
         {
-            poseHist(cv::Mat E_, cv::Mat R_, cv::Mat t_) : E(E_),
-                R(R_),
-                t(t_)
+            poseHist(cv::Mat E_, cv::Mat R_, cv::Mat t_) : E(std::move(E_)),
+                R(std::move(R_)),
+                t(std::move(t_))
             {}
 
             cv::Mat E;
@@ -225,8 +230,8 @@ namespace poselib
         std::vector<size_t> mostLikelyPoseIdxs;//Holds the indexes over the last chosen poses within the history that are most likely the best
         std::vector<double> inlier_ratio_history;//Holds the inlier ratios for the last image pairs
         std::vector<statVals> errorStatistic_history;//Holds statics of the Sampson errors for the last image pairs
-		size_t nr_Q_tooFar;//Holds the number of 3D points for which their z-coordinate is too far away for calculating a reliable translation vector
-		size_t nr_Qs;//Number of 3D points stored
+		size_t nr_Q_tooFar = 0;//Holds the number of 3D points for which their z-coordinate is too far away for calculating a reliable translation vector
+		size_t nr_Qs = 0;//Number of 3D points stored
 
     public:
 
@@ -237,14 +242,19 @@ namespace poselib
         cv::Mat E_mostLikely;//Essential matrix that is most likely the best over all stored in the history
         cv::Mat R_mostLikely; //Rotation matrix that is most likely the best over all stored in the history
         cv::Mat t_mostLikely; //Translation vector that is most likely the best over all stored in the history
-        bool poseIsStable;//True, if the difference of the last poses or their error ranges is very small
-        bool mostLikelyPose_stable;//True, if the chosen most likely best pose is the same over the last minContStablePoses iterations
+        bool poseIsStable = false;//True, if the difference of the last poses or their error ranges is very small
+        bool mostLikelyPose_stable = false;//True, if the chosen most likely best pose is the same over the last minContStablePoses iterations
 
-        StereoRefine(ConfigPoseEstimation cfg_pose_) :
+        explicit StereoRefine(ConfigPoseEstimation cfg_pose_) :
             cfg_pose(cfg_pose_)	{
-            CV_Assert((cfg_pose_.K0 != NULL) && (cfg_pose_.K1 != NULL) && (cfg_pose_.dist0_8 != NULL) && (cfg_pose_.dist1_8 != NULL));
+            CV_Assert((cfg_pose_.K0 != nullptr)
+            && (cfg_pose_.K1 != nullptr)
+            && (cfg_pose_.dist0_8 != nullptr)
+            && (cfg_pose_.dist1_8 != nullptr));
 
-            pixToCamFact = 4.0 / (std::sqrt(2.0) * (cfg_pose_.K0->at<double>(0, 0) + cfg_pose_.K0->at<double>(1, 1) + cfg_pose_.K1->at<double>(0, 0) + cfg_pose_.K1->at<double>(1, 1)));
+            pixToCamFact = 4.0 / (std::sqrt(2.0)
+                    * (cfg_pose_.K0->at<double>(0, 0) + cfg_pose_.K0->at<double>(1, 1)
+                            + cfg_pose_.K1->at<double>(0, 0) + cfg_pose_.K1->at<double>(1, 1)));
             nrEstimation = 0;
             skipCount = 0;
             th = cfg_pose_.th_pix_user * pixToCamFact; //Inlier threshold

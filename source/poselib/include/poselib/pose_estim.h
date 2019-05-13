@@ -81,9 +81,9 @@ namespace poselib
 			//sprt_delta_initial(0.05),
 			//sprt_epsilon_initial(0.15),
 			//sortedMatchIdx(NULL),
-			matches(NULL),
-			keypoints1(NULL),
-			keypoints2(NULL),
+			matches(nullptr),
+			keypoints1(nullptr),
+			keypoints2(nullptr),
 			nrMatchesVfcFiltered(0),
 			imgSize(800,600),
 			degenDecisionTh(0.85)
@@ -124,12 +124,12 @@ private:
 
 public:
 
-	AutoThEpi(double pixToCamFact_, bool thStable = false)
-		: corr_filt_pix_th(PIX_TH_START),
-		  corr_filt_cam_th(-1.0),
+	explicit AutoThEpi(double pixToCamFact_, bool thStable = false)
+		: corr_filt_cam_th(-1.0),
+          corr_filt_pix_th(PIX_TH_START),
 		  corr_filt_min_pix_th(MIN_PIX_TH),
-		  pixToCamFact(pixToCamFact_),
-		  th_stable(thStable)
+		  th_stable(thStable),
+          pixToCamFact(pixToCamFact_)
 	{
 		corr_filt_cam_th = corr_filt_pix_th * pixToCamFact;
 	}
@@ -193,8 +193,8 @@ int POSELIB_API estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 	cv::OutputArray t = cv::noArray());
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function
 void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
-						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = NULL,
-						  double *sumSqrErr = NULL, cv::OutputArray errors = cv::noArray(),
+						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = nullptr,
+						  double *sumSqrErr = nullptr, cv::OutputArray errors = cv::noArray(),
 						  cv::InputOutputArray mask = cv::noArray(), int model = 0, bool tryOrientedEpipolar = false, bool normalizeCorrs = false);
 //Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices.
 bool POSELIB_API refineStereoBA(cv::InputArray p1,

@@ -38,6 +38,8 @@ using namespace std;
 using namespace cv;
 using namespace CommandLineProcessing;
 
+void printCVMat(const cv::Mat &m, std::ofstream &os, const std::string &name = "");
+
 struct timeMeasurements{
     double filtering;
     double robEstimationAndRef;
@@ -50,7 +52,19 @@ struct timeMeasurements{
             robEstimationAndRef(-1.0),
             linRefinement(-1.0),
             bundleAdjust(-1.0),
-            stereoRefine(-1.0){}
+            stereoRefine(-1.0){};
+
+    void print(std::ofstream &os, const bool pName) const{
+        if(pName){
+            os << "filtering_us;robEstimationAndRef_us;linRefinement_us;bundleAdjust_us;stereoRefine_us";
+        }else{
+            os << filtering << ";";
+            os << robEstimationAndRef << ";";
+            os << linRefinement << ";";
+            os << bundleAdjust << ";";
+            os << stereoRefine;
+        }
+    }
 };
 
 struct rotAngles{
@@ -66,14 +80,25 @@ struct rotAngles{
     rotAngles(double &roll_, double &pitch_, double &yaw_):
     roll(roll_),
     pitch(pitch_),
-    yaw(yaw_){}
+    yaw(yaw_){};
+
+    void print(std::ofstream &os, const std::string &baseName = "") const{
+        if(!baseName.empty()){
+            os << baseName << "_roll_deg;" << baseName << "_pitch_deg;" << baseName << "_yaw_deg";
+        }else{
+            os << roll << ";";
+            os << pitch << ";";
+            os << yaw;
+        }
+    }
 };
 struct CamMatDiff{
-    double fxDiff, fyDiff, cxDiff, cyDiff, cxyDiffNorm, cxyfxfyNorm;
+    double fxDiff, fyDiff, fxyDiffNorm, cxDiff, cyDiff, cxyDiffNorm, cxyfxfyNorm;
 
     CamMatDiff():
             fxDiff(0),
             fyDiff(0),
+            fxyDiffNorm(0),
             cxDiff(0),
             cyDiff(0),
             cxyDiffNorm(0),
@@ -82,10 +107,31 @@ struct CamMatDiff{
     void calcDiff(const cv::Mat &K_estimated, const cv::Mat &K_GT){
         fxDiff = K_estimated.at<double>(0,0) - K_GT.at<double>(0,0);
         fyDiff = K_estimated.at<double>(1,1) - K_GT.at<double>(1,1);
+        fxyDiffNorm = sqrt(fxDiff * fxDiff + fyDiff * fyDiff);
         cxDiff = K_estimated.at<double>(0,2) - K_GT.at<double>(0,2);
         cyDiff = K_estimated.at<double>(1,2) - K_GT.at<double>(1,2);
         cxyDiffNorm = sqrt(cxDiff * cxDiff + cyDiff * cyDiff);
         cxyfxfyNorm = sqrt(cxDiff * cxDiff + cyDiff * cyDiff + fxDiff * fxDiff + fyDiff * fyDiff);
+    };
+
+    void print(std::ofstream &os, const std::string &baseName = "") const{
+        if(!baseName.empty()){
+            os << baseName << "_fxDiff;"
+                    << baseName << "_fyDiff;"
+                    << baseName << "_fxyDiffNorm;"
+                    << baseName << "_cxDiff;"
+                    << baseName << "_cyDiff;"
+                    << baseName << "_cxyDiffNorm;"
+                    << baseName << "_cxyfxfyNorm";
+        }else{
+            os << fxDiff << ";";
+            os << fyDiff << ";";
+            os << fxyDiffNorm << ";";
+            os << cxDiff << ";";
+            os << cyDiff << ";";
+            os << cxyDiffNorm << ";";
+            os << cxyfxfyNorm;
+        }
     }
 };
 struct tElemsDiff{
@@ -105,6 +151,16 @@ struct tElemsDiff{
         tx = t_estimated.at<double>(0);
         ty = t_estimated.at<double>(1);
         tz = t_estimated.at<double>(2);
+    };
+
+    void print(std::ofstream &os, const std::string &baseName = "") const{
+        if(!baseName.empty()){
+            os << baseName << "_tx;" << baseName << "_ty;" << baseName << "_tz";
+        }else{
+            os << tx << ";";
+            os << ty << ";";
+            os << tz;
+        }
     }
 };
 struct algorithmResult{
@@ -281,6 +337,169 @@ struct algorithmResult{
         K2_degenerate_.copyTo(K2_degenerate);
         calcCamMatDiff();
     }
+
+    void print(std::ofstream &os, const bool pName) const{
+        if(pName){
+            os << "R_diffAll;";
+            R_diff.print(os,"R_diff");
+            os << ";";
+            os << "t_angDiff_deg;";
+            os << "t_distDiff;";
+            t_elemDiff.print(os, "t_diff");
+            os << ";";
+            os << "R_mostLikely_diffAll;";
+            R_mostLikely_diff.print(os, "R_mostLikely_diff");
+            os << ";";
+            os << "t_mostLikely_angDiff_deg;";
+            os << "t_mostLikely_distDiff;";
+            t_mostLikely_elemDiff.print(os, "t_mostLikely_diff");
+            os << ";";
+            printCVMat(R, os, "R_out");
+            os << ";";
+            printCVMat(t, os, "t_out");
+            os << ";";
+            printCVMat(R_mostLikely, os, "R_mostLikely");
+            os << ";";
+            printCVMat(t_mostLikely, os, "t_mostLikely");
+            os << ";";
+            printCVMat(R_GT, os, "R_GT");
+            os << ";";
+            printCVMat(t_GT, os, "t_GT");
+            os << ";";
+            os << "poseIsStable;";
+            os << "mostLikelyPose_stable;";
+            K1_diff.print(os, "K1");
+            os << ";";
+            K2_diff.print(os, "K2");
+            os << ";";
+            printCVMat(K1, os, "K1");
+            os << ";";
+            printCVMat(K2, os, "K2");
+            os << ";";
+            printCVMat(K1_GT, os, "K1_GT");
+            os << ";";
+            printCVMat(K2_GT, os, "K2_GT");
+            os << ";";
+            printCVMat(K1_degenerate, os, "K1_degenerate");
+            os << ";";
+            printCVMat(K2_degenerate, os, "K2_degenerate");
+            os << ";";
+            os << "inlRat_estimated;";
+            os << "inlRat_GT;";
+            os << "nrCorrs_filtered;";
+            os << "nrCorrs_estimated;";
+            os << "nrCorrs_GT;";
+            tm.print(os, true);
+            os << endl;
+        }else{
+            os << R_diffAll << ";";
+            R_diff.print(os);
+            os << ";";
+            os << t_angDiff << ";";
+            os << t_distDiff << ";";
+            t_elemDiff.print(os);
+            os << ";";
+            os << R_mostLikely_diffAll << ";";
+            R_mostLikely_diff.print(os);
+            os << ";";
+            os << t_mostLikely_angDiff << ";";
+            os << t_mostLikely_distDiff << ";";
+            t_mostLikely_elemDiff.print(os);
+            os << ";";
+            printCVMat(R, os);
+            os << ";";
+            printCVMat(t, os);
+            os << ";";
+            printCVMat(R_mostLikely, os);
+            os << ";";
+            printCVMat(t_mostLikely, os);
+            os << ";";
+            printCVMat(R_GT, os);
+            os << ";";
+            printCVMat(t_GT, os);
+            os << ";";
+            os << poseIsStable << ";";
+            os << mostLikelyPose_stable << ";";
+            K1_diff.print(os);
+            os << ";";
+            K2_diff.print(os);
+            os << ";";
+            printCVMat(K1, os);
+            os << ";";
+            printCVMat(K2, os);
+            os << ";";
+            printCVMat(K1_GT, os);
+            os << ";";
+            printCVMat(K2_GT, os);
+            os << ";";
+            printCVMat(K1_degenerate, os);
+            os << ";";
+            printCVMat(K2_degenerate, os);
+            os << ";";
+            os << inlRat_estimated << ";";
+            os << inlRat_GT << ";";
+            os << nrCorrs_filtered << ";";
+            os << nrCorrs_estimated << ";";
+            os << nrCorrs_GT << ";";
+            tm.print(os, false);
+            os << endl;
+        }
+    }
+};
+
+struct matchFilteringOpt{
+    bool refineVFC;
+    bool refineSOF;
+    bool refineGMS;
+
+    matchFilteringOpt():
+    refineVFC(false),
+    refineSOF(false),
+    refineGMS(false){}
+};
+struct calibPars{
+    std::string sequ_path;
+    int matchData_idx;
+    std::string hashMatchingPars;
+    matchFilteringOpt mfo;
+    bool autoTH;
+    int refineMethod;
+    bool refineRTold;
+    int BART;
+    std::string RobMethod;
+    int Halign;
+    poselib::ConfigUSAC cfg;
+    double USACdegenTh;
+    int USACInlratFilt;
+    double th;
+    poselib::ConfigPoseEstimation cfg_stereo;
+    int evStepStereoStable;
+    bool useOnlyStablePose;
+    bool useMostLikelyPose;
+    bool stereoRef;
+    bool kneipInsteadBA;
+
+    calibPars():
+    sequ_path(""),
+    matchData_idx(0),
+    hashMatchingPars(""),
+    mfo(matchFilteringOpt()),
+    autoTH(false),
+    refineMethod(0),
+    refineRTold(false),
+    BART(0),
+    RobMethod(""),
+    Halign(0),
+    cfg(poselib::ConfigUSAC()),
+    USACdegenTh(0.85),
+    USACInlratFilt(1),
+    th(0),
+    cfg_stereo(poselib::ConfigPoseEstimation()),
+    evStepStereoStable(0),
+    useOnlyStablePose(false),
+    useMostLikelyPose(false),
+    stereoRef(false),
+    kneipInsteadBA(false){}
 };
 
 void cinfigureUSAC(poselib::ConfigUSAC &cfg,
@@ -301,6 +520,18 @@ bool loadFeatureName(const string &filename,
                      string &matchesSubFolder);
 bool loadImgSize(const string &filename,
                  cv::Size &imgSize);
+size_t getHashCalibPars(const calibPars &cp);
+bool genOutFileName(const std::string &path,
+                    const calibPars &cp,
+                    std::string &filename);
+bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries);
+bool writeResultsOverview(const string &filename,
+                          const calibPars &cp,
+                          const string &resultsFileName);
+FileStorage& operator << (FileStorage& fs, bool &value);
+void writeTestingParameters(cv::FileStorage &fs,
+                            const calibPars &cp);
+bool writeResultsDisk(const std::vector<algorithmResult> &ar, const string &filename);
 
 void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
@@ -546,38 +777,22 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     {
         std::cout << cmd.parseErrorDescription(result);
     }
-    /*if(data_path.DirectoryExists())
-    {
-
-    }*/
-
 }
 
 void startEvaluation(ArgvParser& cmd)
 {
-    string sequ_path, matchData_idx_str, output_path, ovf_ext, ovf_ext1part, matchesSubPath;
+    string matchData_idx_str, output_path, ovf_ext, ovf_ext1part;
     string show_str;
-    string RobMethod;
     string cfgUSAC;
     string refineRT, refineRT_stereo;
     string descrName, kpNameM;
-    int matchData_idx;
-    double th_pix_user;
-    bool refineVFC, refineSOF, refineGMS;
-    bool noPoseDiff, autoTH, refineRTold = false, refineRTold_stereo = false;
-	int USACInlratFilt = 1;
-    int Halign;
-    int BART = 0, BART_stereo = 0;
+    bool noPoseDiff, refineRTold_stereo = false;
+    int BART_stereo = 0;
     int err, verbose;
     vector<string> filenamesRt, filenamesMatches;
-    double USACdegenTh = 0.85;
     int cfgUSACnr[6] = {3,1,1,2,2,5};
     int refineRTnr[2] = { 0,0 }, refineRTnr_stereo[2] = { 4,2 };
-    bool kneipInsteadBA = false, kneipInsteadBA_stereo = false;
-	bool stereoRef = false;
-	int evStepStereoStable = 0;
-	bool useOnlyStablePose = false;
-	bool useMostLikelyPose = false;
+    bool kneipInsteadBA_stereo = false;
 	double minStartAggInlRat = 0.2,
 	relInlRatThLast = 0.35,
 	relInlRatThNew = 0.2,
@@ -594,19 +809,30 @@ void startEvaluation(ArgvParser& cmd)
 	int raiseSkipCntnr[2] = { 0,0 };
 	double maxRat3DPtsFar = 0.5;
 	double maxDist3DPtsZ = 50.0;
+    calibPars cp = calibPars();
 
 	//Load basic matching information
-    sequ_path = cmd.optionValue("sequ_path");
+    cp.sequ_path = cmd.optionValue("sequ_path");
     ovf_ext = cmd.optionValue("ovf_ext");
-    size_t extspPos = ovf_ext.find('.');
+    size_t extspPos = ovf_ext.find_last_of('.');
     if(extspPos != string::npos){
         ovf_ext1part = ovf_ext.substr(0, extspPos);
     }else{
         ovf_ext1part = ovf_ext;
     }
+    extspPos = ovf_ext1part.find('.');
+    if(extspPos != string::npos){
+        ovf_ext1part = ovf_ext1part.substr(extspPos + 1);
+    }
+    std::transform(ovf_ext1part.begin(), ovf_ext1part.end(), ovf_ext1part.begin(), ::tolower);
+    if((ovf_ext1part != "yaml") && (ovf_ext1part != "yml") && (ovf_ext1part != "xml")){
+        cerr << "Invalid extension of test data files" << endl;
+        exit(1);
+    }
+
     matchData_idx_str = cmd.optionValue("matchData_idx");
-    matchData_idx = stoi(matchData_idx_str);
-    testing::internal::FilePath sequ_pathG(sequ_path);
+    cp.matchData_idx = stoi(matchData_idx_str);
+    testing::internal::FilePath sequ_pathG(cp.sequ_path);
     if(!sequ_pathG.DirectoryExists()){
         cerr << "Given main directory does not exist." << endl;
         exit(1);
@@ -621,14 +847,14 @@ void startEvaluation(ArgvParser& cmd)
     }
     const string &matchesOVFile = sequFullDirG.string();
     if(!loadFeatureName(matchesOVFile,
-                    matchData_idx,
-                    descrName,
-                    kpNameM,
-                    matchesSubPath)){
+                        cp.matchData_idx,
+                        descrName,
+                        kpNameM,
+                        cp.hashMatchingPars)){
         cerr << "Unable to load matching information" << endl;
     }
     testing::internal::FilePath matchFullDirG =
-            testing::internal::FilePath::ConcatPaths(sequ_pathG,testing::internal::FilePath(matchesSubPath));
+            testing::internal::FilePath::ConcatPaths(sequ_pathG,testing::internal::FilePath(cp.hashMatchingPars));
     if(!matchFullDirG.DirectoryExists()){
         cerr << "Directory with matches does not exist." << endl;
         exit(1);
@@ -636,36 +862,37 @@ void startEvaluation(ArgvParser& cmd)
     const string &matchesPath = matchFullDirG.string();
 
 
-    refineVFC = cmd.foundOption("refineVFC");
-    refineSOF = cmd.foundOption("refineSOF");
-	refineGMS = cmd.foundOption("refineGMS");
+    cp.mfo.refineVFC = cmd.foundOption("refineVFC");
+    cp.mfo.refineSOF = cmd.foundOption("refineSOF");
+    cp.mfo.refineGMS = cmd.foundOption("refineGMS");
 
     noPoseDiff = cmd.foundOption("noPoseDiff");
-    autoTH = cmd.foundOption("autoTH");
+    cp.autoTH = cmd.foundOption("autoTH");
 
 	compInitPose = cmd.foundOption("compInitPose");
 
-	stereoRef = cmd.foundOption("stereoRef");
-	useOnlyStablePose = cmd.foundOption("useOnlyStablePose");
-	useMostLikelyPose = cmd.foundOption("useMostLikelyPose");
+	cp.stereoRef = cmd.foundOption("stereoRef");
+    cp.useOnlyStablePose = cmd.foundOption("useOnlyStablePose");
+    cp.useMostLikelyPose = cmd.foundOption("useMostLikelyPose");
 
 	if (cmd.foundOption("evStepStereoStable"))
 	{
-		evStepStereoStable = stoi(cmd.optionValue("evStepStereoStable"));
-		if (evStepStereoStable < 0 || evStepStereoStable > 1000)
+		cp.evStepStereoStable = stoi(cmd.optionValue("evStepStereoStable"));
+		if (cp.evStepStereoStable < 0 || cp.evStepStereoStable > 1000)
 		{
-			std::cout << "The number of image pairs skipped " << evStepStereoStable <<
+			std::cout << "The number of image pairs skipped " << cp.evStepStereoStable <<
 			" before estimating a new pose is out of range. Using default value of 0." << std::endl;
-			evStepStereoStable = 0;
+            cp.evStepStereoStable = 0;
 		}
 	}
-	else
-		evStepStereoStable = 0;
+	else {
+        cp.evStepStereoStable = 0;
+    }
 
     if(cmd.foundOption("Halign"))
     {
-        Halign = stoi(cmd.optionValue("Halign"));
-        if((Halign < 0) || (Halign > 2))
+        cp.Halign = stoi(cmd.optionValue("Halign"));
+        if((cp.Halign < 0) || (cp.Halign > 2))
         {
             std::cerr << "The specified option for homography alignment (Halign) is not available. Exiting." << endl;
             exit(0);
@@ -673,20 +900,21 @@ void startEvaluation(ArgvParser& cmd)
     }
     else
     {
-        Halign = 0;
+        cp.Halign = 0;
     }
 
     if(cmd.foundOption("BART"))
     {
-        BART = stoi(cmd.optionValue("BART"));
-        if((BART < 0) || (BART > 2))
+        cp.BART = stoi(cmd.optionValue("BART"));
+        if((cp.BART < 0) || (cp.BART > 2))
         {
             std::cerr << "The specified option for bundle adjustment (BART) is not available. Exiting." << endl;
             exit(0);
         }
     }
-    else
-        BART = 0;
+    else {
+        cp.BART = 0;
+    }
 
 	if (cmd.foundOption("maxDist3DPtsZ"))
 	{
@@ -697,37 +925,41 @@ void startEvaluation(ArgvParser& cmd)
 			maxDist3DPtsZ = 50.0;
 		}
 	}
-	else
-		maxDist3DPtsZ = 50.0;
+	else {
+        maxDist3DPtsZ = 50.0;
+    }
 
-    if(cmd.foundOption("RobMethod"))
-        RobMethod = cmd.optionValue("RobMethod");
-    else
-        RobMethod = "USAC";
+    if(cmd.foundOption("RobMethod")) {
+        cp.RobMethod = cmd.optionValue("RobMethod");
+    }
+    else {
+        cp.RobMethod = "USAC";
+    }
 
 	if (cmd.foundOption("USACInlratFilt"))
 	{
-		USACInlratFilt = stoi(cmd.optionValue("USACInlratFilt"));
-		if (USACInlratFilt < 0 || USACInlratFilt > 1)
+		cp.USACInlratFilt = stoi(cmd.optionValue("USACInlratFilt"));
+		if (cp.USACInlratFilt < 0 || cp.USACInlratFilt > 1)
 		{
 			std::cout << "The specified option forUSACInlratFilt is not available. Changing to default: VFC filtering" << std::endl;
-			USACInlratFilt = 1;
+            cp.USACInlratFilt = 1;
 		}
 	}
-	else
-		USACInlratFilt = 1;
+	else {
+        cp.USACInlratFilt = 1;
+    }
 
-    if(RobMethod.compare("ARRSAC") && autoTH)
+    if(cp.RobMethod.compare("ARRSAC") && cp.autoTH)
     {
         std::cout << "With option 'autoTH' only ARRSAC is supported. Using ARRSAC!" << endl;
     }
 
-    if(RobMethod.compare("ARRSAC") && Halign)
+    if(cp.RobMethod.compare("ARRSAC") && cp.Halign)
     {
         std::cout << "With option 'Halign' only ARRSAC is supported. Using ARRSAC!" << endl;
     }
 
-    if(autoTH && Halign)
+    if(cp.autoTH && cp.Halign)
     {
         std::cerr << "The options 'autoTH' and 'Halign' are mutually exclusive. Chosse only one of them. Exiting." << endl;
         exit(0);
@@ -735,20 +967,20 @@ void startEvaluation(ArgvParser& cmd)
 
     if (cmd.foundOption("th"))
     {
-        th_pix_user = std::stod(cmd.optionValue("th"));
-        if (th_pix_user < 0.1)
+        cp.th = std::stod(cmd.optionValue("th"));
+        if (cp.th < 0.1)
         {
-            std::cout << "User specific threshold of " << th_pix_user << " is too small. Setting it to 0.1" << endl;
-            th_pix_user = 0.1;
+            std::cout << "User specific threshold of " << cp.th << " is too small. Setting it to 0.1" << endl;
+            cp.th = 0.1;
         }
-        else if (th_pix_user > 5.0)
+        else if (cp.th > 5.0)
         {
-            std::cout << "User specific threshold of " << th_pix_user << " is too large. Setting it to 5.0" << endl;
-            th_pix_user = 5.0;
+            std::cout << "User specific threshold of " << cp.th << " is too large. Setting it to 5.0" << endl;
+            cp.th = 5.0;
         }
     }
     else
-        th_pix_user = PIX_MIN_GOOD_TH;
+        cp.th = PIX_MIN_GOOD_TH;
 
     if (cmd.foundOption("cfgUSAC"))
         cfgUSAC = cmd.optionValue("cfgUSAC");
@@ -780,29 +1012,29 @@ void startEvaluation(ArgvParser& cmd)
         std::cout << "Option refineRT is corrupt! Taking default values (disable)." << endl;
     }
     //Set up refinement parameters
-    int refineMethod = poselib::RefinePostAlg::PR_NO_REFINEMENT;
+    cp.refineMethod = poselib::RefinePostAlg::PR_NO_REFINEMENT;
     if (refineRTnr[0])
     {
         switch (refineRTnr[0])
         {
         case(1):
-            refineRTold = true;
+            cp.refineRTold = true;
             break;
         case(2):
-            refineMethod = poselib::RefinePostAlg::PR_8PT;
+            cp.refineMethod = poselib::RefinePostAlg::PR_8PT;
             break;
         case(3):
-            refineMethod = poselib::RefinePostAlg::PR_NISTER;
+            cp.refineMethod = poselib::RefinePostAlg::PR_NISTER;
             break;
         case(4):
-            refineMethod = poselib::RefinePostAlg::PR_STEWENIUS;
+            cp.refineMethod = poselib::RefinePostAlg::PR_STEWENIUS;
             break;
         case(5):
-            refineMethod = poselib::RefinePostAlg::PR_KNEIP;
+            cp.refineMethod = poselib::RefinePostAlg::PR_KNEIP;
             break;
         case(6):
-            refineMethod = poselib::RefinePostAlg::PR_KNEIP;
-            kneipInsteadBA = true;
+            cp.refineMethod = poselib::RefinePostAlg::PR_KNEIP;
+            cp.kneipInsteadBA = true;
             break;
         default:
             break;
@@ -811,13 +1043,13 @@ void startEvaluation(ArgvParser& cmd)
         switch (refineRTnr[1])
         {
         case(0):
-            refineMethod = (refineMethod | poselib::RefinePostAlg::PR_NO_WEIGHTS);
+            cp.refineMethod = (cp.refineMethod | poselib::RefinePostAlg::PR_NO_WEIGHTS);
             break;
         case(1):
-            refineMethod = (refineMethod | poselib::RefinePostAlg::PR_TORR_WEIGHTS);
+            cp.refineMethod = (cp.refineMethod | poselib::RefinePostAlg::PR_TORR_WEIGHTS);
             break;
         case(2):
-            refineMethod = (refineMethod | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS);
+            cp.refineMethod = (cp.refineMethod | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS);
             break;
         default:
             break;
@@ -846,7 +1078,7 @@ void startEvaluation(ArgvParser& cmd)
 	}
 	else
 	{
-		std::cout << "Option refineRT is corrupt! Taking default values." << endl;
+		std::cout << "Option refineRT_stereo is corrupt! Taking default values." << endl;
 	}
 	//Set up refinement parameters
 	int refineMethod_stereo = poselib::RefinePostAlg::PR_NO_REFINEMENT;
@@ -1121,11 +1353,11 @@ void startEvaluation(ArgvParser& cmd)
             std::cout << "Option for 1st digit of cfgUSAC out of range! Taking default value." << endl;
             cfgUSACnr[0] = 3;
         }
-        if (cfgUSACnr[0] > 1 && refineVFC)
+        if (cfgUSACnr[0] > 1 && cp.mfo.refineVFC)
         {
             std::cout << "Impossible to estimate epsilon for SPRT if option refineVFC is enabled! "
                          "Disabling option refineVFC!" << endl;
-            refineVFC = false;
+            cp.mfo.refineVFC = false;
         }
         if (cfgUSACnr[1] > 1)
         {
@@ -1160,9 +1392,9 @@ void startEvaluation(ArgvParser& cmd)
 
 
     if (cmd.foundOption("USACdegenTh"))
-        USACdegenTh = std::stod(cmd.optionValue("USACdegenTh"));
+        cp.USACdegenTh = std::stod(cmd.optionValue("USACdegenTh"));
     else
-        USACdegenTh = 0.85;
+        cp.USACdegenTh = 0.85;
 
     if(cmd.foundOption("v"))
     {
@@ -1178,7 +1410,7 @@ void startEvaluation(ArgvParser& cmd)
         exit(1);
     }
 
-    err = loadImageSequence(sequ_path, "sequSingleFrameData_", filenamesRt);
+    err = loadImageSequence(cp.sequ_path, "sequSingleFrameData_", filenamesRt);
     if(err || filenamesRt.empty())
     {
         std::cerr << "Could not find camera extrinsics! Exiting." << endl;
@@ -1214,7 +1446,7 @@ void startEvaluation(ArgvParser& cmd)
     dist1_8 = Mat::zeros(1, 8, CV_64FC1);
 
 	std::unique_ptr<poselib::StereoRefine> stereoObj;
-	if (stereoRef)
+	if (cp.stereoRef)
 	{
         sequMatches sm;
         if(!readMatchesFromDisk(filenamesMatches[0], sm)){
@@ -1223,51 +1455,50 @@ void startEvaluation(ArgvParser& cmd)
         }
         K0 = sm.actKd1.clone();
         K1 = sm.actKd2.clone();
-		poselib::ConfigPoseEstimation cfg_stereo;
 
-		cfg_stereo.dist0_8 = &dist0_8;
-		cfg_stereo.dist1_8 = &dist1_8;
-		cfg_stereo.K0 = &K0;
-		cfg_stereo.K1 = &K1;
-		cfg_stereo.keypointType = kpNameM;
-		cfg_stereo.descriptorType = descrName;
-		cfg_stereo.th_pix_user = th_pix_user;
-		cfg_stereo.verbose = (verbose > 0) ? (verbose + 2) : 0;
-		cfg_stereo.Halign = Halign;
-		cfg_stereo.autoTH = autoTH;
-		cfg_stereo.BART = BART;
-		cfg_stereo.kneipInsteadBA = kneipInsteadBA;
-		cfg_stereo.refineMethod = refineMethod;
-		cfg_stereo.refineRTold = refineRTold;
-		cfg_stereo.RobMethod = RobMethod;
+		cp.cfg_stereo.dist0_8 = &dist0_8;
+		cp.cfg_stereo.dist1_8 = &dist1_8;
+		cp.cfg_stereo.K0 = &K0;
+		cp.cfg_stereo.K1 = &K1;
+		cp.cfg_stereo.keypointType = kpNameM;
+		cp.cfg_stereo.descriptorType = descrName;
+		cp.cfg_stereo.th_pix_user = cp.th;
+		cp.cfg_stereo.verbose = (verbose > 0) ? (verbose + 2) : 0;
+		cp.cfg_stereo.Halign = cp.Halign;
+		cp.cfg_stereo.autoTH = cp.autoTH;
+		cp.cfg_stereo.BART = cp.BART;
+		cp.cfg_stereo.kneipInsteadBA = cp.kneipInsteadBA;
+		cp.cfg_stereo.refineMethod = cp.refineMethod;
+		cp.cfg_stereo.refineRTold = cp.refineRTold;
+		cp.cfg_stereo.RobMethod = cp.RobMethod;
 
-		cfg_stereo.refineMethod_CorrPool = refineMethod_stereo;
-		cfg_stereo.refineRTold_CorrPool = refineRTold_stereo;
-		cfg_stereo.kneipInsteadBA_CorrPool = kneipInsteadBA_stereo;
-		cfg_stereo.BART_CorrPool = BART_stereo;
-		cfg_stereo.minStartAggInlRat = minStartAggInlRat;
-		cfg_stereo.relInlRatThLast = relInlRatThLast;
-		cfg_stereo.relInlRatThNew = relInlRatThNew;
-		cfg_stereo.minInlierRatSkip = minInlierRatSkip;
-		cfg_stereo.relMinInlierRatSkip = relMinInlierRatSkip;
-		cfg_stereo.maxSkipPairs = maxSkipPairs;
-		cfg_stereo.minInlierRatioReInit = minInlierRatioReInit;
-		cfg_stereo.minPtsDistance = minPtsDistance;
-		cfg_stereo.maxPoolCorrespondences = maxPoolCorrespondences;
-		cfg_stereo.minContStablePoses = minContStablePoses;
-		cfg_stereo.absThRankingStable = absThRankingStable;
-		cfg_stereo.useRANSAC_fewMatches = useRANSAC_fewMatches;
-		cfg_stereo.checkPoolPoseRobust = checkPoolPoseRobust;
-		cfg_stereo.minNormDistStable = minNormDistStable;
-		cfg_stereo.raiseSkipCnt = (raiseSkipCntnr[0] | (raiseSkipCntnr[1] << 4));
-		cfg_stereo.maxRat3DPtsFar = maxRat3DPtsFar;
-		cfg_stereo.maxDist3DPtsZ = maxDist3DPtsZ;
+		cp.cfg_stereo.refineMethod_CorrPool = refineMethod_stereo;
+		cp.cfg_stereo.refineRTold_CorrPool = refineRTold_stereo;
+		cp.cfg_stereo.kneipInsteadBA_CorrPool = kneipInsteadBA_stereo;
+		cp.cfg_stereo.BART_CorrPool = BART_stereo;
+		cp.cfg_stereo.minStartAggInlRat = minStartAggInlRat;
+		cp.cfg_stereo.relInlRatThLast = relInlRatThLast;
+		cp.cfg_stereo.relInlRatThNew = relInlRatThNew;
+		cp.cfg_stereo.minInlierRatSkip = minInlierRatSkip;
+		cp.cfg_stereo.relMinInlierRatSkip = relMinInlierRatSkip;
+		cp.cfg_stereo.maxSkipPairs = maxSkipPairs;
+		cp.cfg_stereo.minInlierRatioReInit = minInlierRatioReInit;
+		cp.cfg_stereo.minPtsDistance = minPtsDistance;
+		cp.cfg_stereo.maxPoolCorrespondences = maxPoolCorrespondences;
+		cp.cfg_stereo.minContStablePoses = minContStablePoses;
+		cp.cfg_stereo.absThRankingStable = absThRankingStable;
+		cp.cfg_stereo.useRANSAC_fewMatches = useRANSAC_fewMatches;
+		cp.cfg_stereo.checkPoolPoseRobust = checkPoolPoseRobust;
+		cp.cfg_stereo.minNormDistStable = minNormDistStable;
+		cp.cfg_stereo.raiseSkipCnt = (raiseSkipCntnr[0] | (raiseSkipCntnr[1] << 4));
+		cp.cfg_stereo.maxRat3DPtsFar = maxRat3DPtsFar;
+		cp.cfg_stereo.maxDist3DPtsZ = maxDist3DPtsZ;
 
-		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
+		stereoObj.reset(new poselib::StereoRefine(cp.cfg_stereo));
 	}
 
     int failNr = 0;
-	const int evStepStereoStable_tmp = evStepStereoStable + 1;
+	const int evStepStereoStable_tmp = cp.evStepStereoStable + 1;
 	int evStepStereoStable_cnt = evStepStereoStable_tmp;
 	cv::Mat R_stable, t_stable;
     chrono::high_resolution_clock::time_point t_1, t_2;
@@ -1292,7 +1523,7 @@ void startEvaluation(ArgvParser& cmd)
 
         //Perform filtering
         t_1 = chrono::high_resolution_clock::now();
-        if(refineVFC){
+        if(cp.mfo.refineVFC){
             if(filterWithVFC(kp1, kp2, sm.frameMatches, finalMatches)){
                 cout << "Unable to filter matches using VFC" << endl;
                 finalMatches = sm.frameMatches;
@@ -1300,7 +1531,7 @@ void startEvaluation(ArgvParser& cmd)
             t_2 = chrono::high_resolution_clock::now();
             ar[i].tm.filtering = chrono::duration_cast<chrono::microseconds>(t_2 - t_1).count();
             ar[i].nrCorrs_filtered = (int)finalMatches.size();
-        }else if(refineGMS){
+        }else if(cp.mfo.refineGMS){
             if(filterMatchesGMS(kp1, imgSize, kp2, imgSize, sm.frameMatches, finalMatches) < 10){
                 cout << "Unable to filter matches using GMS" << endl;
                 finalMatches = sm.frameMatches;
@@ -1308,7 +1539,7 @@ void startEvaluation(ArgvParser& cmd)
             t_2 = chrono::high_resolution_clock::now();
             ar[i].tm.filtering = chrono::duration_cast<chrono::microseconds>(t_2 - t_1).count();
             ar[i].nrCorrs_filtered = (int)finalMatches.size();
-        }else if(refineSOF){
+        }else if(cp.mfo.refineSOF){
             finalMatches = sm.frameMatches;
             matchinglib::filterMatchesSOF(kp1, kp2, imgSize, finalMatches);
             t_2 = chrono::high_resolution_clock::now();
@@ -1322,7 +1553,7 @@ void startEvaluation(ArgvParser& cmd)
         //-------------------------------
         double t_mea = 0, t_oa = 0;
 		cv::Mat R, t;
-		if (!stereoRef)
+		if (!cp.stereoRef)
 		{
             sm.actKd1.copyTo(K0);
             sm.actKd2.copyTo(K1);
@@ -1356,20 +1587,19 @@ void startEvaluation(ArgvParser& cmd)
 			}
 
 			//Set up USAC paramters
-			poselib::ConfigUSAC cfg;
-			if (RobMethod == "USAC")
+			if (cp.RobMethod == "USAC")
 			{
-				cinfigureUSAC(cfg,
+				cinfigureUSAC(cp.cfg,
 					cfgUSACnr,
-					USACdegenTh,
+                              cp.USACdegenTh,
 					K0,
 					K1,
 					imgSize,
 					&kp1,
 					&kp2,
 					&finalMatches,
-					th_pix_user,
-					USACInlratFilt);
+                              cp.th,
+                              cp.USACInlratFilt);
 			}
 
 			//Get essential matrix
@@ -1386,9 +1616,9 @@ void startEvaluation(ArgvParser& cmd)
 			}
 			double pixToCamFact = 4.0 / (std::sqrt(2.0) *
 			        (K0.at<double>(0, 0) + K0.at<double>(1, 1) + K1.at<double>(0, 0) + K1.at<double>(1, 1)));
-			double th = th_pix_user * pixToCamFact; //Inlier threshold
+			double th = cp.th * pixToCamFact; //Inlier threshold
             t_1 = chrono::high_resolution_clock::now();
-			if (autoTH)
+			if (cp.autoTH)
 			{
 				int inlierPoints;
 				poselib::AutoThEpi Eautoth(pixToCamFact);
@@ -1417,10 +1647,10 @@ void startEvaluation(ArgvParser& cmd)
 
 				std::cout << "Estimated threshold: " << th / pixToCamFact << " pixels" << endl;
 			}
-			else if (Halign)
+			else if (cp.Halign)
 			{
 				int inliers;
-				if (poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, Halign > 1 ? true : false) != 0)
+				if (poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, cp.Halign > 1 ? true : false) != 0)
 				{
 					failNr++;
 					if ((float)failNr / (float)filenamesRt.size() < 0.5f)
@@ -1445,18 +1675,18 @@ void startEvaluation(ArgvParser& cmd)
 			}
 			else
 			{
-				if (RobMethod == "USAC")
+				if (cp.RobMethod == "USAC")
 				{
 					bool isDegenerate = false;
 					Mat R_degenerate, inliers_degenerate_R;
 					bool usacerror = false;
-					if (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
+					if (cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
 					{
 						if (estimateEssentialOrPoseUSAC(p1,
 							p2,
 							E,
 							th,
-							cfg,
+                                                        cp.cfg,
 							isDegenerate,
 							mask,
 							R_degenerate,
@@ -1473,7 +1703,7 @@ void startEvaluation(ArgvParser& cmd)
 							p2,
 							E,
 							th,
-							cfg,
+                                                        cp.cfg,
 							isDegenerate,
 							mask,
 							R_degenerate,
@@ -1533,7 +1763,7 @@ void startEvaluation(ArgvParser& cmd)
 				}
 				else
 				{
-					if (!poselib::estimateEssentialMat(E, p1, p2, RobMethod, th, refineRTold, mask))
+					if (!poselib::estimateEssentialMat(E, p1, p2, cp.RobMethod, th, cp.refineRTold, mask))
 					{
 						failNr++;
 						if ((float)failNr / (float)filenamesRt.size() < 0.5f)
@@ -1567,14 +1797,14 @@ void startEvaluation(ArgvParser& cmd)
 			//Get R & t
             t_1 = chrono::high_resolution_clock::now();
 			bool availableRT = false;
-			if (Halign)
+			if (cp.Halign)
 			{
 				R_kneip = R;
 				t_kneip = t;
 			}
-			if (Halign ||
-				((RobMethod == "USAC") && (cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
-					cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)))
+			if (cp.Halign ||
+				((cp.RobMethod == "USAC") && (cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
+                        cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)))
 			{
 				double sumt = 0;
 				for (int j = 0; j < 3; j++)
@@ -1587,18 +1817,18 @@ void startEvaluation(ArgvParser& cmd)
 				}
 			}
 			cv::Mat Q;
-			if (Halign && ((refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
+			if (cp.Halign && ((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
 			{
 				poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
 			}
 			else
 			{
-				if (refineRTold)
+				if (cp.refineRTold)
 				{
 					poselib::robustEssentialRefine(p1, p2, E, E, th / 10.0, 0, true, nullptr, nullptr, cv::noArray(), mask, 0);
 					availableRT = false;
 				}
-				else if (((refineMethod & 0xF) != poselib::RefinePostAlg::PR_NO_REFINEMENT) && !kneipInsteadBA)
+				else if (((cp.refineMethod & 0xF) != poselib::RefinePostAlg::PR_NO_REFINEMENT) && !cp.kneipInsteadBA)
 				{
 					cv::Mat R_tmp, t_tmp;
 					if (availableRT)
@@ -1606,7 +1836,7 @@ void startEvaluation(ArgvParser& cmd)
 						R_kneip.copyTo(R_tmp);
 						t_kneip.copyTo(t_tmp);
 
-						if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+						if (poselib::refineEssentialLinear(p1, p2, E, mask, cp.refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 						{
 							if (!R_tmp.empty() && !t_tmp.empty())
 							{
@@ -1617,10 +1847,10 @@ void startEvaluation(ArgvParser& cmd)
 						else
 							std::cout << "Refinement failed!" << std::endl;
 					}
-					else if ((refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
+					else if ((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
 					{
 
-						if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+						if (poselib::refineEssentialLinear(p1, p2, E, mask, cp.refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 						{
 							if (!R_tmp.empty() && !t_tmp.empty())
 							{
@@ -1634,7 +1864,7 @@ void startEvaluation(ArgvParser& cmd)
 					}
 					else
 					{
-						if (!poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+						if (!poselib::refineEssentialLinear(p1, p2, E, mask, cp.refineMethod, nr_inliers, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
 							std::cout << "Refinement failed!" << std::endl;
 					}
 				}
@@ -1645,7 +1875,7 @@ void startEvaluation(ArgvParser& cmd)
 				{
 					R = R_kneip;
 					t = t_kneip;
-					if ((BART > 0) && !kneipInsteadBA)
+					if ((cp.BART > 0) && !cp.kneipInsteadBA)
 						poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
 				}
 			}
@@ -1667,12 +1897,12 @@ void startEvaluation(ArgvParser& cmd)
 			//Bundle adjustment
 			bool useBA = true;
             t_1 = chrono::high_resolution_clock::now();
-			if (kneipInsteadBA)
+			if (cp.kneipInsteadBA)
 			{
 				cv::Mat R_tmp, t_tmp;
 				R.copyTo(R_tmp);
 				t.copyTo(t_tmp);
-				if (poselib::refineEssentialLinear(p1, p2, E, mask, refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+				if (poselib::refineEssentialLinear(p1, p2, E, mask, cp.refineMethod, nr_inliers, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
 				{
 					if (!R_tmp.empty() && !t_tmp.empty())
 					{
@@ -1684,7 +1914,7 @@ void startEvaluation(ArgvParser& cmd)
 				else
 				{
 					std::cout << "Refinement using Kneips Eigen solver instead of bundle adjustment (BA) failed!" << std::endl;
-					if (BART > 0)
+					if (cp.BART > 0)
 					{
 						std::cout << "Trying bundle adjustment instead!" << std::endl;
 						poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
@@ -1694,11 +1924,11 @@ void startEvaluation(ArgvParser& cmd)
 
 			if (useBA)
 			{
-				if (BART == 1)
+				if (cp.BART == 1)
 				{
 					poselib::refineStereoBA(p1, p2, R, t, Q, K0, K1, false, mask);
 				}
-				else if (BART == 2)
+				else if (cp.BART == 2)
 				{
 					poselib::CamToImgCoordTrans(p1, K0);
 					poselib::CamToImgCoordTrans(p2, K1);
@@ -1731,24 +1961,23 @@ void startEvaluation(ArgvParser& cmd)
 			{
 				//Set up USAC paramters
                 t_1 = chrono::high_resolution_clock::now();
-				poselib::ConfigUSAC cfg;
-				if (RobMethod == "USAC")
+				if (cp.RobMethod == "USAC")
 				{
-					cinfigureUSAC(cfg,
+					cinfigureUSAC(cp.cfg,
 						cfgUSACnr,
-						USACdegenTh,
+                                  cp.USACdegenTh,
 						K0,
 						K1,
 						imgSize,
 						&kp1,
 						&kp2,
 						&finalMatches,
-						th_pix_user,
-						USACInlratFilt);
+                                  cp.th,
+                                  cp.USACInlratFilt);
 				}
 
 				static bool poseWasStable = false;
-				if (stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cfg) != -1)
+				if (stereoObj->addNewCorrespondences(finalMatches, kp1, kp2, cp.cfg) != -1)
 				{
 					R = stereoObj->R_new;
 					t = stereoObj->t_new;
@@ -1773,7 +2002,7 @@ void startEvaluation(ArgvParser& cmd)
 				if(evStepStereoStable_cnt == 0)
 					evStepStereoStable_cnt = evStepStereoStable_tmp;
 
-				if (useMostLikelyPose && stereoObj->mostLikelyPose_stable)
+				if (cp.useMostLikelyPose && stereoObj->mostLikelyPose_stable)
 				{
 					R = stereoObj->R_mostLikely;
 					t = stereoObj->t_mostLikely;
@@ -1794,7 +2023,7 @@ void startEvaluation(ArgvParser& cmd)
 					R.copyTo(R_stable);
 					t.copyTo(t_stable);
 				}
-				else if (poseWasStable && useOnlyStablePose && !(useMostLikelyPose && stereoObj->mostLikelyPose_stable))
+				else if (poseWasStable && cp.useOnlyStablePose && !(cp.useMostLikelyPose && stereoObj->mostLikelyPose_stable))
 				{
 					R_stable.copyTo(R);
 					t_stable.copyTo(t);
@@ -1837,6 +2066,417 @@ void startEvaluation(ArgvParser& cmd)
             std::cout << "Estimated translation vector: [ " << setprecision(4) << t.at<double>(0) << " "
                       << t.at<double>(1) << " " << t.at<double>(2) << " ]" << endl;
             std::cout << std::endl << std::endl;
+        }
+    }
+
+    //Write results to disk
+    string outFileName;
+    if(!genOutFileName(output_path, cp, outFileName)){
+        cerr << "Unable to generate output file name." << endl;
+        exit(1);
+    }
+    testing::internal::FilePath overviewFNameG =
+            testing::internal::FilePath::GenerateUniqueFileName(testing::internal::FilePath(output_path),
+                                                                testing::internal::FilePath("allRunsOverview"),
+                                                                ovf_ext1part.c_str());
+    string overviewFName = overviewFNameG.string();
+    if(!writeResultsOverview(overviewFName, cp, outFileName)){
+        cerr << "Unable to write algorithm parameters to output." << endl;
+        exit(1);
+    }
+    if(!writeResultsDisk(ar, outFileName)){
+        cerr << "Unable to write results to disk." << endl;
+        exit(1);
+    }
+}
+
+//Generate an unique hash value for the used parameters
+size_t getHashCalibPars(const calibPars &cp){
+    std::stringstream ss;
+    string strFromPars;
+
+    ss << cp.useMostLikelyPose;
+    ss << cp.useOnlyStablePose;
+    ss << cp.evStepStereoStable;
+    ss << cp.cfg_stereo.Halign;
+    ss << cp.cfg_stereo.RobMethod;
+    ss << cp.cfg_stereo.refineMethod;
+    ss << cp.cfg_stereo.autoTH;
+    ss << cp.cfg_stereo.descriptorType;
+    ss << cp.cfg_stereo.absThRankingStable;
+    ss << cp.cfg_stereo.BART;
+    ss << cp.cfg_stereo.BART_CorrPool;
+    ss << cp.cfg_stereo.checkPoolPoseRobust;
+    ss << cp.cfg_stereo.keypointType;
+    ss << cp.cfg_stereo.kneipInsteadBA;
+    ss << cp.cfg_stereo.kneipInsteadBA_CorrPool;
+    ss << cp.cfg_stereo.maxDist3DPtsZ;
+    ss << cp.cfg_stereo.maxPoolCorrespondences;
+    ss << cp.cfg_stereo.maxRat3DPtsFar;
+    ss << cp.cfg_stereo.maxSkipPairs;
+    ss << cp.cfg_stereo.minContStablePoses;
+    ss << cp.cfg_stereo.minInlierRatioReInit;
+    ss << cp.cfg_stereo.minInlierRatSkip;
+    ss << cp.cfg_stereo.minNormDistStable;
+    ss << cp.cfg_stereo.minPtsDistance;
+    ss << cp.cfg_stereo.minStartAggInlRat;
+    ss << cp.cfg_stereo.raiseSkipCnt;
+    ss << cp.cfg_stereo.refineMethod_CorrPool;
+    ss << cp.cfg_stereo.refineRTold;
+    ss << cp.cfg_stereo.refineRTold_CorrPool;
+    ss << cp.cfg_stereo.relInlRatThLast;
+    ss << cp.cfg_stereo.relInlRatThNew;
+    ss << cp.cfg_stereo.relMinInlierRatSkip;
+    ss << cp.cfg_stereo.th_pix_user;
+    ss << cp.cfg_stereo.useRANSAC_fewMatches;
+    ss << cp.refineRTold;
+    ss << cp.BART;
+    ss << cp.autoTH;
+    ss << cp.refineMethod;
+    ss << cp.RobMethod;
+    ss << cp.Halign;
+    ss << cp.cfg.imgSize.height;
+    ss << cp.cfg.imgSize.width;
+    ss << cp.cfg.automaticSprtInit;
+    ss << cp.cfg.degenDecisionTh;
+    ss << cp.cfg.degeneracyCheck;
+    ss << cp.cfg.estimator;
+    ss << cp.cfg.focalLength;
+    ss << cp.cfg.noAutomaticProsacParamters;
+    ss << cp.cfg.prevalidateSample;
+    ss << cp.cfg.refinealg;
+    ss << cp.cfg.th_pixels;
+    ss << cp.USACInlratFilt;
+    ss << cp.USACdegenTh;
+    ss << cp.hashMatchingPars;
+    ss << cp.matchData_idx;
+    ss << cp.sequ_path;
+    ss << cp.mfo.refineGMS;
+    ss << cp.mfo.refineSOF;
+    ss << cp.mfo.refineVFC;
+    ss << cp.stereoRef;
+    ss << cp.th;
+    ss << cp.kneipInsteadBA;
+
+    strFromPars = ss.str();
+
+    std::hash<std::string> hash_fn;
+    return hash_fn(strFromPars);
+}
+
+//Generate an unique filename using a hash value for storing algorithm results
+bool genOutFileName(const std::string &path,
+        const calibPars &cp,
+        std::string &filename){
+
+    size_t hashVal = getHashCalibPars(cp);
+    testing::internal::FilePath outFileNameG =
+            testing::internal::FilePath::GenerateUniqueFileName(testing::internal::FilePath(path),
+                                                                testing::internal::FilePath(std::to_string(hashVal)),
+                                                                "txt");
+
+    int idx = 0;
+    while(outFileNameG.FileOrDirectoryExists()){
+        outFileNameG =
+                testing::internal::FilePath::GenerateUniqueFileName(
+                        testing::internal::FilePath(path),
+                        testing::internal::FilePath(std::to_string(hashVal) + "_" + std::to_string(idx)),
+                        "txt");
+        idx++;
+        if(idx > 10000){
+            cerr << "Too many output files with the same hashing value/parameters." << endl;
+            return false;
+        }
+    }
+    filename = outFileNameG.string();
+
+    return true;
+}
+
+//Write an parameter overview to file that connects a hash number (in results file name) with the used parameters
+bool writeResultsOverview(const string &filename,
+        const calibPars &cp,
+        const string &resultsFileName){
+
+    testing::internal::FilePath filenameG(filename);
+    FileStorage fs;
+    int nrEntries = 0;
+    string parSetNr = "parSetNr";
+    if(filenameG.FileOrDirectoryExists()){
+        //Check number of entries first
+        if(!getNrEntriesYAML(filename, parSetNr, nrEntries)){
+            return false;
+        }
+        fs = FileStorage(filename, FileStorage::APPEND);
+        if (!fs.isOpened()) {
+            cerr << "Failed to open " << filename << endl;
+            return false;
+        }
+        cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+        parSetNr += std::to_string(nrEntries);
+    }
+    else{
+        fs = FileStorage(filename, FileStorage::WRITE);
+        if (!fs.isOpened()) {
+            cerr << "Failed to open " << filename << endl;
+            return false;
+        }
+        cvWriteComment(*fs, "This file contains the file name and its corresponding parameters for "
+                            "tested calibration runs.\n\n", 0);
+        parSetNr += "0";
+    }
+    fs << parSetNr;
+    fs << "{";
+
+    cvWriteComment(*fs, "File name (within the path containing this file) which holds results from testing "
+                        "the autocalibration SW.", 0);
+    size_t posLastSl = resultsFileName.rfind('/');
+    string resDirName = resultsFileName.substr(posLastSl + 1);
+    fs << "hashTestingPars" << resDirName;
+
+    writeTestingParameters(fs, cp);
+    fs << "}";
+
+    fs.release();
+
+    return true;
+}
+
+void writeTestingParameters(cv::FileStorage &fs,
+                            const calibPars &cp){
+    fs << "sequ_path" << cp.sequ_path;
+    fs << "matchData_idx" << cp.matchData_idx;
+    fs << "hashMatchingPars" << cp.hashMatchingPars;
+
+    fs << "stereoRef" << cp.stereoRef;
+    fs << "th" << cp.th;
+    fs << "RobMethod" << cp.RobMethod;
+    fs << "USAC_parameters" << "{";
+    fs << "th_pixels" << cp.cfg.th_pixels;
+    fs << "USACInlratFilt" << ((cp.USACInlratFilt == 0) ? "GMS":"VFC");
+    if(cp.cfg.automaticSprtInit == poselib::SprtInit::SPRT_DEFAULT_INIT) {
+        fs << "automaticSprtInit" << "SPRT_DEFAULT_INIT";
+    }else if(cp.cfg.automaticSprtInit == poselib::SprtInit::SPRT_DELTA_AUTOM_INIT){
+        fs << "automaticSprtInit" << "SPRT_DELTA_AUTOM_INIT";
+    }else{
+        fs << "automaticSprtInit" << "SPRT_EPSILON_AUTOM_INIT";
+    }
+    fs << "noAutomaticProsacParamters" << cp.cfg.noAutomaticProsacParamters;
+    fs << "prevalidateSample" << cp.cfg.prevalidateSample;
+    if(cp.cfg.estimator == poselib::PoseEstimator::POSE_NISTER) {
+        fs << "estimator" << "POSE_NISTER";
+    }else if(cp.cfg.estimator == poselib::PoseEstimator::POSE_EIG_KNEIP){
+        fs << "estimator" << "POSE_EIG_KNEIP";
+    }else{
+        fs << "estimator" << "POSE_STEWENIUS";
+    }
+    if(cp.cfg.refinealg == poselib::RefineAlg::REF_WEIGHTS) {
+        fs << "refinealg" << "REF_WEIGHTS";
+    }else if(cp.cfg.refinealg == poselib::RefineAlg::REF_8PT_PSEUDOHUBER){
+        fs << "refinealg" << "REF_8PT_PSEUDOHUBER";
+    }else if(cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP){
+        fs << "refinealg" << "REF_EIG_KNEIP";
+    }else if(cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS){
+        fs << "refinealg" << "REF_EIG_KNEIP_WEIGHTS";
+    }else if(cp.cfg.refinealg == poselib::RefineAlg::REF_STEWENIUS){
+        fs << "refinealg" << "REF_STEWENIUS";
+    }else if(cp.cfg.refinealg == poselib::RefineAlg::REF_STEWENIUS_WEIGHTS){
+        fs << "refinealg" << "REF_STEWENIUS_WEIGHTS";
+    }else if(cp.cfg.refinealg == poselib::RefineAlg::REF_NISTER){
+        fs << "refinealg" << "REF_NISTER";
+    }else{
+        fs << "refinealg" << "REF_NISTER_WEIGHTS";
+    }
+    fs << "degenDecisionTh" << cp.cfg.degenDecisionTh;
+    if(cp.cfg.degeneracyCheck == poselib::UsacChkDegenType::DEGEN_NO_CHECK) {
+        fs << "degeneracyCheck" << "DEGEN_NO_CHECK";
+    }else if(cp.cfg.degeneracyCheck == poselib::UsacChkDegenType::DEGEN_QDEGSAC){
+        fs << "degeneracyCheck" << "DEGEN_QDEGSAC";
+    }else{
+        fs << "degeneracyCheck" << "DEGEN_USAC_INTERNAL";
+    }
+    fs << "}";
+
+    fs << "refineMethod" << "{";
+    if((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT) {
+        fs << "algorithm" << "PR_NO_REFINEMENT";
+    }else if((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_8PT){
+        fs << "algorithm" << "PR_8PT";
+    }else if((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NISTER){
+        fs << "algorithm" << "PR_NISTER";
+    }else if((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_STEWENIUS){
+        fs << "algorithm" << "PR_STEWENIUS";
+    }else {
+        fs << "algorithm" << "PR_KNEIP";
+    }
+    if((cp.refineMethod & 0xF0) == poselib::RefinePostAlg::PR_TORR_WEIGHTS) {
+        fs << "costFunction" << "PR_TORR_WEIGHTS";
+    }else if((cp.refineMethod & 0xF0) == poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS) {
+        fs << "costFunction" << "PR_PSEUDOHUBER_WEIGHTS";
+    }else{
+        fs << "costFunction" << "PR_NO_WEIGHTS";
+    }
+    fs << "}";
+
+    fs << "kneipInsteadBA" << cp.kneipInsteadBA;
+    fs << "refineRTold" << cp.refineRTold;
+    fs << "BART" << cp.BART;
+    fs << "matchesFilter" << "{";
+    fs << "refineGMS" << cp.mfo.refineGMS;
+    fs << "refineVFC" << cp.mfo.refineVFC;
+    fs << "refineSOF" << cp.mfo.refineSOF << "}";
+
+    fs << "stereoParameters" << "{";
+    fs << "th_pix_user" << cp.cfg_stereo.th_pix_user;
+    fs << "keypointType" << cp.cfg_stereo.keypointType;
+    fs << "descriptorType" << cp.cfg_stereo.descriptorType;
+    fs << "RobMethod" << cp.cfg_stereo.RobMethod;
+    fs << "refineMethod" << "{";
+    if((cp.cfg_stereo.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT) {
+        fs << "algorithm" << "PR_NO_REFINEMENT";
+    }else if((cp.cfg_stereo.refineMethod & 0xF) == poselib::RefinePostAlg::PR_8PT){
+        fs << "algorithm" << "PR_8PT";
+    }else if((cp.cfg_stereo.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NISTER){
+        fs << "algorithm" << "PR_NISTER";
+    }else if((cp.cfg_stereo.refineMethod & 0xF) == poselib::RefinePostAlg::PR_STEWENIUS){
+        fs << "algorithm" << "PR_STEWENIUS";
+    }else {
+        fs << "algorithm" << "PR_KNEIP";
+    }
+    if((cp.cfg_stereo.refineMethod & 0xF0) == poselib::RefinePostAlg::PR_TORR_WEIGHTS) {
+        fs << "costFunction" << "PR_TORR_WEIGHTS";
+    }else if((cp.cfg_stereo.refineMethod & 0xF0) == poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS) {
+        fs << "costFunction" << "PR_PSEUDOHUBER_WEIGHTS";
+    }else{
+        fs << "costFunction" << "PR_NO_WEIGHTS";
+    }
+    fs << "}";
+    fs << "refineMethod_CorrPool" << "{";
+    if((cp.cfg_stereo.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT) {
+        fs << "algorithm" << "PR_NO_REFINEMENT";
+    }else if((cp.cfg_stereo.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_8PT){
+        fs << "algorithm" << "PR_8PT";
+    }else if((cp.cfg_stereo.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_NISTER){
+        fs << "algorithm" << "PR_NISTER";
+    }else if((cp.cfg_stereo.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_STEWENIUS){
+        fs << "algorithm" << "PR_STEWENIUS";
+    }else {
+        fs << "algorithm" << "PR_KNEIP";
+    }
+    if((cp.cfg_stereo.refineMethod_CorrPool & 0xF0) == poselib::RefinePostAlg::PR_TORR_WEIGHTS) {
+        fs << "costFunction" << "PR_TORR_WEIGHTS";
+    }else if((cp.cfg_stereo.refineMethod_CorrPool & 0xF0) == poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS) {
+        fs << "costFunction" << "PR_PSEUDOHUBER_WEIGHTS";
+    }else{
+        fs << "costFunction" << "PR_NO_WEIGHTS";
+    }
+    fs << "}";
+    fs << "kneipInsteadBA" << cp.cfg_stereo.kneipInsteadBA;
+    fs << "kneipInsteadBA_CorrPool" << cp.cfg_stereo.kneipInsteadBA_CorrPool;
+    fs << "refineRTold" << cp.cfg_stereo.refineRTold;
+    fs << "refineRTold_CorrPool" << cp.cfg_stereo.refineRTold_CorrPool;
+    fs << "BART" << cp.cfg_stereo.BART;
+    fs << "BART_CorrPool" << cp.cfg_stereo.BART_CorrPool;
+    fs << "checkPoolPoseRobust" << (int)cp.cfg_stereo.checkPoolPoseRobust;
+    fs << "useRANSAC_fewMatches" << cp.cfg_stereo.useRANSAC_fewMatches;
+    fs << "maxPoolCorrespondences" << (int)cp.cfg_stereo.maxPoolCorrespondences;
+    fs << "maxDist3DPtsZ" << cp.cfg_stereo.maxDist3DPtsZ;
+    fs << "maxRat3DPtsFar" << cp.cfg_stereo.maxRat3DPtsFar;
+    fs << "minStartAggInlRat" << cp.cfg_stereo.minStartAggInlRat;
+    fs << "minInlierRatSkip" << cp.cfg_stereo.minInlierRatSkip;
+    fs << "relInlRatThLast" << cp.cfg_stereo.relInlRatThLast;
+    fs << "relInlRatThNew" << cp.cfg_stereo.relInlRatThNew;
+    fs << "relMinInlierRatSkip" << cp.cfg_stereo.relMinInlierRatSkip;
+    fs << "minInlierRatioReInit" << cp.cfg_stereo.minInlierRatioReInit;
+    fs << "maxSkipPairs" << (int)cp.cfg_stereo.maxSkipPairs;
+    fs << "minNormDistStable" << cp.cfg_stereo.minNormDistStable;
+    fs << "absThRankingStable" << cp.cfg_stereo.absThRankingStable;
+    fs << "minContStablePoses" << (int)cp.cfg_stereo.minContStablePoses;
+    fs << "raiseSkipCnt" << cp.cfg_stereo.raiseSkipCnt;
+    fs << "minPtsDistance" << cp.cfg_stereo.minPtsDistance;
+    fs << "Halign" << cp.cfg_stereo.Halign;
+    fs << "autoTH" << cp.cfg_stereo.autoTH << "}";
+
+    fs << "Halign" << cp.Halign;
+    fs << "autoTH" << cp.autoTH;
+
+    fs << "useMostLikelyPose" << cp.useMostLikelyPose;
+    fs << "useOnlyStablePose" << cp.useOnlyStablePose;
+    fs << "evStepStereoStable" << cp.evStepStereoStable;
+}
+
+bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries){
+    FileStorage fs = FileStorage(filename, FileStorage::READ);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << filename << endl;
+        return false;
+    }
+
+    nrEntries = 0;
+    while(true) {
+        cv::FileNode fn = fs[buzzword + std::to_string(nrEntries)];
+        if (fn.empty()) {
+            break;
+        }
+        nrEntries++;
+    }
+
+    fs.release();
+
+    return true;
+}
+
+//Write the results from testing to disk
+bool writeResultsDisk(const std::vector<algorithmResult> &ar, const string &filename){
+    ofstream evalsToFile(filename);
+    if(!evalsToFile.is_open()){
+        cerr << "Error creating output file for writing results." << endl;
+        return false;
+    }
+
+    //Print header
+    evalsToFile << "Nr;";
+    ar[0].print(evalsToFile, true);
+
+    //Print data
+    int idx = 0;
+    for(auto &i: ar){
+        evalsToFile << idx << ";";
+        i.print(evalsToFile, false);
+        idx++;
+    }
+
+    evalsToFile.close();
+
+    return true;
+}
+
+void printCVMat(const cv::Mat &m, std::ofstream &os, const std::string &name){
+    CV_Assert(m.type() == CV_64FC1);
+    int rows = m.rows;
+    int cols = m.cols;
+    int rows1 = rows - 1;
+    int cols1 = cols - 1;
+
+    if(name.empty()){
+        for (int y = 0; y < rows; ++y) {
+            for (int x = 0; x < cols; ++x) {
+                if((y == rows1) && (x == cols1)){
+                    os << m.at<double>(y,x);
+                }else {
+                    os << m.at<double>(y, x) << ";";
+                }
+            }
+        }
+    }else{
+        for (int y = 0; y < rows; ++y) {
+            for (int x = 0; x < cols; ++x) {
+                if((y == rows1) && (x == cols1)){
+                    os << name << "(" << y << "," << x << ")";
+                }else {
+                    os << name << "(" << y << "," << x << ")" << ";";
+                }
+            }
         }
     }
 }
@@ -2046,6 +2686,15 @@ bool loadImgSize(const string &filename,
     fs.release();
 
     return true;
+}
+
+FileStorage& operator << (FileStorage& fs, bool &value)
+{
+    if(value){
+        return (fs << 1);
+    }
+
+    return (fs << 0);
 }
 
 /** @function main */
