@@ -37,6 +37,7 @@
 #endif
 
 #include <boost/filesystem.hpp>
+#include "alphanum.hpp"
 
 //#include "PfeImgFileIO.h"
 //#include "PfeConv.h"
@@ -354,7 +355,7 @@ int loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::stri
 
 		if (bInputIdent)
 		{
-			sort(filenamesl.begin(), filenamesl.end());
+			sort(filenamesl.begin(), filenamesl.end(), doj::alphanum_less<std::string>());
 			filenamesr = filenamesl;   //r==l (remove first/last frame)
 			filenamesl.pop_back();
 			filenamesr.erase(filenamesr.begin());
@@ -500,7 +501,7 @@ int loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vecto
 			}
 		}
 		closedir(dir);
-		std::sort(filenamesl.begin(), filenamesl.end());
+		std::sort(filenamesl.begin(), filenamesl.end(), doj::alphanum_less<std::string>());
 	}
 	else
 	{
