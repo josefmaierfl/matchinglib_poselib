@@ -179,6 +179,8 @@ bool readCamParsFromDisk(const std::string &filename,
     fs["actKd1"] >> sm.actKd1;
     fs["actKd2"] >> sm.actKd2;
 
+    fs.release();
+
     return true;
 }
 

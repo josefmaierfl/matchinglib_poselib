@@ -277,14 +277,17 @@ namespace poselib
 
         void setNewParameters(ConfigPoseEstimation cfg_pose_);//Set new parameters for the stereo pose estimation.
 
-        int addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg);//Add new correspondences for estimating a new pose and estimate the pose.
+        int addNewCorrespondences(std::vector<cv::DMatch> matches,
+                std::vector<cv::KeyPoint> kp1,
+                std::vector<cv::KeyPoint> kp2,
+                const poselib::ConfigUSAC &cfg);//Add new correspondences for estimating a new pose and estimate the pose.
 
     private:
 
         int robustPoseEstimation();//Robust pose estimation with optional refinement and Bundle Adjustment
         int refinePoseFromPool();//Refinement of E using all correspondences from the pool
         int addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2);//Adds new correspondences and their properties to the pool
-        size_t getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error);//Get the inlier mask and error values for a given set of correspondences and an Essential matrix E
+        size_t getInliers(const cv::Mat &E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error);//Get the inlier mask and error values for a given set of correspondences and an Essential matrix E
         void clearHistoryAndPool();//Clears all stored correspondences, data, and history necessary to reinitialize the whole system.
         void checkInputParamters();//Checks if the input paramters are in the correct range.
         int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);//Filters the correspondences of the newest image pair and from the pool.

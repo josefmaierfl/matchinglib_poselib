@@ -31,6 +31,7 @@
 #endif
 #include <algorithm>
 #include <functional>
+#include "alphanum.hpp"
 
 //#include "PfeImgFileIO.h"
 //#include "PfeConv.h"
@@ -347,7 +348,7 @@ int loadStereoSequence(std::string filepath, std::string fileprefl, std::string 
 
         if (bInputIdent)
         {
-            sort(filenamesl.begin(), filenamesl.end());
+            sort(filenamesl.begin(), filenamesl.end(), doj::alphanum_less<std::string>());
             filenamesr = filenamesl;   //r==l (remove first/last frame)
             filenamesl.pop_back();
             filenamesr.erase(filenamesr.begin());
@@ -488,7 +489,7 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
                 filenamesl.push_back(filedir_use + "/" + filename);
         }
         closedir(dir);
-        std::sort(filenamesl.begin(), filenamesl.end());
+        std::sort(filenamesl.begin(), filenamesl.end(), doj::alphanum_less<std::string>());
     }
     else
     {

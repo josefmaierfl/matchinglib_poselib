@@ -168,10 +168,10 @@ double AutoThEpi::estimateThresh(cv::InputArray p1, cv::InputArray p2, cv::Input
 	double th, th_tmp, maxInlDist;
 	//double pixToCamFact = 4.0/(std::sqrt((double)2)*(this->K1.at<double>(0,0)+this->K1.at<double>(1,1)+this->K2.at<double>(0,0)+this->K2.at<double>(1,1)));
 
-	getReprojErrors(_E,_p1,_p2,useImgCoordSystem,NULL,&error);
+	getReprojErrors(_E,_p1,_p2,useImgCoordSystem,nullptr,&error);
 
-	for(size_t i = 0; i < error.size(); i++)
-		error[i] = std::sqrt(error[i]);
+	for(auto &i : error)
+		i = std::sqrt(i);
 
 	if(useImgCoordSystem)
 	{
@@ -825,22 +825,28 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
  * Return value:						true :	Success
  *										false:	Failed
  */
-bool estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p2, std::string method, double threshold, bool refine, cv::OutputArray mask)
+bool estimateEssentialMat(cv::OutputArray E,
+        cv::InputArray p1,
+        cv::InputArray p2,
+        const std::string &method,
+        double threshold,
+        bool refine,
+        cv::OutputArray mask)
 {
 	bool result = false;
-	if(!method.compare("ARRSAC"))
+	if(method == "ARRSAC")
 	{
 		result = findEssentialMat(E, p1, p2, ARRSAC, 0.999, threshold, mask, refine, robustEssentialRefine); //ARRSAC with optional robust refinement using a Pseudo Huber cost function
 	}
-	else if(!method.compare("RANSAC"))
+	else if(method == "RANSAC")
 	{
 		result = findEssentialMat(E, p1, p2, CV_RANSAC, 0.999, threshold, mask, refine); //RANSAC with possible subsequent least squares solution
 	}
-	else if(!method.compare("LMEDS"))//Only LMEDS without least squares solution
+	else if(method == "LMEDS")//Only LMEDS without least squares solution
 	{
 		result = findEssentialMat(E, p1, p2, CV_LMEDS, 0.999, threshold, mask);
 	}
-	else if (!method.compare("USAC"))
+	else if (method == "USAC")
 	{
 		cout << "USAC must be executed by function estimateEssentialOrPoseUSAC as it needs additional paramters! Exiting." << endl;
 		exit(0);
@@ -875,7 +881,15 @@ bool estimateEssentialMat(cv::OutputArray E, cv::InputArray p1, cv::InputArray p
  * Return value:						>=0:	Number of valid 3D points
  *										-1:		R, t, or Q are mandatory output variables (one or more are missing)
  */
-int getPoseTriangPts(cv::InputArray E, cv::InputArray p1, cv::InputArray p2, cv::OutputArray R, cv::OutputArray t, cv::OutputArray Q, cv::InputOutputArray mask, const double dist, bool translatE)
+int getPoseTriangPts(cv::InputArray E,
+        cv::InputArray p1,
+        cv::InputArray p2,
+        cv::OutputArray R,
+        cv::OutputArray t,
+        cv::OutputArray Q,
+        cv::InputOutputArray mask,
+        const double dist,
+        bool translatE)
 {
 	int n;
 	Mat R_, t_, Q_;
@@ -926,7 +940,7 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
 	Mat R_ = R.getMat();
 	Mat t_ = t.getMat();
 	Mat mask_;
-	int npoints = points1.checkVector(2);
+//	int npoints = points1.checkVector(2);
 	if(mask.needed())
 	{
 		mask_ = mask.getMat();
@@ -946,6 +960,9 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
 	//const double dist = 50.0;
 	Mat Q1,q1;
 	triangulatePoints(P0, P1, points1, points2, Q1);
+	if(Q1.empty() || (Q1.cols == 0)){
+	    return -1;
+	}
 
 	q1 = P1 * Q1;
 	if(mask_.empty())
@@ -1033,6 +1050,12 @@ bool refineStereoBA(cv::InputArray p1,
 					const double angleThresh,
 					const double t_norm_tresh)
 {
+    if(p1.empty() || p2.empty() || Q.empty()){
+        return false;
+    }
+    if((p1.rows() != p2.rows()) || (p1.rows() != Q.rows())){
+        return false;
+    }
 	/*const double angleThresh = 0.3;
 	const double t_norm_tresh = 0.05;*/
 	BAinfo info;
@@ -1054,7 +1077,7 @@ bool refineStereoBA(cv::InputArray p1,
 	Mat p1_tmp, p2_tmp, Q_tmp;
 
 	//Prepare input data for the BA interface
-	double * pts3D_vec = NULL;
+	double * pts3D_vec = nullptr;
 
 	cv::cv2eigen(R.getMat(),R1e);
 	MatToQuat(R1e, R1quat);
@@ -1111,7 +1134,7 @@ bool refineStereoBA(cv::InputArray p1,
 
 		//Convert the threshold into the camera coordinate system
 		double th = ROBUST_THRESH;
-		th = 4*th/(std::sqrt((double)2)*(K1.getMat().at<double>(1,1)+K1.getMat().at<double>(2,2)+K2.getMat().at<double>(1,1)+K2.getMat().at<double>(2,2)));
+		th = 4.0*th/(std::sqrt((double)2)*(K1.getMat().at<double>(1,1)+K1.getMat().at<double>(2,2)+K2.getMat().at<double>(1,1)+K2.getMat().at<double>(2,2)));
 
 		SBAdriver optiMotStruct(true,BA_MOTSTRUCT,COST_PSEUDOHUBER,th,true,BA_MOTSTRUCT);
 
@@ -1131,10 +1154,10 @@ bool refineStereoBA(cv::InputArray p1,
 		vector<double *> intr_vec;
 		double *intr1, *intr2;
 		intr1 = (double*)malloc(5*sizeof(double));
-		if(intr1 == NULL) exit(1);
+		if(intr1 == nullptr) exit(1);
 
 		intr2 = (double*)malloc(5*sizeof(double));
-		if(intr2 == NULL) exit(1);
+		if(intr2 == nullptr) exit(1);
 
 		intr1[0] = K1_.at<double>(0,0);
 		intr1[1] = K1_.at<double>(0,2);
@@ -1152,7 +1175,7 @@ bool refineStereoBA(cv::InputArray p1,
 
 		SBAdriver optiMotStruct(false,BA_MOTSTRUCT,COST_PSEUDOHUBER,ROBUST_THRESH,true,BA_MOTSTRUCT);
 
-		if(optiMotStruct.perform_sba(R_vec,t_vec,pts2D_vec,num2Dpts,pts3D_vec,Q_tmp.rows,NULL,&intr_vec) < 0)
+		if(optiMotStruct.perform_sba(R_vec,t_vec,pts2D_vec,num2Dpts,pts3D_vec,Q_tmp.rows,nullptr,&intr_vec) < 0)
 		{
 			/*this->t = oldRTs.back().second.clone(); //-------------------------------> these two lines are executed within uncalibratedRectify for bundle adjustment with internal paramters (if it fails)
 			delLastPose(true);*/
@@ -1257,7 +1280,7 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 	static bool historyBufFull = false;
 	static statVals sprt_delta_stat, sprt_epsilon_stat;
 	static bool statistic_valid = false;
-	std::vector<unsigned int> sortedMatchIdx, *sortedMatchIdxPtr = NULL;
+	std::vector<unsigned int> sortedMatchIdx, *sortedMatchIdxPtr = nullptr;
 	switch (cfg.estimator)
 	{
 	case(PoseEstimator::POSE_EIG_KNEIP):
@@ -1505,9 +1528,9 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			cv::noArray(),
 			cv::noArray(),
 			inliers_degenerate_noMotion,
-			NULL,
+                                     nullptr,
 			&fraction_degen_inliers_R,
-			NULL,
+                                     nullptr,
 			&fraction_degen_inliers_noMot,
 			*sortedMatchIdxPtr,
 			R_kneip,
@@ -1517,7 +1540,9 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			return -2;
 		}
 		isDegenerate = false;
-		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && 
+		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP
+		|| refineMethod == USACConfig::REFINE_EIG_KNEIP
+		|| refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) &&
 			!R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
 		{
 			if (R.empty())
@@ -1562,9 +1587,9 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			cv::noArray(),
 			cv::noArray(),
 			inliers_degenerate_noMotion,
-			NULL,
+                                     nullptr,
 			&fraction_degen_inliers_R,
-			NULL,
+                                     nullptr,
 			&fraction_degen_inliers_noMot,
 			*sortedMatchIdxPtr,
 			R_kneip,
@@ -1574,7 +1599,9 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			return -2;
 		}
 
-		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && 
+		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP
+		|| refineMethod == USACConfig::REFINE_EIG_KNEIP
+		|| refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) &&
 			!R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
 		{
 			if (R.empty())
@@ -1656,7 +1683,9 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			cout << "USAC failed!" << endl;
 			return -2;
 		}
-		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP || refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) && 
+		if ((used_estimator == USACConfig::ESTIM_EIG_KNEIP
+		|| refineMethod == USACConfig::REFINE_EIG_KNEIP
+		|| refineMethod == USACConfig::REFINE_EIG_KNEIP_WEIGHTS) &&
 			!R_kneip.empty() && !t_kneip.empty() && R.needed() && t.needed())
 		{
 			if (R.empty())

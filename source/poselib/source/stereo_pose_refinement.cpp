@@ -56,7 +56,7 @@ namespace poselib
     */
     void StereoRefine::setNewParameters(ConfigPoseEstimation cfg_pose_)
     {
-        CV_Assert((cfg_pose_.K0 != NULL) && (cfg_pose_.K1 != NULL) && (cfg_pose_.dist0_8 != NULL) && (cfg_pose_.dist1_8 != NULL));
+        CV_Assert((cfg_pose_.K0 != nullptr) && (cfg_pose_.K1 != nullptr) && (cfg_pose_.dist0_8 != nullptr) && (cfg_pose_.dist1_8 != nullptr));
 
         //Check if the intrinsics remain the same
         bool checkIntr = false;
@@ -94,17 +94,20 @@ namespace poselib
         if(checkIntr)
         {
             cout << "The camera intrinsics changed. Reinitializing system!" << endl;
-            pixToCamFact = 4.0 / (std::sqrt(2.0) * (cfg_pose_.K0->at<double>(0, 0) + cfg_pose_.K0->at<double>(1, 1) + cfg_pose_.K1->at<double>(0, 0) + cfg_pose_.K1->at<double>(1, 1)));
+            pixToCamFact = 4.0 / (std::sqrt(2.0) * (cfg_pose_.K0->at<double>(0, 0) + cfg_pose_.K0->at<double>(1, 1)
+                    + cfg_pose_.K1->at<double>(0, 0) + cfg_pose_.K1->at<double>(1, 1)));
             clearHistoryAndPool();
         }
 
         bool checkTh = false;
-        if (!poselib::nearZero(cfg_pose.th_pix_user - cfg_pose_.th_pix_user) && (cfg_pose_.th_pix_user < cfg_pose.th_pix_user) && !points1Cam.empty())
+        if (!poselib::nearZero(cfg_pose.th_pix_user - cfg_pose_.th_pix_user)
+        && (cfg_pose_.th_pix_user < cfg_pose.th_pix_user) && !points1Cam.empty())
         {
             //check if the new threshold leads to a noticable reduction of the already found correspondences
             checkTh = true;
         }
-        if (cfg_pose_.keypointType.compare(cfg_pose.keypointType) || cfg_pose_.descriptorType.compare(cfg_pose.descriptorType))
+        if ((cfg_pose_.keypointType != cfg_pose.keypointType)
+        || (cfg_pose_.descriptorType != cfg_pose.descriptorType))
         {
             //If the keypoint or descriptoir type is changed, the system must be reinitialized as the respons and descriptor distance
             //values depend on the type and the filtering procedures of this stereo algorithm depend on these values. Thus, the range
@@ -350,7 +353,10 @@ namespace poselib
     *												-2:	An invalid iterator within the pool correpondences was detected leading to reinitialization
     *												-3: A too low inlier ratio was detected either after robust estimation or after refinement (which should not happen)
     */
-    int StereoRefine::addNewCorrespondences(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, poselib::ConfigUSAC cfg)
+    int StereoRefine::addNewCorrespondences(std::vector<cv::DMatch> matches,
+            std::vector<cv::KeyPoint> kp1,
+            std::vector<cv::KeyPoint> kp2,
+            const poselib::ConfigUSAC &cfg)
     {
         cfg_usac = cfg;
         t_mea = 0;
@@ -431,7 +437,8 @@ namespace poselib
                 if (inlier_ratio_new < inlier_ratio_new1 * (1 - cfg_pose.relInlRatThNew))
                 {
                     //Either the pose has changed or the new image pair is really bad
-                    if ((inlier_ratio_new1 >= cfg_pose.minInlierRatioReInit) && (inlier_ratio_new < cfg_pose.minInlierRatioReInit))
+                    if ((inlier_ratio_new1 >= cfg_pose.minInlierRatioReInit)
+                    && (inlier_ratio_new < cfg_pose.minInlierRatioReInit))
                     {
                         //It seems that the pose hase changed as the inlier ratio is quite good after robust estimation
                         if(!reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2))
@@ -441,19 +448,24 @@ namespace poselib
                     }
                     else
                     {
-                        if ((inlier_ratio_new1 < cfg_pose.minInlierRatSkip) && (inlier_ratio_new1 < (cfg_pose.relMinInlierRatSkip * inlier_ratio_history.back())))
+                        if ((inlier_ratio_new1 < cfg_pose.minInlierRatSkip)
+                        && (inlier_ratio_new1 < (cfg_pose.relMinInlierRatSkip * inlier_ratio_history.back())))
                         {
-                            //It seems that the new image pair is really bad -> skip the whole estimation procedure and restore the old pose
+                            //It seems that the new image pair is really bad -> skip the whole estimation
+                            // procedure and restore the old pose
                             E_new = pose_history.back().E.clone();
                             R_new = pose_history.back().R.clone();
                             t_new = pose_history.back().t.clone();
-                            cout << "It seems that the new image pair is really bad. Restoring last valid pose! Be aware that the 3D points might not be valid!" << endl;
+                            cout << "It seems that the new image pair is really bad. Restoring last valid pose! "
+                                    "Be aware that the 3D points might not be valid!" << endl;
                         }
                         else
                         {
-                            //We are not sure if the pose has changed or if the image pair is too bad -> taking pose from robustly refined pool but keeping history and
+                            //We are not sure if the pose has changed or if the image pair is
+                            // too bad -> taking pose from robustly refined pool but keeping history and
                             //do not add this correspondences to the pool or anything to the history
-                            cout << "Either the pose has changed or the image pair has bad quality! Robustly estimating new pose from pool which might be wrong!" << endl;
+                            cout << "Either the pose has changed or the image pair has bad quality! "
+                                    "Robustly estimating new pose from pool which might be wrong!" << endl;
                             cv::Mat E_old = E_new.clone();
                             cv::Mat R_old = R_new.clone();
                             cv::Mat t_old = t_new.clone();
@@ -464,7 +476,8 @@ namespace poselib
                             if (robustEstimationOnPool(matches, kp1, kp2))
                             {
                                 //Reinitialize whole system
-                                cout << "Robust estimation on pool correspondences failed! Reinitializing system!" << endl;
+                                cout << "Robust estimation on pool correspondences failed! "
+                                        "Reinitializing system!" << endl;
                                 E_old.copyTo(E_new);
                                 R_old.copyTo(R_new);
                                 t_old.copyTo(t_new);
@@ -488,7 +501,8 @@ namespace poselib
                 }
                 else
                 {
-                    //The new estimated pose seems to be similar to the old one, so add the correspondences to the pool and perform refinement on all availble correspondences
+                    //The new estimated pose seems to be similar to the old one,
+                    // so add the correspondences to the pool and perform refinement on all availble correspondences
                     cout << "Low inlier ratio detected! Bad image pair!" << endl;
 #if 1
                     mask_Q_new.release();
@@ -528,7 +542,8 @@ namespace poselib
                 }
                 if (((size_t)points1Cam.rows + matches.size()) > (size_t)INT_MAX)
                 {
-                    cout << "Number of correspondences within correspondence pool is too large! Removing " << matches.size() << " elements!" << endl;
+                    cout << "Number of correspondences within correspondence pool is too large! "
+                            "Removing " << matches.size() << " elements!" << endl;
                     size_t n_new = matches.size();
                     vector<size_t> delIdxsOld(n_new);
                     size_t multiplicator = 1;
@@ -590,7 +605,8 @@ namespace poselib
                     if (robustEstimationOnPool(matches, kp1, kp2))
                     {
                         //Reinitialize whole system
-                        cout << "Robust estimation on pool correspondences failed! Reinitializing system with last pose!" << endl;
+                        cout << "Robust estimation on pool correspondences failed! "
+                                "Reinitializing system with last pose!" << endl;
                         E_old.copyTo(E_new);
                         R_old.copyTo(R_new);
                         t_old.copyTo(t_new);
@@ -603,11 +619,13 @@ namespace poselib
                     if (cfg_pose.checkPoolPoseRobust > 1)
                     {
                         if (maxPoolSizeReached)
-                            checkPoolPoseRobust_tmp = cfg_pose.checkPoolPoseRobust > 10 ? cfg_pose.checkPoolPoseRobust : 10;
+                            checkPoolPoseRobust_tmp =
+                                    cfg_pose.checkPoolPoseRobust > 10 ? cfg_pose.checkPoolPoseRobust : 10;
                         else if (checkPoolPoseRobust_tmp > 50)
                             checkPoolPoseRobust_tmp = cfg_pose.maxPoolCorrespondences / initNumberInliers + 2;
                         else
-                            checkPoolPoseRobust_tmp = (size_t)std::round((double)cfg_pose.checkPoolPoseRobust + std::exp(0.8 + (double)checkPoolPoseRobust_tmp / 6.0));
+                            checkPoolPoseRobust_tmp = (size_t)std::round((double)cfg_pose.checkPoolPoseRobust
+                                    + std::exp(0.8 + (double)checkPoolPoseRobust_tmp / 6.0));
                     }
                     nr_since_robust = 0;
                     minRelRemainingCorrsRef = 0.7;
@@ -643,7 +661,8 @@ namespace poselib
                             }
                             if (poolCorrespondenceDelete(newAddedPoolCorrsIdx))
                             {
-                                //Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+                                //Failed to remove some old correspondences as an invalid iterator
+                                // was detected -> reinitialize system
                                 clearHistoryAndPool();
                                 failed_refinements = 0;
                                 cfg_usac.matches = &matches;
@@ -692,7 +711,8 @@ namespace poselib
 
                 if ((double)nr_inliers_new < minRelRemainingCorrsRef * (double)correspondencePool.size())
                 {
-                    cout << "Too less inliers (<75%) after refinement! Reinitializing system and taking old pose!" << endl;
+                    cout << "Too less inliers (<75%) after refinement! "
+                            "Reinitializing system and taking old pose!" << endl;
                     E_old.copyTo(E_new);
                     R_old.copyTo(R_new);
                     t_old.copyTo(t_new);
@@ -705,7 +725,9 @@ namespace poselib
                 inlier_ratio_new = (double)nr_inliers_tmp / (double)points1newMat_tmp.rows;
                 if (inlier_ratio_new < inlier_ratio_new1 * (1 - cfg_pose.relInlRatThNew))
                 {
-                    cout << "Inlier ratio of new image pair calculated with refined E over all image pairs is too small compared to its initial inlier ratio! Reinitializing system and taking old pose!" << endl;
+                    cout << "Inlier ratio of new image pair calculated with refined E "
+                            "over all image pairs is too small compared to its initial inlier ratio! "
+                            "Reinitializing system and taking old pose!" << endl;
                     E_old.copyTo(E_new);
                     R_old.copyTo(R_new);
                     t_old.copyTo(t_new);
@@ -713,7 +735,7 @@ namespace poselib
                     return -3;
                 }
                 inlier_ratio_history.push_back(inlier_ratio_new);
-                pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+                pose_history.emplace_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
 
                 //Get error statistic for the newest image pair
                 vector<double> errorNew_tmp(nr_inliers_tmp);
@@ -760,7 +782,8 @@ namespace poselib
                     }
                     if (poolCorrespondenceDelete(delIdxPool))
                     {
-                        //Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+                        //Failed to remove some old correspondences as an invalid iterator
+                        // was detected -> reinitialize system
                         reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
                         return -2;
                     }
@@ -819,10 +842,15 @@ namespace poselib
     *
     * Return value:									0 :	Everything ok
     *												-1:	Robust estimation failed
-    *												-2:	An invalid iterator within the pool correpondences was detected leading to reinitialization
-    *												-3: A too low inlier ratio was detected either after robust estimation or after refinement (which should not happen)
+    *												-2:	An invalid iterator within the pool correpondences was
+     *												detected leading to reinitialization
+    *												-3: A too low inlier ratio was detected either after
+     *												robust estimation or after refinement (which should not happen)
     */
-    int StereoRefine::robustInitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+    int StereoRefine::robustInitialization(double & inlier_ratio,
+            std::vector<cv::DMatch> & matches,
+            std::vector<cv::KeyPoint> & kp1,
+            std::vector<cv::KeyPoint> & kp2)
     {
         checkPoolPoseRobust_tmp = cfg_pose.checkPoolPoseRobust;
         if (robustPoseEstimation())
@@ -833,7 +861,8 @@ namespace poselib
         inlier_ratio = (double)nr_inliers_new / (double)nr_corrs_new;
         if (inlier_ratio < cfg_pose.minStartAggInlRat)
         {
-            cout << "Inlier ratio too small! Skipping aggregation of correspondences! The output pose of this and the next iteration will be like in the mono camera case!" << endl;
+            cout << "Inlier ratio too small! Skipping aggregation of correspondences! "
+                    "The output pose of this and the next iteration will be like in the mono camera case!" << endl;
             return -3;
         }
         if (!initDataAfterReinitialization(inlier_ratio, matches, kp1, kp2))
@@ -851,7 +880,10 @@ namespace poselib
     * Return value:									true:	Success
     *												false:	Failed
     */
-    bool StereoRefine::initDataAfterReinitialization(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+    bool StereoRefine::initDataAfterReinitialization(double & inlier_ratio,
+            std::vector<cv::DMatch> & matches,
+            std::vector<cv::KeyPoint> & kp1,
+            std::vector<cv::KeyPoint> & kp2)
     {
         if (addCorrespondencesToPool(matches, kp1, kp2))
             return false;
@@ -861,7 +893,8 @@ namespace poselib
         return true;
     }
 
-    /* Clears all stored correspondences, data, and history and adds the new inliers to the correspondence pool and updates the history.
+    /* Clears all stored correspondences, data, and history and adds the new inliers to the correspondence pool and
+     * updates the history.
     *
     * double inlier_ratio							Input  -> Inlier ratio
     * vector<DMatch> matches						Input  -> Matches of the new image pair
@@ -871,7 +904,10 @@ namespace poselib
     * Return value:									true:	Success
     *												false:	Failed
     */
-    bool StereoRefine::reinitializeSystem(double & inlier_ratio, std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+    bool StereoRefine::reinitializeSystem(double & inlier_ratio,
+            std::vector<cv::DMatch> & matches,
+            std::vector<cv::KeyPoint> & kp1,
+            std::vector<cv::KeyPoint> & kp2)
     {
         clearHistoryAndPool();
         return initDataAfterReinitialization(inlier_ratio, matches, kp1, kp2);
@@ -918,7 +954,9 @@ namespace poselib
     * Return value:									0 :	Everything ok
     *												-1:	Robust estimation failed
     */
-    int StereoRefine::robustEstimationOnPool(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> & kp1, std::vector<cv::KeyPoint> & kp2)
+    int StereoRefine::robustEstimationOnPool(std::vector<cv::DMatch> & matches,
+            std::vector<cv::KeyPoint> & kp1,
+            std::vector<cv::KeyPoint> & kp2)
     {
         //Reconstruct matches from pool
         unsigned int nrMatchesVfcFiltered_save = cfg_usac.nrMatchesVfcFiltered;
@@ -981,9 +1019,12 @@ namespace poselib
     * vector<KeyPoint> kp2							Input  -> Keypoints of the newest right image
     *
     * Return value:									0 :	Everything ok
-    *												-1:	An invalid iterator within the pool correpondences was detected leading to reinitialization
+    *												-1:	An invalid iterator within the pool correpondences
+     *												was detected leading to reinitialization
     */
-    int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2)
+    int StereoRefine::addCorrespondencesToPool(std::vector<cv::DMatch> matches,
+            std::vector<cv::KeyPoint> kp1,
+            std::vector<cv::KeyPoint> kp2)
     {
         CoordinateProps tmp;
         std::vector<double> errors;
@@ -1133,7 +1174,8 @@ namespace poselib
             string robMethod;
         } originalRobMethod;
         bool methodChanged = false;
-        if (cfg_pose.useRANSAC_fewMatches && (points1newMat.rows < 100) && (cfg_pose.RobMethod.compare("RANSAC") || cfg_pose.autoTH || cfg_pose.Halign))
+        if (cfg_pose.useRANSAC_fewMatches && (points1newMat.rows < 100)
+        && ((cfg_pose.RobMethod != "RANSAC") || cfg_pose.autoTH || cfg_pose.Halign))
         {
             cout << "The number of provided matches is very low (<100) and your chosen robust method is ";
             if (cfg_pose.autoTH)
@@ -1152,7 +1194,8 @@ namespace poselib
             }
             originalRobMethod.robMethod = cfg_pose.RobMethod;
              cout << ". Switching to RANSAC for only this estimation "
-                "as RANSAC has no speed disadvantage for this small number of matches and might deliver the best results (except if degeneracies are present)!" << endl;
+                "as RANSAC has no speed disadvantage for this small number of matches and might deliver the "
+                "best results (except if degeneracies are present)!" << endl;
             methodChanged = true;
             cfg_pose.RobMethod = "RANSAC";
         }
@@ -1168,7 +1211,8 @@ namespace poselib
             poselib::AutoThEpi Eautoth(pixToCamFact);
             if (Eautoth.estimateEVarTH(points1newMat, points2newMat, E, mask, &th, &inlierPoints) != 0)
             {
-                std::cout << "Estimation of essential matrix using automatic threshold estimation and ARRSAC failed!" << endl;
+                std::cout << "Estimation of essential matrix using automatic threshold estimation "
+                             "and ARRSAC failed!" << endl;
                 return -1;
             }
 
@@ -1177,7 +1221,8 @@ namespace poselib
         else if (cfg_pose.Halign)
         {
             int inliers;
-            if (poselib::estimatePoseHomographies(points1newMat, points2newMat, R, t, E, th, inliers, mask, false, cfg_pose.Halign > 1 ? true : false) != 0)
+            if (poselib::estimatePoseHomographies(points1newMat,
+                    points2newMat, R, t, E, th, inliers, mask, false, cfg_pose.Halign > 1) != 0)
             {
                 std::cout << "Estimation of essential matrix using homography alignment failed!" << endl;
                 return -1;
@@ -1185,12 +1230,13 @@ namespace poselib
         }
         else
         {
-            if (!cfg_pose.RobMethod.compare("USAC"))
+            if (cfg_pose.RobMethod == "USAC")
             {
                 bool isDegenerate = false;
                 Mat R_degenerate, inliers_degenerate_R;
                 bool usacerror = false;
-                if (cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
+                if (cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP
+                || cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
                 {
                     if (estimateEssentialOrPoseUSAC(points1newMat,
                         points2newMat,
@@ -1229,10 +1275,13 @@ namespace poselib
                 }
                 if (isDegenerate)
                 {
-                    std::cout << "Camera configuration is degenerate and, thus, rotation only. Skipping further calculations! Rotation angles: " << endl;
+                    std::cout << "Camera configuration is degenerate and, thus, rotation only. "
+                                 "Skipping further calculations! Rotation angles: " << endl;
                     double roll, pitch, yaw;
                     poselib::getAnglesRotMat(R_degenerate, roll, pitch, yaw);
-                    std::cout << "roll: " << roll << char(248) << ", pitch: " << pitch << char(248) << ", yaw: " << yaw << char(248) << endl;
+                    std::cout << "roll: " << roll << char(248)
+                    << ", pitch: " << pitch << char(248)
+                    << ", yaw: " << yaw << char(248) << endl;
                     return -2;
                 }
             }
@@ -1257,7 +1306,7 @@ namespace poselib
             t_kneip = t;
         }
         if (cfg_pose.Halign ||
-            (!cfg_pose.RobMethod.compare("USAC") && (cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
+            ((cfg_pose.RobMethod == "USAC") && (cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP ||
                 cfg_usac.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)))
         {
             double sumt = 0;
@@ -1273,13 +1322,27 @@ namespace poselib
 
         if (cfg_pose.Halign && ((cfg_pose.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
         {
-            poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
+            if(poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                cout << "Unable to triangulate 3D points" << endl;
+                return -1;
+            }
         }
         else
         {
             if (cfg_pose.refineRTold)
             {
-                poselib::robustEssentialRefine(points1newMat, points2newMat, E, E, th / 10.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
+                poselib::robustEssentialRefine(points1newMat,
+                        points2newMat,
+                        E,
+                        E,
+                        th / 10.0,
+                        0,
+                        true,
+                        nullptr,
+                        nullptr,
+                        cv::noArray(),
+                        mask,
+                        0);
                 availableRT = false;
             }
             else if (((cfg_pose.refineMethod & 0xF) != poselib::RefinePostAlg::PR_NO_REFINEMENT) && !cfg_pose.kneipInsteadBA)
@@ -1290,7 +1353,19 @@ namespace poselib
                     R_kneip.copyTo(R_tmp);
                     t_kneip.copyTo(t_tmp);
 
-                    if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+                    if (poselib::refineEssentialLinear(points1newMat,
+                            points2newMat,
+                            E,
+                            mask,
+                            cfg_pose.refineMethod,
+                            nr_inliers_new,
+                            R_tmp,
+                            t_tmp,
+                            th,
+                            4,
+                            2.0,
+                            0.1,
+                            0.15))
                     {
                         if (!R_tmp.empty() && !t_tmp.empty())
                         {
@@ -1298,13 +1373,26 @@ namespace poselib
                             t_tmp.copyTo(t_kneip);
                         }
                     }
-                    else
+                    else {
                         std::cout << "Refinement failed!" << std::endl;
+                    }
                 }
                 else if ((cfg_pose.refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
                 {
 
-                    if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+                    if (poselib::refineEssentialLinear(points1newMat,
+                            points2newMat,
+                            E,
+                            mask,
+                            cfg_pose.refineMethod,
+                            nr_inliers_new,
+                            R_tmp,
+                            t_tmp,
+                            th,
+                            4,
+                            2.0,
+                            0.1,
+                            0.15))
                     {
                         if (!R_tmp.empty() && !t_tmp.empty())
                         {
@@ -1312,26 +1400,53 @@ namespace poselib
                             t_tmp.copyTo(t_kneip);
                             availableRT = true;
                         }
-                        else
+                        else {
                             std::cout << "Refinement failed!" << std::endl;
+                        }
                     }
                 }
                 else
                 {
-                    if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+                    if (!poselib::refineEssentialLinear(points1newMat,
+                            points2newMat,
+                            E,
+                            mask,
+                            cfg_pose.refineMethod,
+                            nr_inliers_new,
+                            cv::noArray(),
+                            cv::noArray(),
+                            th,
+                            4,
+                            2.0,
+                            0.1,
+                            0.15))
                         std::cout << "Refinement failed!" << std::endl;
                 }
             }
             mask.copyTo(mask_E_new);
 
-            if (!availableRT)
-                poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ);
-            else
+            if (!availableRT) {
+                if(poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                    cout << "Unable to triangulate 3D points" << endl;
+                    return -1;
+                }
+            } else
             {
                 R = R_kneip;
                 t = t_kneip;
-                if ((cfg_pose.BART > 0) && !cfg_pose.kneipInsteadBA)
-                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
+//                if ((cfg_pose.BART > 0) && !cfg_pose.kneipInsteadBA)
+                int nr_triang = poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
+                if(nr_triang < 0){
+                    cout << "Unable to triangulate 3D points" << endl;
+                    return -1;
+                }else if((nr_triang < (cv::countNonZero(mask_E_new) / 3)) && (nr_triang < 100)){
+                    Q.release();
+                    mask_E_new.copyTo(mask);
+                    if(poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                        cout << "Unable to triangulate 3D points" << endl;
+                        return -1;
+                    }
+                }
             }
         }
 
@@ -1354,43 +1469,96 @@ namespace poselib
             R.copyTo(R_tmp);
             t.copyTo(t_tmp);
             bool kneipSuccess = true;
-            if (poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+            if (poselib::refineEssentialLinear(points1newMat,
+                    points2newMat,
+                    E,
+                    mask,
+                    cfg_pose.refineMethod,
+                    nr_inliers_new,
+                    R_tmp,
+                    t_tmp,
+                    th,
+                    4,
+                    2.0,
+                    0.1,
+                    0.15))
             {
                 if (!R_tmp.empty() && !t_tmp.empty())
                 {
-                    R_tmp.copyTo(R);
-                    t_tmp.copyTo(t);
                     mask.copyTo(mask_E_new);
-                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
-                    useBA = false;
+                    int nr_triang = poselib::triangPts3D(R_tmp, t_tmp, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
+                    if(nr_triang < 0){
+                        cout << "Unable to triangulate 3D points" << endl;
+                        kneipSuccess = false;
+                    }else if((nr_triang < (cv::countNonZero(mask_E_new) / 3)) && (nr_triang < 100)){
+                        Q.release();
+                        mask_E_new.copyTo(mask);
+                        if(poselib::getPoseTriangPts(E, points1newMat, points2newMat, R_tmp, t_tmp, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                            cout << "Unable to triangulate 3D points" << endl;
+                            kneipSuccess = false;
+                        }else{
+                            R_tmp.copyTo(R);
+                            t_tmp.copyTo(t);
+                            useBA = false;
+                        }
+                    }else {
+                        R_tmp.copyTo(R);
+                        t_tmp.copyTo(t);
+                        useBA = false;
+                    }
                 }
-                else
+                else {
                     kneipSuccess = false;
+                }
             }
-            else
+            else {
                 kneipSuccess = false;
+            }
 
             if(!kneipSuccess)
             {
-                std::cout << "Refinement using Kneips Eigen solver instead of bundle adjustment (BA) failed!" << std::endl;
+                std::cout << "Refinement using Kneips Eigen solver instead of "
+                             "bundle adjustment (BA) failed!" << std::endl;
                 if (cfg_pose.BART > 0)
                 {
                     std::cout << "Trying bundle adjustment instead!" << std::endl;
-                    poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ);
+                    Q.release();
+                    if(poselib::triangPts3D(R, t, points1newMat, points2newMat, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                        cout << "Unable to triangulate 3D points" << endl;
+                        return -1;
+                    }
                 }
                 else
                 {
                     cout << "Trying refinement with weighted (Pseudo-Huber) Stewenius instead!" << endl;
                     int refineMethod_save = cfg_pose.refineMethod;
-                    cfg_pose.refineMethod = poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
-                    if (!poselib::refineEssentialLinear(points1newMat, points2newMat, E, mask, cfg_pose.refineMethod, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+                    cfg_pose.refineMethod = poselib::RefinePostAlg::PR_STEWENIUS
+                            | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
+                    if (!poselib::refineEssentialLinear(points1newMat,
+                            points2newMat,
+                            E,
+                            mask,
+                            cfg_pose.refineMethod,
+                            nr_inliers_new,
+                            cv::noArray(),
+                            cv::noArray(),
+                            th,
+                            4,
+                            2.0,
+                            0.1,
+                            0.15))
                     {
                         mask.copyTo(mask_E_new);
                         Q.release();
-                        poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ);
+                        if(poselib::getPoseTriangPts(E, points1newMat, points2newMat, R, t, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                            cout << "Unable to triangulate 3D points" << endl;
+                            return -1;
+                        }
                     }
-                    else
+                    else {
                         std::cout << "Refinement failed!" << std::endl;
+                        return -1;
+                    }
                     cfg_pose.refineMethod = refineMethod_save;
                 }
             }
@@ -1400,17 +1568,27 @@ namespace poselib
         {
             if (cfg_pose.BART == 1)
             {
-                if(!poselib::refineStereoBA(points1newMat, points2newMat, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask))
+                if(!poselib::refineStereoBA(points1newMat, points2newMat, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask)) {
                     cout << "Bundle adjustment failed!" << endl;
+                }
             }
             else if (cfg_pose.BART == 2)
             {
-                cv::Mat points1newMat_tmp = points1newMat.clone();
-                cv::Mat points2newMat_tmp = points2newMat.clone();
-                poselib::CamToImgCoordTrans(points1newMat_tmp, *cfg_pose.K0);
-                poselib::CamToImgCoordTrans(points2newMat_tmp, *cfg_pose.K1);
-                if(!poselib::refineStereoBA(points1newMat_tmp, points2newMat_tmp, R, t, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask))
+                cv::Mat points1newMat_tmp1 = points1newMat.clone();
+                cv::Mat points2newMat_tmp1 = points2newMat.clone();
+                poselib::CamToImgCoordTrans(points1newMat_tmp1, *cfg_pose.K0);
+                poselib::CamToImgCoordTrans(points2newMat_tmp1, *cfg_pose.K1);
+                if(!poselib::refineStereoBA(points1newMat_tmp1,
+                        points2newMat_tmp1,
+                        R,
+                        t,
+                        Q,
+                        *cfg_pose.K0,
+                        *cfg_pose.K1,
+                        true,
+                        mask)) {
                     cout << "Bundle adjustment failed!" << endl;
+                }
             }
             E = poselib::getEfromRT(R, t);
         }
@@ -1487,7 +1665,7 @@ namespace poselib
 
         if (cfg_pose.refineRTold_CorrPool)
         {
-            poselib::robustEssentialRefine(points1Cam, points2Cam, E, E, th / 10.0, 0, true, NULL, NULL, cv::noArray(), mask, 0);
+            poselib::robustEssentialRefine(points1Cam, points2Cam, E, E, th / 10.0, 0, true, nullptr, nullptr, cv::noArray(), mask, 0);
             availableRT = false;
         }
         else if (((cfg_pose.refineMethod_CorrPool & 0xF) != poselib::RefinePostAlg::PR_NO_REFINEMENT) && !cfg_pose.kneipInsteadBA_CorrPool)
@@ -1498,7 +1676,19 @@ namespace poselib
                 R_new.copyTo(R_tmp);
                 t_new.copyTo(t_tmp);
 
-                if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+                if (poselib::refineEssentialLinear(points1Cam,
+                        points2Cam,
+                        E,
+                        mask,
+                        cfg_pose.refineMethod_CorrPool,
+                        nr_inliers_new,
+                        R_tmp,
+                        t_tmp,
+                        th,
+                        4,
+                        2.0,
+                        0.1,
+                        0.15))
                 {
                     if (!R_tmp.empty() && !t_tmp.empty())
                     {
@@ -1519,7 +1709,19 @@ namespace poselib
             else if ((cfg_pose.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
             {
 
-                if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+                if (poselib::refineEssentialLinear(points1Cam,
+                        points2Cam,
+                        E,
+                        mask,
+                        cfg_pose.refineMethod_CorrPool,
+                        nr_inliers_new,
+                        R_tmp,
+                        t_tmp,
+                        th,
+                        4,
+                        2.0,
+                        0.1,
+                        0.15))
                 {
                     if (!R_tmp.empty() && !t_tmp.empty())
                     {
@@ -1536,7 +1738,19 @@ namespace poselib
             }
             else
             {
-                if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
+                if (!poselib::refineEssentialLinear(points1Cam,
+                        points2Cam,
+                        E,
+                        mask,
+                        cfg_pose.refineMethod_CorrPool,
+                        nr_inliers_new,
+                        cv::noArray(),
+                        cv::noArray(),
+                        th,
+                        4,
+                        2.0,
+                        0.1,
+                        0.15))
                 {
                     std::cout << "Refinement failed!" << std::endl;
                     return -1;
@@ -1545,12 +1759,30 @@ namespace poselib
         }
         mask.copyTo(mask_E_new);
 
-        if (!availableRT)
-            poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ);
+        if (!availableRT) {
+            if (poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ) <=
+                0) {
+                std::cout << "No 3D points left after triangulation!" << std::endl;
+                return -1;
+            }
+        }
         else
         {
-            if ((cfg_pose.BART_CorrPool > 0) && !cfg_pose.kneipInsteadBA_CorrPool)
-                poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
+//            if ((cfg_pose.BART_CorrPool > 0) && !cfg_pose.kneipInsteadBA_CorrPool) {
+            int n_triang = poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
+                if(n_triang < 0){
+                    std::cout << "No 3D points left after triangulation!" << std::endl;
+                    return -1;
+                }else if((n_triang < (cv::countNonZero(mask_E_new) / 3)) && (n_triang < 100)){
+                    Q.release();
+                    mask_E_new.copyTo(mask);
+                    if (poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ) <=
+                        0) {
+                        std::cout << "No 3D points left after triangulation!" << std::endl;
+                        return -1;
+                    }
+                }
+//            }
         }
 
         if (cfg_pose.verbose > 3)
@@ -1572,23 +1804,54 @@ namespace poselib
             R_new.copyTo(R_tmp);
             t_new.copyTo(t_tmp);
             bool kneipSuccess = true;
-            if (poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+            if (poselib::refineEssentialLinear(points1Cam,
+                    points2Cam,
+                    E,
+                    mask,
+                    cfg_pose.refineMethod_CorrPool,
+                    nr_inliers_new,
+                    R_tmp,
+                    t_tmp,
+                    th,
+                    4,
+                    2.0,
+                    0.1,
+                    0.15))
             {
                 if (!R_tmp.empty() && !t_tmp.empty())
                 {
-                    R_tmp.copyTo(R_new);
-                    t_tmp.copyTo(t_new);
-                    mask.copyTo(mask_E_new);
-                    poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
-                    useBA = false;
+                    Mat mask_tmp1 = mask.clone();
+                    int n_triang = poselib::triangPts3D(R_tmp, t_tmp, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
+                    if(n_triang < 0){
+                        kneipSuccess = false;
+                    }else if((n_triang < (cv::countNonZero(mask_tmp1) / 3) && (n_triang < 100))){
+                        Q.release();
+                        mask_tmp1.copyTo(mask);
+                        if (poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_tmp, t_tmp, Q, mask, cfg_pose.maxDist3DPtsZ) <=
+                            0) {
+                            std::cout << "No 3D points left after triangulation!" << std::endl;
+                            return -1;
+                        }else{
+                            R_tmp.copyTo(R_new);
+                            t_tmp.copyTo(t_new);
+                            mask_tmp1.copyTo(mask_E_new);
+                            useBA = false;
+                        }
+                    }else {
+                        R_tmp.copyTo(R_new);
+                        t_tmp.copyTo(t_new);
+                        mask_tmp1.copyTo(mask_E_new);
+                        useBA = false;
+                    }
                 }
                 else
                 {
                     kneipSuccess = false;
                 }
             }
-            else
+            else {
                 kneipSuccess = false;
+            }
 
             if(!kneipSuccess)
             {
@@ -1596,18 +1859,38 @@ namespace poselib
                 if (cfg_pose.BART_CorrPool > 0)
                 {
                     std::cout << "Trying bundle adjustment instead!" << std::endl;
-                    poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ);
+                    if(poselib::triangPts3D(R_new, t_new, points1Cam, points2Cam, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                        std::cout << "No 3D points left after triangulation!" << std::endl;
+                        return -1;
+                    }
                 }
                 else
                 {
                     cout << "Trying refinement with weighted (Pseudo-Huber) Stewenius instead!" << endl;
                     int refineMethod_save = cfg_pose.refineMethod_CorrPool;
-                    cfg_pose.refineMethod_CorrPool = poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
-                    if (!poselib::refineEssentialLinear(points1Cam, points2Cam, E, mask, cfg_pose.refineMethod_CorrPool, nr_inliers_new, R_tmp, t_tmp, th, 4, 2.0, 0.1, 0.15))
+                    cfg_pose.refineMethod_CorrPool = poselib::RefinePostAlg::PR_STEWENIUS
+                            | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
+                    if (!poselib::refineEssentialLinear(points1Cam,
+                            points2Cam,
+                            E,
+                            mask,
+                            cfg_pose.refineMethod_CorrPool,
+                            nr_inliers_new,
+                            R_tmp,
+                            t_tmp,
+                            th,
+                            4,
+                            2.0,
+                            0.1,
+                            0.15))
                     {
                         mask.copyTo(mask_E_new);
                         Q.release();
-                        poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ);
+                        if(poselib::getPoseTriangPts(E, points1Cam, points2Cam, R_new, t_new, Q, mask, cfg_pose.maxDist3DPtsZ) <= 0){
+                            std::cout << "No 3D points left after triangulation!" << std::endl;
+                            cfg_pose.refineMethod_CorrPool = refineMethod_save;
+                            return -1;
+                        }
                     }
                     else
                     {
@@ -1624,8 +1907,9 @@ namespace poselib
         {
             if (cfg_pose.BART_CorrPool == 1)
             {
-                if (!poselib::refineStereoBA(points1Cam, points2Cam, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask))
+                if (!poselib::refineStereoBA(points1Cam, points2Cam, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, false, mask)) {
                     cout << "Bundle adjustment failed!" << endl;
+                }
             }
             else if (cfg_pose.BART_CorrPool == 2)
             {
@@ -1633,8 +1917,9 @@ namespace poselib
                 cv::Mat points2Cam_tmp = points2Cam.clone();
                 poselib::CamToImgCoordTrans(points1Cam_tmp, *cfg_pose.K0);
                 poselib::CamToImgCoordTrans(points2Cam_tmp, *cfg_pose.K1);
-                if(!poselib::refineStereoBA(points1Cam_tmp, points2Cam_tmp, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask))
+                if(!poselib::refineStereoBA(points1Cam_tmp, points2Cam_tmp, R_new, t_new, Q, *cfg_pose.K0, *cfg_pose.K1, true, mask)) {
                     cout << "Bundle adjustment failed!" << endl;
+                }
             }
             E = poselib::getEfromRT(R_new, t_new);
         }
@@ -1669,7 +1954,7 @@ namespace poselib
     *
     * Return value:									Number of inliers
     */
-    size_t StereoRefine::getInliers(cv::Mat E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error)
+    size_t StereoRefine::getInliers(const cv::Mat &E, cv::Mat & p1, cv::Mat & p2, cv::Mat & mask, std::vector<double> & error)
     {
         error.clear();
         computeReprojError2(p1, p2, E, error);
@@ -1691,7 +1976,10 @@ namespace poselib
     * Return value:									0 :	Everything ok
     *												-1:	An invalid iterator within the pool correpondences was detected
     */
-    int StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error)
+    int StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> & matches,
+            std::vector<cv::KeyPoint> kp1,
+            std::vector<cv::KeyPoint> kp2,
+            std::vector<double> error)
     {
         std::vector<CoordinatePropsNew> corrProbsNew;
         cv::Mat points1newMatnew = cv::Mat(nr_inliers_new, 2, points1newMat.type());
@@ -1705,7 +1993,7 @@ namespace poselib
             {
                 const int queryidx = matches[i].queryIdx;
                 const int trainidx = matches[i].trainIdx;
-                corrProbsNew.push_back(CoordinatePropsNew(kp1[queryidx].pt,
+                corrProbsNew.emplace_back(CoordinatePropsNew(kp1[queryidx].pt,
                     kp2[trainidx].pt,
                     matches[i].distance,
                     kp1[queryidx].response,
@@ -1780,7 +2068,8 @@ namespace poselib
                     //add the new correspondence only if it is the best within the old neighbors
                     for (; j < nr_found; j++)
                     {
-                        if (!compareCorrespondences(corrProbsNew[i], *correspondencePoolIdx[result[j].first])) //old correspondence is better
+                        //old correspondence is better
+                        if (!compareCorrespondences(corrProbsNew[i], *correspondencePoolIdx[result[j].first]))
                         {
                             delete_list_new.push_back(i);
                             break;
@@ -1961,7 +2250,7 @@ namespace poselib
                 startRowNew = endRowNew;
                 old_idx = ptsCamDelIdxs[i] + 1;
             }
-            if (old_idx < points1Cam.rows)
+            if ((int)old_idx < points1Cam.rows)
             {
                 points1Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points1CamNew.rowRange(startRowNew, n_new));
                 points2Cam.rowRange((int)old_idx, points1Cam.rows).copyTo(points2CamNew.rowRange(startRowNew, n_new));
@@ -1991,11 +2280,12 @@ namespace poselib
 						}
 						correspondencePool.erase(it->second);
 					}
-                    else
+                    else {
                         throw "Invalid pool iterator";
+                    }
                     it->second = correspondencePool.end();
                 }
-                catch (string e)
+                catch (string &e)
                 {
                     cout << "Exception: " << e << endl;
                     cout << "Clearing the whole correspondence pool!" << endl;
@@ -2006,10 +2296,11 @@ namespace poselib
             {
                 try
                 {
-                    if (delDiffInfo.find(it->ptIdx) == delDiffInfo.end())
+                    if (delDiffInfo.find(it->ptIdx) == delDiffInfo.end()) {
                         throw "Invalid iterator for changing indexes";
+                    }
                 }
-                catch (string e)
+                catch (string &e)
                 {
                     cout << "Exception: " << e << endl;
                     cout << "Clearing the whole correspondence pool!" << endl;
@@ -2021,7 +2312,8 @@ namespace poselib
         return 0;
     }
 
-    /* Compares the properties of correspondences from a new image pair and the pool which are within the search radius "minPtsDistance" (struct "ConfigPoseEstimation")
+    /* Compares the properties of correspondences from a new image pair and the pool which are within the search
+     * radius "minPtsDistance" (struct "ConfigPoseEstimation")
     *
     * CoordinatePropsNew newCorr					Input  -> Properties of the new correspondence
     * CoordinateProps oldCorr						Input  -> Properties of the correspondence from the pool
@@ -2037,8 +2329,14 @@ namespace poselib
         const double weight_th = 0.2;//If one of the resulting weights is more than e.g. 20% better
         size_t max_age = 15;//If the quality of the old correspondence is slightly better but it is older (number of iterations) than this thershold, the new new one is preferred
 
-        overall_weight[0] = computeCorrespondenceWeight(newCorr.sampsonError, (double)newCorr.descrDist, (double)newCorr.keyPResponses[0], (double)newCorr.keyPResponses[1]);
-        overall_weight[1] = computeCorrespondenceWeight(oldCorr.SampsonErrors.back(), (double)oldCorr.descrDist, (double)oldCorr.keyPResponses[0], (double)oldCorr.keyPResponses[1]);
+        overall_weight[0] = computeCorrespondenceWeight(newCorr.sampsonError,
+                (double)newCorr.descrDist,
+                (double)newCorr.keyPResponses[0],
+                (double)newCorr.keyPResponses[1]);
+        overall_weight[1] = computeCorrespondenceWeight(oldCorr.SampsonErrors.back(),
+                (double)oldCorr.descrDist,
+                (double)oldCorr.keyPResponses[0],
+                (double)oldCorr.keyPResponses[1]);
         idx = overall_weight[0] > overall_weight[1] ? 0 : 1;
         if (idx)
         {
@@ -2064,7 +2362,8 @@ namespace poselib
         {
             return true; //take the new correspondence
         }
-        else if ((oldCorr.SampsonErrors.size() > 1) && (oldCorr.SampsonErrors.back() > oldCorr.SampsonErrors[oldCorr.SampsonErrors.size() - 2]))//Check if the error is increasing
+        else if ((oldCorr.SampsonErrors.size() > 1)
+        && (oldCorr.SampsonErrors.back() > oldCorr.SampsonErrors[oldCorr.SampsonErrors.size() - 2]))//Check if the error is increasing
         {
             return true; //take the new correspondence
         }
@@ -2072,18 +2371,26 @@ namespace poselib
         return false; //take the old correspondence
     }
 
-    /* Compute a weight between 0 and 1 for a correspondence given its keypoint responses (left and right img), descriptor distance, and Sampson error
+    /* Compute a weight between 0 and 1 for a correspondence given its keypoint responses (left and right img),
+     * descriptor distance, and Sampson error
     *
     * double error									Input  -> Sampson error
     * double descrDist								Input  -> Descriptor distance
 	* double resp1									Input  -> Keypoint response in the left image
 	* double resp2									Input  -> Keypoint response in the right image
-	* bool z3DtooFar								Input  -> Optional [Default=false]. True, if the 3D coordinate's z-value of the correspondence is too large
-	* double zValue3D								Input  -> Optional [Default=0]. If z3DtooFar=true, the z-value of the 3D coordinate is used for weighting
+	* bool z3DtooFar								Input  -> Optional [Default=false]. True, if the 3D coordinate's
+     * z-value of the correspondence is too large
+	* double zValue3D								Input  -> Optional [Default=0]. If z3DtooFar=true,
+     * the z-value of the 3D coordinate is used for weighting
     *
     * Return value:									Weighting term for the correspondence
     */
-    inline double StereoRefine::computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2, const bool &z3DtooFar, const double &zValue3D)
+    inline double StereoRefine::computeCorrespondenceWeight(const double &error,
+            const double &descrDist,
+            const double &resp1,
+            const double &resp2,
+            const bool &z3DtooFar,
+            const double &zValue3D)
     {
         double weight_error, weight_descrDist, weight_response;
         const double weighting_terms[3] = { 0.3, 0.5, 0.2 };//Weights for weight_error, weight_descrDist, weight_response
@@ -2137,7 +2444,7 @@ namespace poselib
             (idxPos[imgPos[0]])[imgPos[1]].push_back(i.poolIdx);
             if ((idxPos[imgPos[0]])[imgPos[1]].size() == 2)
             {
-                posMultCorrs.push_back(cv::Point2i(imgPos[1], imgPos[0]));
+                posMultCorrs.emplace_back(cv::Point2i(imgPos[1], imgPos[0]));
             }
         }
         if (!posMultCorrs.empty())
@@ -2149,7 +2456,7 @@ namespace poselib
                 nr_entries[i] = (idxPos[posMultCorrs[i].y])[posMultCorrs[i].x].size();
                 for (size_t j = 0; j < nr_entries[i]; j++)
                 {
-                    idx1.push_back(std::make_pair(i, j));
+                    idx1.emplace_back(std::make_pair(i, j));
                 }
             }
             size_t n_multi = idx1.size() - posMultCorrs.size();
@@ -2165,7 +2472,7 @@ namespace poselib
                     for (size_t j = 0; j < (idxPos[imgPos[0]])[imgPos[1]].size(); j++)
                     {
                         list<CoordinateProps>::iterator it = correspondencePoolIdx[((idxPos[imgPos[0]])[imgPos[1]])[j]];
-                        weightIdx1.push_back(make_pair(computeCorrespondenceWeight(
+                        weightIdx1.emplace_back(make_pair(computeCorrespondenceWeight(
                             it->SampsonErrors.back(),
                             it->descrDist,
                             it->keyPResponses[0],
@@ -2198,7 +2505,7 @@ namespace poselib
                     imgPos[0] = posMultCorrs[idx1[i].first].y;
                     imgPos[1] = posMultCorrs[idx1[i].first].x;
                     list<CoordinateProps>::iterator it = correspondencePoolIdx[((idxPos[imgPos[0]])[imgPos[1]])[idx1[i].second]];
-                    weightIdx1.push_back(make_pair(computeCorrespondenceWeight(
+                    weightIdx1.emplace_back(make_pair(computeCorrespondenceWeight(
                         it->SampsonErrors.back(),
                         it->descrDist,
                         it->keyPResponses[0],
@@ -2580,7 +2887,7 @@ namespace poselib
         for (size_t i = 0; i < n_p; i++)
         {
             Mat tmp = resPoints[i] - RtcG;
-            dist2.push_back(make_pair(cv::norm(tmp), i));
+            dist2.emplace_back(make_pair(cv::norm(tmp), i));
         }
 
         //Take the index from R and t, which are nearest and farthest to the center of gravity

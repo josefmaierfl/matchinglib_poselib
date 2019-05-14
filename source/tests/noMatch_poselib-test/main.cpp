@@ -148,9 +148,9 @@ struct tElemsDiff{
             return;
         }
         Mat diff = t_estimated - t_GT;
-        tx = t_estimated.at<double>(0);
-        ty = t_estimated.at<double>(1);
-        tz = t_estimated.at<double>(2);
+        tx = diff.at<double>(0);
+        ty = diff.at<double>(1);
+        tz = diff.at<double>(2);
     };
 
     void print(std::ofstream &os, const std::string &baseName = "") const{
@@ -775,7 +775,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     result = cmd.parse(argc, argv);
     if (result != ArgvParser::NoParserError)
     {
-        std::cout << cmd.parseErrorDescription(result);
+        std::cout << cmd.parseErrorDescription(result) << endl;
     }
 }
 
@@ -838,8 +838,9 @@ void startEvaluation(ArgvParser& cmd)
         exit(1);
     }
     testing::internal::FilePath sequFullDirG =
-            testing::internal::FilePath::GenerateUniqueFileName(sequ_pathG,
+            testing::internal::FilePath::MakeFileName(sequ_pathG,
                     testing::internal::FilePath("matchInfos"),
+                                                                0,
                                                                 ovf_ext1part.c_str());
     if(!sequFullDirG.FileOrDirectoryExists()){
         cerr << "Unable to locate file matchInfos" << endl;
@@ -1353,11 +1354,12 @@ void startEvaluation(ArgvParser& cmd)
             std::cout << "Option for 1st digit of cfgUSAC out of range! Taking default value." << endl;
             cfgUSACnr[0] = 3;
         }
-        if (cfgUSACnr[0] > 1 && cp.mfo.refineVFC)
+        if (cfgUSACnr[0] > 1 && (cp.mfo.refineVFC || cp.mfo.refineGMS))
         {
-            std::cout << "Impossible to estimate epsilon for SPRT if option refineVFC is enabled! "
-                         "Disabling option refineVFC!" << endl;
+            std::cout << "Impossible to estimate epsilon for SPRT if option refineVFC or refineGMS is enabled! "
+                         "Disabling option refineVFC and refineGMS!" << endl;
             cp.mfo.refineVFC = false;
+            cp.mfo.refineGMS = false;
         }
         if (cfgUSACnr[1] > 1)
         {
@@ -1428,8 +1430,9 @@ void startEvaluation(ArgvParser& cmd)
     }
 
     testing::internal::FilePath sequParFG =
-            testing::internal::FilePath::GenerateUniqueFileName(sequ_pathG,
+            testing::internal::FilePath::MakeFileName(sequ_pathG,
                                                                 testing::internal::FilePath("sequPars"),
+                                                                0,
                                                                 ovf_ext.c_str());
     if(!sequParFG.FileOrDirectoryExists()){
         cerr << "Unable to locate file sequPars" << endl;
@@ -1449,6 +1452,10 @@ void startEvaluation(ArgvParser& cmd)
 	if (cp.stereoRef)
 	{
         sequMatches sm;
+        if(!readCamParsFromDisk(filenamesRt[0], sm)){
+            cerr << "Unable to read camera parameters" << endl;
+            exit(1);
+        }
         if(!readMatchesFromDisk(filenamesMatches[0], sm)){
             cerr << "Unable to read camera parameters" << endl;
             exit(1);
@@ -1520,6 +1527,7 @@ void startEvaluation(ArgvParser& cmd)
         std::vector<cv::KeyPoint> kp1 = sm.frameKeypoints1;
         std::vector<cv::KeyPoint> kp2 = sm.frameKeypoints2;
         sm.actT.copyTo(t1);
+        sm.actR.copyTo(R1);
 
         //Perform filtering
         t_1 = chrono::high_resolution_clock::now();
@@ -1650,7 +1658,7 @@ void startEvaluation(ArgvParser& cmd)
 			else if (cp.Halign)
 			{
 				int inliers;
-				if (poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, cp.Halign > 1 ? true : false) != 0)
+				if (poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, cp.Halign > 1) != 0)
 				{
 					failNr++;
 					if ((float)failNr / (float)filenamesRt.size() < 0.5f)
@@ -1819,7 +1827,11 @@ void startEvaluation(ArgvParser& cmd)
 			cv::Mat Q;
 			if (cp.Halign && ((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
 			{
-				poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
+				if(poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ) <= 0){
+				    if(verbose){
+				        cout << "Triangulating points not successful." << endl;
+				    }
+				}
 			}
 			else
 			{
@@ -1844,8 +1856,9 @@ void startEvaluation(ArgvParser& cmd)
 								t_tmp.copyTo(t_kneip);
 							}
 						}
-						else
-							std::cout << "Refinement failed!" << std::endl;
+						else {
+                            std::cout << "Refinement failed!" << std::endl;
+                        }
 					}
 					else if ((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_KNEIP)
 					{
@@ -1858,25 +1871,54 @@ void startEvaluation(ArgvParser& cmd)
 								t_tmp.copyTo(t_kneip);
 								availableRT = true;
 							}
-							else
-								std::cout << "Refinement failed!" << std::endl;
+							else {
+                                std::cout << "Refinement failed!" << std::endl;
+                            }
 						}
 					}
 					else
 					{
-						if (!poselib::refineEssentialLinear(p1, p2, E, mask, cp.refineMethod, nr_inliers, cv::noArray(), cv::noArray(), th, 4, 2.0, 0.1, 0.15))
-							std::cout << "Refinement failed!" << std::endl;
+						if (!poselib::refineEssentialLinear(p1,
+						        p2,
+						        E,
+						        mask,
+						        cp.refineMethod,
+						        nr_inliers,
+						        cv::noArray(),
+						        cv::noArray(),
+						        th,
+						        4, 2.0, 0.1, 0.15)) {
+                            std::cout << "Refinement failed!" << std::endl;
+                        }
 					}
 				}
 
-				if (!availableRT)
-					poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask, maxDist3DPtsZ);
-				else
-				{
+				if (!availableRT) {
+                    if (poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask, maxDist3DPtsZ) <= 0) {
+                        if (verbose) {
+                            cout << "Triangulating points not successful." << endl;
+                        }
+                    }
+                }
+				else{
 					R = R_kneip;
 					t = t_kneip;
-					if ((cp.BART > 0) && !cp.kneipInsteadBA)
-						poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
+					//if ((cp.BART > 0) && !cp.kneipInsteadBA)
+					Mat mask_tmp = mask.clone();
+					int nr_triang = poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
+					if(nr_triang < 0){
+                        if (verbose) {
+                            cout << "Triangulating points not successful." << endl;
+                        }
+					}else if((nr_triang < ((int)nr_inliers / 3)) && (nr_triang < 100)){
+					    Q.release();
+					    mask_tmp.copyTo(mask);
+                        if (poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask, maxDist3DPtsZ) <= 0) {
+                            if (verbose) {
+                                cout << "Triangulating points not successful." << endl;
+                            }
+                        }
+					}
 				}
 			}
             t_2 = chrono::high_resolution_clock::now();
@@ -1909,6 +1951,21 @@ void startEvaluation(ArgvParser& cmd)
 						R_tmp.copyTo(R);
 						t_tmp.copyTo(t);
 						useBA = false;
+                        Mat mask_tmp = mask.clone();
+                        int nr_triang = poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
+                        if(nr_triang < 0){
+                            if (verbose) {
+                                cout << "Triangulating points not successful." << endl;
+                            }
+                        }else if((nr_triang < ((int)nr_inliers / 3)) && (nr_triang < 100)){
+                            Q.release();
+                            mask_tmp.copyTo(mask);
+                            if (poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask, maxDist3DPtsZ) <= 0) {
+                                if (verbose) {
+                                    cout << "Triangulating points not successful." << endl;
+                                }
+                            }
+                        }
 					}
 				}
 				else
@@ -1917,7 +1974,11 @@ void startEvaluation(ArgvParser& cmd)
 					if (cp.BART > 0)
 					{
 						std::cout << "Trying bundle adjustment instead!" << std::endl;
-						poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
+						if(poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ) <= 0){
+                            if (verbose) {
+                                cout << "Triangulating points not successful." << endl;
+                            }
+						}
 					}
 				}
 			}
@@ -2076,8 +2137,9 @@ void startEvaluation(ArgvParser& cmd)
         exit(1);
     }
     testing::internal::FilePath overviewFNameG =
-            testing::internal::FilePath::GenerateUniqueFileName(testing::internal::FilePath(output_path),
+            testing::internal::FilePath::MakeFileName(testing::internal::FilePath(output_path),
                                                                 testing::internal::FilePath("allRunsOverview"),
+                                                                0,
                                                                 ovf_ext1part.c_str());
     string overviewFName = overviewFNameG.string();
     if(!writeResultsOverview(overviewFName, cp, outFileName)){
@@ -2171,16 +2233,18 @@ bool genOutFileName(const std::string &path,
 
     size_t hashVal = getHashCalibPars(cp);
     testing::internal::FilePath outFileNameG =
-            testing::internal::FilePath::GenerateUniqueFileName(testing::internal::FilePath(path),
+            testing::internal::FilePath::MakeFileName(testing::internal::FilePath(path),
                                                                 testing::internal::FilePath(std::to_string(hashVal)),
+                                                                0,
                                                                 "txt");
 
     int idx = 0;
     while(outFileNameG.FileOrDirectoryExists()){
         outFileNameG =
-                testing::internal::FilePath::GenerateUniqueFileName(
+                testing::internal::FilePath::MakeFileName(
                         testing::internal::FilePath(path),
                         testing::internal::FilePath(std::to_string(hashVal) + "_" + std::to_string(idx)),
+                        0,
                         "txt");
         idx++;
         if(idx > 10000){

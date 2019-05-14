@@ -9,7 +9,7 @@
 
  DATE: March 2014
 
- LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -349,7 +349,7 @@ static void img_projS_jac(int j, int i, double *bi, double *Bij, void *adata)
  */
 static void img_projsRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pa, *pb, *pqr, *pt, *ppt, *pmeas, *Kparms, *pr0, lrot[FULLQUATSZ], trot[FULLQUATSZ];
   //int n;
@@ -420,7 +420,7 @@ static void img_projsRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *
  */
 static void img_projsRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp, KpMult;
   double *pa, *pb, *pqr, *pt, *ppt, *pA, *pB, *Kparms, *pr0;
   //int n;
@@ -484,7 +484,7 @@ static void img_projsRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
  */
 static void img_projsRT_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp, KpMult;
   double *pqr, *pt, *ppt, *pmeas, *Kparms, *ptparams, *pr0, lrot[FULLQUATSZ], trot[FULLQUATSZ];
   //int n;
@@ -546,7 +546,7 @@ static void img_projsRT_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *r
  */
 static void img_projsRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp, KpMult;
   double *pqr, *pt, *ppt, *pA, *Kparms, *ptparams, *pr0;
   //int n;
@@ -607,7 +607,7 @@ static void img_projsRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, in
  */
 static void img_projsS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp, KpMult;
   double *pqr, *pt, *ppt, *pmeas, *Kparms, *camparams, trot[FULLQUATSZ];
   //int n;
@@ -667,7 +667,7 @@ static void img_projsS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rc
  */
 static void img_projsS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp, KpMult;
   double *pqr, *pt, *ppt, *pB, *Kparms, *camparams;
   //int n;
@@ -882,7 +882,7 @@ static void img_projKS_jac(int j, int i, double *bi, double *Bij, void *adata)
  */
 static void img_projsKRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pa, *pb, *pqr, *pt, *ppt, *pmeas, *pcalib, *pr0, lrot[FULLQUATSZ], trot[FULLQUATSZ];
   //int n;
@@ -926,7 +926,7 @@ static void img_projsKRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int 
  */
 static void img_projsKRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j, ii, jj;
+  int i, j, ii, jj;
   int cnp, pnp, mnp, ncK;
   double *pa, *pb, *pqr, *pt, *ppt, *pA, *pB, *pcalib, *pr0;
   //int n;
@@ -981,7 +981,7 @@ static void img_projsKRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, 
  */
 static void img_projsKRT_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pqr, *pt, *ppt, *pmeas, *pcalib, *ptparams, *pr0, lrot[FULLQUATSZ], trot[FULLQUATSZ];
   //int n;
@@ -1025,7 +1025,7 @@ static void img_projsKRT_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *
  */
 static void img_projsKRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j, ii, jj;
+  int i, j, ii, jj;
   int cnp, pnp, mnp, ncK;
   double *pqr, *pt, *ppt, *pA, *pcalib, *ptparams, *pr0;
   //int n;
@@ -1080,7 +1080,7 @@ static void img_projsKRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
  */
 static void img_projsKS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pqr, *pt, *ppt, *pmeas, *pcalib, *camparams, trot[FULLQUATSZ];
   //int n;
@@ -1122,7 +1122,7 @@ static void img_projsKS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *r
  */
 static void img_projsKS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pqr, *pt, *ppt, *pB, *pcalib, *camparams;
   //int n;
@@ -1351,7 +1351,7 @@ static void img_projKDS_jac(int j, int i, double *bi, double *Bij, void *adata)
  */
 static void img_projsKDRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pa, *pb, *pqr, *pt, *ppt, *pmeas, *pcalib, *pdist, *pr0, lrot[FULLQUATSZ], trot[FULLQUATSZ];
   //int n;
@@ -1396,7 +1396,7 @@ static void img_projsKDRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int
  */
 static void img_projsKDRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j, ii, jj;
+  int i, j, ii, jj;
   int cnp, pnp, mnp, ncK, ncD;
   double *pa, *pb, *pqr, *pt, *ppt, *pA, *pB, *ptr, *pcalib, *pdist, *pr0;
   //int n;
@@ -1464,7 +1464,7 @@ static void img_projsKDRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs,
  */
 static void img_projsKDRT_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pqr, *pt, *ppt, *pmeas, *pcalib, *pdist, *ptparams, *pr0, lrot[FULLQUATSZ], trot[FULLQUATSZ];
   //int n;
@@ -1509,7 +1509,7 @@ static void img_projsKDRT_x(double *p, struct sba_crsm *idxij, int *rcidxs, int 
  */
 static void img_projsKDRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j, ii, jj;
+  int i, j, ii, jj;
   int cnp, pnp, mnp, ncK, ncD;
   double *pqr, *pt, *ppt, *pA, *ptr, *pcalib, *pdist, *ptparams, *pr0;
   //int n;
@@ -1578,7 +1578,7 @@ static void img_projsKDRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, 
  */
 static void img_projsKDS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *hx, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pqr, *pt, *ppt, *pmeas, *pcalib, *pdist, *camparams, trot[FULLQUATSZ];
   //int n;
@@ -1621,7 +1621,7 @@ static void img_projsKDS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *
  */
 static void img_projsKDS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
-  register int i, j;
+  int i, j;
   int cnp, pnp, mnp;
   double *pqr, *pt, *ppt, *pB, *pcalib, *pdist, *camparams;
   //int n;
@@ -1781,7 +1781,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   bool motstruct_after_mot = false;
   int nframes, numprojs, nvars;
   int ret = 0;
-  register int i;
+  int i;
   
   #if BA_DEBUG 
   char tbuf[32];
@@ -1789,7 +1789,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   clock_t start_time, end_time;
   #endif
 
-  if(pts3D == NULL)
+  if((pts3D == nullptr) || (numpts3D <= 0))
 	  return -1;
   if((Rquats.size() != trans.size()) || (Rquats.size() != pts2D.size()) || (Rquats.size() != num2Dpts.size()))
 	  return -1;
@@ -1866,7 +1866,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 
   //Allocate memory for the BA parameter vector
   motstruct=(double *)malloc((nframes*cnp + numpts3D*pnp)*sizeof(double));
-  if(motstruct==NULL){
+  if(motstruct== nullptr){
     /*fprintf(stderr, "memory allocation for 'motstruct' failed\n");
     exit(1);*/
 	  return -2; //Memory allocation failed
@@ -1874,7 +1874,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 
   //Allocate memory for the initial rotations (BA calculates the best fitting difference to these rotations)
   initrot=(double *)malloc((nframes*FULLQUATSZ)*sizeof(double)); // Note: this assumes quaternions for rotations!
-  if(initrot==NULL){
+  if(initrot== nullptr){
     /*fprintf(stderr, "memory allocation for 'initrot' failed\n");
     exit(1);*/
 	  free(motstruct);
@@ -1938,7 +1938,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 
 
   imgpts=(double *)malloc(numprojs*mnp*sizeof(double));
-  if(imgpts==NULL){
+  if(imgpts== nullptr){
     /*fprintf(stderr, "memory allocation for 'imgpts' failed\n");
     exit(1);*/
 	  free(motstruct);
@@ -1947,17 +1947,17 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   }
 
   vmask = (char *)malloc(numpts3D * nframes * sizeof(char));
-  if(vmask==NULL){
+  if(vmask==nullptr){
     /*fprintf(stderr, "memory allocation for 'vmask' failed\n");
     exit(1);*/
 	ret = -2; //Memory allocation failed
 	goto cleanup;
   }
 
-  if(cov2Dpts != NULL)
+  if(cov2Dpts != nullptr)
   {
 	    covimgpts=(double *)malloc(numprojs*mnp*mnp*sizeof(double));
-		if(covimgpts==NULL){
+		if(covimgpts==nullptr){
 		  /*fprintf(stderr, "memory allocation for 'covimgpts' failed\n");
 		  exit(1);*/
 		  ret = -2; //Memory allocation failed
@@ -1965,12 +1965,12 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 		}
   }
   else
-	  covimgpts = NULL;
+	  covimgpts = nullptr;
 
   imgpts_tmp = imgpts;
   covimgpts_tmp = covimgpts;
   
-  if(mask2Dpts == NULL)
+  if(mask2Dpts == nullptr)
   {
 	  memset(vmask, 1, numpts3D * nframes * sizeof(char)); /* set whole vmask to 1 */
 	  for(i = 0; i < numpts3D; ++i)
@@ -1981,7 +1981,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 			  imgpts_tmp += mnp;
 		  }
 	  }
-	  if(cov2Dpts != NULL)
+	  if(cov2Dpts != nullptr)
 	  {
 		  int mnp2 = mnp*mnp;
 		  for(i = 0; i < numpts3D; ++i)
@@ -1999,7 +1999,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 	  memset(vmask, 0, numpts3D * nframes * sizeof(char)); /* clear vmask */
   
 	  int *pts2D_pt_cnt = (int *)malloc(nframes*sizeof(int));
-	  if(pts2D_pt_cnt == NULL)
+	  if(pts2D_pt_cnt == nullptr)
 	  {
 		  ret = -2; //Memory allocation failed
 		  goto cleanup;
@@ -2016,7 +2016,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 				  memcpy(imgpts_tmp,pts2D[j]+pts2D_pt_cnt[j],mnp*sizeof(double));
 				  vmask[i*nframes+j] = 1;
 
-				  if(cov2Dpts != NULL)
+				  if(cov2Dpts != nullptr)
 				  {
 					  memcpy(covimgpts_tmp,(*cov2Dpts)[j]+pts2D_pt_cnt[j]*mnp,mnp*mnp*sizeof(double));
 					  covimgpts_tmp += mnp*mnp;
@@ -2036,7 +2036,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 	  globs.thresh = costThresh;
   }
   else
-	  globs.imgpts = NULL;
+	  globs.imgpts = nullptr;
 
   /* set up globs structure */
   globs.cnp=cnp; globs.pnp=pnp; globs.mnp=mnp;
@@ -2049,7 +2049,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 		  globs.calibcams = 1;
 
 		  globs.intrcalib=(double *)malloc(5*sizeof(double));
-		  if(globs.intrcalib==NULL){
+		  if(globs.intrcalib==nullptr){
 			  /*fprintf(stderr, "memory allocation for 'globs.intrcalib' failed\n");
 			  exit(1);*/
 			  ret = -2; //Memory allocation failed
@@ -2062,7 +2062,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 		  globs.calibcams = nframes;
 
 		  globs.intrcalib=(double *)malloc(5*nframes*sizeof(double));
-		  if(globs.intrcalib==NULL){
+		  if(globs.intrcalib==nullptr){
 			  /*fprintf(stderr, "memory allocation for 'globs.intrcalib' failed\n");
 			  exit(1);*/
 			  ret = -2; //Memory allocation failed
@@ -2076,7 +2076,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   else //if(!intrParms && fixedcal)
   {
 	  globs.calibcams = 0;
-	  globs.intrcalib=NULL;
+	  globs.intrcalib=nullptr;
 	  globs.nccalib = nccalib;
 	  if(cnp==16){ // 16 = 5+5+6
 		  havedist = true; /* with distortion */
@@ -2088,8 +2088,8 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 	  }
   }
   
-  globs.ptparams=NULL;
-  globs.camparams=NULL;
+  globs.ptparams=nullptr;
+  globs.camparams=nullptr;
 
   /* call sparse LM routine */
   /*opts[0]=SBA_INIT_MU; opts[1]=SBA_STOP_THRESH; opts[2]=SBA_STOP_THRESH;
@@ -2107,12 +2107,12 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
       if(expert)
         n=sba_motstr_levmar_x(numpts3D, nconst3Dpts, nframes, nconstframes, vmask, motstruct, cnp, pnp, imgpts, covimgpts, mnp,
                             fixedcal? img_projsRTS_x : (havedist? img_projsKDRTS_x : img_projsKRTS_x),
-                            analyticjac? (fixedcal? img_projsRTS_jac_x : (havedist? img_projsKDRTS_jac_x : img_projsKRTS_jac_x)) : NULL,
+                            analyticjac? (fixedcal? img_projsRTS_jac_x : (havedist? img_projsKDRTS_jac_x : img_projsKRTS_jac_x)) : nullptr,
                             (void *)(&globs), MAXITER2, verbose, opts, info);
       else
         n=sba_motstr_levmar(numpts3D, nconst3Dpts, nframes, nconstframes, vmask, motstruct, cnp, pnp, imgpts, covimgpts, mnp,
                             fixedcal? img_projRTS : (havedist? img_projKDRTS : img_projKRTS),
-                            analyticjac? (fixedcal? img_projRTS_jac : (havedist? img_projKDRTS_jac : img_projKRTS_jac)) : NULL,
+                            analyticjac? (fixedcal? img_projRTS_jac : (havedist? img_projKDRTS_jac : img_projKRTS_jac)) : nullptr,
                             (void *)(&globs), MAXITER2, verbose, opts, info);
     break;
 
@@ -2122,12 +2122,12 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
       if(expert)
         n=sba_mot_levmar_x(numpts3D, nframes, nconstframes, vmask, motstruct, cnp, imgpts, covimgpts, mnp,
                           fixedcal? img_projsRT_x : (havedist? img_projsKDRT_x : img_projsKRT_x),
-                          analyticjac? (fixedcal? img_projsRT_jac_x : (havedist? img_projsKDRT_jac_x : img_projsKRT_jac_x)) : NULL,
+                          analyticjac? (fixedcal? img_projsRT_jac_x : (havedist? img_projsKDRT_jac_x : img_projsKRT_jac_x)) : nullptr,
                           (void *)(&globs), MAXITER, verbose, opts, info);
       else
         n=sba_mot_levmar(numpts3D, nframes, nconstframes, vmask, motstruct, cnp, imgpts, covimgpts, mnp,
                           fixedcal? img_projRT : (havedist? img_projKDRT : img_projKRT),
-                          analyticjac? (fixedcal? img_projRT_jac : (havedist? img_projKDRT_jac : img_projKRT_jac)) : NULL,
+                          analyticjac? (fixedcal? img_projRT_jac : (havedist? img_projKDRT_jac : img_projKRT_jac)) : nullptr,
                           (void *)(&globs), MAXITER, verbose, opts, info);
     break;
 
@@ -2137,17 +2137,17 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
       if(expert)
         n=sba_str_levmar_x(numpts3D, nconst3Dpts, nframes, vmask, motstruct+nframes*cnp, pnp, imgpts, covimgpts, mnp,
                           fixedcal? img_projsS_x : (havedist? img_projsKDS_x : img_projsKS_x), 
-                          analyticjac? (fixedcal? img_projsS_jac_x : (havedist? img_projsKDS_jac_x : img_projsKS_jac_x)) : NULL,
+                          analyticjac? (fixedcal? img_projsS_jac_x : (havedist? img_projsKDS_jac_x : img_projsKS_jac_x)) : nullptr,
                           (void *)(&globs), MAXITER, verbose, opts, info);
       else
         n=sba_str_levmar(numpts3D, nconst3Dpts, nframes, vmask, motstruct+nframes*cnp, pnp, imgpts, covimgpts, mnp,
                           fixedcal? img_projS : (havedist? img_projKDS : img_projKS),
-                          analyticjac? (fixedcal? img_projS_jac : (havedist? img_projKDS_jac : img_projKS_jac)) : NULL,
+                          analyticjac? (fixedcal? img_projS_jac : (havedist? img_projKDS_jac : img_projKS_jac)) : nullptr,
                           (void *)(&globs), MAXITER, verbose, opts, info);
     break;
 
     case BA_MOT_MOTSTRUCT: /* BA for motion only; if error too large, then BA for motion & structure */
-      if((motstruct_copy=(double *)malloc((nframes*cnp + numpts3D*pnp)*sizeof(double)))==NULL){
+      if((motstruct_copy=(double *)malloc((nframes*cnp + numpts3D*pnp)*sizeof(double)))==nullptr){
         /*fprintf(stderr, "memory allocation failed in sba_driver()!\n");
         exit(1);*/
 		ret = -2; //Memory allocation failed
@@ -2161,12 +2161,12 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
       if(expert)
         n=sba_mot_levmar_x(numpts3D, nframes, nconstframes, vmask, motstruct, cnp, imgpts, covimgpts, mnp,
                           fixedcal? img_projsRT_x : (havedist? img_projsKDRT_x : img_projsKRT_x),
-                          analyticjac? (fixedcal? img_projsRT_jac_x : (havedist? img_projsKDRT_jac_x : img_projsKRT_jac_x)) : NULL,
+                          analyticjac? (fixedcal? img_projsRT_jac_x : (havedist? img_projsKDRT_jac_x : img_projsKRT_jac_x)) : nullptr,
                           (void *)(&globs), MAXITER, verbose, opts, info);
       else
         n=sba_mot_levmar(numpts3D, nframes, nconstframes, vmask, motstruct, cnp, imgpts, covimgpts, mnp,
                         fixedcal? img_projRT : (havedist? img_projKDRT : img_projKRT),
-                        analyticjac? (fixedcal? img_projRT_jac : (havedist? img_projKDRT_jac : img_projKRT_jac)) : NULL,
+                        analyticjac? (fixedcal? img_projRT_jac : (havedist? img_projKDRT_jac : img_projKRT_jac)) : nullptr,
                         (void *)(&globs), MAXITER, verbose, opts, info);
 
       if((phi=info[1]/numprojs)>SBA_MAX_REPROJ_ERROR){
@@ -2179,12 +2179,12 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
         if(expert)
           n=sba_motstr_levmar_x(numpts3D, nconst3Dpts, nframes, nconstframes, vmask, motstruct, cnp, pnp, imgpts, covimgpts, mnp,
                                 fixedcal? img_projsRTS_x : (havedist? img_projsKDRTS_x : img_projsKRTS_x),
-                                analyticjac? (fixedcal? img_projsRTS_jac_x : (havedist? img_projsKDRTS_jac_x : img_projsKRTS_jac_x)) : NULL,
+                                analyticjac? (fixedcal? img_projsRTS_jac_x : (havedist? img_projsKDRTS_jac_x : img_projsKRTS_jac_x)) : nullptr,
                                 (void *)(&globs), MAXITER2, verbose, opts, info);
         else
           n=sba_motstr_levmar(numpts3D, nconst3Dpts, nframes, nconstframes, vmask, motstruct, cnp, pnp, imgpts, covimgpts, mnp,
                               fixedcal? img_projRTS : (havedist? img_projKDRTS : img_projKRTS),
-                              analyticjac? (fixedcal? img_projRTS_jac : (havedist? img_projKDRTS_jac : img_projKRTS_jac)) : NULL,
+                              analyticjac? (fixedcal? img_projRTS_jac : (havedist? img_projKDRTS_jac : img_projKRTS_jac)) : nullptr,
                               (void *)(&globs), MAXITER2, verbose, opts, info);
       }
       free(motstruct_copy);
@@ -2370,14 +2370,14 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 
 cleanup:
   /* just in case... */
-  globs.intrcalib=NULL;
+  globs.intrcalib=nullptr;
   globs.nccalib=0;
   globs.ncdist=0;
 
   if(motstruct) free(motstruct);
   if(imgpts) free(imgpts);
   if(initrot) free(initrot); 
-  globs.rot0params=NULL;
+  globs.rot0params=nullptr;
   if(covimgpts) free(covimgpts);
   if(vmask) free(vmask);
   if(globs.intrcalib) free(globs.intrcalib);
@@ -2416,7 +2416,7 @@ int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes,
 		else
 		{
 			prd = (double *)malloc(FULLQUATSZ*sizeof(double));
-			if(prd == NULL)
+			if(prd == nullptr)
 			{
 				for(int j = 0; j < i; ++j)
 				{
@@ -2455,7 +2455,7 @@ int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes,
 		else
 		{
 			trans = (double *)malloc(3*sizeof(double));
-			if(trans == NULL)
+			if(trans == nullptr)
 			{
 				free(Rquats_out->at(i));
 				for(int j = 0; j < i; ++j)
@@ -2524,7 +2524,7 @@ int writeIntrinsicsToOutput(double *motstruct, int cnp, int nframes, std::vector
 		else
 		{
 			intr = (double *)malloc(5*sizeof(double));
-			if(intr == NULL)
+			if(intr == nullptr)
 			{
 				for(int j = 0; j < i; ++j)
 				{
@@ -2569,7 +2569,7 @@ int writeDistToOutput(double *motstruct, int cnp, int nframes, std::vector<doubl
 		else
 		{
 			disto = (double *)malloc(5*sizeof(double));
-			if(disto == NULL)
+			if(disto == nullptr)
 			{
 				for(int j = 0; j < i; ++j)
 				{
