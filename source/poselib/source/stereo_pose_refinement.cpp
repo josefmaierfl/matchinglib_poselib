@@ -558,12 +558,35 @@ namespace poselib
                         } while (correspondencePoolIdx[idx] == correspondencePool.end());
                         delIdxsOld.push_back(idx);
                     }
-                    if (poolCorrespondenceDelete(delIdxsOld))
-                    {
-                        //Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+                    try {
+                        if (poolCorrespondenceDelete(delIdxsOld)) {
+                            //Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
+                            clearHistoryAndPool();
+                            cfg_usac.matches = &matches;
+                            cfg_usac.nrMatchesVfcFiltered = (unsigned int) matches.size();
+                            int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+                            if (err == -1)
+                                return -1;
+                            else if (err == -3)
+                                return 0;
+                            return -2;
+                        }
+                    }catch(exception &e){
+                        cerr << "Exception: " << e.what() << endl;
                         clearHistoryAndPool();
                         cfg_usac.matches = &matches;
-                        cfg_usac.nrMatchesVfcFiltered = (unsigned int)matches.size();
+                        cfg_usac.nrMatchesVfcFiltered = (unsigned int) matches.size();
+                        int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+                        if (err == -1)
+                            return -1;
+                        else if (err == -3)
+                            return 0;
+                        return -2;
+                    }catch(...){
+                        cerr << "Unknown exception when trying to delete pool correspondences" << endl;
+                        clearHistoryAndPool();
+                        cfg_usac.matches = &matches;
+                        cfg_usac.nrMatchesVfcFiltered = (unsigned int) matches.size();
                         int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
                         if (err == -1)
                             return -1;
@@ -659,14 +682,39 @@ namespace poselib
                             {
                                 newAddedPoolCorrsIdx[i] = poolIdxNew - i;
                             }
-                            if (poolCorrespondenceDelete(newAddedPoolCorrsIdx))
-                            {
-                                //Failed to remove some old correspondences as an invalid iterator
-                                // was detected -> reinitialize system
+                            try {
+                                if (poolCorrespondenceDelete(newAddedPoolCorrsIdx)) {
+                                    //Failed to remove some old correspondences as an invalid iterator
+                                    // was detected -> reinitialize system
+                                    clearHistoryAndPool();
+                                    failed_refinements = 0;
+                                    cfg_usac.matches = &matches;
+                                    cfg_usac.nrMatchesVfcFiltered = (unsigned int) matches.size();
+                                    int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+                                    if (err == -1)
+                                        return -1;
+                                    else if (err == -3)
+                                        return 0;
+                                    return -2;
+                                }
+                            }catch(exception &e){
+                                cerr << "Exception: " << e.what() << endl;
                                 clearHistoryAndPool();
                                 failed_refinements = 0;
                                 cfg_usac.matches = &matches;
-                                cfg_usac.nrMatchesVfcFiltered = (unsigned int)matches.size();
+                                cfg_usac.nrMatchesVfcFiltered = (unsigned int) matches.size();
+                                int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
+                                if (err == -1)
+                                    return -1;
+                                else if (err == -3)
+                                    return 0;
+                                return -2;
+                            }catch(...){
+                                cerr << "Unknown exception when trying to delete pool correspondences" << endl;
+                                clearHistoryAndPool();
+                                failed_refinements = 0;
+                                cfg_usac.matches = &matches;
+                                cfg_usac.nrMatchesVfcFiltered = (unsigned int) matches.size();
                                 int err = robustInitialization(inlier_ratio_new1, matches, kp1, kp2);
                                 if (err == -1)
                                     return -1;
@@ -780,10 +828,19 @@ namespace poselib
                             delIdxPool.push_back(it.poolIdx);
                         }
                     }
-                    if (poolCorrespondenceDelete(delIdxPool))
-                    {
-                        //Failed to remove some old correspondences as an invalid iterator
-                        // was detected -> reinitialize system
+                    try {
+                        if (poolCorrespondenceDelete(delIdxPool)) {
+                            //Failed to remove some old correspondences as an invalid iterator
+                            // was detected -> reinitialize system
+                            reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
+                            return -2;
+                        }
+                    }catch(exception &e){
+                        cerr << "Exception: " << e.what() << endl;
+                        reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
+                        return -2;
+                    }catch(...){
+                        cerr << "Unknown exception when trying to delete pool correspondences" << endl;
                         reinitializeSystem(inlier_ratio_new1, matches, kp1, kp2);
                         return -2;
                     }
@@ -887,7 +944,7 @@ namespace poselib
     {
         if (addCorrespondencesToPool(matches, kp1, kp2))
             return false;
-        pose_history.push_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
+        pose_history.emplace_back(poseHist(E_new.clone(), R_new.clone(), t_new.clone()));
         inlier_ratio_history.push_back(inlier_ratio);
         nrEstimation++;
         return true;
@@ -2133,7 +2190,7 @@ namespace poselib
                     startRowNew = endRowNew;
                     old_idx = delete_list_new[i] + 1;
                 }
-                if (old_idx < points1newMat.rows)
+                if ((int)old_idx < points1newMat.rows)
                 {
                     points1newMat.rowRange((int)old_idx, points1newMat.rows).copyTo(points1newMatnew.rowRange(startRowNew, n_new));
                     points2newMat.rowRange((int)old_idx, points2newMat.rows).copyTo(points2newMatnew.rowRange(startRowNew, n_new));
@@ -2173,8 +2230,16 @@ namespace poselib
                     delete_list_old.erase(delete_list_old.begin() + i);
                 }
             }
-            if (poolCorrespondenceDelete(delete_list_old))
+            try {
+                if (poolCorrespondenceDelete(delete_list_old))
+                    return -1;
+            }catch(exception &e){
+                cerr << "Exception: " << e.what() << endl;
                 return -1;
+            }catch(...){
+                cerr << "Unknown exception when trying to delete pool correspondences" << endl;
+                return -1;
+            }
         }
         return 0;
     }
@@ -2267,8 +2332,7 @@ namespace poselib
                 std::unordered_map<size_t, std::list<CoordinateProps>::iterator>::iterator it = correspondencePoolIdx.find(delete_list[i]);
                 try
                 {
-					if (it->second != correspondencePool.end())
-					{
+					if (it->second != correspondencePool.end()){
 						if (!nearZero(100.0 * (it->second->Q.x + it->second->Q.y + it->second->Q.z)))
 						{
 							if (nr_Qs)
@@ -2279,9 +2343,8 @@ namespace poselib
 							}
 						}
 						correspondencePool.erase(it->second);
-					}
-                    else {
-                        throw "Invalid pool iterator";
+					} else {
+                        throw std::runtime_error("Invalid pool iterator");
                     }
                     it->second = correspondencePool.end();
                 }
@@ -2297,7 +2360,7 @@ namespace poselib
                 try
                 {
                     if (delDiffInfo.find(it->ptIdx) == delDiffInfo.end()) {
-                        throw "Invalid iterator for changing indexes";
+                        throw std::runtime_error("Invalid iterator for changing indexes");
                     }
                 }
                 catch (string &e)
@@ -2463,12 +2526,12 @@ namespace poselib
 
             if (n_multi <= n_del)
             {
-                for (size_t i = 0; i < posMultCorrs.size(); i++)
+                for (auto &i : posMultCorrs)
                 {
                     vector<pair<double, size_t>> weightIdx1;
                     int imgPos[2];
-                    imgPos[0] = posMultCorrs[i].y;
-                    imgPos[1] = posMultCorrs[i].x;
+                    imgPos[0] = i.y;
+                    imgPos[1] = i.x;
                     for (size_t j = 0; j < (idxPos[imgPos[0]])[imgPos[1]].size(); j++)
                     {
                         list<CoordinateProps>::iterator it = correspondencePoolIdx[((idxPos[imgPos[0]])[imgPos[1]])[j]];
@@ -2612,8 +2675,16 @@ namespace poselib
             } while (n_del);
         }
 
-        if (poolCorrespondenceDelete(delIdx))
+        try {
+            if (poolCorrespondenceDelete(delIdx))
+                return -1;
+        }catch(exception &e){
+            cerr << "Exception: " << e.what() << endl;
             return -1;
+        }catch(...){
+            cerr << "Unknown exception when trying to delete pool correspondences" << endl;
+            return -1;
+        }
 
         maxPoolSizeReached = true;
 

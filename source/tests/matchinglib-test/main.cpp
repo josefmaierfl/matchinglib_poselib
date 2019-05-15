@@ -206,7 +206,7 @@ void startEvaluation(ArgvParser& cmd)
   
   if (cmd.foundOption("subPixRef"))
   {
-	  subPixRef = atoi(cmd.optionValue("subPixRef").c_str());
+	  subPixRef = stoi(cmd.optionValue("subPixRef"));
   }
 
   if(cmd.foundOption("f_detect"))
@@ -259,7 +259,7 @@ void startEvaluation(ArgvParser& cmd)
 
   if(cmd.foundOption("f_nr"))
   {
-    f_nr = atoi(cmd.optionValue("f_nr").c_str());
+    f_nr = stoi(cmd.optionValue("f_nr").c_str());
 
     if(f_nr <= 10)
     {
@@ -274,7 +274,7 @@ void startEvaluation(ArgvParser& cmd)
 
   if(cmd.foundOption("v"))
   {
-    verbose = atoi(cmd.optionValue("v").c_str());
+    verbose = stoi(cmd.optionValue("v").c_str());
   }
   else
   {
@@ -327,15 +327,12 @@ void startEvaluation(ArgvParser& cmd)
 
   if(!show_str.empty())
   {
-    showNr = atoi(show_str.c_str());
+    showNr = stoi(show_str.c_str());
 
+    drawSingleKps = false;
     if(showNr == -2)
     {
       drawSingleKps = true;
-    }
-    else
-    {
-      drawSingleKps = false;
     }
   }
   else
@@ -349,17 +346,33 @@ void startEvaluation(ArgvParser& cmd)
   {
     if(oneCam)
     {
-      src[0] = cv::imread(img_path + "//" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-      src[1] = cv::imread(img_path + "//" + filenamesl[i + 1],CV_LOAD_IMAGE_GRAYSCALE);
+      src[0] = cv::imread(img_path + "/" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
+      src[1] = cv::imread(img_path + "/" + filenamesl[i + 1],CV_LOAD_IMAGE_GRAYSCALE);
     }
     else
     {
-      src[0] = cv::imread(img_path + "//" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-      src[1] = cv::imread(img_path + "//" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
+      src[0] = cv::imread(img_path + "/" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
+      src[1] = cv::imread(img_path + "/" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
     }
 
-    err = matchinglib::getCorrespondences(src[0], src[1], finalMatches, kp1, kp2, f_detect, d_extr, matcher, DynKeyP, f_nr, refineVFC, refineGMS,
-                                          !noRatiot, refineSOF, subPixRef, verbose, nmsIdx, nmsQry);
+    err = matchinglib::getCorrespondences(src[0],
+            src[1],
+            finalMatches,
+            kp1,
+            kp2,
+            f_detect,
+            d_extr,
+            matcher,
+            DynKeyP,
+            f_nr,
+            refineVFC,
+            refineGMS,
+            !noRatiot,
+            refineSOF,
+            subPixRef,
+            verbose,
+            nmsIdx,
+            nmsQry);
 
     if(err)
     {
