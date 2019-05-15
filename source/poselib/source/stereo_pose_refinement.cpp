@@ -156,7 +156,8 @@ namespace poselib
     */
     void StereoRefine::checkInputParamters()
     {
-        if ((cfg_pose.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT)
+        if (((cfg_pose.refineMethod_CorrPool & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT)
+        && !cfg_pose.refineRTold)
         {
             cout << "No refinement algorithm for estimating the pose with all correspondences is set. Taking default values!" << endl;
             cfg_pose.refineMethod_CorrPool = poselib::RefinePostAlg::PR_STEWENIUS | poselib::RefinePostAlg::PR_PSEUDOHUBER_WEIGHTS;
@@ -656,6 +657,7 @@ namespace poselib
                         //Reinitialize whole system
                         cout << "Robust estimation on pool correspondences failed! "
                                 "Reinitializing system with last pose!" << endl;
+                        Q.release();
                         E_old.copyTo(E_new);
                         R_old.copyTo(R_new);
                         t_old.copyTo(t_new);
