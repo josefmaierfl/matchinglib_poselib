@@ -142,7 +142,9 @@ namespace poselib
             if (inlRat_new < inlier_ratio_history.back() * (1 - cfg_pose.relInlRatThNew))
             {
                 //Too many correspondences from the last image pairs are marked now as outliers ->reinitializing System
-                cout << std::setprecision(3) << "Due to changing the threshold, too many of the correspondences from the last image pairs are marked now as outliers. Reinitializing system!" << endl;
+                cout << std::setprecision(3) << "Due to changing the threshold, too many of the correspondences "
+                                                "from the last image pairs are marked now as outliers. "
+                                                "Reinitializing system!" << endl;
                 clearHistoryAndPool();
             }
         }
@@ -161,19 +163,22 @@ namespace poselib
         }
         if (cfg_pose.kneipInsteadBA && ((cfg_pose.refineMethod & 0xF) != poselib::RefinePostAlg::PR_KNEIP))
         {
-            cout << "You selected Kneips Eigen solver instead BA but specified a different solver. Changing the solver to Kneips Eigen solver." << endl;
+            cout << "You selected Kneips Eigen solver instead BA but specified a different solver. Changing the "
+                    "solver to Kneips Eigen solver." << endl;
             cfg_pose.refineMethod = (cfg_pose.refineMethod & 0xF0) | poselib::RefinePostAlg::PR_KNEIP;
         }
         if (cfg_pose.kneipInsteadBA_CorrPool && ((cfg_pose.refineMethod_CorrPool & 0xF) != poselib::RefinePostAlg::PR_KNEIP))
         {
-            cout << "You selected Kneips Eigen solver instead BA but specified a different solver. Changing the solver to Kneips Eigen solver." << endl;
+            cout << "You selected Kneips Eigen solver instead BA but specified a different solver. "
+                    "Changing the solver to Kneips Eigen solver." << endl;
             cfg_pose.refineMethod_CorrPool = (cfg_pose.refineMethod_CorrPool & 0xF0) | poselib::RefinePostAlg::PR_KNEIP;
         }
         if (cfg_pose.minStartAggInlRat < 0.08)
         {
             cout << std::setprecision(4) << "The minimum inlier ratio treshold minStartAggInlRat = " << cfg_pose.minStartAggInlRat <<
                 " to start aggregating point correspondence is chosen too small. "
-                "This would lead to acceptance of possibly wrong initial poses and their correspondences for further refinement and thus to wrong poses in the future!"
+                "This would lead to acceptance of possibly wrong initial poses and their correspondences "
+                "for further refinement and thus to wrong poses in the future!"
                 " Setting it to 0.1 which might be still too small!" << endl;
             cfg_pose.minStartAggInlRat = 0.1;
         }
@@ -181,7 +186,8 @@ namespace poselib
         {
             cout << std::setprecision(3) << "The minimum inlier ratio treshold minStartAggInlRat = " << cfg_pose.minStartAggInlRat <<
                 " to start aggregating point correspondence is chosen too high. "
-                "This would lead to rejection of correct initial poses and their correspondences for further refinement! Thus the behaviour of the algorithm might be "
+                "This would lead to rejection of correct initial poses and their correspondences for further "
+                "refinement! Thus the behaviour of the algorithm might be "
                 "similar to a pose estimation in the mono camera case."
                 " Setting it to 0.75 which might be still too high!" << endl;
             cfg_pose.minStartAggInlRat = 0.75;
@@ -189,13 +195,16 @@ namespace poselib
         if (cfg_pose.relInlRatThLast > 0.75)
         {
             cout << std::setprecision(3) << "Setting the relative threshold relInlRatThLast to " <<
-                cfg_pose.relInlRatThLast << " makes no sence. The value is too high! Thus a change in the pose might not be detected! Setting it to 0.6 which might be still to high!" << endl;
+                cfg_pose.relInlRatThLast << " makes no sence. The value is too high! Thus a change in the pose "
+                                            "might not be detected! Setting it to 0.6 which "
+                                            "might be still to high!" << endl;
             cfg_pose.relInlRatThLast = 0.6;
         }
         else if (cfg_pose.relInlRatThLast < 0.1)
         {
             cout << std::setprecision(3) << "Setting the relative threshold relInlRatThLast to " <<
-                cfg_pose.relInlRatThLast << " makes no sence. The value is too small! This might cause additional computational overhead!" << endl;
+                cfg_pose.relInlRatThLast << " makes no sence. The value is too small! This might cause "
+                                            "additional computational overhead!" << endl;
             if (cfg_pose.relInlRatThLast < 0.01)
             {
                 cout << "Relative threshold relInlRatThLast is far too small! Setting it to 0.1!" << endl;
@@ -205,14 +214,18 @@ namespace poselib
         if (cfg_pose.relInlRatThNew < 0.04)
         {
             cout << std::setprecision(4) << "Setting the relative threshold relInlRatThNew to " <<
-                cfg_pose.relInlRatThNew << " makes no sence. The value is too small! The algorithm might not realize that the pose has NOT changed. This can result in a loss of accuracy!"
+                cfg_pose.relInlRatThNew << " makes no sence. The value is too small! The algorithm might not "
+                                           "realize that the pose has NOT changed. This can result in a "
+                                           "loss of accuracy!"
                 " Setting it to 0.04 which might be still too small!" << endl;
             cfg_pose.relInlRatThNew = 0.04;
         }
         else if (cfg_pose.relInlRatThNew > 0.5)
         {
             cout << std::setprecision(3) << "Setting the relative threshold relInlRatThNew to " <<
-                cfg_pose.relInlRatThNew << " makes no sence. The value is too high! If the pose has changed, this might be not realized and correspondeces of different poses are used together"
+                cfg_pose.relInlRatThNew << " makes no sence. The value is too high! If the pose has changed, "
+                                           "this might be not realized and correspondeces of different poses "
+                                           "are used together"
                 " leading to a wrong pose estimation! Setting it to 0.35 which might be still too high!" << endl;
             cfg_pose.relInlRatThNew = 0.35;
         }
@@ -222,7 +235,8 @@ namespace poselib
                 " for a newly robustly estimated pose to be temporally accepted seems to be very high. "
                 "If the inlier ratio of the new pose is below this threshold, the new pose might not be accepted "
                 "(except the chosen realtive threshold relMinInlierRatSkip helps to prevent this situation)! "
-                "If the pose has changed, the new estimated pose might not be temporally accepted and the old wrong pose will be used instead!"
+                "If the pose has changed, the new estimated pose might not be temporally accepted and the old "
+                "wrong pose will be used instead!"
                 " You should change this threshold!" << endl;
             if (cfg_pose.minInlierRatSkip > 0.95)
             {
@@ -234,7 +248,8 @@ namespace poselib
         {
             cout << std::setprecision(4) << "Your chosen inlier threshold minInlierRatSkip = " << cfg_pose.minInlierRatSkip <<
                 " for a newly robustly estimated pose to be temporally accepted seems to be very small. "
-                "Thus, if the pose has not changed but the quality of the actual image pair is very bad resulting in a bad temporal new estimate of the pose, "
+                "Thus, if the pose has not changed but the quality of the actual image pair is very bad resulting "
+                "in a bad temporal new estimate of the pose, "
                 "this new bad pose will be available at the output. You should change this threshold!" << endl;
             if (cfg_pose.minInlierRatSkip < 0.01)
             {
@@ -246,7 +261,8 @@ namespace poselib
         {
             cout << std::setprecision(4) << "Your chosen relative inlier threshold relMinInlierRatSkip = " << cfg_pose.relMinInlierRatSkip <<
                 " for a newly robustly estimated pose to be temporally accepted seems to be very small. "
-                "Thus, if the pose has not changed but the quality of the actual image pair is very bad resulting in a bad temporal new estimate of the pose, "
+                "Thus, if the pose has not changed but the quality of the actual image pair is very bad "
+                "resulting in a bad temporal new estimate of the pose, "
                 "this new bad pose will be available at the output. You should change this threshold!" << endl;
             if (cfg_pose.relMinInlierRatSkip < 0.01)
             {
@@ -285,7 +301,8 @@ namespace poselib
         if (cfg_pose.minInlierRatioReInit <= cfg_pose.minInlierRatSkip)
         {
             cout << std::setprecision(4) << "Your threshold minInlierRatioReInit = " << cfg_pose.minInlierRatioReInit <<
-                " on the inlier ratio of the newest robust pose estimation after a few iterations (input image pairs) is too small!"
+                " on the inlier ratio of the newest robust pose estimation after a few iterations "
+                "(input image pairs) is too small!"
                 " It should be larger than the threshold minInlierRatSkip = " << cfg_pose.minInlierRatSkip <<
                 ". Setting it to minInlierRatSkip + 0.05" << endl;
             cfg_pose.minInlierRatioReInit = cfg_pose.minInlierRatSkip + 0.05;
@@ -293,7 +310,8 @@ namespace poselib
         if (cfg_pose.minInlierRatioReInit > 0.8)
         {
             cout << std::setprecision(3) << "Your threshold minInlierRatioReInit = " << cfg_pose.minInlierRatioReInit <<
-                " on the inlier ratio of the newest robust pose estimation after a few iterations (input image pairs) is too high!"
+                " on the inlier ratio of the newest robust pose estimation after a few iterations "
+                "(input image pairs) is too high!"
                 " The system might not reinitialize very fast if the pose has changed!"
                 " Changing minInlierRatioReInit to 0.8 which is still very high!" << endl;
             cfg_pose.minInlierRatioReInit = 0.8;
@@ -301,7 +319,8 @@ namespace poselib
         else if (cfg_pose.minInlierRatioReInit < 0.3)
         {
             cout << std::setprecision(4) << "Your threshold minInlierRatioReInit = " << cfg_pose.minInlierRatioReInit <<
-                " on the inlier ratio of the newest robust pose estimation after a few iterations (input image pairs) is too small!"
+                " on the inlier ratio of the newest robust pose estimation after a few iterations "
+                "(input image pairs) is too small!"
                 " The system will reinitialize very often with possible false poses!" << endl;
             if (cfg_pose.minInlierRatioReInit < 0.15)
             {
@@ -311,30 +330,37 @@ namespace poselib
         }
         if (cfg_pose.minPtsDistance < 1.5)
         {
-            cout << std::setprecision(2) << "The search distance for correspondences of " << cfg_pose.minPtsDistance << " is too small. Setting it to the minimal value of 1.5" << endl;
+            cout << std::setprecision(2) << "The search distance for correspondences of "
+            << cfg_pose.minPtsDistance << " is too small. Setting it to the minimal value of 1.5" << endl;
             cfg_pose.minPtsDistance = 1.5;
         }
         if (cfg_pose.maxPoolCorrespondences > (size_t)INT_MAX)
         {
-            cout << "The maximum number " << cfg_pose.maxPoolCorrespondences << " of pool correspondences is too large as cv::Mat uses int for indexing. Setting it to INT_MAX= " << INT_MAX << endl;
+            cout << "The maximum number " << cfg_pose.maxPoolCorrespondences
+            << " of pool correspondences is too large as cv::Mat uses int for indexing. "
+               "Setting it to INT_MAX= " << INT_MAX << endl;
             cfg_pose.maxPoolCorrespondences = (size_t)INT_MAX;
         }
         if (cfg_pose.minContStablePoses <= 2)
         {
-            cout << "The minimum number " << cfg_pose.minContStablePoses << " of minimal stable poses is too small! Setting it to the minimal number of 3." << endl;
+            cout << "The minimum number " << cfg_pose.minContStablePoses
+            << " of minimal stable poses is too small! Setting it to the minimal number of 3." << endl;
             cfg_pose.minContStablePoses = 3;
         }
         if (cfg_pose.absThRankingStable < 0.01)
         {
-            cout << std::setprecision(3) << "The threshold on the ranking of " << cfg_pose.absThRankingStable << " to detect a stable pose is too small! "
+            cout << std::setprecision(3) << "The threshold on the ranking of "
+            << cfg_pose.absThRankingStable << " to detect a stable pose is too small! "
                 "Setting it to 0.01 which might be still to small. "
                 "It is unlikely that a stability in the pose based on the poses alone will be detected!" << endl;
             cfg_pose.absThRankingStable = 0.01;
         }
         else if (cfg_pose.absThRankingStable > 0.9)
         {
-            cout << std::setprecision(3) << "The threshold on the ranking of " << cfg_pose.absThRankingStable << " to detect a stable pose is too high!"
-                " Setting it to 0.6. It is very likely that stability is detected even if the pose is not stable!" << endl;
+            cout << std::setprecision(3) << "The threshold on the ranking of "
+            << cfg_pose.absThRankingStable << " to detect a stable pose is too high!"
+                " Setting it to 0.6. It is very likely that stability is detected even "
+                "if the pose is not stable!" << endl;
             cfg_pose.absThRankingStable = 0.6;
         }
     }
@@ -1234,7 +1260,9 @@ namespace poselib
         if (cfg_pose.useRANSAC_fewMatches && (points1newMat.rows < 100)
         && ((cfg_pose.RobMethod != "RANSAC") || cfg_pose.autoTH || cfg_pose.Halign))
         {
-            cout << "The number of provided matches is very low (<100) and your chosen robust method is ";
+            if(verbose) {
+                cout << "The number of provided matches is very low (<100) and your chosen robust method is ";
+            }
             if (cfg_pose.autoTH)
             {
                 originalRobMethod.autoTH = true;
@@ -1250,9 +1278,11 @@ namespace poselib
                 cout << cfg_pose.RobMethod;
             }
             originalRobMethod.robMethod = cfg_pose.RobMethod;
-             cout << ". Switching to RANSAC for only this estimation "
-                "as RANSAC has no speed disadvantage for this small number of matches and might deliver the "
-                "best results (except if degeneracies are present)!" << endl;
+            if(verbose) {
+                cout << ". Switching to RANSAC for only this estimation "
+                        "as RANSAC has no speed disadvantage for this small number of matches and might deliver the "
+                        "best results (except if degeneracies are present)!" << endl;
+            }
             methodChanged = true;
             cfg_pose.RobMethod = "RANSAC";
         }
@@ -1305,7 +1335,8 @@ namespace poselib
                         R_degenerate,
                         inliers_degenerate_R,
                         R_kneip,
-                        t_kneip) != 0)
+                        t_kneip,
+                        verbose) != 0)
                     {
                         usacerror = true;
                     }
@@ -1320,7 +1351,10 @@ namespace poselib
                         isDegenerate,
                         mask,
                         R_degenerate,
-                        inliers_degenerate_R) != 0)
+                        inliers_degenerate_R,
+                        cv::noArray(),
+                        cv::noArray(),
+                        verbose) != 0)
                     {
                         usacerror = true;
                     }
@@ -1353,7 +1387,9 @@ namespace poselib
         }
         mask.copyTo(mask_E_new);
         nr_inliers_new = cv::countNonZero(mask);
-        std::cout << "Number of inliers after robust estimation of E: " << nr_inliers_new << endl;
+        if(verbose) {
+            std::cout << "Number of inliers after robust estimation of E: " << nr_inliers_new << endl;
+        }
 
         //Get R & t
         bool availableRT = false;
@@ -3093,8 +3129,7 @@ namespace poselib
             nr_tries++;
         }
 
-        if ((nr_tries > cfg_pose.minContStablePoses) && maxPoolSizeReached && (ratio3DPtsFar < cfg_pose.maxRat3DPtsFar))
-        {
+        if ((nr_tries > cfg_pose.minContStablePoses) && maxPoolSizeReached && (ratio3DPtsFar < cfg_pose.maxRat3DPtsFar)){
             //Check overlap of error ranges
             const double minOverlap = 0.8;
             vector<pair<double, double>> err_ranges(cfg_pose.minContStablePoses);
@@ -3148,8 +3183,7 @@ namespace poselib
             }
             poseIsStable = true;
 			nrConsecStablePoses++;
-        }
-		else
+        } else
 		{
 			nrConsecStablePoses = 0;
 		}
@@ -3172,7 +3206,7 @@ namespace poselib
 		{
 			size_t maxSkipPairsNew_tmp = maxSkipPairsNew;
 			maxSkipPairsNew = (size_t)std::ceil((double)cfg_pose.maxSkipPairs * (1.0 + (double)(cfg_pose.raiseSkipCnt & 0xF) * 0.25));
-			if (maxSkipPairsNew_tmp != maxSkipPairsNew)
+			if ((maxSkipPairsNew_tmp != maxSkipPairsNew) && verbose)
 				cout << "maxSkipPairs changed to " << maxSkipPairsNew << endl;
 		}
 		else

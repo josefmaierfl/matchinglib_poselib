@@ -9,7 +9,7 @@ AUTOR: Josef Maier, AIT Austrian Institute of Technology
 
 DATE: May 2017
 
-LOCATION: TechGate Vienna, Donau-City-Straße 1, 1220 Vienna
+LOCATION: TechGate Vienna, Donau-City-Straï¿½e 1, 1220 Vienna
 
 VERSION: 1.0
 
@@ -71,7 +71,8 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 						   cv::OutputArray H, 
 						   cv::OutputArray inliers_degenerate,
 						   double *fraction_degen_inliers,
-						   std::vector<unsigned int> sortedMatchIdx)
+						   std::vector<unsigned int> sortedMatchIdx,
+                           bool verbose_)
 {
 	CV_Assert((p1.cols() == 2) && (p2.cols() == 2) && (p1.rows() == p2.rows()) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	CV_Assert(sortedMatchIdx.empty() || (p1.rows() == (int)sortedMatchIdx.size()));
@@ -81,7 +82,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 
 
 	// seed random number generator
-	srand((unsigned int)time(NULL));
+	srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC fundamental matrix estimation
 	std::vector<double> pointData(6 * numPts);
@@ -149,7 +150,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	c_fund.maxUpgradeSamples = 8000;//maximum number of 2-point samples to draw in the model upgrade loop, --------------> maybe should be changed
 
 	
-	ConfigParamsFund cfg(c_com, c_pro, c_sprt, c_lo, c_fund);
+	ConfigParamsFund cfg(c_com, c_pro, c_sprt, c_lo, c_fund, verbose_);
 
 	// initialize the fundamental matrix estimation problem
 	FundMatrixEstimator* fund = new FundMatrixEstimator;
@@ -215,7 +216,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 		if (!fund->usac_results_.inlier_flags_.empty())
 		{
 			cv::Mat inliers_(1, numPts, CV_8U);
-			if (inliers.cols() != numPts)
+			if (inliers.cols() != (int)numPts)
 				inliers.clear();
 			if (inliers.empty())
 				inliers.create(1, numPts, CV_8U);
@@ -234,7 +235,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 		if (!fund->usac_results_.degen_inlier_flags_.empty())
 		{
 			cv::Mat inliers_degenerate_(1, numPts, CV_8U);
-			if (inliers_degenerate.cols() != numPts)
+			if (inliers_degenerate.cols() != (int)numPts)
 				inliers_degenerate.clear();
 			if (inliers_degenerate.empty())
 				inliers_degenerate.create(1, numPts, CV_8U);
@@ -286,7 +287,8 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	double *fraction_degen_inliers_noMot,
 	std::vector<unsigned int> sortedMatchIdx,
 	cv::OutputArray R_E, 
-	cv::OutputArray t_E)
+	cv::OutputArray t_E,
+	bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	CV_Assert(sortedMatchIdx.empty() || (p1.rows == (int)sortedMatchIdx.size()));
@@ -305,7 +307,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	}
 
 	// seed random number generator
-	srand((unsigned int)time(NULL));
+	srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC essential matrix estimation
 	std::vector<double> pointData(6 * numPts);
@@ -419,7 +421,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	c_essential.enableHDegen = false; //Should remain disbled (false). Enable the H degeneracy check and upgrade to full model (H degeneracy is not a problem for the 5pt algorithm)
 	c_essential.enableUpgradeDegenPose = true; //Enable the upgrade from degenerate configurations R or no Motion to R-> R+t or no Motion -> t
 
-	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential);
+	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
 	EssentialMatEstimator* fund = new EssentialMatEstimator;
@@ -602,7 +604,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 		if (!fund->usac_results_.inlier_flags_.empty())
 		{
 			cv::Mat inliers_(1, numPts, CV_8U);
-			if (inliers.cols() != numPts)
+			if (inliers.cols() != (int)numPts)
 				inliers.clear();
 			if (inliers.empty())
 				inliers.create(1, numPts, CV_8U);
@@ -635,7 +637,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 		if (!fund->usac_results_.degen_inlier_flags_.empty())
 		{
 			cv::Mat inliers_degenerate_(1, numPts, CV_8U);
-			if (inliers_degenerate_H.cols() != numPts)
+			if (inliers_degenerate_H.cols() != (int)numPts)
 				inliers_degenerate_H.clear();
 			if (inliers_degenerate_H.empty())
 				inliers_degenerate_H.create(1, numPts, CV_8U);
@@ -654,7 +656,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 		if (!fund->usac_results_.degen_inlier_flags_rot.empty())
 		{
 			cv::Mat inliers_degenerate_(1, numPts, CV_8U);
-			if (inliers_degenerate_R.cols() != numPts)
+			if (inliers_degenerate_R.cols() != (int)numPts)
 				inliers_degenerate_R.clear();
 			if (inliers_degenerate_R.empty())
 				inliers_degenerate_R.create(1, numPts, CV_8U);
@@ -673,7 +675,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 		if (!fund->usac_results_.degen_inlier_flags_noMot.empty())
 		{
 			cv::Mat inliers_degenerate_(1, numPts, CV_8U);
-			if (inliers_degenerate_noMotion.cols() != numPts)
+			if (inliers_degenerate_noMotion.cols() != (int)numPts)
 				inliers_degenerate_noMotion.clear();
 			if (inliers_degenerate_noMotion.empty())
 				inliers_degenerate_noMotion.create(1, numPts, CV_8U);
@@ -708,7 +710,8 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	double sprt_epsilon,
 	cv::OutputArray inliers,
 	unsigned int *nr_inliers,
-	std::vector<unsigned int> sortedMatchIdx)
+	std::vector<unsigned int> sortedMatchIdx,
+	bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	CV_Assert(sortedMatchIdx.empty() || (p1.rows == (int)sortedMatchIdx.size()));
@@ -724,7 +727,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	}
 
 	// seed random number generator
-	srand((unsigned int)time(NULL));
+	srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC essential matrix estimation
 	std::vector<double> pointData(6 * numPts);
@@ -785,7 +788,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	c_sprt.tM = 65.0;//Computation time of a model hypotheses (e.g. fundamental mat) expressed in time units for veryfying tm data points
 					  //is used to estimate the decision treshold of SPRT -> we should try to estimate this value during runtime
 
-	ConfigParamsRotationMat cfg(c_com, c_pro, c_sprt, c_lo);
+	ConfigParamsRotationMat cfg(c_com, c_pro, c_sprt, c_lo, verbose_);
 
 	// initialize the fundamental matrix estimation problem
 	RotationMatEstimator* fund = new RotationMatEstimator;
@@ -817,7 +820,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 		if (!fund->usac_results_.inlier_flags_.empty())
 		{
 			cv::Mat inliers_(1, numPts, CV_8U);
-			if (inliers.cols() != numPts)
+			if (inliers.cols() != (int)numPts)
 				inliers.clear();
 			if (inliers.empty())
 				inliers.create(1, numPts, CV_8U);
@@ -871,7 +874,8 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	cv::OutputArray inliers,
 	unsigned int *nr_inliers,
 	cv::OutputArray R,
-	cv::OutputArray t)
+	cv::OutputArray t,
+	bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	const cv::Mat p1_ = p1;// .getMat();
@@ -891,7 +895,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	}
 
 	// seed random number generator
-	srand((unsigned int)time(NULL));
+	srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC essential matrix estimation and split into degenerate inliers and outliers
 	std::vector<double> pointData;// (6 * numPts);
@@ -1012,7 +1016,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	c_essential.enableHDegen = false; //Should remain disbled (false). Enable the H degeneracy check and upgrade to full model (H degeneracy is not a problem for the 5pt algorithm)
 	c_essential.enableUpgradeDegenPose = false; //Enable the upgrade from degenerate configurations R or no Motion to R-> R+t or no Motion -> t
 
-	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential);
+	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
 	EssentialMatEstimator* fund = new EssentialMatEstimator;
@@ -1082,7 +1086,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 		if (!fund->usac_results_.inlier_flags_.empty())
 		{
 			cv::Mat inliers_(1, numPts, CV_8U);
-			if (inliers.cols() != numPts)
+			if (inliers.cols() != (int)numPts)
 				inliers.clear();
 			if (inliers.empty())
 				inliers.create(1, numPts, CV_8U);
@@ -1141,7 +1145,8 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 	double *fraction_degen_inliers_R,
 	std::vector<unsigned int> sortedMatchIdx,
 	cv::OutputArray R_E, 
-	cv::OutputArray t_E)
+	cv::OutputArray t_E,
+	bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	const cv::Mat p1_ = p1;// .getMat();
@@ -1178,11 +1183,14 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 		t_kneip,
 		cv::noArray(),
 		cv::noArray(),
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		sortedMatchIdx) == EXIT_FAILURE)
+                                 nullptr,
+                                 nullptr,
+                                 nullptr,
+                                 nullptr,
+		sortedMatchIdx,
+		cv::noArray(),
+		cv::noArray(),
+		verbose_) == EXIT_FAILURE)
 	{
 		return EXIT_FAILURE;
 	}
@@ -1244,7 +1252,8 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 		sprt_epsilon / 10.0,
 		inliers_degen,
 		&nr_inliers_deg,
-		sortedMatchIdxDegen) == EXIT_FAILURE)
+		sortedMatchIdxDegen,
+		verbose_) == EXIT_FAILURE)
 	{
 		return EXIT_FAILURE;
 	}
@@ -1305,7 +1314,8 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 					inliers_upgrade,
 					&nr_inliers_upgrade,
 					R_kneip_upgr,
-					t_kneip_upgr) == EXIT_FAILURE)
+					t_kneip_upgr,
+					verbose_) == EXIT_FAILURE)
 				{
 					return EXIT_FAILURE;
 				}

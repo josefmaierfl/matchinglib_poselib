@@ -896,7 +896,7 @@ void startEvaluation(ArgvParser& cmd)
         if((cp.Halign < 0) || (cp.Halign > 2))
         {
             std::cerr << "The specified option for homography alignment (Halign) is not available. Exiting." << endl;
-            exit(0);
+            exit(1);
         }
     }
     else
@@ -910,7 +910,7 @@ void startEvaluation(ArgvParser& cmd)
         if((cp.BART < 0) || (cp.BART > 2))
         {
             std::cerr << "The specified option for bundle adjustment (BART) is not available. Exiting." << endl;
-            exit(0);
+            exit(1);
         }
     }
     else {
@@ -950,12 +950,12 @@ void startEvaluation(ArgvParser& cmd)
         cp.USACInlratFilt = 1;
     }
 
-    if(cp.RobMethod.compare("ARRSAC") && cp.autoTH)
+    if((cp.RobMethod != "ARRSAC") && cp.autoTH)
     {
         std::cout << "With option 'autoTH' only ARRSAC is supported. Using ARRSAC!" << endl;
     }
 
-    if(cp.RobMethod.compare("ARRSAC") && cp.Halign)
+    if((cp.RobMethod != "ARRSAC") && cp.Halign)
     {
         std::cout << "With option 'Halign' only ARRSAC is supported. Using ARRSAC!" << endl;
     }
@@ -1132,7 +1132,7 @@ void startEvaluation(ArgvParser& cmd)
 		if ((BART_stereo < 0) || (BART_stereo > 2))
 		{
 			std::cerr << "The specified option for bundle adjustment (BART_stereo) is not available. Exiting." << endl;
-			exit(0);
+			exit(1);
 		}
 	}
 	else
@@ -1501,7 +1501,7 @@ void startEvaluation(ArgvParser& cmd)
 		cp.cfg_stereo.maxRat3DPtsFar = maxRat3DPtsFar;
 		cp.cfg_stereo.maxDist3DPtsZ = maxDist3DPtsZ;
 
-		stereoObj.reset(new poselib::StereoRefine(cp.cfg_stereo));
+		stereoObj.reset(new poselib::StereoRefine(cp.cfg_stereo, verbose > 0));
 	}
 
     int failNr = 0;
@@ -1648,7 +1648,8 @@ void startEvaluation(ArgvParser& cmd)
 					}
 					else
 					{
-						std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+						std::cout << "Estimation of essential matrix or undistortion or matching failed for "
+						<< failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
 						exit(1);
 					}
 				}
@@ -1676,7 +1677,8 @@ void startEvaluation(ArgvParser& cmd)
 					}
 					else
 					{
-						std::cout << "Pose estimation failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+						std::cout << "Pose estimation failed for "
+						<< failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
 						exit(1);
 					}
 				}
@@ -1688,7 +1690,8 @@ void startEvaluation(ArgvParser& cmd)
 					bool isDegenerate = false;
 					Mat R_degenerate, inliers_degenerate_R;
 					bool usacerror = false;
-					if (cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP || cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
+					if (cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP
+					|| cp.cfg.refinealg == poselib::RefineAlg::REF_EIG_KNEIP_WEIGHTS)
 					{
 						if (estimateEssentialOrPoseUSAC(p1,
 							p2,
@@ -1700,7 +1703,8 @@ void startEvaluation(ArgvParser& cmd)
 							R_degenerate,
 							inliers_degenerate_R,
 							R_kneip,
-							t_kneip) != 0)
+							t_kneip,
+							verbose > 0) != 0)
 						{
 							usacerror = true;
 						}
@@ -1715,7 +1719,10 @@ void startEvaluation(ArgvParser& cmd)
 							isDegenerate,
 							mask,
 							R_degenerate,
-							inliers_degenerate_R) != 0)
+							inliers_degenerate_R,
+							cv::noArray(),
+							cv::noArray(),
+							verbose > 0) != 0)
 						{
 							usacerror = true;
 						}

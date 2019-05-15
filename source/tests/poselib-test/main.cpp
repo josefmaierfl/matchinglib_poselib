@@ -1254,7 +1254,7 @@ void startEvaluation(ArgvParser& cmd)
 		cfg_stereo.maxRat3DPtsFar = maxRat3DPtsFar;
 		cfg_stereo.maxDist3DPtsZ = maxDist3DPtsZ;
 
-		stereoObj.reset(new poselib::StereoRefine(cfg_stereo));
+		stereoObj.reset(new poselib::StereoRefine(cfg_stereo, verbose > 0));
 	}
 
     int failNr = 0;
@@ -1485,7 +1485,8 @@ void startEvaluation(ArgvParser& cmd)
 							R_degenerate,
 							inliers_degenerate_R,
 							R_kneip,
-							t_kneip) != 0)
+							t_kneip,
+							verbose > 0) != 0)
 						{
 							usacerror = true;
 						}
@@ -1500,7 +1501,10 @@ void startEvaluation(ArgvParser& cmd)
 							isDegenerate,
 							mask,
 							R_degenerate,
-							inliers_degenerate_R) != 0)
+							inliers_degenerate_R,
+							cv::noArray(),
+							cv::noArray(),
+							verbose > 0) != 0)
 						{
 							usacerror = true;
 						}

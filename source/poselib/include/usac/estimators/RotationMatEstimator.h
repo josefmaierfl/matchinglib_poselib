@@ -36,7 +36,7 @@ public:
 	inline void		 cleanupProblem();
 	inline unsigned int generateMinimalSampleModels();
 	inline bool		 generateRefinedModel(std::vector<unsigned int>& sample, const unsigned int numPoints,
-		bool weighted = false, double* weights = NULL);
+		bool weighted = false, double* weights = nullptr);
 	inline bool		 validateSample();
 	inline bool		 validateModel(unsigned int modelIndex);
 	inline bool		 evaluateModel(unsigned int modelIndex, unsigned int* numInliers, unsigned int* numPointsTested);
@@ -61,7 +61,7 @@ bool RotationMatEstimator::initProblem(const ConfigParamsRotationMat& cfg, doubl
 {
 	// copy pointer to input data
 	input_points_denorm_ = pointData;
-	if (input_points_denorm_ == NULL)
+	if (input_points_denorm_ == nullptr)
 	{
 		std::cerr << "Input point data not properly initialized" << std::endl;
 		return false;

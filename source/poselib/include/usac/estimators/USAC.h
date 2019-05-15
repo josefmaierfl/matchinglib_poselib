@@ -109,6 +109,7 @@ class USAC
 		USACConfig::VerifMethod				   usac_verif_method_;
 		USACConfig::LocalOptimizationMethod    usac_local_opt_method_;
 		//USACConfig::PoseTransformationType	   posetype;
+        bool verbose = false;
 
 		// PROSAC parameters
 		unsigned int  prosac_growth_max_samples_;
@@ -218,6 +219,7 @@ void USAC<ProblemType>::initParamsUSAC(const ConfigParams& cfg)
 	usac_sampling_method_		= cfg.common.randomSamplingMethod;
 	usac_verif_method_			= cfg.common.verifMethod;
 	usac_local_opt_method_      = cfg.common.localOptMethod;
+	verbose                     = cfg.verbose;
 	//posetype					= USACConfig::TRANS_ESSENTIAL;
 
 	// read in PROSAC parameters if required
@@ -481,7 +483,9 @@ bool USAC<ProblemType>::solve()
 
 		if (update_best && usac_test_degeneracy_)
 		{
-			std::cout << "Testing for degeneracy (" << usac_results_.best_inlier_count_ << ")" << std::endl;
+		    if(verbose) {
+                std::cout << "Testing for degeneracy (" << usac_results_.best_inlier_count_ << ")" << std::endl;
+            }
 			static_cast<ProblemType *>(this)->testSolutionDegeneracy(&degenerate_model, &upgrade_model);
 			if (degenerate_model && upgrade_model)
 			{
@@ -499,13 +503,18 @@ bool USAC<ProblemType>::solve()
 		// 7. perform local optimization if specified
 		if (usac_local_opt_method_ == USACConfig::LO_LOSAC && update_best == true)
 		{
-			std::cout << "(" << usac_results_.hyp_count_ << ") Performing LO. Inlier count before: " << usac_results_.best_inlier_count_;
+		    if(verbose) {
+                std::cout << "(" << usac_results_.hyp_count_ << ") Performing LO. Inlier count before: "
+                          << usac_results_.best_inlier_count_;
+            }
 			unsigned int lo_inlier_count = locallyOptimizeSolution(usac_results_.best_inlier_count_);
 			if (lo_inlier_count > usac_results_.best_inlier_count_)
 			{
 				usac_results_.best_inlier_count_ = lo_inlier_count;
 			}
-			std::cout << ", inlier count after: " << lo_inlier_count << std::endl;
+            if(verbose) {
+                std::cout << ", inlier count after: " << lo_inlier_count << std::endl;
+            }
 
 			if (num_prev_best_inliers_lo_ < usac_results_.best_inlier_count_)
 			{
@@ -551,17 +560,26 @@ bool USAC<ProblemType>::solve()
 	// ------------------------------------------------------------------------	
 	// output statistics
 	double tock = Timer::getTimestampInSeconds();
-	std::cout << "Number of hypotheses/models: " << usac_results_.hyp_count_ << "/" << usac_results_.model_count_ << std::endl;
-	std::cout << "Number of samples rejected by pre-validation: " << usac_results_.rejected_sample_count_ << std::endl;
-	std::cout << "Number of models rejected by pre-validation: " << usac_results_.rejected_model_count_ << std::endl;
-	std::cout << "Number of verifications per model: " << 
-		(double)usac_results_.total_points_verified_/(usac_results_.model_count_-usac_results_.rejected_model_count_) << std::endl;
-	std::cout << "Max inliers/total points: " << usac_results_.best_inlier_count_ << "/" << usac_num_data_points_ << std::endl;
+	if(verbose) {
+        std::cout << "Number of hypotheses/models: "
+                  << usac_results_.hyp_count_ << "/" << usac_results_.model_count_ << std::endl;
+        std::cout << "Number of samples rejected by pre-validation: "
+                  << usac_results_.rejected_sample_count_ << std::endl;
+        std::cout << "Number of models rejected by pre-validation: "
+                  << usac_results_.rejected_model_count_ << std::endl;
+        std::cout << "Number of verifications per model: "
+                  << (double) usac_results_.total_points_verified_
+                     / (usac_results_.model_count_ - usac_results_.rejected_model_count_) << std::endl;
+        std::cout << "Max inliers/total points: "
+                  << usac_results_.best_inlier_count_ << "/" << usac_num_data_points_ << std::endl;
+    }
 
 	// ------------------------------------------------------------------------
 	// timing stuff
 	usac_results_.total_runtime_ = tock - tick;
-	std::cout << "Time: " << usac_results_.total_runtime_ << std::endl << std::endl;
+	if(verbose) {
+        std::cout << "Time: " << usac_results_.total_runtime_ << std::endl << std::endl;
+    }
 
 	// ------------------------------------------------------------------------
 	// clean up

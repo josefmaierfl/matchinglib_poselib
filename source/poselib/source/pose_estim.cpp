@@ -849,12 +849,12 @@ bool estimateEssentialMat(cv::OutputArray E,
 	else if (method == "USAC")
 	{
 		cout << "USAC must be executed by function estimateEssentialOrPoseUSAC as it needs additional paramters! Exiting." << endl;
-		exit(0);
+		exit(1);
 	}
 	else
 	{
 		cout << "Either there is a typo in the specified robust estimation method or the method is not supported. Exiting." << endl;
-		exit(0);
+		exit(1);
 	}
 
 	return result;
@@ -1266,7 +1266,8 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 	cv::OutputArray R_degenerate,
 	cv::OutputArray inliers_degenerate_R,
 	cv::OutputArray R,
-	cv::OutputArray t)
+	cv::OutputArray t,
+	bool verbose)
 {
 	//const double degenerateDecisionThreshold = 0.85;//Used for the option UsacChkDegenType::DEGEN_USAC_INTERNAL: Threshold on the fraction of degenerate inliers compared to the E-inlier fraction
 	USACConfig::EssentialMatEstimatorUsed used_estimator;
@@ -1534,7 +1535,8 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			&fraction_degen_inliers_noMot,
 			*sortedMatchIdxPtr,
 			R_kneip,
-			t_kneip) == EXIT_FAILURE)
+			t_kneip,
+			verbose) == EXIT_FAILURE)
 		{
 			cout << "USAC failed!" << endl;
 			return -2;
@@ -1593,7 +1595,8 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			&fraction_degen_inliers_noMot,
 			*sortedMatchIdxPtr,
 			R_kneip,
-			t_kneip) == EXIT_FAILURE)
+			t_kneip,
+			verbose) == EXIT_FAILURE)
 		{
 			cout << "USAC failed!" << endl;
 			return -2;
@@ -1678,7 +1681,8 @@ int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 			&fraction_degen_inliers_R,
 			*sortedMatchIdxPtr,
 			R_kneip,
-			t_kneip) == EXIT_FAILURE)
+			t_kneip,
+			verbose) == EXIT_FAILURE)
 		{
 			cout << "USAC failed!" << endl;
 			return -2;

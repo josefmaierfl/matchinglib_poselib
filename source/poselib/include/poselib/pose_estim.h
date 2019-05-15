@@ -196,7 +196,8 @@ int POSELIB_API estimateEssentialOrPoseUSAC(const cv::Mat & p1,
 	cv::OutputArray R_degenerate = cv::noArray(),
 	cv::OutputArray inliers_degenerate_R = cv::noArray(),
 	cv::OutputArray R = cv::noArray(),
-	cv::OutputArray t = cv::noArray());
+	cv::OutputArray t = cv::noArray(),
+	bool verbose = false);
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function
 void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
 						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = nullptr,

@@ -192,6 +192,7 @@ namespace poselib
         std::unordered_map<size_t, std::list<CoordinateProps>::iterator> correspondencePoolIdx;//Stores the iterator to every correspondencePool element. The key value is an continous index necessary for nanoflann
         size_t corrIdx = 0;//Continous index starting with 0 counting all correspondences that were ever inserted into correspondencePool. The index is resetted when the KD tree is resetted.
         std::unique_ptr<keyPointTreeInterface> kdTreeLeft;//KD-tree using nanoflann holding the keypoint coordinates of the left valid keypoints
+        bool verbose = false;
 
         struct CoordinatePropsNew
         {
@@ -245,8 +246,9 @@ namespace poselib
         bool poseIsStable = false;//True, if the difference of the last poses or their error ranges is very small
         bool mostLikelyPose_stable = false;//True, if the chosen most likely best pose is the same over the last minContStablePoses iterations
 
-        explicit StereoRefine(ConfigPoseEstimation cfg_pose_) :
-            cfg_pose(cfg_pose_)	{
+        explicit StereoRefine(ConfigPoseEstimation cfg_pose_, bool verbose_ = false) :
+            cfg_pose(cfg_pose_),
+            verbose(verbose_){
             CV_Assert((cfg_pose_.K0 != nullptr)
             && (cfg_pose_.K1 != nullptr)
             && (cfg_pose_.dist0_8 != nullptr)

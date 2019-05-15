@@ -25,9 +25,9 @@ public:
 	ConfigParamsRotationMat(USACConfig::Common common_,
 		USACConfig::Prosac prosac_,
 		USACConfig::Sprt sprt_,
-		USACConfig::Losac losac_/*,
-		USACConfig::RotMat fund_*/) :
-		ConfigParams(common_, prosac_, sprt_, losac_)/*,
+		USACConfig::Losac losac_,
+		bool verbose_ = false) :
+		ConfigParams(common_, prosac_, sprt_, losac_, verbose_)/*,
 		fund(fund_)*/ {}
 
 	//USACConfig::RotMat fund;

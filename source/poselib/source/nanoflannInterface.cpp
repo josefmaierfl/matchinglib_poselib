@@ -34,7 +34,7 @@ namespace poselib
     class InvalidPoolIteratorException : public std::runtime_error
     {
     public:
-        InvalidPoolIteratorException(std::string mess) : std::runtime_error(mess) {}
+        explicit InvalidPoolIteratorException(const std::string &mess) : std::runtime_error(mess) {}
     };
 
     // Data structure for the tree
@@ -42,6 +42,10 @@ namespace poselib
     {
         std::list<CoordinateProps> *correspondencePool;
         std::unordered_map<size_t, std::list<CoordinateProps>::iterator> *poolIdxIt;
+
+        CoordinateInterface():
+        correspondencePool(nullptr),
+        poolIdxIt(nullptr){}
     };
 
     // And this is the "dataset to kd-tree" adaptor class:
@@ -53,7 +57,7 @@ namespace poselib
         const Derived &obj; //!< A const ref to the data set origin
 
                             /// The constructor that sets the data set source
-        PointCloudAdaptor(const Derived &obj_) : obj(obj_) { }
+        explicit PointCloudAdaptor(const Derived &obj_) : obj(obj_) { }
 
         /// CRTP helper method
         inline const Derived& derived() const { return obj; }
@@ -83,7 +87,7 @@ namespace poselib
     class keyPointTree
     {
     private:
-        CoordinateInterface coordInteraface;
+        CoordinateInterface coordInteraface = CoordinateInterface();
 
         typedef PointCloudAdaptor<CoordinateInterface > PC2KD;
         std::unique_ptr<PC2KD> pc2kd; // The adaptor
@@ -195,7 +199,7 @@ namespace poselib
             index->removePoint(idx);
         }
 
-        size_t knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
+        size_t knnSearch(const cv::Point2f &queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
         {
             result.clear();
             size_t *indices = new size_t[knn];
@@ -232,14 +236,14 @@ namespace poselib
             result.reserve(nr_results);
             for (size_t i = 0; i < nr_results; i++)
             {
-                result.push_back(std::make_pair(indices[i], distances[i]));
+                result.emplace_back(std::make_pair(indices[i], distances[i]));
             }
             delete[] indices;
             delete[] distances;
             return nr_results;
         }
 
-        size_t radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
+        size_t radiusSearch(const cv::Point2f &queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
         {
             // Unsorted radius search:
             result.clear();
@@ -313,8 +317,8 @@ namespace poselib
         ((keyPointTree*)treePtr)->killTree();
         if (treePtr)
         {
-            delete treePtr;
-            treePtr = NULL;
+            delete (keyPointTree*)treePtr;
+            treePtr = nullptr;
         }
     }
 
@@ -328,12 +332,12 @@ namespace poselib
         ((keyPointTree*)treePtr)->removeElements(idx);
     }
 
-    size_t keyPointTreeInterface::knnSearch(cv::Point2f queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
+    size_t keyPointTreeInterface::knnSearch(const cv::Point2f &queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result)
     {
         return ((keyPointTree*)treePtr)->knnSearch(queryPt, knn, result);
     }
 
-    size_t keyPointTreeInterface::radiusSearch(cv::Point2f queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
+    size_t keyPointTreeInterface::radiusSearch(const cv::Point2f &queryPt, float radius, std::vector<std::pair<size_t, float>> & result)
     {
         return ((keyPointTree*)treePtr)->radiusSearch(queryPt, radius, result);
     }

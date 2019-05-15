@@ -57,7 +57,7 @@ namespace USACConfig
 				  nonRandConf           (0.95),
 				  minStopLen	        (20),
 				  //sortedPointsFile		(""),		// leave blank if not reading from file
-				  sortedPointIndices    (NULL)		// this should point to an array of point indices
+				  sortedPointIndices    (nullptr)		// this should point to an array of point indices
 													// sorted in decreasing order of quality scores
 		{}
 		unsigned int  maxSamples;
@@ -111,11 +111,13 @@ public:
 	ConfigParams(USACConfig::Common common_,
 		USACConfig::Prosac prosac_,
 		USACConfig::Sprt sprt_,
-		USACConfig::Losac losac_) :
+		USACConfig::Losac losac_,
+		bool verbose_ = false) :
 		common(common_),
 		prosac(prosac_),
 		sprt(sprt_),
-		losac(losac_) {
+		losac(losac_),
+		verbose(verbose_){
 		// verify parameter values 
 		if (common.confThreshold < 0 || common.confThreshold > 1)
 		{
@@ -150,6 +152,7 @@ public:
 	USACConfig::Prosac     prosac;
 	USACConfig::Sprt       sprt;
 	USACConfig::Losac      losac;
+	bool verbose = false;
 };
 
 

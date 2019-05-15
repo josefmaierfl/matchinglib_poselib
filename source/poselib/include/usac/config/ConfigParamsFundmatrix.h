@@ -33,8 +33,9 @@ public:
 					USACConfig::Prosac prosac_,
 					USACConfig::Sprt sprt_,
 					USACConfig::Losac losac_,
-					USACConfig::Fund fund_):
-					ConfigParams(common_, prosac_, sprt_, losac_),
+					USACConfig::Fund fund_,
+					bool verbose_ = false):
+					ConfigParams(common_, prosac_, sprt_, losac_, verbose_),
 					fund(fund_)	{
 		if ((fund.decompositionAlg != USACConfig::DECOMP_LU) &&
 			(fund.decompositionAlg != USACConfig::DECOMP_QR))
