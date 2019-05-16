@@ -296,7 +296,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("histEqual", "<If provided, histogram equalization is applied to the source images.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("cfgUSAC", "<Specifies parameters for USAC. It consists of a combination of 6 digits [Default=311225]. "
         "In the following the options for every digit are explained:\n "
-        "1st digit:\n 0\t Use default paramters for SPRT\n 1\t Automatic estimation of SPRT delta\n 2\t Automatic estimation of SPRT epsilon (only without option refineVFC)\n 3\t Automatic estimation of SPRT delta and epsilon\n "
+        "1st digit:\n 0\t Use default paramters for SPRT\n 1\t Automatic estimation of SPRT delta\n 2\t Automatic estimation of SPRT epsilon (only without option refineVFC and refineGMS)\n 3\t Automatic estimation of SPRT delta and epsilon\n "
         "2nd digit:\n 0\t Use default paramter for PROSAC beta\n 1\t Automatic estimation of PROSAC beta (uses SPRT delta)\n "
         "3rd digit:\n 0\t Disable prevalidation of samples\n 1\t Enable prevalidation of samples\n "
         "4th digit:\n 0\t Disable degeneracy check\n 1\t Use QDEGSAC for checking degeneracy\n 2\t Use USACs internal degeneracy check\n "

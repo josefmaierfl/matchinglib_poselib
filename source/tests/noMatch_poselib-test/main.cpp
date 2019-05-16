@@ -613,7 +613,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "1st digit:\n "
         "0\t Use default paramters for SPRT\n "
         "1\t Automatic estimation of SPRT delta\n "
-        "2\t Automatic estimation of SPRT epsilon (only without option refineVFC)\n "
+        "2\t Automatic estimation of SPRT epsilon (only without option refineVFC and refineGMS)\n "
         "3\t Automatic estimation of SPRT delta and epsilon\n "
         "2nd digit:\n "
         "0\t Use default paramter for PROSAC beta\n "
