@@ -145,6 +145,10 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	checkEqualRanges(yaw_, yawRangeEqual);
 }
 
+void GenStereoPars::getNewRandSeed(){
+    randSeed(rand_generator);
+}
+
 inline double GenStereoPars::getRandDoubleVal(double lowerBound, double upperBound)
 {
 	rand_generator = std::default_random_engine((unsigned int)std::rand());

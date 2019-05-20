@@ -1122,8 +1122,8 @@ cv::Mat genStereoSequ::getTrackRot(const cv::Mat tdiff, cv::InputArray R_old) {
 
 
     //Define up-vector as global -y axis
-//    Mat world_up = (Mat_<double>(3, 1) << 0, -1, 0);
-    Mat world_up = (Mat_<double>(3, 1) << 0, 1, 0);
+    Mat world_up = (Mat_<double>(3, 1) << 0, -1, 0);
+//    Mat world_up = (Mat_<double>(3, 1) << 0, 1, 0);
     world_up /= norm(world_up);
 
     if (nearZero(cv::sum(tdiff_ - world_up)[0])) {

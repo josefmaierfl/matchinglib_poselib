@@ -888,8 +888,9 @@ bool genStereoConfigurations(const int nrFrames,
                 int err = 0, err_cnt = 0;
                 do {
                     err = newStereoPars.optimizeRtf(addPars.LMverbose);
+                    newStereoPars.getNewRandSeed();
                     err_cnt++;
-                }while(err && (err != -1) && (err_cnt < 10));
+                }while(err && (err != -1) && (err_cnt < 20));
 
                 newStereoPars.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
                 t_new1 = newStereoPars.tis;
@@ -1147,8 +1148,9 @@ bool genStereoConfigurations(const int nrFrames,
             int err = 0, err_cnt = 0;
             do {
                 err = newStereoPars.optimizeRtf(addPars.LMverbose);
+                newStereoPars.getNewRandSeed();
                 err_cnt++;
-            }while(err && (err != -1) && (err_cnt < 10));
+            }while(err && (err != -1) && (err_cnt < 20));
 
             roll_new1.clear();
             pitch_new1.clear();
@@ -1242,8 +1244,9 @@ bool genStereoConfigurations(const int nrFrames,
                 err_cnt = 0;
                 do {
                     err = newStereoPars1.optimizeRtf(addPars.LMverbose);
+                    newStereoPars1.getNewRandSeed();
                     err_cnt++;
-                }while(err && (err != -1) && (err_cnt < 10));
+                }while(err && (err != -1) && (err_cnt < 20));
 
                 roll_new1.clear();
                 pitch_new1.clear();
@@ -1429,8 +1432,9 @@ bool genStereoConfigurations(const int nrFrames,
             int err = 0, err_cnt = 0;
             do {
                 err = newStereoPars.optimizeRtf(addPars.LMverbose);
+                newStereoPars.getNewRandSeed();
                 err_cnt++;
-            }while(err && (err != -1) && (err_cnt < 10));
+            }while(err && (err != -1) && (err_cnt < 20));
 
             newStereoPars.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
             t_new1 = newStereoPars.tis;
@@ -1578,8 +1582,9 @@ bool genStereoConfigurations(const int nrFrames,
             err_cnt = 0;
             do {
                 err = newStereoPars1.optimizeRtf(addPars.LMverbose);
+                newStereoPars1.getNewRandSeed();
                 err_cnt++;
-            }while(err && (err != -1) && (err_cnt < 10));
+            }while(err && (err != -1) && (err_cnt < 20));
 
             roll_new1.clear();
             pitch_new1.clear();

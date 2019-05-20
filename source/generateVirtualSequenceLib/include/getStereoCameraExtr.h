@@ -97,6 +97,7 @@ public:
 	void setLMTolerance(double rollTol, double pitchTol, double txTol, double tyTol, double fTol);
 	bool getCamPars(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2);
 	bool getEulerAngles(std::vector<double>& roll, std::vector<double>& pitch, std::vector<double>& yaw);
+	void getNewRandSeed();
 
 public:
 	std::vector<cv::Mat> Ris;//Final Rotation matrizes
