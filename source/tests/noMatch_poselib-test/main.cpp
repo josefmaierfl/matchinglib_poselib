@@ -769,6 +769,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                    "to be included into BA. Moreover, this value influences the decision "
                                    "if a pose is marked as stable during stereo refinement (see maxRat3DPtsFar).>",
                                    ArgvParser::OptionRequiresValue);
+    cmd.defineOption("useGTCamMat", "<If provided, the GT camera matrices are always used and the distorted ones "
+                                    "are ignored.>",
+                     ArgvParser::NoOptionAttribute);
 
     /// finally parse and handle return codes (display help etc...)
     int result = -1;
@@ -786,7 +789,8 @@ void startEvaluation(ArgvParser& cmd)
     string cfgUSAC;
     string refineRT, refineRT_stereo;
     string descrName, kpNameM;
-    bool noPoseDiff, refineRTold_stereo = false;
+    bool noPoseDiff = true, refineRTold_stereo = false;
+    bool useGTCamMat = false;
     int BART_stereo = 0;
     int err, verbose;
     vector<string> filenamesRt, filenamesMatches;
@@ -866,6 +870,8 @@ void startEvaluation(ArgvParser& cmd)
     cp.mfo.refineVFC = cmd.foundOption("refineVFC");
     cp.mfo.refineSOF = cmd.foundOption("refineSOF");
     cp.mfo.refineGMS = cmd.foundOption("refineGMS");
+
+    useGTCamMat = cmd.foundOption("useGTCamMat");
 
     noPoseDiff = cmd.foundOption("noPoseDiff");
     cp.autoTH = cmd.foundOption("autoTH");
@@ -1460,8 +1466,13 @@ void startEvaluation(ArgvParser& cmd)
             cerr << "Unable to read camera parameters" << endl;
             exit(1);
         }
-        K0 = sm.actKd1.clone();
-        K1 = sm.actKd2.clone();
+        if(useGTCamMat){
+            K0 = sm.K1.clone();
+            K1 = sm.K2.clone();
+        }else {
+            K0 = sm.actKd1.clone();
+            K1 = sm.actKd2.clone();
+        }
 
 		cp.cfg_stereo.dist0_8 = &dist0_8;
 		cp.cfg_stereo.dist1_8 = &dist1_8;
@@ -1563,8 +1574,13 @@ void startEvaluation(ArgvParser& cmd)
 		cv::Mat R, t;
 		if (!cp.stereoRef)
 		{
-            sm.actKd1.copyTo(K0);
-            sm.actKd2.copyTo(K1);
+            if(useGTCamMat){
+                sm.K1.copyTo(K0);
+                sm.K2.copyTo(K1);
+            }else {
+                sm.actKd1.copyTo(K0);
+                sm.actKd2.copyTo(K1);
+            }
 			//Extract coordinates from keypoints
 			vector<cv::Point2f> points1, points2;
 			for (auto &j : finalMatches)
@@ -1642,8 +1658,13 @@ void startEvaluation(ArgvParser& cmd)
                         sm.actT.copyTo(ar[i].t_GT);
                         sm.K1.copyTo(ar[i].K1_GT);
                         sm.K2.copyTo(ar[i].K2_GT);
-                        sm.actKd1.copyTo(ar[i].K1_degenerate);
-                        sm.actKd2.copyTo(ar[i].K2_degenerate);
+                        if(useGTCamMat){
+                            sm.K1.copyTo(ar[i].K1_degenerate);
+                            sm.K2.copyTo(ar[i].K2_degenerate);
+                        }else {
+                            sm.actKd1.copyTo(ar[i].K1_degenerate);
+                            sm.actKd2.copyTo(ar[i].K2_degenerate);
+                        }
 						continue;
 					}
 					else
@@ -1671,8 +1692,13 @@ void startEvaluation(ArgvParser& cmd)
                         sm.actT.copyTo(ar[i].t_GT);
                         sm.K1.copyTo(ar[i].K1_GT);
                         sm.K2.copyTo(ar[i].K2_GT);
-                        sm.actKd1.copyTo(ar[i].K1_degenerate);
-                        sm.actKd2.copyTo(ar[i].K2_degenerate);
+                        if(useGTCamMat){
+                            sm.K1.copyTo(ar[i].K1_degenerate);
+                            sm.K2.copyTo(ar[i].K2_degenerate);
+                        }else {
+                            sm.actKd1.copyTo(ar[i].K1_degenerate);
+                            sm.actKd2.copyTo(ar[i].K2_degenerate);
+                        }
 						continue;
 					}
 					else
@@ -1739,8 +1765,13 @@ void startEvaluation(ArgvParser& cmd)
                             sm.actT.copyTo(ar[i].t_GT);
                             sm.K1.copyTo(ar[i].K1_GT);
                             sm.K2.copyTo(ar[i].K2_GT);
-                            sm.actKd1.copyTo(ar[i].K1_degenerate);
-                            sm.actKd2.copyTo(ar[i].K2_degenerate);
+                            if(useGTCamMat){
+                                sm.K1.copyTo(ar[i].K1_degenerate);
+                                sm.K2.copyTo(ar[i].K2_degenerate);
+                            }else {
+                                sm.actKd1.copyTo(ar[i].K1_degenerate);
+                                sm.actKd2.copyTo(ar[i].K2_degenerate);
+                            }
 							continue;
 						}
 						else
@@ -1771,8 +1802,13 @@ void startEvaluation(ArgvParser& cmd)
                                 !noPoseDiff && compInitPose && (verbose > 0));
                         sm.K1.copyTo(ar[i].K1_GT);
                         sm.K2.copyTo(ar[i].K2_GT);
-                        sm.actKd1.copyTo(ar[i].K1_degenerate);
-                        sm.actKd2.copyTo(ar[i].K2_degenerate);
+                        if(useGTCamMat){
+                            sm.K1.copyTo(ar[i].K1_degenerate);
+                            sm.K2.copyTo(ar[i].K2_degenerate);
+                        }else {
+                            sm.actKd1.copyTo(ar[i].K1_degenerate);
+                            sm.actKd2.copyTo(ar[i].K2_degenerate);
+                        }
 						continue;
 					}
 				}
@@ -1790,8 +1826,13 @@ void startEvaluation(ArgvParser& cmd)
                             sm.actT.copyTo(ar[i].t_GT);
                             sm.K1.copyTo(ar[i].K1_GT);
                             sm.K2.copyTo(ar[i].K2_GT);
-                            sm.actKd1.copyTo(ar[i].K1_degenerate);
-                            sm.actKd2.copyTo(ar[i].K2_degenerate);
+                            if(useGTCamMat){
+                                sm.K1.copyTo(ar[i].K1_degenerate);
+                                sm.K2.copyTo(ar[i].K2_degenerate);
+                            }else {
+                                sm.actKd1.copyTo(ar[i].K1_degenerate);
+                                sm.actKd2.copyTo(ar[i].K2_degenerate);
+                            }
 							continue;
 						}
 						else
@@ -2059,8 +2100,13 @@ void startEvaluation(ArgvParser& cmd)
                     sm.actT.copyTo(ar[i].t_GT);
                     sm.K1.copyTo(ar[i].K1_GT);
                     sm.K2.copyTo(ar[i].K2_GT);
-                    sm.actKd1.copyTo(ar[i].K1_degenerate);
-                    sm.actKd2.copyTo(ar[i].K2_degenerate);
+                    if(useGTCamMat){
+                        sm.K1.copyTo(ar[i].K1_degenerate);
+                        sm.K2.copyTo(ar[i].K2_degenerate);
+                    }else {
+                        sm.actKd1.copyTo(ar[i].K1_degenerate);
+                        sm.actKd2.copyTo(ar[i].K2_degenerate);
+                    }
 					continue;
 				}
                 t_2 = chrono::high_resolution_clock::now();
@@ -2105,7 +2151,11 @@ void startEvaluation(ArgvParser& cmd)
 			}
 		}
 
-		ar[i].enterCamMats(K0, K1, sm.K1, sm.K2, sm.actKd1, sm.actKd2);
+        if(useGTCamMat){
+            ar[i].enterCamMats(K0, K1, sm.K1, sm.K2, sm.K1, sm.K2);
+        }else {
+            ar[i].enterCamMats(K0, K1, sm.K1, sm.K2, sm.actKd1, sm.actKd2);
+        }
 
         //Get the rotation angles in degrees and display the translation
         if(verbose) {
