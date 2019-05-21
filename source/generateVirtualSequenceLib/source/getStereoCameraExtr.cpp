@@ -246,6 +246,11 @@ void GenStereoPars::initRandPars(std::vector<std::vector<double>>& parIn, bool& 
 
 int GenStereoPars::optimizeRtf(int verbose)
 {
+    tx_use.clear();
+    ty_use.clear();
+    pitch_use.clear();
+    roll_use.clear();
+    yaw_use.clear();
 	//Set the rotation about the z axis (yaw)
 	initRandPars(yaw_, yawRangeEqual, yaw_use);
 	//Set the virtual image widths
