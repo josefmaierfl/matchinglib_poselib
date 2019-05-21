@@ -66,15 +66,29 @@ public:
             approxImgOverlap_(gsp.approxImgOverlap_),
             imgSize_(gsp.imgSize_),
             nrConditions(gsp.nrConditions),
+            Ris(gsp.Ris),
             txRangeEqual(gsp.txRangeEqual),
             tyRangeEqual(gsp.tyRangeEqual),
             tzRangeEqual(gsp.tzRangeEqual),
             rollRangeEqual(gsp.rollRangeEqual),
             pitchRangeEqual(gsp.pitchRangeEqual),
-            yawRangeEqual(gsp.yawRangeEqual){}
+            yawRangeEqual(gsp.yawRangeEqual),
+            tis(gsp.tis),
+            K1(gsp.K1),
+            K2(gsp.K2),
+            tx_use(gsp.tx_use),
+            ty_use(gsp.ty_use),
+            tz_use(gsp.tz_use),
+            roll_use(gsp.roll_use),
+            pitch_use(gsp.pitch_use),
+            yaw_use(gsp.yaw_use){}
 
     //Copy assignment operator
     GenStereoPars& operator=(const GenStereoPars& gsp){
+        Ris = gsp.Ris;
+        tis = gsp.tis;
+        K1 = gsp.K1;
+        K2 = gsp.K2;
         tx_ = gsp.tx_;
         ty_ = gsp.ty_;
         tz_ = gsp.tz_;
@@ -90,6 +104,12 @@ public:
         rollRangeEqual = gsp.rollRangeEqual;
         pitchRangeEqual = gsp.pitchRangeEqual;
         yawRangeEqual = gsp.yawRangeEqual;
+        tx_use = gsp.tx_use;
+        ty_use = gsp.ty_use;
+        tz_use = gsp.tz_use;
+        roll_use = gsp.roll_use;
+        pitch_use = gsp.pitch_use;
+        yaw_use = gsp.yaw_use;
         return *this;
     }
 

@@ -451,8 +451,11 @@ namespace matchinglib
                 fprintf(stderr, "Cannot create descriptor extractor!\n");
                 return -1;
             }
-
-            extractor->compute(img, keypoints, descriptors);
+            try {
+                extractor->compute(img, keypoints, descriptors);
+            }catch(...){
+                return -1;
+            }
             if(descriptors.empty()){
                 return -1;
             }

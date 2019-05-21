@@ -4541,15 +4541,15 @@ void genStereoSequ::getKeypoints() {
                 corrsAllD2[y][x].insert(corrsAllD2[y][x].end(), corrsFarR2.begin(), corrsFarR2.end());
             }
 
+            //Add backprojected TN to the found ones
+            if(!x1pTN[y][x].empty()){
+                x1TN[y][x].insert(x1TN[y][x].end(), x1pTN[y][x].begin(), x1pTN[y][x].end());
+            }
+
             //Generate mask for visualization before adding keypoints
             Mat dispMask;
             if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && !x1TN[y][x].empty()) {
                 dispMask = (cImg2 > 0);
-            }
-
-            //Add backprojected TN to the found ones
-            if(!x1pTN[y][x].empty()){
-                x1TN[y][x].insert(x1TN[y][x].end(), x1pTN[y][x].begin(), x1pTN[y][x].end());
             }
 
             //Select for true negatives in image 1 (already generated ones) true negatives in image 2

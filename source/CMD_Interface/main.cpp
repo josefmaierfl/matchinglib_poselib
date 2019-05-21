@@ -535,8 +535,10 @@ bool genSequenceConfig(const additionalSequencePars &addPars,
         b = a * addPars.ellipsoidTrack.xzExpansion;
         c = a * addPars.ellipsoidTrack.xyExpansion;
         double theta = addPars.ellipsoidTrack.thetaRange.first;
+        double thetaDiff = addPars.ellipsoidTrack.thetaRange.second - theta;
+        int midElems = addPars.maxTrackElements / 2;
         //Variation in height from one track element to the next based on the angle theta.
-        double thetaPiece = (addPars.ellipsoidTrack.thetaRange.second - theta)
+        double thetaPiece = (2.0 * thetaDiff)
                             / (double) max(addPars.maxTrackElements - 1, 1);
         //The track is nearly a loop closure (phi from 0 to nearly 2 pi)
         double phiPiece = (2.0 * M_PI - M_PI / (double) (10 * addPars.maxTrackElements))
@@ -551,8 +553,13 @@ bool genSequenceConfig(const additionalSequencePars &addPars,
             tr1.at<double>(2) = b * cos(theta) * sin(phi);
             tr1.at<double>(1) = c * sin(theta);
             phi += phiPiece;
-            if (enableFlightMode)
-                theta += thetaPiece;
+            if (enableFlightMode) {
+                if(i < midElems) {
+                    theta += thetaPiece;
+                }else{
+                    theta -= thetaPiece;
+                }
+            }
             sequPars.camTrack.emplace_back(tr1.clone());
         }
     }
@@ -733,7 +740,7 @@ bool genStereoConfigurations(const int nrFrames,
         std::vector<std::vector<double>> roll;
         std::vector<std::vector<double>> pitch;
         std::vector<std::vector<double>> yaw;
-        if(variableExtr){
+        if(variableExtr && (stereoPars.nrStereoConfigs > 1)){
             if(nearZero(stereoPars.txRange.first - stereoPars.txRange.second)){
                 if(stereoPars.txVariable){
                     cerr << "You specified txVariable=1 but the given txRange is 0." << endl;
@@ -1441,158 +1448,164 @@ bool genStereoConfigurations(const int nrFrames,
             K_1 = newStereoPars.K1;
             K_1.copyTo(K_2);
 
-            if(err) {
-                cout << endl;
-                cout << "**************************************************************************" << endl;
-                cout << "User specified image overlap = " << std::setprecision(3) << stereoPars.imageOverlap
-                     << endl;
-                cout << "f= " << std::setprecision(2) << K_1.at<double>(0, 0)
-                     << " cx= " << K_1.at<double>(0, 2) << " cy= " << K_1.at<double>(1, 2) << endl;
-                for (size_t i = 0; i < roll_new1.size(); i++) {
-                    cout << "tx= " << std::setprecision(6) << t_new1[i].at<double>(0)
-                         << " ty= " << t_new1[i].at<double>(1)
-                         << " tz= " << t_new1[i].at<double>(2) << endl;
-                    cout << "roll= " << std::setprecision(3) << roll_new1[i]
-                         << " pitch= " << pitch_new1[i]
-                         << " yaw= " << yaw_new1[i] << endl;
-                }
-                cout << "**************************************************************************" << endl
-                     << endl;
-            }
-
-            if(err == -1){
-                cerr << "Not able to generate a valid random stereo camera configuration. "
-                        "Ranges of tx and ty should be adapted." << endl;
-                return false;
-            }else if(err){
-                cerr << "Not able to reach desired extrinsic stereo parameters or "
-                        "input parameters are not usable. Try different parameters." << endl;
-                return false;
-            }
-
-            //Fix values for linear changes
-            tx[0].resize(1);
-            tx[0][0] = t_new1[0].at<double>(0);
-            ty[0].resize(1);
-            ty[0][0] = t_new1[0].at<double>(1);
-            tz[0].resize(1);
-            tz[0][0] = t_new1[0].at<double>(2);
-            roll[0].resize(1);
-            roll[0][0] = roll_new1[0];
-            pitch[0].resize(1);
-            pitch[0][0] = pitch_new1[0];
-            yaw[0].resize(1);
-            yaw[0][0] = yaw_new1[0];
-
-            int cnt = 1;
-            for (int i = 1; i < nrFrames; ++i) {
-                bool setNewRanges = ((stereoPars.txChangeFRate) && ((i % stereoPars.txChangeFRate) == 0))
-                                    || ((stereoPars.tyChangeFRate) && ((i % stereoPars.tyChangeFRate) == 0))
-                                    || ((stereoPars.tzChangeFRate) && ((i % stereoPars.tzChangeFRate) == 0))
-                                    || ((stereoPars.rollChangeFRate) && ((i % stereoPars.rollChangeFRate) == 0))
-                                    || ((stereoPars.pitchChangeFRate) && ((i % stereoPars.pitchChangeFRate) == 0))
-                                    || ((stereoPars.yawChangeFRate) && ((i % stereoPars.yawChangeFRate) == 0));
-                if(stereoPars.txChangeFRate && ((i % stereoPars.txChangeFRate) == 0)) {
-                    tx.emplace_back(std::vector<double>(1, tx.back()[0] + stereoPars.txLinChangeVal));
-                } else if(setNewRanges){
-                    tx.push_back(tx.back());
-                }
-
-                if(stereoPars.tyChangeFRate && ((i % stereoPars.tyChangeFRate) == 0)) {
-                    ty.emplace_back(std::vector<double>(1, ty.back()[0] + stereoPars.tyLinChangeVal));
-                } else if(setNewRanges){
-                    ty.push_back(ty.back());
-                }
-
-                if(stereoPars.tzChangeFRate && ((i % stereoPars.tzChangeFRate) == 0)) {
-                    tz.emplace_back(std::vector<double>(1, tz.back()[0] + stereoPars.tzLinChangeVal));
-                } else if(setNewRanges){
-                    tz.push_back(tz.back());
-                }
-
-                if(stereoPars.rollChangeFRate && ((i % stereoPars.rollChangeFRate) == 0)) {
-                    roll.emplace_back(std::vector<double>(1, roll.back()[0] + stereoPars.rollLinChangeVal));
-                } else if(setNewRanges){
-                    roll.push_back(roll.back());
-                }
-
-                if(stereoPars.pitchChangeFRate && ((i % stereoPars.pitchChangeFRate) == 0)) {
-                    pitch.emplace_back(std::vector<double>(1, pitch.back()[0] + stereoPars.pitchLinChangeVal));
-                } else if(setNewRanges){
-                    pitch.push_back(pitch.back());
-                }
-
-                if(stereoPars.yawChangeFRate && ((i % stereoPars.yawChangeFRate) == 0)) {
-                    yaw.emplace_back(std::vector<double>(1, yaw.back()[0] + stereoPars.yawLinChangeVal));
-                } else if(setNewRanges){
-                    yaw.push_back(yaw.back());
-                }
-
-                if(setNewRanges) {
-                    maxXY = max(abs(tx[cnt][0]), abs(ty[cnt][0]));
-                    if (abs(tz[cnt][0]) > maxXY) {
-                        cerr << "Max. absolute value of the used range of tz (stereo) must be smaller than the "
-                                "max. absolute value of used tx and tz. "
-                                "Error is due to wrong linear change rates." << endl;
-                        return false;
-                    }
-
-                    //Check if the higher value has negative sign
-                    if (abs(tx[cnt][0]) > (abs(ty[cnt][0]) + DBL_EPSILON)) {
-                        if (tx[cnt][0] > 0) {
-                            cerr << "The stereo camera configuration changed from vertical to horizontal alignment or "
-                                    "the 2 stereo cameras switched their position (LEFT <-> RIGHT). "
-                                    "Only 1 stereo configuration is allowed and a switch in position is not allowed. "
-                                    "Change the parameters for creating vector elements tx and/or ty." << endl;
-                            return false;
-                        }
-                    } else if (abs(ty[cnt][0]) > (abs(tx[cnt][0]) + DBL_EPSILON)) {
-                        if (ty[cnt][0] > 0) {
-                            cerr << "The stereo camera configuration changed from horizontal to vertical alignment or "
-                                    "the 2 stereo cameras switched their position (TOP <-> BOTTOM). "
-                                    "Only 1 stereo configuration is allowed and a switch in position is not allowed. "
-                                    "Change the parameters for creating vector elements tx and/or ty." << endl;
-                            return false;
-                        }
-                    } else if (nearZero(abs(ty[cnt][0]) - abs(tx[cnt][0]))) {
-                        cerr << "Stereo configuration is neither horizontal nor vertical during creation "
-                                "of different stereo parameters. "
-                                "Change the parameters for creating vector elements tx and/or ty." << endl;
-                        return false;
-                    }
-                    cnt++;
-                }
-                if((int)tx.size() >= stereoPars.nrStereoConfigs){
-                    break;
-                }
-            }
-            CV_Assert(cnt == (int)tx.size());
-            //Get the parameters (adapt camera matrix and check extrinsics)
             GenStereoPars newStereoPars1;
-            try {
-                newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                              stereoPars.imageOverlap, stereoPars.imgSize);
-            }catch(exception &e){
-                cerr << "Exception: " << e.what() << endl;
-                return false;
-            }catch(...){
-                cerr << "Unkown exception." << endl;
-                return false;
-            }
-            err_cnt = 0;
-            do {
-                err = newStereoPars1.optimizeRtf(addPars.LMverbose);
-                newStereoPars1.getNewRandSeed();
-                err_cnt++;
-            }while(err && (err != -1) && (err_cnt < 20));
+            if(stereoPars.nrStereoConfigs == 1){
+                newStereoPars1 = newStereoPars;
+            }else {
+                if (err) {
+                    cout << endl;
+                    cout << "**************************************************************************" << endl;
+                    cout << "User specified image overlap = " << std::setprecision(3) << stereoPars.imageOverlap
+                         << endl;
+                    cout << "f= " << std::setprecision(2) << K_1.at<double>(0, 0)
+                         << " cx= " << K_1.at<double>(0, 2) << " cy= " << K_1.at<double>(1, 2) << endl;
+                    for (size_t i = 0; i < roll_new1.size(); i++) {
+                        cout << "tx= " << std::setprecision(6) << t_new1[i].at<double>(0)
+                             << " ty= " << t_new1[i].at<double>(1)
+                             << " tz= " << t_new1[i].at<double>(2) << endl;
+                        cout << "roll= " << std::setprecision(3) << roll_new1[i]
+                             << " pitch= " << pitch_new1[i]
+                             << " yaw= " << yaw_new1[i] << endl;
+                    }
+                    cout << "**************************************************************************" << endl
+                         << endl;
+                }
 
-            roll_new1.clear();
-            pitch_new1.clear();
-            yaw_new1.clear();
-            newStereoPars1.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
-            t_new1 = newStereoPars1.tis;
-            K_1 = newStereoPars1.K1;
-            K_1.copyTo(K_2);
+                if (err == -1) {
+                    cerr << "Not able to generate a valid random stereo camera configuration. "
+                            "Ranges of tx and ty should be adapted." << endl;
+                    return false;
+                } else if (err) {
+                    cerr << "Not able to reach desired extrinsic stereo parameters or "
+                            "input parameters are not usable. Try different parameters." << endl;
+                    return false;
+                }
+
+                //Fix values for linear changes
+                tx[0].resize(1);
+                tx[0][0] = t_new1[0].at<double>(0);
+                ty[0].resize(1);
+                ty[0][0] = t_new1[0].at<double>(1);
+                tz[0].resize(1);
+                tz[0][0] = t_new1[0].at<double>(2);
+                roll[0].resize(1);
+                roll[0][0] = roll_new1[0];
+                pitch[0].resize(1);
+                pitch[0][0] = pitch_new1[0];
+                yaw[0].resize(1);
+                yaw[0][0] = yaw_new1[0];
+
+                int cnt = 1;
+                for (int i = 1; i < nrFrames; ++i) {
+                    bool setNewRanges = ((stereoPars.txChangeFRate) && ((i % stereoPars.txChangeFRate) == 0))
+                                        || ((stereoPars.tyChangeFRate) && ((i % stereoPars.tyChangeFRate) == 0))
+                                        || ((stereoPars.tzChangeFRate) && ((i % stereoPars.tzChangeFRate) == 0))
+                                        || ((stereoPars.rollChangeFRate) && ((i % stereoPars.rollChangeFRate) == 0))
+                                        || ((stereoPars.pitchChangeFRate) && ((i % stereoPars.pitchChangeFRate) == 0))
+                                        || ((stereoPars.yawChangeFRate) && ((i % stereoPars.yawChangeFRate) == 0));
+                    if (stereoPars.txChangeFRate && ((i % stereoPars.txChangeFRate) == 0)) {
+                        tx.emplace_back(std::vector<double>(1, tx.back()[0] + stereoPars.txLinChangeVal));
+                    } else if (setNewRanges) {
+                        tx.push_back(tx.back());
+                    }
+
+                    if (stereoPars.tyChangeFRate && ((i % stereoPars.tyChangeFRate) == 0)) {
+                        ty.emplace_back(std::vector<double>(1, ty.back()[0] + stereoPars.tyLinChangeVal));
+                    } else if (setNewRanges) {
+                        ty.push_back(ty.back());
+                    }
+
+                    if (stereoPars.tzChangeFRate && ((i % stereoPars.tzChangeFRate) == 0)) {
+                        tz.emplace_back(std::vector<double>(1, tz.back()[0] + stereoPars.tzLinChangeVal));
+                    } else if (setNewRanges) {
+                        tz.push_back(tz.back());
+                    }
+
+                    if (stereoPars.rollChangeFRate && ((i % stereoPars.rollChangeFRate) == 0)) {
+                        roll.emplace_back(std::vector<double>(1, roll.back()[0] + stereoPars.rollLinChangeVal));
+                    } else if (setNewRanges) {
+                        roll.push_back(roll.back());
+                    }
+
+                    if (stereoPars.pitchChangeFRate && ((i % stereoPars.pitchChangeFRate) == 0)) {
+                        pitch.emplace_back(std::vector<double>(1, pitch.back()[0] + stereoPars.pitchLinChangeVal));
+                    } else if (setNewRanges) {
+                        pitch.push_back(pitch.back());
+                    }
+
+                    if (stereoPars.yawChangeFRate && ((i % stereoPars.yawChangeFRate) == 0)) {
+                        yaw.emplace_back(std::vector<double>(1, yaw.back()[0] + stereoPars.yawLinChangeVal));
+                    } else if (setNewRanges) {
+                        yaw.push_back(yaw.back());
+                    }
+
+                    if (setNewRanges) {
+                        maxXY = max(abs(tx[cnt][0]), abs(ty[cnt][0]));
+                        if (abs(tz[cnt][0]) > maxXY) {
+                            cerr << "Max. absolute value of the used range of tz (stereo) must be smaller than the "
+                                    "max. absolute value of used tx and tz. "
+                                    "Error is due to wrong linear change rates." << endl;
+                            return false;
+                        }
+
+                        //Check if the higher value has negative sign
+                        if (abs(tx[cnt][0]) > (abs(ty[cnt][0]) + DBL_EPSILON)) {
+                            if (tx[cnt][0] > 0) {
+                                cerr
+                                        << "The stereo camera configuration changed from vertical to horizontal alignment or "
+                                           "the 2 stereo cameras switched their position (LEFT <-> RIGHT). "
+                                           "Only 1 stereo configuration is allowed and a switch in position is not allowed. "
+                                           "Change the parameters for creating vector elements tx and/or ty." << endl;
+                                return false;
+                            }
+                        } else if (abs(ty[cnt][0]) > (abs(tx[cnt][0]) + DBL_EPSILON)) {
+                            if (ty[cnt][0] > 0) {
+                                cerr
+                                        << "The stereo camera configuration changed from horizontal to vertical alignment or "
+                                           "the 2 stereo cameras switched their position (TOP <-> BOTTOM). "
+                                           "Only 1 stereo configuration is allowed and a switch in position is not allowed. "
+                                           "Change the parameters for creating vector elements tx and/or ty." << endl;
+                                return false;
+                            }
+                        } else if (nearZero(abs(ty[cnt][0]) - abs(tx[cnt][0]))) {
+                            cerr << "Stereo configuration is neither horizontal nor vertical during creation "
+                                    "of different stereo parameters. "
+                                    "Change the parameters for creating vector elements tx and/or ty." << endl;
+                            return false;
+                        }
+                        cnt++;
+                    }
+                    if ((int) tx.size() >= stereoPars.nrStereoConfigs) {
+                        break;
+                    }
+                }
+                CV_Assert(cnt == (int) tx.size());
+                //Get the parameters (adapt camera matrix and check extrinsics)
+                try {
+                    newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
+                                                   stereoPars.imageOverlap, stereoPars.imgSize);
+                } catch (exception &e) {
+                    cerr << "Exception: " << e.what() << endl;
+                    return false;
+                } catch (...) {
+                    cerr << "Unkown exception." << endl;
+                    return false;
+                }
+                err_cnt = 0;
+                do {
+                    err = newStereoPars1.optimizeRtf(addPars.LMverbose);
+                    newStereoPars1.getNewRandSeed();
+                    err_cnt++;
+                } while (err && (err != -1) && (err_cnt < 20));
+
+                roll_new1.clear();
+                pitch_new1.clear();
+                yaw_new1.clear();
+                newStereoPars1.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
+                t_new1 = newStereoPars1.tis;
+                K_1 = newStereoPars1.K1;
+                K_1.copyTo(K_2);
+            }
 
             cout << endl;
             cout << "**************************************************************************" << endl;
@@ -2277,7 +2290,9 @@ bool genTemplateFile(const std::string &filename){
                         "BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, "
                         "BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48, RIFF, BOLD. \n"
                         "If non-free code is enabled in the CMAKE project while building the code, SIFT and SURF "
-                        "are also available.", 0);
+                        "are also available. AKAZE and KAZE descriptors might violate the used keypErrDistr "
+                        "as they store specific information in the class_id "
+                        "field of the keypoint which is not valid for a shifted keypoint position.", 0);
     fs << "descriptorType" << "FREAK";
     cvWriteComment(*fs, "Keypoint detector error (1) or error normal distribution (0). \nIf 1, the position "
                         "detected by the keypoint detector is used (which typically does not coincide with the "

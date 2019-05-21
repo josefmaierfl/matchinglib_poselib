@@ -251,6 +251,8 @@ int GenStereoPars::optimizeRtf(int verbose)
     pitch_use.clear();
     roll_use.clear();
     yaw_use.clear();
+    Ris.clear();
+    tis.clear();
 	//Set the rotation about the z axis (yaw)
 	initRandPars(yaw_, yawRangeEqual, yaw_use);
 	//Set the virtual image widths

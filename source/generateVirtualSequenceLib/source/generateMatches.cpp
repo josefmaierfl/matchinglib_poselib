@@ -111,6 +111,7 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
     K2i = K2.inv();
     kpErrors.clear();
     featureIdxBegin = 0;
+    adaptPatchSize();
 }
 
 void genMatchSequ::genSequenceParsFileName() {
@@ -512,6 +513,8 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
         //Get the rotation angles
         const double maxRotAngleAlpha = 5.0 * (M_PI - acos(b1.dot(b2) / (norm(b1) * norm(b2)))) / 16.0;
         const double maxRotAngleBeta = 5.0 * M_PI / 16.0;
+        /*const double maxRotAngleAlpha = (M_PI - acos(b1.dot(b2) / (norm(b1) * norm(b2)))) / 4.0;
+        const double maxRotAngleBeta = M_PI / 4.0;*/
         //alpha ... Rotation angle about first vector 'bpa' in the plane which is perpendicular to the plane normal 'bn'
         double alpha = getRandDoubleValRng(-maxRotAngleAlpha, maxRotAngleAlpha);
         //beta ... Rotation angle about second vector 'bpb' in the plane which is perpendicular to the plane normal 'bn' and 'bpa'
@@ -1810,7 +1813,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             kp2.pt.y -= (float)patchROIimg1.y;
 
             //Change to keypoint position based on the given error range
-            distortKeyPointPosition(kp2, patchROIimg1, distr);
+            if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+                distortKeyPointPosition(kp2, patchROIimg1, distr);
+            }
             kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
             kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
 
@@ -1831,7 +1836,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                             kp2.pt.x -= (float) patchROIimg1.x;
                             kp2.pt.y -= (float) patchROIimg1.y;
                         }
-                        distortKeyPointPosition(kp2, patchROIimg1, distr);
+                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+                            distortKeyPointPosition(kp2, patchROIimg1, distr);
+                        }
                         kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
                         kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
                     }
@@ -1856,11 +1863,20 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 //Get descriptor
                 vector<KeyPoint> pkp21(1, kp2);
                 //pkp21[0] = kp2;
-                int err = matchinglib::getDescriptors(patchwn,
+                bool kaze_noFail = true;
+                if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
+                    kaze_noFail = getKazeProperties(patchwn, pkp21, kp2);
+                }
+                int err = 0;
+                if(kaze_noFail) {
+                    err = matchinglib::getDescriptors(patchwn,
                                                       pkp21,
                                                       parsMtch.descriptorType,
                                                       descr21,
                                                       parsMtch.keyPointType);
+                }else{
+                    err = -1;
+                }
                 bool itFI = false;
                 if ((err != 0) || (itCnt == 15) || (itCnt == 20)) {
                     if(err == 0){
@@ -1882,11 +1898,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         waitKey(0);
                         destroyWindow("Full image");*/
 
-                        err = matchinglib::getDescriptors(patchwn,
-                                                          pkp21,
-                                                          parsMtch.descriptorType,
-                                                          descr21,
-                                                          parsMtch.keyPointType);
+                        kaze_noFail = true;
+                        if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
+                            kaze_noFail = getKazeProperties(patchwn, pkp21, kp2);
+                        }
+                        if(kaze_noFail) {
+                            err = matchinglib::getDescriptors(patchwn,
+                                                              pkp21,
+                                                              parsMtch.descriptorType,
+                                                              descr21,
+                                                              parsMtch.keyPointType);
+                        }else{
+                            err = -1;
+                        }
                         if (err != 0) {
                             //Use the original descriptor
                             cerr << "Unable to calculate a matching descriptor! Using the original one - "
@@ -1905,7 +1929,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         patchROIimg1 = Rect(Point(0,0), patchfb.size());
                         descrDist = -1.0;
                         kp2 = kp;
-                        distortKeyPointPosition(kp2, patchROIimg1, distr);
+                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+                            distortKeyPointPosition(kp2, patchROIimg1, distr);
+                        }
                         kp2err.x = kp2.pt.x - kp.pt.x;
                         kp2err.y = kp2.pt.y - kp.pt.y;
                         fullImgUsed = true;
@@ -1941,38 +1967,46 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         kp2_tmp.pt.y -= (float) patchROIimg1.y;
                         pkp21 = vector<KeyPoint>(1, kp2_tmp);
                     }
-                    if(matchinglib::getDescriptors(patchfb,
-                                                   pkp21,
-                                                   parsMtch.descriptorType,
-                                                   desrc_tmp,
-                                                   parsMtch.keyPointType) == 0){
-                        if(!pkp21.empty()) {
-                            double descrDist_tmp = getDescriptorDistance(descriptors1.row((int) featureIdx_tmp),
-                                                                         desrc_tmp);
-                            if (!nearZero(descrDist_tmp)) {
-                                cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
-                                        "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
-                                if (verbose & SHOW_IMGS_AT_ERROR) {
-                                    //Show correspondence in original image
-                                    Mat fullimg, patchCol;
-                                    cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
-                                    Point c = Point((int) round(kp.pt.x), (int) round(kp.pt.y));
-                                    cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
-                                    //Draw exact correspondence location
-                                    cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
+                    bool kaze_noFail = true;
+                    if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
+                        KeyPoint kz_tmp = pkp21[0];
+                        kaze_noFail = getKazeProperties(patchfb, pkp21, kz_tmp);
+                    }
+                    int err = 0;
+                    if(kaze_noFail) {
+                        if (matchinglib::getDescriptors(patchfb,
+                                                        pkp21,
+                                                        parsMtch.descriptorType,
+                                                        desrc_tmp,
+                                                        parsMtch.keyPointType) == 0) {
+                            if (!pkp21.empty()) {
+                                double descrDist_tmp = getDescriptorDistance(descriptors1.row((int) featureIdx_tmp),
+                                                                             desrc_tmp);
+                                if (!nearZero(descrDist_tmp)) {
+                                    cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
+                                            "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
+                                    if (verbose & SHOW_IMGS_AT_ERROR) {
+                                        //Show correspondence in original image
+                                        Mat fullimg, patchCol;
+                                        cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
+                                        Point c = Point((int) round(kp.pt.x), (int) round(kp.pt.y));
+                                        cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                        //Draw exact correspondence location
+                                        cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
 
-                                    cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
-                                    c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
-                                    cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
-                                    //Draw exact correspondence location
-                                    cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
-                                    namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
-                                    imshow("Original image with keypoint", fullimg);
-                                    namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
-                                    imshow("Patch with keypoint", patchCol);
-                                    waitKey(0);
-                                    destroyWindow("Original image with keypoint");
-                                    destroyWindow("Patch with keypoint");
+                                        cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
+                                        c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
+                                        cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                        //Draw exact correspondence location
+                                        cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
+                                        namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
+                                        imshow("Original image with keypoint", fullimg);
+                                        namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
+                                        imshow("Patch with keypoint", patchCol);
+                                        waitKey(0);
+                                        destroyWindow("Original image with keypoint");
+                                        destroyWindow("Patch with keypoint");
+                                    }
                                 }
                             }
                         }
@@ -4114,4 +4148,46 @@ bool genMatchSequ::readPointClouds(const std::string &path, const std::string &b
     }
 
     return true;
+}
+
+void genMatchSequ::adaptPatchSize(){
+    if(parsMtch.descriptorType == "FREAK"){
+        minPatchSize2 = 151;
+    }else if(parsMtch.descriptorType == "RIFF"){
+        minPatchSize2 = 121;
+    }
+}
+
+bool genMatchSequ::getKazeProperties(cv::Mat& patch,
+                                     std::vector<cv::KeyPoint> &kp2_v,
+                                     cv::KeyPoint &kp2){
+    vector<KeyPoint> kps_kaze;
+    bool kaze_noFail = true;
+    if (matchinglib::getKeypoints(patch, kps_kaze, parsMtch.keyPointType, false) != 0) {
+        if(kps_kaze.empty()){
+            kaze_noFail = false;
+        }
+    }
+    if(kaze_noFail) {
+        KeyPoint kp_kaze;
+        float kz_dist = FLT_MAX;
+        for (auto &kz : kps_kaze) {
+            float d_kp[2];
+            d_kp[0] = kz.pt.x - kp2.pt.x;
+            d_kp[1] = kz.pt.y - kp2.pt.y;
+            d_kp[0] = d_kp[0] * d_kp[0] + d_kp[1] * d_kp[1];
+            if(d_kp[0] < kz_dist){
+                kz_dist = d_kp[0];
+                kp_kaze = kz;
+            }
+        }
+        if(kz_dist > 10.f){
+            kaze_noFail = false;
+        }else{
+            kp_kaze.pt = kp2.pt;
+            kp2 = kp_kaze;
+            kp2_v = vector<KeyPoint>(1, kp2);
+        }
+    }
+    return kaze_noFail;
 }

@@ -135,6 +135,7 @@ public:
         K2i = K2.inv();
         kpErrors.clear();
         featureIdxBegin = 0;
+        adaptPatchSize();
     };
 
     genMatchSequ(const std::string &sequLoadFolder,
@@ -267,12 +268,16 @@ private:
                                 qualityParm &stats_DiffTx,
                                 qualityParm &stats_DiffTy,
                                 qualityParm &stats_DiffTz);
+    void adaptPatchSize();
+    bool getKazeProperties(cv::Mat& patch,
+                           std::vector<cv::KeyPoint> &kp2_v,
+                           cv::KeyPoint &kp2);
 
 public:
     GenMatchSequParameters parsMtch;
 
 private:
-    const int minPatchSize2 = 85;//Corresponds to the minimal patch size (must be an odd number) we want after warping. It is also used to define the maximum patch size by multiplying it with maxPatchSizeMult2
+    int minPatchSize2 = 85;//Corresponds to the minimal patch size (must be an odd number) we want after warping. It is also used to define the maximum patch size by multiplying it with maxPatchSizeMult2
     const int maxPatchSizeMult2 = 3;//Multiplication factor for minPatchSize2 to define the maximum allowed patch size of the warped image
     const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
