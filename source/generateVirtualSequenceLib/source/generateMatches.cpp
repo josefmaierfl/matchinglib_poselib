@@ -1813,9 +1813,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             kp2.pt.y -= (float)patchROIimg1.y;
 
             //Change to keypoint position based on the given error range
-            if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+//            if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
                 distortKeyPointPosition(kp2, patchROIimg1, distr);
-            }
+//            }
             kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
             kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
 
@@ -1836,9 +1836,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                             kp2.pt.x -= (float) patchROIimg1.x;
                             kp2.pt.y -= (float) patchROIimg1.y;
                         }
-                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+//                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
                             distortKeyPointPosition(kp2, patchROIimg1, distr);
-                        }
+//                        }
                         kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
                         kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
                     }
@@ -1929,9 +1929,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         patchROIimg1 = Rect(Point(0,0), patchfb.size());
                         descrDist = -1.0;
                         kp2 = kp;
-                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+//                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
                             distortKeyPointPosition(kp2, patchROIimg1, distr);
-                        }
+//                        }
                         kp2err.x = kp2.pt.x - kp.pt.x;
                         kp2err.y = kp2.pt.y - kp.pt.y;
                         fullImgUsed = true;
@@ -4181,7 +4181,7 @@ bool genMatchSequ::getKazeProperties(cv::Mat& patch,
                 kp_kaze = kz;
             }
         }
-        if(kz_dist > 10.f){
+        if(kz_dist > 16.f){
             kaze_noFail = false;
         }else{
             kp_kaze.pt = kp2.pt;
