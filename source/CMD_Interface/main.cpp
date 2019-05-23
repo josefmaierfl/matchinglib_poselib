@@ -1288,7 +1288,12 @@ bool genStereoConfigurations(const int nrFrames,
                     cerr << "Not able to reach desired extrinsic stereo parameters or "
                             "desired image overlap." << endl;
                     if(addPars.acceptBadStereoPars){
-                        cout << "Accepting parameters as specified in config file." << endl;
+                        double minOvLap = stereoPars.imageOverlap + newStereoPars1.getNegMaxOvLapError();
+                        if((minOvLap > 0.25) || ((stereoPars.imageOverlap <= 0.35) && (minOvLap > 0.05))) {
+                            cout << "Accepting parameters as specified in config file." << endl;
+                        }else{
+                            return false;
+                        }
                     }else {
                         cout << "Do you want to proceed with the parameters shown above? (y/n)";
                         string uip;
@@ -1632,7 +1637,12 @@ bool genStereoConfigurations(const int nrFrames,
                 cerr << "Not able to reach desired extrinsic stereo parameters or "
                         "desired image overlap." << endl;
                 if(addPars.acceptBadStereoPars){
-                    cout << "Accepting parameters as specified in config file." << endl;
+                    double minOvLap = stereoPars.imageOverlap + newStereoPars1.getNegMaxOvLapError();
+                    if((minOvLap > 0.25) || ((stereoPars.imageOverlap < 0.35) && (minOvLap > 0.05))) {
+                        cout << "Accepting parameters as specified in config file." << endl;
+                    }else{
+                        return false;
+                    }
                 }else {
                     cout << "Do you want to proceed with the parameters shown above? (y/n)";
                     string uip;

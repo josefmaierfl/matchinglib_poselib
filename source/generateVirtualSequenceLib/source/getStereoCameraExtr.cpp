@@ -555,10 +555,18 @@ int GenStereoPars::optParLM(int verbose)
 		}
 	}
 
-	double meanOvLapError = 0;
+	meanOvLapError = 0;
+    negMaxOvLapError = DBL_MAX;
+    posMaxOvLapError = DBL_MIN;
 	for (int i = 0; i < (int)nrConditions; i++)
 	{
 		meanOvLapError += std::abs(residuals.at<double>(i * nr_residualsPCond + 5));
+		if(residuals.at<double>(i * nr_residualsPCond + 5) < negMaxOvLapError){
+            negMaxOvLapError = residuals.at<double>(i * nr_residualsPCond + 5);
+		}
+        if(residuals.at<double>(i * nr_residualsPCond + 5) > posMaxOvLapError){
+            posMaxOvLapError = residuals.at<double>(i * nr_residualsPCond + 5);
+        }
 	}
 	meanOvLapError /= (double)nrConditions;
 	cout << "Approx. overlap error: " << meanOvLapError << endl;
@@ -569,7 +577,7 @@ int GenStereoPars::optParLM(int verbose)
 	}
 	if (ssq > 10.0)
 	{
-		cout << "Resulting paramters are not usable! Sum of squared residuals: " << ssq << endl;
+		cout << "Resulting parameters are not usable! Sum of squared residuals: " << ssq << endl;
 		err = -2;
 	}
 

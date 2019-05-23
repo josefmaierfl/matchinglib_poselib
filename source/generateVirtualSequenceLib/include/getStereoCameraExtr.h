@@ -118,6 +118,15 @@ public:
 	bool getCamPars(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2);
 	bool getEulerAngles(std::vector<double>& roll, std::vector<double>& pitch, std::vector<double>& yaw);
 	void getNewRandSeed();
+	double getMeanOverlapError(){
+	    return meanOvLapError;
+	}
+    double getNegMaxOvLapError(){
+        return negMaxOvLapError;
+    }
+    double getPosMaxOvLapError(){
+        return posMaxOvLapError;
+    }
 
 public:
 	std::vector<cv::Mat> Ris;//Final Rotation matrizes
@@ -134,6 +143,9 @@ private:
 	std::vector<std::vector<double>> pitch_;
 	std::vector<std::vector<double>> yaw_;
 	double approxImgOverlap_ = 0;
+    double meanOvLapError = 0;
+    double negMaxOvLapError = DBL_MAX;
+    double posMaxOvLapError = DBL_MIN;
 	cv::Size imgSize_ = cv::Size(0,0);
 	size_t nrConditions = 0;
 
