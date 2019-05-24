@@ -318,9 +318,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 								 "For a postfix, '*' must be placed before the postfix.\n "
 								 "Valid examples : folder/pre_*post, *post, pre_*, pre_, folder/*post, folder/pre_*, folder/pre_, folder/, folder/folder/, folder/folder/pre_*post, ...>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("store_path", "<Path for storing the generated 3D scenes and matches. "
-                                "If load_folder and load_type are given, store_path can be set to store_path=* "
+                                "If load_folder is provided, store_path can be set to store_path=* "
                                 "which indicates that the generated matches should be stored into the load_folder.>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("load_folder", "<Path for loading an existing 3D scene for generating new matches. load_type must also be specified.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("load_folder", "<Path for loading an existing 3D scene for generating new matches.>", ArgvParser::OptionRequiresValue);
 	/*cmd.defineOption("load_type", "<File type of the stored 3D scene that must be provided if it is loaded. Options: "
 					 "\n 0\t YAML without compression"
 					 "\n 1\t YAML with compression (.yaml.gz)"
