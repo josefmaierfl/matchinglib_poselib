@@ -1126,8 +1126,8 @@ cv::Mat genStereoSequ::getTrackRot(const cv::Mat tdiff, cv::InputArray R_old) {
 //    Mat world_up = (Mat_<double>(3, 1) << 0, 1, 0);
     world_up /= norm(world_up);
 
-    if (nearZero(cv::sum(tdiff_ - world_up)[0])) {
-        R_C2W = (Mat_<double>(3, 1) << 1.0, 0, 0,
+    if (nearZero(cv::sum(abs(tdiff_ - world_up))[0])) {
+        R_C2W = (Mat_<double>(3, 3) << 1.0, 0, 0,
                 0, 0, -1.0,
                 0, 1.0, 0);
         if (!Rold.empty()) {
@@ -1136,8 +1136,8 @@ cv::Mat genStereoSequ::getTrackRot(const cv::Mat tdiff, cv::InputArray R_old) {
                 R_C2W = Rr;
             }
         }
-    } else if (nearZero(cv::sum(tdiff_ + world_up)[0])) {
-        R_C2W = (Mat_<double>(3, 1) << 1.0, 0, 0,
+    } else if (nearZero(cv::sum(abs(tdiff_ + world_up))[0])) {
+        R_C2W = (Mat_<double>(3, 3) << 1.0, 0, 0,
                 0, 0, 1.0,
                 0, -1.0, 0);
         if (!Rold.empty()) {
