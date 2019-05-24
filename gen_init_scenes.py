@@ -21,37 +21,45 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
     cmd_line = [test_app, '--img_path', img_path, '--img_pref', '/', '--store_path', store_path, '--conf_file']
 
     cnt = 0
-    for i in files:
-        cmd_line_full = cmd_line
-        cmd_line_full.append(os.path.join(input_path, i))
-        fnObj = re.match('(.*)_initial\..*', i, re.I)
-        if fnObj:
-            base = fnObj.group(1)
-        else:
-            base = str(cnt)
-        err_out = 'stderr_' + base + '.txt'
-        mess_out = 'stdout_' + base + '.txt'
-        fname_cerr = os.path.join(message_path, err_out)
-        fname_mess = os.path.join(message_path, mess_out)
-        cerrf = open(fname_cerr, 'w')
-        messf = open(fname_mess, 'w')
-        try:
-            sp.run(cmd_line_full, stdout=messf, stderr=cerrf, check=True)
-        except sp.CalledProcessError as e:
-            err_filen = 'errorInfo_' + base + '.txt'
-            fname_err = os.path.join(message_path, err_filen)
-            with open(fname_err, 'w') as fo:
-                for line in e.cmd:
-                    fo.write(line)
-                fo.write('\n\n')
-                for line in e.stderr:
-                    fo.write(line)
-                fo.write('\n\n')
-                for line in e.stdout:
-                    fo.write(line)
-        cerrf.close()
-        messf.close()
-        cnt = cnt + 1
+    cnt2 = 0
+    with open(ovfile_new, 'w') as fo:
+        for i in files:
+            cmd_line_full = cmd_line
+            cmd_line_full.append(os.path.join(input_path, i))
+            fnObj = re.match('(.*)_initial\..*', i, re.I)
+            if fnObj:
+                base = fnObj.group(1)
+            else:
+                base = str(cnt)
+            err_out = 'stderr_' + base + '.txt'
+            mess_out = 'stdout_' + base + '.txt'
+            fname_cerr = os.path.join(message_path, err_out)
+            fname_mess = os.path.join(message_path, mess_out)
+            cerrf = open(fname_cerr, 'w')
+            messf = open(fname_mess, 'w')
+            try:
+                sp.run(cmd_line_full, stdout=messf, stderr=cerrf, check=True)
+                fo.write(' '.join(cmd_line_full) + ';parSetNr' + cnt2)
+                cnt2 = cnt2 +1
+            except sp.CalledProcessError as e:
+                err_filen = 'errorInfo_' + base + '.txt'
+                fname_err = os.path.join(message_path, err_filen)
+                if e.cmd or e.stderr or e.stdout:
+                    with open(fname_err, 'w') as fo:
+                        if e.cmd:
+                            for line in e.cmd:
+                                fo.write(line + ' ')
+                            fo.write('\n\n')
+                        if e.stderr:
+                            for line in e.stderr:
+                                fo.write(line + ' ')
+                            fo.write('\n\n')
+                        if e.stdout:
+                            for line in e.stdout:
+                                fo.write(line + ' ')
+            cerrf.close()
+            messf.close()
+            cnt = cnt + 1
 
 def main():
     parser = argparse.ArgumentParser(description='Execute generateVirtualSequence for multiple configuration files')
