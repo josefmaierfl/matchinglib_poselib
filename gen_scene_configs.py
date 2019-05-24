@@ -1,11 +1,11 @@
 """
 Generate configuration files and overview files for scenes by varying the used inlier ratio and keypoint accuracy
 """
-import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas as pd
+import sys, re, numpy as np, argparse, os, pandas as pd
 #from tabulate import tabulate as tab
-from copy import deepcopy
+#from copy import deepcopy
 
-def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path):
+def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path, load_path):
     path, fname = os.path.split(input_file_name)
     base = ''
     ending = ''
@@ -19,10 +19,12 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path)
     #nr_inliers = (inlier_range[1] - inlier_range[0])/inlier_range[2] + 1
     #nr_accs = (kpAccRange[1] - kpAccRange[0]) / kpAccRange[2] + 1
 
-    datac = {'conf_file': [], 'img_path': [], 'img_pref': [], 'store_path': [], 'scene_exists': [], 'parSetNr': []}
+    datac = {'conf_file': [], 'img_path': [], 'img_pref': [], 'store_path': [],
+             'scene_exists': [], 'load_path': [], 'parSetNr': []}
     cnt = 0
     for inl in np.arange(inlier_range[0], inlier_range[1] + inlier_range[2], inlier_range[2]):
-        fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % kpAccRange[0]
+        #fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % kpAccRange[0]
+        fnew = 'Inl_%.2f' % inl + '_Acc_%.2f' % kpAccRange[0]
         fnew = fnew.replace('.', '_') + '.' + ending
         pfnew = os.path.join(path, fnew)
         if os.path.isfile(pfnew):
@@ -33,10 +35,12 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path)
         datac['img_pref'].append('/')
         datac['store_path'].append(store_path)
         datac['scene_exists'].append(0)
+        datac['load_path'].append(load_path)
         datac['parSetNr'].append(-1)
 
         for acc in np.arange(kpAccRange[0] + kpAccRange[2], kpAccRange[1] + kpAccRange[2], kpAccRange[2]):
-            fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % acc
+            #fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % acc
+            fnew = 'Inl_%.2f' % inl + '_Acc_%.2f' % acc
             fnew = fnew.replace('.', '_') + '.' + ending
             pfnew = os.path.join(path, fnew)
             if os.path.isfile(pfnew):
@@ -47,6 +51,7 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path)
             datac['img_pref'].append('/')
             datac['store_path'].append(store_path)
             datac['scene_exists'].append(1)
+            datac['load_path'].append(load_path)
             datac['parSetNr'].append(cnt)
         cnt = cnt + 1
 
@@ -118,6 +123,9 @@ def main():
                         help='Path to images')
     parser.add_argument('--store_path', type=str, required=True,
                         help='Storing path for generated scenes and matches')
+    parser.add_argument('--load_path', type=str, required=False,
+                        help='Optional loading path for generated scenes and matches. '
+                             'If not provided, store_path is used.')
     args = parser.parse_args()
     if not os.path.isfile(args.filename):
         raise ValueError('File ' + args.filename + ' holding scene configuration file names does not exist')
@@ -139,7 +147,12 @@ def main():
         raise ValueError("Path for storing sequences does not exist")
     if len(os.listdir(args.store_path)) != 0:
         raise ValueError("Path for storing sequences is not empty")
-    gen_configs(args.filename, args.inlier_range, args.kpAccRange, args.img_path, args.store_path)
+    if args.load_path:
+        if not os.path.exists(args.load_path):
+            raise ValueError("Path for loading sequences does not exist")
+    else:
+        args.load_path = args.store_path
+    gen_configs(args.filename, args.inlier_range, args.kpAccRange, args.img_path, args.store_path, args.load_path)
 
 
 if __name__ == "__main__":
