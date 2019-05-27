@@ -143,6 +143,8 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	checkEqualRanges(roll_, rollRangeEqual);
 	checkEqualRanges(pitch_, pitchRangeEqual);
 	checkEqualRanges(yaw_, yawRangeEqual);
+
+    iOvLapMult = 1.0 + 15.0 * std::pow(std::log(approxImgOverlap_), 2);
 }
 
 void GenStereoPars::getNewRandSeed(){
@@ -560,15 +562,24 @@ int GenStereoPars::optParLM(int verbose)
     posMaxOvLapError = DBL_MIN;
 	for (int i = 0; i < (int)nrConditions; i++)
 	{
-		meanOvLapError += std::abs(residuals.at<double>(i * nr_residualsPCond + 5));
-		if(residuals.at<double>(i * nr_residualsPCond + 5) < negMaxOvLapError){
-            negMaxOvLapError = residuals.at<double>(i * nr_residualsPCond + 5);
+	    double ovLapErrorResidual = residuals.at<double>(i * nr_residualsPCond + 5);
+        ovLapErrorResidual /= -1.0 * iOvLapMult;
+        ovLapErrorResidual += approxImgOverlap_ * approxImgOverlap_;
+        ovLapErrorResidual = sqrt(ovLapErrorResidual);
+        ovLapErrorResidual = approxImgOverlap_ - ovLapErrorResidual;
+		meanOvLapError += std::abs(ovLapErrorResidual);
+		if(ovLapErrorResidual < negMaxOvLapError){
+            negMaxOvLapError = ovLapErrorResidual;
 		}
-        if(residuals.at<double>(i * nr_residualsPCond + 5) > posMaxOvLapError){
-            posMaxOvLapError = residuals.at<double>(i * nr_residualsPCond + 5);
+        if(ovLapErrorResidual > posMaxOvLapError){
+            posMaxOvLapError = ovLapErrorResidual;
         }
 	}
 	meanOvLapError /= (double)nrConditions;
+    meanOvLapError_sv = meanOvLapError;
+    negMaxOvLapError_sv = negMaxOvLapError;
+    posMaxOvLapError_sv = posMaxOvLapError;
+    sumSqrRes = ssq;
 	cout << "Approx. overlap error: " << meanOvLapError << endl;
 	if (meanOvLapError > 0.05)
 	{
@@ -1301,7 +1312,10 @@ cv::Mat GenStereoPars::LMfunc(cv::Mat p, bool noAlignCheck)
 		ovLapZ3D *= r_tmp;
 
 		//Calculate main residuals
-		r.at<double>(i * nr_residualsPCond + 5) = approxImgOverlap_ - ovLapZ * ovLapZm * ovLapZmP;//Get the desired image overlap
+        //Get the desired image overlap
+		//r.at<double>(i * nr_residualsPCond + 5) = approxImgOverlap_ - ovLapZ * ovLapZm * ovLapZmP;
+        r.at<double>(i * nr_residualsPCond + 5) = iOvLapMult * (approxImgOverlap_ * approxImgOverlap_
+                - ovLapZ * ovLapZ * ovLapZm * ovLapZm * ovLapZmP * ovLapZmP);
 		r.at<double>(i * nr_residualsPCond + 6) = 0.35 * ovLapZ3D;//Optimize overlapping area
 	}
 

@@ -57,6 +57,10 @@ public:
 
 	//Copy constructor
     GenStereoPars(const GenStereoPars &gsp):
+            Ris(gsp.Ris),
+            tis(gsp.tis),
+            K1(gsp.K1),
+            K2(gsp.K2),
             tx_(gsp.tx_),
             ty_(gsp.ty_),
             tz_(gsp.tz_),
@@ -64,24 +68,40 @@ public:
             pitch_(gsp.pitch_),
             yaw_(gsp.yaw_),
             approxImgOverlap_(gsp.approxImgOverlap_),
+            meanOvLapError_sv(gsp.meanOvLapError_sv),
+            negMaxOvLapError_sv(gsp.negMaxOvLapError_sv),
+            posMaxOvLapError_sv(gsp.posMaxOvLapError_sv),
+            sumSqrRes(gsp.sumSqrRes),
             imgSize_(gsp.imgSize_),
             nrConditions(gsp.nrConditions),
-            Ris(gsp.Ris),
             txRangeEqual(gsp.txRangeEqual),
             tyRangeEqual(gsp.tyRangeEqual),
             tzRangeEqual(gsp.tzRangeEqual),
             rollRangeEqual(gsp.rollRangeEqual),
             pitchRangeEqual(gsp.pitchRangeEqual),
             yawRangeEqual(gsp.yawRangeEqual),
-            tis(gsp.tis),
-            K1(gsp.K1),
-            K2(gsp.K2),
             tx_use(gsp.tx_use),
             ty_use(gsp.ty_use),
             tz_use(gsp.tz_use),
             roll_use(gsp.roll_use),
             pitch_use(gsp.pitch_use),
-            yaw_use(gsp.yaw_use){}
+            yaw_use(gsp.yaw_use),
+            f(gsp.f),
+            fRange{gsp.fRange[0], gsp.fRange[1]},
+            iOvLapMult(gsp.iOvLapMult){
+        meanOvLapError = 0;
+        negMaxOvLapError = DBL_MAX;
+        posMaxOvLapError = DBL_MIN;
+        virtWidth.clear();
+        x_lb_max1.clear();
+        x_lb_min1.clear();
+        x_rt_max1.clear();
+        x_rt_min1.clear();
+        x_lb_max2.clear();
+        x_lb_min2.clear();
+        x_rt_max2.clear();
+        x_rt_min2.clear();
+    }
 
     //Copy assignment operator
     GenStereoPars& operator=(const GenStereoPars& gsp){
@@ -110,6 +130,26 @@ public:
         roll_use = gsp.roll_use;
         pitch_use = gsp.pitch_use;
         yaw_use = gsp.yaw_use;
+        f = gsp.f;
+        fRange[0] = gsp.fRange[0];
+        fRange[1] = gsp.fRange[1];
+        iOvLapMult = gsp.iOvLapMult;
+        meanOvLapError_sv = gsp.meanOvLapError_sv;
+        negMaxOvLapError_sv = gsp.negMaxOvLapError_sv;
+        posMaxOvLapError_sv = gsp.posMaxOvLapError_sv;
+        sumSqrRes = gsp.sumSqrRes;
+        meanOvLapError = 0;
+        negMaxOvLapError = DBL_MAX;
+        posMaxOvLapError = DBL_MIN;
+        virtWidth.clear();
+        x_lb_max1.clear();
+        x_lb_min1.clear();
+        x_rt_max1.clear();
+        x_rt_min1.clear();
+        x_lb_max2.clear();
+        x_lb_min2.clear();
+        x_rt_max2.clear();
+        x_rt_min2.clear();
         return *this;
     }
 
@@ -127,6 +167,18 @@ public:
     double getPosMaxOvLapError(){
         return posMaxOvLapError;
     }
+    double getSavedMeanOverlapError(){
+        return meanOvLapError_sv;
+    }
+    double getSavedNegMaxOvLapError(){
+        return negMaxOvLapError_sv;
+    }
+    double getSavedPosMaxOvLapError(){
+        return posMaxOvLapError_sv;
+    }
+    double getSumofSquredResiduals(){
+	    return sumSqrRes;
+	}
 
 public:
 	std::vector<cv::Mat> Ris;//Final Rotation matrizes
@@ -146,6 +198,10 @@ private:
     double meanOvLapError = 0;
     double negMaxOvLapError = DBL_MAX;
     double posMaxOvLapError = DBL_MIN;
+    double meanOvLapError_sv = 0;
+    double negMaxOvLapError_sv = DBL_MAX;
+    double posMaxOvLapError_sv = DBL_MIN;
+    double sumSqrRes = 0;
 	cv::Size imgSize_ = cv::Size(0,0);
 	size_t nrConditions = 0;
 
@@ -190,6 +246,9 @@ private:
 	double txTol_ = 1e-6;
 	double tyTol_ = 1e-6;
 	double fTol_ = 1e-3;
+
+	//Multiplication factor for the quadratic image overlap difference to adapt to the residual range
+	double iOvLapMult = 1.0;
 
 	//Save optimization result before alignment changes
 	cv::Mat r_before_aliC, x_before_aliC;

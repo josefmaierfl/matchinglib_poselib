@@ -1288,8 +1288,10 @@ bool genStereoConfigurations(const int nrFrames,
                     cerr << "Not able to reach desired extrinsic stereo parameters or "
                             "desired image overlap." << endl;
                     if(addPars.acceptBadStereoPars){
-                        double minOvLap = stereoPars.imageOverlap + newStereoPars1.getNegMaxOvLapError();
-                        if((minOvLap > 0.25) || ((stereoPars.imageOverlap <= 0.35) && (minOvLap > 0.05))) {
+                        double minOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedPosMaxOvLapError();
+                        double maxOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedNegMaxOvLapError();
+                        if(((minOvLap > 0.25) || ((stereoPars.imageOverlap < 0.35) && (minOvLap > 0.05)))
+                           && (maxOvLap < (1.4 * stereoPars.imageOverlap))) {
                             cout << "Accepting parameters as specified in config file." << endl;
                         }else{
                             return false;
@@ -1432,6 +1434,7 @@ bool genStereoConfigurations(const int nrFrames,
             std::vector<std::vector<double>> roll_sv = roll;
             std::vector<std::vector<double>> pitch_sv = pitch;
             std::vector<std::vector<double>> yaw_sv = yaw;
+            vector<GenStereoPars> mult_it_pars;
 
             //Calculate the extrinsic parameters for the first stereo configuration
             // within the given ranges to achieve an image overlap nearest to the given value
@@ -1440,6 +1443,7 @@ bool genStereoConfigurations(const int nrFrames,
             vector<cv::Mat> t_new1;
             vector<double> roll_new1, pitch_new1, yaw_new1;
             GenStereoPars newStereoPars, newStereoPars1;
+            const int maxMainLoopIt = 6;
             do {
                 try {
                     newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
@@ -1599,6 +1603,8 @@ bool genStereoConfigurations(const int nrFrames,
                     }
                     CV_Assert(cnt == (int) tx.size());
                     //Get the parameters (adapt camera matrix and check extrinsics)
+                    cout << "Trying to optimize camera matrices to get best results with linear changes of extrinsics."
+                    << endl;
                     try {
                         newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
                                                        stereoPars.imageOverlap, stereoPars.imgSize);
@@ -1614,7 +1620,7 @@ bool genStereoConfigurations(const int nrFrames,
                         err = newStereoPars1.optimizeRtf(addPars.LMverbose);
                         newStereoPars1.getNewRandSeed();
                         err_cnt++;
-                    } while (err && (err != -1) && (err_cnt < 20));
+                    } while (err && (err != -1) && (err_cnt < 10));
 
                     roll_new1.clear();
                     pitch_new1.clear();
@@ -1625,7 +1631,10 @@ bool genStereoConfigurations(const int nrFrames,
                     K_1.copyTo(K_2);
                 }
                 err_cnt2++;
-                if(err && (err != -1) && (err_cnt2 < 3)){
+                if(err && (err != -1)){
+                    //Save result
+                    mult_it_pars.push_back(newStereoPars1);
+
                     //Restore values
                     tx = tx_sv;
                     ty = ty_sv;
@@ -1634,7 +1643,30 @@ bool genStereoConfigurations(const int nrFrames,
                     pitch = pitch_sv;
                     yaw = yaw_sv;
                 }
-            }while (err && (err != -1) && (err_cnt2 < 3));
+            }while (err && (err != -1) && (err_cnt2 < maxMainLoopIt));
+
+            if(err && (err != -1)){
+                //Get best result
+                vector<pair<double,int>> minNegOvLapErr;
+                for (int i = 0; i < (int)mult_it_pars.size(); ++i) {
+                    minNegOvLapErr.emplace_back(make_pair(mult_it_pars[i].getSavedMeanOverlapError(), i));
+                }
+                sort(minNegOvLapErr.begin(), minNegOvLapErr.end(),
+                        [](pair<double,int> &first, pair<double,int> &second){return first.first < second.first;});
+                int selSol = minNegOvLapErr[0].second;
+                if(mult_it_pars[selSol].getSumofSquredResiduals()
+                > mult_it_pars[minNegOvLapErr[1].second].getSumofSquredResiduals()){
+                    selSol = minNegOvLapErr[1].second;
+                }
+                newStereoPars1 = mult_it_pars[selSol];
+                roll_new1.clear();
+                pitch_new1.clear();
+                yaw_new1.clear();
+                newStereoPars1.getEulerAngles(roll_new1, pitch_new1, yaw_new1);
+                t_new1 = newStereoPars1.tis;
+                K_1 = newStereoPars1.K1;
+                K_1.copyTo(K_2);
+            }
 
             cout << endl;
             cout << "**************************************************************************" << endl;
@@ -1661,8 +1693,10 @@ bool genStereoConfigurations(const int nrFrames,
                 cerr << "Not able to reach desired extrinsic stereo parameters or "
                         "desired image overlap." << endl;
                 if(addPars.acceptBadStereoPars){
-                    double minOvLap = stereoPars.imageOverlap + newStereoPars1.getNegMaxOvLapError();
-                    if((minOvLap > 0.25) || ((stereoPars.imageOverlap < 0.35) && (minOvLap > 0.05))) {
+                    double minOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedPosMaxOvLapError();
+                    double maxOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedNegMaxOvLapError();
+                    if(((minOvLap > 0.25) || ((stereoPars.imageOverlap < 0.35) && (minOvLap > 0.05)))
+                    && (maxOvLap < (1.4 * stereoPars.imageOverlap))) {
                         cout << "Accepting parameters as specified in config file." << endl;
                     }else{
                         return false;
