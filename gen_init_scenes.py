@@ -39,24 +39,24 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
             messf = open(fname_mess, 'w')
             try:
                 sp.run(cmd_line_full, stdout=messf, stderr=cerrf, check=True)
-                fo.write(' '.join(cmd_line_full) + ';parSetNr' + cnt2)
+                fo.write(' '.join(map(str, cmd_line_full)) + ';parSetNr' + str(cnt2) + '\n')
                 cnt2 = cnt2 +1
             except sp.CalledProcessError as e:
                 err_filen = 'errorInfo_' + base + '.txt'
                 fname_err = os.path.join(message_path, err_filen)
                 if e.cmd or e.stderr or e.stdout:
-                    with open(fname_err, 'w') as fo:
+                    with open(fname_err, 'w') as fo1:
                         if e.cmd:
                             for line in e.cmd:
-                                fo.write(line + ' ')
-                            fo.write('\n\n')
+                                fo1.write(line + ' ')
+                            fo1.write('\n\n')
                         if e.stderr:
                             for line in e.stderr:
-                                fo.write(line + ' ')
-                            fo.write('\n\n')
+                                fo1.write(line + ' ')
+                            fo1.write('\n\n')
                         if e.stdout:
                             for line in e.stdout:
-                                fo.write(line + ' ')
+                                fo1.write(line + ' ')
             cerrf.close()
             messf.close()
             cnt = cnt + 1

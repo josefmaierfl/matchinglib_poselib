@@ -31,9 +31,11 @@ def write_config_file(finput, foutput):
         with open(finput, 'r') as fi:
             li = fi.readline()
             while li:
-                lobj = re.search('acceptBadStereoPars:', li)
+                #lobj = re.search('acceptBadStereoPars:', li)
+                lobj = re.search('imageOverlap:', li)
                 if lobj:
-                    fo.write('acceptBadStereoPars: 1\n')
+                    #fo.write('acceptBadStereoPars: 1\n')
+                    fo.write('imageOverlap: 8.5000000000000004e-01\n')
                 else:
                     fo.write(li)
                 li = fi.readline()
