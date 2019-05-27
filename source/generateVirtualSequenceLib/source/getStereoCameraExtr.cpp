@@ -48,7 +48,8 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	imgSize_(imgSize)
 {
 	//srand(time(NULL));
-	randSeed(rand_generator);
+    long int seed = randSeed(rand_generator);
+    randSeed(rand2, seed);
 
 	//Check if the number of constraints is equal for all paramters
 	nrConditions = tx_.size();
@@ -148,12 +149,13 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 }
 
 void GenStereoPars::getNewRandSeed(){
-    randSeed(rand_generator);
+    long int seed = randSeed(rand_generator);
+    randSeed(rand2, seed);
 }
 
 inline double GenStereoPars::getRandDoubleVal(double lowerBound, double upperBound)
 {
-	rand_generator = std::default_random_engine((unsigned int)std::rand());
+	rand_generator = std::default_random_engine(rand2());
 	std::uniform_real_distribution<double> distribution(lowerBound, upperBound);
 	return distribution(rand_generator);
 }
@@ -164,12 +166,12 @@ cv::Mat GenStereoPars::getNormalDistributionVals(int sizeV, double mean, double 
 	std::normal_distribution<double> distribution(mean, stddev);
 	for (int i = 0; i < sizeV; i++)
 	{
-		distr.at<double>(i) = distribution(rand_generator);
+		distr.at<double>(i) = distribution(rand2);
 	}
 	return distr;
 }
 
-void GenStereoPars::checkParameterFormat(std::vector<std::vector<double>> par, std::string name)
+void GenStereoPars::checkParameterFormat(std::vector<std::vector<double>> par, const std::string &name)
 {
 	for (size_t i = 0; i < nrConditions; i++)
 	{
@@ -199,12 +201,12 @@ void GenStereoPars::checkEqualRanges(std::vector<std::vector<double>> par, bool&
 	{
 		return;
 	}
-	const bool fixedPar = (par[0].size() == 1) ? true : false;
+	const bool fixedPar = (par[0].size() == 1);
 	double minPar = par[0][0];
 	double maxPar = fixedPar ? minPar : par[0][1];
 	for (size_t i = 1; i < nrConditions; i++)
 	{
-		bool fixedPar1 = (par[i].size() == 1) ? true : false;
+		bool fixedPar1 = (par[i].size() == 1);
 		if ((fixedPar ^ fixedPar1) ||
 			!nearZero(minPar - par[i][0]) ||
 			!nearZero(maxPar - ((par[i].size() == 1) ? par[i][0] : par[i][1])))
@@ -453,7 +455,7 @@ int GenStereoPars::optParLM(int verbose)
 	const size_t lmCntMax = 10;
 	size_t cnt = 0;
 	Mat p_new_save, residuals_save;
-	double ssq_old;
+	auto ssq_old = DBL_MAX;
 	vector<Mat> p_history, r_history;
 	vector<double> ssq_history;	
 	while (aliChange && (cnt < lmCntMax))
@@ -689,7 +691,7 @@ void GenStereoPars::setLMTolerance(double rollTol, double pitchTol, double txTol
 *  Cnt       >0          count of iterations
 *            -MaxIter, did not converge in MaxIter iterations
 */
-int GenStereoPars::LMFsolve(cv::Mat p,
+int GenStereoPars::LMFsolve(const cv::Mat &p,
 	cv::Mat& xf,
 	cv::Mat& residuals,
 	cv::InputArray funcTol,
@@ -1073,7 +1075,7 @@ void GenStereoPars::adaptParVec(cv::Mat& parVec, cv::Mat& parVecOut, cv::Mat& de
 
 }
 
-cv::Mat GenStereoPars::getD(cv::Mat DvecLTL, cv::Mat parVec, double lamda)
+cv::Mat GenStereoPars::getD(const cv::Mat &DvecLTL, const cv::Mat &parVec, double lamda)
 {
 	int p_n = DvecLTL.rows;
 	CV_Assert((p_n >= DvecLTL.cols) && (p_n == parVec.rows));
@@ -1430,7 +1432,7 @@ void GenStereoPars::setCoordsForOpti()
 	}
 }
 
-bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int maxit, int align)
+bool GenStereoPars::helpNewRandEquRangeVals(int& idx, const int &maxit, int align)
 {
 	int cnt = 0;
 	int idx_tmp = idx;

@@ -36,7 +36,7 @@ overlap area ratio between the views and some restrictions on the camera paramet
 class InvalidDataStructureException : public std::runtime_error
 {
 public:
-	InvalidDataStructureException(std::string mess) : std::runtime_error(mess) {}
+	explicit InvalidDataStructureException(const std::string &mess) : std::runtime_error(mess) {}
 };
 
 class GENERATEVIRTUALSEQUENCELIB_API GenStereoPars
@@ -53,7 +53,7 @@ public:
 		std::vector<std::vector<double>> yaw, 
 		double approxImgOverlap, cv::Size imgSize);
 
-    GenStereoPars(){}
+    GenStereoPars() = default;
 
 	//Copy constructor
     GenStereoPars(const GenStereoPars &gsp):
@@ -187,6 +187,7 @@ public:
 
 private:
 	std::default_random_engine rand_generator;
+    std::mt19937 rand2;
 
 	std::vector<std::vector<double>> tx_;
 	std::vector<std::vector<double>> ty_;
@@ -254,15 +255,15 @@ private:
 	cv::Mat r_before_aliC, x_before_aliC;
 
 private:
-	void checkParameterFormat(std::vector<std::vector<double>> par, std::string name);
+	void checkParameterFormat(std::vector<std::vector<double>> par, const std::string &name);
 	void checkEqualRanges(std::vector<std::vector<double>> par, bool& areEqual);
 	//Get a random floating point number between 2 ranges
 	inline double getRandDoubleVal(double lowerBound, double upperBound);
 	void initRandPars(std::vector<std::vector<double>>& parIn, bool& rangeEqual, std::vector<double>& parOut);
 	void getRotRectDiffArea(double yaw_angle, double& perc, double& virtWidth1);
-	bool helpNewRandEquRangeVals(int& idx, const int maxit, int align);
+	bool helpNewRandEquRangeVals(int& idx, const int &maxit, int align);
 	void setCoordsForOpti();
-	int LMFsolve(cv::Mat p,
+	int LMFsolve(const cv::Mat &p,
 		cv::Mat& xf,
 		cv::Mat& residuals,
 		cv::InputArray funcTol = cv::noArray(),
@@ -277,7 +278,7 @@ private:
 	inline void pow2mult(double& val, size_t num);
 	double getDistance2LinesPlane(cv::Mat a1, cv::Mat b1, cv::Mat a2, cv::Mat b2, double z);
 	cv::Mat finjac(cv::Mat& residuals, cv::Mat& x, cv::Mat& xTol);
-	cv::Mat getD(cv::Mat DvecLTL, cv::Mat parVec, double lamda);
+	cv::Mat getD(const cv::Mat &DvecLTL, const cv::Mat &parVec, double lamda);
 	double getDampingF(double par, int rangeIdx0);
 	void printit(int ipr, int cnt, size_t nfJ, double ss, cv::Mat x, cv::Mat dx, double lamda, double lamda_c);
 	cv::Mat getNormalDistributionVals(int sizeV, double mean, double stddev);

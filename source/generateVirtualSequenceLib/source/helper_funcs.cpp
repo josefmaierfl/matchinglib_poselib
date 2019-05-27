@@ -36,7 +36,7 @@ using namespace cv;
 long int randSeed(std::default_random_engine& rand_generator)
 {
 	// construct a trivial random generator engine from a time-based seed:
-	long int seed = std::chrono::system_clock::now().time_since_epoch().count();
+	long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	rand_generator = std::default_random_engine(seed);
 
 	srand((unsigned int)time(nullptr));
