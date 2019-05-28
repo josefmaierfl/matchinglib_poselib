@@ -3,6 +3,7 @@ Loads initial configuration files and creates scenes which can be further used t
 that is needed for the final configuration files
 """
 import sys, re, numpy as np, argparse, os, pandas as pd, subprocess as sp
+from copy import deepcopy
 
 def gen_scenes(test_app, input_path, img_path, store_path, message_path):
     # Load file names
@@ -16,6 +17,7 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
             files.append(i)
     if len(files) == 0:
         raise ValueError('No files including _init found.')
+    files.sort()
     ovfile_new = os.path.join(input_path, 'generated_scenes_index.txt')
 
     cmd_line = [test_app, '--img_path', img_path, '--img_pref', '/', '--store_path', store_path, '--conf_file']
@@ -24,7 +26,7 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
     cnt2 = 0
     with open(ovfile_new, 'w') as fo:
         for i in files:
-            cmd_line_full = cmd_line
+            cmd_line_full = deepcopy(cmd_line)
             cmd_line_full.append(os.path.join(input_path, i))
             fnObj = re.match('(.*)_initial\..*', i, re.I)
             if fnObj:
@@ -37,26 +39,42 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
             fname_mess = os.path.join(message_path, mess_out)
             cerrf = open(fname_cerr, 'w')
             messf = open(fname_mess, 'w')
-            try:
-                sp.run(cmd_line_full, stdout=messf, stderr=cerrf, check=True)
-                fo.write(' '.join(map(str, cmd_line_full)) + ';parSetNr' + str(cnt2) + '\n')
-                cnt2 = cnt2 +1
-            except sp.CalledProcessError as e:
-                err_filen = 'errorInfo_' + base + '.txt'
-                fname_err = os.path.join(message_path, err_filen)
-                if e.cmd or e.stderr or e.stdout:
-                    with open(fname_err, 'w') as fo1:
-                        if e.cmd:
-                            for line in e.cmd:
-                                fo1.write(line + ' ')
-                            fo1.write('\n\n')
-                        if e.stderr:
-                            for line in e.stderr:
-                                fo1.write(line + ' ')
-                            fo1.write('\n\n')
-                        if e.stdout:
-                            for line in e.stdout:
-                                fo1.write(line + ' ')
+            cnt3 = 3
+            while cnt3 > 0:
+                try:
+                    sp.run(cmd_line_full, stdout=messf, stderr=cerrf, check=True)
+                    fo.write(' '.join(map(str, cmd_line_full)) + ';parSetNr' + str(cnt2) + '\n')
+                    cnt2 = cnt2 + 1
+                    cnt3 = 0
+                except sp.CalledProcessError as e:
+                    cnt3 = cnt3 - 1
+                    print('Failed to generate scene!')
+                    if cnt3 > 0:
+                        print('Trying again!')
+                        cerrf.close()
+                        messf.close()
+                        fname_cerr_err = os.path.join(message_path, 'err_' + str(cnt3) + '_' + err_out)
+                        fname_mess_err = os.path.join(message_path, 'err_' + str(cnt3) + '_' + mess_out)
+                        os.rename(fname_cerr, fname_cerr_err)
+                        os.rename(fname_mess, fname_mess_err)
+                        cerrf = open(fname_cerr, 'w')
+                        messf = open(fname_mess, 'w')
+                        continue
+                    err_filen = 'errorInfo_' + base + '.txt'
+                    fname_err = os.path.join(message_path, err_filen)
+                    if e.cmd or e.stderr or e.stdout:
+                        with open(fname_err, 'w') as fo1:
+                            if e.cmd:
+                                for line in e.cmd:
+                                    fo1.write(line + ' ')
+                                fo1.write('\n\n')
+                            if e.stderr:
+                                for line in e.stderr:
+                                    fo1.write(line + ' ')
+                                fo1.write('\n\n')
+                            if e.stdout:
+                                for line in e.stdout:
+                                    fo1.write(line + ' ')
             cerrf.close()
             messf.close()
             cnt = cnt + 1
