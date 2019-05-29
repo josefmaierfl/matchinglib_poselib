@@ -1,7 +1,8 @@
 """
 Copies all stereo configurations from a generated scene into a config file
 """
-import sys, re, numpy as np, argparse, os, pandas as pd, subprocess as sp, cv2
+import sys, re, numpy as np, argparse, os, pandas as pd, subprocess as sp, cv2#, yaml
+import ruamel.yaml as yaml
 from copy import deepcopy
 
 def update_extrinsics(input_path, store_path):
@@ -31,7 +32,7 @@ def update_extrinsics(input_path, store_path):
     with open(file_cmd_full, 'r') as cfi:
         li = cfi.readline()
         while li:
-            cfiObj = re.match('.*--conf_file\s+(.+);(parSetNr\d)', li)
+            cfiObj = re.match('.*--conf_file\s+(.+);(parSetNr\d+)', li)
             if cfiObj:
                 conf_file = cfiObj.group(1)
                 parsetNr = cfiObj.group(2)
@@ -90,10 +91,82 @@ def update_extrinsics(input_path, store_path):
             else:
                 raise ValueError('Unable to extract config file base name.')
             conf_file_new = b_name + '_tmp' + name_end
-            #with open(conf_file, 'r') as fi:
+            with open(conf_file, 'r') as fi:
+                with open(conf_file_new, 'w') as fo:
+                    li2 = fi.readline()
+                    while li2:
+                        lobj = re.search('useSpecificCamPars:', li2)
+                        lobj2 = re.search('specificCamPars:', li2)
+                        if lobj:
+                            fo.write('useSpecificCamPars: 1\n')
+                        elif lobj2:
+                            break
+                        else:
+                            fo.write(li2)
+                        li2 = fi.readline()
 
+            with open(conf_file_new, 'a') as fo:
+                # Write stereo camera parameters
+                sequ_new = []
+                for i, j in zip(r_stereo, t_stereo):
+                    node1 = {'R': i,
+                             't': j,
+                             'K1': K1,
+                             'K2': K2
+                    }
+                    sequ_new.append(node1)
+                yaml.dump({'specificCamPars': sequ_new}, stream=fo, Dumper=NoAliasDumper)#, default_flow_style=False)
+
+                #Write last part of yaml file
+                with open(conf_file, 'r') as fi:
+                    li1 = fi.readline()
+                    line1_found = False
+                    line2_found = False
+                    pt = -1
+                    pos_list = []
+                    list_len = 3
+                    while li1:
+                        lobj = re.search('specificCamPars:', li1)
+                        if lobj:
+                            line1_found = True
+                        elif line1_found:
+                            lobj = re.search('imageOverlap:', li1)
+                            if lobj:
+                                fi.seek(pos_list[(list_len + pt - 2) % list_len])
+                                li1 = fi.readline()
+                                fo.write(li1)
+                                line1_found = False
+                                line2_found = True
+                            else:
+                                if(len(pos_list) < list_len):
+                                    pos_list.append(fi.tell())
+                                    pt = pt + 1
+                                else:
+                                    pt = (pt + 1) % list_len
+                                    pos_list[pt] = fi.tell()
+                        elif line2_found:
+                            fo.write(li1)
+                        li1 = fi.readline()
+            os.remove(conf_file)
+            os.rename(conf_file_new, conf_file)
             li = cfi.readline()
 
+class NoAliasDumper(yaml.Dumper):
+    def ignore_aliases(self, data):
+        return True
+
+    def increase_indent(self, flow=False, sequence=None, indentless=False):
+        return super(NoAliasDumper, self).increase_indent(flow, False)
+
+# A yaml representer is for dumping structs into a yaml node.
+# So for an opencv_matrix type (to be compatible with c++'s FileStorage) we save the rows, cols, type and flattened-data
+def opencv_matrix_representer(dumper, mat):
+    if mat.ndim > 1:
+        mapping = {'rows': mat.shape[0], 'cols': mat.shape[1], 'dt': 'd', 'data': mat.reshape(-1).tolist()}
+    else:
+        mapping = {'rows': mat.shape[0], 'cols': 1, 'dt': 'd', 'data': mat.tolist()}
+    return dumper.represent_mapping(u"tag:yaml.org,2002:opencv-matrix", mapping)
+yaml.add_representer(np.ndarray, opencv_matrix_representer)
 
 def main():
     parser = argparse.ArgumentParser(description='Copies all stereo configurations from a generated scene into a config file')
