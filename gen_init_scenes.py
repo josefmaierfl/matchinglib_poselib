@@ -90,7 +90,8 @@ def main():
     parser.add_argument('--store_path', type=str, required=True,
                         help='Storing path for generated scenes and matches')
     parser.add_argument('--message_path', type=str, required=True,
-                        help='Storing path for generated scenes and matches')
+                        help='Storing path for text files containing error and normal mesages during the '
+                             'generation process of scenes and matches')
     args = parser.parse_args()
     if not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding template scene configuration files does not exist')
