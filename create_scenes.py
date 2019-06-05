@@ -2,7 +2,10 @@
 Load configuration files and generate different scenes for testing using multiple CPU cores
 """
 import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas, cv2, time, yaml, subprocess as sp
-from multiprocessing import Pool
+import multiprocessing
+# We must import this explicitly, it is not imported by the top-level
+# multiprocessing module.
+import multiprocessing.pool
 #from tabulate import tabulate as tab
 from copy import deepcopy
 
@@ -13,7 +16,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
     dirsc = []
     with open(dirs_f, 'r') as fi:
         #Load directory holding configuration files
-        confd = fi.readline()
+        confd = fi.readline().rstrip()
         while confd:
             if not os.path.exists(confd):
                 raise ValueError("Directory " + confd + " does not exist.")
@@ -22,7 +25,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
             if not os.path.exists(ovcf):
                 raise ValueError("File " + ovcf + " does not exist.")
             dirsc.append(ovcf)
-            confd = fi.readline()
+            confd = fi.readline().rstrip()
     maxd_parallel = int(len(dirsc) / nr_cpus)
     if maxd_parallel == 0:
         maxd_parallel = 1
@@ -48,7 +51,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
         for i in range(0, int(round((sub_cpus - math.floor(sub_cpus)) * nr_used_cpus))):
             cpus_rest[i] = cpus_rest[i] + 1
     work_items = [(dirscp[x], cpus_rest[x], executable, message_path) for x in range(0, nr_used_cpus)]
-    with Pool(processes=nr_used_cpus) as pool:
+    with MyPool(processes=nr_used_cpus) as pool:
         #results = pool.map(processDir, work_items)
         results = [pool.apply_async(processDir, t) for t in work_items]
         cnt = 0
@@ -71,6 +74,19 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                 except TimeoutError:
                     sys.stdout.write('.')
             cnt = cnt + 1
+
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
 
 def processDir(dirs_list, cpus_rest, executable, message_path):
     for ovcf in dirs_list:
@@ -121,7 +137,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                          '--store_path', row['store_path'],
                          '--conf_file', row['conf_file']], int(row['parSetNr']), mess_new))
 
-        with Pool(processes=nr_used_cpus1) as pool:
+        with multiprocessing.Pool(processes=nr_used_cpus1) as pool:
             results = [pool.apply_async(processSequences, t) for t in cmds]
             res1 = []
             cnt = 0
@@ -238,7 +254,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                 maxd_parallel2 = 1
             nr_used_cpus2 = int(len(cmds_m) / maxd_parallel2)
 
-            with Pool(processes=nr_used_cpus2) as pool:
+            with multiprocessing.Pool(processes=nr_used_cpus2) as pool:
                 results = [pool.apply_async(processSequences, t) for t in cmds_m]
                 res2 = []
                 cnt = 0
@@ -509,7 +525,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate multiple scenes and matches from configuration files')
     parser.add_argument('--path', type=str, required=True,
                         help='Directory holding file \'generated_dirs_config.txt\'')
-    parser.add_argument('--nrCPUs', type=int, nargs=1, required=False, default=4,
+    parser.add_argument('--nrCPUs', type=int, required=False, default=4,
                         help='Number of CPU cores for parallel processing. If a negative value is provided, '
                              'the program tries to find the number of available CPUs on the system - if it fails, '
                              'the absolute value of nrCPUs is used. Default: 4')

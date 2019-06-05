@@ -36,7 +36,7 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path,
         datac['store_path'].append(store_path)
         datac['scene_exists'].append(0)
         datac['load_path'].append(load_path)
-        datac['parSetNr'].append(-1)
+        datac['parSetNr'].append(cnt)
 
         for acc in np.arange(kpAccRange[0] + kpAccRange[2], kpAccRange[1] + kpAccRange[2], kpAccRange[2]):
             #fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % acc
