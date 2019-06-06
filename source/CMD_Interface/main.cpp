@@ -449,7 +449,7 @@ int startEvaluation(ArgvParser& cmd)
                               addPars.verbose);
             if(!sequ.generateMatches()){
                 cerr << "Unable to generate matches." << endl;
-                return -1;
+                return -3;
             }
 		}else {
             std::vector<cv::Mat> Rv, tv;
@@ -462,7 +462,7 @@ int startEvaluation(ArgvParser& cmd)
                 K_1,
                 K_2)){
 		        cerr << "Unable to calculate extrinsics." << endl;
-		        return -1;
+		        return -2;
 		    }
 		    if(!genSequenceConfig(addPars, stereoPars, sequPars)){
                 cerr << "Unable to generate a sequence." << endl;
@@ -488,14 +488,14 @@ int startEvaluation(ArgvParser& cmd)
                                   addPars.verbose);
                 if(!sequ.generateMatches()){
                     cerr << "Failed to calculate matches!" << endl;
-                    return -1;
+                    return -3;
                 }
             }catch(exception &e){
 		        cerr << "Exception: " << e.what() << endl;
-		        return -1;
+		        return -3;
 		    }catch(...){
 		        cerr << "Unknown exception." << endl;
-		        return -1;
+		        return -3;
 		    }
 		}
 	}
@@ -2843,7 +2843,13 @@ int main( int argc, char* argv[])
 	SetupCommandlineParser(cmd, argc, argv);
 	int err = startEvaluation(cmd);
 	if(err){
-		return EXIT_FAILURE;
+	    if(err == -2){
+	        return 2;
+	    }else if (err == -3){
+	        return 3;
+	    }else {
+            return EXIT_FAILURE;
+        }
 	}
 
 	return EXIT_SUCCESS;

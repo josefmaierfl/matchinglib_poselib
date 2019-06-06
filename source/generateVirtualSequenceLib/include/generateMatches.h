@@ -84,7 +84,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
         keypErrDistr.second = abs(keypErrDistr.second);
         if(!(keypPosErrType || (!keypPosErrType && (keypErrDistr.first < 5.0) &&
                                      (keypErrDistr.second < 5.0)
-                                     && (keypErrDistr.first + 3.0 * keypErrDistr.second < 10.0)))){
+                                     && (keypErrDistr.first + 3.0 * keypErrDistr.second < 15.0)))){
             std::cerr << "Invalid keypErrDistr." << std::endl;
             return false;
         }
