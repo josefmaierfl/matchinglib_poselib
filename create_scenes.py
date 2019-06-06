@@ -1,18 +1,33 @@
 """
 Load configuration files and generate different scenes for testing using multiple CPU cores
 """
-import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas, cv2, time, yaml, subprocess as sp
+import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas, cv2, time, subprocess as sp
+import ruamel.yaml as yaml
 import multiprocessing
+import warnings
 # We must import this explicitly, it is not imported by the top-level
 # multiprocessing module.
 import multiprocessing.pool
 #from tabulate import tabulate as tab
 from copy import deepcopy
 
+def opencv_matrix_constructor(loader, node):
+    mapping = loader.construct_mapping(node, deep=True)
+    mat = np.array(mapping["data"])
+    mat.resize(mapping["rows"], mapping["cols"])
+    return mat
+yaml.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matrix_constructor)
+yaml.SafeLoader.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matrix_constructor)
+
+warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
+
 def genScenes(input_path, executable, nr_cpus, message_path):
     dirs_f = os.path.join(input_path, 'generated_dirs_config.txt')
     if not os.path.exists(dirs_f):
         raise ValueError("Unable to load " + dirs_f)
+
+    #data = readOpenCVYaml('/home/maierj/work/Sequence_Test/Test_load_save/USAC/usac_kp-distr-1corn_depth-NMF_TP-500/sequInfos.yaml')
+
     dirsc = []
     with open(dirs_f, 'r') as fi:
         #Load directory holding configuration files
@@ -29,7 +44,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
     maxd_parallel = int(len(dirsc) / nr_cpus)
     if maxd_parallel == 0:
         maxd_parallel = 1
-    nr_used_cpus = int(len(dirsc) / maxd_parallel)
+    nr_used_cpus = min(int(len(dirsc) / maxd_parallel), nr_cpus)
     dirscp = []
     rest = len(dirsc) - nr_used_cpus * maxd_parallel
     cr = 0
@@ -71,9 +86,17 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                     print('\n'.join(work_items[cnt][0]))
                     print('\n')
                     break
-                except TimeoutError:
+                except multiprocessing.TimeoutError:
                     sys.stdout.write('.')
+                except:
+                    print('Unknown exception in processing directories.')
+                    e = sys.exc_info()
+                    print(str(e))
+                    sys.stdout.flush()
+                    break
             cnt = cnt + 1
+        pool.close()
+        pool.join()
 
 class NoDaemonProcess(multiprocessing.Process):
     # make 'daemon' attribute always return False
@@ -105,7 +128,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
         maxd_parallel1 = int(c_sequ.shape[0] / cpus_rest)
         if maxd_parallel1 == 0:
             maxd_parallel1 = 1
-        nr_used_cpus1 = int(c_sequ.shape[0] / maxd_parallel1)
+        nr_used_cpus1 = min(int(c_sequ.shape[0] / maxd_parallel1), cpus_rest)
 
         #Generate unique path for storing messages
         dirn = os.path.dirname(ovcf)
@@ -135,7 +158,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                          '--img_path', row['img_path'],
                          '--img_pref', row['img_pref'],
                          '--store_path', row['store_path'],
-                         '--conf_file', row['conf_file']], int(row['parSetNr']), mess_new))
+                         '--conf_file', row['conf_file']], int(row['parSetNr']), mess_new, nr_used_cpus1))
 
         with multiprocessing.Pool(processes=nr_used_cpus1) as pool:
             results = [pool.apply_async(processSequences, t) for t in cmds]
@@ -185,8 +208,11 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                         sys.stdout.flush()
                         pool.terminate()
                         break
-                else:
-                    print('Unknown exception.')
+                except:
+                    print('Unknown exception in processing single sequences.')
+                    e = sys.exc_info()
+                    print(str(e))
+                    sys.stdout.flush()
                     # Check if the overview file contains the parameters
                     ov_file = os.path.join(cmds[cnt][0][6], 'sequInfos.yaml')
                     if searchParSetNr(ov_file, cmds[cnt][1]):
@@ -204,59 +230,81 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
         cmds_m = []
         res1_2 = []
         if res1:
-            res1_parsetnr = [nr for nr in res1 if not len(nr) == 1][:][1]
-            cnt_m = 1
-            notSuccSequ = []
-            for index, row in c_match.iterrows():
-                if not os.path.exists(row['conf_file']):
-                    raise ValueError("Configuration file " + row['conf_file'] + " does not exist.")
-                if not os.path.exists(row['store_path']):
-                    raise ValueError("Save path " + row['store_path'] + " does not exist.")
-                if int(row['parSetNr']) in res1_parsetnr:
-                    ovs_f = os.path.join(row['load_path'], 'sequInfos.yaml')
-                    if not os.path.exists(ovs_f):
-                        raise ValueError("Sequence overview file " + ovs_f + " does not exist.")
-                    data = readOpenCVYaml(ovs_f)
-                    if data:
-                        data_set = data['parSetNr' + str(int(row['parSetNr']))]
-                        if data_set:
-                            sub_path = data_set['hashSequencePars']
-                            if sub_path:
-                                sub_path = str(sub_path)
+            res1_parsetnr = [nr for nr in res1 if not len(nr) == 1]
+            if res1_parsetnr:
+                res1_parsetnr_tmp = []
+                for i in res1_parsetnr:
+                    res1_parsetnr_tmp.append(i[1])
+                res1_parsetnr = res1_parsetnr_tmp
+                cnt_m = 1
+                notSuccSequ = []
+                for index, row in c_match.iterrows():
+                    if not os.path.exists(row['conf_file']):
+                        raise ValueError("Configuration file " + row['conf_file'] + " does not exist.")
+                    if not os.path.exists(row['store_path']):
+                        raise ValueError("Save path " + row['store_path'] + " does not exist.")
+                    if int(row['parSetNr']) in res1_parsetnr:
+                        ovs_f = os.path.join(row['load_path'], 'sequInfos.yaml')
+                        if not os.path.exists(ovs_f):
+                            raise ValueError("Sequence overview file " + ovs_f + " does not exist.")
+                        try:
+                            data = readOpenCVYaml(ovs_f)
+                        except:
+                            raise ValueError("Unable to read yaml file " + ovs_f)
+                        if data:
+                            try:
+                                data_set = data['parSetNr' + str(int(row['parSetNr']))]
+                            except:
+                                raise ValueError("Unable to locate parSetNr" + str(int(row['parSetNr']))
+                                                 + " in yaml file " + ovs_f)
+                            if data_set:
+                                try:
+                                    sub_path = data_set['hashSequencePars']
+                                except:
+                                    raise ValueError("Unable to read sequence path from yaml file " + ovs_f)
+                                if sub_path:
+                                    sub_path = str(sub_path)
+                                else:
+                                    raise ValueError("Unable to read sequence path from yaml file " + ovs_f)
                             else:
-                                raise ValueError("Unable to read sequence path from yaml file " + ovs_f)
+                                raise ValueError("Unable to locate parSetNr" + str(int(row['parSetNr']))
+                                                 + " in yaml file " + ovs_f)
                         else:
-                            raise ValueError("Unable to locate parSetNr" + str(int(row['parSetNr']))
-                                             + " in yaml file " + ovs_f)
+                            raise ValueError("Unable to read yaml file " + ovs_f)
+                        load_path = os.path.join(row['load_path'], sub_path)
+                        if not os.path.exists(load_path):
+                            raise ValueError("Sequence path " + load_path + " does not exist.")
+                        cmds_m.append(([executable,
+                                        '--img_path', row['img_path'],
+                                        '--img_pref', row['img_pref'],
+                                        '--store_path', '*',
+                                        '--conf_file', row['conf_file'],
+                                        '--load_folder', load_path], int(cnt_m), mess_new, 0, True))
+                        cnt_m = cnt_m + 1
                     else:
-                        raise ValueError("Unable to read yaml file " + ovs_f)
-                    load_path = os.path.join(row['load_path'], sub_path)
-                    if not os.path.exists(load_path):
-                        raise ValueError("Sequence path " + load_path + " does not exist.")
-                    cmds_m.append(([executable,
-                                    '--img_path', row['img_path'],
-                                    '--img_pref', row['img_pref'],
-                                    '--store_path', row['*'],
-                                    '--conf_file', row['conf_file'],
-                                    '--load_folder', load_path], int(cnt_m), mess_new, True))
-                    cnt_m = cnt_m + 1
-                else:
-                    notSuccSequ.append(int(row['parSetNr']))
-            if notSuccSequ:
-                notSuccSequ = list(dict.fromkeys(notSuccSequ)) #Removes duplicates
-                for i in notSuccSequ:
-                    res1_2.append('Not able to generate matches for sequence with parSetNr'
-                                   + str(i) + ' as the sequence was probably not generated.')
+                        notSuccSequ.append(int(row['parSetNr']))
+                if notSuccSequ:
+                    notSuccSequ = list(dict.fromkeys(notSuccSequ)) #Removes duplicates
+                    for i in notSuccSequ:
+                        res1_2.append('Not able to generate matches for sequence with parSetNr'
+                                       + str(i) + ' as the sequence was probably not generated.')
 
+        res2 = []
         if cmds_m:
             maxd_parallel2 = int(len(cmds_m) / cpus_rest)
             if maxd_parallel2 == 0:
                 maxd_parallel2 = 1
-            nr_used_cpus2 = int(len(cmds_m) / maxd_parallel2)
+            nr_used_cpus2 = min(int(len(cmds_m) / maxd_parallel2), cpus_rest)
+
+            cmds_tmp = []
+            for t in cmds_m:
+                lst = list(t)
+                lst[3] = nr_used_cpus2
+                cmds_tmp.append(tuple(lst))
+            cmds_m = cmds_tmp
 
             with multiprocessing.Pool(processes=nr_used_cpus2) as pool:
                 results = [pool.apply_async(processSequences, t) for t in cmds_m]
-                res2 = []
                 cnt = 0
                 for r in results:
                     try:
@@ -285,8 +333,10 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                         print('Generation of matches failed due to timeout.')
                         sys.stdout.flush()
                         res2.append(['Failed (timeout) to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
-                    else:
-                        print('Unknown exception.')
+                    except:
+                        print('Unknown exception in generating matches only.')
+                        e = sys.exc_info()
+                        print(str(e))
                         sys.stdout.flush()
                         res2.append(['Failed (Unknown exception) to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
                     cnt = cnt + 1
@@ -313,10 +363,11 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                                 res2_tmp.append('parSetNr' + str(r1))
                         res1_tmp.append('\n'.join(res2_tmp))
                 fo.write('\n\n'.join(res1_tmp))
-                fo.write('\n\n')
                 if res1_2:
+                    fo.write('\n\n')
                     fo.write('\n'.join(res1_2))
                 if res2:
+                    fo.write('\n\n')
                     res1_tmp = []
                     for r in res2:
                         if len(r) == 1:
@@ -371,7 +422,10 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
 def searchParSetNr(ov_file, parSetNr):
     # Check if the overview file contains the parameters
     if os.path.exists(ov_file):
-        data = readOpenCVYaml(ov_file)
+        try:
+            data = readOpenCVYaml(ov_file)
+        except:
+            return False
         if data:
             data_set = data['parSetNr' + str(parSetNr)]
             if data_set:
@@ -384,7 +438,7 @@ def searchParSetNr(ov_file, parSetNr):
         print('File with overview parameters not found after timeout.')
     return False
 
-def processSequences(cmd_l, parSetNr, message_path, loaded = False):
+def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
     #Check if we have to wait until other sequence generation processes have finished writing into the overview file
     if loaded:
         ov_file = os.path.join(cmd_l[10], 'matchInfos.yaml')
@@ -392,35 +446,65 @@ def processSequences(cmd_l, parSetNr, message_path, loaded = False):
         ov_file = os.path.join(cmd_l[6], 'sequInfos.yaml')
     if parSetNr != 0:
         if loaded and parSetNr > 1:
-            time.sleep(float((parSetNr - 1) * 10))
+            time.sleep(float(min(used_cpus, (parSetNr - 1)) * 10))
         else:
-            time.sleep(float(parSetNr * 10))
+            time.sleep(float(min(parSetNr, used_cpus) * 10))
         cnt = 0
         while not os.path.exists(ov_file) and cnt < 20 and not loaded:
             time.sleep(10)
             cnt = cnt + 1
         if not os.path.exists(ov_file):
             return ['noExe']
-        data = readOpenCVYaml(ov_file)
+        try:
+            data = readOpenCVYaml(ov_file)
+        except:
+            raise BaseException
         cnt = 0
         while not data and cnt < 20 and not loaded:
             time.sleep(1)
-            data = readOpenCVYaml(ov_file)
+            try:
+                data = readOpenCVYaml(ov_file)
+            except:
+                raise BaseException
             cnt = cnt + 1
         if not data:
             return ['noExe']
-        data_set = data['parSetNr' + str(int(parSetNr - 1))]
-        cnt = 0
-        while not data_set and cnt < (15 + (parSetNr - 1) * 15):
-            time.sleep(10)
-            data = readOpenCVYaml(ov_file)
-            data_set = data['parSetNr' + str(int(parSetNr - 1))]
-            cnt = cnt + 1
-        if not data_set and not loaded:
-            return ['noExe']
-        elif loaded:
-            #Wait for a few more seconds and start the calculation anyway
-            time.sleep(10)
+        cnt1 = 0
+        data_set = None
+        cnt1max = 15 + min(used_cpus, (parSetNr - 1)) * 15
+        while cnt1 < cnt1max:
+            try:
+                data_set = data['parSetNr' + str(int(parSetNr - 1))]
+                break
+            except:
+                cnt1 = cnt1 + 1
+                if cnt1 < cnt1max:
+                    time.sleep(10)
+                    try:
+                        data = readOpenCVYaml(ov_file)
+                    except:
+                        raise BaseException
+                    continue
+                elif loaded:
+                    time.sleep(10)
+                    break
+                # print('Exception during reading yaml entry.')
+                # e = sys.exc_info()
+                # print(str(e))
+                # sys.stdout.flush()
+                # raise BaseException
+                return ['noExe']
+        # cnt = 0
+        # while not data_set and cnt < cnt1max:
+        #     time.sleep(10)
+        #     data = readOpenCVYaml(ov_file)
+        #     data_set = data['parSetNr' + str(int(parSetNr - 1))]
+        #     cnt = cnt + 1
+        # if not data_set and not loaded:
+        #     return ['noExe']
+        # elif loaded:
+        #     #Wait for a few more seconds and start the calculation anyway
+        #     time.sleep(10)
     elif os.path.exists(ov_file):
         raise FileExistsError
 
@@ -510,15 +594,19 @@ def readOpenCVYaml(file):
     with open(file, 'r') as fi:
         data = fi.readlines()
     data = [line for line in data if line[0] is not '%']
-    data = yaml.safe_load("\n".join(data))
+    try:
+        data = yaml.load_all("\n".join(data))
+        data1 = {}
+        for d in data:
+            data1.update(d)
+        data = data1
+    except:
+        print('Exception during reading yaml.')
+        e = sys.exc_info()
+        print(str(e))
+        sys.stdout.flush()
+        raise BaseException
     return data
-
-def opencv_matrix_constructor(loader, node):
-    mapping = loader.construct_mapping(node, deep=True)
-    mat = np.array(mapping["data"])
-    mat.resize(mapping["rows"], mapping["cols"])
-    return mat
-yaml.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matrix_constructor)
 
 
 def main():
