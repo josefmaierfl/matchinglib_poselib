@@ -66,6 +66,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
         for i in range(0, int(round((sub_cpus - math.floor(sub_cpus)) * nr_used_cpus))):
             cpus_rest[i] = cpus_rest[i] + 1
     work_items = [(dirscp[x], cpus_rest[x], executable, message_path) for x in range(0, nr_used_cpus)]
+    cnt_dot = 0
     with MyPool(processes=nr_used_cpus) as pool:
         #results = pool.map(processDir, work_items)
         results = [pool.apply_async(processDir, t) for t in work_items]
@@ -75,11 +76,13 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                 sys.stdout.flush()
                 try:
                     r.get(2.0)
+                    print()
                     print('Finished the following directories:')
                     print('\n'.join(work_items[cnt][0]))
                     print('\n')
                     break
                 except ValueError as e:
+                    print()
                     print('Exception during processing a folder with multiple configuration files:')
                     print(str(e))
                     print('Some of the following directories might be not processed completely:')
@@ -87,8 +90,13 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                     print('\n')
                     break
                 except multiprocessing.TimeoutError:
+                    if cnt_dot >= 90:
+                        print()
+                        cnt_dot = 0
                     sys.stdout.write('.')
+                    cnt_dot = cnt_dot + 1
                 except:
+                    print()
                     print('Unknown exception in processing directories.')
                     e = sys.exc_info()
                     print(str(e))
@@ -123,6 +131,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
         #Split entries into tasks for generating initial sequences and matches only
         c_sequ = cf.loc[cf['scene_exists'] == 0]
         c_match = cf.loc[cf['scene_exists'] == 1]
+        c_match.sort_values('parSetNr')
 
         #Calculate sequences first using multiple CPUs
         maxd_parallel1 = int(c_sequ.shape[0] / cpus_rest)
@@ -238,7 +247,15 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                 res1_parsetnr = res1_parsetnr_tmp
                 cnt_m = 1
                 notSuccSequ = []
+                parSetNr_sv = -1
                 for index, row in c_match.iterrows():
+                    if parSetNr_sv == -1:
+                        parSetNr_sv = int(row['parSetNr'])
+                    elif parSetNr_sv == int(row['parSetNr']):
+                        cnt_m = cnt_m + 1
+                    else:
+                        cnt_m = 1
+                        parSetNr_sv = int(row['parSetNr'])
                     if not os.path.exists(row['conf_file']):
                         raise ValueError("Configuration file " + row['conf_file'] + " does not exist.")
                     if not os.path.exists(row['store_path']):
@@ -279,8 +296,8 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                                         '--img_pref', row['img_pref'],
                                         '--store_path', '*',
                                         '--conf_file', row['conf_file'],
-                                        '--load_folder', load_path], int(cnt_m), mess_new, 0, True))
-                        cnt_m = cnt_m + 1
+                                        '--load_folder', load_path], int(cnt_m), mess_new, cpus_rest, True))
+                        #cnt_m = cnt_m + 1
                     else:
                         notSuccSequ.append(int(row['parSetNr']))
                 if notSuccSequ:
@@ -291,19 +308,19 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
 
         res2 = []
         if cmds_m:
-            maxd_parallel2 = int(len(cmds_m) / cpus_rest)
-            if maxd_parallel2 == 0:
-                maxd_parallel2 = 1
-            nr_used_cpus2 = min(int(len(cmds_m) / maxd_parallel2), cpus_rest)
+            # maxd_parallel2 = int(len(cmds_m) / cpus_rest)
+            # if maxd_parallel2 == 0:
+            #     maxd_parallel2 = 1
+            # nr_used_cpus2 = min(int(len(cmds_m) / maxd_parallel2), cpus_rest)
+            #
+            # cmds_tmp = []
+            # for t in cmds_m:
+            #     lst = list(t)
+            #     lst[3] = nr_used_cpus2
+            #     cmds_tmp.append(tuple(lst))
+            # cmds_m = cmds_tmp
 
-            cmds_tmp = []
-            for t in cmds_m:
-                lst = list(t)
-                lst[3] = nr_used_cpus2
-                cmds_tmp.append(tuple(lst))
-            cmds_m = cmds_tmp
-
-            with multiprocessing.Pool(processes=nr_used_cpus2) as pool:
+            with multiprocessing.Pool(processes=cpus_rest) as pool:
                 results = [pool.apply_async(processSequences, t) for t in cmds_m]
                 cnt = 0
                 for r in results:
@@ -477,6 +494,8 @@ def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
                 data_set = data['parSetNr' + str(int(parSetNr - 1))]
                 break
             except:
+                # if loaded:
+                #     print('Waiting for parSetNr ', int(parSetNr - 1))
                 cnt1 = cnt1 + 1
                 if cnt1 < cnt1max:
                     time.sleep(10)
