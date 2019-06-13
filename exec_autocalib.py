@@ -94,10 +94,12 @@ def main():
                              'the parameter sweep can be entered. If the last value or 1 additional value is equal '
                              '-13, refineRT is not disabled if BART is disabled and vice versa. '
                              'If more than 2 values are present, the first 2 can be used to pass to option '
-                             'refineRT_stereo, if refineRT_stereo is not provided.')
+                             'refineRT_stereo, if refineRT_stereo is not provided. '
+                             'For sub-parameters where no sweep should be performed, the corresponding value '
+                             'within the first 2 values is selected.')
     parser.add_argument('--BART', type=int, nargs='+', required=False, default=[0],
                         help='If provided, the first value specifies the option BART and the optional second value '
-                             '(range 0-1) specifies if a parameter sweep should be performed. '
+                             ' (its value does not matter) specifies if a parameter sweep should be performed. '
                              'If 2 values are present, the first one can be used to pass to option '
                              'BART_stereo, if BART_stereo is not provided.')
     parser.add_argument('--RobMethod', type=str, nargs='+', required=False, default=['USAC'],
@@ -107,7 +109,8 @@ def main():
                              'provided (value range 0-1), they specify, if the 6 options should be varied. '
                              'If another 6 values are provided, option values that should not be used during '
                              'the parameter sweep can be entered. '
-                             'If more than 6 values are present, the first 6 are ignored.')
+                             'For sub-parameters where no sweep should be performed, the corresponding value '
+                             'within the first 6 values is selected.')
     parser.add_argument('--USACInlratFilt', type=int, required=True,
                         help='If the specified value is >=0 and <2, the given filter (0 = GMS, 1 = VFC) is used. '
                              'For a value >=2, a parameter sweep is performed on the possible inputs.')
@@ -221,8 +224,11 @@ def main():
         cmds.append(['--refineSOF'])
     if args.refineGMS:
         cmds.append(['--refineGMS'])
+
     if len(args.refineRT) < 2 or len(args.refineRT) > 7:
         raise ValueError('Wrong number of arguments for refineRT')
+    bartrefRTdis = False
+    refineRT_tmp = None
     if len(args.refineRT) == 2:
         if args.refineRT[0] < 0 or args.refineRT[0] > 6:
             raise ValueError('First value for refineRT out of range')
@@ -236,7 +242,7 @@ def main():
             cmds.append(['--refineRT', ''.join(map(str, args.refineRT))])
     elif len(args.refineRT) > 3:
         missdig = [-1, -1]
-        bartrefRTdis = False
+        itdig2 = True
         if args.refineRT[-1] == -13:
             bartrefRTdis = True
         if len(args.refineRT) > 5:
@@ -251,21 +257,194 @@ def main():
             if args.refineRT[0] < 0 or args.refineRT[0] > 6:
                 raise ValueError('First value for refineRT out of range')
             refineRT_tmp = [[args.refineRT[0]]]
-        if args.refineRT[3] > 0:
+            if args.refineRT[0] == 0:
+                itdig2 = False
+        if args.refineRT[3] > 0 and itdig2:
             refineRT_tmp1 = deepcopy(refineRT_tmp)
-            refineRT_tmp = []
+            refineRT_tmp = [[0, 0]]
             for i in range(0, 3):
                 if i != missdig[1]:
                     for j in refineRT_tmp1:
-                        refineRT_tmp.append([j[0], i])
+                        if j[0] != 0:
+                            refineRT_tmp.append([j[0], i])
+        elif not itdig2:
+            refineRT_tmp[0].append(0)
         else:
             if args.refineRT[1] < 0 or args.refineRT[1] > 2:
                 raise ValueError('Second value for refineRT out of range')
             for j in refineRT_tmp:
                 j.append(args.refineRT[1])
+    else:
+        raise ValueError('Wrong number of arguments for refineRT')
+
+    if len(args.BART) > 2:
+        raise ValueError('Wrong number of arguments for BART')
+    ref_bart = []
+    if len(args.BART) == 1:
+        if args.BART[0] == 0 and bartrefRTdis:
+            raise ValueError('Bundle adjustment is disabled but it was specified in refineRT that it is not allowed to '
+                             'be disabled if refineRT is disabled.')
+        if refineRT_tmp:
+            for it in refineRT_tmp:
+                ref_bart.append(['--refineRT', ''.join(map(str, it)), '--BART', str(args.BART[0])])
+        else:
+            ref_bart = [['--BART', str(args.BART[0])]]
+    else:
+        if not refineRT_tmp:
+            ref_bart = [['--BART', str(i)] for i in range(0, 3)]
+        else:
+            for it in refineRT_tmp:
+                for i in range(0, 3):
+                    if not bartrefRTdis or not (i == 0 and it[0] == 0 and bartrefRTdis):
+                        ref_bart.append(['--refineRT', ''.join(map(str, it)), '--BART', str(i)])
+    if not cmds:
+        cmds = ref_bart
+    else:
+        cmds_rb = deepcopy(cmds)
+        cmds = []
+        for it in cmds_rb:
+            for it1 in ref_bart:
+                cmds.append(it + it1)
+
+    if len(args.RobMethod) == 1:
+        if args.RobMethod[0] != 'USAC' and args.RobMethod[0] != 'RANSAC':
+            raise ValueError('Wrong argument for RobMethod')
+        for it in cmds:
+            it.extend(['--RobMethod', args.RobMethod[0]])
+    else:
+        cmds_rob = deepcopy(cmds)
+        cmds = []
+        for it in cmds_rob:
+            for it1 in args.RobMethod:
+                if it1 != 'USAC' and it1 != 'RANSAC':
+                    raise ValueError('Wrong arguments for RobMethod')
+                cmds.append(it + ['--RobMethod', it1])
+
+    if len(args.cfgUSAC) < 6 or len(args.cfgUSAC) > 18:
+        raise ValueError('Wrong number of arguments for cfgUSAC')
+    cfgUSAC_tmp = None
+    if len(args.cfgUSAC) == 6:
+        if args.cfgUSAC[0] < 0 or args.cfgUSAC[0] > 3:
+            raise ValueError('First value for cfgUSAC out of range')
+        if args.cfgUSAC[1] < 0 or args.cfgUSAC[1] > 1:
+            raise ValueError('Second value for cfgUSAC out of range')
+        if args.cfgUSAC[2] < 0 or args.cfgUSAC[2] > 1:
+            raise ValueError('Third value for cfgUSAC out of range')
+        if args.cfgUSAC[3] < 0 or args.cfgUSAC[3] > 2:
+            raise ValueError('4th value for cfgUSAC out of range')
+        if args.cfgUSAC[4] < 0 or args.cfgUSAC[4] > 2:
+            raise ValueError('5th value for cfgUSAC out of range')
+        if args.cfgUSAC[5] < 0 or args.cfgUSAC[5] > 7:
+            raise ValueError('6th value for cfgUSAC out of range')
+        for it in cmds:
+            it.extend(['--cfgUSAC', ''.join(map(str, args.cfgUSAC))])
+    elif len(args.cfgUSAC) > 6:
+        missdig = [-1] * 6
+        if len(args.cfgUSAC) == 18:
+            if args.cfgUSAC[12] >= 0 and args.cfgUSAC[12] < 4:
+                missdig[0] = args.cfgUSAC[12]
+            if args.cfgUSAC[13] >= 0 and args.cfgUSAC[13] < 2:
+                missdig[1] = args.cfgUSAC[13]
+            if args.cfgUSAC[14] >= 0 and args.cfgUSAC[14] < 2:
+                missdig[2] = args.cfgUSAC[14]
+            if args.cfgUSAC[15] >= 0 and args.cfgUSAC[15] < 3:
+                missdig[3] = args.cfgUSAC[15]
+            if args.cfgUSAC[16] >= 0 and args.cfgUSAC[16] < 3:
+                missdig[4] = args.cfgUSAC[16]
+            if args.cfgUSAC[17] >= 0 and args.cfgUSAC[17] < 8:
+                missdig[5] = args.cfgUSAC[17]
+        elif len(args.cfgUSAC) != 12:
+            raise ValueError('Wrong number of arguments for cfgUSAC')
+        if args.cfgUSAC[6] > 0:
+            cfgUSAC_tmp = [[i] for i in range(0,4) if i != missdig[0]]
+        else:
+            if args.cfgUSAC[0] < 0 or args.cfgUSAC[0] > 3:
+                raise ValueError('First value for cfgUSAC out of range')
+            cfgUSAC_tmp = [[args.cfgUSAC[0]]]
+        cfgUSAC_tmp = appUSAC(cfgUSAC_tmp, args.cfgUSAC, 7, 'Second', 1, missdig)
+        cfgUSAC_tmp = appUSAC(cfgUSAC_tmp, args.cfgUSAC, 8, 'Third', 1, missdig)
+        cfgUSAC_tmp = appUSAC(cfgUSAC_tmp, args.cfgUSAC, 9, '4th', 2, missdig)
+        cfgUSAC_tmp = appUSAC(cfgUSAC_tmp, args.cfgUSAC, 10, '5th', 2, missdig)
+        cfgUSAC_tmp = appUSAC(cfgUSAC_tmp, args.cfgUSAC, 11, '6th', 7, missdig)
+        cmds_usac = deepcopy(cmds)
+        cmds = []
+        for it in cmds_usac:
+            for it1 in cfgUSAC_tmp:
+                cmds.append(it + ['--cfgUSAC', ''.join(map(str, it1))])
+    else:
+        raise ValueError('Wrong number of arguments for cfgUSAC')
+
+    if args.USACInlratFilt < 0:
+        raise ValueError('Wrong number of arguments for USACInlratFilt')
+    if args.USACInlratFilt < 2:
+        for it in cmds:
+            if args.USACInlratFilt == 0:
+                if '--refineGMS' in it:
+                    raise ValueError('Cannot use GMS filter within USAC if the filter was used on the input data')
+                if args.USACInlratFilt == 1:
+                    if '--refineVFC' in it:
+                        raise ValueError('Cannot use VFC filter within USAC if the filter was used on the input data')
+            it.extend(['--USACInlratFilt', str(args.USACInlratFilt)])
+    else:
+        cmds_usac = deepcopy(cmds)
+        cmds = []
+        for it in cmds_usac:
+            if '--refineGMS' in it:
+                raise ValueError('Cannot use GMS filter within USAC if the filter was used on the input data')
+            if '--refineVFC' in it:
+                raise ValueError('Cannot use VFC filter within USAC if the filter was used on the input data')
+            for i in range(2):
+                cmds.append(it + ['--USACInlratFilt', str(i)])
+
+    if len(args.th) == 1:
+        for it in cmds:
+            it.extend(['--th', str(args.th[0])])
+    elif len(args.th) == 3:
+        if (args.th[0] > args.th[1]) or \
+            (args.th[2] > (args.th[1] - args.th[0])):
+            raise ValueError("Parameters 1-3 (option th) must have the following format: "
+                             "range_min range_max step_size")
+        if not float((args.th[1] - args.th[0]) / args.th[2]).is_integer():
+            raise ValueError("Threshold (option th) step size is wrong")
+        cmds_th = deepcopy(cmds)
+        cmds = []
+        for it in cmds_th:
+            for th in np.arange(args.th[0], args.th[1] + args.th[2], args.th[2]):
+                cmds.append(it + ['--th', str(th)])
+    else:
+        raise ValueError('Wrong number of arguments for th')
+
+    if args.stereoRef:
+        for it in cmds:
+            it.append('--stereoRef')
+
+    if not args.refineRT_stereo and args.stereoRef:
+        if args.refineRT[0] < 0 or args.refineRT[0] > 6:
+            raise ValueError('First value for refineRT out of range')
+        if args.refineRT[1] < 0 or args.refineRT[1] > 2:
+            raise ValueError('Second value for refineRT out of range')
+        for it in cmds:
+            it.append('--refineRT_stereo')
+            it.append(''.join(map(str, args.refineRT[0:2])))
+    elif args.refineRT_stereo:
 
 
     return autocalib(args.path, args.executable, cpu_use, args.message_path)
+
+def appUSAC(reslist, cfgUSAC, idx, errstr, maxv, missdig):
+    if cfgUSAC[idx] > 0:
+        cfgUSAC_tmp1 = deepcopy(reslist)
+        reslist = []
+        for i in range(maxv + 1):
+            if i != missdig[idx - 6]:
+                for it in cfgUSAC_tmp1:
+                    reslist.append(it + [i])
+    else:
+        if cfgUSAC[idx - 6] < 0 or cfgUSAC[idx - 6] > maxv:
+            raise ValueError(errstr + ' value for cfgUSAC out of range')
+        for it in reslist:
+            it.append(cfgUSAC[idx - 6])
+    return reslist
 
 if __name__ == "__main__":
     main()
