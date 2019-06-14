@@ -169,8 +169,8 @@ def main():
                         help='If only 1 value is provided, this specific value is used. If 3 values '
                              'are provided, a range can be specified: Format: min max step_size')
     parser.add_argument('--useRANSAC_fewMatches', type=bool, nargs='?', required=False, default=False, const=True,
-                        help='If provided, correspondence aggregation is performed. Otherwise, the extrinsics are '
-                             'only calculated based on the data of a single stereo frame.')
+                        help='For stereo refinement: If provided, RANSAC for robust estimation '
+                             'if less than 100 matches are available is used.')
     parser.add_argument('--checkPoolPoseRobust', type=int, nargs='+', required=False,
                         help='If only 1 value is provided, this specific value is used. If 3 values '
                              'are provided, a range can be specified: Format: min max step_size')
@@ -248,8 +248,10 @@ def main():
         if len(args.refineRT) > 5:
             if args.refineRT[5] >= 0 and args.refineRT[5] < 3:
                 missdig[1] = args.refineRT[5]
+            if args.refineRT[4] >= 0 and args.refineRT[4] < 7:
+                missdig[0] = args.refineRT[4]
         elif len(args.refineRT) > 4:
-            if args.refineRT[4] >= 0 and args.refineRT[5] < 7:
+            if args.refineRT[4] >= 0 and args.refineRT[4] < 7:
                 missdig[0] = args.refineRT[4]
         if args.refineRT[2] > 0:
             refineRT_tmp = [[i] for i in range(0,7) if i != missdig[0]]
@@ -281,6 +283,8 @@ def main():
         raise ValueError('Wrong number of arguments for BART')
     ref_bart = []
     if len(args.BART) == 1:
+        if args.BART[0] < 0 or args.BART[0] > 2:
+            raise ValueError('Value for BART out of range')
         if args.BART[0] == 0 and bartrefRTdis:
             raise ValueError('Bundle adjustment is disabled but it was specified in refineRT that it is not allowed to '
                              'be disabled if refineRT is disabled.')
@@ -396,28 +400,14 @@ def main():
             for i in range(2):
                 cmds.append(it + ['--USACInlratFilt', str(i)])
 
-    if len(args.th) == 1:
-        for it in cmds:
-            it.extend(['--th', str(args.th[0])])
-    elif len(args.th) == 3:
-        if (args.th[0] > args.th[1]) or \
-            (args.th[2] > (args.th[1] - args.th[0])):
-            raise ValueError("Parameters 1-3 (option th) must have the following format: "
-                             "range_min range_max step_size")
-        if not float((args.th[1] - args.th[0]) / args.th[2]).is_integer():
-            raise ValueError("Threshold (option th) step size is wrong")
-        cmds_th = deepcopy(cmds)
-        cmds = []
-        for it in cmds_th:
-            for th in np.arange(args.th[0], args.th[1] + args.th[2], args.th[2]):
-                cmds.append(it + ['--th', str(th)])
-    else:
-        raise ValueError('Wrong number of arguments for th')
+    cmds = appRange(cmds, args.th, 'th')
 
     if args.stereoRef:
         for it in cmds:
             it.append('--stereoRef')
 
+    bartrefRTdis = False
+    refineRT_tmp = None
     if not args.refineRT_stereo and args.stereoRef:
         if args.refineRT[0] < 0 or args.refineRT[0] > 6:
             raise ValueError('First value for refineRT out of range')
@@ -427,6 +417,152 @@ def main():
             it.append('--refineRT_stereo')
             it.append(''.join(map(str, args.refineRT[0:2])))
     elif args.refineRT_stereo:
+        if len(args.refineRT_stereo) < 2 or len(args.refineRT_stereo) > 7:
+            raise ValueError('Wrong number of arguments for refineRT_stereo')
+        if len(args.refineRT_stereo) == 2:
+            if args.refineRT_stereo[0] < 0 or args.refineRT_stereo[0] > 6:
+                raise ValueError('First value for refineRT_stereo out of range')
+            if args.refineRT_stereo[1] < 0 or args.refineRT_stereo[1] > 2:
+                raise ValueError('Second value for refineRT_stereo out of range')
+            for it in cmds:
+                it.append('--refineRT_stereo')
+                it.append(''.join(map(str, args.refineRT_stereo)))
+        elif len(args.refineRT_stereo) > 3:
+            missdig = [-1, -1]
+            itdig2 = True
+            if args.refineRT_stereo[-1] == -13:
+                bartrefRTdis = True
+            if len(args.refineRT_stereo) > 5:
+                if args.refineRT_stereo[5] >= 0 and args.refineRT_stereo[5] < 3:
+                    missdig[1] = args.refineRT_stereo[5]
+                if args.refineRT_stereo[4] >= 0 and args.refineRT_stereo[4] < 7:
+                    missdig[0] = args.refineRT_stereo[4]
+            elif len(args.refineRT_stereo) > 4:
+                if args.refineRT_stereo[4] >= 0 and args.refineRT_stereo[4] < 7:
+                    missdig[0] = args.refineRT_stereo[4]
+            if args.refineRT_stereo[2] > 0:
+                refineRT_tmp = [[i] for i in range(0, 7) if i != missdig[0]]
+            else:
+                if args.refineRT_stereo[0] < 0 or args.refineRT_stereo[0] > 6:
+                    raise ValueError('First value for refineRT_stereo out of range')
+                refineRT_tmp = [[args.refineRT_stereo[0]]]
+                if args.refineRT_stereo[0] == 0:
+                    itdig2 = False
+            if args.refineRT_stereo[3] > 0 and itdig2:
+                refineRT_tmp1 = deepcopy(refineRT_tmp)
+                refineRT_tmp = [[0, 0]]
+                for i in range(0, 3):
+                    if i != missdig[1]:
+                        for j in refineRT_tmp1:
+                            if j[0] != 0:
+                                refineRT_tmp.append([j[0], i])
+            elif not itdig2:
+                refineRT_tmp[0].append(0)
+            else:
+                if args.refineRT_stereo[1] < 0 or args.refineRT_stereo[1] > 2:
+                    raise ValueError('Second value for refineRT_stereo out of range')
+                for j in refineRT_tmp:
+                    j.append(args.refineRT_stereo[1])
+        else:
+            raise ValueError('Wrong number of arguments for refineRT_stereo')
+
+    ref_bart = []
+    if not args.BART_stereo and args.stereoRef:
+        if args.BART[0] < 0 or args.BART[0] > 2:
+            raise ValueError('Value for BART out of range')
+        if refineRT_tmp:
+            for it in refineRT_tmp:
+                ref_bart.append(['--refineRT_stereo', ''.join(map(str, it)), '--BART_stereo', str(args.BART[0])])
+        else:
+            ref_bart = [['--BART', str(args.BART[0])]]
+    elif args.BART_stereo:
+        if len(args.BART_stereo) > 2:
+            raise ValueError('Wrong number of arguments for BART_stereo')
+        if len(args.BART_stereo) == 1:
+            if args.BART_stereo[0] < 0 or args.BART_stereo[0] > 2:
+                raise ValueError('Value for BART_stereo out of range')
+            if args.BART_stereo[0] == 0 and bartrefRTdis:
+                raise ValueError('Bundle adjustment is disabled but it was specified in refineRT_stereo that '
+                                 'it is not allowed to be disabled if refineRT_stereo is disabled.')
+            if refineRT_tmp:
+                for it in refineRT_tmp:
+                    ref_bart.append(['--refineRT_stereo',
+                                     ''.join(map(str, it)), '--BART_stereo', str(args.BART_stereo[0])])
+            else:
+                ref_bart = [['--BART_stereo', str(args.BART_stereo[0])]]
+        else:
+            if not refineRT_tmp:
+                ref_bart = [['--BART_stereo', str(i)] for i in range(0, 3)]
+            else:
+                for it in refineRT_tmp:
+                    for i in range(0, 3):
+                        if not bartrefRTdis or not (i == 0 and it[0] == 0 and bartrefRTdis):
+                            ref_bart.append(['--refineRT_stereo', ''.join(map(str, it)), '--BART_stereo', str(i)])
+    cmds_rb = deepcopy(cmds)
+    cmds = []
+    for it in cmds_rb:
+        for it1 in ref_bart:
+            cmds.append(it + it1)
+
+    if args.minStartAggInlRat:
+        cmds = appRange(cmds, args.minStartAggInlRat, 'minStartAggInlRat')
+
+    if args.relInlRatThLast:
+        cmds = appRange(cmds, args.relInlRatThLast, 'relInlRatThLast')
+
+    if args.relInlRatThNew:
+        cmds = appRange(cmds, args.relInlRatThNew, 'relInlRatThNew')
+
+    if args.minInlierRatSkip:
+        cmds = appRange(cmds, args.minInlierRatSkip, 'minInlierRatSkip')
+
+    if args.relMinInlierRatSkip:
+        cmds = appRange(cmds, args.relMinInlierRatSkip, 'relMinInlierRatSkip')
+
+    if args.maxSkipPairs:
+        cmds = appRange(cmds, args.maxSkipPairs, 'maxSkipPairs')
+
+    if args.minInlierRatioReInit:
+        cmds = appRange(cmds, args.minInlierRatioReInit, 'minInlierRatioReInit')
+
+    if args.minPtsDistance:
+        cmds = appRange(cmds, args.minPtsDistance, 'minPtsDistance')
+
+    if args.maxPoolCorrespondences:
+        cmds = appMultRanges(cmds, args.maxPoolCorrespondences, 'maxPoolCorrespondences')
+
+    if args.minContStablePoses:
+        cmds = appRange(cmds, args.minContStablePoses, 'minContStablePoses')
+
+    if args.absThRankingStable:
+        cmds = appRange(cmds, args.absThRankingStable, 'absThRankingStable')
+
+    if args.useRANSAC_fewMatches:
+        for it in cmds:
+            it.append('--useRANSAC_fewMatches')
+
+    if args.checkPoolPoseRobust:
+        cmds = appRange(cmds, args.checkPoolPoseRobust, 'checkPoolPoseRobust')
+
+    if args.minNormDistStable:
+        cmds = appRange(cmds, args.minNormDistStable, 'minNormDistStable')
+
+    if args.raiseSkipCnt[0] < 0 or args.raiseSkipCnt[0] > 9:
+        raise ValueError('First value for raiseSkipCnt out of range')
+    if args.raiseSkipCnt[1] < 0 or args.raiseSkipCnt[1] > 9:
+        raise ValueError('Second value for raiseSkipCnt out of range')
+    for it in cmds:
+        it.extend(['--raiseSkipCnt', ''.join(args.raiseSkipCnt)])
+
+    if args.maxRat3DPtsFar:
+        cmds = appRange(cmds, args.maxRat3DPtsFar, 'maxRat3DPtsFar')
+
+    if args.maxDist3DPtsZ:
+        cmds = appRange(cmds, args.maxDist3DPtsZ, 'maxDist3DPtsZ')
+
+    if args.useGTCamMat:
+        for it in cmds:
+            it.append('--useGTCamMat')
 
 
     return autocalib(args.path, args.executable, cpu_use, args.message_path)
@@ -444,6 +580,71 @@ def appUSAC(reslist, cfgUSAC, idx, errstr, maxv, missdig):
             raise ValueError(errstr + ' value for cfgUSAC out of range')
         for it in reslist:
             it.append(cfgUSAC[idx - 6])
+    return reslist
+
+def appRange(reslist, inlist, str_name):
+    if len(inlist) == 1:
+        for it in reslist:
+            it.extend(['--' + str_name, str(inlist[0])])
+    elif len(inlist) == 3:
+        if (inlist[0] > inlist[1]) or \
+            (inlist[2] > (inlist[1] - inlist[0])):
+            raise ValueError("Parameters 1-3 (option " + str_name + ") must have the following format: "
+                             "range_min range_max step_size")
+        ints = False
+        if not (isinstance(inlist[0], int) and isinstance(inlist[1], int) and isinstance(inlist[2], int)):
+            if not float((inlist[1] - inlist[0]) / inlist[2]).is_integer():
+                raise ValueError("Option " + str_name + " step size is wrong")
+        else:
+            ints = True
+        cmds_th = deepcopy(reslist)
+        reslist = []
+        for it in cmds_th:
+            if not ints:
+                for th in np.arange(inlist[0], inlist[1] + inlist[2], inlist[2]):
+                    reslist.append(it + ['--' + str_name, str(th)])
+            else:
+                for th in range(inlist[0], inlist[1] + inlist[2], inlist[2]):
+                    reslist.append(it + ['--' + str_name, str(th)])
+    else:
+        raise ValueError('Wrong number of arguments for ' + str_name)
+    return reslist
+
+def appMultRanges(reslist, inlist, str_name):
+    if len(inlist) == 1:
+        for it in reslist:
+            it.extend(['--' + str_name, str(inlist[0])])
+    elif len(inlist) % 3 == 0:
+        corrs_tmp = []
+        ints = False
+        for idx in range(0, len(inlist), 3):
+            if (inlist[idx] > inlist[idx + 1]) or \
+                    (inlist[idx + 2] > (inlist[idx + 1] - inlist[idx])):
+                raise ValueError("Parameters 1-3 (option " + str_name + ") must have the following format: "
+                                                                        "range_min range_max step_size")
+            if not (isinstance(inlist[idx], int) and isinstance(inlist[idx + 1], int) and
+                    isinstance(inlist[idx + 2], int)):
+                if not float((inlist[idx + 1] - inlist[idx]) / inlist[idx + 2]).is_integer():
+                    raise ValueError("Option " + str_name + " step size is wrong")
+            else:
+                ints = True
+            first = inlist[idx]
+            if corrs_tmp:
+                if corrs_tmp[-1] == first:
+                    first = inlist[idx] + inlist[idx + 2]
+            if not ints:
+                for th in np.arange(first, inlist[idx + 1] + inlist[idx + 2], inlist[idx + 2]):
+                    corrs_tmp.append(th)
+            else:
+                for th in range(first, inlist[idx + 1] + inlist[idx + 2], inlist[idx + 2]):
+                    corrs_tmp.append(th)
+        cmds_th = deepcopy(reslist)
+        reslist = []
+        for it in cmds_th:
+            for th in corrs_tmp:
+                reslist.append(it + ['--' + str_name, str(th)])
+    else:
+        raise ValueError('Wrong number of arguments for ' + str_name)
     return reslist
 
 if __name__ == "__main__":
