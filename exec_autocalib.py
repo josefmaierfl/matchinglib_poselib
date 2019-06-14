@@ -5,6 +5,7 @@ import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas, cv2
 import ruamel.yaml as yaml
 import multiprocessing
 import warnings
+import gzip
 # We must import this explicitly, it is not imported by the top-level
 # multiprocessing module.
 import multiprocessing.pool
@@ -21,10 +22,13 @@ yaml.SafeLoader.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matri
 
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 
-def readOpenCVYaml(file):
-    with open(file, 'r') as fi:
-        data = fi.readlines()
-    data = [line for line in data if line[0] is not '%']
+def readOpenCVYaml(file, isstr = False):
+    if isstr:
+        data = file.split('\n')
+    else:
+        with open(file, 'r') as fi:
+            data = fi.readlines()
+    data = [line for line in data if line and line[0] is not '%']
     try:
         data = yaml.load_all("\n".join(data))
         data1 = {}
@@ -53,7 +57,172 @@ class MyPool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
 
 
-def autocalib():
+def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, inlier_ratios, kp_accs, depths,
+                  kp_pos_distr, cmds):
+    dirs_f = os.path.join(path_ov_file, 'generated_dirs_config.txt')
+    if not os.path.exists(dirs_f):
+        raise ValueError("Unable to load " + dirs_f)
+
+    dirsc = []
+    with open(dirs_f, 'r') as fi:
+        # Load directory holding configuration files
+        confd = fi.readline().rstrip()
+        while confd:
+            if not os.path.exists(confd):
+                raise ValueError("Directory " + confd + " does not exist.")
+            # Load list of configuration files and settings for generating scenes
+            ovcf = os.path.join(confd, 'config_files.csv')
+            if not os.path.exists(ovcf):
+                raise ValueError("File " + ovcf + " does not exist.")
+            dirsc.append(ovcf)
+            confd = fi.readline().rstrip()
+
+    #Load directories holding sequences
+    dirs_sq = []
+    for ovcf in dirsc:
+        cf = pandas.read_csv(ovcf, delimiter=';')
+        if cf.empty:
+            print("File " + ovcf + " is empty.")
+            print('Skipping all configuration files listed in ', ovcf)
+            continue
+
+        for index, row in cf.iterrows():
+            if not os.path.exists(row['store_path']):
+                raise ValueError("Sequence path " + row['store_path'] + " does not exist.")
+            dirs_sq.append(row['store_path'])
+
+    #Remove duplicates
+    dirs_sq = list(dict.fromkeys(dirs_sq))
+
+    #Load sequInfos.yaml files to get sub-directory names
+    dirs_ssq = {'sequDir': [], 'kp_distr': [], 'depth_distr': []}
+    for sd in dirs_sq:
+        #Get keypoint distribution and depth distribution from folder name
+        sub_dirs = re.findall(r'[\w-]+', sd)
+        if sub_dirs:
+            base = sub_dirs[-1]
+        else:
+            raise ValueError('Unable to extract subdirectory name from ' + sd)
+        m_obj = re.match('.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_.*', base)
+        if m_obj:
+            if m_obj.group(1):
+                kp_distr = m_obj.group(1)
+            else:
+                raise ValueError('Unable to extract keypoint distribution from directory name ' + base)
+            if m_obj.group(2):
+                depth_distr = m_obj.group(2)
+            else:
+                raise ValueError('Unable to extract depth distribution from directory name ' + base)
+        else:
+            raise ValueError('Unable to extract depth and keypoint distribution from directory name ' + base)
+
+        ovcf = os.path.join(sd, 'sequInfos.yaml')
+        if not os.path.exists(ovcf):
+            raise ValueError("File " + ovcf + " does not exist.")
+        data = readOpenCVYaml(ovcf)
+        cnt = 0
+        while 1:
+            try:
+                data_set = data['parSetNr' + str(int(cnt))]
+            except:
+                break
+            try:
+                subd = data_set['hashSequencePars']
+            except:
+                raise ValueError("Unable to read parameters within parSetNr" + str(int(cnt)) + " of file " + ovcf)
+            subd = os.path.join(sd, subd)
+            if not os.path.exists(subd):
+                raise ValueError("Directory " + subd + " does not exist.")
+            dirs_ssq['sequDir'].append(subd)
+            dirs_ssq['kp_distr'].append(kp_distr)
+            dirs_ssq['depth_distr'].append(depth_distr)
+            cnt = cnt + 1
+
+    #Get keypoint accuracy, inlier ratio, and inlier ratio change rate for every dataset
+    dirs_smsq = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'inlrat_min': [], 'inlrat_max': [],
+                 'inlrat_c_rate': [], 'kp_acc_sd': []}
+    for i, sd in enumerate(dirs_ssq['sequDir']):
+        ovcf = os.path.join(sd, 'sequPars.yaml.gz')
+        if not os.path.exists(ovcf):
+            raise ValueError("File " + ovcf + " does not exist.")
+        with gzip.GzipFile(ovcf, 'r') as fin:
+            f_bytes = fin.read()
+        f_str = f_bytes.decode('utf-8')
+        data = readOpenCVYaml(f_str, True)
+        try:
+            inlrat_min = data['inlRatRange']['first']
+            inlrat_max = data['inlRatRange']['second']
+            inlrat_c_rate = data['inlRatChanges']
+        except:
+            raise ValueError("Unable to read parameters from file " + ovcf)
+
+        ovcf = os.path.join(sd, 'matchInfos.yaml')
+        if not os.path.exists(ovcf):
+            raise ValueError("File " + ovcf + " does not exist.")
+        data = readOpenCVYaml(ovcf)
+        cnt = 0
+        while 1:
+            try:
+                data_set = data['parSetNr' + str(int(cnt))]
+            except:
+                break
+            try:
+                kp_acc_sd = data_set['keypErrDistr']['second']
+            except:
+                raise ValueError("Unable to read parameters within parSetNr" + str(int(cnt)) + " of file " + ovcf)
+            dirs_smsq['sequDir'].append(sd)
+            dirs_smsq['parSetNr'].append(int(cnt))
+            dirs_smsq['kp_distr'].append(dirs_ssq['kp_distr'][i])
+            dirs_smsq['depth_distr'].append(dirs_ssq['depth_distr'][i])
+            dirs_smsq['inlrat_min'].append(float(inlrat_min))
+            dirs_smsq['inlrat_max'].append(float(inlrat_max))
+            dirs_smsq['inlrat_c_rate'].append(float(inlrat_c_rate))
+            dirs_smsq['kp_acc_sd'].append(float(kp_acc_sd))
+            cnt = cnt + 1
+
+    #Filter datasets depending on user input
+    df = pandas.DataFrame(data=dirs_smsq)
+    if inlier_ratios:
+        myintlist = [int(round(i * 1e3)) for i in inlier_ratios]
+        df = df.loc[((df['inlrat_min'].subtract(df['inlrat_max'])).abs() < 1e-3) &
+                     (df['inlrat_min'].multiply(1e3).round().astype('int32').isin(myintlist))]
+        if df.empty:
+            raise ValueError('No data left after filtering inlier ratios')
+
+    if kp_accs:
+        myintlist = [int(round(i * 1e3)) for i in kp_accs]
+        df = df.loc[df['kp_acc_sd'].multiply(1e3).round().astype('int32').isin(myintlist)]
+        if df.empty:
+            raise ValueError('No data left after filtering keypoint accuracies')
+
+    if depths:
+        df = df.loc[df['depth_distr'].isin(depths)]
+        if df.empty:
+            raise ValueError('No data left after filtering depth distributions')
+
+    if kp_pos_distr:
+        df = df.loc[df['kp_distr'].isin(kp_pos_distr)]
+        if df.empty:
+            raise ValueError('No data left after filtering keypoint position distributions')
+
+    sequ = df.to_dict('list')
+    sequ_cmd = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'inlrat_min': [], 'inlrat_max': [],
+                 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': []}
+    for it in cmds:
+        for i, sd in enumerate(dirs_ssq['sequDir']):
+            sequ_cmd['sequDir'].append(sd)
+            sequ_cmd['parSetNr'].append(dirs_ssq['parSetNr'][i])
+            sequ_cmd['kp_distr'].append(dirs_ssq['kp_distr'][i])
+            sequ_cmd['depth_distr'].append(dirs_ssq['depth_distr'][i])
+            sequ_cmd['inlrat_min'].append(dirs_ssq['inlrat_min'][i])
+            sequ_cmd['inlrat_max'].append(dirs_ssq['inlrat_max'][i])
+            sequ_cmd['inlrat_c_rate'].append(dirs_ssq['inlrat_c_rate'][i])
+            sequ_cmd['kp_acc_sd'].append(dirs_ssq['kp_acc_sd'][i])
+            sequ_cmd['cmd'].append(' '.join(map(str, it)))
+
+    df1 = pandas.DataFrame(data=sequ_cmd)
+    ov_file = os.path.join(output_path, 'commands_and_parameters_full.csv')
+    df1.to_csv(index=True, sep=';', path_or_buf=ov_file)
 
 
 def main():
@@ -565,7 +734,8 @@ def main():
             it.append('--useGTCamMat')
 
 
-    return autocalib(args.path, args.executable, cpu_use, args.message_path)
+    return autocalib_pre(args.path, args.executable, cpu_use, args.message_path, args.output_path, args.inlier_ratios,
+                         args.kp_accs, args.depths, args.kp_pos_distr, cmds)
 
 def appUSAC(reslist, cfgUSAC, idx, errstr, maxv, missdig):
     if cfgUSAC[idx] > 0:
