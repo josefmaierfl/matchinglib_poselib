@@ -74,7 +74,7 @@ struct sequMatches{
     cv::Mat actKd2;
 };
 
-void operator >> (const cv::FileNode& n, bool& value)
+/*void operator >> (const cv::FileNode& n, bool& value)
 {
     int bVal;
     n >> bVal;
@@ -82,7 +82,7 @@ void operator >> (const cv::FileNode& n, bool& value)
     if(bVal){
         value = true;
     }
-}
+}*/
 
 bool readMatchesFromDisk(const std::string &filename,
                          sequMatches &sm){
@@ -105,7 +105,7 @@ bool readMatchesFromDisk(const std::string &filename,
     }
     sm.frameInliers.clear();
     FileNodeIterator it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
+    while ( it != it_end) {
         bool inli = false;
         it >> inli;
         sm.frameInliers.push_back(inli);

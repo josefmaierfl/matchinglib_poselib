@@ -3055,7 +3055,7 @@ FileStorage& operator << (FileStorage& fs, bool &value)
     return (fs << 0);
 }
 
-void operator >> (const FileNode& n, bool& value)
+/*void operator >> (const FileNode& n, bool& value)
 {
     int bVal;
     n >> bVal;
@@ -3064,7 +3064,7 @@ void operator >> (const FileNode& n, bool& value)
     }else{
         value = false;
     }
-}
+}*/
 
 FileStorage& operator << (FileStorage& fs, int64_t &value)
 {
