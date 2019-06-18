@@ -34,6 +34,15 @@ int main(int argc, char* argv[])
 #include <memory>
 #include "chrono"
 
+#include <boost/interprocess/sync/scoped_lock.hpp>
+#include <boost/interprocess/sync/named_mutex.hpp>
+/*#if defined(__linux__)
+
+#include "unistd.h"
+#include "thread"
+//#include "sys/file.h"
+#endif*/
+
 using namespace std;
 using namespace cv;
 using namespace CommandLineProcessing;
@@ -192,8 +201,9 @@ struct algorithmResult{
     double t_mostLikely_distDiff;
     tElemsDiff t_mostLikely_elemDiff;
     CamMatDiff K1_diff, K2_diff;
+    std::string addSequInfo;
 
-    algorithmResult(){
+    algorithmResult(const std::string &addSequInfo_ = ""): addSequInfo(addSequInfo_){
         R = cv::Mat::zeros(3,3,CV_64FC1);
         t = cv::Mat::zeros(3,1,CV_64FC1);
         R_mostLikely = cv::Mat::zeros(3,3,CV_64FC1);
@@ -390,6 +400,10 @@ struct algorithmResult{
             os << "nrCorrs_estimated;";
             os << "nrCorrs_GT;";
             tm.print(os, true);
+            if(!addSequInfo.empty()) {
+                os << ";";
+                os << "addSequInfo";
+            }
             os << endl;
         }else{
             os << R_diffAll << ";";
@@ -442,6 +456,10 @@ struct algorithmResult{
             os << nrCorrs_estimated << ";";
             os << nrCorrs_GT << ";";
             tm.print(os, false);
+            if(!addSequInfo.empty()) {
+                os << ";";
+                os << addSequInfo;
+            }
             os << endl;
         }
     }
@@ -772,6 +790,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("useGTCamMat", "<If provided, the GT camera matrices are always used and the distorted ones "
                                     "are ignored.>",
                      ArgvParser::NoOptionAttribute);
+    cmd.defineOption("addSequInfo", "<Optional additional information (string) about the used test sequence or"
+                                    " matches that will be stored in a seperate column in the results csv-file.>",
+                     ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
     int result = -1;
@@ -784,7 +805,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 
 void startEvaluation(ArgvParser& cmd)
 {
-    string matchData_idx_str, output_path, ovf_ext, ovf_ext1part;
+    string matchData_idx_str, output_path, ovf_ext, ovf_ext1part, addSequInfo;
     string show_str;
     string cfgUSAC;
     string refineRT, refineRT_stereo;
@@ -814,6 +835,10 @@ void startEvaluation(ArgvParser& cmd)
 	double maxRat3DPtsFar = 0.5;
 	double maxDist3DPtsZ = 50.0;
     calibPars cp = calibPars();
+
+    if(cmd.foundOption("addSequInfo")){
+        addSequInfo = cmd.optionValue("addSequInfo");
+    }
 
 	//Load basic matching information
     cp.sequ_path = cmd.optionValue("sequ_path");
@@ -1520,7 +1545,11 @@ void startEvaluation(ArgvParser& cmd)
 	int evStepStereoStable_cnt = evStepStereoStable_tmp;
 	cv::Mat R_stable, t_stable;
     chrono::high_resolution_clock::time_point t_1, t_2;
-    vector<algorithmResult> ar(filenamesMatches.size(), algorithmResult());
+    vector<algorithmResult> ar;//(filenamesMatches.size(), algorithmResult());
+    ar.reserve(filenamesMatches.size());
+    for(size_t i = 0; i < filenamesMatches.size(); ++i){
+        ar.emplace_back(algorithmResult(addSequInfo));
+    }
     for(int i = 0; i < (int)filenamesMatches.size(); i++)
     {
         //Load stereo configuration
@@ -1848,6 +1877,32 @@ void startEvaluation(ArgvParser& cmd)
 			size_t nr_inliers = (size_t)cv::countNonZero(mask);
             if (verbose) {
                 std::cout << "Number of inliers after robust estimation of E: " << nr_inliers << endl;
+            }
+            if(nr_inliers < 5){
+                failNr++;
+                if ((float)failNr / (float)filenamesRt.size() < 0.5f)
+                {
+                    std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
+                    t_2 = chrono::high_resolution_clock::now();
+                    ar[i].tm.stereoRefine = chrono::duration_cast<chrono::microseconds>(t_2 - t_1).count();
+                    sm.actR.copyTo(ar[i].R_GT);
+                    sm.actT.copyTo(ar[i].t_GT);
+                    sm.K1.copyTo(ar[i].K1_GT);
+                    sm.K2.copyTo(ar[i].K2_GT);
+                    if(useGTCamMat){
+                        sm.K1.copyTo(ar[i].K1_degenerate);
+                        sm.K2.copyTo(ar[i].K2_degenerate);
+                    }else {
+                        sm.actKd1.copyTo(ar[i].K1_degenerate);
+                        sm.actKd2.copyTo(ar[i].K2_degenerate);
+                    }
+                    continue;
+                }
+                else
+                {
+                    std::cout << "Estimation of essential matrix or undistortion or matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+                    exit(1);
+                }
             }
 
 			//Get R & t
@@ -2318,47 +2373,85 @@ bool genOutFileName(const std::string &path,
 bool writeResultsOverview(const string &filename,
         const calibPars &cp,
         const string &resultsFileName){
-
+    using namespace boost::interprocess;
     testing::internal::FilePath filenameG(filename);
     FileStorage fs;
     int nrEntries = 0;
     string parSetNr = "parSetNr";
-    if(filenameG.FileOrDirectoryExists()){
-        //Check number of entries first
-        if(!getNrEntriesYAML(filename, parSetNr, nrEntries)){
-            return false;
+    /*FILE* fp = nullptr;
+    int fd = 0, cnt = 0;*/
+    //Open or create a named mutex
+    try {
+        named_mutex mutex(open_or_create, "write_yaml");
+        scoped_lock<named_mutex> lock(mutex);
+        if (filenameG.FileOrDirectoryExists()) {
+            //Check if file is opened in an other process
+/*#if defined(__linux__)
+        fp = fopen(filename.c_str(), "a");
+        if(fp) {
+            fd = fileno(fp);
+            int res = 0;
+            do {
+                if (cnt) {
+                    std::this_thread::sleep_for(chrono::seconds(1));
+                }
+                res = lockf(fd, F_LOCK, 0);
+                cnt += 1;
+            } while ((res == -1) && (cnt < 20));
+            if (cnt == 20) {
+                cerr << "Unable to lock file " << filename << endl;
+            }
+        }else{
+            cerr << "Unable to open file " << filename << endl;
         }
-        fs = FileStorage(filename, FileStorage::APPEND);
-        if (!fs.isOpened()) {
-            cerr << "Failed to open " << filename << endl;
-            return false;
+#endif*/
+            //Check number of entries first
+            if (!getNrEntriesYAML(filename, parSetNr, nrEntries)) {
+                return false;
+            }
+            fs = FileStorage(filename, FileStorage::APPEND);
+            if (!fs.isOpened()) {
+                cerr << "Failed to open " << filename << endl;
+                return false;
+            }
+            cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+            parSetNr += std::to_string(nrEntries);
+        } else {
+            fs = FileStorage(filename, FileStorage::WRITE);
+            if (!fs.isOpened()) {
+                cerr << "Failed to open " << filename << endl;
+                return false;
+            }
+            cvWriteComment(*fs, "This file contains the file name and its corresponding parameters for "
+                                "tested calibration runs.\n\n", 0);
+            parSetNr += "0";
         }
-        cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
-        parSetNr += std::to_string(nrEntries);
+        fs << parSetNr;
+        fs << "{";
+
+        cvWriteComment(*fs, "File name (within the path containing this file) which holds results from testing "
+                            "the autocalibration SW.", 0);
+        size_t posLastSl = resultsFileName.rfind('/');
+        string resDirName = resultsFileName.substr(posLastSl + 1);
+        fs << "hashTestingPars" << resDirName;
+
+        writeTestingParameters(fs, cp);
+        fs << "}";
+
+        fs.release();
+    }catch(interprocess_exception &ex){
+        cerr << ex.what() << std::endl;
+        return false;
     }
-    else{
-        fs = FileStorage(filename, FileStorage::WRITE);
-        if (!fs.isOpened()) {
-            cerr << "Failed to open " << filename << endl;
-            return false;
+
+/*#if defined(__linux__)
+    if(fp && (nrEntries > 0)){
+        if(lockf(fd, F_ULOCK, 0) == -1){
+            cerr << "Unable to unlock file " << filename << endl;
         }
-        cvWriteComment(*fs, "This file contains the file name and its corresponding parameters for "
-                            "tested calibration runs.\n\n", 0);
-        parSetNr += "0";
+        fclose(fp);
     }
-    fs << parSetNr;
-    fs << "{";
-
-    cvWriteComment(*fs, "File name (within the path containing this file) which holds results from testing "
-                        "the autocalibration SW.", 0);
-    size_t posLastSl = resultsFileName.rfind('/');
-    string resDirName = resultsFileName.substr(posLastSl + 1);
-    fs << "hashTestingPars" << resDirName;
-
-    writeTestingParameters(fs, cp);
-    fs << "}";
-
-    fs.release();
+#endif*/
 
     return true;
 }

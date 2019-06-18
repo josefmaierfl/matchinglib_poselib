@@ -19,6 +19,7 @@ set(sources
 )
 
 #find_package(Clapack REQUIRED)
+find_package(Boost REQUIRED)
 #SET( Nanoflann_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/source/poselib/thirdparty/nanoflann-1.3.0/include")
 
 #

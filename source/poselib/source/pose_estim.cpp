@@ -1032,7 +1032,7 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
  * bool pointsInImgCoords				Input  -> Must be true if p1 and p2 are in image coordinates (pixels) or false if they are in camera coordinates
  *												  [Default=false]. If true, BA is always performed with intrinsics.
  * InputOutputArray mask				Input  -> Inlier mask [Default=cv::noArray()]
- * double angleThresh					Input  -> Threshold on the angular difference in degrees between the initial and refined rotation matrices [Default=0.3]
+ * double angleThresh					Input  -> Threshold on the angular difference in degrees between the initial and refined rotation matrices [Default=1.25]
  * double t_norm_tresh					Input  -> Threshold on the norm of the difference between initial and refined translation vectors [Default=0.05]
  *
  * Return value:						true :	Success
@@ -1173,7 +1173,7 @@ bool refineStereoBA(cv::InputArray p1,
 		intr2[4] = 0.0;
 		intr_vec.push_back(intr2);
 
-		SBAdriver optiMotStruct(false,BA_MOTSTRUCT,COST_PSEUDOHUBER,ROBUST_THRESH,true,BA_MOTSTRUCT);
+		SBAdriver optiMotStruct(false,BA_MOTSTRUCT,COST_PSEUDOHUBER,ROBUST_THRESH,true,BA_MOTSTRUCT,2,0,0,0,true);
 
 		if(optiMotStruct.perform_sba(R_vec,t_vec,pts2D_vec,num2Dpts,pts3D_vec,Q_tmp.rows,nullptr,&intr_vec) < 0)
 		{
@@ -1185,8 +1185,8 @@ bool refineStereoBA(cv::InputArray p1,
 
 		info = optiMotStruct.getFinalSBAinfo();
 
-		K1_tmp.create(3,3,CV_64FC1);
-		K2_tmp.create(3,3,CV_64FC1);
+		K1_tmp = cv::Mat::eye(3,3,CV_64FC1);
+		K2_tmp = cv::Mat::eye(3,3,CV_64FC1);
 
 		K1_tmp.at<double>(0,0) = intr1[0];
 		K1_tmp.at<double>(0,2) = intr1[1];

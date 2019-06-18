@@ -109,6 +109,7 @@ private:
 	bool useInputVarsAsOutput;
 	int costfunc;
 	double costThresh;
+	bool cam0IntrVarRtFix;
 
 	std::vector<double *> Rquats_out;
 	std::vector<double *> trans_out;
@@ -200,6 +201,9 @@ public:
 	 * int BAnconst3Dpts				Input  -> Number of structure elements (3D points) beginning from the first
 	 *											  should be kept fixed. This is, e.g., useful if a few structure
 	 *											  elements are known to be exact.
+	 * bool BAcam0IntrVarRtFix          Input  -> If true [Default = false] and BAnconstframes = 0, R & t are kept fixed
+	 *                                            for the first camera but the intrinsics and distortion coefficients
+	 *                                            are allowed to vary.
 	 */
 	SBAdriver(bool BAfixedcal = true,
 			  int BAhowto = BA_MOTSTRUCT,
@@ -210,7 +214,8 @@ public:
 			  int BAnccalib = 1,
 			  int BAncdist = 0,
 			  int BAnconstframes = 1,
-			  int BAnconst3Dpts = 0)
+			  int BAnconst3Dpts = 0,
+			  bool BAcam0IntrVarRtFix = false)
 	: fixedcal(BAfixedcal),
 	  howto(BAhowto),
 	  costfunc(costfunction),
@@ -221,6 +226,7 @@ public:
 	  ncdist(BAncdist),
 	  nconstframes(BAnconstframes),
 	  nconst3Dpts(BAnconst3Dpts),
+      cam0IntrVarRtFix(BAcam0IntrVarRtFix),
 	  expert(1), //If 1, the user specific expert drivers are used (all data is supplied at once to the functions for
 				 //calculating the jacobian and the projections). If 0, the functions are called for every single
 				 //structure element.
@@ -289,6 +295,11 @@ public:
 	{
 		nconstframes = BAnconstframes;
 		nconst3Dpts = BAnconst3Dpts;
+	}
+
+	void allowCam0VaryIntrinsics(){
+        cam0IntrVarRtFix = true;
+        nconstframes = 0;
 	}
 
 	void changeSBAmethode(int BAexpert, int BAanalyticjac = 1)

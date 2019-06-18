@@ -77,6 +77,8 @@ struct globs_{
 	double *camparams; /* needed only when bundle adjusting for structure parameters only */
 	double *imgpts; /* image measurements (2D-projections) - needed only for a different cost function (e.g. pseudo-huber) than least squares */
 	double thresh; /* The threshold for the different (e.g. pseudo-huber) cost functions */
+	int unfixCam0Intr; /* If not zero, the intrinsic and distortion paramters of the first cam are variable and
+	                    * its rotation and translation are kept fixed*/
 } globs;
 
 /* unit quaternion from vector part */
@@ -756,8 +758,8 @@ static void img_projKRTS(int j, int i, double *aj, double *bi, double *xij, void
 static void img_projKRTS_jac(int j, int i, double *aj, double *bi, double *Aij, double *Bij, void *adata)
 {
 struct globs_ *gl;
-double *pr0;
-int ncK;
+double *pr0, *pA;
+int ncK, fixRt;
 
   gl=(struct globs_ *)adata;
   pr0=gl->rot0params+j*FULLQUATSZ; // full quat for initial rotation estimate
@@ -766,17 +768,34 @@ int ncK;
   /* clear the columns of the Jacobian corresponding to fixed calibration parameters */
   gl=(struct globs_ *)adata;
   ncK=gl->nccalib;
+  fixRt = gl->unfixCam0Intr;
   if(ncK){
-    int cnp, mnp, j0;
+    int cnp, mnp, j0, jj;
 
     cnp=gl->cnp;
     mnp=gl->mnp;
     j0=5-ncK;
+    pA = Aij;
 
-    for(i=0; i<mnp; ++i, Aij+=cnp)
-      for(j=j0; j<5; ++j)
-        Aij[j]=0.0; // Aij[i*cnp+j]=0.0;
+    for(i=0; i<mnp; ++i, pA+=cnp)
+      for(jj=j0; jj<5; ++jj)
+          pA[jj]=0.0; // Aij[i*cnp+jj]=0.0;
   }
+
+    /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+    if(fixRt && (j == 0)){
+        int cnp, mnp, jj;
+
+        cnp=gl->cnp;
+        mnp=gl->mnp;
+        const int j0=5;//idx 5 corresponds to the first rotation value followed by the other rotation values and the translation
+        pA = Aij;
+
+        for(i=0; i<mnp; ++i, pA+=cnp)
+            for(jj=j0; jj<11; ++jj)
+                pA[jj]=0.0; // pA[i*cnp+jj]=0.0;
+    }
+
 }
 
 /* BUNDLE ADJUSTMENT FOR CAMERA PARAMETERS ONLY */
@@ -805,7 +824,7 @@ static void img_projKRT(int j, int i, double *aj, double *xij, void *adata)
 static void img_projKRT_jac(int j, int i, double *aj, double *Aij, void *adata)
 {
 struct globs_ *gl;
-double *ptparams, *pr0;
+double *ptparams, *pr0, *pA;
 int pnp, ncK;
   
   gl=(struct globs_ *)adata;
@@ -818,16 +837,32 @@ int pnp, ncK;
   /* clear the columns of the Jacobian corresponding to fixed calibration parameters */
   ncK=gl->nccalib;
   if(ncK){
-    int cnp, mnp, j0;
+    int cnp, mnp, j0, jj;
 
     cnp=gl->cnp;
     mnp=gl->mnp;
     j0=5-ncK;
+    pA = Aij;
 
-    for(i=0; i<mnp; ++i, Aij+=cnp)
-      for(j=j0; j<5; ++j)
-        Aij[j]=0.0; // Aij[i*cnp+j]=0.0;
+    for(i=0; i<mnp; ++i, pA+=cnp)
+      for(jj=j0; jj<5; ++jj)
+          pA[jj]=0.0; // pA[i*cnp+j]=0.0;
   }
+
+    /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+    int fixRt = gl->unfixCam0Intr;
+    if(fixRt && (j == 0)){
+        int cnp, mnp, jj;
+
+        cnp=gl->cnp;
+        mnp=gl->mnp;
+        const int j0=5;//idx 5 corresponds to the first rotation value followed by the other rotation values and the translation
+        pA = Aij;
+
+        for(i=0; i<mnp; ++i, pA+=cnp)
+            for(jj=j0; jj<11; ++jj)
+                pA[jj]=0.0; // pA[i*cnp+jj]=0.0;
+    }
 }
 
 /* BUNDLE ADJUSTMENT FOR STRUCTURE PARAMETERS ONLY */
@@ -927,8 +962,8 @@ static void img_projsKRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int 
 static void img_projsKRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
   int i, j, ii, jj;
-  int cnp, pnp, mnp, ncK;
-  double *pa, *pb, *pqr, *pt, *ppt, *pA, *pB, *pcalib, *pr0;
+  int cnp, pnp, mnp, ncK, fixRt;
+  double *pa, *pb, *pqr, *pt, *ppt, *pA, *pB, *pcalib, *pr0, *ptr;
   //int n;
   int m, nnz, Asz, Bsz, ABsz;
   struct globs_ *gl;
@@ -936,6 +971,7 @@ static void img_projsKRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, 
   gl=(struct globs_ *)adata;
   cnp=gl->cnp; pnp=gl->pnp; mnp=gl->mnp;
   ncK=gl->nccalib;
+  fixRt = gl->unfixCam0Intr;
 
   //n=idxij->nr;
   m=idxij->nc;
@@ -961,10 +997,19 @@ static void img_projsKRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, 
       /* clear the columns of the Jacobian corresponding to fixed calibration parameters */
       if(ncK){
         int jj0=5-ncK;
-
-        for(ii=0; ii<mnp; ++ii, pA+=cnp)
+        ptr = pA;
+        for(ii=0; ii<mnp; ++ii, ptr+=cnp)
           for(jj=jj0; jj<5; ++jj)
-            pA[jj]=0.0; // pA[ii*cnp+jj]=0.0;
+              ptr[jj]=0.0; // ptr[ii*cnp+jj]=0.0;
+      }
+
+      /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+      if(fixRt && (j == 0)){
+          const int jj0=5;//idx 5 corresponds to the first rotation value followed by the other rotation values and the translation
+          ptr = pA;
+          for(ii=0; ii<mnp; ++ii, ptr+=cnp)
+              for(jj=jj0; jj<11; ++jj)
+                  ptr[jj]=0.0; // pA[ii*cnp+jj]=0.0;
       }
     }
   }
@@ -1027,7 +1072,7 @@ static void img_projsKRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
 {
   int i, j, ii, jj;
   int cnp, pnp, mnp, ncK;
-  double *pqr, *pt, *ppt, *pA, *pcalib, *ptparams, *pr0;
+  double *pqr, *pt, *ppt, *pA, *pcalib, *ptparams, *pr0, *ptr;
   //int n;
   int m, nnz, Asz;
   struct globs_ *gl;
@@ -1036,6 +1081,7 @@ static void img_projsKRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
   cnp=gl->cnp; pnp=gl->pnp; mnp=gl->mnp;
   ncK=gl->nccalib;
   ptparams=gl->ptparams;
+  int fixRt = gl->unfixCam0Intr;
 
   //n=idxij->nr;
   m=idxij->nc;
@@ -1059,12 +1105,21 @@ static void img_projsKRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
       /* clear the columns of the Jacobian corresponding to fixed calibration parameters */
       if(ncK){
         int jj0;
-
+        ptr = pA;
         jj0=5-ncK;
-        for(ii=0; ii<mnp; ++ii, pA+=cnp)
+        for(ii=0; ii<mnp; ++ii, ptr+=cnp)
           for(jj=jj0; jj<5; ++jj)
-            pA[jj]=0.0; // pA[ii*cnp+jj]=0.0;
+              ptr[jj]=0.0; // ptr[ii*cnp+jj]=0.0;
       }
+
+        /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+        if(fixRt && (j == 0)){
+            const int jj0=5;//idx 5 corresponds to the first rotation value followed by the other rotation values and the translation
+            ptr = pA;
+            for(ii=0; ii<mnp; ++ii, ptr+=cnp)
+                for(jj=jj0; jj<11; ++jj)
+                    ptr[jj]=0.0; // ptr[ii*cnp+jj]=0.0;
+        }
     }
   }
 }
@@ -1205,7 +1260,7 @@ int nc;
   gl=(struct globs_ *)adata;
   nc=gl->nccalib;
   if(nc){
-    int cnp, mnp, j0;
+    int cnp, mnp, j0, jj;
 
     pA=Aij;
     cnp=gl->cnp;
@@ -1213,14 +1268,14 @@ int nc;
     j0=5-nc;
 
     for(i=0; i<mnp; ++i, pA+=cnp)
-      for(j=j0; j<5; ++j)
-        pA[j]=0.0; // pA[i*cnp+j]=0.0;
+      for(jj=j0; jj<5; ++jj)
+        pA[jj]=0.0; // pA[i*cnp+jj]=0.0;
   }
 
   /* clear the columns of the Jacobian corresponding to fixed distortion parameters */
   nc=gl->ncdist;
   if(nc){
-    int cnp, mnp, j0;
+    int cnp, mnp, j0, jj;
 
     pA=Aij;
     cnp=gl->cnp;
@@ -1228,9 +1283,24 @@ int nc;
     j0=5-nc;
 
     for(i=0; i<mnp; ++i, pA+=cnp)
-      for(j=j0; j<5; ++j)
-        pA[5+j]=0.0; // pA[i*cnp+5+j]=0.0;
+      for(jj=j0; jj<5; ++jj)
+        pA[5+jj]=0.0; // pA[i*cnp+5+jj]=0.0;
   }
+
+    /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+    int fixRt = gl->unfixCam0Intr;
+    if(fixRt && (j == 0)){
+        int cnp, mnp, jj;
+
+        pA=Aij;
+        cnp=gl->cnp;
+        mnp=gl->mnp;
+        const int j0=10;//idx 10 corresponds to the first rotation value followed by the other rotation values and the translation
+
+        for(i=0; i<mnp; ++i, pA+=cnp)
+            for(jj=j0; jj<16; ++jj)
+                pA[jj]=0.0; // pA[i*cnp+jj]=0.0;
+    }
 }
 
 /* BUNDLE ADJUSTMENT FOR CAMERA PARAMETERS ONLY */
@@ -1272,7 +1342,7 @@ int pnp, nc;
   /* clear the columns of the Jacobian corresponding to fixed calibration parameters */
   nc=gl->nccalib;
   if(nc){
-    int cnp, mnp, j0;
+    int cnp, mnp, j0, jj;
 
     pA=Aij;
     cnp=gl->cnp;
@@ -1280,12 +1350,12 @@ int pnp, nc;
     j0=5-nc;
 
     for(i=0; i<mnp; ++i, pA+=cnp)
-      for(j=j0; j<5; ++j)
-        pA[j]=0.0; // pA[i*cnp+j]=0.0;
+      for(jj=j0; jj<5; ++jj)
+        pA[jj]=0.0; // pA[i*cnp+j]=0.0;
   }
   nc=gl->ncdist;
   if(nc){
-    int cnp, mnp, j0;
+    int cnp, mnp, j0, jj;
 
     pA=Aij;
     cnp=gl->cnp;
@@ -1293,9 +1363,23 @@ int pnp, nc;
     j0=5-nc;
 
     for(i=0; i<mnp; ++i, pA+=cnp)
-      for(j=j0; j<5; ++j)
-        pA[5+j]=0.0; // pA[i*cnp+5+j]=0.0;
+      for(jj=j0; jj<5; ++jj)
+        pA[5+jj]=0.0; // pA[i*cnp+5+jj]=0.0;
   }
+    /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+    int fixRt = gl->unfixCam0Intr;
+    if(fixRt && (j == 0)){
+        int cnp, mnp, jj;
+
+        pA=Aij;
+        cnp=gl->cnp;
+        mnp=gl->mnp;
+        const int j0=10;//idx 10 corresponds to the first rotation value followed by the other rotation values and the translation
+
+        for(i=0; i<mnp; ++i, pA+=cnp)
+            for(jj=j0; jj<16; ++jj)
+                pA[jj]=0.0; // pA[i*cnp+jj]=0.0;
+    }
 }
 
 /* BUNDLE ADJUSTMENT FOR STRUCTURE PARAMETERS ONLY */
@@ -1397,7 +1481,7 @@ static void img_projsKDRTS_x(double *p, struct sba_crsm *idxij, int *rcidxs, int
 static void img_projsKDRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, int *rcsubs, double *jac, void *adata)
 {
   int i, j, ii, jj;
-  int cnp, pnp, mnp, ncK, ncD;
+  int cnp, pnp, mnp, ncK, ncD, fixRt;
   double *pa, *pb, *pqr, *pt, *ppt, *pA, *pB, *ptr, *pcalib, *pdist, *pr0;
   //int n;
   int m, nnz, Asz, Bsz, ABsz;
@@ -1407,6 +1491,7 @@ static void img_projsKDRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs,
   cnp=gl->cnp; pnp=gl->pnp; mnp=gl->mnp;
   ncK=gl->nccalib;
   ncD=gl->ncdist;
+  fixRt = gl->unfixCam0Intr;
 
   //n=idxij->nr;
   m=idxij->nc;
@@ -1449,6 +1534,15 @@ static void img_projsKDRTS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs,
           for(jj=jj0; jj<5; ++jj)
             ptr[5+jj]=0.0; // ptr[ii*cnp+5+jj]=0.0;
       }
+
+        /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+        if(fixRt && (j == 0)){
+            const int jj0=10;//idx 5 corresponds to the first rotation value followed by the other rotation values and the translation
+            ptr=pA;
+            for(ii=0; ii<mnp; ++ii, ptr+=cnp)
+                for(jj=jj0; jj<16; ++jj)
+                    ptr[jj]=0.0; // ptr[ii*cnp+jj]=0.0;
+        }
     }
   }
 }
@@ -1521,6 +1615,7 @@ static void img_projsKDRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, 
   ncK=gl->nccalib;
   ncD=gl->ncdist;
   ptparams=gl->ptparams;
+  int fixRt = gl->unfixCam0Intr;
 
   //n=idxij->nr;
   m=idxij->nc;
@@ -1563,6 +1658,15 @@ static void img_projsKDRT_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, 
           for(jj=jj0; jj<5; ++jj)
             ptr[5+jj]=0.0; // ptr[ii*cnp+5+jj]=0.0;
       }
+
+        /* clear colums of the Jacobian corresponding to fixed R & t of the first camera*/
+        if(fixRt && (j == 0)){
+            const int jj0=10;//idx 5 corresponds to the first rotation value followed by the other rotation values and the translation
+            ptr=pA;
+            for(ii=0; ii<mnp; ++ii, ptr+=cnp)
+                for(jj=jj0; jj<16; ++jj)
+                    ptr[jj]=0.0; // ptr[ii*cnp+jj]=0.0;
+        }
     }
   }
 }
@@ -2086,6 +2190,12 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 		  havedist = false;
 		  globs.ncdist=-9999;
 	  }
+  }
+
+  if(cam0IntrVarRtFix && (nconstframes == 0) && intrParms && !fixedcal){
+      globs.unfixCam0Intr = 1;
+  }else{
+      globs.unfixCam0Intr = 0;
   }
   
   globs.ptparams=nullptr;

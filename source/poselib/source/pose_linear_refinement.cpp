@@ -100,6 +100,9 @@ namespace poselib
         }
 
         int num_inliers = cv::countNonZero(mask_);
+        if(num_inliers < 6){
+            return false;
+        }
         int num_data_points = p1_.rows;
         double *weights = new double[num_data_points];
         double th2 = th * th;

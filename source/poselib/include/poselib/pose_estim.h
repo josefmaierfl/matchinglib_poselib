@@ -213,7 +213,7 @@ bool POSELIB_API refineStereoBA(cv::InputArray p1,
 					cv::InputOutputArray K2,
 					bool pointsInImgCoords = false,
 					cv::InputArray mask = cv::noArray(),
-					const double angleThresh = 0.3,
+					const double angleThresh = 1.25,
 					const double t_norm_tresh = 0.05);
 
 }
