@@ -95,7 +95,7 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
     dirs_sq = list(dict.fromkeys(dirs_sq))
 
     #Load sequInfos.yaml files to get sub-directory names
-    dirs_ssq = {'sequDir': [], 'kp_distr': [], 'depth_distr': []}
+    dirs_ssq = {'sequDir': [], 'kp_distr': [], 'depth_distr': [], 'nrTP': []}
     for sd in dirs_sq:
         #Get keypoint distribution and depth distribution from folder name
         sub_dirs = re.findall(r'[\w-]+', sd)
@@ -103,7 +103,7 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             base = sub_dirs[-1]
         else:
             raise ValueError('Unable to extract subdirectory name from ' + sd)
-        m_obj = re.match('.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_.*', base)
+        m_obj = re.match('.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_TP-([0-9to]+)_.*', base)
         if m_obj:
             if m_obj.group(1):
                 kp_distr = m_obj.group(1)
@@ -113,6 +113,10 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
                 depth_distr = m_obj.group(2)
             else:
                 raise ValueError('Unable to extract depth distribution from directory name ' + base)
+            if m_obj.group(3):
+                tp_nr = m_obj.group(3)
+            else:
+                raise ValueError('Unable to extract number of keypoints from directory name ' + base)
         else:
             raise ValueError('Unable to extract depth and keypoint distribution from directory name ' + base)
 
@@ -136,11 +140,12 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             dirs_ssq['sequDir'].append(subd)
             dirs_ssq['kp_distr'].append(kp_distr)
             dirs_ssq['depth_distr'].append(depth_distr)
+            dirs_ssq['nrTP'].append(tp_nr)
             cnt = cnt + 1
 
     #Get keypoint accuracy, inlier ratio, and inlier ratio change rate for every dataset
-    dirs_smsq = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'inlrat_min': [], 'inlrat_max': [],
-                 'inlrat_c_rate': [], 'kp_acc_sd': []}
+    dirs_smsq = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'nrTP': [], 'inlrat_min': [],
+                 'inlrat_max': [], 'inlrat_c_rate': [], 'kp_acc_sd': []}
     for i, sd in enumerate(dirs_ssq['sequDir']):
         ovcf = os.path.join(sd, 'sequPars.yaml.gz')
         if not os.path.exists(ovcf):
@@ -174,6 +179,7 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             dirs_smsq['parSetNr'].append(int(cnt))
             dirs_smsq['kp_distr'].append(dirs_ssq['kp_distr'][i])
             dirs_smsq['depth_distr'].append(dirs_ssq['depth_distr'][i])
+            dirs_smsq['nrTP'].append(dirs_ssq['nrTP'][i])
             dirs_smsq['inlrat_min'].append(float(inlrat_min))
             dirs_smsq['inlrat_max'].append(float(inlrat_max))
             dirs_smsq['inlrat_c_rate'].append(float(inlrat_c_rate))
@@ -206,14 +212,15 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             raise ValueError('No data left after filtering keypoint position distributions')
 
     sequ = df.to_dict('list')
-    sequ_cmd = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'inlrat_min': [], 'inlrat_max': [],
-                 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': []}
+    sequ_cmd = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'nrTP': [], 'inlrat_min': [],
+                 'inlrat_max': [], 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': []}
     for it in cmds:
         for i, sd in enumerate(dirs_ssq['sequDir']):
             sequ_cmd['sequDir'].append(sd)
             sequ_cmd['parSetNr'].append(dirs_ssq['parSetNr'][i])
             sequ_cmd['kp_distr'].append(dirs_ssq['kp_distr'][i])
             sequ_cmd['depth_distr'].append(dirs_ssq['depth_distr'][i])
+            sequ_cmd['nrTP'].append(dirs_ssq['nrTP'][i])
             sequ_cmd['inlrat_min'].append(dirs_ssq['inlrat_min'][i])
             sequ_cmd['inlrat_max'].append(dirs_ssq['inlrat_max'][i])
             sequ_cmd['inlrat_c_rate'].append(dirs_ssq['inlrat_c_rate'][i])
@@ -222,7 +229,118 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
 
     df1 = pandas.DataFrame(data=sequ_cmd)
     ov_file = os.path.join(output_path, 'commands_and_parameters_full.csv')
+    if os.path.exists(ov_file):
+        raise ValueError('File ' + ov_file + ' already exists')
     df1.to_csv(index=True, sep=';', path_or_buf=ov_file)
+
+    pathnew = os.path.join(output_path, 'results')
+    try:
+        os.mkdir(pathnew)
+    except FileExistsError:
+        print('Directory ' + pathnew + ' already exists')
+
+    return start_autocalib(ov_file, executable, cpu_cnt, message_path, pathnew, 0)
+
+
+def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path, nr_call):
+    cf = pandas.read_csv(csv_cmd_file, delimiter=';')
+    if cf.empty:
+        raise ValueError("File " + csv_cmd_file + " is empty.")
+
+    cmds = []
+    for index, row in cf.iterrows():
+        opts = row['cmd'].split(' ')
+        opts += ['--sequ_path', row['sequDir'], '--matchData_idx', str(row['parSetNr']),
+                 '--ovf_ext', 'yaml.gz', '--output_path', output_path]
+        infos = ['kpDistr', row['kp_distr'],
+                 'depthDistr', row['depth_distr'],
+                 'nrTP', row['nrTP'],
+                 'inlratMin', str(row['inlrat_min']),
+                 'inlratMax', str(row['inlrat_max']),
+                 'inlratCRate', str(row['inlrat_c_rate']),
+                 'kpAccSd', str(row['kp_acc_sd'])]
+        opts += ['--addSequInfo', '_'.join(infos)]
+        single_cmd = [executable] + opts
+        mess_base_name = 'out_' + str(int(nr_call)) + '_' + str(index)
+        cmds.append((single_cmd, row, message_path, mess_base_name))
+
+    with multiprocessing.Pool(processes=cpu_cnt) as pool:
+        results = [pool.apply_async(autocalib, t) for t in cmds]
+
+
+
+def autocalib(cmd, data, message_path, mess_base_name):
+    base = mess_base_name
+    errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
+    stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
+    cnt = 1
+    while os.path.exists(errmess) or os.path.exists(stdmess):
+        base = mess_base_name + '_' + str(cnt)
+        errmess = os.path.join(message_path, 'cerr_' + base + '.txt')
+        stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
+        cnt += 1
+    cerrf = open(errmess, 'w')
+    messf = open(stdmess, 'w')
+    try:
+        sp.run(cmd, stdout=messf, stderr=cerrf, check=True, timeout=36000)
+    except sp.CalledProcessError as e:
+        print('Failed to perform autocalibration')
+        sys.stdout.flush()
+        err_filen = 'errorInfo_' + base + '.txt'
+        fname_err = os.path.join(message_path, err_filen)
+        if e.cmd or e.stderr or e.stdout:
+            with open(fname_err, 'w') as fo1:
+                if e.cmd:
+                    for line in e.cmd:
+                        fo1.write(line + ' ')
+                    fo1.write('\n\n')
+                if e.stderr:
+                    for line in e.stderr:
+                        fo1.write(line + ' ')
+                    fo1.write('\n\n')
+                if e.stdout:
+                    for line in e.stdout:
+                        fo1.write(line + ' ')
+        cerrf.close()
+        messf.close()
+        raise ChildProcessError
+    except sp.TimeoutExpired as e:
+        print('Timeout expired for performing autocalibration')
+        sys.stdout.flush()
+        err_filen = 'errorInfoTimeOut_' + base + '.txt'
+        fname_err = os.path.join(message_path, err_filen)
+        if e.cmd or e.stderr or e.stdout:
+            with open(fname_err, 'w') as fo1:
+                if e.cmd:
+                    for line in e.cmd:
+                        fo1.write(line + ' ')
+                    fo1.write('\n\n')
+                if e.stderr:
+                    for line in e.stderr:
+                        fo1.write(line + ' ')
+                    fo1.write('\n\n')
+                if e.stdout:
+                    for line in e.stdout:
+                        fo1.write(line + ' ')
+        cerrf.close()
+        messf.close()
+        raise TimeoutError
+    cerrf.close()
+    messf.close()
+
+    if os.stat(errmess).st_size == 0:
+        os.remove(errmess)
+    if os.stat(stdmess).st_size == 0:
+        os.remove(stdmess)
+
+    return 0
+
+def write_cmd_csv(file, data):
+    if os.path.exists(file):
+        with open(file, 'a') as f:
+            data.to_csv(f, index=False, sep=';', header=False)
+    else:
+        data.to_csv(index=False, sep=';', path_or_buf=file)
 
 
 def main():
