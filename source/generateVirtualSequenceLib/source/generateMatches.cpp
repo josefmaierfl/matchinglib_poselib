@@ -14,6 +14,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include "helper_funcs.h"
 #include "side_funcs.h"
+#include <boost/interprocess/sync/scoped_lock.hpp>
+#include <boost/interprocess/sync/named_mutex.hpp>
 
 using namespace std;
 using namespace cv;
@@ -2866,6 +2868,7 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
 }
 
 bool genMatchSequ::writeMatchingParameters(){
+    using namespace boost::interprocess;
     if(!checkPathExists(sequParPath)){
         cerr << "Given path " << sequParPath << " to store matching parameters does not exist!" << endl;
         return false;
@@ -2881,70 +2884,76 @@ bool genMatchSequ::writeMatchingParameters(){
     FileStorage fs;
     int nrEntries = 0;
     string parSetNr = "parSetNr";
-    if(checkFileExists(matchParsFileName)){
-        //Check number of entries first
-        if(!getNrEntriesYAML(matchParsFileName, parSetNr, nrEntries)){
-            return false;
+    try {
+        named_mutex mutex(open_or_create, "write_matches_yaml");
+        scoped_lock<named_mutex> lock(mutex);
+        if (checkFileExists(matchParsFileName)) {
+            //Check number of entries first
+            if (!getNrEntriesYAML(matchParsFileName, parSetNr, nrEntries)) {
+                return false;
+            }
+            fs = FileStorage(matchParsFileName, FileStorage::APPEND);
+            if (!fs.isOpened()) {
+                cerr << "Failed to open " << matchParsFileName << endl;
+                return false;
+            }
+            cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+            parSetNr += std::to_string(nrEntries);
+        } else {
+            fs = FileStorage(matchParsFileName, FileStorage::WRITE);
+            if (!fs.isOpened()) {
+                cerr << "Failed to open " << matchParsFileName << endl;
+                return false;
+            }
+            cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
+                                "generating matches out of given 3D correspondences.\n\n", 0);
+            parSetNr += "0";
         }
-        fs = FileStorage(matchParsFileName, FileStorage::APPEND);
-        if (!fs.isOpened()) {
-            cerr << "Failed to open " << matchParsFileName << endl;
-            return false;
-        }
-        cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
-        parSetNr += std::to_string(nrEntries);
+        fs << parSetNr;
+        fs << "{";
+
+        cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
+                            "using the below parameters.", 0);
+        size_t posLastSl = matchDataPath.rfind('/');
+        string matchDirName = matchDataPath.substr(posLastSl + 1);
+        fs << "hashMatchingPars" << matchDirName;
+
+        cvWriteComment(*fs, "Path containing the images for producing keypoint patches", 0);
+        fs << "imgPath" << parsMtch.imgPath;
+        cvWriteComment(*fs, "Image pre- and/or postfix for images within imgPath", 0);
+        fs << "imgPrePostFix" << parsMtch.imgPrePostFix;
+        cvWriteComment(*fs, "Name of keypoint detector", 0);
+        fs << "keyPointType" << parsMtch.keyPointType;
+        cvWriteComment(*fs, "Name of descriptor extractor", 0);
+        fs << "descriptorType" << parsMtch.descriptorType;
+        cvWriteComment(*fs, "Keypoint detector error (true) or error normal distribution (false)", 0);
+        fs << "keypPosErrType" << parsMtch.keypPosErrType;
+        cvWriteComment(*fs, "Keypoint error distribution (mean, std)", 0);
+        fs << "keypErrDistr";
+        fs << "{" << "first" << parsMtch.keypErrDistr.first;
+        fs << "second" << parsMtch.keypErrDistr.second << "}";
+        cvWriteComment(*fs, "Noise (mean, std) on the image intensity for descriptor calculation", 0);
+        fs << "imgIntNoise";
+        fs << "{" << "first" << parsMtch.imgIntNoise.first;
+        fs << "second" << parsMtch.imgIntNoise.second << "}";
+        /*cvWriteComment(*fs, "Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
+        fs << "lostCorrPor" << parsMtch.lostCorrPor;*/
+        cvWriteComment(*fs, "If true, all PCL point clouds and necessary information to load a cam sequence "
+                            "with correspondences are stored to disk", 0);
+        fs << "storePtClouds" << parsMtch.storePtClouds;
+        cvWriteComment(*fs, "If true, the parameters and information are stored and read in XML format.", 0);
+        fs << "rwXMLinfo" << parsMtch.rwXMLinfo;
+        cvWriteComment(*fs, "If true, the stored information and parameters are compressed", 0);
+        fs << "compressedWrittenInfo" << parsMtch.compressedWrittenInfo;
+        cvWriteComment(*fs, "If true and too less images images are provided (resulting in too less keypoints), "
+                            "only as many frames with GT matches are provided as keypoints are available.", 0);
+        fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
+
+        fs.release();
+    }catch(interprocess_exception &ex){
+        cerr << ex.what() << std::endl;
+        return false;
     }
-    else{
-        fs = FileStorage(matchParsFileName, FileStorage::WRITE);
-        if (!fs.isOpened()) {
-            cerr << "Failed to open " << matchParsFileName << endl;
-            return false;
-        }
-        cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
-                            "generating matches out of given 3D correspondences.\n\n", 0);
-        parSetNr += "0";
-    }
-    fs << parSetNr;
-    fs << "{";
-
-    cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
-                        "using the below parameters.", 0);
-    size_t posLastSl = matchDataPath.rfind('/');
-    string matchDirName = matchDataPath.substr(posLastSl + 1);
-    fs << "hashMatchingPars" << matchDirName;
-
-    cvWriteComment(*fs, "Path containing the images for producing keypoint patches", 0);
-    fs << "imgPath" << parsMtch.imgPath;
-    cvWriteComment(*fs, "Image pre- and/or postfix for images within imgPath", 0);
-    fs << "imgPrePostFix" << parsMtch.imgPrePostFix;
-    cvWriteComment(*fs, "Name of keypoint detector", 0);
-    fs << "keyPointType" << parsMtch.keyPointType;
-    cvWriteComment(*fs, "Name of descriptor extractor", 0);
-    fs << "descriptorType" << parsMtch.descriptorType;
-    cvWriteComment(*fs, "Keypoint detector error (true) or error normal distribution (false)", 0);
-    fs << "keypPosErrType" << parsMtch.keypPosErrType;
-    cvWriteComment(*fs, "Keypoint error distribution (mean, std)", 0);
-    fs << "keypErrDistr";
-    fs << "{" << "first" << parsMtch.keypErrDistr.first;
-    fs << "second" << parsMtch.keypErrDistr.second << "}";
-    cvWriteComment(*fs, "Noise (mean, std) on the image intensity for descriptor calculation", 0);
-    fs << "imgIntNoise";
-    fs << "{" << "first" << parsMtch.imgIntNoise.first;
-    fs << "second" << parsMtch.imgIntNoise.second << "}";
-    /*cvWriteComment(*fs, "Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
-    fs << "lostCorrPor" << parsMtch.lostCorrPor;*/
-    cvWriteComment(*fs, "If true, all PCL point clouds and necessary information to load a cam sequence "
-                        "with correspondences are stored to disk", 0);
-    fs << "storePtClouds" << parsMtch.storePtClouds;
-    cvWriteComment(*fs, "If true, the parameters and information are stored and read in XML format.", 0);
-    fs << "rwXMLinfo" << parsMtch.rwXMLinfo;
-    cvWriteComment(*fs, "If true, the stored information and parameters are compressed", 0);
-    fs << "compressedWrittenInfo" << parsMtch.compressedWrittenInfo;
-    cvWriteComment(*fs, "If true and too less images images are provided (resulting in too less keypoints), "
-                        "only as many frames with GT matches are provided as keypoints are available.", 0);
-    fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
-
-    fs.release();
 
     return true;
 }
@@ -2968,6 +2977,7 @@ bool genMatchSequ::getSequenceOverviewParsFileName(std::string &filename){
 }
 
 bool genMatchSequ::writeSequenceOverviewPars(){
+    using namespace boost::interprocess;
     string filename;
     if(!getSequenceOverviewParsFileName(filename)){
         return false;
@@ -2976,42 +2986,48 @@ bool genMatchSequ::writeSequenceOverviewPars(){
     FileStorage fs;
     int nrEntries = 0;
     string parSetNr = "parSetNr";
-    if(checkFileExists(filename)){
-        //Check number of entries first
-        if(!getNrEntriesYAML(filename, parSetNr, nrEntries)){
-            return false;
+    try {
+        named_mutex mutex(open_or_create, "write_sequence_ov_yaml");
+        scoped_lock<named_mutex> lock(mutex);
+        if (checkFileExists(filename)) {
+            //Check number of entries first
+            if (!getNrEntriesYAML(filename, parSetNr, nrEntries)) {
+                return false;
+            }
+            fs = FileStorage(filename, FileStorage::APPEND);
+            if (!fs.isOpened()) {
+                cerr << "Failed to open " << filename << endl;
+                return false;
+            }
+            cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+            parSetNr += std::to_string(nrEntries);
+        } else {
+            fs = FileStorage(filename, FileStorage::WRITE);
+            if (!fs.isOpened()) {
+                cerr << "Failed to open " << filename << endl;
+                return false;
+            }
+            cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
+                                "generating 3D correspondences.\n\n", 0);
+            parSetNr += "0";
         }
-        fs = FileStorage(filename, FileStorage::APPEND);
-        if (!fs.isOpened()) {
-            cerr << "Failed to open " << filename << endl;
-            return false;
-        }
-        cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
-        parSetNr += std::to_string(nrEntries);
+        fs << parSetNr;
+        fs << "{";
+
+        cvWriteComment(*fs, "Directory name (within the path containing this file) which holds multiple frames of "
+                            "3D correspondences using the below parameters.", 0);
+        size_t posLastSl = sequParPath.rfind('/');
+        string sequDirName = sequParPath.substr(posLastSl + 1);
+        fs << "hashSequencePars" << sequDirName;
+
+        writeSomeSequenceParameters(fs);
+        fs << "}";
+
+        fs.release();
+    }catch(interprocess_exception &ex){
+        cerr << ex.what() << std::endl;
+        return false;
     }
-    else{
-        fs = FileStorage(filename, FileStorage::WRITE);
-        if (!fs.isOpened()) {
-            cerr << "Failed to open " << filename << endl;
-            return false;
-        }
-        cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
-                            "generating 3D correspondences.\n\n", 0);
-        parSetNr += "0";
-    }
-    fs << parSetNr;
-    fs << "{";
-
-    cvWriteComment(*fs, "Directory name (within the path containing this file) which holds multiple frames of "
-                        "3D correspondences using the below parameters.", 0);
-    size_t posLastSl = sequParPath.rfind('/');
-    string sequDirName = sequParPath.substr(posLastSl + 1);
-    fs << "hashSequencePars" << sequDirName;
-
-    writeSomeSequenceParameters(fs);
-    fs << "}";
-
-    fs.release();
 
     return true;
 }
