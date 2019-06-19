@@ -551,7 +551,7 @@ void writeTestingParameters(cv::FileStorage &fs,
                             const calibPars &cp);
 bool writeResultsDisk(const std::vector<algorithmResult> &ar, const string &filename);
 
-void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
+int SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
 //    testing::internal::FilePath program(argv[0]);
 //    testing::internal::FilePath program_dir = program.RemoveFileName();
@@ -801,9 +801,11 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     {
         std::cout << cmd.parseErrorDescription(result) << endl;
     }
+
+    return result;
 }
 
-void startEvaluation(ArgvParser& cmd)
+bool startEvaluation(ArgvParser& cmd)
 {
     string matchData_idx_str, output_path, ovf_ext, ovf_ext1part, addSequInfo;
     string show_str;
@@ -993,8 +995,8 @@ void startEvaluation(ArgvParser& cmd)
 
     if(cp.autoTH && cp.Halign)
     {
-        std::cerr << "The options 'autoTH' and 'Halign' are mutually exclusive. Chosse only one of them. Exiting." << endl;
-        exit(0);
+        std::cerr << "The options 'autoTH' and 'Halign' are mutually exclusive. Choose only one of them. Exiting." << endl;
+        exit(1);
     }
 
     if (cmd.foundOption("th"))
@@ -2262,6 +2264,8 @@ void startEvaluation(ArgvParser& cmd)
         cerr << "Unable to write results to disk." << endl;
         exit(1);
     }
+
+    return true;
 }
 
 //Generate an unique hash value for the used parameters
@@ -2915,10 +2919,14 @@ FileStorage& operator << (FileStorage& fs, bool &value)
 int main( int argc, char* argv[])
 {
     ArgvParser cmd;
-    SetupCommandlineParser(cmd, argc, argv);
-    startEvaluation(cmd);
+    if(SetupCommandlineParser(cmd, argc, argv) != 0){
+        return EXIT_FAILURE;
+    }
+    if(!startEvaluation(cmd)){
+        return EXIT_FAILURE;
+    }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 #endif
