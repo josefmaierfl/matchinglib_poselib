@@ -56,9 +56,14 @@ class NoDaemonProcess(multiprocessing.Process):
 class MyPool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
 
+# Use a lock mechanism to write from multiple processes to the same file
+def init_child_lock(lock_):
+    global lock
+    lock = lock_
+
 
 def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, inlier_ratios, kp_accs, depths,
-                  kp_pos_distr, cmds):
+                  kp_pos_distr, nr_keypoints, cmds):
     dirs_f = os.path.join(path_ov_file, 'generated_dirs_config.txt')
     if not os.path.exists(dirs_f):
         raise ValueError("Unable to load " + dirs_f)
@@ -211,6 +216,11 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
         if df.empty:
             raise ValueError('No data left after filtering keypoint position distributions')
 
+    if nr_keypoints:
+        df = df.loc[df['nrTP'].isin(nr_keypoints)]
+        if df.empty:
+            raise ValueError('No data left after filtering number of keypoints')
+
     sequ = df.to_dict('list')
     sequ_cmd = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'nrTP': [], 'inlrat_min': [],
                  'inlrat_max': [], 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': []}
@@ -264,9 +274,22 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
         mess_base_name = 'out_' + str(int(nr_call)) + '_' + str(index)
         cmds.append((single_cmd, row, message_path, mess_base_name))
 
-    with multiprocessing.Pool(processes=cpu_cnt) as pool:
+    lock = multiprocessing.Lock()
+    res = 0
+    with multiprocessing.Pool(processes=cpu_cnt, initializer=init_child_lock, initargs=(lock, )) as pool:
         results = [pool.apply_async(autocalib, t) for t in cmds]
 
+        for r in results:
+            try:
+                res = r.get()
+            except ChildProcessError:
+                res = 1
+            except TimeoutError:
+                res = 2
+            except:
+                res = 3
+
+    return res
 
 
 def autocalib(cmd, data, message_path, mess_base_name):
@@ -303,6 +326,12 @@ def autocalib(cmd, data, message_path, mess_base_name):
                         fo1.write(line + ' ')
         cerrf.close()
         messf.close()
+        #Get path to store information for failed command
+        subp_i = cmd.index('--output_path') + 1
+        parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))#Get parent directory
+        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful.csv')
+        with lock:
+            write_cmd_csv(cf_name, data)
         raise ChildProcessError
     except sp.TimeoutExpired as e:
         print('Timeout expired for performing autocalibration')
@@ -324,7 +353,32 @@ def autocalib(cmd, data, message_path, mess_base_name):
                         fo1.write(line + ' ')
         cerrf.close()
         messf.close()
+        # Get path to store information for failed command
+        subp_i = cmd.index('--output_path') + 1
+        parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))  # Get parent directory
+        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful.csv')
+        with lock:
+            write_cmd_csv(cf_name, data)
         raise TimeoutError
+    except:
+        print('Unknown exception')
+        e = sys.exc_info()
+        print(str(e))
+        sys.stdout.flush()
+        err_filen = 'errorInfoUnknown_' + base + '.txt'
+        fname_err = os.path.join(message_path, err_filen)
+        with open(fname_err, 'w') as fo1:
+            fo1.write('\n'.join(map(str, e)))
+        cerrf.close()
+        messf.close()
+        # Get path to store information for failed command
+        subp_i = cmd.index('--output_path') + 1
+        parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))  # Get parent directory
+        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful.csv')
+        with lock:
+            write_cmd_csv(cf_name, data)
+        raise ChildProcessError
+
     cerrf.close()
     messf.close()
 
@@ -337,10 +391,10 @@ def autocalib(cmd, data, message_path, mess_base_name):
 
 def write_cmd_csv(file, data):
     if os.path.exists(file):
-        with open(file, 'a') as f:
+        with open(file, 'a', newline='') as f:
             data.to_csv(f, index=False, sep=';', header=False)
     else:
-        data.to_csv(index=False, sep=';', path_or_buf=file)
+        data.to_csv(index=False, sep=';', path_or_buf=file, header=True)
 
 
 def main():
@@ -365,6 +419,10 @@ def main():
                         help='Use only the given set of keypoint accuracies. If not provided, all available are used.')
     parser.add_argument('--depths', type=str, nargs='+', required=False,
                         help='Use only the given set of depth distributions. If not provided, all available are used.')
+    parser.add_argument('--nr_keypoints', type=str, nargs=1, required=False,
+                        help='Use only the given number of keypoints per frame. The given string must be equal to the '
+                             'substring in the initial config file or in the subfolder of the final config files '
+                             '(e.g. \'500\' or \'100to1000\'). If not provided, all available are used.')
     parser.add_argument('--kp_pos_distr', type=str, nargs='+', required=False,
                         help='Use only the given set of keypoint position distributions. '
                              'If not provided, all available are used.')
@@ -853,7 +911,7 @@ def main():
 
 
     return autocalib_pre(args.path, args.executable, cpu_use, args.message_path, args.output_path, args.inlier_ratios,
-                         args.kp_accs, args.depths, args.kp_pos_distr, cmds)
+                         args.kp_accs, args.depths, args.kp_pos_distr, args.nr_keypoints, cmds)
 
 def appUSAC(reslist, cfgUSAC, idx, errstr, maxv, missdig):
     if cfgUSAC[idx] > 0:

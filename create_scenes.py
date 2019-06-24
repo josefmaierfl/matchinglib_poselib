@@ -473,6 +473,7 @@ def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
         ov_file = os.path.join(cmd_l[10], 'matchInfos.yaml')
     else:
         ov_file = os.path.join(cmd_l[6], 'sequInfos.yaml')
+
     if parSetNr != 0:
         if loaded and parSetNr > 1:
             time.sleep(float(min(used_cpus, (parSetNr - 1)) * 10))
