@@ -1,7 +1,7 @@
 """
 Execute autocalibration using different parameters and all generated sequences within a given folder.
 """
-import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas, cv2, time, subprocess as sp
+import sys, re, numpy as np, argparse, os, pandas, subprocess as sp
 import ruamel.yaml as yaml
 import multiprocessing
 import warnings
@@ -727,9 +727,10 @@ def main():
         raise ValueError('Wrong number of arguments for USACInlratFilt')
     if args.USACInlratFilt < 2:
         for it in cmds:
-            if args.USACInlratFilt == 0:
-                if '--refineGMS' in it:
-                    raise ValueError('Cannot use GMS filter within USAC if the filter was used on the input data')
+            if it[it.index('--RobMethod') + 1] == 'USAC' and int(it[it.index('--cfgUSAC') + 1][0]) > 1:
+                if args.USACInlratFilt == 0:
+                    if '--refineGMS' in it:
+                        raise ValueError('Cannot use GMS filter within USAC if the filter was used on the input data')
                 if args.USACInlratFilt == 1:
                     if '--refineVFC' in it:
                         raise ValueError('Cannot use VFC filter within USAC if the filter was used on the input data')
@@ -742,8 +743,11 @@ def main():
                 raise ValueError('Cannot use GMS filter within USAC if the filter was used on the input data')
             if '--refineVFC' in it:
                 raise ValueError('Cannot use VFC filter within USAC if the filter was used on the input data')
-            for i in range(2):
-                cmds.append(it + ['--USACInlratFilt', str(i)])
+            if int(it[it.index('--cfgUSAC') + 1][0]) > 1:
+                for i in range(2):
+                    cmds.append(it + ['--USACInlratFilt', str(i)])
+            else:
+                cmds.append(it)
 
     cmds = appRange(cmds, args.th, 'th')
 

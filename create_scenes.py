@@ -1,7 +1,7 @@
 """
 Load configuration files and generate different scenes for testing using multiple CPU cores
 """
-import sys, re, statistics as stat, numpy as np, math, argparse, os, pandas, cv2, time, subprocess as sp
+import sys, re, numpy as np, math, argparse, os, pandas, time, subprocess as sp
 import ruamel.yaml as yaml
 import multiprocessing
 import warnings
@@ -9,7 +9,7 @@ import warnings
 # multiprocessing module.
 import multiprocessing.pool
 #from tabulate import tabulate as tab
-from copy import deepcopy
+#from copy import deepcopy
 
 def opencv_matrix_constructor(loader, node):
     mapping = loader.construct_mapping(node, deep=True)
