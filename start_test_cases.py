@@ -2,7 +2,7 @@
 Execute different test scenarios for the autocalibration based on name and test number in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, re, argparse, os, warnings, time
+import sys, re, argparse, os, warnings, time, subprocess as sp
 
 def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, test_name, test_nr):
     args = ['--path', path_ov_file, '--nrCPUs', str(cpu_cnt), '--executable', executable,
@@ -37,6 +37,27 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
     maxRat3DPtsFar = None
     # Change maxDist3DPtsZ parameter based on result of test_nr 2 of correspondence_pool
     maxDist3DPtsZ = None
+    # Change relInlRatThLast parameter based on result of test_nr 1 of robustness
+    relInlRatThLast = None
+    # Change relInlRatThNew parameter based on result of test_nr 1 of robustness
+    relInlRatThNew = None
+    # Change minInlierRatSkip parameter based on result of test_nr 1 of robustness
+    minInlierRatSkip = None
+    # Change relMinInlierRatSkip parameter based on result of test_nr 1 of robustness
+    relMinInlierRatSkip = None
+    # Change minInlierRatioReInit parameter based on result of test_nr 1 of robustness
+    minInlierRatioReInit = None
+    # Change checkPoolPoseRobust parameter based on result of test_nr 2 of robustness
+    checkPoolPoseRobust = None
+    # Change minContStablePoses parameter based on result of test_nr 3 of robustness
+    minContStablePoses = None
+    # Change minNormDistStable parameter based on result of test_nr 3 of robustness
+    minNormDistStable = None
+    # Change absThRankingStable parameter based on result of test_nr 3 of robustness
+    absThRankingStable = None
+    # Change useRANSAC_fewMatches to true or false based on result of test_nr 4 of robustness
+    useRANSAC_fewMatches = None
+
 
     if test_name == 'usac-testing':
         args += ['--refineRT', '0', '0']
@@ -68,7 +89,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
         args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
-        if not USACInlratFilt:
+        if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
     elif test_name == 'refinement_ba':
@@ -76,10 +97,10 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
         args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
-        if not USACInlratFilt:
+        if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if not th:
+        if th is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
         args += ['--th', str(th)]
         if not test_nr:
@@ -97,7 +118,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for refinement_ba')
     elif test_name == 'vfc_gms_sof':
-        if not robMFilt:
+        if robMFilt is None:
             raise ValueError('Enter robust method for testing VFC, GMS, and SOF')
         args += ['--RobMethod', robMFilt]
         if robMFilt == 'USAC':
@@ -107,7 +128,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         else:
             args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5']
         args += ['--USACInlratFilt', '0']
-        if not th:
+        if th is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
         args += ['--th', str(th)]
         args += ['--refineRT', '0', '0']
@@ -120,16 +141,16 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
         args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
-        if not USACInlratFilt:
+        if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if not th:
+        if th is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
         args += ['--th', str(th)]
         if not refineRT:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
         args += ['--refineRT'] + map(str, refineRT)
-        if not bart:
+        if bart is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
         args += ['--BART', str(bart)]
         args += ['--stereoRef']
@@ -155,25 +176,26 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
         args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
-        if not USACInlratFilt:
+        if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if not th:
+        if th is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
         args += ['--th', str(th)]
         if not refineRT:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
         args += ['--refineRT'] + map(str, refineRT)
-        if not bart:
+        if bart is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
         args += ['--BART', str(bart)]
         args += ['--stereoRef']
         args += ['--minStartAggInlRat', '0.075']
         args += ['--minInlierRatSkip', '0.075']
+        args += ['--useGTCamMat']
         if not refineRT_stereo:
             raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
         args += ['--refineRT_stereo'] + map(str, refineRT_stereo)
-        if not bart_stereo:
+        if bart_stereo is None:
             raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
         args += ['--BART_stereo', str(bart_stereo)]
         if not test_nr:
@@ -183,10 +205,10 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--maxPoolCorrespondences', '200', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
                      '5000', '10000', '1000', '10000', '20000', '2000', '20000', '30000', '5000']
         elif test_nr == 2:
-            if not minPtsDistance:
+            if minPtsDistance is None:
                 raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
             args += ['--minPtsDistance', str(minPtsDistance)]
-            if not maxPoolCorrespondences:
+            if maxPoolCorrespondences is None:
                 raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
             args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
             args += ['--maxRat3DPtsFar', '0.1', '0.8', '0.1']
@@ -199,20 +221,209 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--nr_keypoints', '500']
             args += ['--kp_pos_distr', '1corn']
             args += ['--inlier_ratios', '0.6']
-            if not minPtsDistance:
+            if minPtsDistance is None:
                 raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
             args += ['--minPtsDistance', str(minPtsDistance)]
-            if not maxPoolCorrespondences:
+            if maxPoolCorrespondences is None:
                 raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
             args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
-            if not maxRat3DPtsFar:
+            if maxRat3DPtsFar is None:
                 raise ValueError('Enter best test results for maxRat3DPtsFar of correspondence_pool')
             args += ['--maxRat3DPtsFar', str(maxRat3DPtsFar)]
-            if not maxDist3DPtsZ:
+            if maxDist3DPtsZ is None:
                 raise ValueError('Enter best test results for maxDist3DPtsZ of correspondence_pool')
             args += ['--maxDist3DPtsZ', str(maxDist3DPtsZ)]
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for correspondence_pool')
+    elif test_name == 'robustness':
+        args += ['--RobMethod', 'USAC']
+        if not usac56 or not usac123:
+            raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
+        args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+        if USACInlratFilt is None:
+            raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
+        args += ['--USACInlratFilt', str(USACInlratFilt)]
+        if th is None:
+            raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
+        args += ['--th', str(th)]
+        if not refineRT:
+            raise ValueError('Enter best test results for refineRT of refinement_ba')
+        args += ['--refineRT'] + map(str, refineRT)
+        if bart is None:
+            raise ValueError('Enter best test results for BART of refinement_ba')
+        args += ['--BART', str(bart)]
+        args += ['--stereoRef']
+        args += ['--useGTCamMat']
+        if not refineRT_stereo:
+            raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
+        args += ['--refineRT_stereo'] + map(str, refineRT_stereo)
+        if bart_stereo is None:
+            raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
+        args += ['--BART_stereo', str(bart_stereo)]
+        if minPtsDistance is None:
+            raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
+        args += ['--minPtsDistance', str(minPtsDistance)]
+        if maxPoolCorrespondences is None:
+            raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
+        args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
+        warnings.warn("Warning: Are you sure the selected number of maxPoolCorrespondences is small enough "
+                      "to not reach an overall runtime of 0.8s per frame?")
+        time.sleep(5.0)
+        if maxRat3DPtsFar is None:
+            raise ValueError('Enter best test results for maxRat3DPtsFar of correspondence_pool')
+        args += ['--maxRat3DPtsFar', str(maxRat3DPtsFar)]
+        if maxDist3DPtsZ is None:
+            raise ValueError('Enter best test results for maxDist3DPtsZ of correspondence_pool')
+        args += ['--maxDist3DPtsZ', str(maxDist3DPtsZ)]
+        args += ['--minStartAggInlRat', '0.2']
+        if not test_nr:
+            raise ValueError('test_nr is required for correspondence_pool')
+        if test_nr == 1:
+            warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
+            time.sleep(5.0)
+            args += ['--absThRankingStable', '0.1']
+            args += ['--nr_keypoints', '30to500']
+            args += ['--relInlRatThLast', '0.1', '0.5', '0.1']
+            args += ['--relInlRatThNew', '0.05', '0.55', '0.1']
+            args += ['--minInlierRatSkip', '0.1', '0.55', '0.075']
+            args += ['--relMinInlierRatSkip', '0.4', '0.8', '0.1']#This test was forgotten in the Test-Description
+            args += ['--minInlierRatioReInit', '0.3', '0.8', '0.1']
+        elif test_nr == 2:
+            warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
+            time.sleep(5.0)
+            args += ['--absThRankingStable', '0.1']
+            args += ['--nr_keypoints', '30to500']
+            if relInlRatThLast is None:
+                raise ValueError('Enter best test results for relInlRatThLast of robustness')
+            args += ['--relInlRatThLast', str(relInlRatThLast)]
+            if relInlRatThNew is None:
+                raise ValueError('Enter best test results for relInlRatThNew of robustness')
+            args += ['--relInlRatThNew', str(relInlRatThNew)]
+            if minInlierRatSkip is None:
+                raise ValueError('Enter best test results for minInlierRatSkip of robustness')
+            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
+            if relMinInlierRatSkip is None:
+                raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
+            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
+            if minInlierRatioReInit is None:
+                raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
+            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+            args += ['--checkPoolPoseRobust', '0', '5', '1']
+        elif test_nr == 3:
+            warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
+            time.sleep(5.0)
+            args += ['--nr_keypoints', '30to500']
+            if relInlRatThLast is None:
+                raise ValueError('Enter best test results for relInlRatThLast of robustness')
+            args += ['--relInlRatThLast', str(relInlRatThLast)]
+            if relInlRatThNew is None:
+                raise ValueError('Enter best test results for relInlRatThNew of robustness')
+            args += ['--relInlRatThNew', str(relInlRatThNew)]
+            if minInlierRatSkip is None:
+                raise ValueError('Enter best test results for minInlierRatSkip of robustness')
+            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
+            if relMinInlierRatSkip is None:
+                raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
+            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
+            if minInlierRatioReInit is None:
+                raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
+            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+            if checkPoolPoseRobust is None:
+                raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
+            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+            args += ['--minContStablePoses', '3', '5', '1']
+            args += ['--minNormDistStable', '0.25', '0.75', '0.1']
+            args += ['--absThRankingStable', '0.05', '0.5', '0.075']
+        elif test_nr == 4:
+            warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
+            time.sleep(5.0)
+            args += ['--nr_keypoints', '20to160']
+            if relInlRatThLast is None:
+                raise ValueError('Enter best test results for relInlRatThLast of robustness')
+            args += ['--relInlRatThLast', str(relInlRatThLast)]
+            if relInlRatThNew is None:
+                raise ValueError('Enter best test results for relInlRatThNew of robustness')
+            args += ['--relInlRatThNew', str(relInlRatThNew)]
+            if minInlierRatSkip is None:
+                raise ValueError('Enter best test results for minInlierRatSkip of robustness')
+            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
+            if relMinInlierRatSkip is None:
+                raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
+            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
+            if minInlierRatioReInit is None:
+                raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
+            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+            if checkPoolPoseRobust is None:
+                raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
+            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+            if minContStablePoses is None:
+                raise ValueError('Enter best test results for minContStablePoses of robustness')
+            args += ['--minContStablePoses', str(minContStablePoses)]
+            if minNormDistStable is None:
+                raise ValueError('Enter best test results for minNormDistStable of robustness')
+            args += ['--minNormDistStable', str(minNormDistStable)]
+            if absThRankingStable is None:
+                raise ValueError('Enter best test results for absThRankingStable of robustness')
+            args += ['--absThRankingStable', str(absThRankingStable)]
+            args += ['--useRANSAC_fewMatches']
+        elif test_nr == 5:
+            warnings.warn("Warning: Are you sure you have selected the LARGE dataset for testing?")
+            time.sleep(5.0)
+            if relInlRatThLast is None:
+                raise ValueError('Enter best test results for relInlRatThLast of robustness')
+            args += ['--relInlRatThLast', str(relInlRatThLast)]
+            if relInlRatThNew is None:
+                raise ValueError('Enter best test results for relInlRatThNew of robustness')
+            args += ['--relInlRatThNew', str(relInlRatThNew)]
+            if minInlierRatSkip is None:
+                raise ValueError('Enter best test results for minInlierRatSkip of robustness')
+            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
+            if relMinInlierRatSkip is None:
+                raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
+            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
+            if minInlierRatioReInit is None:
+                raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
+            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+            if checkPoolPoseRobust is None:
+                raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
+            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+            if minContStablePoses is None:
+                raise ValueError('Enter best test results for minContStablePoses of robustness')
+            args += ['--minContStablePoses', str(minContStablePoses)]
+            if minNormDistStable is None:
+                raise ValueError('Enter best test results for minNormDistStable of robustness')
+            args += ['--minNormDistStable', str(minNormDistStable)]
+            if absThRankingStable is None:
+                raise ValueError('Enter best test results for absThRankingStable of robustness')
+            args += ['--absThRankingStable', str(absThRankingStable)]
+            if useRANSAC_fewMatches is None:
+                raise ValueError('Enter best test result for useRANSAC_fewMatches of robustness')
+            if useRANSAC_fewMatches:
+                args += ['--useRANSAC_fewMatches']
+        else:
+            raise ValueError('test_nr ' + str(test_nr) + ' is not supported for robustness')
+    else:
+        raise ValueError('test_name ' + test_name + ' is not supported')
+
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'exec_autocalib.py')
+    try:
+        cmdline = ['python', pyfilename] + args
+        retcode = sp.call(cmdline, shell=False)
+        if retcode != 0:
+            print("Child was terminated by signal", retcode, file=sys.stderr)
+        else:
+            print("Child returned", retcode, file=sys.stderr)
+    except OSError as e:
+        print("Execution failed:", e, file=sys.stderr)
+        retcode = 4
+    except:
+        print('Unknown exception:', file=sys.stderr)
+        e = sys.exc_info()
+        print(str(e), file=sys.stderr)
+        retcode = 5
+
+    return retcode
 
 
 def main():
@@ -240,7 +451,6 @@ def main():
 
     return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
                        args.output_path, args.test_name.lower(), args.test_nr)
-
 
 
 if __name__ == "__main__":

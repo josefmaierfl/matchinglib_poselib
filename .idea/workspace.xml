@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b266c29b-3701-4b3e-b99d-2d03b7339933" name="Default Changelist" comment="Added script for generating multiple configuration files based on multiple template files with changing inlier change rate and keypoint accuracy">
+    <list default="true" id="b266c29b-3701-4b3e-b99d-2d03b7339933" name="Default Changelist" comment="Added some additional error management in script for generating multiple scenes using parallel processing.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/create_scenes.py" beforeDir="false" afterPath="$PROJECT_DIR$/create_scenes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/start_test_cases.py" beforeDir="false" afterPath="$PROJECT_DIR$/start_test_cases.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -13,41 +13,62 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/create_scenes.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="145">
-              <caret line="488" column="34" lean-forward="true" selection-start-line="488" selection-start-column="34" selection-end-line="488" selection-end-column="34" />
+            <state relative-caret-position="45">
+              <caret line="3" column="61" selection-start-line="3" selection-start-column="57" selection-end-line="3" selection-end-column="61" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/exec_autocalib.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="235">
+              <caret line="365" column="21" lean-forward="true" selection-start-line="365" selection-start-column="8" selection-end-line="365" selection-end-column="21" />
               <folding>
-                <element signature="e#100#205#0" expanded="true" />
+                <element signature="e#110#214#0" expanded="true" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/start_test_cases.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="255">
-              <caret line="17" selection-start-line="17" selection-end-line="17" />
+            <state relative-caret-position="497">
+              <caret line="452" column="78" selection-start-line="452" selection-start-column="78" selection-end-line="452" selection-end-column="78" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/pydevd.py">
+        <entry file="file://$PROJECT_DIR$/gen_scene_configs.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="467">
-              <caret line="1757" selection-start-line="1757" selection-end-line="1757" />
+            <state relative-caret-position="885">
+              <caret line="59" column="55" selection-start-line="58" selection-start-column="4" selection-end-line="59" selection-end-column="55" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/anaconda3/envs/test_env_ac/lib/python3.7/multiprocessing/pool.py">
+        <entry file="file://$PROJECT_DIR$/gen_mult_scene_configs.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="190">
-              <caret line="656" selection-start-line="656" selection-end-line="656" />
+            <state relative-caret-position="60">
+              <caret line="4" column="73" lean-forward="true" selection-start-line="4" selection-start-column="55" selection-end-line="4" selection-end-column="73" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/gen_init_scenes.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="555">
+              <caret line="38" column="61" selection-start-line="38" selection-start-column="61" selection-end-line="38" selection-end-column="61" />
+              <folding>
+                <element signature="e#159#232#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -55,8 +76,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/extract_Rt.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="405">
-              <caret line="168" column="59" lean-forward="true" selection-start-line="153" selection-end-line="168" selection-end-column="59" />
+            <state relative-caret-position="2280">
+              <caret line="154" column="35" selection-start-line="154" selection-start-column="35" selection-end-line="154" selection-end-column="35" />
               <folding>
                 <element signature="e#83#168#0" expanded="true" />
               </folding>
@@ -81,11 +102,24 @@
       <find>inlier_range</find>
       <find>res1</find>
       <find>map</find>
+      <find>refineRT_tmp</find>
+      <find>BART</find>
+      <find>remove</find>
+      <find>USACInlratFilt</find>
+      <find>refineRT</find>
+      <find>cfgUSAC</find>
+      <find>refineVFC</find>
+      <find>maxPoolCorrespondences</find>
+      <find>relMinInlierRatSkip</find>
     </findStrings>
     <replaceStrings>
       <replace>datac</replace>
       <replace>res2</replace>
       <replace>cmds_m</replace>
+      <replace>cfgUSAC</replace>
+      <replace>cfgUSAC_tmp</replace>
+      <replace>refineRT_stereo</replace>
+      <replace>BART_stereo</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -101,7 +135,11 @@
         <option value="$PROJECT_DIR$/gen_init_scenes.py" />
         <option value="$PROJECT_DIR$/gen_scene_configs.py" />
         <option value="$PROJECT_DIR$/gen_rob-test_scene_configs.py" />
+        <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/Test_Overview/start_test_cases.py" />
         <option value="$PROJECT_DIR$/create_scenes.py" />
+        <option value="$PROJECT_DIR$/exec_autocalib.py" />
+        <option value="$PROJECT_DIR$/start_test_cases.py" />
       </list>
     </option>
   </component>
@@ -117,7 +155,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -125,16 +162,27 @@
               <item name="py_test_scripts" type="b2602c69:ProjectViewProjectNode" />
               <item name="py_test_scripts" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="py_test_scripts" type="b2602c69:ProjectViewProjectNode" />
+              <item name="py_test_scripts" type="462c0819:PsiDirectoryNode" />
+              <item name="Test_Overview" type="462c0819:PsiDirectoryNode" />
+            </path>
           </expand>
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/create_scenes.py" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -297,13 +345,13 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.gen_scene_configs" />
-      <item itemvalue="Python.gen_mult_scene_configs" />
       <item itemvalue="Python.change_keyp_distr_config" />
-      <item itemvalue="Python.create_scenes" />
       <item itemvalue="Python.change_user_interrupt_config" />
-      <item itemvalue="Python.gen_init_scenes" />
+      <item itemvalue="Python.create_scenes" />
       <item itemvalue="Python.extract_Rt" />
+      <item itemvalue="Python.gen_init_scenes" />
+      <item itemvalue="Python.gen_mult_scene_configs" />
+      <item itemvalue="Python.gen_scene_configs" />
     </list>
   </component>
   <component name="SvnConfiguration">
@@ -394,19 +442,110 @@
       <option name="project" value="LOCAL" />
       <updated>1559752897763</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Some bug fixes for script for generating multiple scenes using parallel processing. Some additional testing should be performed">
+      <created>1559830988562</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1559830988562</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Finished script for generating multiple scenes using parallel processing.">
+      <created>1560249584648</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1560249584648</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Added some additional error management in script for generating multiple scenes using parallel processing.">
+      <created>1560267264657</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1560267264657</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Edited gitignore">
+      <created>1560331553276</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1560331553276</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Started to write a script for executing the autocalibration using a parameter sweep.">
+      <created>1560343832936</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1560343832936</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Some improvements">
+      <created>1560431870262</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1560431870262</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Some progress">
+      <created>1560445554666</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1560445554666</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Some progress">
+      <created>1560508217145</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1560508217145</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Finished creation of command line generation, loading of neccessary sequences, and loading of necessary parameters">
+      <created>1560530725331</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1560530725331</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Added config files for generating scenes and the test overview Excel file">
+      <created>1560531829639</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1560531829639</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Some improvements">
+      <created>1560952270370</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1560952270370</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Finished script for starting parallel tests (not tested)">
+      <created>1561395620393</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1561395620393</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Added script (not finished) for performing multiple tests as described in Autocalibration-Parametersweep-Testing.xlsx">
+      <created>1561475523893</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1561475523893</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="ToolWindowManager">
     <frame x="45" y="25" width="1875" height="1175" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.18574513" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.18574513" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.3288719" />
+      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.3288719" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4005736" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -431,7 +570,18 @@
     <MESSAGE value="Progress in generating script for generating sequences and matches using multiple CPUs and config files" />
     <MESSAGE value="Script for generating multiple scenes using parallel processing finished but not tested" />
     <MESSAGE value="Some changes" />
-    <option name="LAST_COMMIT_MESSAGE" value="Some changes" />
+    <MESSAGE value="Some bug fixes for script for generating multiple scenes using parallel processing. Some additional testing should be performed" />
+    <MESSAGE value="Finished script for generating multiple scenes using parallel processing." />
+    <MESSAGE value="Added some additional error management in script for generating multiple scenes using parallel processing." />
+    <MESSAGE value="Edited gitignore" />
+    <MESSAGE value="Started to write a script for executing the autocalibration using a parameter sweep." />
+    <MESSAGE value="Some progress" />
+    <MESSAGE value="Finished creation of command line generation, loading of neccessary sequences, and loading of necessary parameters" />
+    <MESSAGE value="Added config files for generating scenes and the test overview Excel file" />
+    <MESSAGE value="Some improvements" />
+    <MESSAGE value="Finished script for starting parallel tests (not tested)" />
+    <MESSAGE value="Added script (not finished) for performing multiple tests as described in Autocalibration-Parametersweep-Testing.xlsx" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added script (not finished) for performing multiple tests as described in Autocalibration-Parametersweep-Testing.xlsx" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -593,213 +743,168 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>195</line>
+          <line>233</line>
           <option name="timeStamp" value="162" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>201</line>
+          <line>240</line>
           <option name="timeStamp" value="163" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>211</line>
+          <line>252</line>
           <option name="timeStamp" value="165" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>238</line>
+          <line>284</line>
           <option name="timeStamp" value="173" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>177</line>
+          <line>212</line>
           <option name="timeStamp" value="174" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>182</line>
+          <line>218</line>
           <option name="timeStamp" value="175" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>169</line>
+          <line>203</line>
           <option name="timeStamp" value="176" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>232</line>
+          <line>278</line>
           <option name="timeStamp" value="177" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>170</line>
+          <line>204</line>
           <option name="timeStamp" value="179" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>77</line>
+          <line>84</line>
           <option name="timeStamp" value="180" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>528</line>
-          <option name="timeStamp" value="182" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>529</line>
-          <option name="timeStamp" value="183" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>589</line>
-          <option name="timeStamp" value="184" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>463</line>
-          <option name="timeStamp" value="189" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>498</line>
-          <option name="timeStamp" value="190" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>511</line>
-          <option name="timeStamp" value="196" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>603</line>
-          <option name="timeStamp" value="209" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>460</line>
-          <option name="timeStamp" value="211" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>490</line>
-          <option name="timeStamp" value="214" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>479</line>
-          <option name="timeStamp" value="215" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>453</line>
-          <option name="timeStamp" value="217" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>225</line>
+          <line>268</line>
           <option name="timeStamp" value="218" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>284</line>
+          <line>338</line>
           <option name="timeStamp" value="220" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>286</line>
+          <line>340</line>
           <option name="timeStamp" value="221" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>303</line>
+          <line>357</line>
           <option name="timeStamp" value="222" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>237</line>
+          <line>283</line>
           <option name="timeStamp" value="223" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>311</line>
+          <line>365</line>
           <option name="timeStamp" value="224" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>319</line>
+          <line>374</line>
           <option name="timeStamp" value="225" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>324</line>
+          <line>380</line>
           <option name="timeStamp" value="226" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>328</line>
+          <line>385</line>
           <option name="timeStamp" value="227" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>332</line>
+          <line>390</line>
           <option name="timeStamp" value="228" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>293</line>
+          <line>347</line>
           <option name="timeStamp" value="229" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>288</line>
+          <line>342</line>
           <option name="timeStamp" value="230" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>252</line>
+          <line>306</line>
           <option name="timeStamp" value="233" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>257</line>
+          <line>311</line>
           <option name="timeStamp" value="234" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>263</line>
+          <line>317</line>
           <option name="timeStamp" value="235" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>267</line>
+          <line>321</line>
           <option name="timeStamp" value="236" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>269</line>
+          <line>323</line>
           <option name="timeStamp" value="237" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>272</line>
+          <line>326</line>
           <option name="timeStamp" value="238" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>275</line>
+          <line>329</line>
           <option name="timeStamp" value="239" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>133</line>
+          <line>166</line>
           <option name="timeStamp" value="241" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/create_scenes.py</url>
-          <line>292</line>
+          <line>346</line>
           <option name="timeStamp" value="242" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/exec_autocalib.py</url>
+          <line>745</line>
+          <option name="timeStamp" value="243" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/exec_autocalib.py</url>
+          <line>588</line>
+          <option name="timeStamp" value="244" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -869,30 +974,6 @@
           <folding>
             <element signature="e#97#152#0" expanded="true" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gen_mult_scene_configs.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="287">
-          <caret line="108" column="46" lean-forward="true" selection-start-line="108" selection-start-column="46" selection-end-line="108" selection-end-column="46" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gen_init_scenes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="520">
-          <caret line="45" column="41" selection-start-line="45" selection-start-column="38" selection-end-line="45" selection-end-column="41" />
-          <folding>
-            <element signature="e#159#232#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gen_scene_configs.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="570">
-          <caret line="38" column="36" selection-start-line="38" selection-start-column="36" selection-end-line="38" selection-end-column="36" />
         </state>
       </provider>
     </entry>
@@ -987,27 +1068,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/extract_Rt.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="405">
-          <caret line="168" column="59" lean-forward="true" selection-start-line="153" selection-end-line="168" selection-end-column="59" />
-          <folding>
-            <element signature="e#83#168#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/anaconda3/envs/test_env_ac/lib/python3.7/site-packages/ruamel/yaml/constructor.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="10395">
           <caret line="732" selection-start-line="732" selection-end-line="732" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/anaconda3/envs/test_env_ac/lib/python3.7/multiprocessing/pool.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="190">
-          <caret line="656" selection-start-line="656" selection-end-line="656" />
         </state>
       </provider>
     </entry>
@@ -1020,18 +1084,80 @@
     </entry>
     <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/pydevd.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="467">
+        <state relative-caret-position="26355">
           <caret line="1757" selection-start-line="1757" selection-end-line="1757" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/anaconda3/envs/test_env_ac/lib/python3.7/multiprocessing/pool.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9675">
+          <caret line="656" selection-start-line="656" selection-end-line="656" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="7" selection-start-column="7" selection-end-column="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/gen_scene_configs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="885">
+          <caret line="59" column="55" selection-start-line="58" selection-start-column="4" selection-end-line="59" selection-end-column="55" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/gen_init_scenes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="555">
+          <caret line="38" column="61" selection-start-line="38" selection-start-column="61" selection-end-line="38" selection-end-column="61" />
+          <folding>
+            <element signature="e#159#232#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/extract_Rt.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2280">
+          <caret line="154" column="35" selection-start-line="154" selection-start-column="35" selection-end-line="154" selection-end-column="35" />
+          <folding>
+            <element signature="e#83#168#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/create_scenes.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="145">
-          <caret line="488" column="34" lean-forward="true" selection-start-line="488" selection-start-column="34" selection-end-line="488" selection-end-column="34" />
+        <state relative-caret-position="45">
+          <caret line="3" column="61" selection-start-line="3" selection-start-column="57" selection-end-line="3" selection-end-column="61" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/gen_mult_scene_configs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="60">
+          <caret line="4" column="73" lean-forward="true" selection-start-line="4" selection-start-column="55" selection-end-line="4" selection-end-column="73" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/exec_autocalib.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="235">
+          <caret line="365" column="21" lean-forward="true" selection-start-line="365" selection-start-column="8" selection-end-line="365" selection-end-column="21" />
           <folding>
-            <element signature="e#100#205#0" expanded="true" />
+            <element signature="e#110#214#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/start_test_cases.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="497">
+          <caret line="452" column="78" selection-start-line="452" selection-start-column="78" selection-end-line="452" selection-end-column="78" />
         </state>
       </provider>
     </entry>
