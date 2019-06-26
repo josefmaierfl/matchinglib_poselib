@@ -655,12 +655,12 @@ int SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "4\t Inner refinement alg: Stewenius\n "
         "5\t Inner refinement alg: Stewenius with pseudo-huber weights\n "
         "6\t Inner refinement alg: Nister\n "
-        "7\t Inner refinement alg: Nister with pseudo-huber weights>", ArgvParser::NoOptionAttribute);
+        "7\t Inner refinement alg: Nister with pseudo-huber weights>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("USACdegenTh", "<Decision threshold on the inlier ratios between Essential matrix and the "
                                     "degenerate configuration (only rotation) to decide if the solution is "
                                     "degenerate or not [Default=0.85]. It is only used for the internal "
                                     "degeneracy check of USAC (4th digit of option cfgUSAC = 2)>",
-                                    ArgvParser::NoOptionAttribute);
+                     ArgvParser::OptionRequiresValue);
 	cmd.defineOption("USACInlratFilt", "<Specifies which filter is used on the matches to estimate an initial "
                                     "inlier ratio for USAC. Choose 0 for GMS and 1 for VFC [Default].>",
                                     ArgvParser::OptionRequiresValue);
