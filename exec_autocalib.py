@@ -108,7 +108,7 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             base = sub_dirs[-1]
         else:
             raise ValueError('Unable to extract subdirectory name from ' + sd)
-        m_obj = re.match('.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_TP-([0-9to]+)_.*', base)
+        m_obj = re.match('.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_TP-([0-9to]+).*', base)
         if m_obj:
             if m_obj.group(1):
                 kp_distr = m_obj.group(1)
@@ -225,16 +225,16 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
     sequ_cmd = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'nrTP': [], 'inlrat_min': [],
                  'inlrat_max': [], 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': []}
     for it in cmds:
-        for i, sd in enumerate(dirs_ssq['sequDir']):
+        for i, sd in enumerate(sequ['sequDir']):
             sequ_cmd['sequDir'].append(sd)
-            sequ_cmd['parSetNr'].append(dirs_ssq['parSetNr'][i])
-            sequ_cmd['kp_distr'].append(dirs_ssq['kp_distr'][i])
-            sequ_cmd['depth_distr'].append(dirs_ssq['depth_distr'][i])
-            sequ_cmd['nrTP'].append(dirs_ssq['nrTP'][i])
-            sequ_cmd['inlrat_min'].append(dirs_ssq['inlrat_min'][i])
-            sequ_cmd['inlrat_max'].append(dirs_ssq['inlrat_max'][i])
-            sequ_cmd['inlrat_c_rate'].append(dirs_ssq['inlrat_c_rate'][i])
-            sequ_cmd['kp_acc_sd'].append(dirs_ssq['kp_acc_sd'][i])
+            sequ_cmd['parSetNr'].append(sequ['parSetNr'][i])
+            sequ_cmd['kp_distr'].append(sequ['kp_distr'][i])
+            sequ_cmd['depth_distr'].append(sequ['depth_distr'][i])
+            sequ_cmd['nrTP'].append(sequ['nrTP'][i])
+            sequ_cmd['inlrat_min'].append(sequ['inlrat_min'][i])
+            sequ_cmd['inlrat_max'].append(sequ['inlrat_max'][i])
+            sequ_cmd['inlrat_c_rate'].append(sequ['inlrat_c_rate'][i])
+            sequ_cmd['kp_acc_sd'].append(sequ['kp_acc_sd'][i])
             sequ_cmd['cmd'].append(' '.join(map(str, it)))
 
     df1 = pandas.DataFrame(data=sequ_cmd)
@@ -847,11 +847,12 @@ def main():
                     for i in range(0, 3):
                         if not bartrefRTdis or not (i == 0 and it[0] == 0 and bartrefRTdis):
                             ref_bart.append(['--refineRT_stereo', ''.join(map(str, it)), '--BART_stereo', str(i)])
-    cmds_rb = deepcopy(cmds)
-    cmds = []
-    for it in cmds_rb:
-        for it1 in ref_bart:
-            cmds.append(it + it1)
+    if ref_bart:
+        cmds_rb = deepcopy(cmds)
+        cmds = []
+        for it in cmds_rb:
+            for it1 in ref_bart:
+                cmds.append(it + it1)
 
     if args.minStartAggInlRat:
         cmds = appRange(cmds, args.minStartAggInlRat, 'minStartAggInlRat')
@@ -901,7 +902,7 @@ def main():
     if args.raiseSkipCnt[1] < 0 or args.raiseSkipCnt[1] > 9:
         raise ValueError('Second value for raiseSkipCnt out of range')
     for it in cmds:
-        it.extend(['--raiseSkipCnt', ''.join(args.raiseSkipCnt)])
+        it.extend(['--raiseSkipCnt', ''.join(map(str, args.raiseSkipCnt))])
 
     if args.maxRat3DPtsFar:
         cmds = appRange(cmds, args.maxRat3DPtsFar, 'maxRat3DPtsFar')
@@ -943,7 +944,7 @@ def appRange(reslist, inlist, str_name):
                              "range_min range_max step_size")
         ints = False
         if not (isinstance(inlist[0], int) and isinstance(inlist[1], int) and isinstance(inlist[2], int)):
-            if not float((inlist[1] - inlist[0]) / inlist[2]).is_integer():
+            if not round(float((inlist[1] - inlist[0]) / inlist[2]), 6).is_integer():
                 raise ValueError("Option " + str_name + " step size is wrong")
         else:
             ints = True
@@ -974,7 +975,7 @@ def appMultRanges(reslist, inlist, str_name):
                                                                         "range_min range_max step_size")
             if not (isinstance(inlist[idx], int) and isinstance(inlist[idx + 1], int) and
                     isinstance(inlist[idx + 2], int)):
-                if not float((inlist[idx + 1] - inlist[idx]) / inlist[idx + 2]).is_integer():
+                if not round(float((inlist[idx + 1] - inlist[idx]) / inlist[idx + 2]), 6).is_integer():
                     raise ValueError("Option " + str_name + " step size is wrong")
             else:
                 ints = True

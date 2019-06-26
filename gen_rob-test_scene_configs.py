@@ -128,13 +128,13 @@ def main():
             (args.inlchrate_range[2] > (args.inlchrate_range[1] - args.inlchrate_range[0])):
         raise ValueError("Parameters 2-n (inlier ratio change rate) must have the following format: "
                          "range_min range_max step_size v1 v2 ... vn")
-    if not float((args.inlchrate_range[1] - args.inlchrate_range[0]) / args.inlchrate_range[2]).is_integer():
+    if not round(float((args.inlchrate_range[1] - args.inlchrate_range[0]) / args.inlchrate_range[2]), 6).is_integer():
         raise ValueError("Inlier change rate step size is wrong")
     if (args.kpAccRange[0] > args.kpAccRange[1]) or \
             (args.kpAccRange[2] > (args.kpAccRange[1] - args.kpAccRange[0])):
         raise ValueError("Parameters 5-7 (keypoint accuracy) must have the following format: "
                          "range_min range_max step_size")
-    if not float((args.kpAccRange[1] - args.kpAccRange[0]) / args.kpAccRange[2]).is_integer():
+    if not round(float((args.kpAccRange[1] - args.kpAccRange[0]) / args.kpAccRange[2]), 6).is_integer():
         raise ValueError("Keypoint accuracy step size is wrong")
     if not os.path.exists(args.img_path):
         raise ValueError("Image path does not exist")
