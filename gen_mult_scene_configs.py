@@ -60,14 +60,14 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
                 load_path_n = store_path_new
             try:
                 if inlier_range:
-                    retcode = sp.call(['python', pyfilename, '--filename', filenew,
+                    retcode = sp.run(['python', pyfilename, '--filename', filenew,
                                        '--inlier_range', '%.2f' % inlier_range[0], '%.2f' % inlier_range[1],
                                        '%.2f' % inlier_range[2],
                                        '--kpAccRange', '%.2f' % kpAccRange[0], '%.2f' % kpAccRange[1],
                                        '%.2f' % kpAccRange[2],
                                        '--img_path', img_path,
                                        '--store_path', store_path_new,
-                                       '--load_path', load_path_n], shell=False)
+                                       '--load_path', load_path_n], shell=False, check=True).returncode
                 else:
                     cmdline = ['python', pyfilename, '--filename', filenew,
                                '--inlchrate_range', '%.2f' % inlier_chr[0], '%.2f' % inlier_chr[1],
@@ -80,12 +80,14 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
                                          '--img_path', img_path,
                                          '--store_path', store_path_new,
                                          '--load_path', load_path_n]
-                    retcode = sp.call(cmdline, shell=False)
+                    retcode = sp.run(cmdline, shell=False, check=True).returncode
                 if retcode < 0:
                     print("Child was terminated by signal", -retcode, file=sys.stderr)
                 else:
                     print("Child returned", retcode, file=sys.stderr)
             except OSError as e:
+                print("Execution failed:", e, file=sys.stderr)
+            except sp.CalledProcessError as e:
                 print("Execution failed:", e, file=sys.stderr)
             #Delete copied template file
             os.remove(filenew)

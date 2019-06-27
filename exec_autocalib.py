@@ -272,7 +272,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
         opts += ['--addSequInfo', '_'.join(infos)]
         single_cmd = [executable] + opts
         mess_base_name = 'out_' + str(int(nr_call)) + '_' + str(index)
-        cmds.append((single_cmd, row, message_path, mess_base_name))
+        cmds.append((single_cmd, row, message_path, mess_base_name, nr_call))
 
     lock = multiprocessing.Lock()
     res = 0
@@ -292,7 +292,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
     return res
 
 
-def autocalib(cmd, data, message_path, mess_base_name):
+def autocalib(cmd, data, message_path, mess_base_name, nr_call):
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
     stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
@@ -329,7 +329,7 @@ def autocalib(cmd, data, message_path, mess_base_name):
         #Get path to store information for failed command
         subp_i = cmd.index('--output_path') + 1
         parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))#Get parent directory
-        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful.csv')
+        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful_' + str(int(nr_call)) + '.csv')
         with lock:
             write_cmd_csv(cf_name, data)
         raise ChildProcessError
@@ -390,6 +390,7 @@ def autocalib(cmd, data, message_path, mess_base_name):
     return 0
 
 def write_cmd_csv(file, data):
+    data = pandas.DataFrame(data=data).T
     if os.path.exists(file):
         with open(file, 'a', newline='') as f:
             data.to_csv(f, index=False, sep=';', header=False)

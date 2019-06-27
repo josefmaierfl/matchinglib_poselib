@@ -670,11 +670,14 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
     pyfilename = os.path.join(pyfilepath, 'exec_autocalib.py')
     try:
         cmdline = ['python', pyfilename] + args
-        retcode = sp.call(cmdline, shell=False)
+        retcode = sp.run(cmdline, shell=False, check=True).returncode
         if retcode != 0:
             print("Child was terminated by signal", retcode, file=sys.stderr)
         else:
-            print("Child returned", retcode, file=sys.stderr)
+            print("Child returned", -retcode, file=sys.stderr)
+    except sp.CalledProcessError as e:
+        print("Execution failed:", e, file=sys.stderr)
+        retcode = 4
     except OSError as e:
         print("Execution failed:", e, file=sys.stderr)
         retcode = 4
