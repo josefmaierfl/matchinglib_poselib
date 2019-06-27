@@ -799,7 +799,7 @@ int SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     result = cmd.parse(argc, argv);
     if (result != ArgvParser::NoParserError)
     {
-        std::cout << cmd.parseErrorDescription(result) << endl;
+        std::cerr << cmd.parseErrorDescription(result) << endl;
     }
 
     return result;
