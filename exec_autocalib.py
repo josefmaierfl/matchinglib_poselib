@@ -356,7 +356,7 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
         # Get path to store information for failed command
         subp_i = cmd.index('--output_path') + 1
         parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))  # Get parent directory
-        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful.csv')
+        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful_' + str(int(nr_call)) + '.csv')
         with lock:
             write_cmd_csv(cf_name, data)
         raise TimeoutError
@@ -374,7 +374,7 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
         # Get path to store information for failed command
         subp_i = cmd.index('--output_path') + 1
         parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))  # Get parent directory
-        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful.csv')
+        cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful_' + str(int(nr_call)) + '.csv')
         with lock:
             write_cmd_csv(cf_name, data)
         raise ChildProcessError

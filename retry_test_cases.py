@@ -59,10 +59,10 @@ def main():
         raise ValueError('Executable ' + args.executable + ' for generating scenes does not exist')
     elif not os.access(args.executable,os.X_OK):
         raise ValueError('Unable to execute ' + args.executable)
-    if args.nrCall < 2:
+    if args.nrCall < 1:
         raise ValueError("Invalid nrCall number")
 
-    return retry_test(args.csv_file, args.executable, args.nrCPUs, args.message_path,
+    return retry_test(args.csv_file, args.executable, cpu_use, args.message_path,
                        args.output_path, args.nrCall)
 
 
