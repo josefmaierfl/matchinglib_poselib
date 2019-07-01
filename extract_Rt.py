@@ -12,7 +12,7 @@ def update_extrinsics(input_path, store_path):
         raise ValueError('No files found.')
     files_config = []
     for i in files_i:
-        fnObj = re.search('_initial\.', i, re.I)
+        fnObj = re.search(r'_initial\.', i, re.I)
         if fnObj:
             files_config.append(i)
     if len(files_config) == 0:
@@ -22,7 +22,7 @@ def update_extrinsics(input_path, store_path):
     #Check if file with generated scenes (command lines) exist
     file_cmd = ''
     for i in files_i:
-        fnObj = re.match('(generated_scenes_index\.txt)', i, re.I)
+        fnObj = re.match(r'(generated_scenes_index\.txt)', i, re.I)
         if fnObj:
             file_cmd = i
             break
@@ -32,7 +32,7 @@ def update_extrinsics(input_path, store_path):
     with open(file_cmd_full, 'r') as cfi:
         li = cfi.readline()
         while li:
-            cfiObj = re.match('.*--conf_file\s+(.+);(parSetNr\d+)', li)
+            cfiObj = re.match(r'.*--conf_file\s+(.+);(parSetNr\d+)', li)
             if cfiObj:
                 conf_file = cfiObj.group(1)
                 parsetNr = cfiObj.group(2)
@@ -84,7 +84,7 @@ def update_extrinsics(input_path, store_path):
             #Write first part of config file
             if not os.path.exists(conf_file):
                 raise ValueError('Configuration file does not exist.')
-            cfiObj = re.match('(.*)(\.\w{3,4})',conf_file)
+            cfiObj = re.match(r'(.*)(\.\w{3,4})',conf_file)
             if cfiObj:
                 b_name = cfiObj.group(1)
                 name_end = cfiObj.group(2)

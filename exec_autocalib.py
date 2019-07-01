@@ -108,7 +108,7 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             base = sub_dirs[-1]
         else:
             raise ValueError('Unable to extract subdirectory name from ' + sd)
-        m_obj = re.match('.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_TP-([0-9to]+).*', base)
+        m_obj = re.match(r'.*_kp-distr-((?:half-img)|(?:1corn)|(?:equ))_depth-(F|(?:NM)|(?:NMF))_TP-([0-9to]+).*', base)
         if m_obj:
             if m_obj.group(1):
                 kp_distr = m_obj.group(1)

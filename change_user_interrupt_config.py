@@ -11,7 +11,7 @@ def change_configs(input_path):
         raise ValueError('No files found.')
     files = []
     for i in files_i:
-        fnObj = re.search('_initial\.', i, re.I)
+        fnObj = re.search(r'_initial\.', i, re.I)
         if fnObj:
             files.append(i)
     if len(files) == 0:

@@ -5,7 +5,7 @@ specific configuration and overview files for scenes by varying the used inlier 
 import sys, re, numpy as np, argparse, os, pandas as pd, subprocess as sp
 from shutil import copyfile
 
-def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path):
+def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path, treatTPasCorrs):
     use_load_path = False
     if load_path:
         use_load_path = True
@@ -15,7 +15,7 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
         raise ValueError('No files found.')
     files = []
     for i in files_i:
-        fnObj = re.search('_initial\.', i, re.I)
+        fnObj = re.search(r'_initial\.', i, re.I)
         if fnObj:
             files.append(i)
     if len(files) == 0:
@@ -24,7 +24,7 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
     with open(ovfile_new, 'w') as fo:
         for i in files:
             filen = os.path.basename(i)
-            fnObj = re.match('(.*)_initial\.(.*)', filen, re.I)
+            fnObj = re.match(r'(.*)_initial\.(.*)', filen, re.I)
             if fnObj:
                 base = fnObj.group(1)
                 ending = fnObj.group(2)
@@ -60,14 +60,17 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
                 load_path_n = store_path_new
             try:
                 if inlier_range:
-                    retcode = sp.run(['python', pyfilename, '--filename', filenew,
-                                       '--inlier_range', '%.2f' % inlier_range[0], '%.2f' % inlier_range[1],
-                                       '%.2f' % inlier_range[2],
-                                       '--kpAccRange', '%.2f' % kpAccRange[0], '%.2f' % kpAccRange[1],
-                                       '%.2f' % kpAccRange[2],
-                                       '--img_path', img_path,
-                                       '--store_path', store_path_new,
-                                       '--load_path', load_path_n], shell=False, check=True).returncode
+                    cmdline = ['python', pyfilename, '--filename', filenew,
+                               '--inlier_range', '%.2f' % inlier_range[0], '%.2f' % inlier_range[1],
+                               '%.2f' % inlier_range[2],
+                               '--kpAccRange', '%.2f' % kpAccRange[0], '%.2f' % kpAccRange[1],
+                               '%.2f' % kpAccRange[2],
+                               '--img_path', img_path,
+                               '--store_path', store_path_new,
+                               '--load_path', load_path_n]
+                    if treatTPasCorrs:
+                        cmdline += '--treatTPasCorrs'
+                    retcode = sp.run(cmdline, shell=False, check=True).returncode
                 else:
                     cmdline = ['python', pyfilename, '--filename', filenew,
                                '--inlchrate_range', '%.2f' % inlier_chr[0], '%.2f' % inlier_chr[1],
@@ -106,7 +109,14 @@ def main():
                         help='Range and additional specific values for the inlier ratio change rate. '
                              'Format: min max step_size v1 v2 ... vn')
     parser.add_argument('--kpAccRange', type=float, nargs=3, required=True,
-                        help='Range for the keypoint accuracy. Format: min max step_size')
+                        help='Range for the keypoint accuracy. The entered value is devided by 2 ro reach an '
+                             'approximate maximum keypoint accuracy based on the given value as the value in '
+                             'the configuration file corresponds to the standard deviation. '
+                             'Format: min max step_size')
+    parser.add_argument('--treatTPasCorrs', type=bool, nargs='?', required=True, default=False, const=True,
+                        help='If provided, the number of TP is calculated and written to the config file based on '
+                             'the given inlier ratios and the number or range of desired correspondences (TP+FP) '
+                             'that is extracted from the filename (*_TP-?*).')
     parser.add_argument('--img_path', type=str, required=True,
                         help='Path to images')
     parser.add_argument('--store_path', type=str, required=True,
@@ -154,10 +164,11 @@ def main():
     #else:
         #args.load_path = args.store_path
     if args.inlier_range:
-        gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path, args.load_path)
+        gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path,
+                    args.load_path, args.treatTPasCorrs)
     else:
         gen_configs(args.path, [], args.inlchrate_range, args.kpAccRange, args.img_path, args.store_path,
-                    args.load_path)
+                    args.load_path, False)
 
 
 if __name__ == "__main__":

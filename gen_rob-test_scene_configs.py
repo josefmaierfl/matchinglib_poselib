@@ -10,7 +10,7 @@ def gen_configs(input_file_name, inlier_range, inlier_values, kpAccRange, img_pa
     path, fname = os.path.split(input_file_name)
     base = ''
     ending = ''
-    fnObj = re.match('(.*)_initial\.(.*)', fname, re.I)
+    fnObj = re.match(r'(.*)_initial\.(.*)', fname, re.I)
     if fnObj:
         base = fnObj.group(1)
         ending = fnObj.group(2)
@@ -37,7 +37,7 @@ def gen_configs(input_file_name, inlier_range, inlier_values, kpAccRange, img_pa
         pfnew = os.path.join(path, fnew)
         if os.path.isfile(pfnew):
             raise ValueError('File ' + pfnew + ' already exists.')
-        write_config_file(input_file_name, pfnew, inl, kpAccRange[0])
+        write_config_file(input_file_name, pfnew, round(inl, 3), round(kpAccRange[0] / 2, 3))
         datac['conf_file'].append(pfnew)
         datac['img_path'].append(img_path)
         datac['img_pref'].append('/')
@@ -53,7 +53,7 @@ def gen_configs(input_file_name, inlier_range, inlier_values, kpAccRange, img_pa
             pfnew = os.path.join(path, fnew)
             if os.path.isfile(pfnew):
                 raise ValueError('File ' + pfnew + ' already exists.')
-            write_config_file(input_file_name, pfnew, inl, acc)
+            write_config_file(input_file_name, pfnew, round(inl, 3), round(acc / 2, 3))
             datac['conf_file'].append(pfnew)
             datac['img_path'].append(img_path)
             datac['img_pref'].append('/')
@@ -82,7 +82,7 @@ def write_config_file(finput, foutput, inlR, acc):
                     founda = 1
                     fo.write(li)
                 elif founda == 1:
-                    aobj = re.match('(\s*first:(?:\s*))[0-9.]+', li)
+                    aobj = re.match(r'(\s*first:(?:\s*))[0-9.]+', li)
                     if aobj:
                         #fo.write(aobj.group(1) + str(acc) + '\n')
                         fo.write(li)
@@ -90,7 +90,7 @@ def write_config_file(finput, foutput, inlR, acc):
                     else:
                         raise ValueError('Unable to write first line of keypoint accuracy')
                 elif founda == 2:
-                    aobj = re.match('(\s*second:(?:\s*))[0-9.]+', li)
+                    aobj = re.match(r'(\s*second:(?:\s*))[0-9.]+', li)
                     if aobj:
                         fo.write(aobj.group(1) + str(acc) + '\n')
                         founda = 0
@@ -110,7 +110,10 @@ def main():
                         help='Range and additional specific values for the inlier ratio change rate. '
                              'Format: min max step_size v1 v2 ... vn')
     parser.add_argument('--kpAccRange', type=float, nargs=3, required=True,
-                        help='Range for the keypoint accuracy. Format: min max step_size')
+                        help='Range for the keypoint accuracy. The entered value is devided by 2 ro reach an '
+                             'approximate maximum keypoint accuracy based on the given value as the value in '
+                             'the configuration file corresponds to the standard deviation. '
+                             'Format: min max step_size')
     parser.add_argument('--img_path', type=str, required=True,
                         help='Path to images')
     parser.add_argument('--store_path', type=str, required=True,

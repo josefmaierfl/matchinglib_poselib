@@ -12,7 +12,7 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
         raise ValueError('No files found.')
     files = []
     for i in files_i:
-        fnObj = re.search('_initial\.', i, re.I)
+        fnObj = re.search(r'_initial\.', i, re.I)
         if fnObj:
             files.append(i)
     if len(files) == 0:
@@ -28,7 +28,7 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
         for i in files:
             cmd_line_full = deepcopy(cmd_line)
             cmd_line_full.append(os.path.join(input_path, i))
-            fnObj = re.match('(.*)_initial\..*', i, re.I)
+            fnObj = re.match(r'(.*)_initial\..*', i, re.I)
             if fnObj:
                 base = fnObj.group(1)
             else:
