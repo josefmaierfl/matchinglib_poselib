@@ -461,7 +461,7 @@ namespace poselib
                     return -1;
                 }
                 inlier_ratio_new1 = (double)nr_inliers_new / (double)nr_corrs_new;
-                if (inlier_ratio_new < inlier_ratio_new1 * (1 - cfg_pose.relInlRatThNew))
+                if (inlier_ratio_new < inlier_ratio_new1 * (1.0 - cfg_pose.relInlRatThNew))
                 {
                     //Either the pose has changed or the new image pair is really bad
                     if ((inlier_ratio_new1 >= cfg_pose.minInlierRatioReInit)

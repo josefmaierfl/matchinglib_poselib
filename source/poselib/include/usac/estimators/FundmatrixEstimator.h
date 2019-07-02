@@ -309,7 +309,7 @@ bool FundMatrixEstimator::validateSample()
 {
 	int j, k, i;
 
-	for (i = 0; i < usac_min_sample_size_; i++)
+	for (i = 0; i < (int)usac_min_sample_size_; i++)
 	{
 		// check that the i-th selected point does not belong
 		// to a line connecting some previously selected points
@@ -337,7 +337,7 @@ bool FundMatrixEstimator::validateSample()
 			break;
 	}
 
-	return i >= usac_min_sample_size_ - 1;
+	return i >= (int)usac_min_sample_size_ - 1;
 
 	//return true; //was originally the only code in this function of USAC
 }

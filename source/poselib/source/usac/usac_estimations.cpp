@@ -32,7 +32,6 @@ DISCRIPTION: This file provides interfaces to the USAC framework for robust para
 /* --------------------------- Defines --------------------------- */
 using namespace std;
 
-
 /* --------------------- Function prototypes --------------------- */
 
 
@@ -153,7 +152,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	ConfigParamsFund cfg(c_com, c_pro, c_sprt, c_lo, c_fund, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	FundMatrixEstimator* fund = new FundMatrixEstimator;
+	auto fund = new FundMatrixEstimator;
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -424,7 +423,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	EssentialMatEstimator* fund = new EssentialMatEstimator;
+	auto fund = new EssentialMatEstimator;
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -434,6 +433,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	{
 		return(EXIT_FAILURE);
 	}
+	
 	numhyps += fund->usac_results_.hyp_count_;
 	modelcount += fund->usac_results_.model_count_;
 	if (fund->usac_results_.hyp_count_ > 2000 && fund->usac_results_.sprt_epsilon_ > 0.2)//If epsilon is chosen too large USAC will fail returning a good model and will need many iteratios for really small inlier ratios or a threshold chosen too small
@@ -791,7 +791,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	ConfigParamsRotationMat cfg(c_com, c_pro, c_sprt, c_lo, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	RotationMatEstimator* fund = new RotationMatEstimator;
+	auto fund = new RotationMatEstimator;
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -1019,7 +1019,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	EssentialMatEstimator* fund = new EssentialMatEstimator;
+	auto fund = new EssentialMatEstimator;
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);

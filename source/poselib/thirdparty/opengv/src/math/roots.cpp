@@ -31,6 +31,7 @@
 
 #include <opengv/math/roots.hpp>
 #include <complex>
+#include <math.h>
 
 std::vector<double>
 opengv::math::o3_roots( const std::vector<double> & p )
@@ -107,7 +108,7 @@ opengv::math::o4_roots( const Eigen::MatrixXd & p )
   double alpha_pw3 = alpha_pw2*alpha;
 
   std::complex<double> P (-alpha_pw2/12-gamma,0);
-  std::complex<double> Q (-alpha_pw3/108+alpha*gamma/3-(beta*beta)/8,0);
+  std::complex<double> Q (-alpha_pw3/108+alpha*gamma/3-pow(beta,2)/8,0);
   std::complex<double> R = -Q/2.0+sqrt(pow(Q,2.0)/4.0+pow(P,3.0)/27.0);
 
   std::complex<double> U = pow(R,(1.0/3.0));
@@ -158,7 +159,7 @@ opengv::math::o4_roots( const std::vector<double> & p )
   double alpha_pw3 = alpha_pw2*alpha;
 
   std::complex<double> P (-alpha_pw2/12-gamma,0);
-  std::complex<double> Q (-alpha_pw3/108+alpha*gamma/3-(beta*beta)/8,0);
+  std::complex<double> Q (-alpha_pw3/108+alpha*gamma/3-pow(beta,2)/8,0);
   std::complex<double> R = -Q/2.0+sqrt(pow(Q,2.0)/4.0+pow(P,3.0)/27.0);
 
   std::complex<double> U = pow(R,(1.0/3.0));

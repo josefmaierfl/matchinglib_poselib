@@ -487,73 +487,73 @@ opengv::relative_pose::modules::fivept_kneip_main(
 
           bool positive = true;
 
-          for( int i = 0; i < 5; i++ )
+          for( int j = 0; j < 5; j++ )
           {
-            tempVector1 = trans01.cross( f1.col(i) );
-            tempVector2 = trans01.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans01.cross( f1.col(j) );
+            tempVector2 = trans01.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans02.cross( f1.col(i) );
-            tempVector2 = trans02.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans02.cross( f1.col(j) );
+            tempVector2 = trans02.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans03.cross( f1.col(i) );
-            tempVector2 = trans03.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans03.cross( f1.col(j) );
+            tempVector2 = trans03.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans04.cross( f1.col(i) );
-            tempVector2 = trans04.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans04.cross( f1.col(j) );
+            tempVector2 = trans04.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans12.cross( f1.col(i) );
-            tempVector2 = trans12.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans12.cross( f1.col(j) );
+            tempVector2 = trans12.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans13.cross( f1.col(i) );
-            tempVector2 = trans13.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans13.cross( f1.col(j) );
+            tempVector2 = trans13.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans14.cross( f1.col(i) );
-            tempVector2 = trans14.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans14.cross( f1.col(j) );
+            tempVector2 = trans14.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans23.cross( f1.col(i) );
-            tempVector2 = trans23.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans23.cross( f1.col(j) );
+            tempVector2 = trans23.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans24.cross( f1.col(i) );
-            tempVector2 = trans24.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans24.cross( f1.col(j) );
+            tempVector2 = trans24.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;
               break;
             }
-            tempVector1 = trans34.cross( f1.col(i) );
-            tempVector2 = trans34.cross( finalRotation * f2.col(i) );
+            tempVector1 = trans34.cross( f1.col(j) );
+            tempVector2 = trans34.cross( finalRotation * f2.col(j) );
             if( tempVector1.dot(tempVector2) < 0 )
             {
               positive = false;

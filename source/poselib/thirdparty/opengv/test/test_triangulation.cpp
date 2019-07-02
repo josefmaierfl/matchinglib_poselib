@@ -52,7 +52,7 @@ int main( int argc, char** argv )
   initializeRandomSeed();
 
   //set experiment parameters
-  double noise = 0.0;
+  double noise = 0.5;
   double outlierFraction = 0.0;
   size_t numberPoints = 10;
 
@@ -61,11 +61,8 @@ int main( int argc, char** argv )
   rotation_t rotation1 = Eigen::Matrix3d::Identity();
 
   //generate a random pose for viewpoint 2
-  // translation_t position2 = generateRandomTranslation(2.0);
-  // rotation_t rotation2 = generateRandomRotation(0.5);
-  translation_t position2 = Eigen::Vector3d(2,0,0);
-  rotation_t rotation2 = Eigen::Matrix3d::Identity();
-
+  translation_t position2 = generateRandomTranslation(2.0);
+  rotation_t rotation2 = generateRandomRotation(0.5);
 
   //create a fake central camera
   translations_t camOffsets;
@@ -83,8 +80,8 @@ int main( int argc, char** argv )
       camOffsets, camRotations, numberPoints, noise, outlierFraction,
       bearingVectors1, bearingVectors2,
       camCorrespondences1, camCorrespondences2, gt );
-
-
+    
+    
   std::cout << "the original points are: " << std::endl << gt;
   std::cout << std::endl << std::endl;
 

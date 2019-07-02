@@ -37,16 +37,12 @@
 #ifndef OPENGV_STURM_HPP_
 #define OPENGV_STURM_HPP_
 
+#include <memory>
 #include <stdlib.h>
 #include <vector>
 #include <list>
-// #include <boost/shared_ptr.hpp>
-
-#include <memory>
 #include <Eigen/Eigen>
-// #include <Eigen/Core>
 #include <Eigen/src/Core/util/DisableStupidWarnings.h>
-
 
 /**
  * \brief The namespace of this library.
@@ -158,11 +154,9 @@ private:
       Eigen::MatrixXd & r );
 
   /** A matrix containing the coefficients of the Sturm-chain of the polynomial */
-
-    /** The dimension _C, which corresponds to (polynomial order+1) */
-    size_t _dimension;
-  Eigen::MatrixXd _A;
-
+  Eigen::MatrixXd _C;
+  /** The dimension _C, which corresponds to (polynomial order+1) */
+  size_t _dimension;
 };
 
 }

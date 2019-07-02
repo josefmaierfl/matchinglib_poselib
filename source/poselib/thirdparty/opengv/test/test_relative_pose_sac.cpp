@@ -37,7 +37,11 @@
 #include <opengv/relative_pose/methods.hpp>
 #include <opengv/relative_pose/CentralRelativeAdapter.hpp>
 #include <opengv/sac/Ransac.hpp>
+#include <opengv/sac/Lmeds.hpp>
 #include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
+#include <opengv/relative_pose/NoncentralRelativeMultiAdapter.hpp>
+#include <opengv/sac/MultiRansac.hpp>
+#include <opengv/sac_problems/relative_pose/MultiNoncentralRelativePoseSacProblem.hpp>
 #include <sstream>
 #include <fstream>
 
@@ -56,8 +60,8 @@ int main( int argc, char** argv )
   initializeRandomSeed();
 
   //set experiment parameters
-  double noise = 0.0;
-  double outlierFraction = 0.0;
+  double noise = 0.5;
+  double outlierFraction = 0.1;
   size_t numberPoints = 100;
 
   //generate a random pose for viewpoint 1
@@ -65,13 +69,8 @@ int main( int argc, char** argv )
   rotation_t rotation1 = Eigen::Matrix3d::Identity();
 
   //generate a random pose for viewpoint 2
-  // translation_t position2 = generateRandomTranslation(2.0);
-  // rotation_t rotation2 = generateRandomRotation(0.5);
-  translation_t position2 = Eigen::Vector3d(0.5,0,0);
-  // rotation_t rotation2 = generateRandomRotation(0.5);
-  // translation_t position2 = Eigen::Vector3d::Zero();
-  rotation_t rotation2 = Eigen::Matrix3d::Identity();
-
+  translation_t position2 = generateRandomTranslation(2.0);
+  rotation_t rotation2 = generateRandomRotation(0.5);
 
   //create a fake central camera
   translations_t camOffsets;
@@ -97,7 +96,7 @@ int main( int argc, char** argv )
 
   //print experiment characteristics
   printExperimentCharacteristics( position, rotation, noise, outlierFraction );
-
+  
   //compute and print the essential-matrix
   printEssentialMatrix( position, rotation );
 
@@ -115,7 +114,7 @@ int main( int argc, char** argv )
       sac_problems::relative_pose::CentralRelativePoseSacProblem> relposeproblem_ptr(
       new sac_problems::relative_pose::CentralRelativePoseSacProblem(
       adapter,
-      sac_problems::relative_pose::CentralRelativePoseSacProblem::NISTER));
+      sac_problems::relative_pose::CentralRelativePoseSacProblem::STEWENIUS));
   ransac.sac_model_ = relposeproblem_ptr;
   ransac.threshold_ = 2.0*(1.0 - cos(atan(sqrt(2.0)*0.5/800.0)));
   ransac.max_iterations_ = 50;
@@ -128,7 +127,7 @@ int main( int argc, char** argv )
   gettimeofday( &toc, 0 );
   double ransac_time = TIMETODOUBLE(timeval_minus(toc,tic));
 
-  //print results
+  //print results for ransac 1
   std::cout << "the ransac threshold is: " << ransac.threshold_ << std::endl;
   std::cout << "the ransac results is: " << std::endl;
   std::cout << ransac.model_coefficients_ << std::endl << std::endl;
@@ -142,5 +141,34 @@ int main( int argc, char** argv )
   std::cout << "the found inliers are: " << std::endl;
   for(size_t i = 0; i < ransac.inliers_.size(); i++)
     std::cout << ransac.inliers_[i] << " ";
+  std::cout << std::endl << std::endl;
+
+  // Create Lmeds
+  sac::Lmeds<
+      sac_problems::relative_pose::CentralRelativePoseSacProblem> lmeds;
+  lmeds.sac_model_ = relposeproblem_ptr;
+  lmeds.threshold_ = 2.0*(1.0 - cos(atan(sqrt(2.0)*0.5/800.0)));
+  lmeds.max_iterations_ = 50;
+
+  //Run the experiment
+  gettimeofday( &tic, 0 );
+  lmeds.computeModel();
+  gettimeofday( &toc, 0 );
+  double lmeds_time = TIMETODOUBLE(timeval_minus(toc,tic));
+
+  //print results
+  std::cout << "the lmeds threshold is: " << lmeds.threshold_ << std::endl;
+  std::cout << "the lmeds results is: " << std::endl;
+  std::cout << lmeds.model_coefficients_ << std::endl << std::endl;
+  std::cout << "the normalized translation is: " << std::endl;
+  std::cout << lmeds.model_coefficients_.col(3)/
+      lmeds.model_coefficients_.col(3).norm() << std::endl << std::endl;
+  std::cout << "Lmeds needed " << lmeds.iterations_ << " iterations and ";
+  std::cout << lmeds_time << " seconds" << std::endl << std::endl;
+  std::cout << "the number of inliers is: " << lmeds.inliers_.size();
+  std::cout << std::endl << std::endl;
+  std::cout << "the found inliers are: " << std::endl;
+  for(size_t i = 0; i < lmeds.inliers_.size(); i++)
+    std::cout << lmeds.inliers_[i] << " ";
   std::cout << std::endl << std::endl;
 }

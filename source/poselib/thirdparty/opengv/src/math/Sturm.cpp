@@ -66,13 +66,16 @@ opengv::math::Bracket::Bracket(
 
 opengv::math::Bracket::~Bracket()
 {}
-
+  
 bool
 opengv::math::Bracket::dividable( double eps ) const
 {
   if( numberRoots() == 1 && (_upperBound - _lowerBound ) < eps )
     return false;
   if( numberRoots() == 0 )
+    return false;
+  double center = (_upperBound + _lowerBound) / 2.0;
+  if( center == _upperBound || center == _lowerBound)
     return false;
   return true;
 }
@@ -138,44 +141,46 @@ opengv::math::Bracket::numberRoots() const
 
 
 opengv::math::Sturm::Sturm( const Eigen::MatrixXd & p ) :
-    _A(Eigen::MatrixXd(p.cols(),p.cols()))
+    _C(Eigen::MatrixXd(p.cols(),p.cols()))
 {
-  _dimension = (size_t) _A.cols();
-  _A = Eigen::MatrixXd(_dimension,_dimension);
-  _A.row(0) = p;
+  _dimension = (size_t) _C.cols();
+  _C = Eigen::MatrixXd(_dimension,_dimension);
+  _C.setZero();
+  _C.row(0) = p;
 
   for( size_t i = 1; i < _dimension; i++ )
-    _A(1,i) = _A(0,i-1) * (_dimension-i);
+    _C(1,i) = _C(0,i-1) * (_dimension-i);
 
   for( size_t i = 2; i < _dimension; i++ )
   {
-    Eigen::MatrixXd p1 = _A.block(i-2,i-2,1,_dimension-(i-2));
-    Eigen::MatrixXd p2 = _A.block(i-1,i-1,1,_dimension-(i-1));
+    Eigen::MatrixXd p1 = _C.block(i-2,i-2,1,_dimension-(i-2));
+    Eigen::MatrixXd p2 = _C.block(i-1,i-1,1,_dimension-(i-1));
     Eigen::MatrixXd r;
     computeNegatedRemainder(p1,p2,r);
-    _A.block(i,i,1,_dimension-i) = r.block(0,2,1,_dimension-i);
+    _C.block(i,i,1,_dimension-i) = r.block(0,2,1,_dimension-i);
   }
 }
 
 opengv::math::Sturm::Sturm( const std::vector<double> & p ) :
-    _A(Eigen::MatrixXd(p.size(),p.size()))
+    _C(Eigen::MatrixXd(p.size(),p.size()))
 {
-  _dimension = (size_t) _A.cols();
-  _A = Eigen::MatrixXd(_dimension,_dimension);
+  _dimension = (size_t) _C.cols();
+  _C = Eigen::MatrixXd(_dimension,_dimension);
+  _C.setZero();
 
   for( size_t i = 0; i < _dimension; i++ )
-    _A(0,i) = p[i];
+    _C(0,i) = p[i];
 
   for( size_t i = 1; i < _dimension; i++ )
-    _A(1,i) = _A(0,i-1) * (_dimension-i);
+    _C(1,i) = _C(0,i-1) * (_dimension-i);
 
   for( size_t i = 2; i < _dimension; i++ )
   {
-    Eigen::MatrixXd p1 = _A.block(i-2,i-2,1,_dimension-(i-2));
-    Eigen::MatrixXd p2 = _A.block(i-1,i-1,1,_dimension-(i-1));
+    Eigen::MatrixXd p1 = _C.block(i-2,i-2,1,_dimension-(i-2));
+    Eigen::MatrixXd p2 = _C.block(i-1,i-1,1,_dimension-(i-1));
     Eigen::MatrixXd r;
     computeNegatedRemainder(p1,p2,r);
-    _A.block(i,i,1,_dimension-i) = r.block(0,2,1,_dimension-i);
+    _C.block(i,i,1,_dimension-i) = r.block(0,2,1,_dimension-i);
   }
 }
 
@@ -190,67 +195,67 @@ opengv::math::Sturm::findRoots2( std::vector<double> & roots, double eps_x, doub
   stack.back()->setLowerBoundChanges( evaluateChain2(stack.back()->lowerBound()) );
   stack.back()->setUpperBoundChanges( evaluateChain2(stack.back()->upperBound()) );
   roots.reserve(stack.back()->numberRoots());
-
+  
   //some variables for pollishing
   Eigen::MatrixXd monomials(_dimension,1);
   monomials(_dimension-1,0) = 1.0;
-
+  
   while( !stack.empty() )
-  {
+  {  
     Bracket::Ptr bracket = stack.front();
     stack.pop_front();
-
+    
     if( bracket->dividable(eps_x) )
     {
       bool divide = true;
-
+      
       if( bracket->numberRoots() == 1 )
       {
         //new part, we try immediately to do the pollishing here
         bool converged = false;
-
+        
         double root = 0.5 * (bracket->lowerBound() + bracket->upperBound());
         for(size_t i = 2; i <= _dimension; i++)
           monomials(_dimension-i,0) = monomials(_dimension-i+1,0)*root;
-        Eigen::MatrixXd matValue = _A.row(0) * monomials;
-
+        Eigen::MatrixXd matValue = _C.row(0) * monomials;
+        
         double value = matValue(0,0);
-
+        
         while( !converged )
         {
-          Eigen::MatrixXd matDerivative = _A.row(1) * monomials;
+          Eigen::MatrixXd matDerivative = _C.row(1) * monomials;
           double derivative = matDerivative(0,0);
-
+          
           double newRoot = root - (value/derivative);
-
+          
           if( newRoot < bracket->lowerBound() || newRoot > bracket->upperBound() )
             break;
-
+          
           for(size_t i = 2; i <= _dimension; i++)
             monomials(_dimension-i,0) = monomials(_dimension-i+1,0)*newRoot;
-          matValue = _A.row(0) * monomials;
-
+          matValue = _C.row(0) * monomials;
+          
           double newValue = matValue(0,0);
-
+          
           if( fabs(newValue) > fabs(value) )
             break;
-
+          
           //do update
           value = newValue;
           root = newRoot;
-
+          
           //check if converged
           if( fabs(value) < eps_val )
             converged = true;
         }
-
+        
         if( converged )
         {
           divide = false;
           roots.push_back(root);
         }
       }
-
+      
       if(divide)
       {
         bracket->divide(stack);
@@ -290,8 +295,8 @@ opengv::math::Sturm::findRoots()
       for(size_t i = 2; i <= _dimension; i++)
         monomials(_dimension-i,0) = monomials(_dimension-i+1,0)*roots[r];
 
-      Eigen::MatrixXd value = _A.row(0) * monomials;
-      Eigen::MatrixXd derivative = _A.row(1) * monomials;
+      Eigen::MatrixXd value = _C.row(0) * monomials;
+      Eigen::MatrixXd derivative = _C.row(1) * monomials;
 
       //correction
       roots[r] = roots[r] - (value(0,0)/derivative(0,0));
@@ -309,17 +314,17 @@ opengv::math::Sturm::bracketRoots( std::vector<double> & roots, double eps )
   stack.push_back(Bracket::Ptr(new Bracket(-absoluteBound,absoluteBound)));
   stack.back()->setLowerBoundChanges( evaluateChain2(stack.back()->lowerBound()) );
   stack.back()->setUpperBoundChanges( evaluateChain2(stack.back()->upperBound()) );
-
+  
   double localEps = eps;
   if( eps < 0.0 )
     localEps = absoluteBound / (10.0 * stack.back()->numberRoots());
   roots.reserve(stack.back()->numberRoots());
-
+  
   while( !stack.empty() )
-  {
+  {  
     Bracket::Ptr bracket = stack.front();
     stack.pop_front();
-
+    
     if( bracket->dividable( localEps) )
     {
       bracket->divide(stack);
@@ -343,21 +348,21 @@ opengv::math::Sturm::evaluateChain( double bound )
 {
   Eigen::MatrixXd monomials(_dimension,1);
   monomials(_dimension-1,0) = 1.0;
-
+  
   //evaluate all monomials at the bound
   for(size_t i = 2; i <= _dimension; i++)
     monomials(_dimension-i,0) = monomials(_dimension-i+1,0)*bound;
-
+  
   Eigen::MatrixXd signs(_dimension,1);
   for( size_t i = 0; i < _dimension; i++ )
-    signs.block(i,0,1,1) = _A.block(i,i,1,_dimension-i) * monomials.block(i,0,_dimension-i,1);
-
+    signs.block(i,0,1,1) = _C.block(i,i,1,_dimension-i) * monomials.block(i,0,_dimension-i,1);
+  
   bool positive = false;
   if( signs(0,0) > 0.0 )
     positive = true;
-
+  
   int signChanges = 0;
-
+  
   for( size_t i = 1; i < _dimension; i++ )
   {
     if( positive )
@@ -377,36 +382,36 @@ opengv::math::Sturm::evaluateChain( double bound )
       }
     }
   }
-
+  
   return signChanges;
 }
 
 size_t
 opengv::math::Sturm::evaluateChain2( double bound )
-{
+{  
   std::vector<double> monomials;
   monomials.resize(_dimension);
   monomials[_dimension-1] = 1.0;
-
+  
   //evaluate all monomials at the bound
   for(size_t i = 2; i <= _dimension; i++)
     monomials[_dimension-i] = monomials[_dimension-i+1]*bound;
-
+  
   std::vector<double> signs;
   signs.reserve(_dimension);
   for( size_t i = 0; i < _dimension; i++ )
   {
     signs.push_back(0.0);
     for( size_t j = i; j < _dimension; j++ )
-      signs.back() += _A(i,j) * monomials[j];
+      signs.back() += _C(i,j) * monomials[j];
   }
-
+  
   bool positive = false;
   if( signs[0] > 0.0 )
     positive = true;
-
+  
   int signChanges = 0;
-
+  
   for( size_t i = 1; i < _dimension; i++ )
   {
     if( positive )
@@ -426,7 +431,7 @@ opengv::math::Sturm::evaluateChain2( double bound )
       }
     }
   }
-
+  
   return signChanges;
 }
 
@@ -460,7 +465,7 @@ opengv::math::Sturm::computeLagrangianBound()
   coefficients.reserve(_dimension-1);
 
   for(size_t i=0; i < _dimension-1; i++)
-    coefficients.push_back(pow(fabs(_A(0,i+1)/_A(0,0)),(1.0/(i+1))));
+    coefficients.push_back(pow(fabs(_C(0,i+1)/_C(0,0)),(1.0/(i+1))));
 
   size_t j = 0;
   double max1 = -1.0;

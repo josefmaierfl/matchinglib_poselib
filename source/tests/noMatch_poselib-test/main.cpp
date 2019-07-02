@@ -1,5 +1,5 @@
 
-#if 0
+/*#if 0
 
 #include <gmock/gmock.h>
 
@@ -9,7 +9,9 @@ int main(int argc, char* argv[])
     return RUN_ALL_TESTS();
 }
 
-#else
+#else*/
+
+#define TESTOUT 1
 
 // ideal case
 #include "matchinglib/matchinglib.h"
@@ -1540,6 +1542,9 @@ bool startEvaluation(ArgvParser& cmd)
 		cp.cfg_stereo.maxDist3DPtsZ = maxDist3DPtsZ;
 
 		stereoObj.reset(new poselib::StereoRefine(cp.cfg_stereo, verbose > 0));
+	}else{
+        cp.cfg_stereo.keypointType = kpNameM;
+        cp.cfg_stereo.descriptorType = descrName;
 	}
 
     int failNr = 0;
@@ -1744,6 +1749,9 @@ bool startEvaluation(ArgvParser& cmd)
 			{
 				if (cp.RobMethod == "USAC")
 				{
+#if TESTOUT
+				    cout << "Entering USAC" << endl;
+#endif
 					bool isDegenerate = false;
 					Mat R_degenerate, inliers_degenerate_R;
 					bool usacerror = false;
@@ -1812,6 +1820,9 @@ bool startEvaluation(ArgvParser& cmd)
 							exit(1);
 						}
 					}
+#if TESTOUT
+                    cout << "Leaving USAC" << endl;
+#endif
 					if (isDegenerate)
 					{
 						std::cout << "Camera configuration is degenerate and, thus, rotation only. "
@@ -1999,11 +2010,17 @@ bool startEvaluation(ArgvParser& cmd)
 				}
 
 				if (!availableRT) {
+#if TESTOUT
+                    cout << "Entering triangulation" << endl;
+#endif
                     if (poselib::getPoseTriangPts(E, p1, p2, R, t, Q, mask, maxDist3DPtsZ) <= 0) {
                         if (verbose) {
                             cout << "Triangulating points not successful." << endl;
                         }
                     }
+#if TESTOUT
+                    cout << "Leaving triangulation" << endl;
+#endif
                 }
 				else{
 					R = R_kneip;
@@ -2929,4 +2946,4 @@ int main( int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
-#endif
+//#endif
