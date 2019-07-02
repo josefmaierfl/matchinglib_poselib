@@ -10,37 +10,37 @@ nrTotalFrames: 50
 #
 # Number of different stereo configurations (max. 1000).
 # The number of frames per camera configuration is controlled by the smallest number of the change rates (e.g. txChangeFRate) for tx, ty, tz, roll, pitch, and yaw.
-nrStereoConfigs: 1
+nrStereoConfigs: 2
 # Specifies after how many frames the x-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the x-component linearly.
-txChangeFRate: 0
+txChangeFRate: 25
 # Specifies after how many frames the y-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the y-component linearly.
-tyChangeFRate: 0
+tyChangeFRate: 25
 # Specifies after how many frames the z-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the z-component linearly.
-tzChangeFRate: 0
+tzChangeFRate: 25
 # Specifies after how many frames the roll angle (angle about x-axis) between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the roll linearly.
-rollChangeFRate: 0
+rollChangeFRate: 25
 # Specifies after how many frames the pitch angle (angle about y-axis) between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the pitch linearly.
-pitchChangeFRate: 0
+pitchChangeFRate: 25
 # Specifies after how many frames the yaw angle (angle about z-axis) between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the yaw linearly.
-yawChangeFRate: 0
+yawChangeFRate: 25
 # Linear change rate for tx (x-component of the translation vector between the stereo cameras).
-txLinChangeVal: -1.0000000000000000e-02
+txLinChangeVal: 0.03
 # Linear change rate for ty (y-component of the translation vector between the stereo cameras).
-tyLinChangeVal: 1.0000000000000000e-03
+tyLinChangeVal: 0.03
 # Linear change rate for tz (z-component of the translation vector between the stereo cameras).
-tzLinChangeVal: 5.0000000000000001e-04
+tzLinChangeVal: 0.03
 # Linear change rate for the roll angle (angle in degrees about x-axis) between the stereo cameras.
-rollLinChangeVal: 5.0000000000000000e-01
+rollLinChangeVal: -3.
 # Linear change rate for the pitch angle (angle in degrees about y-axis) between the stereo cameras.
-pitchLinChangeVal: 1.0000000000000001e-01
+pitchLinChangeVal: -3.
 # Linear change rate for the yaw angle (angle in degrees about z-axis) between the stereo cameras.
-yawLinChangeVal: 0
+yawLinChangeVal: -3.
 # Start value for tx (x-component (right) of the translation vector between the stereo cameras).
 # Only used if the specified range is 0.
 txStartVal: -1.
@@ -58,7 +58,7 @@ rollStartVal: 2.
 pitchStartVal: -8.1999999999999993e+00
 # Start value for the yaw angle (angle in degrees about z-axis, right handed coordinate system, R = R_y * R_z * R_x) between the stereo cameras.
 # Only used if the specified range is 0.
-yawStartVal: 2.9999999999999999e-01
+yawStartVal: 1.5
 # Possible range of the initial tx (x-component (right) of the translation vector between the stereo cameras) to be able to meet a user specific image overlap.
 # The optimal tx starting-value is by default only estimated for the first stereo configuration. If specified by txVariable, the range is used for every new configuration.
 # If the range (difference between both values) is 0, tx will be kept fixed at the given start value for tx.
@@ -69,14 +69,14 @@ txRange:
 # The optimal ty starting-value is by default only estimated for the first stereo configuration. If specified by tyVariable, the range is used for every new configuration.
 # If the range (difference between both values) is 0, ty will be kept fixed at the given start value for ty.
 tyRange:
-   first: -1.5000000000000001e-01
-   second: 1.5000000000000001e-01
+   first: -2.0000000000000001e-01
+   second: 2.0000000000000001e-01
 # Possible range of the initial tz (z-component (forward) of the translation vector between the stereo cameras) to be able to meet a user specific image overlap.
 # The optimal tz starting-value is by default only estimated for the first stereo configuration. If specified by tzVariable, the range is used for every new configuration.
 # If the range (difference between both values) is 0, tz will be kept fixed at the given start value for tz.
 tzRange:
-   first: -2.0000000000000001e-02
-   second: 2.0000000000000001e-02
+   first: -1.0000000000000001e-01
+   second: 1.0000000000000001e-01
 # Possible range for the initial roll angle (angle in degrees about x-axis between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x)
 # to be able to meet a user specific image overlap. The optimal roll starting-value is by default only estimated for the
 # first stereo configuration. If specified by rollVariable, the range is used for every new configuration.
@@ -89,7 +89,7 @@ rollRange:
 # first stereo configuration. If specified by pitchVariable, the range is used for every new configuration.
 # If the range (difference between both values) is 0, the pitch angle will be kept fixed at the given start value for pitch.
 pitchRange:
-   first: -15.
+   first: -8.
    second: 20.
 # Possible range for the initial yaw angle (angle in degrees about z-axis between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x)
 # to be able to meet a user specific image overlap. The optimal yaw starting-value is by default only estimated for the
@@ -132,44 +132,64 @@ useSpecificCamPars: 1
 # regardless of what is entered for the camera matrices in the subsequent configurations.
 # The update frequence (in frames) is calculated by nrTotalFrames devided by the number of entered stereo configurations (here) or nrStereoConfigs (whatever value is smaller; nrStereoConfigs is not allowed to be larger than the number of entries entered here).
 specificCamPars:
-   -
-      R: !!opencv-matrix
-         rows: 3
-         cols: 3
-         dt: d
-         data: [ 9.8972911483888704e-01, 5.3469468416959586e-03,
-             1.4285548431791234e-01, 5.2359638254366736e-03,
-             9.9727389419220736e-01, -7.3602748899268738e-02,
-             -1.4285959513820534e-01, 7.3594769665935936e-02,
-             9.8700301213054364e-01 ]
-      t: !!opencv-matrix
-         rows: 3
-         cols: 1
-         dt: d
-         data: [ -1., -1.4925832482002577e-01,
-             1.2451399874209391e-02 ]
-      K1: !!opencv-matrix
-         rows: 3
-         cols: 3
-         dt: d
-         data: [ 8.5601717043717088e+02, 0., 640., 0.,
-             8.5601717043717088e+02, 360., 0., 0., 1. ]
-      K2: !!opencv-matrix
-         rows: 3
-         cols: 3
-         dt: d
-         data: [ 8.5601717043717088e+02, 0., 640., 0.,
-             8.5601717043717088e+02, 360., 0., 0., 1. ]
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9947172923896326, -0.02747131475166864, 0.09890821546693165, 0.026176948277968463,
+        0.9995541675917693, 0.014360829668858863, -0.09925862985096456, -0.011695850364131961,
+        0.9949929303690399]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.07468585947881864]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985488622171872, 0.022950648190329836, 0.04871793830207601, -0.026176948277968463,
+        0.99743272559499, 0.0666537717687609, -0.04706311871958487, -0.06783233491332297,
+        0.9965860912116891]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-0.97, -0.17, 0.10468585947881864]
+      dt: d
+      rows: 3
 # Desired image overlap of both stereo images at mid depth (see corrsPerRegionRandInit).
 # Value range: 0.1 to 1.0
-imageOverlap: 7.0000000000000004e-01
+imageOverlap: 8.5000000000000004e-01
 # ---- Options for generating 3D scenes ----
 #
 #
 # Inlier ratio range for all stereo frames.
 inlRatRange:
-   first: 0.9
-   second: 0.9
+   first: 0.3
+   second: 0.8
 # Inlier ratio change rate from pair to pair.
 # If 0, the inlier ratio within the given range is always the same for every image pair (it is selected within the given inlier range in the beginning).
 # If 100.0, the inlier ratio is chosen completely random within the given range for every stereo frame separately.
@@ -177,21 +197,21 @@ inlRatRange:
 inlRatChanges: 0
 # Number of true positives (TP) range for all stereo frames.
 truePosRange:
-   first: 100
-   second: 1000
+   first: 30
+   second: 500
 # True positives change rate from pair to pair.
 # If 0, the true positives within the given range are always the same for every image pair (it is selected within the given TP range in the beginning).
 # If 100.0, the true positives are chosen completely random within the given range. For values between 0 and 100.0,
 # the true positives selected are not allowed to change more than this factor from the true positives of the last stereo frame.
-truePosChanges: 0.4
+truePosChanges: 0.45
 # Minimum distance between keypoints in the first (left or top) stereo image for every frame
 minKeypDist: 2.
 # Portion of correspondences at depth regions (near, mid, and far). The values are double precision and the values must not sum to 1.0.
 # This is performed internally.
 corrsPerDepth:
-   near: 1.
-   mid: 1.
-   far: 1.
+   near: 0.01
+   mid: 0.09
+   far: 0.9
 # List of portions of image correspondences at regions (Matrices must be 3x3 as the image is divided into 9 regions with similar size).
 # Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
 # The values are double precision and the values must not sum to 1.0. This is performed internally.
@@ -202,11 +222,11 @@ corrsPerRegion:
       rows: 3
       cols: 3
       dt: d
-      data: [ 0.02, 0.01,
-          0, 0.25,
-          0.125, 0.01,
-          1., 0.25,
-          0.02 ]
+      data: [ 0.6, 0.2,
+          0.05, 0.6,
+          0.2, 0.05,
+          0.6, 0.2,
+          0.05 ]
 # Repeat rate of portion of correspondences at regions (corrsPerRegion). If more than one matrix of portions of correspondences at regions is provided,
 # this number specifies the number of subsequent frames for which such a matrix is valid. After all matrices are used, the first one is used again.
 # If 0 and no matrix of portions of correspondences at regions is provided, as many random matrices as frames are randomly generated.
@@ -224,41 +244,41 @@ corrsPerRegionRandInit: 0
 # Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
 depthsPerRegion:
    -
-      near: 0.1
-      mid: 0.3
+      near: 0
+      mid: 0.01
       far: 1.
    -
-      near: 0.08
-      mid: 0.2
+      near: 0
+      mid: 0
+      far: 1.1
+   -
+      near: 0
+      mid: 0
+      far: 1.2
+   -
+      near: 0.01
+      mid: 0.02
+      far: 0.9
+   -
+      near: 0.01
+      mid: 0.015
+      far: 0.9
+   -
+      near: 0
+      mid: 0.007
       far: 1.
    -
-      near: 0.06
-      mid: 0.15
-      far: 1.
+      near: 0.05
+      mid: 0.1
+      far: 0.7
    -
-      near: 0.55
-      mid: 0.4
-      far: 0.55
+      near: 0.03
+      mid: 0.0575
+      far: 0.8
    -
-      near: 0.51
-      mid: 0.4
-      far: 0.57
-   -
-      near: 0.46
-      mid: 0.35
-      far: 0.61
-   -
-      near: 1.
-      mid: 0.5
-      far: 0.1
-   -
-      near: 0.9
-      mid: 0.6
-      far: 0.15
-   -
-      near: 0.8
-      mid: 0.5
-      far: 0.25
+      near: 0.015
+      mid: 0.03225
+      far: 0.9
 # Min and Max number of connected depth areas (in the image domain (same size as the used image size) where they are generated
 # (each pixel in the image domain holds a depth value)) per region (must be 3x3).
 # The minimum number (first) must be larger 0. The maximum number is bounded by a minimum area with similar depths, which is 16 pixels.
@@ -296,7 +316,7 @@ nrDepthAreasPReg:
 # If 1, an ellipsoid is used as camera track (consecutive positions of the top/left stereo camera center.
 # If 2, a custom track can be entered into camTrack.
 # If 3, a random track will be generated.
-trackOption: 1
+trackOption: 2
 # Ellipsoid parameters:
 # xDirection (either -1 (left) or +1 (right));
 # xzExpansion (value range -100 to +100.0, no 0) describes how much smaller/larger the expansion in x (right) direction is compared to z (foward) -
@@ -347,18 +367,7 @@ camTrack:
       rows: 3
       cols: 1
       dt: d
-      data: [ 2., 0., 1. ]
-   - !!opencv-matrix
-      rows: 3
-      cols: 1
-      dt: d
-      data: [ 3., -1.0000000000000001e-01, 1.3000000000000000e+00 ]
-   - !!opencv-matrix
-      rows: 3
-      cols: 1
-      dt: d
-      data: [ 4.5000000000000000e+00, -5.0000000000000003e-02,
-          1.3999999999999999e+00 ]
+      data: [ 0., 0., 1. ]
 # Relative velocity of the camera movement (value between 0 and 10.0; must be larger 0). The velocity is relative to the baseline length between the stereo cameras.
 # Thus, the absolute camera velocity (equals distance between camera centers) along the camera track is relCamVelocity * norm(t_stereo),
 # where t_stereo is the translation vector between the 2 stereo cameras.
@@ -371,7 +380,7 @@ rollCamTrack: -5.
 # Rotation angle about the y-axis (pitch in degrees, right handed) of the stereo pair (centered at camera centre of left/top stereo camera) on the track.
 # This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera.
 # The rotation matrix is generated using the notation R_y * R_z * R_x.
-pitchCamTrack: 90.
+pitchCamTrack: -90.
 # Rotation angle about the z-axis (yaw in degrees, right handed) of the stereo pair (centered at camera centre of left/top stereo camera) on the track.
 # This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera.
 # The rotation matrix is generated using the notation R_y * R_z * R_x.
@@ -379,20 +388,20 @@ yawCamTrack: 2.
 # Number of moving objects in the scene at the beginning. If a moving object is visible again in a subsequent frame, it is backprojected to the image plane.
 # If the portion of backprojected correspondences on a moving object compared to the frame where it was generated drops below a user specified threshold (see minMovObjCorrPortion),
 # it is removed from the scene. If too many moving objects were removed and the number of remaining moving objects drops below minNrMovObjs, new moving objects are inserted.
-nrMovObjs: 0
+nrMovObjs: 2
 # Possible starting positions (regions in the image) of moving objects in the image (must be 3x3 boolean (CV_8UC1))
 startPosMovObjs: !!opencv-matrix
    rows: 3
    cols: 3
    dt: u
-   data: [ 1, 1, 0, 1, 0, 0, 0, 0, 0 ]
+   data: [ 0, 1, 0, 1, 1, 1, 0, 1, 0 ]
 # Relative area range of moving objects.
 # Area range relative to the image area in the beginning. The final occupied area of every moving object in the image is selected randomly within the given range.
 # As moving objects are always put into the foreground it is advisable too use small relative area ranges depending on the number of
 # demanded moving objects to allow static elements to be visible in the image.
 relAreaRangeMovObjs:
    first: 5.0000000000000003e-02
-   second: 1.4999999999999999e-01
+   second: 1.0999999999999999e-01
 # Depths of moving objects. Moving objects are always visible and not covered by other static objects.
 # If the number of given depths is 1, this depth is used for every object.
 # If the number of given depths is equal "nrMovObjs", the corresponding depth is used for every moving object.
@@ -401,8 +410,6 @@ relAreaRangeMovObjs:
 # (e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
 # The following values for different depths can be used: NEAR: 1, MID: 2, FAR: 4
 movObjDepth:
-   - 1
-   - 2
    - 4
 # Movement direction of moving objects relative to the camera movement (must be 3x1 double cv::Mat).
 # This vector will be normalized and added to the normalized direction vector of the actual camera track segment.
@@ -414,28 +421,28 @@ movObjDir: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 5.9999999999999998e-01, 0., 4.0000000000000002e-01 ]
+   data: [ -0.1, 0., 0.9 ]
 # Relative velocity range of moving objects based on relative camera velocity (relCamVelocity).
 # The actual relative velocity of every moving object is chosen randomly between the given range.
 # Absolute_moving_object_velocity = chosen_relMovObjVel * absolute_camera_velocity;
 # The absolute moving object velocity is multiplied with the movement direction vector of the moving object to get the positional change from frame to frame.
 # Entered values must be between 0 and 100.0; Must be larger 0;
 relMovObjVelRange:
-   first: 5.0000000000000000e-01
-   second: 2.
+   first: 8.0000000000000000e-01
+   second: 1.2
 # Minimal portion of correspondences on moving objects for removing them.
 # If the portion of visible correspondences drops below this value, the whole moving object is removed.
 # Zero means, that the moving object is only removed if there is no visible correspondence in the stereo pair.
 # One means, that a single missing correspondence leads to deletion. Values between 0 and 1.0;
-minMovObjCorrPortion: 2.0000000000000001e-01
+minMovObjCorrPortion: 2.5000000000000001e-01
 # Relative portion of correspondences on moving object (relative to the full number of correspondences of a stereo frame).
 # The number of correspondences is limited by the size of objects visible in the images and the minimal distance between correspondences.
 # Value range: >0, <1.0
-CorrMovObjPort: 1.6000000000000000e-01
+CorrMovObjPort: 2.0000000000000000e-01
 # Minimum number of moving objects over the whole track.
 # If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached.
 # If 0, no new moving objects are inserted if every preceding moving object is out of sight.
-minNrMovObjs: 0
+minNrMovObjs: 2
 # Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices K1 & K2 based on their initial values
 # (only the focal lengths and image centers are randomly distorted). The distorted camera matrices are only generated for storing
 # them to output. For generating the ground truth (matches, ...), the correct camera matrices are used.
@@ -509,4 +516,4 @@ verbosity:
 # Results of every LMverbose'th iteration are printed. Value range: 0-100. Use 0 to disable.
 LMverbose: 0
 # If 1, extrinsic stereo parameters are also accepted for further processing if they do not completely fulfill the user specified values (like image overlap area). Otherwise, set this value to 0. In this case, you will be asked if you want to accept the shown stereo parameters in case the LM algorithm was not able to find a good solution.
-acceptBadStereoPars: 0
+acceptBadStereoPars: 1

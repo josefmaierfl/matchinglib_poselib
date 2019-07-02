@@ -440,8 +440,8 @@ minNrMovObjs: 0
 # (only the focal lengths and image centers are randomly distorted). The distorted camera matrices are only generated for storing
 # them to output. For generating the ground truth (matches, ...), the correct camera matrices are used.
 distortCamMat:
-   first: 0.03
-   second: 0.07
+   first: 0.030
+   second: 0.030
 # Image size of both stereo cameras
 imgSize:
    width: 1280
