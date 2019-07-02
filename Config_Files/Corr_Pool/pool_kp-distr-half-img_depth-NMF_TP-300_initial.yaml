@@ -177,8 +177,8 @@ inlRatRange:
 inlRatChanges: 0
 # Number of true positives (TP) range for all stereo frames.
 truePosRange:
-   first: 500
-   second: 500
+   first: 300
+   second: 300
 # True positives change rate from pair to pair.
 # If 0, the true positives within the given range are always the same for every image pair (it is selected within the given TP range in the beginning).
 # If 100.0, the true positives are chosen completely random within the given range. For values between 0 and 100.0,
@@ -189,9 +189,9 @@ minKeypDist: 2.
 # Portion of correspondences at depth regions (near, mid, and far). The values are double precision and the values must not sum to 1.0.
 # This is performed internally.
 corrsPerDepth:
-   near: 0.01
-   mid: 0.09
-   far: 0.9
+   near: 1.
+   mid: 1.
+   far: 1.
 # List of portions of image correspondences at regions (Matrices must be 3x3 as the image is divided into 9 regions with similar size).
 # Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
 # The values are double precision and the values must not sum to 1.0. This is performed internally.
@@ -224,41 +224,41 @@ corrsPerRegionRandInit: 0
 # Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
 depthsPerRegion:
    -
-      near: 0
-      mid: 0.01
+      near: 0.1
+      mid: 0.3
       far: 1.
    -
-      near: 0
-      mid: 0
-      far: 1.1
-   -
-      near: 0
-      mid: 0
-      far: 1.2
-   -
-      near: 0.01
-      mid: 0.02
-      far: 0.9
-   -
-      near: 0.01
-      mid: 0.015
-      far: 0.9
-   -
-      near: 0
-      mid: 0.007
+      near: 0.08
+      mid: 0.2
       far: 1.
    -
-      near: 0.05
-      mid: 0.1
-      far: 0.7
+      near: 0.06
+      mid: 0.15
+      far: 1.
    -
-      near: 0.03
-      mid: 0.0575
-      far: 0.8
+      near: 0.55
+      mid: 0.4
+      far: 0.55
    -
-      near: 0.015
-      mid: 0.03225
-      far: 0.9
+      near: 0.51
+      mid: 0.4
+      far: 0.57
+   -
+      near: 0.46
+      mid: 0.35
+      far: 0.61
+   -
+      near: 1.
+      mid: 0.5
+      far: 0.1
+   -
+      near: 0.9
+      mid: 0.6
+      far: 0.15
+   -
+      near: 0.8
+      mid: 0.5
+      far: 0.25
 # Min and Max number of connected depth areas (in the image domain (same size as the used image size) where they are generated
 # (each pixel in the image domain holds a depth value)) per region (must be 3x3).
 # The minimum number (first) must be larger 0. The maximum number is bounded by a minimum area with similar depths, which is 16 pixels.
@@ -390,6 +390,8 @@ relAreaRangeMovObjs:
 # (e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
 # The following values for different depths can be used: NEAR: 1, MID: 2, FAR: 4
 movObjDepth:
+   - 1
+   - 2
    - 4
 # Movement direction of moving objects relative to the camera movement (must be 3x1 double cv::Mat).
 # This vector will be normalized and added to the normalized direction vector of the actual camera track segment.

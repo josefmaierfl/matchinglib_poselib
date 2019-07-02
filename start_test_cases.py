@@ -205,7 +205,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             raise ValueError('test_nr is required for correspondence_pool')
         if test_nr == 1:
             args += ['--minPtsDistance', '1.0', '15.0', '2.0']
-            args += ['--maxPoolCorrespondences', '200', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
+            args += ['--maxPoolCorrespondences', '300', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
                      '5000', '10000', '1000', '10000', '20000', '2000', '20000', '30000', '5000']
         elif test_nr == 2:
             if minPtsDistance is None:
@@ -514,7 +514,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--refineRT_stereo', '4', '2']
             args += ['--BART_stereo', str(1)]
             args += ['--minPtsDistance', '1.0', '15.0', '2.0']
-            args += ['--maxPoolCorrespondences', '200', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
+            args += ['--maxPoolCorrespondences', '300', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
                      '5000', '10000', '1000', '10000', '20000', '2000', '20000', '30000', '5000']
         elif test_nr == 10:
             args += ['--RobMethod', 'USAC']
