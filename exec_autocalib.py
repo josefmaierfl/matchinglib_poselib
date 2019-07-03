@@ -264,7 +264,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
                  '--ovf_ext', 'yaml.gz', '--output_path', output_path]
         infos = ['kpDistr', row['kp_distr'],
                  'depthDistr', row['depth_distr'],
-                 'nrTP', row['nrTP'],
+                 'nrTP', str(row['nrTP']),
                  'inlratMin', str(row['inlrat_min']),
                  'inlratMax', str(row['inlrat_max']),
                  'inlratCRate', str(row['inlrat_c_rate']),
@@ -864,17 +864,60 @@ def main():
     if args.relInlRatThNew:
         cmds = appRange(cmds, args.relInlRatThNew, 'relInlRatThNew')
 
-    if args.minInlierRatSkip:
-        cmds = appRange(cmds, args.minInlierRatSkip, 'minInlierRatSkip')
+    if args.minInlierRatioReInit or args.minInlierRatSkip:
+        if not args.minInlierRatSkip:
+            minInlierRatSkip = [0.38]
+        else:
+            minInlierRatSkip = args.minInlierRatSkip
+        if not args.minInlierRatioReInit:
+            minInlierRatioReInit = [0.67]
+        else:
+            minInlierRatioReInit = args.minInlierRatioReInit
+        if len(minInlierRatSkip) == 1 and len(minInlierRatioReInit) == 1:
+            if minInlierRatioReInit[0] <= minInlierRatSkip[0]:
+                raise ValueError('minInlierRatioReInit must be larger than minInlierRatSkip')
+            if args.minInlierRatSkip:
+                cmds = appRange(cmds, args.minInlierRatSkip, 'minInlierRatSkip')
+            if args.minInlierRatioReInit:
+                cmds = appRange(cmds, args.minInlierRatioReInit, 'minInlierRatioReInit')
+        elif len(minInlierRatSkip) == 1:
+            if minInlierRatioReInit[0] <= minInlierRatSkip[0]:
+                raise ValueError('minInlierRatioReInit must be larger than minInlierRatSkip. '
+                                 'Change the range of minInlierRatioReInit')
+            if args.minInlierRatSkip:
+                cmds = appRange(cmds, args.minInlierRatSkip, 'minInlierRatSkip')
+            if args.minInlierRatioReInit:
+                cmds = appRange(cmds, args.minInlierRatioReInit, 'minInlierRatioReInit')
+        elif len(minInlierRatioReInit) == 1:
+            if minInlierRatioReInit[0] <= minInlierRatSkip[1]:
+                raise ValueError('minInlierRatioReInit must be larger than minInlierRatSkip. '
+                                 'Change the range of minInlierRatSkip')
+            if args.minInlierRatSkip:
+                cmds = appRange(cmds, args.minInlierRatSkip, 'minInlierRatSkip')
+            if args.minInlierRatioReInit:
+                cmds = appRange(cmds, args.minInlierRatioReInit, 'minInlierRatioReInit')
+        else:
+            minInlierRatSkip = resolveRange(minInlierRatSkip, 'minInlierRatSkip')
+            minInlierRatioReInit = resolveRange(minInlierRatioReInit, 'minInlierRatioReInit')
+            combVals = []
+            for it in minInlierRatSkip:
+                for it1 in minInlierRatioReInit:
+                    if it1 > it:
+                        combVals.append(['--minInlierRatSkip', str(it),
+                                         '--minInlierRatioReInit', str(it1)])
+            if not combVals:
+                raise ValueError('No combination of minInlierRatSkip and minInlierRatioReInit left')
+            cmds_rb = deepcopy(cmds)
+            cmds = []
+            for it in cmds_rb:
+                for it1 in combVals:
+                    cmds.append(it + it1)
 
     if args.relMinInlierRatSkip:
         cmds = appRange(cmds, args.relMinInlierRatSkip, 'relMinInlierRatSkip')
 
     if args.maxSkipPairs:
         cmds = appRange(cmds, args.maxSkipPairs, 'maxSkipPairs')
-
-    if args.minInlierRatioReInit:
-        cmds = appRange(cmds, args.minInlierRatioReInit, 'minInlierRatioReInit')
 
     if args.minPtsDistance:
         cmds = appRange(cmds, args.minPtsDistance, 'minPtsDistance')
@@ -940,7 +983,7 @@ def appRange(reslist, inlist, str_name):
             it.extend(['--' + str_name, str(inlist[0])])
     elif len(inlist) == 3:
         if (inlist[0] > inlist[1]) or \
-            (inlist[2] > (inlist[1] - inlist[0])):
+           (inlist[2] > (inlist[1] - inlist[0])):
             raise ValueError("Parameters 1-3 (option " + str_name + ") must have the following format: "
                              "range_min range_max step_size")
         ints = False
@@ -953,13 +996,35 @@ def appRange(reslist, inlist, str_name):
         reslist = []
         for it in cmds_th:
             if not ints:
-                for th in np.arange(inlist[0], inlist[1] + inlist[2], inlist[2]):
-                    reslist.append(it + ['--' + str_name, str(th)])
+                for th in np.arange(inlist[0], inlist[1] + inlist[2] / 2, inlist[2]):
+                    reslist.append(it + ['--' + str_name, str(round(th, 4))])
             else:
                 for th in range(inlist[0], inlist[1] + inlist[2], inlist[2]):
                     reslist.append(it + ['--' + str_name, str(th)])
     else:
         raise ValueError('Wrong number of arguments for ' + str_name)
+    return reslist
+
+def resolveRange(inlist, str_name):
+    if len(inlist) != 3:
+        raise ValueError('Wrong number of arguments for ' + str_name)
+    if (inlist[0] > inlist[1]) or \
+            (inlist[2] > (inlist[1] - inlist[0])):
+        raise ValueError("Parameters 1-3 (option " + str_name + ") must have the following format: "
+                                                                "range_min range_max step_size")
+    ints = False
+    if not (isinstance(inlist[0], int) and isinstance(inlist[1], int) and isinstance(inlist[2], int)):
+        if not round(float((inlist[1] - inlist[0]) / inlist[2]), 6).is_integer():
+            raise ValueError("Option " + str_name + " step size is wrong")
+    else:
+        ints = True
+    reslist = []
+    if not ints:
+        for th in np.arange(inlist[0], inlist[1] + inlist[2] / 2, inlist[2]):
+            reslist.append(round(th, 4))
+    else:
+        for th in range(inlist[0], inlist[1] + inlist[2], inlist[2]):
+            reslist.append(th)
     return reslist
 
 def appMultRanges(reslist, inlist, str_name):
@@ -985,8 +1050,8 @@ def appMultRanges(reslist, inlist, str_name):
                 if corrs_tmp[-1] == first:
                     first = inlist[idx] + inlist[idx + 2]
             if not ints:
-                for th in np.arange(first, inlist[idx + 1] + inlist[idx + 2], inlist[idx + 2]):
-                    corrs_tmp.append(th)
+                for th in np.arange(first, inlist[idx + 1] + inlist[idx + 2] / 2, inlist[idx + 2]):
+                    corrs_tmp.append(round(th, 4))
             else:
                 for th in range(first, inlist[idx + 1] + inlist[idx + 2], inlist[idx + 2]):
                     corrs_tmp.append(th)

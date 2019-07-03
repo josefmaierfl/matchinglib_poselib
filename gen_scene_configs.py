@@ -23,7 +23,7 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path,
              'scene_exists': [], 'load_path': [], 'parSetNr': []}
     cnt = 0
     tp = []
-    for inl in np.arange(inlier_range[0], inlier_range[1] + inlier_range[2], inlier_range[2]):
+    for inl in np.arange(inlier_range[0], inlier_range[1] + inlier_range[2] / 2, inlier_range[2]):
         #fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % kpAccRange[0]
         fnew = 'Inl_%.2f' % inl + '_Acc_%.2f' % kpAccRange[0]
         fnew = fnew.replace('.', '_') + '.' + ending
@@ -41,7 +41,7 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path,
         datac['load_path'].append(load_path)
         datac['parSetNr'].append(cnt)
 
-        for acc in np.arange(kpAccRange[0] + kpAccRange[2], kpAccRange[1] + kpAccRange[2], kpAccRange[2]):
+        for acc in np.arange(kpAccRange[0] + kpAccRange[2], kpAccRange[1] + kpAccRange[2] / 2, kpAccRange[2]):
             #fnew = base + '_Inl_%.2f' % inl + '_Acc_%.2f' % acc
             fnew = 'Inl_%.2f' % inl + '_Acc_%.2f' % acc
             fnew = fnew.replace('.', '_') + '.' + ending

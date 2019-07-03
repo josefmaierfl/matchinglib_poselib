@@ -80,7 +80,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--kp_pos_distr', 'equ']
             if not usac56:
                 raise ValueError('Enter best test results for parameters 5 & 6 of usac-testing')
-            args += ['--cfgUSAC', '3', '1', '1', '0'] + map(str, usac56) + ['1', '1', '1', '0', '0', '0']
+            args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, usac56)) + ['1', '1', '1', '0', '0', '0']
             args += ['--USACInlratFilt', '2']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for usac-testing')
@@ -91,7 +91,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--useGTCamMat']
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
         if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
@@ -99,7 +99,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--RobMethod', 'USAC']
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
         if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
@@ -115,7 +115,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         elif test_nr == 2:
             if not refineRT:
                 raise ValueError('Enter best test results for refineRT of refinement_ba')
-            args += ['--refineRT'] + map(str, refineRT)
+            args += ['--refineRT'] + list(map(str, refineRT))
             args += ['--BART', '0', '1']
             args += ['--nr_keypoints', '500']
         else:
@@ -127,7 +127,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         if robMFilt == 'USAC':
             if not usac56 or not usac123:
                 raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-            args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+            args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
         else:
             args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5']
         args += ['--USACInlratFilt', '0']
@@ -143,7 +143,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--RobMethod', 'USAC']
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
         if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
@@ -152,7 +152,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--th', str(th)]
         if not refineRT:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + map(str, refineRT)
+        args += ['--refineRT'] + list(map(str, refineRT))
         if bart is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
         args += ['--BART', str(bart)]
@@ -170,7 +170,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         elif test_nr == 2:
             if not refineRT_stereo:
                 raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-            args += ['--refineRT_stereo'] + map(str, refineRT_stereo)
+            args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
             args += ['--BART_stereo', '0', '1']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for refinement_ba_stereo')
@@ -178,7 +178,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--RobMethod', 'USAC']
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
         if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
@@ -187,7 +187,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--th', str(th)]
         if not refineRT:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + map(str, refineRT)
+        args += ['--refineRT'] + list(map(str, refineRT))
         if bart is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
         args += ['--BART', str(bart)]
@@ -197,14 +197,14 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--useGTCamMat']
         if not refineRT_stereo:
             raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-        args += ['--refineRT_stereo'] + map(str, refineRT_stereo)
+        args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
         if bart_stereo is None:
             raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
         args += ['--BART_stereo', str(bart_stereo)]
         if not test_nr:
             raise ValueError('test_nr is required for correspondence_pool')
         if test_nr == 1:
-            args += ['--minPtsDistance', '1.0', '15.0', '2.0']
+            args += ['--minPtsDistance', '1.5', '15.5', '2.0']
             args += ['--maxPoolCorrespondences', '300', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
                      '5000', '10000', '1000', '10000', '20000', '2000', '20000', '30000', '5000']
         elif test_nr == 2:
@@ -242,7 +242,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--RobMethod', 'USAC']
         if not usac56 or not usac123:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
         if USACInlratFilt is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
         args += ['--USACInlratFilt', str(USACInlratFilt)]
@@ -251,7 +251,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--th', str(th)]
         if not refineRT:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + map(str, refineRT)
+        args += ['--refineRT'] + list(map(str, refineRT))
         if bart is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
         args += ['--BART', str(bart)]
@@ -259,7 +259,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--useGTCamMat']
         if not refineRT_stereo:
             raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-        args += ['--refineRT_stereo'] + map(str, refineRT_stereo)
+        args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
         if bart_stereo is None:
             raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
         args += ['--BART_stereo', str(bart_stereo)]
@@ -428,7 +428,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             usac56 = [2, 5]
             if not usac56:
                 raise ValueError('Enter best test results for parameters 5 & 6 of usac-testing')
-            args += ['--cfgUSAC', '3', '1', '1', '0'] + map(str, usac56) + ['1', '1', '1', '0', '0', '0']
+            args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, usac56)) + ['1', '1', '1', '0', '0', '0']
             args += ['--USACInlratFilt', '2']
         elif test_nr == 3:
             args += ['--refineRT', '0', '0']
@@ -439,7 +439,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             usac123 = [3,1,1]
             if not usac56 or not usac123:
                 raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-            args += ['--cfgUSAC'] + map(str, usac123) + ['0'] + map(str, usac56)
+            args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
             USACInlratFilt = 0
             if USACInlratFilt is None:
                 raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
@@ -458,7 +458,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--USACInlratFilt', '0']
             args += ['--th', '0.85']
             refineRT = [4,2]
-            args += ['--refineRT'] + map(str, refineRT)
+            args += ['--refineRT'] + list(map(str, refineRT))
             args += ['--BART', '0', '1']
             args += ['--nr_keypoints', '500']
         elif test_nr == 6:
@@ -513,7 +513,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--useGTCamMat']
             args += ['--refineRT_stereo', '4', '2']
             args += ['--BART_stereo', str(1)]
-            args += ['--minPtsDistance', '1.0', '15.0', '2.0']
+            args += ['--minPtsDistance', '1.5', '15.5', '2.0']
             args += ['--maxPoolCorrespondences', '300', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
                      '5000', '10000', '1000', '10000', '20000', '2000', '20000', '30000', '5000']
         elif test_nr == 10:
