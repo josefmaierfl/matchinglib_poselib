@@ -6,8 +6,6 @@
 #include <windows.h>
 #endif
 
-#define TESTOUTUSAC 1
-
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -348,9 +346,6 @@ bool USAC<ProblemType>::solve()
 	// timing stuff
 	double tick = Timer::getTimestampInSeconds();
 
-#if TESTOUTUSAC
-	std::cout << "Entering main loop" << std::endl;
-#endif
 	// ------------------------------------------------------------------------
 	// main USAC loop
 	while (usac_results_.hyp_count_ < adaptive_stopping_count && usac_results_.hyp_count_ < usac_max_hypotheses_)
@@ -382,10 +377,6 @@ bool USAC<ProblemType>::solve()
 
 			case USACConfig::SAMP_MODEL_COMPLETE:
 			{
-/*#if TESTOUTUSAC
-                std::cout << "In SAMP_MODEL_COMPLETE" << std::endl;
-                std::cout.flush();
-#endif*/
 				generateModelCompletionMinSample(usac_num_data_points_degen, usac_num_data_points_, 
 					usac_min_sample_size_degen, usac_min_sample_size_ - usac_min_sample_size_degen, &min_sample_);
 				break;
@@ -402,10 +393,6 @@ bool USAC<ProblemType>::solve()
 		// 2. validate sample
 		if (usac_prevalidate_sample_)
 		{
-/*#if TESTOUTUSAC
-            std::cout << "In usac_prevalidate_sample_" << std::endl;
-            std::cout.flush();
-#endif*/
 			// pre-validate sample before testing generating model
 			bool valid_sample = static_cast<ProblemType *>(this)->validateSample();
 			if (!valid_sample)
@@ -417,10 +404,6 @@ bool USAC<ProblemType>::solve()
 
 		// -----------------------------------------
 		// 3. generate model(s)
-#if TESTOUTUSAC
-        std::cout << "Entering generateMinimalSampleModels" << std::endl;
-        std::cout.flush();
-#endif
 		unsigned int num_solns = static_cast<ProblemType *>
 								 (this)->generateMinimalSampleModels();
 		usac_results_.model_count_ += num_solns;
@@ -428,10 +411,6 @@ bool USAC<ProblemType>::solve()
 		// -----------------------------------------
 		// 4-5. validate + evaluate model(s)
 		bool update_best = false;
-#if TESTOUTUSAC
-        std::cout << "Entering usac_prevalidate_model_" << std::endl;
-        std::cout.flush();
-#endif
 		for (unsigned int i = 0; i < num_solns; ++i)
 		{
 			if (usac_prevalidate_model_)
@@ -446,19 +425,11 @@ bool USAC<ProblemType>::solve()
 			}
 
 			// valid model, perform evaluation
-/*#if TESTOUTUSAC
-            std::cout << "Entering evaluateModel" << std::endl;
-            std::cout.flush();
-#endif*/
 			unsigned int inlier_count, num_points_tested;
 			bool good = static_cast<ProblemType *>
 				        (this)->evaluateModel(i, &inlier_count, &num_points_tested);
 
 			// update based on verification results
-/*#if TESTOUTUSAC
-            std::cout << "Entering usac_verif_method_" << std::endl;
-            std::cout.flush();
-#endif*/
 			switch (usac_verif_method_)
 			{
 				case USACConfig::VERIF_STANDARD:
@@ -549,10 +520,6 @@ bool USAC<ProblemType>::solve()
 		// 7. perform local optimization if specified
 		if (usac_local_opt_method_ == USACConfig::LO_LOSAC && update_best)
 		{
-/*#if TESTOUTUSAC
-            std::cout << "Entering LO_LOSAC" << std::endl;
-            std::cout.flush();
-#endif*/
 		    if(verbose) {
                 std::cout << "(" << usac_results_.hyp_count_ << ") Performing LO. Inlier count before: "
                           << usac_results_.best_inlier_count_;
@@ -578,10 +545,6 @@ bool USAC<ProblemType>::solve()
 		// 8. update the stopping criterion
 		if (update_best)
 		{
-/*#if TESTOUTUSAC
-            std::cout << "Entering update_best" << std::endl;
-            std::cout.flush();
-#endif*/
 			// update the number of samples required
 			if ( usac_sampling_method_ == USACConfig::SAMP_PROSAC && usac_results_.hyp_count_ <= prosac_growth_max_samples_ )
 			{
@@ -595,10 +558,6 @@ bool USAC<ProblemType>::solve()
 		// update adaptive stopping count to take SPRT test into account
 		if (usac_verif_method_ == USACConfig::VERIF_SPRT && usac_sampling_method_ != USACConfig::SAMP_PROSAC)
 		{
-/*#if TESTOUTUSAC
-            std::cout << "Updating adaptive_stopping_count" << std::endl;
-            std::cout.flush();
-#endif*/
 			if (usac_results_.hyp_count_ >= adaptive_stopping_count && update_sprt_stopping)
 			{
 				adaptive_stopping_count = updateSPRTStopping(usac_results_.best_inlier_count_, usac_num_data_points_, wald_test_history_);
@@ -607,11 +566,6 @@ bool USAC<ProblemType>::solve()
 		}
 
 	} // end the main USAC loop
-
-#if TESTOUTUSAC
-    std::cout << "Leaving main loop" << std::endl;
-	std::cout.flush();
-#endif
 
 	//Store SPRT paramters to result
 	if (usac_verif_method_ == USACConfig::VERIF_SPRT && wald_test_history_)
@@ -648,18 +602,12 @@ bool USAC<ProblemType>::solve()
 	// clean up
 	if (usac_verif_method_ == USACConfig::VERIF_SPRT)
 	{
-#if TESTOUTUSAC
-        std::cout << "Cleaning up Wald in" << std::endl;
-#endif
 		while (wald_test_history_)
 		{
 			TestHistorySPRT *temp = wald_test_history_->prev_;
 			delete wald_test_history_;
 			wald_test_history_ = temp;
 		}
-#if TESTOUTUSAC
-        std::cout << "Cleaning up Wald out" << std::endl;
-#endif
 	}
 
 	return true;
@@ -679,9 +627,6 @@ void USAC<ProblemType>::generateUniformRandomSample(unsigned int dataSize, unsig
 	unsigned int index = 0;
 	std::vector<unsigned int>::iterator pos;
 	pos = sample->begin();
-/*#if TESTOUTUSAC
-    std::cout << "Entering sampling" << std::endl;
-#endif*/
 	do {
 		index = rand() % dataSize;
 		if (find(sample->begin(), pos, index) == pos)
@@ -691,9 +636,6 @@ void USAC<ProblemType>::generateUniformRandomSample(unsigned int dataSize, unsig
 				++pos;
 		}
 	} while (count < sampleSize);
-/*#if TESTOUTUSAC
-    std::cout << "Leaving sampling" << std::endl;
-#endif*/
 }
 
 // ============================================================================================
@@ -1164,9 +1106,6 @@ unsigned int USAC<ProblemType>::updateSPRTStopping(unsigned int numInliers, unsi
 		return 1;
 	}
 
-#if TESTOUTUSAC
-    std::cout << "Entering SPRTStopping" << std::endl;
-#endif
 	while (current_test != nullptr)
 	{
 		k += current_test->k_;
@@ -1175,9 +1114,6 @@ unsigned int USAC<ProblemType>::updateSPRTStopping(unsigned int numInliers, unsi
 		log_eta += (double) current_test->k_ * log( 1.0 - prob_good_model*(1.0 - prob_reject_good_model) );
 		current_test = current_test->prev_;
 	}
-#if TESTOUTUSAC
-    std::cout << "Leaving SPRTStopping" << std::endl;
-#endif
 
 	double nusample_s = k + ( log(1.0 - usac_conf_threshold_) - log_eta ) /
 	        log( 1.0 - prob_good_model * (1.0 - (1.0 / decision_threshold_sprt_)) );

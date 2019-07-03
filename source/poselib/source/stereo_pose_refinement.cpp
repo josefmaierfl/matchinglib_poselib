@@ -174,7 +174,7 @@ namespace poselib
                     "Changing the solver to Kneips Eigen solver." << endl;
             cfg_pose.refineMethod_CorrPool = (cfg_pose.refineMethod_CorrPool & 0xF0) | poselib::RefinePostAlg::PR_KNEIP;
         }
-        if (cfg_pose.minStartAggInlRat < 0.08)
+        if (cfg_pose.minStartAggInlRat < 0.075)
         {
             cout << std::setprecision(4) << "The minimum inlier ratio treshold minStartAggInlRat = " << cfg_pose.minStartAggInlRat <<
                 " to start aggregating point correspondence is chosen too small. "
@@ -228,7 +228,10 @@ namespace poselib
                                            "this might be not realized and correspondeces of different poses "
                                            "are used together"
                 " leading to a wrong pose estimation! Setting it to 0.35 which might be still too high!" << endl;
-            cfg_pose.relInlRatThNew = 0.35;
+            if(cfg_pose.relInlRatThNew > 0.55) {
+                cout << "Setting it to 0.35 which might be still too high!" << endl;
+                     cfg_pose.relInlRatThNew = 0.35;
+            }
         }
         if (cfg_pose.minInlierRatSkip > 0.6)
         {
