@@ -43,10 +43,12 @@ def readOpenCVYaml(file, isstr = False):
         raise BaseException
     return data
 
+
 class NoDaemonProcess(multiprocessing.Process):
     # make 'daemon' attribute always return False
     def _get_daemon(self):
         return False
+
     def _set_daemon(self, value):
         pass
     daemon = property(_get_daemon, _set_daemon)
@@ -56,10 +58,12 @@ class NoDaemonProcess(multiprocessing.Process):
 class MyPool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
 
+
 # Use a lock mechanism to write from multiple processes to the same file
-def init_child_lock(lock_):
-    global lock
+def init_child_lock(lock_, lock2_):
+    global lock, lock2
     lock = lock_
+    lock2 = lock2_
 
 
 def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, inlier_ratios, kp_accs, depths,
@@ -223,7 +227,9 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
 
     sequ = df.to_dict('list')
     sequ_cmd = {'sequDir': [], 'parSetNr': [], 'kp_distr': [], 'depth_distr': [], 'nrTP': [], 'inlrat_min': [],
-                 'inlrat_max': [], 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': []}
+                 'inlrat_max': [], 'inlrat_c_rate': [], 'kp_acc_sd': [], 'cmd': [], 'sub_path': []}
+    cnt = 0
+    sub_path = 0
     for it in cmds:
         for i, sd in enumerate(sequ['sequDir']):
             sequ_cmd['sequDir'].append(sd)
@@ -236,6 +242,11 @@ def autocalib_pre(path_ov_file, executable, cpu_cnt, message_path, output_path, 
             sequ_cmd['inlrat_c_rate'].append(sequ['inlrat_c_rate'][i])
             sequ_cmd['kp_acc_sd'].append(sequ['kp_acc_sd'][i])
             sequ_cmd['cmd'].append(' '.join(map(str, it)))
+            sequ_cmd['sub_path'].append(sub_path)
+            cnt += 1
+            if cnt >= 10000:
+                cnt = 0
+                sub_path += 1
 
     df1 = pandas.DataFrame(data=sequ_cmd)
     ov_file = os.path.join(output_path, 'commands_and_parameters_full.csv')
@@ -261,7 +272,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
     for index, row in cf.iterrows():
         opts = row['cmd'].split(' ')
         opts += ['--sequ_path', row['sequDir'], '--matchData_idx', str(row['parSetNr']),
-                 '--ovf_ext', 'yaml.gz', '--output_path', output_path]
+                 '--ovf_ext', 'yaml.gz', '--output_path', os.path.join(output_path, str(row['sub_path']))]
         infos = ['kpDistr', row['kp_distr'],
                  'depthDistr', row['depth_distr'],
                  'nrTP', str(row['nrTP']),
@@ -275,24 +286,70 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
         cmds.append((single_cmd, row, message_path, mess_base_name, nr_call))
 
     lock = multiprocessing.Lock()
+    lock2 = multiprocessing.Lock()
     res = 0
-    with multiprocessing.Pool(processes=cpu_cnt, initializer=init_child_lock, initargs=(lock, )) as pool:
+    cnt_dot = 0
+    with multiprocessing.Pool(processes=cpu_cnt, initializer=init_child_lock, initargs=(lock, lock2, )) as pool:
         results = [pool.apply_async(autocalib, t) for t in cmds]
 
         for r in results:
-            try:
-                res = r.get()
-            except ChildProcessError:
-                res = 1
-            except TimeoutError:
-                res = 2
-            except:
-                res = 3
+            while 1:
+                sys.stdout.flush()
+                try:
+                    res = r.get(2.0)
+                    break
+                except multiprocessing.TimeoutError:
+                    if cnt_dot >= 90:
+                        print()
+                        cnt_dot = 0
+                    sys.stdout.write('.')
+                    cnt_dot = cnt_dot + 1
+                except ChildProcessError:
+                    res = 1
+                    break
+                except TimeoutError:
+                    res = 2
+                    break
+                except:
+                    res = 3
+                    break
 
     return res
 
 
 def autocalib(cmd, data, message_path, mess_base_name, nr_call):
+    #Get output directory
+    subp_i = cmd.index('--output_path') + 1
+    odir = cmd[subp_i]
+    if not os.path.exists(odir):
+        with lock2:
+            try:
+                os.mkdir(odir)
+            except FileExistsError:
+                print('Directory for storing results already exists.')
+    #Calculate timeout
+    isUSAC = False
+    timeout = 36000
+    if '--RobMethod' in cmd:
+        if 'RANSAC' == cmd[cmd.index('--RobMethod') + 1]:
+            timeout = 36000
+        elif 'USAC' == cmd[cmd.index('--RobMethod') + 1]:
+            isUSAC = True
+        else:
+            timeout = 18000
+    else:
+        isUSAC = True
+    if isUSAC:
+        if '--cfgUSAC' in cmd:
+            usacpars = cmd[cmd.index('--cfgUSAC') + 1]
+            if int(usacpars[4]) == 1:
+                timeout = 18000
+            elif int(usacpars[5]) > 1 and int(usacpars[5]) < 4:
+                timeout = 10000
+            else:
+                timeout = 2000
+        else:
+            timeout = 5000
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
     stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
@@ -305,7 +362,7 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
     cerrf = open(errmess, 'w')
     messf = open(stdmess, 'w')
     try:
-        sp.run(cmd, stdout=messf, stderr=cerrf, check=True, timeout=36000)
+        sp.run(cmd, stdout=messf, stderr=cerrf, check=True, timeout=timeout)
     except sp.CalledProcessError as e:
         print('Failed to perform autocalibration')
         sys.stdout.flush()
@@ -327,8 +384,8 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
         cerrf.close()
         messf.close()
         #Get path to store information for failed command
-        subp_i = cmd.index('--output_path') + 1
-        parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))#Get parent directory
+        parp = os.path.abspath(os.path.join(odir, os.pardir))  # Get parent directory
+        parp = os.path.abspath(os.path.join(parp, os.pardir))  # Get parent directory
         cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful_' + str(int(nr_call)) + '.csv')
         with lock:
             write_cmd_csv(cf_name, data)
@@ -354,8 +411,8 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
         cerrf.close()
         messf.close()
         # Get path to store information for failed command
-        subp_i = cmd.index('--output_path') + 1
-        parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))  # Get parent directory
+        parp = os.path.abspath(os.path.join(odir, os.pardir))  # Get parent directory
+        parp = os.path.abspath(os.path.join(parp, os.pardir))  # Get parent directory
         cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful_' + str(int(nr_call)) + '.csv')
         with lock:
             write_cmd_csv(cf_name, data)
@@ -372,8 +429,8 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
         cerrf.close()
         messf.close()
         # Get path to store information for failed command
-        subp_i = cmd.index('--output_path') + 1
-        parp = os.path.abspath(os.path.join(cmd[subp_i], os.pardir))  # Get parent directory
+        parp = os.path.abspath(os.path.join(odir, os.pardir))  # Get parent directory
+        parp = os.path.abspath(os.path.join(parp, os.pardir))  # Get parent directory
         cf_name = os.path.join(parp, 'commands_and_parameters_unsuccessful_' + str(int(nr_call)) + '.csv')
         with lock:
             write_cmd_csv(cf_name, data)

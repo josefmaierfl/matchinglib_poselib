@@ -6,7 +6,7 @@ import sys, re, argparse, os, warnings, time, subprocess as sp
 
 def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, test_name, test_nr):
     args = ['--path', path_ov_file, '--nrCPUs', str(cpu_cnt), '--executable', executable,
-            '--message_path', message_path, '--output_path', output_path]
+            '--message_path', message_path]
 
     #Set to False when performing actual tests:
     testing_test = True
@@ -666,6 +666,19 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
     else:
         raise ValueError('test_name ' + test_name + ' is not supported')
 
+    output_path = os.path.join(output_path, test_name)
+    try:
+        os.mkdir(output_path)
+    except FileExistsError:
+        print('Directory ' + output_path + ' already exists')
+    if test_nr:
+        output_path = os.path.join(output_path, str(test_nr))
+        try:
+            os.mkdir(output_path)
+        except FileExistsError:
+            print('Directory ' + output_path + ' already exists')
+    args += ['--output_path', output_path]
+
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     pyfilename = os.path.join(pyfilepath, 'exec_autocalib.py')
     try:
@@ -703,10 +716,14 @@ def main():
     parser.add_argument('--executable', type=str, required=True,
                         help='Executable of the autocalibration SW')
     parser.add_argument('--message_path', type=str, required=True,
-                        help='Storing path for text files containing error and normal mesages during the '
-                             'generation process of scenes and matches')
+                        help='Storing path for text files containing error and normal messages during the '
+                             'generation process of scenes and matches. For every different test a '
+                             'new directory with the name of option test_name is created. '
+                             'Within this directory another directory is created with the name of option test_nr')
     parser.add_argument('--output_path', type=str, required=True,
-                        help='Output path for results of the autocalibration')
+                        help='Main output path for results of the autocalibration. For every different test a '
+                             'new directory with the name of option test_name is created. '
+                             'Within this directory another directory is created with the name of option test_nr')
     parser.add_argument('--test_name', type=str, required=True,
                         help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
     parser.add_argument('--test_nr', type=int, required=False,
