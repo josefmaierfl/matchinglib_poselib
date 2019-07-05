@@ -98,7 +98,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             if data.empty:
                 data = csv_new
             else:
-                data.append(csv_new, ignore_index=True, sort=False)
+                data = pd.concat([data,csv_new], ignore_index=True, sort=False, copy=False)
 
 
 def merge_dicts(in_dict, mainkey = None):
