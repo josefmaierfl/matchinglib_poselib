@@ -395,12 +395,12 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
             }
             if (kneipFailed)
                 continue;
-            if ((poselib::nearZero(R_eigen(0, 0))
+            /*if ((poselib::nearZero(R_eigen(0, 0))
             || poselib::nearZero(R_eigen(1, 1))
             || poselib::nearZero(R_eigen(2, 2)))) {
                 nsols--;
                 continue;
-            }
+            }*/
             if(!poselib::isMatRoationMat(R_eigen)){
                 nsols--;
                 continue;
