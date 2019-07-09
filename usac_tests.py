@@ -4,8 +4,8 @@ Autocalibration-Parametersweep-Testing.xlsx
 """
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np
 import ruamel.yaml as yaml
-import modin.pandas as pd
-# import pandas as pd
+# import modin.pandas as pd
+import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
 import tempfile
@@ -78,8 +78,12 @@ def calcSatisticRt_th(data, store_path):
     stats = df.groupby(['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'th']).describe()
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
+    rel_data_path = os.path.relpath(tex_folder, tdata_folder)
     # holds the grouped names/entries within the group names excluding the last entry th
     #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
+    tex_infos = {'title': 'Statistics for USAC Option Combinations of ' + grp_names[0] + ' and ' +
+                          grp_names[1] + 'compared to ' + grp_names[2] + ' Values',
+                 'sections': []}
     for it in errvalnames:
         if it[-1] != 'count':
             ### tmp = pd.DataFrame(stats.loc[:, it]).unstack().T
@@ -97,19 +101,58 @@ def calcSatisticRt_th(data, store_path):
                        str(grp_names[-1]) + '.csv'
             tex_name = tex_name.replace('%', 'perc')
             ftex_name = os.path.join(tdata_folder, tex_name)
-            with open(ftex_name, 'a') as f:
-                f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
-                f.write('# Column parameters: ' + '-'.join(grp_names[0:2]) + '\n')
-                tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True)
+            # with open(ftex_name, 'a') as f:
+            #     f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
+            #     f.write('# Column parameters: ' + '-'.join(grp_names[0:2]) + '\n')
+            #     tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True)
 
             #Construct tex-file
+            stats_all = tmp.stack().reset_index()
+            stats_all = stats_all.drop(stats_all.columns[0:2], axis=1).describe().T
+            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
+                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
+                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                continue
+            #figure types: sharp plot, smooth, const plot, ybar, xbar
+            use_limits = []
+            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576) or \
+               stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                use_limits = [round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6),
+                              round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)]
+            reltex_name = os.path.join(rel_data_path, tex_name)
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': replace_stat_names(it[-1]) + ' values for ' + str(it[0]) +
+                                                  ' compared to ' + str(grp_names[-1]),
+                                          'fig_type': 'smooth',
+                                          'plots_y': list(tmp.columns.values),
+                                          'plot_x': str(grp_names[-1]),
+                                          'limits': use_limits
+                                          })
+            template = ji_env.get_template('usac-testing_single_plots.tex')
             #tmp = tempfile.mkdtemp()
 
 
+def replace_stat_names(name):
+    if name == 'max':
+        return 'Maximum'
+    elif name == 'min':
+        return 'Minimum'
+    elif name == 'mean':
+        return name.capitalize()
+    elif name == 'std':
+        return 'Standard deviation'
+    elif name == r'25%':
+        return r'25\% percentile'
+    elif name == '50%':
+        return 'Median'
+    elif name == '75%':
+        return r'75\% percentile'
+    else:
+        return str(name).replace('%', '\%').capitalize()
 
 #Only for testing
 def main():
-    num_pts = int(10000)
+    num_pts = int(500)
     data = {'R_diffAll': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
