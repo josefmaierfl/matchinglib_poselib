@@ -100,6 +100,13 @@ def eval_test(load_path, output_path, test_name, test_nr):
             else:
                 data = pd.concat([data,csv_new], ignore_index=True, sort=False, copy=False)
 
+    if test_name == 'usac-testing':
+        if not test_nr:
+            raise ValueError('test_nr is required for usac-testing')
+        from usac_tests import calcSatisticRt_th
+        if test_nr == 1:
+            return calcSatisticRt_th(data, output_path)
+
 
 def merge_dicts(in_dict, mainkey = None):
     tmp = {}

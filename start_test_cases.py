@@ -9,7 +9,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             '--message_path', message_path]
 
     #Set to False when performing actual tests:
-    testing_test = True
+    testing_test = False
 
     #Set settings based on best results after testing for further testing
     # Change cfgUSAC parameters 5 & 6 based on result of test_nr 1 of usac-testing
