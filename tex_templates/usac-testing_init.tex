@@ -1,0 +1,24 @@
+\documentclass[a4paper]{article}
+\usepackage[english]{babel}
+\usepackage{graphicx}%[pdftex] vor {} einfügen
+\usepackage{subfigure}
+\usepackage{pgfplots}
+\usetikzlibrary{matrix,positioning}
+\pgfplotsset{width=1.\textwidth,compat=1.5.1}%,yticklabel style={text width=3em,align=left}}
+\begin{document}
+\author{J. Maier}
+\title{Formeln in Fachartikeln}
+\maketitle
+\section{Einleitung}
+
+\begin{tikzpicture}
+\begin{axis}[
+xlabel=Dof,
+ylabel=$L_2$ error,
+]
+\addplot table [col sep=semicolon,x=th,y=0-1] {../../Sequence_Test/py_test/tex/data/tex_R_diff_pitch_deg_mean_vs_th_.csv};
+\addplot table [col sep=semicolon,x=th,y=0-2] {../../Sequence_Test/py_test/tex/data/tex_R_diff_pitch_deg_mean_vs_th_.csv};
+\end{axis}
+\end{tikzpicture}
+
+\end{document}

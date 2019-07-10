@@ -2,10 +2,10 @@
 Evaluates results from the autocalibration present in a pandas DataFrame as specified in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, re, argparse, os, subprocess as sp, warnings, numpy as np
+import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
 import ruamel.yaml as yaml
-# import modin.pandas as pd
-import pandas as pd
+import modin.pandas as pd
+# import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
 import tempfile
@@ -87,12 +87,14 @@ def calcSatisticRt_th(data, store_path):
     stats = df.groupby(['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'th']).describe()
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
-    rel_data_path = os.path.relpath(tex_folder, tdata_folder)
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
     texf_name = 'data_USAC_opts_' + grp_names[0] + '-' + grp_names[1] + '_combs_vs_' + grp_names[2] + '.tex'
     # holds the grouped names/entries within the group names excluding the last entry th
     #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
-    tex_infos = {'title': 'Statistics for USAC Option Combinations of ' + grp_names[0] + ' and ' +
-                          grp_names[1] + 'compared to ' + grp_names[2] + ' Values',
+    tex_infos = {'title': 'Statistics for USAC Option Combinations of ' +
+                          tex_string_coding_style(grp_names[0]) + ' and ' +
+                          tex_string_coding_style(grp_names[1]) + 'compared to ' +
+                          tex_string_coding_style(grp_names[2]) + ' Values',
                  'sections': []}
     for it in errvalnames:
         if it[-1] != 'count':
@@ -111,10 +113,10 @@ def calcSatisticRt_th(data, store_path):
                        str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             ftex_name = os.path.join(tdata_folder, dataf_name)
-            # with open(ftex_name, 'a') as f:
-            #     f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
-            #     f.write('# Column parameters: ' + '-'.join(grp_names[0:2]) + '\n')
-            #     tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True)
+            with open(ftex_name, 'a') as f:
+                f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
+                f.write('# Column parameters: ' + '-'.join(grp_names[0:2]) + '\n')
+                tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True)
 
             #Construct tex-file
             stats_all = tmp.stack().reset_index()
@@ -124,21 +126,34 @@ def calcSatisticRt_th(data, store_path):
                     np.isclose(stats_all['min'][0], stats_all['max'][0]):
                 continue
             #figure types: sharp plot, smooth, const plot, ybar, xbar
-            use_limits = []
-            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576) or \
-               stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                use_limits = [round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6),
-                              round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)]
+            use_limits = {'miny': None, 'maxy': None}
+            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
-                                          'name': replace_stat_names(it[-1]) + ' values for ' + str(it[0]) +
-                                                  ' compared to ' + str(grp_names[-1]),
+                                          'name': replace_stat_names(it[-1]) + ' values for ' +
+                                                  tex_string_coding_style(str(it[0])) +
+                                                  ' compared to ' + tex_string_coding_style(str(grp_names[-1])),
                                           'fig_type': 'smooth',
                                           'plots': list(tmp.columns.values),
                                           'axis_y': replace_stat_names(it[-1]),
                                           'plot_x': str(grp_names[-1]),
-                                          'limits': use_limits
+                                          'limits': use_limits,
+                                          'legend_cols': None,
+                                          'use_marks': False
                                           })
+            nr_plots = len(tex_infos['sections'][-1]['plots'])
+            max_cols = int(25 / len(max(tex_infos['sections'][-1]['plots'], key=len)))
+            use_cols = max_cols
+            rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
+            while rem < 0.5 and not np.isclose(rem, 0) and use_cols > 1:
+                use_cols -= 1
+                rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
+            if use_cols == 1:
+                use_cols = max_cols
+            tex_infos['sections'][-1]['legend_cols'] = use_cols
 
     template = ji_env.get_template('usac-testing_single_plots.tex')
     rendered_tex = template.render(title = tex_infos['title'],
@@ -163,6 +178,11 @@ def replace_stat_names(name):
         return r'75\% percentile'
     else:
         return str(name).replace('%', '\%').capitalize()
+
+
+def tex_string_coding_style(text):
+    text = text.replace('_', '\\_')
+    return '\\texttt{' + text + '}'
 
 #Only for testing
 def main():
