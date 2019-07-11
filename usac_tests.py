@@ -8,8 +8,10 @@ import modin.pandas as pd
 # import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
-import tempfile
-import shutil
+# import tempfile
+# import shutil
+
+warnings.simplefilter('ignore', category=UserWarning)
 
 ji_env = ji.Environment(
     block_start_string='\BLOCK{',
@@ -30,24 +32,65 @@ def compile_tex(rendered_tex, out_tex_dir, out_tex_file, out_pdf_filen=None):
     with open(texdf, 'w') as outfile:
         outfile.write(rendered_tex)
     if out_pdf_filen is not None:
-        tmp_dir = tempfile.mkdtemp()
-        shutil.copy(texdf, tmp_dir)
-        tex_tmp = os.path.join(tmp_dir, out_tex_file)
+        # tmp_dir = tempfile.mkdtemp()
+        #shutil.copy(texdf, tmp_dir)
+        #tex_tmp = os.path.join(tmp_dir, out_tex_file)
         pdfpath, pdfname = os.path.split(out_pdf_filen)
-        out_tmp_path = os.path.join(tmp_dir, pdfname)
-        cmdline = ['pdflatex', tex_tmp, '-job-name', pdfname, '-output-directory', tmp_dir]
+        pdfname = os.path.splitext(pdfname)[0]
+        stdoutf = os.path.join(pdfpath, 'stdout_' + pdfname + '.txt')
+        erroutf = os.path.join(pdfpath, 'error_' + pdfname + '.txt')
+        # out_tmp_path = os.path.join(tmp_dir, pdfname)
+        cmdline = ['pdflatex',
+                   '--jobname=' + pdfname,
+                   '--output-directory=' + pdfpath,
+                   '--interaction=nonstopmode',
+                   texdf]
+        stdoutfh = open(stdoutf, 'w')
+        erroutfh = open(erroutf, 'w')
         try:
-            retcode = sp.run(cmdline, shell=False, check=True).returncode
+            retcode = sp.run(cmdline,
+                             shell=False,
+                             check=True,
+                             cwd=out_tex_dir,
+                             stdout=stdoutfh,
+                             stderr=erroutfh).returncode
             if retcode < 0:
                 print("Child pdflatex was terminated by signal", -retcode, file=sys.stderr)
+                retcode = 1
             else:
                 print("Child returned", retcode)
         except OSError as e:
             print("Execution of pdflatex failed:", e, file=sys.stderr)
+            retcode = 1
         except sp.CalledProcessError as e:
             print("Execution of pdflatex failed:", e, file=sys.stderr)
-        shutil.copy(out_tmp_path, pdfpath)
-        shutil.rmtree(tmp_dir)
+            retcode = 1
+
+        stdoutfh.close()
+        erroutfh.close()
+        auxf = os.path.join(pdfpath, pdfname + '.aux')
+        if os.path.exists(auxf):
+            try:
+                os.remove(auxf)
+            except:
+                print('Unable to remove aux file')
+        if retcode == 0:
+            logf = os.path.join(pdfpath, pdfname + '.log')
+            try:
+                os.remove(logf)
+            except:
+                print('Unable to remove log file')
+            try:
+                os.remove(stdoutf)
+            except:
+                print('Unable to remove output log file')
+            try:
+                os.remove(erroutf)
+            except:
+                print('Unable to remove output log file')
+        # shutil.copy(out_tmp_path, pdfpath)
+        # shutil.rmtree(tmp_dir)
+        return retcode
 
 
 def calcSatisticRt_th(data, store_path):
@@ -89,6 +132,7 @@ def calcSatisticRt_th(data, store_path):
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
     texf_name = 'data_USAC_opts_' + grp_names[0] + '-' + grp_names[1] + '_combs_vs_' + grp_names[2] + '.tex'
+    pdf_name = 'data_USAC_opts_' + grp_names[0] + '-' + grp_names[1] + '_combs_vs_' + grp_names[2] + '.pdf'
     # holds the grouped names/entries within the group names excluding the last entry th
     #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
     tex_infos = {'title': 'Statistics for USAC Option Combinations of ' +
@@ -142,7 +186,7 @@ def calcSatisticRt_th(data, store_path):
                                           'plot_x': str(grp_names[-1]),
                                           'limits': use_limits,
                                           'legend_cols': None,
-                                          'use_marks': False
+                                          'use_marks': True
                                           })
             nr_plots = len(tex_infos['sections'][-1]['plots'])
             max_cols = int(25 / len(max(tex_infos['sections'][-1]['plots'], key=len)))
@@ -158,7 +202,7 @@ def calcSatisticRt_th(data, store_path):
     template = ji_env.get_template('usac-testing_single_plots.tex')
     rendered_tex = template.render(title = tex_infos['title'],
                                    sections = tex_infos['sections'])
-    compile_tex(rendered_tex, tex_folder, texf_name)
+    compile_tex(rendered_tex, tex_folder, texf_name, os.path.join(pdf_folder, pdf_name))
 
 
 def replace_stat_names(name):
