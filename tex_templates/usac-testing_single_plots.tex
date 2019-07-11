@@ -82,7 +82,7 @@ cycle list name=big variety,
 \addplot+ [\VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif }] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ it }] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }
 
-\legend{\BLOCK{ for it in sec['plots'] } \VAR{ it },\BLOCK{ endfor }}
+\legend{\BLOCK{ for it in sec['legend'] } \VAR{ it },\BLOCK{ endfor }}
 \end{axis}
 \end{tikzpicture}
 

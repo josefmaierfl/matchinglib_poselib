@@ -4,8 +4,10 @@ Autocalibration-Parametersweep-Testing.xlsx
 """
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np
 import ruamel.yaml as yaml
-#import modin.pandas as pd
+import modin.pandas as mpd
 import pandas as pd
+
+#warnings.simplefilter('ignore', category=UserWarning)
 
 def opencv_matrix_constructor(loader, node):
     mapping = loader.construct_mapping(node, deep=True)
@@ -47,7 +49,7 @@ def RepresentsInt(s):
         return False
 
 
-def eval_test(load_path, output_path, test_name, test_nr):
+def eval_test(load_path, output_path, test_name, test_nr, cpu_use):
     #Load test results
     res_path = os.path.join(load_path, 'results')
     if not os.path.exists(res_path):
@@ -57,7 +59,8 @@ def eval_test(load_path, output_path, test_name, test_nr):
     sub_dirs = [name for name in sub_dirs if RepresentsInt(name)]
     if len(sub_dirs) == 0:
         raise ValueError('No subdirectories holding data found')
-    data = pd.DataFrame
+    # data = pd.DataFrame
+    data_list = []
     for sf in sub_dirs:
         res_path_it = os.path.join(res_path, sf)
         ov_file = os.path.join(res_path_it, 'allRunsOverview.yaml')
@@ -75,10 +78,13 @@ def eval_test(load_path, output_path, test_name, test_nr):
             if not os.path.exists(csvf):
                 raise ValueError('Results file ' + csvf + ' not found')
             csv_data = pd.read_csv(csvf, delimiter=';')
-            csv_data.set_index('Nr')
+            print('Loaded', csvf, 'with shape', csv_data.shape)
+            #csv_data.set_index('Nr')
             addSequInfo_sep = None
-            for idx, row in csv_data.iterrows():
-                tmp = row['addSequInfo'].split('_')
+            # for idx, row in csv_data.iterrows():
+            for row in csv_data.itertuples():
+                #tmp = row['addSequInfo'].split('_')
+                tmp = row.addSequInfo.split('_')
                 tmp = dict([(tmp[x], tmp[x + 1]) for x in range(0,len(tmp), 2)])
                 if addSequInfo_sep:
                     for k in addSequInfo_sep.keys():
@@ -95,12 +101,21 @@ def eval_test(load_path, output_path, test_name, test_nr):
             data_set_repl = pd.DataFrame(np.repeat(data_set_tmp.values, csv_data.shape[0], axis=0))
             data_set_repl.columns = data_set_tmp.columns
             csv_new = pd.concat([csv_data, data_set_repl], axis=1, sort=False, join_axes=[csv_data.index])
-            if data.empty:
-                data = csv_new
-            else:
-                data = pd.concat([data,csv_new], ignore_index=True, sort=False, copy=False)
-
-    if test_name == 'usac-testing':
+            data_list.append(csv_new)
+            # if data.empty:
+            #     # data = mpd.utils.from_pandas(csv_new)
+            #     data = csv_new
+            # else:
+            #     # data = mpd.concat([data,mpd.utils.from_pandas(csv_new)],
+            #     #                   ignore_index=True,
+            #     #                   sort=False,
+            #     #                   copy=False)
+            #     data = pd.concat([data, csv_new], ignore_index=True, sort=False, copy=False)
+    data = pd.concat(data_list, ignore_index=True, sort=False, copy=False)
+    data_dict = data.to_dict()
+    data = mpd.DataFrame(data_dict)
+    print('Finished loading data')
+    if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
         from usac_tests import calcSatisticRt_th
@@ -139,6 +154,10 @@ def main():
                         help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
     parser.add_argument('--test_nr', type=int, required=False,
                         help='Test number within the main test specified by test_name starting with 1')
+    parser.add_argument('--nrCPUs', type=int, required=False, default=-8,
+                        help='Number of CPU cores for parallel processing. If a negative value is provided, '
+                             'the program tries to find the number of available CPUs on the system - if it fails, '
+                             'the absolute value of nrCPUs is used. Default: -8')
     args = parser.parse_args()
 
     if not os.path.exists(args.path):
@@ -161,8 +180,25 @@ def main():
             os.mkdir(output_path)
         except FileExistsError:
             raise ValueError('Directory ' + output_path + ' already exists')
+    if args.nrCPUs > 72 or args.nrCPUs == 0:
+        raise ValueError("Unable to use " + str(args.nrCPUs) + " CPU cores.")
+    av_cpus = os.cpu_count()
+    if av_cpus:
+        if args.nrCPUs < 0:
+            cpu_use = av_cpus
+        elif args.nrCPUs > av_cpus:
+            print('Demanded ' + str(args.nrCPUs) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
+                  + str(av_cpus) + ' CPUs.')
+            cpu_use = av_cpus
+        else:
+            cpu_use = args.nrCPUs
+    elif args.nrCPUs < 0:
+        print('Unable to determine # of CPUs. Using ' + str(abs(args.nrCPUs)) + ' CPUs.')
+        cpu_use = abs(args.nrCPUs)
+    else:
+        cpu_use = args.nrCPUs
 
-    return eval_test(load_path, output_path, test_name, args.test_nr)
+    return eval_test(load_path, output_path, test_name, args.test_nr, cpu_use)
 
 
 if __name__ == "__main__":

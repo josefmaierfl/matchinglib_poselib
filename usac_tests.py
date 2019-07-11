@@ -5,13 +5,13 @@ Autocalibration-Parametersweep-Testing.xlsx
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
 import ruamel.yaml as yaml
 import modin.pandas as pd
-# import pandas as pd
+import pandas as pd1
 #from jinja2 import Template as ji
 import jinja2 as ji
 # import tempfile
 # import shutil
 
-warnings.simplefilter('ignore', category=UserWarning)
+# warnings.simplefilter('ignore', category=UserWarning)
 
 ji_env = ji.Environment(
     block_start_string='\BLOCK{',
@@ -94,6 +94,8 @@ def compile_tex(rendered_tex, out_tex_dir, out_tex_file, out_pdf_filen=None):
 
 
 def calcSatisticRt_th(data, store_path):
+    if type(data) is not pd.dataframe.DataFrame:
+        data = pd.utils.from_pandas(data)
     #Filter rows by excluding not successful estimations
     data = data.loc[~((data['R_out(0,0)'] == 0) &
                       (data['R_out(0,1)'] == 0) &
@@ -185,11 +187,16 @@ def calcSatisticRt_th(data, store_path):
                                           'axis_y': replace_stat_names(it[-1]),
                                           'plot_x': str(grp_names[-1]),
                                           'limits': use_limits,
+                                          'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
                                           'legend_cols': None,
                                           'use_marks': True
                                           })
             nr_plots = len(tex_infos['sections'][-1]['plots'])
-            max_cols = int(25 / len(max(tex_infos['sections'][-1]['plots'], key=len)))
+            max_cols = int(235 / (len(max(tex_infos['sections'][-1]['plots'], key=len)) * 3 + 16))
+            if max_cols < 1:
+                max_cols = 1
+            if max_cols > 10:
+                max_cols = 10
             use_cols = max_cols
             rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
             while rem < 0.5 and not np.isclose(rem, 0) and use_cols > 1:
