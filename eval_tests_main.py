@@ -49,7 +49,7 @@ def RepresentsInt(s):
         return False
 
 
-def eval_test(load_path, output_path, test_name, test_nr, cpu_use):
+def eval_test(load_path, output_path, test_name, test_nr):
     #Load test results
     res_path = os.path.join(load_path, 'results')
     if not os.path.exists(res_path):
@@ -59,7 +59,6 @@ def eval_test(load_path, output_path, test_name, test_nr, cpu_use):
     sub_dirs = [name for name in sub_dirs if RepresentsInt(name)]
     if len(sub_dirs) == 0:
         raise ValueError('No subdirectories holding data found')
-    # data = pd.DataFrame
     data_list = []
     for sf in sub_dirs:
         res_path_it = os.path.join(res_path, sf)
@@ -102,25 +101,17 @@ def eval_test(load_path, output_path, test_name, test_nr, cpu_use):
             data_set_repl.columns = data_set_tmp.columns
             csv_new = pd.concat([csv_data, data_set_repl], axis=1, sort=False, join_axes=[csv_data.index])
             data_list.append(csv_new)
-            # if data.empty:
-            #     # data = mpd.utils.from_pandas(csv_new)
-            #     data = csv_new
-            # else:
-            #     # data = mpd.concat([data,mpd.utils.from_pandas(csv_new)],
-            #     #                   ignore_index=True,
-            #     #                   sort=False,
-            #     #                   copy=False)
-            #     data = pd.concat([data, csv_new], ignore_index=True, sort=False, copy=False)
     data = pd.concat(data_list, ignore_index=True, sort=False, copy=False)
-    data_dict = data.to_dict()
-    data = mpd.DataFrame(data_dict)
+    # data_dict = data.to_dict('list')
+    # data = mpd.DataFrame(data_dict)
+    data = mpd.utils.from_pandas(data)
     print('Finished loading data')
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
         from usac_tests import calcSatisticRt_th
         if test_nr == 1:
-            return calcSatisticRt_th(data, output_path)
+            return calcSatisticRt_th(data, output_path, True, True)
 
 
 def merge_dicts(in_dict, mainkey = None):
@@ -154,10 +145,6 @@ def main():
                         help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
     parser.add_argument('--test_nr', type=int, required=False,
                         help='Test number within the main test specified by test_name starting with 1')
-    parser.add_argument('--nrCPUs', type=int, required=False, default=-8,
-                        help='Number of CPU cores for parallel processing. If a negative value is provided, '
-                             'the program tries to find the number of available CPUs on the system - if it fails, '
-                             'the absolute value of nrCPUs is used. Default: -8')
     args = parser.parse_args()
 
     if not os.path.exists(args.path):
@@ -180,25 +167,8 @@ def main():
             os.mkdir(output_path)
         except FileExistsError:
             raise ValueError('Directory ' + output_path + ' already exists')
-    if args.nrCPUs > 72 or args.nrCPUs == 0:
-        raise ValueError("Unable to use " + str(args.nrCPUs) + " CPU cores.")
-    av_cpus = os.cpu_count()
-    if av_cpus:
-        if args.nrCPUs < 0:
-            cpu_use = av_cpus
-        elif args.nrCPUs > av_cpus:
-            print('Demanded ' + str(args.nrCPUs) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
-                  + str(av_cpus) + ' CPUs.')
-            cpu_use = av_cpus
-        else:
-            cpu_use = args.nrCPUs
-    elif args.nrCPUs < 0:
-        print('Unable to determine # of CPUs. Using ' + str(abs(args.nrCPUs)) + ' CPUs.')
-        cpu_use = abs(args.nrCPUs)
-    else:
-        cpu_use = args.nrCPUs
 
-    return eval_test(load_path, output_path, test_name, args.test_nr, cpu_use)
+    return eval_test(load_path, output_path, test_name, args.test_nr)
 
 
 if __name__ == "__main__":

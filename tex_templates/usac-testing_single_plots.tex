@@ -1,5 +1,9 @@
 \documentclass[a4paper]{article}
 \usepackage[english]{babel}
+\usepackage{textcomp}
+\BLOCK{ if make_index }
+\usepackage{hyperref}
+\BLOCK{ endif }
 \usepackage{graphicx}%[pdftex] vor {} einfügen
 \usepackage{subfigure}
 \usepackage{pgfplots}
@@ -9,6 +13,7 @@
 \author{J. Maier}
 \title{\VAR{title}}
 \maketitle
+\BLOCK{ if make_index }\listoffigures\BLOCK{ endif }
 
 \pgfplotscreateplotcyclelist{big variety}{
 	teal,every mark/.append style={fill=teal!80!black},mark=*\\
@@ -60,6 +65,19 @@
 \BLOCK{ for sec in sections}
 %\section{\VAR{sec['name']}}
 
+\BLOCK{ if make_index }
+\begin{figure}
+\centering
+\BLOCK{ endif }
+\BLOCK{ if ctrl_fig_size }
+\resizebox*{!}{%
+	\ifdim\height>0.95\textheight
+        0.95\textheight
+    \else
+        \height
+    \fi
+}{%
+\BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
 \BLOCK{ if sec['limits']['miny'] is not none }
@@ -85,6 +103,13 @@ cycle list name=big variety,
 \legend{\BLOCK{ for it in sec['legend'] } \VAR{ it },\BLOCK{ endfor }}
 \end{axis}
 \end{tikzpicture}
+\BLOCK{ if ctrl_fig_size }
+}
+\BLOCK{ endif }
+\BLOCK{ if make_index }
+\caption{\VAR{sec['name']}}
+\end{figure}
+\BLOCK{ endif }
 
 \BLOCK{ endfor }
 
