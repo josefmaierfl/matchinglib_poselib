@@ -36,14 +36,10 @@ def compile_tex(rendered_tex, out_tex_dir, out_tex_file, make_fig_index=True, ou
         rep_make = 1
         if make_fig_index:
             rep_make = 2
-        # tmp_dir = tempfile.mkdtemp()
-        #shutil.copy(texdf, tmp_dir)
-        #tex_tmp = os.path.join(tmp_dir, out_tex_file)
         pdfpath, pdfname = os.path.split(out_pdf_filen)
         pdfname = os.path.splitext(pdfname)[0]
         stdoutf = os.path.join(pdfpath, 'stdout_' + pdfname + '.txt')
         erroutf = os.path.join(pdfpath, 'error_' + pdfname + '.txt')
-        # out_tmp_path = os.path.join(tmp_dir, pdfname)
         cmdline = ['pdflatex',
                    '--jobname=' + pdfname,
                    '--output-directory=' + pdfpath,
@@ -131,12 +127,21 @@ def compile_tex(rendered_tex, out_tex_dir, out_tex_file, make_fig_index=True, ou
                 os.remove(erroutf)
             except:
                 print('Unable to remove output log file')
-        # shutil.copy(out_tmp_path, pdfpath)
-        # shutil.rmtree(tmp_dir)
         return retcode
 
 
-def calcSatisticRt_th(data, store_path, make_fig_index=True, build_pdf=False):
+def calcSatisticRt_th(data,
+                      store_path,
+                      tex_file_pre_str,
+                      fig_title_pre_str,
+                      eval_columns,
+                      units,
+                      it_parameters,
+                      x_axis_column,
+                      pdfsplitentry,
+                      ctrl_fig_size=True,
+                      make_fig_index=True,
+                      build_pdf=False):
     if type(data) is not pd.dataframe.DataFrame:
         data = pd.utils.from_pandas(data)
     #Filter rows by excluding not successful estimations
@@ -168,30 +173,38 @@ def calcSatisticRt_th(data, store_path, make_fig_index=True, build_pdf=False):
     except FileExistsError:
         print('Folder', tdata_folder, 'for storing data files already exists')
     #Select columns we need
-    df = data[['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-               't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
-               'USAC_parameters_estimator', 'USAC_parameters_refinealg', 'th']]
-    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-             ('t_diff_ty', ''), ('t_diff_tz', '')]
+    needed_columns = eval_columns + it_parameters + x_axis_column
+    df = data[needed_columns]
     #Group by USAC parameters 5&6 and calculate the statistic
-    stats = df.groupby(['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'th']).describe()
+    stats = df.groupby(it_parameters + x_axis_column).describe()
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
-    base_out_name = 'data_USAC_opts_' + grp_names[0] + '-' + grp_names[1] + '_combs_vs_' + grp_names[2]
+    nr_it_parameters = len(it_parameters)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    for i in range(0, nr_it_parameters):
+        base_out_name += grp_names[i]
+        title_name += tex_string_coding_style(grp_names[i])
+        if(nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                title_name += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                title_name += ', '
+            elif i < nr_it_parameters - 1:
+                title_name += ', and '
+        if i < nr_it_parameters - 1:
+            base_out_name += '-'
+    base_out_name += '_combs_vs_' + grp_names[-1]
+    title_name += ' compared to ' + tex_string_coding_style(grp_names[-1]) + ' Values'
     # holds the grouped names/entries within the group names excluding the last entry th
     #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
-    tex_infos = {'title': 'Statistics for USAC Option Combinations of ' +
-                          tex_string_coding_style(grp_names[0]) + ' and ' +
-                          tex_string_coding_style(grp_names[1]) + ' compared to ' +
-                          tex_string_coding_style(grp_names[2]) + ' Values',
+    tex_infos = {'title': title_name,
                  'sections': [],
-                 'make_index': make_fig_index,
-                 'ctrl_fig_size': True}
+                 'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
+                 'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
     pdf_nr = 0
-    pdfsplitentry = ['t_distDiff']
     for it in errvalnames:
         if it[-1] != 'count':
             tmp = stats[it[0]].unstack()
@@ -350,7 +363,28 @@ def main():
             'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10)}
     data = pd.DataFrame(data)
-    calcSatisticRt_th(data, '/home/maierj/work/Sequence_Test/py_test')
+
+    tex_file_pre_str = 'data_USAC_opts_'
+    output_dir = '/home/maierj/work/Sequence_Test/py_test'
+    fig_title_pre_str = 'Statistics for USAC Option Combinations of '
+    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+             ('t_diff_ty', ''), ('t_diff_tz', '')]
+    it_parameters = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']
+    x_axis_column = ['th']
+    pdfsplitentry = ['t_distDiff']
+    calcSatisticRt_th(data,
+                      output_dir,
+                      tex_file_pre_str,
+                      fig_title_pre_str,
+                      eval_columns,
+                      units,
+                      it_parameters,
+                      x_axis_column,
+                      pdfsplitentry)
 
 
 if __name__ == "__main__":
