@@ -109,9 +109,33 @@ def eval_test(load_path, output_path, test_name, test_nr):
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
-        from usac_tests import calcSatisticRt_th
+        from statistics_and_plot import calcSatisticAndPlot_2D
         if test_nr == 1:
-            return calcSatisticRt_th(data, output_path, True, True)
+            fig_title_pre_str = 'Statistics for USAC Option Combinations of '
+            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                     ('t_diff_ty', ''), ('t_diff_tz', '')]
+            it_parameters = ['USAC_parameters_estimator',
+                             'USAC_parameters_refinealg']
+            return calcSatisticAndPlot_2D(data=data,
+                                          store_path=output_path,
+                                          tex_file_pre_str='data_USAC_opts_',
+                                          fig_title_pre_str=fig_title_pre_str,
+                                          eval_columns=eval_columns,
+                                          units=units,
+                                          it_parameters=it_parameters,
+                                          x_axis_column=['th'],
+                                          pdfsplitentry=['t_distDiff'],
+                                          calc_func=None,
+                                          calc_func_args=None,
+                                          fig_type='smooth',
+                                          use_marks=True,
+                                          ctrl_fig_size=True,
+                                          make_fig_index=True,
+                                          build_pdf=True)
 
 
 def merge_dicts(in_dict, mainkey = None):

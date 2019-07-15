@@ -13,7 +13,10 @@
 \author{J. Maier}
 \title{\VAR{title}}
 \maketitle
-\BLOCK{ if make_index }\listoffigures\BLOCK{ endif }
+\BLOCK{ if make_index }
+\listoffigures
+\newpage
+\BLOCK{ endif }
 
 \pgfplotscreateplotcyclelist{big variety}{
 	teal,every mark/.append style={fill=teal!80!black},mark=*\\
@@ -97,7 +100,7 @@ legend style={
 cycle list name=big variety,
 ]
 \BLOCK{ for it in sec['plots'] }
-\addplot+ [\VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif }] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ it }] {\VAR{ sec['file'] }};
+\addplot+ [\VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },unbounded coords=discard] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ it }] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }
 
 \legend{\BLOCK{ for it in sec['legend'] } \VAR{ it },\BLOCK{ endfor }}
