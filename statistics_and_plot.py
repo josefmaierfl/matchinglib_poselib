@@ -4,8 +4,8 @@ Autocalibration-Parametersweep-Testing.xlsx
 """
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
 import ruamel.yaml as yaml
-import modin.pandas as pd
-# import pandas as pd
+# import modin.pandas as pd
+import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
 # import tempfile
@@ -149,6 +149,9 @@ def calcSatisticAndPlot_2D(data,
                            build_pdf=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
+    fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
     if type(data) is not pd.dataframe.DataFrame:
         data = pd.utils.from_pandas(data)
     #Filter rows by excluding not successful estimations
@@ -346,13 +349,17 @@ def calcSatisticAndPlot_3D(data,
                            xy_axis_columns,
                            calc_func = None,
                            calc_func_args = None,
-                           fig_type='surf',
+                           fig_type='surface',
                            use_marks=True,
                            ctrl_fig_size=True,
                            make_fig_index=True,
                            build_pdf=False):
     if len(xy_axis_columns) != 2:
         raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
+    fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
+                 'surface', 'contour', 'surface-contour']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
     # if type(data) is not pd.dataframe.DataFrame:
     #     data = pd.utils.from_pandas(data)
     startt = time.time()
@@ -431,121 +438,116 @@ def calcSatisticAndPlot_3D(data,
     base_out_name += '_combs_vs_' + grp_names[-2] + '_and_' + grp_names[-1]
     title_name += ' compared to ' + tex_string_coding_style(grp_names[-2]) + ' and ' + \
                   tex_string_coding_style(grp_names[-1]) + ' Values'
-    # holds the grouped names/entries within the group names excluding the last entry th
-    #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
     tex_infos = {'title': title_name,
                  'sections': [],
                  'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
                  'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
-    pdf_nr = 0
+    # Get names of statistics
+    stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
     for it in errvalnames:
         if it[-1] != 'count':
             tmp = stats[it[0]].unstack()
             tmp = tmp[it[1]]
             tmp = tmp.unstack()
             tmp = tmp.T
-            #tmp.columns = ['%s%s' % (str(a), '-%s' % str(b) if b is not None else '') for a, b in tmp.columns]
             tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
             tmp.columns.name = '-'.join(grp_names[0:-1])
             tmp = tmp.reset_index()
+            nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
-                       str(grp_names[-1]) + '.csv'
+                       str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
-                f.write('# Column parameters: ' + '-'.join(grp_names[0:-1]) + '\n')
+                f.write('# Column parameters: ' + '-'.join(grp_names[0:-2]) + '\n')
                 tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+            #Construct tex-file information
+            stats_all = tmp.stack().reset_index()
+            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
+                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
+                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                continue
+            #figure types:
+            # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
+            reltex_name = os.path.join(rel_data_path, dataf_name)
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': replace_stat_names(it[-1]) + ' value for ' +
+                                                  tex_string_coding_style(str(it[0])) +
+                                                  ' compared to ' +
+                                                  tex_string_coding_style(str(grp_names[-2])) +
+                                                  ' and ' + tex_string_coding_style(str(grp_names[-1])),
+                                          'fig_type': fig_type,
+                                          'stat_name': it[-1],
+                                          'plots_z': list(tmp.columns.values)[2:],
+                                          'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                          'plot_x': str(tmp.columns.values[1]),
+                                          'label_x': replace_stat_names(str(tmp.columns.values[1])) +
+                                                     findUnit(str(tmp.columns.values[1]), units),
+                                          'plot_y': str(tmp.columns.values[0]),
+                                          'label_y': replace_stat_names(str(tmp.columns.values[0])) +
+                                                     findUnit(str(tmp.columns.values[0]), units),
+                                          'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
+                                          'use_marks': use_marks,
+                                          'mesh_cols': nr_equal_ss
+                                          })
+
+    pdfs_info = []
+    max_figs_pdf = 100
+    if tex_infos['ctrl_fig_size']:
+        max_figs_pdf = 40
+    for st in stat_names:
+        #Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        act_figs = 0
+        cnt = 1
+        i_old = 0
+        i_new = 0
+        st_list2 = []
+        for i_new, a in enumerate(st_list):
+            act_figs += len(a['plots_z'])
+            if act_figs > max_figs_pdf:
+                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+                cnt += 1
+                i_old = i_new + 1
+                act_figs = 0
+        if (i_new + 1) != i_old:
+            st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = replace_stat_names(st) + ' ' + tex_infos['title']
+            else:
+                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+            pdfs_info.append({'title': title,
+                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
+
     endt = time.time()
     print(endt - startt)
-            #Construct tex-file
-    #         if pdf_nr < len(pdfsplitentry):
-    #             if pdfsplitentry[pdf_nr] == str(it[0]):
-    #                 pdf_nr += 1
-    #         stats_all = tmp.stack().reset_index()
-    #         stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    #         if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
-    #             np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
-    #                 np.isclose(stats_all['min'][0], stats_all['max'][0]):
-    #             continue
-    #         #figure types: sharp plot, smooth, const plot, ybar, xbar
-    #         use_limits = {'miny': None, 'maxy': None}
-    #         if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-    #             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-    #         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-    #             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-    #         reltex_name = os.path.join(rel_data_path, dataf_name)
-    #         tex_infos['sections'].append({'file': reltex_name,
-    #                                       'name': replace_stat_names(it[-1]) + ' values for ' +
-    #                                               tex_string_coding_style(str(it[0])) +
-    #                                               ' compared to ' + tex_string_coding_style(str(grp_names[-1])),
-    #                                       'fig_type': fig_type,
-    #                                       'plots': list(tmp.columns.values),
-    #                                       'axis_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
-    #                                       'plot_x': str(grp_names[-1]),
-    #                                       'limits': use_limits,
-    #                                       'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
-    #                                       'legend_cols': None,
-    #                                       'use_marks': use_marks,
-    #                                       'pdf_nr': pdf_nr
-    #                                       })
-    #         nr_plots = len(tex_infos['sections'][-1]['plots'])
-    #         max_cols = int(235 / (len(max(tex_infos['sections'][-1]['plots'], key=len)) * 3 + 16))
-    #         if max_cols < 1:
-    #             max_cols = 1
-    #         if max_cols > 10:
-    #             max_cols = 10
-    #         use_cols = max_cols
-    #         rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
-    #         while rem < 0.5 and not np.isclose(rem, 0) and use_cols > 1:
-    #             use_cols -= 1
-    #             rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
-    #         if use_cols == 1:
-    #             use_cols = max_cols
-    #         tex_infos['sections'][-1]['legend_cols'] = use_cols
-    #
-    # template = ji_env.get_template('usac-testing_2D_plots.tex')
-    # #Get number of pdfs to generate
-    # pdf_nr = tex_infos['sections'][-1]['pdf_nr']
-    # if pdf_nr == 0:
-    #     rendered_tex = template.render(title=tex_infos['title'],
-    #                                    make_index=tex_infos['make_index'],
-    #                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
-    #                                    sections=tex_infos['sections'])
-    #     texf_name = base_out_name + '.tex'
-    #     pdf_name = base_out_name + '.pdf'
-    #     if build_pdf:
-    #         res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index, os.path.join(pdf_folder, pdf_name))
-    #     else:
-    #         res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
-    # else:
-    #     sections = []
-    #     diff_pdfs = []
-    #     tmp_nr = 0
-    #     for it in tex_infos['sections']:
-    #         if it['pdf_nr'] == tmp_nr:
-    #             sections.append(it)
-    #         else:
-    #             diff_pdfs.append(deepcopy(sections))
-    #             sections = [it]
-    #             tmp_nr += 1
-    #     diff_pdfs.append(sections)
-    #     for it in diff_pdfs:
-    #         rendered_tex = template.render(title=tex_infos['title'],
-    #                                        make_index=tex_infos['make_index'],
-    #                                        ctrl_fig_size=tex_infos['ctrl_fig_size'],
-    #                                        sections=it)
-    #         texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
-    #         if build_pdf:
-    #             pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
-    #             res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
-    #                               os.path.join(pdf_folder, pdf_name))
-    #         else:
-    #             res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
-    # return res
+
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       sections=it['sections'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index, os.path.join(pdf_folder, pdf_name))
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+    return res
 
 
-def replace_stat_names(name):
+def replace_stat_names(name, for_tex=True):
     if name == 'max':
         return 'Maximum'
     elif name == 'min':
@@ -555,13 +557,22 @@ def replace_stat_names(name):
     elif name == 'std':
         return 'Standard deviation'
     elif name == r'25%':
-        return r'25\% percentile'
+        if for_tex:
+            return r'25\% percentile'
+        else:
+            return r'25perc percentile'
     elif name == '50%':
         return 'Median'
     elif name == '75%':
-        return r'75\% percentile'
+        if for_tex:
+            return r'75\% percentile'
+        else:
+            return r'75perc percentile'
     else:
-        return str(name).replace('%', '\%').capitalize()
+        if for_tex:
+            return str(name).replace('%', '\%').capitalize()
+        else:
+            return str(name).replace('%', 'perc').capitalize()
 
 
 def tex_string_coding_style(text):
@@ -603,7 +614,7 @@ def main():
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10)}
     data = pd.DataFrame(data)
 
-    tex_file_pre_str = 'data_USAC_opts_'
+    tex_file_pre_str = 'plots_USAC_opts_'
     output_dir = '/home/maierj/work/Sequence_Test/py_test'
     fig_title_pre_str = 'Statistics for USAC Option Combinations of '
     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
@@ -620,7 +631,7 @@ def main():
     calc_func_args = None
     fig_type = 'smooth'
     use_marks = True
-    ctrl_fig_size = True
+    ctrl_fig_size = False
     make_fig_index = True
     build_pdf = True
     # calcSatisticAndPlot_2D(data,
@@ -640,7 +651,8 @@ def main():
     #                        make_fig_index,
     #                        build_pdf)
     x_axis_column = ['th', 'inlrat']
-    fig_type = 'surf'
+    fig_type = 'surface'
+    fig_title_pre_str = 'Values for USAC Option Combinations of '
     calcSatisticAndPlot_3D(data,
                            output_dir,
                            tex_file_pre_str,

@@ -1,0 +1,104 @@
+\documentclass[a4paper]{article}
+\usepackage[english]{babel}
+\usepackage{textcomp}
+\usepackage{hyperref}
+\usepackage{graphicx}%[pdftex] vor {} einfügen
+\usepackage{subfigure}
+\usepackage{pgfplots}
+\usetikzlibrary{matrix,positioning}
+\pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
+\begin{document}
+\author{J. Maier}
+\title{\VAR{title}}
+\maketitle
+\BLOCK{ if make_index }
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\BLOCK{ endif }
+
+\BLOCK{ for sec in sections}
+\section{\VAR{sec['name']}}
+
+\BLOCK{ for fig in sec['plots_z']}
+
+\BLOCK{ if make_index }
+\begin{figure}[h!]
+\centering
+\BLOCK{ endif }
+\BLOCK{ if ctrl_fig_size }
+\resizebox*{!}{%
+	\ifdim\height>0.95\textheight
+        0.95\textheight
+    \else
+        \height
+    \fi
+}{%
+\BLOCK{ endif }
+\begin{tikzpicture}
+\begin{axis}[
+title=\VAR{sec['legend'][loop.index0]},
+xlabel=\VAR{sec['label_x']},
+ylabel=\VAR{sec['label_y']},
+zlabel=\VAR{sec['label_z']},
+grid=major,
+mesh/cols=\VAR{sec['mesh_cols']},
+\BLOCK{ if sec['fig_type'] == 'surf-interior' }
+mesh/interior colormap name=hot,
+colormap/blackwhite,
+\BLOCK{ elif sec['fig_type'] == 'surface' or sec['fig_type'] == 'surface-contour' }
+small,
+view={0}{90},
+colormap/hot,
+\BLOCK{ else }
+colormap/hot,
+\BLOCK{ endif }
+colorbar,
+\BLOCK{ if not sec['use_marks'] and sec['fig_type'] != 'scatter' and sec['fig_type'] !='mesh-scatter' }
+no markers,
+\BLOCK{ endif }
+]
+\addplot3+ [
+\BLOCK{ if sec['fig_type'] == 'scatter' }
+scatter,
+only marks,
+\BLOCK{ elif sec['fig_type'] == 'mesh-scatter' }
+mesh,
+scatter,
+\BLOCK{ elif sec['fig_type'] == 'mesh' }
+mesh,
+\BLOCK{ elif sec['fig_type'] == 'surf' }
+surf,
+shader=interp,
+\BLOCK{ elif sec['fig_type'] == 'surf-scatter' }
+surf,
+shader=interp,
+scatter,mark=*,
+\BLOCK{ elif sec['fig_type'] == 'surf-interior' }
+surf,
+\BLOCK{ elif sec['fig_type'] == 'surface' }
+surf,
+shader=interp,
+\BLOCK{ elif sec['fig_type'] == 'contour' or sec['fig_type'] == 'surface-contour' }
+contour gnuplot,
+\BLOCK{ endif }
+unbounded coords=jump] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ sec['plot_y'] },z=\VAR{ fig }] {\VAR{ sec['file'] }};
+\end{axis}
+\end{tikzpicture}
+\BLOCK{ if ctrl_fig_size }
+}
+\BLOCK{ endif }
+\BLOCK{ if make_index }
+\caption{\VAR{sec['name']} for parameters \VAR{sec['legend'][loop.index0]}}
+\end{figure}
+\BLOCK{ endif }
+
+\BLOCK{ endfor }
+\BLOCK{ if not loop.last }
+\newpage
+\BLOCK{ endif }
+
+\BLOCK{ endfor }
+
+\end{document}

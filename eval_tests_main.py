@@ -76,7 +76,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             csvf = os.path.join(res_path_it, data_set['hashTestingPars'])
             if not os.path.exists(csvf):
                 raise ValueError('Results file ' + csvf + ' not found')
-            csv_data = pd.read_csv(csvf, delimiter=';')
+            csv_data = pd.read_csv(csvf, delimiter=';', engine='c')
             print('Loaded', csvf, 'with shape', csv_data.shape)
             #csv_data.set_index('Nr')
             addSequInfo_sep = None
@@ -122,7 +122,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                              'USAC_parameters_refinealg']
             return calcSatisticAndPlot_2D(data=data,
                                           store_path=output_path,
-                                          tex_file_pre_str='data_USAC_opts_',
+                                          tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
                                           eval_columns=eval_columns,
                                           units=units,
