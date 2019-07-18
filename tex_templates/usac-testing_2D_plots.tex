@@ -7,7 +7,11 @@
 \usepackage{graphicx}%[pdftex] vor {} einfügen
 \usepackage{subfigure}
 \usepackage{pgfplots}
-\usetikzlibrary{matrix,positioning}
+\BLOCK{ if figs_externalize }
+\usepgfplotslibrary{external}
+\tikzexternalize[prefix=figures/]
+\BLOCK{ endif }
+%\usetikzlibrary{matrix,positioning}
 \pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
 \begin{document}
 \author{J. Maier}

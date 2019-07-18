@@ -11,6 +11,7 @@ import jinja2 as ji
 # import tempfile
 # import shutil
 from copy import deepcopy
+import shutil
 import time
 
 # warnings.simplefilter('ignore', category=UserWarning)
@@ -29,13 +30,18 @@ ji_env = ji.Environment(
     loader=ji.FileSystemLoader(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tex_templates')))
 
 
-def compile_tex(rendered_tex, out_tex_dir, out_tex_file, make_fig_index=True, out_pdf_filen=None):
+def compile_tex(rendered_tex,
+                out_tex_dir,
+                out_tex_file,
+                make_fig_index=True,
+                out_pdf_filen=None,
+                figs_externalize=False):
     texdf = os.path.join(out_tex_dir, out_tex_file)
     with open(texdf, 'w') as outfile:
         outfile.write(rendered_tex)
     if out_pdf_filen is not None:
         rep_make = 1
-        if make_fig_index:
+        if make_fig_index or figs_externalize:
             rep_make = 2
         pdfpath, pdfname = os.path.split(out_pdf_filen)
         pdfname = os.path.splitext(pdfname)[0]
@@ -44,8 +50,25 @@ def compile_tex(rendered_tex, out_tex_dir, out_tex_file, make_fig_index=True, ou
         cmdline = ['pdflatex',
                    '--jobname=' + pdfname,
                    '--output-directory=' + pdfpath,
-                   '--interaction=nonstopmode',
-                   texdf]
+                   '-synctex=1',
+                   '--interaction=nonstopmode']
+        if figs_externalize:
+            cmdline += ['--shell-escape', texdf]
+            figs = os.path.join(pdfpath, 'figures')
+            try:
+                os.mkdir(figs)
+            except FileExistsError:
+                print('Folder', figs, 'for storing temp images already exists')
+            except:
+                print("Unexpected error (Unable to create directory for storing temp images):", sys.exc_info()[0])
+            try:
+                os.symlink(figs, os.path.join(out_tex_dir, 'figures'))
+            except OSError:
+                print('Unable to create a symlink to the stored images')
+            except:
+                print("Unexpected error (Unable to create directory for storing temp images):", sys.exc_info()[0])
+        else:
+            cmdline += [texdf]
         stdoutfh = open(stdoutf, 'w')
         erroutfh = open(erroutf, 'w')
         retcode = 0
@@ -114,6 +137,30 @@ def compile_tex(rendered_tex, out_tex_dir, out_tex_file, make_fig_index=True, ou
                 os.remove(auxf)
             except:
                 print('Unable to remove aux file')
+        tocf = os.path.join(pdfpath, pdfname + '.toc')
+        if os.path.exists(tocf):
+            try:
+                os.remove(tocf)
+            except:
+                print('Unable to remove toc file')
+        auxlockf = os.path.join(pdfpath, pdfname + '.auxlock')
+        if os.path.exists(auxlockf):
+            try:
+                os.remove(auxlockf)
+            except:
+                print('Unable to remove auxlock file')
+        if figs_externalize:
+            if os.path.exists(figs):
+                try:
+                    os.unlink(os.path.join(out_tex_dir, 'figures'))
+                except IsADirectoryError:
+                    print('Unable to remove symlink to images')
+                except:
+                    print("Unexpected error (Unable to remove directory to temp images):", sys.exc_info()[0])
+                try:
+                    shutil.rmtree(figs, ignore_errors=True)
+                except:
+                    print('Unable to remove figures directory')
         if retcode == 0:
             logf = os.path.join(pdfpath, pdfname + '.log')
             try:
@@ -146,7 +193,8 @@ def calcSatisticAndPlot_2D(data,
                            use_marks=True,
                            ctrl_fig_size=True,
                            make_fig_index=True,
-                           build_pdf=False):
+                           build_pdf=False,
+                           figs_externalize=True):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -233,7 +281,8 @@ def calcSatisticAndPlot_2D(data,
     tex_infos = {'title': title_name,
                  'sections': [],
                  'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
-                 'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,#If True, the figures are adapted to the page height if they are too big
+                 'figs_externalize': figs_externalize}#If true, a pdf is generated for every figure and inserted as image in a second run
     pdf_nr = 0
     for it in errvalnames:
         if it[-1] != 'count':
@@ -305,6 +354,7 @@ def calcSatisticAndPlot_2D(data,
         rendered_tex = template.render(title=tex_infos['title'],
                                        make_index=tex_infos['make_index'],
                                        ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
                                        sections=tex_infos['sections'])
         texf_name = base_out_name + '.tex'
         pdf_name = base_out_name + '.pdf'
@@ -328,12 +378,13 @@ def calcSatisticAndPlot_2D(data,
             rendered_tex = template.render(title=tex_infos['title'],
                                            make_index=tex_infos['make_index'],
                                            ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                           figs_externalize=tex_infos['figs_externalize'],
                                            sections=it)
             texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
             if build_pdf:
                 pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
                 res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
-                                  os.path.join(pdf_folder, pdf_name))
+                                  os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
             else:
                 res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
     return res
@@ -353,7 +404,8 @@ def calcSatisticAndPlot_3D(data,
                            use_marks=True,
                            ctrl_fig_size=True,
                            make_fig_index=True,
-                           build_pdf=False):
+                           build_pdf=False,
+                           figs_externalize=True):
     if len(xy_axis_columns) != 2:
         raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
@@ -495,9 +547,11 @@ def calcSatisticAndPlot_3D(data,
                                           })
 
     pdfs_info = []
-    max_figs_pdf = 100
-    if tex_infos['ctrl_fig_size']:
-        max_figs_pdf = 40
+    max_figs_pdf = 40
+    if tex_infos['ctrl_fig_size']:# and not figs_externalize:
+        max_figs_pdf = 30
+    # elif figs_externalize:
+    #     max_figs_pdf = 40
     for st in stat_names:
         #Get list of results using the same statistic
         st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
@@ -523,6 +577,7 @@ def calcSatisticAndPlot_3D(data,
             pdfs_info.append({'title': title,
                               'texf_name': replace_stat_names(st, False).replace(' ', '_') +
                                            '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
                               'ctrl_fig_size': tex_infos['ctrl_fig_size']})
@@ -536,11 +591,17 @@ def calcSatisticAndPlot_3D(data,
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
                                        sections=it['sections'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index, os.path.join(pdf_folder, pdf_name))
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
         else:
             res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
 
@@ -634,6 +695,7 @@ def main():
     ctrl_fig_size = False
     make_fig_index = True
     build_pdf = True
+    figs_externalize = True
     # calcSatisticAndPlot_2D(data,
     #                        output_dir,
     #                        tex_file_pre_str,
@@ -649,7 +711,8 @@ def main():
     #                        use_marks,
     #                        ctrl_fig_size,
     #                        make_fig_index,
-    #                        build_pdf)
+    #                        build_pdf,
+    #                        figs_externalize)
     x_axis_column = ['th', 'inlrat']
     fig_type = 'surface'
     fig_title_pre_str = 'Values for USAC Option Combinations of '
@@ -667,7 +730,8 @@ def main():
                            use_marks,
                            ctrl_fig_size,
                            make_fig_index,
-                           build_pdf)
+                           build_pdf,
+                           figs_externalize)
 
 
 if __name__ == "__main__":

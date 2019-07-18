@@ -5,7 +5,12 @@
 \usepackage{graphicx}%[pdftex] vor {} einfügen
 \usepackage{subfigure}
 \usepackage{pgfplots}
-\usetikzlibrary{matrix,positioning}
+\BLOCK{ if figs_externalize }
+\usepgfplotslibrary{external}
+\tikzexternalize[prefix=figures/]
+%\tikzset{external/optimize=false}%
+\BLOCK{ endif }
+%\usetikzlibrary{matrix,positioning}
 \pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
 \begin{document}
 \author{J. Maier}
@@ -24,7 +29,7 @@
 \BLOCK{ for fig in sec['plots_z']}
 
 \BLOCK{ if make_index }
-\begin{figure}[h!]
+\begin{figure}[ht]
 \centering
 \BLOCK{ endif }
 \BLOCK{ if ctrl_fig_size }
@@ -48,7 +53,7 @@ mesh/cols=\VAR{sec['mesh_cols']},
 mesh/interior colormap name=hot,
 colormap/blackwhite,
 \BLOCK{ elif sec['fig_type'] == 'surface' or sec['fig_type'] == 'surface-contour' }
-small,
+%small,
 view={0}{90},
 colormap/hot,
 \BLOCK{ else }
