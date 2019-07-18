@@ -12,7 +12,7 @@ import jinja2 as ji
 # import shutil
 from copy import deepcopy
 import shutil
-import time
+# import time
 
 # warnings.simplefilter('ignore', category=UserWarning)
 
@@ -200,8 +200,8 @@ def calcSatisticAndPlot_2D(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    if type(data) is not pd.dataframe.DataFrame:
-        data = pd.utils.from_pandas(data)
+    # if type(data) is not pd.dataframe.DataFrame:
+    #     data = pd.utils.from_pandas(data)
     #Filter rows by excluding not successful estimations
     data = data.loc[~((data['R_out(0,0)'] == 0) &
                       (data['R_out(0,1)'] == 0) &
@@ -249,6 +249,7 @@ def calcSatisticAndPlot_2D(data,
     if calc_func is not None:
         if calc_func_args is None:
             raise ValueError('Expected some arguments')
+        calc_func_args = (data, ) + calc_func_args
         df = calc_func(*calc_func_args)
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column
@@ -414,7 +415,7 @@ def calcSatisticAndPlot_3D(data,
         raise ValueError('Unknown figure type.')
     # if type(data) is not pd.dataframe.DataFrame:
     #     data = pd.utils.from_pandas(data)
-    startt = time.time()
+    # startt = time.time()
     #Filter rows by excluding not successful estimations
     data = data.loc[~((data['R_out(0,0)'] == 0) &
                       (data['R_out(0,1)'] == 0) &
@@ -462,6 +463,7 @@ def calcSatisticAndPlot_3D(data,
     if calc_func is not None:
         if calc_func_args is None:
             raise ValueError('Expected some arguments')
+        calc_func_args = (data, ) + calc_func_args
         df = calc_func(*calc_func_args)
     else:
         needed_columns = eval_columns + it_parameters + xy_axis_columns
@@ -582,8 +584,8 @@ def calcSatisticAndPlot_3D(data,
                               'make_index': tex_infos['make_index'],
                               'ctrl_fig_size': tex_infos['ctrl_fig_size']})
 
-    endt = time.time()
-    print(endt - startt)
+    # endt = time.time()
+    # print(endt - startt)
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
@@ -696,27 +698,7 @@ def main():
     make_fig_index = True
     build_pdf = True
     figs_externalize = True
-    # calcSatisticAndPlot_2D(data,
-    #                        output_dir,
-    #                        tex_file_pre_str,
-    #                        fig_title_pre_str,
-    #                        eval_columns,
-    #                        units,
-    #                        it_parameters,
-    #                        x_axis_column,
-    #                        pdfsplitentry,
-    #                        calc_func,
-    #                        calc_func_args,
-    #                        fig_type,
-    #                        use_marks,
-    #                        ctrl_fig_size,
-    #                        make_fig_index,
-    #                        build_pdf,
-    #                        figs_externalize)
-    x_axis_column = ['th', 'inlrat']
-    fig_type = 'surface'
-    fig_title_pre_str = 'Values for USAC Option Combinations of '
-    calcSatisticAndPlot_3D(data,
+    calcSatisticAndPlot_2D(data,
                            output_dir,
                            tex_file_pre_str,
                            fig_title_pre_str,
@@ -724,6 +706,7 @@ def main():
                            units,
                            it_parameters,
                            x_axis_column,
+                           pdfsplitentry,
                            calc_func,
                            calc_func_args,
                            fig_type,
@@ -732,6 +715,25 @@ def main():
                            make_fig_index,
                            build_pdf,
                            figs_externalize)
+    # x_axis_column = ['th', 'inlrat']
+    # fig_type = 'surface'
+    # fig_title_pre_str = 'Values for USAC Option Combinations of '
+    # calcSatisticAndPlot_3D(data,
+    #                        output_dir,
+    #                        tex_file_pre_str,
+    #                        fig_title_pre_str,
+    #                        eval_columns,
+    #                        units,
+    #                        it_parameters,
+    #                        x_axis_column,
+    #                        calc_func,
+    #                        calc_func_args,
+    #                        fig_type,
+    #                        use_marks,
+    #                        ctrl_fig_size,
+    #                        make_fig_index,
+    #                        build_pdf,
+    #                        figs_externalize)
 
 
 if __name__ == "__main__":
