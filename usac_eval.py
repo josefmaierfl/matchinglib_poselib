@@ -50,7 +50,19 @@ def combineRt(data):
     return b
 
 
-def get_best_comb_and_th_1(data, res_folder, fig_type='ybar', build_pdf=(False, True, )):
+#def get_best_comb_and_th_1(data, res_folder, build_pdf=(False, True, )):
+def get_best_comb_and_th_1(**keywords):
+    if len(keywords) < 2 or len(keywords) > 3:
+        raise ValueError('Wrong number of arguments for function get_best_comb_and_th_1')
+    if 'data' not in keywords:
+        raise ValueError('Missing data argument of function get_best_comb_and_th_1')
+    data = keywords['data']
+    if 'res_folder' not in keywords:
+        raise ValueError('Missing res_folder argument of function get_best_comb_and_th_1')
+    res_folder = keywords['res_folder']
+    build_pdf = (False, True,)
+    if 'build_pdf' in keywords:
+        build_pdf = keywords['build_pdf']
     if len(build_pdf) != 2:
         raise ValueError('Wrong number of arguments for build_pdf')
     if build_pdf[0] or build_pdf[1]:
@@ -75,6 +87,10 @@ def get_best_comb_and_th_1(data, res_folder, fig_type='ybar', build_pdf=(False, 
     b = combineRt(data)
     b = b.T
     b.columns = ['-'.join(map(str, a)) for a in b.columns]
+    if len(b.columns) > 10:
+        fig_type = 'xbar'
+    else:
+        fig_type = 'ybar'
     b.columns.name = '-'.join(grp_names[0:-1])
     #Output best and worst b values for every combination
     b_best_idx = b.idxmin(axis=0)
@@ -89,7 +105,7 @@ def get_best_comb_and_th_1(data, res_folder, fig_type='ybar', build_pdf=(False, 
         b_best.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     b_worst_idx = b.idxmax(axis=0)
     b_worst_l = [[val, b.loc[val].iloc[i], b.columns[i]] for i, val in enumerate(b_worst_idx)]
-    b_worst = pd.DataFrame.from_records(data=b_worst_l, columns=[grp_names[-1], 'b_best', 'options'])
+    b_worst = pd.DataFrame.from_records(data=b_worst_l, columns=[grp_names[-1], 'b_worst', 'options'])
     b_worst_name = 'data_worst_RTerrors_and_' + dataf_name
     fb_worst_name = os.path.join(tdata_folder, b_worst_name)
     with open(fb_worst_name, 'a') as f:
@@ -125,7 +141,8 @@ def get_best_comb_and_th_1(data, res_folder, fig_type='ybar', build_pdf=(False, 
                                   'fig_type': fig_type,
                                   'plots': ['b_best'],
                                   'label_y': 'error',#Label of the value axis. For xbar it labels the x-axis
-                                  'label_x': 'options',#Label/column name of axis with bars. For xbar it labels the y-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': 'options',
                                   #Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [str(grp_names[-1])],
@@ -139,3 +156,38 @@ def get_best_comb_and_th_1(data, res_folder, fig_type='ybar', build_pdf=(False, 
                                   'caption': 'Smallest combined R & t errors (error bars) and their ' +
                                              str(grp_names[-1]) + ' which appears on top of each bar.'
                                   })
+    tex_infos['sections'].append({'file': os.path.join(rel_data_path, b_worst_name),
+                                  'name': 'Worst combined R & t errors and their ' + str(grp_names[-1]),
+                                  'fig_type': fig_type,
+                                  'plots': ['b_worst'],
+                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': 'options',
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': True,
+                                  'plot_meta': [str(grp_names[-1])],
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': True,
+                                  'caption': 'Biggest combined R & t errors (error bars) and their ' +
+                                             str(grp_names[-1]) + ' which appears on top of each bar.'
+                                  })
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   sections=tex_infos['sections'])
+    base_out_name = 'tex_best-worst_RT-errors_options_' + '-'.join(map(str,grp_names[0:-1]))
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    from statistics_and_plot import compile_tex
+    if build_pdf[0]:
+        res = compile_tex(rendered_tex, tex_folder, texf_name, True, os.path.join(pdf_folder, pdf_name))
+    else:
+        res = compile_tex(rendered_tex, tex_folder, texf_name, True)
+    return res

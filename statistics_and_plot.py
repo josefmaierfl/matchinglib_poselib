@@ -274,8 +274,9 @@ def calcSatisticAndPlot_2D(data,
             print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
             calc_vals = False
         if calc_vals:
-            special_calcs_args = (stats, special_path_sub,) + special_calcs_args
-            res = special_calcs_func(*special_calcs_args)
+            special_calcs_args['data'] = stats
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 raise Warning('Calculation of specific results failed!')
     errvalnames = stats.columns.values # Includes statistic name and error value names
@@ -380,8 +381,8 @@ def calcSatisticAndPlot_2D(data,
                                        figs_externalize=tex_infos['figs_externalize'],
                                        sections=tex_infos['sections'])
         texf_name = base_out_name + '.tex'
-        pdf_name = base_out_name + '.pdf'
         if build_pdf:
+            pdf_name = base_out_name + '.pdf'
             res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index, os.path.join(pdf_folder, pdf_name))
         else:
             res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
@@ -510,8 +511,9 @@ def calcSatisticAndPlot_3D(data,
             print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
             calc_vals = False
         if calc_vals:
-            special_calcs_args = (stats, special_path_sub, ) + special_calcs_args
-            res = special_calcs_func(*special_calcs_args)
+            special_calcs_args['data'] = stats
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 raise Warning('Calculation of specific results failed!')
     errvalnames = stats.columns.values # Includes statistic name and error value names
@@ -733,8 +735,9 @@ def main():
     it_parameters = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'USAC_parameters_USACInlratFilt']
     x_axis_column = ['th']
     pdfsplitentry = ['t_distDiff']
-    special_calcs_func = None
-    special_calcs_args = None
+    from usac_eval import get_best_comb_and_th_1
+    special_calcs_func = get_best_comb_and_th_1
+    special_calcs_args = {'build_pdf': (True, True)}
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None
     calc_func_args = None

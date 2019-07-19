@@ -18,6 +18,8 @@
 \title{\VAR{title}}
 \maketitle
 \BLOCK{ if make_index }
+\tableofcontents
+\newpage
 \listoffigures
 \newpage
 \BLOCK{ endif }
@@ -70,10 +72,10 @@
 }
 
 \BLOCK{ for sec in sections}
-%\section{\VAR{sec['name']}}
+\section{\VAR{sec['name']}}
 
 \BLOCK{ if make_index }
-\begin{figure}
+\begin{figure}[h]
 \centering
 \BLOCK{ endif }
 \BLOCK{ if ctrl_fig_size }
@@ -85,44 +87,95 @@
     \fi
 }{%
 \BLOCK{ endif }
+\BLOCK{ if sec['use_string_labels'] }
+\pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
+\BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
-\BLOCK{ if sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
-\VAR{sec['fig_type']},enlargelimits=0.15,
-\BLOCK{ endif }
+\BLOCK{ if sec['limits'] is not none }
 \BLOCK{ if sec['limits']['miny'] is not none }
 ymin=\VAR{sec['limits']['miny']},
 \BLOCK{ endif }
 \BLOCK{ if sec['limits']['maxy'] is not none }
 ymax=\VAR{sec['limits']['maxy']},
 \BLOCK{ endif }
+\BLOCK{ endif }
 title=\VAR{sec['name']},
-xlabel=\VAR{sec['plot_x']},
-ylabel=\VAR{sec['axis_y']},
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xbar,enlargelimits=0.15,
+ylabel=\VAR{sec['label_x']},
+xlabel=\VAR{sec['label_y']},
+\BLOCK{ elif sec['fig_type'] == 'ybar' }
+ybar,enlargelimits=0.15,
+xlabel=\VAR{sec['label_x']},
+ylabel=\VAR{sec['label_y']},
+\BLOCK{ else }
+xlabel=\VAR{sec['label_x']},
+ylabel=\VAR{sec['label_y']},
+\BLOCK{ endif }
+\BLOCK{ if sec['legend'] }
 legend style={
 	at={(0.5,-0.12)},
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},
 cycle list name=big variety,
+\BLOCK{ endif }
+\BLOCK{ if sec['print_meta'] }
+nodes near coords=\pgfplotspointmeta,
+point meta=explicit symbolic,
+every node near coord/.append style={font=\tiny, inner sep=1pt},
+\BLOCK{ endif }
+\BLOCK{ if sec['use_string_labels'] }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+ytick=data,
+yticklabels from table={\datatable}{\VAR{ sec['label_x'] }},
+y tick label style={rotate=45,anchor=east,align=right,text width=3.5cm,font=\scriptsize},
+\BLOCK{ else }
+xtick=data,
+xticklabels from table={\datatable}{\VAR{ sec['label_x'] }},
+x tick label style={rotate=45,anchor=east,align=right,text width=4cm,font=\scriptsize},
+\BLOCK{ endif }
+\BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots'] }
 \addplot+ [%
 \BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
-\VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
+\VAR{ sec['fig_type'] }\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
 \BLOCK{ endif }
-unbounded coords=discard] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ it }] {\VAR{ sec['file'] }};
+unbounded coords=discard,
+] table [%
+col sep=semicolon,\BLOCK{ if sec['print_meta'] }meta index=\VAR{ sec['plot_meta'][loop.index0] },\BLOCK{ endif }
+\BLOCK{ if sec['use_string_labels'] }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+y expr=\coordindex
+x=\VAR{ it }
+\BLOCK{ else }
+x expr=\coordindex
+y=\VAR{ it }
+\BLOCK{ endif }
+\BLOCK{ else }
+x=\VAR{ sec['label_x'] },
+y=\VAR{ it }
+\BLOCK{ endif }
+] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }
 
+\BLOCK{ if sec['legend'] }
 \legend{\BLOCK{ for it in sec['legend'] } \VAR{ it },\BLOCK{ endfor }}
+\BLOCK{ endif }
 \end{axis}
 \end{tikzpicture}
 \BLOCK{ if ctrl_fig_size }
 }
 \BLOCK{ endif }
 \BLOCK{ if make_index }
-\caption{\VAR{sec['name']}}
+\caption[\VAR{ sec['name'] }]{\VAR{ sec['caption'] }}
 \end{figure}
+\BLOCK{ endif }
+
+\BLOCK{ if not loop.last }
+\newpage
 \BLOCK{ endif }
 
 \BLOCK{ endfor }
