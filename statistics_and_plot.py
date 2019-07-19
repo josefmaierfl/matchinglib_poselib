@@ -187,6 +187,8 @@ def calcSatisticAndPlot_2D(data,
                            it_parameters,
                            x_axis_column,
                            pdfsplitentry,
+                           special_calcs_func = None,
+                           special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
                            fig_type='smooth',
@@ -256,6 +258,26 @@ def calcSatisticAndPlot_2D(data,
         df = data[needed_columns]
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters + x_axis_column).describe()
+    if special_calcs_func is not None and special_calcs_args is not None:
+        special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args = (stats, special_path_sub,) + special_calcs_args
+            res = special_calcs_func(*special_calcs_args)
+            if res != 0:
+                raise Warning('Calculation of specific results failed!')
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
@@ -399,6 +421,8 @@ def calcSatisticAndPlot_3D(data,
                            units,
                            it_parameters,
                            xy_axis_columns,
+                           special_calcs_func = None,
+                           special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
                            fig_type='surface',
@@ -470,6 +494,26 @@ def calcSatisticAndPlot_3D(data,
         df = data[needed_columns]
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters + xy_axis_columns).describe()
+    if special_calcs_func is not None and special_calcs_args is not None:
+        special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args = (stats, special_path_sub, ) + special_calcs_args
+            res = special_calcs_func(*special_calcs_args)
+            if res != 0:
+                raise Warning('Calculation of specific results failed!')
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
@@ -689,6 +733,8 @@ def main():
     it_parameters = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'USAC_parameters_USACInlratFilt']
     x_axis_column = ['th']
     pdfsplitentry = ['t_distDiff']
+    special_calcs_func = None
+    special_calcs_args = None
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None
     calc_func_args = None
@@ -707,6 +753,8 @@ def main():
                            it_parameters,
                            x_axis_column,
                            pdfsplitentry,
+                           special_calcs_func,
+                           special_calcs_args,
                            calc_func,
                            calc_func_args,
                            fig_type,
@@ -726,6 +774,8 @@ def main():
     #                        units,
     #                        it_parameters,
     #                        x_axis_column,
+    #                        special_calcs_func,
+    #                        special_calcs_args,
     #                        calc_func,
     #                        calc_func_args,
     #                        fig_type,
