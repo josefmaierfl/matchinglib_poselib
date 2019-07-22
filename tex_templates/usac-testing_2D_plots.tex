@@ -77,6 +77,15 @@
 \centering
 \BLOCK{ endif }
 \BLOCK{ if ctrl_fig_size }
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+\resizebox{%
+	\ifdim\width>0.98\textwidth
+        0.98\textwidth
+    \else
+        \width
+    \fi
+}{!}{%
+\BLOCK{ else }
 \resizebox*{!}{%
 	\ifdim\height>0.95\textheight
         0.95\textheight
@@ -85,10 +94,33 @@
     \fi
 }{%
 \BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ if sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
+\pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
+\BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
-\BLOCK{ if sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
-\VAR{sec['fig_type']},enlargelimits=0.15,
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xbar,%
+ylabel=\VAR{sec['plot_x']},%
+xlabel=\VAR{sec['axis_y']},%
+y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge y limits={true, value=0.15},%
+ytick=data,%
+yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ elif sec['fig_type'] == 'ybar' }
+ybar,%
+xlabel=\VAR{sec['plot_x']},%
+ylabel=\VAR{sec['axis_y']},%
+x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge x limits={true, value=0.15},%
+xtick=data,%
+xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ else }
+xlabel=\VAR{sec['plot_x']},%
+ylabel=\VAR{sec['axis_y']},%
 \BLOCK{ endif }
 \BLOCK{ if sec['limits']['miny'] is not none }
 ymin=\VAR{sec['limits']['miny']},
@@ -97,8 +129,6 @@ ymin=\VAR{sec['limits']['miny']},
 ymax=\VAR{sec['limits']['maxy']},
 \BLOCK{ endif }
 title=\VAR{sec['name']},
-xlabel=\VAR{sec['plot_x']},
-ylabel=\VAR{sec['axis_y']},
 legend style={
 	at={(0.5,-0.12)},
 	anchor=north,
@@ -111,7 +141,19 @@ cycle list name=big variety,
 \BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
 \VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
 \BLOCK{ endif }
-unbounded coords=discard] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ it }] {\VAR{ sec['file'] }};
+unbounded coords=discard] table [%
+col sep=semicolon,%
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+y expr=\coordindex,%
+x=\VAR{ it }
+\BLOCK{ elif sec['fig_type'] == 'ybar' }
+x expr=\coordindex,%
+y=\VAR{ it }
+\BLOCK{ else }
+x=\VAR{ sec['plot_x'] },%
+y=\VAR{ it }
+\BLOCK{ endif }
+] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }
 
 \legend{\BLOCK{ for it in sec['legend'] } \VAR{ it },\BLOCK{ endfor }}
