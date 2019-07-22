@@ -94,8 +94,30 @@ def get_best_comb_and_th_1(**keywords):
     b.columns.name = '-'.join(grp_names[0:-1])
     #Output best and worst b values for every combination
     b_best_idx = b.idxmin(axis=0)
-    b_best_l = [[val, b.loc[val].iloc[i], b.columns[i]] for i, val in enumerate(b_best_idx)]
-    b_best = pd.DataFrame.from_records(data=b_best_l, columns=[grp_names[-1], 'b_best', 'options'])
+    # Insert a tex line break for long options
+    from statistics_and_plot import tex_string_coding_style
+    b_cols_tex = []
+    for el in b.columns:
+        if len(el) > 20:
+            if '-' in el:
+                cl = int(len(el) / 2.5)
+                idx = [m.start() for m in re.finditer('-', el)]
+                found = False
+                for i in idx:
+                    if i > cl:
+                        found = True
+                        b_cols_tex.append(tex_string_coding_style(el[0:(i + 1)]) +
+                                          '\\\\' + tex_string_coding_style(el[(i + 1):]))
+                        break
+                if not found:
+                    b_cols_tex.append(tex_string_coding_style(el[0:(idx[-1] + 1)]) +
+                                      '\\\\' + tex_string_coding_style(el[(idx[-1] + 1):]))
+            else:
+                b_cols_tex.append(tex_string_coding_style(el))
+        else:
+            b_cols_tex.append(tex_string_coding_style(el))
+    b_best_l = [[val, b.loc[val].iloc[i], b.columns[i], b_cols_tex[i]] for i, val in enumerate(b_best_idx)]
+    b_best = pd.DataFrame.from_records(data=b_best_l, columns=[grp_names[-1], 'b_best', 'options', 'options_tex'])
     #b_best.set_index('options', inplace=True)
     b_best_name = 'data_best_RTerrors_and_' + dataf_name
     fb_best_name = os.path.join(tdata_folder, b_best_name)
@@ -104,8 +126,8 @@ def get_best_comb_and_th_1(**keywords):
         f.write('# Row (column options) parameters: ' + '-'.join(grp_names[0:-1]) + '\n')
         b_best.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     b_worst_idx = b.idxmax(axis=0)
-    b_worst_l = [[val, b.loc[val].iloc[i], b.columns[i]] for i, val in enumerate(b_worst_idx)]
-    b_worst = pd.DataFrame.from_records(data=b_worst_l, columns=[grp_names[-1], 'b_worst', 'options'])
+    b_worst_l = [[val, b.loc[val].iloc[i], b.columns[i], b_cols_tex[i]] for i, val in enumerate(b_worst_idx)]
+    b_worst = pd.DataFrame.from_records(data=b_worst_l, columns=[grp_names[-1], 'b_worst', 'options', 'options_tex'])
     b_worst_name = 'data_worst_RTerrors_and_' + dataf_name
     fb_worst_name = os.path.join(tdata_folder, b_worst_name)
     with open(fb_worst_name, 'a') as f:
@@ -114,7 +136,6 @@ def get_best_comb_and_th_1(**keywords):
         b_worst.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     #Get data for tex file generation
     sub_title = ''
-    from statistics_and_plot import tex_string_coding_style
     nr_it_parameters = len(grp_names[0:-1])
     for i, val in enumerate(grp_names[0:-1]):
         sub_title += tex_string_coding_style(val)
@@ -126,7 +147,7 @@ def get_best_comb_and_th_1(**keywords):
                 sub_title += ', '
             elif i < nr_it_parameters - 1:
                 sub_title += ', and '
-    tex_infos = {'title': 'Best and worst combined R & t errors and their ' + str(grp_names[-1]) +
+    tex_infos = {'title': 'Best and worst combined R \\& t errors and their ' + str(grp_names[-1]) +
                           ' for parameter variations of ' + sub_title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -137,12 +158,14 @@ def get_best_comb_and_th_1(**keywords):
                  'figs_externalize': False
                  }
     tex_infos['sections'].append({'file': os.path.join(rel_data_path, b_best_name),
-                                  'name': 'Smallest combined R & t errors and their ' + str(grp_names[-1]),
+                                  'name': 'Smallest combined R \\& t errors and their ' + str(grp_names[-1]),
                                   'fig_type': fig_type,
                                   'plots': ['b_best'],
                                   'label_y': 'error',#Label of the value axis. For xbar it labels the x-axis
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': 'options',
+                                  'label_x': 'Options',
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': 'options_tex',
                                   #Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [str(grp_names[-1])],
@@ -153,16 +176,18 @@ def get_best_comb_and_th_1(**keywords):
                                   'use_marks': False,
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
-                                  'caption': 'Smallest combined R & t errors (error bars) and their ' +
+                                  'caption': 'Smallest combined R \\& t errors (error bars) and their ' +
                                              str(grp_names[-1]) + ' which appears on top of each bar.'
                                   })
     tex_infos['sections'].append({'file': os.path.join(rel_data_path, b_worst_name),
-                                  'name': 'Worst combined R & t errors and their ' + str(grp_names[-1]),
+                                  'name': 'Worst combined R \\& t errors and their ' + str(grp_names[-1]),
                                   'fig_type': fig_type,
                                   'plots': ['b_worst'],
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': 'options',
+                                  'label_x': 'Options',
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': 'options_tex',
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [str(grp_names[-1])],
@@ -173,7 +198,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'use_marks': False,
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
-                                  'caption': 'Biggest combined R & t errors (error bars) and their ' +
+                                  'caption': 'Biggest combined R \\& t errors (error bars) and their ' +
                                              str(grp_names[-1]) + ' which appears on top of each bar.'
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')

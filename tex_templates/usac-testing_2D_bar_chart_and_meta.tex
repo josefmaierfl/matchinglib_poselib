@@ -75,17 +75,27 @@
 \section{\VAR{sec['name']}}
 
 \BLOCK{ if make_index }
-\begin{figure}[h]
+\begin{figure}[h!]
 \centering
 \BLOCK{ endif }
 \BLOCK{ if ctrl_fig_size }
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+\resizebox{%
+	\ifdim\width>0.98\textwidth
+        0.98\textwidth
+    \else
+        \width
+    \fi
+}{!}{%
+\BLOCK{ else }
 \resizebox*{!}{%
-	\ifdim\height>0.95\textheight
-        0.95\textheight
+	\ifdim\height>0.9\textheight
+        0.9\textheight
     \else
         \height
     \fi
 }{%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels'] }
 \pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
@@ -94,69 +104,85 @@
 \begin{axis}[
 \BLOCK{ if sec['limits'] is not none }
 \BLOCK{ if sec['limits']['miny'] is not none }
-ymin=\VAR{sec['limits']['miny']},
+ymin=\VAR{sec['limits']['miny']},%
 \BLOCK{ endif }
 \BLOCK{ if sec['limits']['maxy'] is not none }
-ymax=\VAR{sec['limits']['maxy']},
+ymax=\VAR{sec['limits']['maxy']},%
 \BLOCK{ endif }
 \BLOCK{ endif }
-title=\VAR{sec['name']},
+title=\VAR{sec['name']},%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
-xbar,enlargelimits=0.15,
-ylabel=\VAR{sec['label_x']},
-xlabel=\VAR{sec['label_y']},
+xbar,%
+ylabel=\VAR{sec['label_x']},%
+xlabel=\VAR{sec['label_y']},%
+y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge y limits={true, abs value=0.75},%
+enlarge x limits={upper, value=0.15},%
+xmajorgrids=true,%
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
-ybar,enlargelimits=0.15,
-xlabel=\VAR{sec['label_x']},
-ylabel=\VAR{sec['label_y']},
+ybar,%
+xlabel=\VAR{sec['label_x']},%
+ylabel=\VAR{sec['label_y']},%
+x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge x limits={true, abs value=0.75},%
+enlarge y limits={upper, value=0.15},%
+xmajorgrids=true,%
 \BLOCK{ else }
-xlabel=\VAR{sec['label_x']},
-ylabel=\VAR{sec['label_y']},
+xlabel=\VAR{sec['label_x']},%
+ylabel=\VAR{sec['label_y']},%
 \BLOCK{ endif }
 \BLOCK{ if sec['legend'] }
 legend style={
 	at={(0.5,-0.12)},
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
-	},
-cycle list name=big variety,
+	},%
+cycle list name=big variety,%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
-nodes near coords=\pgfplotspointmeta,
-point meta=explicit symbolic,
-every node near coord/.append style={font=\tiny, inner sep=1pt},
+nodes near coords=\pgfplotspointmeta,%
+nodes near coords align={right},
+point meta=explicit symbolic,%
+every node near coord/.append style={font=\scriptsize, inner sep=1pt},%
 \BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels'] }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
-ytick=data,
-yticklabels from table={\datatable}{\VAR{ sec['label_x'] }},
-y tick label style={rotate=45,anchor=east,align=right,text width=3.5cm,font=\scriptsize},
+ytick=data,%
+yticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
+y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize},%
 \BLOCK{ else }
-xtick=data,
-xticklabels from table={\datatable}{\VAR{ sec['label_x'] }},
-x tick label style={rotate=45,anchor=east,align=right,text width=4cm,font=\scriptsize},
+xtick=data,%
+xticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
+x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots'] }
 \addplot+ [%
 \BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
-\VAR{ sec['fig_type'] }\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
+\VAR{ sec['fig_type'] },%
+\BLOCK{ if not sec['use_marks'] }
+no markers\BLOCK{ endif },%
 \BLOCK{ endif }
-unbounded coords=discard,
+unbounded coords=discard,%
 ] table [%
-col sep=semicolon,\BLOCK{ if sec['print_meta'] }meta index=\VAR{ sec['plot_meta'][loop.index0] },\BLOCK{ endif }
+col sep=semicolon,%
+\BLOCK{ if sec['print_meta'] }
+meta=\VAR{ sec['plot_meta'][loop.index0] },%
+\BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels'] }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
-y expr=\coordindex
-x=\VAR{ it }
+y expr=\coordindex,%
+x=\VAR{ it },%
 \BLOCK{ else }
-x expr=\coordindex
-y=\VAR{ it }
+x expr=\coordindex,%
+y=\VAR{ it },%
 \BLOCK{ endif }
 \BLOCK{ else }
-x=\VAR{ sec['label_x'] },
-y=\VAR{ it }
+x=\VAR{ sec['print_x'] },%
+y=\VAR{ it },%
 \BLOCK{ endif }
 ] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }

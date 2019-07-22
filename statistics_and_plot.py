@@ -697,6 +697,9 @@ def findUnit(key, units):
 #Only for testing
 def main():
     num_pts = int(5000)
+    pars1_opt = ['first_long_long_opt' + str(i) for i in range(0,3)]
+    pars2_opt = ['second_long_opt' + str(i) for i in range(0, 7)]
+    pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
     data = {'R_diffAll': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
@@ -706,9 +709,12 @@ def main():
             't_diff_tx': -10000 + np.random.randn(num_pts) * 100,
             't_diff_ty': 20000 + np.random.randn(num_pts),
             't_diff_tz': -450 + np.random.randn(num_pts),
-            'USAC_parameters_estimator': np.random.randint(0, 3, num_pts),
-            'USAC_parameters_refinealg': np.random.randint(0, 7, num_pts),
-            'USAC_parameters_USACInlratFilt': np.random.randint(8, 10, num_pts),
+            # 'USAC_parameters_estimator': np.random.randint(0, 3, num_pts),
+            # 'USAC_parameters_refinealg': np.random.randint(0, 7, num_pts),
+            # 'USAC_parameters_USACInlratFilt': np.random.randint(8, 10, num_pts),
+            'USAC_parameters_estimator': [pars1_opt[i] for i in np.random.randint(0, len(pars1_opt), num_pts)],
+            'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
+            'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
             'inlrat': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
             'useless': [1, 1, 2, 3] * int(num_pts/4),
