@@ -278,7 +278,7 @@ def calcSatisticAndPlot_2D(data,
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
-                raise Warning('Calculation of specific results failed!')
+                warnings.warn('Calculation of specific results failed!', UserWarning)
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
@@ -304,9 +304,12 @@ def calcSatisticAndPlot_2D(data,
     #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
     tex_infos = {'title': title_name,
                  'sections': [],
-                 'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
-                 'ctrl_fig_size': ctrl_fig_size,#If True, the figures are adapted to the page height if they are too big
-                 'figs_externalize': figs_externalize}#If true, a pdf is generated for every figure and inserted as image in a second run
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': make_fig_index,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': figs_externalize}
     pdf_nr = 0
     for it in errvalnames:
         if it[-1] != 'count':
@@ -356,20 +359,7 @@ def calcSatisticAndPlot_2D(data,
                                           'use_marks': use_marks,
                                           'pdf_nr': pdf_nr
                                           })
-            nr_plots = len(tex_infos['sections'][-1]['plots'])
-            max_cols = int(235 / (len(max(tex_infos['sections'][-1]['plots'], key=len)) * 3 + 16))
-            if max_cols < 1:
-                max_cols = 1
-            if max_cols > 10:
-                max_cols = 10
-            use_cols = max_cols
-            rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
-            while rem < 0.5 and not np.isclose(rem, 0) and use_cols > 1:
-                use_cols -= 1
-                rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
-            if use_cols == 1:
-                use_cols = max_cols
-            tex_infos['sections'][-1]['legend_cols'] = use_cols
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     #Get number of pdfs to generate
@@ -515,7 +505,7 @@ def calcSatisticAndPlot_3D(data,
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
-                raise Warning('Calculation of specific results failed!')
+                warnings.warn('Calculation of specific results failed!', UserWarning)
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
@@ -694,6 +684,22 @@ def findUnit(key, units):
             return i[1]
     return ''
 
+def calcNrLegendCols(tex_infos_section):
+    nr_plots = len(tex_infos_section['plots'])
+    max_cols = int(235 / (len(max(tex_infos_section['plots'], key=len)) * 3 + 16))
+    if max_cols < 1:
+        max_cols = 1
+    if max_cols > 10:
+        max_cols = 10
+    use_cols = max_cols
+    rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
+    while rem < 0.5 and not np.isclose(rem, 0) and use_cols > 1:
+        use_cols -= 1
+        rem = float(nr_plots) / float(use_cols) - math.floor(float(nr_plots) / float(use_cols))
+    if use_cols == 1:
+        use_cols = max_cols
+    return use_cols
+
 #Only for testing
 def main():
     num_pts = int(5000)
@@ -743,7 +749,7 @@ def main():
     pdfsplitentry = ['t_distDiff']
     from usac_eval import get_best_comb_and_th_1
     special_calcs_func = get_best_comb_and_th_1
-    special_calcs_args = {'build_pdf': (True, True)}
+    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None
     calc_func_args = None
