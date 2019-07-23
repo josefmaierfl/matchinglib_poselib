@@ -749,7 +749,7 @@ def main():
     calc_func_args = None
     fig_type = 'smooth'
     use_marks = True
-    ctrl_fig_size = False
+    ctrl_fig_size = True
     make_fig_index = True
     build_pdf = True
     figs_externalize = True

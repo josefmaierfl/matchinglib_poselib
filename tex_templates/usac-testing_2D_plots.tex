@@ -122,11 +122,21 @@ xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 xlabel=\VAR{sec['plot_x']},%
 ylabel=\VAR{sec['axis_y']},%
 \BLOCK{ endif }
+xticklabel style={/pgf/number format/precision=4},%
+yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['limits']['miny'] is not none }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xmin=\VAR{sec['limits']['miny']},
+\BLOCK{ else }
 ymin=\VAR{sec['limits']['miny']},
 \BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ if sec['limits']['maxy'] is not none }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xmax=\VAR{sec['limits']['maxy']},
+\BLOCK{ else }
 ymax=\VAR{sec['limits']['maxy']},
+\BLOCK{ endif }
 \BLOCK{ endif }
 title=\VAR{sec['name']},
 legend style={

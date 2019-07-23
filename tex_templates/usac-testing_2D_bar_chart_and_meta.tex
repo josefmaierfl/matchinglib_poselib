@@ -153,11 +153,13 @@ every node near coord/.append style={font=\scriptsize, inner sep=1pt},%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
-y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize},%
+y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+x tick label style={/pgf/number format/precision=4},%
 \BLOCK{ else }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
-x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize},%
+x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+y tick label style={/pgf/number format/precision=4},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 ]

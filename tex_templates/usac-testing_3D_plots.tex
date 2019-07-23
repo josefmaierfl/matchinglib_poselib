@@ -47,6 +47,9 @@ title=\VAR{sec['legend'][loop.index0]},
 xlabel=\VAR{sec['label_x']},
 ylabel=\VAR{sec['label_y']},
 zlabel=\VAR{sec['label_z']},
+xticklabel style={/pgf/number format/precision=4},%
+yticklabel style={/pgf/number format/precision=4},%
+zticklabel style={/pgf/number format/precision=4},%
 grid=major,
 mesh/cols=\VAR{sec['mesh_cols']},
 \BLOCK{ if sec['fig_type'] == 'surf-interior' }
