@@ -251,8 +251,8 @@ def calcSatisticAndPlot_2D(data,
     if calc_func is not None:
         if calc_func_args is None:
             raise ValueError('Expected some arguments')
-        calc_func_args = (data, ) + calc_func_args
-        df = calc_func(*calc_func_args)
+        calc_func_args['data'] = data
+        df = calc_func(**calc_func_args)
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
@@ -478,8 +478,8 @@ def calcSatisticAndPlot_3D(data,
     if calc_func is not None:
         if calc_func_args is None:
             raise ValueError('Expected some arguments')
-        calc_func_args = (data, ) + calc_func_args
-        df = calc_func(*calc_func_args)
+        calc_func_args['data'] = data
+        df = calc_func(**calc_func_args)
     else:
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
