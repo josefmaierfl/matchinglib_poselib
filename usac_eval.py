@@ -169,9 +169,134 @@ def pars_calc_single_fig(**keywords):
                                      ret['tex_folder'],
                                      texf_name,
                                      False,
-                                     os.path.join(ret['pdf_folder'], pdf_name)))
+                                     os.path.join(ret['pdf_folder'], pdf_name),
+                                     tex_infos['figs_externalize']))
     else:
         ret['res'] = abs(compile_tex(rendered_tex, ret['tex_folder'], texf_name, False))
+    if ret['res'] != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return ret
+
+
+def pars_calc_multiple_fig(**keywords):
+    if len(keywords) < 2 or len(keywords) > 5:
+        raise ValueError('Wrong number of arguments for function get_best_comb_and_th_1')
+    if 'data' not in keywords:
+        raise ValueError('Missing data argument of function get_best_comb_and_th_1')
+    data = keywords['data']
+    ret = {}
+    if 'res_folder' not in keywords:
+        raise ValueError('Missing res_folder argument of function get_best_comb_and_th_1')
+    ret['res_folder'] = keywords['res_folder']
+    ret['fig_type'] = 'surface'
+    if 'fig_type' not in keywords:
+        print('No information provided about the figure type: Using \'surface\'')
+    else:
+        ret['fig_type'] = keywords['fig_type']
+    ret['use_marks'] = False
+    if 'use_marks' not in keywords:
+        print('No information provided if marks should be used: Disabling marks')
+    else:
+        ret['use_marks'] = keywords['use_marks']
+    ret['build_pdf'] = (False, True,)
+    if 'build_pdf' in keywords:
+        ret['build_pdf'] = keywords['build_pdf']
+    if len(ret['build_pdf']) != 2:
+        raise ValueError('Wrong number of arguments for build_pdf')
+    ret['pdf_folder'] = None
+    if ret['build_pdf'][0] or ret['build_pdf'][1]:
+        ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
+        try:
+            os.mkdir(ret['pdf_folder'])
+        except FileExistsError:
+            # print('Folder', ret['pdf_folder'], 'for storing pdf files already exists')
+            pass
+    ret['tex_folder'] = os.path.join(ret['res_folder'], 'tex')
+    try:
+        os.mkdir(ret['tex_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tex_folder'], 'for storing tex files already exists')
+        pass
+    ret['tdata_folder'] = os.path.join(ret['tex_folder'], 'data')
+    try:
+        os.mkdir(ret['tdata_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
+        pass
+    ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
+    ret['grp_names'] = data.index.names
+    ret['dataf_name_main'] = ret['grp_names'][-2] + '_and_' + ret['grp_names'][-1] + \
+                             '_for_options_' + '-'.join(ret['grp_names'][0:-2])
+    ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
+    ret['b'] = combineRt(data)
+    ret['b'] = ret['b'].unstack()
+    ret['b'] = ret['b'].T
+    ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
+    ret['b'].columns.name = '-'.join(ret['grp_names'][0:-1])
+    ret['b'] = ret['b'].reset_index()
+    nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
+    b_name = 'data_RTerrors_vs_' + ret['dataf_name']
+    fb_name = os.path.join(ret['tdata_folder'], b_name)
+    with open(fb_name, 'a') as f:
+        f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] + '\n')
+        f.write('# Parameters: ' + '-'.join(ret['grp_names'][0:-2]) + '\n')
+        ret['b'].to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    ret['sub_title'] = ''
+    nr_it_parameters = len(ret['grp_names'][0:-2])
+    from statistics_and_plot import tex_string_coding_style, compile_tex
+    for i, val in enumerate(ret['grp_names'][0:-2]):
+        ret['sub_title'] += tex_string_coding_style(val)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                ret['sub_title'] += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                ret['sub_title'] += ', '
+            elif i < nr_it_parameters - 1:
+                ret['sub_title'] += ', and '
+    tex_infos = {'title': 'Combined R \\& t Errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] +
+                          ' for Parameter Variations of ' + ret['sub_title'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': False,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': True}
+    reltex_name = os.path.join(ret['rel_data_path'], b_name)
+    tex_infos['sections'].append({'file': reltex_name,
+                                  'name': 'Combined R \\& t errors vs ' + str(ret['grp_names'][-2]) +
+                                          ' and ' + str(ret['grp_names'][-1]) +
+                                          ' for parameter variations of ' + ret['sub_title'],
+                                  'fig_type': ret['fig_type'],
+                                  'plots_z': list(ret['b'].columns.values)[2:],
+                                  'label_z': 'Combined R \\& t error',
+                                  'plot_x': str(ret['b'].columns.values[1]),
+                                  'label_x': str(ret['b'].columns.values[1]),
+                                  'plot_y': str(ret['b'].columns.values[0]),
+                                  'label_y': str(ret['b'].columns.values[0]),
+                                  'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)[2:]],
+                                  'use_marks': ret['use_marks'],
+                                  'mesh_cols': nr_equal_ss
+                                  })
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   sections=tex_infos['sections'])
+    base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main']
+    texf_name = base_out_name + '.tex'
+    if ret['build_pdf'][1]:
+        pdf_name = base_out_name + '.pdf'
+        ret['res'] = abs(compile_tex(rendered_tex,
+                                     ret['tex_folder'],
+                                     texf_name,
+                                     True,
+                                     os.path.join(ret['pdf_folder'], pdf_name),
+                                     tex_infos['figs_externalize']))
+    else:
+        ret['res'] = abs(compile_tex(rendered_tex, ret['tex_folder'], texf_name, True))
     if ret['res'] != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret
@@ -460,3 +585,7 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
         ret['res'] += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret['res']
+
+
+def get_best_comb_and_th_for_kpacc_1(**keywords):
+    ret = pars_calc_multiple_fig(**keywords)

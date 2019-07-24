@@ -373,7 +373,12 @@ def calcSatisticAndPlot_2D(data,
         texf_name = base_out_name + '.tex'
         if build_pdf:
             pdf_name = base_out_name + '.pdf'
-            res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index, os.path.join(pdf_folder, pdf_name))
+            res = compile_tex(rendered_tex,
+                              tex_folder,
+                              texf_name,
+                              make_fig_index,
+                              os.path.join(pdf_folder, pdf_name),
+                              tex_infos['figs_externalize'])
         else:
             res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
     else:
@@ -747,7 +752,7 @@ def main():
     it_parameters = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']#, 'USAC_parameters_USACInlratFilt']
     x_axis_column = ['th']
     pdfsplitentry = ['t_distDiff']
-    from usac_eval import get_best_comb_and_th_1, get_best_comb_inlrat_1
+    from usac_eval import get_best_comb_and_th_1, get_best_comb_inlrat_1, get_best_comb_and_th_for_kpacc_1
     special_calcs_func = get_best_comb_inlrat_1#get_best_comb_and_th_1
     special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
     # figure types: sharp plot, smooth, const plot, ybar, xbar
@@ -759,29 +764,7 @@ def main():
     make_fig_index = True
     build_pdf = True
     figs_externalize = True
-    calcSatisticAndPlot_2D(data,
-                           output_dir,
-                           tex_file_pre_str,
-                           fig_title_pre_str,
-                           eval_columns,
-                           units,
-                           it_parameters,
-                           x_axis_column,
-                           pdfsplitentry,
-                           special_calcs_func,
-                           special_calcs_args,
-                           calc_func,
-                           calc_func_args,
-                           fig_type,
-                           use_marks,
-                           ctrl_fig_size,
-                           make_fig_index,
-                           build_pdf,
-                           figs_externalize)
-    # x_axis_column = ['th', 'inlrat']
-    # fig_type = 'surface'
-    # fig_title_pre_str = 'Values for USAC Option Combinations of '
-    # calcSatisticAndPlot_3D(data,
+    # calcSatisticAndPlot_2D(data,
     #                        output_dir,
     #                        tex_file_pre_str,
     #                        fig_title_pre_str,
@@ -789,6 +772,7 @@ def main():
     #                        units,
     #                        it_parameters,
     #                        x_axis_column,
+    #                        pdfsplitentry,
     #                        special_calcs_func,
     #                        special_calcs_args,
     #                        calc_func,
@@ -799,6 +783,29 @@ def main():
     #                        make_fig_index,
     #                        build_pdf,
     #                        figs_externalize)
+    x_axis_column = ['th', 'inlrat']
+    fig_type = 'surface'
+    fig_title_pre_str = 'Values for USAC Option Combinations of '
+    special_calcs_func = get_best_comb_and_th_for_kpacc_1
+    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True, 'fig_type': 'surface'}
+    calcSatisticAndPlot_3D(data,
+                           output_dir,
+                           tex_file_pre_str,
+                           fig_title_pre_str,
+                           eval_columns,
+                           units,
+                           it_parameters,
+                           x_axis_column,
+                           special_calcs_func,
+                           special_calcs_args,
+                           calc_func,
+                           calc_func_args,
+                           fig_type,
+                           use_marks,
+                           ctrl_fig_size,
+                           make_fig_index,
+                           build_pdf,
+                           figs_externalize)
 
 
 if __name__ == "__main__":

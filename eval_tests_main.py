@@ -109,7 +109,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
-        from statistics_and_plot import calcSatisticAndPlot_2D
+        from statistics_and_plot import calcSatisticAndPlot_2D, calcSatisticAndPlot_3D
         if test_nr == 1:
             fig_title_pre_str = 'Statistics for USAC Option Combinations of '
             eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
@@ -137,6 +137,66 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                           fig_type='smooth',
                                           use_marks=True,
                                           ctrl_fig_size=True,
+                                          make_fig_index=True,
+                                          build_pdf=True,
+                                          figs_externalize=True)
+        elif test_nr == 2:
+            fig_title_pre_str = 'Statistics for USAC Option Combinations of '
+            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                     ('t_diff_ty', ''), ('t_diff_tz', '')]
+            it_parameters = ['USAC_parameters_estimator',
+                             'USAC_parameters_refinealg']
+            from usac_eval import get_best_comb_inlrat_1
+            return calcSatisticAndPlot_2D(data=data,
+                                          store_path=output_path,
+                                          tex_file_pre_str='plots_USAC_opts_',
+                                          fig_title_pre_str=fig_title_pre_str,
+                                          eval_columns=eval_columns,
+                                          units=units,
+                                          it_parameters=it_parameters,
+                                          x_axis_column=['inlratMin'],
+                                          pdfsplitentry=['t_distDiff'],
+                                          special_calcs_func=get_best_comb_inlrat_1,
+                                          special_calcs_args = {'build_pdf': (False, True), 'use_marks': True},
+                                          calc_func=None,
+                                          calc_func_args=None,
+                                          fig_type='smooth',
+                                          use_marks=True,
+                                          ctrl_fig_size=True,
+                                          make_fig_index=True,
+                                          build_pdf=True,
+                                          figs_externalize=True)
+        elif test_nr == 3:
+            fig_title_pre_str = 'Statistics for USAC Option Combinations of '
+            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                     ('t_diff_ty', ''), ('t_diff_tz', '')]
+            it_parameters = ['USAC_parameters_estimator',
+                             'USAC_parameters_refinealg']
+            special_calcs_args = {'build_pdf': (False, True), 'use_marks': True, 'fig_type': 'surface'}
+            # from usac_eval import get_best_comb_inlrat_1
+            return calcSatisticAndPlot_3D(data=data,
+                                          store_path=output_path,
+                                          tex_file_pre_str='plots_USAC_opts_',
+                                          fig_title_pre_str=fig_title_pre_str,
+                                          eval_columns=eval_columns,
+                                          units=units,
+                                          it_parameters=it_parameters,
+                                          xy_axis_columns=['th', 'kpAccSd'],
+                                          special_calcs_func=None,
+                                          special_calcs_args = special_calcs_args,
+                                          calc_func=None,
+                                          calc_func_args=None,
+                                          fig_type='surface',
+                                          use_marks=True,
+                                          ctrl_fig_size=False,
                                           make_fig_index=True,
                                           build_pdf=True,
                                           figs_externalize=True)
