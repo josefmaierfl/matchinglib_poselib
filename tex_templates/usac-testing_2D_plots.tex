@@ -95,11 +95,15 @@
 }{%
 \BLOCK{ endif }
 \BLOCK{ endif }
+\BLOCK{ if not make_index and not ctrl_fig_size }
+\begin{center}
+\BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
 \BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
+align=center,%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
 ylabel=\VAR{sec['plot_x']},%
@@ -175,6 +179,9 @@ y=\VAR{ it }
 \BLOCK{ if make_index }
 \caption{\VAR{sec['name']}}
 \end{figure}
+\BLOCK{ endif }
+\BLOCK{ if not make_index and not ctrl_fig_size }
+\end{center}
 \BLOCK{ endif }
 
 \BLOCK{ endfor }

@@ -102,6 +102,7 @@
 \BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
+align=center,%
 \BLOCK{ if sec['limits'] is not none }
 \BLOCK{ if sec['limits']['miny'] is not none }
 ymin=\VAR{sec['limits']['miny']},%
@@ -118,7 +119,9 @@ xlabel=\VAR{sec['label_y']},%
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge y limits={true, abs value=0.75},%
+\BLOCK{ if sec['print_meta'] }
 enlarge x limits={upper, value=0.15},%
+\BLOCK{ endif }
 xmajorgrids=true,%
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
@@ -127,7 +130,9 @@ ylabel=\VAR{sec['label_y']},%
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge x limits={true, abs value=0.75},%
+\BLOCK{ if sec['print_meta'] }
 enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
 ymajorgrids=true,%
 \BLOCK{ else }
 xlabel=\VAR{sec['label_x']},%

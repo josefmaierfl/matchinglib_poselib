@@ -278,7 +278,7 @@ def calcSatisticAndPlot_2D(data,
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
-                warnings.warn('Calculation of specific results failed!', UserWarning)
+                warnings.warn('Errors occured during calculation of specific results!', UserWarning)
     errvalnames = stats.columns.values # Includes statistic name and error value names
     grp_names = stats.index.names #As used when generating the groups
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
@@ -747,8 +747,8 @@ def main():
     it_parameters = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']#, 'USAC_parameters_USACInlratFilt']
     x_axis_column = ['th']
     pdfsplitentry = ['t_distDiff']
-    from usac_eval import get_best_comb_and_th_1
-    special_calcs_func = get_best_comb_and_th_1
+    from usac_eval import get_best_comb_and_th_1, get_best_comb_inlrat_1
+    special_calcs_func = get_best_comb_inlrat_1#get_best_comb_and_th_1
     special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None

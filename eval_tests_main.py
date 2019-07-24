@@ -77,7 +77,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             if not os.path.exists(csvf):
                 raise ValueError('Results file ' + csvf + ' not found')
             csv_data = pd.read_csv(csvf, delimiter=';', engine='c')
-            print('Loaded', csvf, 'with shape', csv_data.shape)
+            #print('Loaded', csvf, 'with shape', csv_data.shape)
             #csv_data.set_index('Nr')
             addSequInfo_sep = None
             # for idx, row in csv_data.iterrows():
@@ -105,7 +105,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
     # data_dict = data.to_dict('list')
     # data = mpd.DataFrame(data_dict)
     data = mpd.utils.from_pandas(data)
-    print('Finished loading data')
+    #print('Finished loading data')
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
@@ -120,6 +120,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             it_parameters = ['USAC_parameters_estimator',
                              'USAC_parameters_refinealg']
+            from usac_eval import get_best_comb_and_th_1
             return calcSatisticAndPlot_2D(data=data,
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
@@ -129,13 +130,16 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                           it_parameters=it_parameters,
                                           x_axis_column=['th'],
                                           pdfsplitentry=['t_distDiff'],
+                                          special_calcs_func=get_best_comb_and_th_1,
+                                          special_calcs_args = {'build_pdf': (False, True), 'use_marks': True},
                                           calc_func=None,
                                           calc_func_args=None,
                                           fig_type='smooth',
                                           use_marks=True,
                                           ctrl_fig_size=True,
                                           make_fig_index=True,
-                                          build_pdf=True)
+                                          build_pdf=True,
+                                          figs_externalize=True)
 
 
 def merge_dicts(in_dict, mainkey = None):
