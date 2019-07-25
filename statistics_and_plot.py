@@ -309,7 +309,9 @@ def calcSatisticAndPlot_2D(data,
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': ctrl_fig_size,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': figs_externalize}
+                 'figs_externalize': figs_externalize,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True}
     pdf_nr = 0
     for it in errvalnames:
         if it[-1] != 'count':
@@ -347,12 +349,13 @@ def calcSatisticAndPlot_2D(data,
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': replace_stat_names(it[-1]) + ' values for ' +
-                                                  tex_string_coding_style(str(it[0])) +
-                                                  ' compared to ' + tex_string_coding_style(str(grp_names[-1])),
+                                                  replaceCSVLabels(str(it[0])) +
+                                                  ' compared to ' + replaceCSVLabels(str(grp_names[-1])),
                                           'fig_type': fig_type,
                                           'plots': list(tmp.columns.values),
-                                          'axis_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                          'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
                                           'plot_x': str(grp_names[-1]),
+                                          'label_x': replaceCSVLabels(str(grp_names[-1])),
                                           'limits': use_limits,
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
                                           'legend_cols': None,
@@ -369,6 +372,7 @@ def calcSatisticAndPlot_2D(data,
                                        make_index=tex_infos['make_index'],
                                        ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                        figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
                                        sections=tex_infos['sections'])
         texf_name = base_out_name + '.tex'
         if build_pdf:
@@ -398,6 +402,7 @@ def calcSatisticAndPlot_2D(data,
                                            make_index=tex_infos['make_index'],
                                            ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                            figs_externalize=tex_infos['figs_externalize'],
+                                           fill_bar=tex_infos['fill_bar'],
                                            sections=it)
             texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
             if build_pdf:
@@ -546,7 +551,7 @@ def calcSatisticAndPlot_3D(data,
             tmp = tmp.unstack()
             tmp = tmp.T
             tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
-            tmp.columns.name = '-'.join(grp_names[0:-1])
+            tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
             nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
@@ -705,6 +710,197 @@ def calcNrLegendCols(tex_infos_section):
         use_cols = max_cols
     return use_cols
 
+
+def replaceCSVLabels(label):
+    if label == 'R_diffAll':
+        return '$\\Delta R_{\\Sigma}$'
+    elif label == 'R_diff_roll_deg':
+        return '$\\Delta R_{x}$'
+    elif label == 'R_diff_pitch_deg':
+        return '$\\Delta R_{y}$'
+    elif label == 'R_diff_yaw_deg':
+        return '$\\Delta R_{z}$'
+    elif label == 't_angDiff_deg':
+        return '$\\angle{\\Delta t}$'
+    elif label == 't_distDiff':
+        return '$\\|\\Delta t\\|$'
+    elif label == 't_diff_tx':
+        return '$\\Delta t_{x}$'
+    elif label == 't_diff_ty':
+        return '$\\Delta t_{y}$'
+    elif label == 't_diff_tz':
+        return '$\\Delta t_{z}$'
+    elif label == 'th':
+        return 'Threshold \\texttt{th}'
+    elif label == 'kpAccSd':
+        return 'Key point accuracy $\\epsilon_{kp}^{\\sigma}$'
+    elif label == 'inlratMin' or label == 'inlratMax':
+        return 'Inlier ratio $\\epsilon$'
+    elif label == 'R_mostLikely_diffAll':
+        return '$\\Delta \\hat{R}_{\\Sigma}$'
+    elif label == 'R_mostLikely_diff_roll_deg':
+        return '$\\Delta \\hat{R}_{x}$'
+    elif label == 'R_mostLikely_diff_pitch_deg':
+        return '$\\Delta \\hat{R}_{y}$'
+    elif label == 'R_mostLikely_diff_yaw_deg':
+        return '$\\Delta \\hat{R}_{z}$'
+    elif label == 't_mostLikely_angDiff_deg':
+        return '$\\angle{\\Delta \\hat{t}}$'
+    elif label == 't_mostLikely_distDiff':
+        return '$\\|\\Delta \\hat{t}\\|$'
+    elif label == 't_mostLikely_diff_tx':
+        return '$\\Delta \\hat{t}_{x}$'
+    elif label == 't_mostLikely_diff_ty':
+        return '$\\Delta \\hat{t}_{y}$'
+    elif label == 't_mostLikely_diff_tz':
+        return '$\\Delta \\hat{t}_{z}$'
+    elif label == 'K1_fxDiff':
+        return '$\\Delta f_{x}^{K1}$'
+    elif label == 'K1_fyDiff':
+        return '$\\Delta f_{y}^{K1}$'
+    elif label == 'K1_fxyDiffNorm':
+        return '$\\|\\Delta f_{x,y}^{K1}\\|$'
+    elif label == 'K1_cxDiff':
+        return '$\\Delta c_{x}^{K1}$'
+    elif label == 'K1_cyDiff':
+        return '$\\Delta c_{y}^{K1}$'
+    elif label == 'K1_cxyDiffNorm':
+        return '$\\|\\Delta c_{x,y}^{K1}\\|$'
+    elif label == 'K1_cxyfxfyNorm':
+        return '$\\|\\Delta c_{x,y}^{K1}\\, f_{x,y}^{K1}\\|$'
+    elif label == 'K2_fxDiff':
+        return '$\\Delta f_{x}^{K2}$'
+    elif label == 'K2_fyDiff':
+        return '$\\Delta f_{y}^{K2}$'
+    elif label == 'K2_fxyDiffNorm':
+        return '$\\|\\Delta f_{x,y}^{K2}\\|$'
+    elif label == 'K2_cxDiff':
+        return '$\\Delta c_{x}^{K2}$'
+    elif label == 'K2_cyDiff':
+        return '$\\Delta c_{y}^{K2}$'
+    elif label == 'K2_cxyDiffNorm':
+        return '$\\|\\Delta c_{x,y}^{K2}\\|$'
+    elif label == 'K2_cxyfxfyNorm':
+        return '$\\|\\Delta c_{x,y}^{K2}\\, f_{x,y}^{K2}\\|$'
+    elif label == 'inlRat_estimated':
+        return 'Estimated inlier ratio $\\tilde{\\epsilon}$'
+    elif label == 'inlRat_GT':
+        return 'GT inlier ratio $\\breve{\\epsilon}$'
+    elif label == 'nrCorrs_filtered':
+        return '# filtered correspondences $n_{fc}$'
+    elif label == 'nrCorrs_estimated':
+        return '# estimated correspondences $\\tilde{n}_{c}$'
+    elif label == 'nrCorrs_GT':
+        return '# GT correspondences $n_{GT}$'
+    elif label == 'filtering_us':
+        return 'Filtering time $t_{f}$'
+    elif label == 'robEstimationAndRef_us':
+        return 'Estimation and refinement time $t_{e}$'
+    elif label == 'linRefinement_us':
+        return 'Linear refinement time $t_{l}$'
+    elif label == 'bundleAdjust_us':
+        return 'BA time $t_{BA}$'
+    elif label == 'stereoRefine_us':
+        return 'Stereo refinement time $t_{s}$'
+    elif label == 'kpDistr':
+        return 'Keypoint distribution'
+    elif label == 'depthDistr':
+        return 'Depth distribution'
+    elif label == 'nrTP':
+        return '# TP'
+    elif label == 'inlratCRate':
+        return 'Inlier ratio change rate $c_{\\breve{\\epsilon}}$'
+    elif label == 'USAC_parameters_th_pixels':
+        return 'USAC threshold $\\texttt{th}_{USAC}$'
+    elif label == 'USAC_parameters_USACInlratFilt':
+        return 'USAC inlier ratio filter'
+    elif label == 'USAC_parameters_automaticSprtInit':
+        return 'USAC automatic SPRT initialization'
+    elif label == 'USAC_parameters_noAutomaticProsacParamters':
+        return 'Disabled automatic PROSAC parameter estimation'
+    elif label == 'USAC_parameters_prevalidateSample':
+        return 'Sample prevalidation'
+    elif label == 'USAC_parameters_estimator':
+        return 'USAC estimator'
+    elif label == 'USAC_parameters_refinealg':
+        return 'USAC refinement algorithm'
+    elif label == 'RobMethod':
+        return 'Robust estimation method'
+    elif label == 'refineMethod_algorithm':
+        return 'Refinement algorithm'
+    elif label == 'refineMethod_costFunction':
+        return 'Refinement algorithm cost function'
+    elif label == 'kneipInsteadBA':
+        return 'Kneip instead BA'
+    elif label == 'BART':
+        return 'BA option'
+    elif label == 'matchesFilter_refineGMS':
+        return 'GMS correspondence filter'
+    elif label == 'matchesFilter_refineVFC':
+        return 'VFC correspondence filter'
+    elif label == 'matchesFilter_refineSOF':
+        return 'SOF correspondence filter'
+    elif label == 'stereoParameters_th_pix_user':
+        return 'Stereo refinement threshold $\\texttt{th}_{s}$'
+    elif label == 'stereoParameters_keypointType':
+        return 'Keypoint type'
+    elif label == 'stereoParameters_descriptorType':
+        return 'Descriptor type'
+    elif label == 'stereoParameters_RobMethod':
+        return 'Robust estimation method for stereo refinement'
+    elif label == 'stereoParameters_refineMethod_algorithm':
+        return 'Refinement algorithm for stereo refinement'
+    elif label == 'stereoParameters_refineMethod_costFunction':
+        return 'Refinement algorithm cost function for stereo refinement'
+    elif label == 'stereoParameters_refineMethod_CorrPool_algorithm':
+        return 'Refinement algorithm for correspondence pool'
+    elif label == 'stereoParameters_refineMethod_CorrPool_costFunction':
+        return 'Refinement algorithm cost function for correspondence pool'
+    elif label == 'stereoParameters_kneipInsteadBA':
+        return 'Kneip instead BA for stereo refinement'
+    elif label == 'stereoParameters_kneipInsteadBA_CorrPool':
+        return 'Kneip instead BA for correspondence pool'
+    elif label == 'stereoParameters_BART':
+        return 'BA option for stereo refinement'
+    elif label == 'stereoParameters_BART_CorrPool':
+        return 'BA option for correspondence pool'
+    elif label == 'stereoParameters_checkPoolPoseRobust':
+        return 'Iteration parameter for robust correspondence pool check'
+    elif label == 'stereoParameters_useRANSAC_fewMatches':
+        return 'Use RANSAC for few matches'
+    elif label == 'stereoParameters_maxPoolCorrespondences':
+        return 'Maximum correspondence pool size $\\hat{n}_{cp}$'
+    elif label == 'stereoParameters_maxDist3DPtsZ':
+        return 'Maximum depth $z_{max}$'
+    elif label == 'stereoParameters_maxRat3DPtsFar':
+        return 'Maximum far correspondences ratio $r_{max}^{z}$'
+    elif label == 'stereoParameters_minStartAggInlRat':
+        return 'Minimum initial inlier ratio $\\epsilon_{min}^{init}$'
+    elif label == 'stereoParameters_minInlierRatSkip':
+        return 'Minimum inlier ratio for skipping image $\\epsilon_{min}^{skip}$'
+    elif label == 'stereoParameters_relInlRatThLast':
+        return 'Relative inlier ratio threshold on old model $r_{\\epsilon}^{old}$'
+    elif label == 'stereoParameters_relInlRatThNew':
+        return 'Relative inlier ratio threshold on new model $r_{\\epsilon}^{new}$'
+    elif label == 'stereoParameters_relMinInlierRatSkip':
+        return 'Minimum relative inlier ratio for skipping image $r_{min}^{\\epsilon,skip}$'
+    elif label == 'stereoParameters_minInlierRatioReInit':
+        return 'Minimum inlier ratio reinitialization threshold $\\epsilon_{min}^{reinit}$'
+    elif label == 'stereoParameters_maxSkipPairs':
+        return 'Maximum image pairs to skip $n_{max}^{skip}$'
+    elif label == 'stereoParameters_minNormDistStable':
+        return 'Minimum distance for stability $\\|\\breve{d}_{cm}\\|$'
+    elif label == 'stereoParameters_absThRankingStable':
+        return 'Stable ranking threshold $\\tau$'
+    elif label == 'stereoParameters_minContStablePoses':
+        return 'Minimum continous stable poses $n_{min}^{stable}$'
+    elif label == 'stereoParameters_raiseSkipCnt':
+        return 'Skip count raising $a_{skip}$'
+    elif label == 'stereoParameters_minPtsDistance':
+        return 'Minimum correspondence distance $d_{p}$'
+    else:
+        return label
+
 #Only for testing
 def main():
     num_pts = int(5000)
@@ -758,37 +954,13 @@ def main():
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None
     calc_func_args = None
-    fig_type = 'smooth'
+    fig_type = 'ybar'
     use_marks = True
     ctrl_fig_size = True
     make_fig_index = True
     build_pdf = True
     figs_externalize = True
-    # calcSatisticAndPlot_2D(data,
-    #                        output_dir,
-    #                        tex_file_pre_str,
-    #                        fig_title_pre_str,
-    #                        eval_columns,
-    #                        units,
-    #                        it_parameters,
-    #                        x_axis_column,
-    #                        pdfsplitentry,
-    #                        special_calcs_func,
-    #                        special_calcs_args,
-    #                        calc_func,
-    #                        calc_func_args,
-    #                        fig_type,
-    #                        use_marks,
-    #                        ctrl_fig_size,
-    #                        make_fig_index,
-    #                        build_pdf,
-    #                        figs_externalize)
-    x_axis_column = ['th', 'inlrat']
-    fig_type = 'surface'
-    fig_title_pre_str = 'Values for USAC Option Combinations of '
-    special_calcs_func = get_best_comb_and_th_for_kpacc_1
-    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True, 'fig_type': 'surface'}
-    calcSatisticAndPlot_3D(data,
+    calcSatisticAndPlot_2D(data,
                            output_dir,
                            tex_file_pre_str,
                            fig_title_pre_str,
@@ -796,6 +968,7 @@ def main():
                            units,
                            it_parameters,
                            x_axis_column,
+                           pdfsplitentry,
                            special_calcs_func,
                            special_calcs_args,
                            calc_func,
@@ -806,6 +979,29 @@ def main():
                            make_fig_index,
                            build_pdf,
                            figs_externalize)
+    # x_axis_column = ['th', 'inlrat']
+    # fig_type = 'surface'
+    # fig_title_pre_str = 'Values for USAC Option Combinations of '
+    # special_calcs_func = get_best_comb_and_th_for_kpacc_1
+    # special_calcs_args = {'build_pdf': (True, True), 'use_marks': True, 'fig_type': 'surface'}
+    # calcSatisticAndPlot_3D(data,
+    #                        output_dir,
+    #                        tex_file_pre_str,
+    #                        fig_title_pre_str,
+    #                        eval_columns,
+    #                        units,
+    #                        it_parameters,
+    #                        x_axis_column,
+    #                        special_calcs_func,
+    #                        special_calcs_args,
+    #                        calc_func,
+    #                        calc_func_args,
+    #                        fig_type,
+    #                        use_marks,
+    #                        ctrl_fig_size,
+    #                        make_fig_index,
+    #                        build_pdf,
+    #                        figs_externalize)
 
 
 if __name__ == "__main__":

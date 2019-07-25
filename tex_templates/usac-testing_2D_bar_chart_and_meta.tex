@@ -1,6 +1,7 @@
 \documentclass[a4paper]{article}
 \usepackage[english]{babel}
 \usepackage{textcomp}
+\usepackage{amssymb}
 \BLOCK{ if make_index }
 \usepackage{hyperref}
 \BLOCK{ endif }
@@ -26,38 +27,38 @@
 
 \pgfplotscreateplotcyclelist{big variety}{
 	teal,every mark/.append style={fill=teal!80!black},mark=*\\
-	teal,densely dashed,every mark/.append style={fill=teal!80!black},mark=x\\
+	teal!70!white,densely dashed,every mark/.append style={fill=teal!80!black},mark=x\\
 	orange,every mark/.append style={fill=orange!80!black},mark=square*\\
-	orange,densely dashed,every mark/.append style={fill=orange!80!black},mark=+\\
+	orange!70!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=+\\
 	cyan!60!black,every mark/.append style={fill=cyan!80!black},mark=otimes*\\
-	cyan!60!black,densely dashed,every mark/.append style={fill=cyan!80!black},mark=o\\
+	cyan!90!black,densely dashed,every mark/.append style={fill=cyan!80!black},mark=o\\
 	red,every mark/.append style={fill=orange!80!black},mark=triangle*\\
-	red,densely dashed,every mark/.append style={fill=orange!80!black},mark=triangle\\
+	red!70!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=triangle\\
 	black,every mark/.append style={solid,fill=darkgray},mark=diamond*\\
-	black,densely dashed,every mark/.append style={solid,fill=darkgray},mark=diamond\\
+	black!70!white,densely dashed,every mark/.append style={solid,fill=darkgray},mark=diamond\\
 	blue,every mark/.append style={fill=blue!80!black},mark=halfdiamond*\\
-	blue,densely dashed,every mark/.append style={fill=blue!80!black},mark=asterisk\\
+	blue!70!white,densely dashed,every mark/.append style={fill=blue!80!black},mark=asterisk\\
 	gray,every mark/.append style={fill=gray!90!black},mark=halfsquare right*\\
-	gray,densely dashed,every mark/.append style={fill=gray!90!black},mark=10-pointed star\\
+	gray!70!white,densely dashed,every mark/.append style={fill=gray!90!black},mark=10-pointed star\\
 	magenta,every mark/.append style={fill=magenta!80!black},mark=halfsquare left*\\
-	magenta,densely dashed,every mark/.append style={fill=magenta!80!black},mark=Mercedes star\\
+	magenta!70!white,densely dashed,every mark/.append style={fill=magenta!80!black},mark=Mercedes star\\
 	violet,every mark/.append style={fill=violet!80!black},mark=halfcircle*\\
-	violet,densely dashed,every mark/.append style={fill=violet!80!black},mark=halfcircle\\
+	violet!70!white,densely dashed,every mark/.append style={fill=violet!80!black},mark=halfcircle\\
 	brown!80!black,every mark/.append style={fill=brown!90!black},mark=pentagon*\\
-	brown!80!black,densely dashed,every mark/.append style={fill=brown!90!black},mark=pentagon\\
+	brown!50!black,densely dashed,every mark/.append style={fill=brown!90!black},mark=pentagon\\
 	green!80!black,every mark/.append style={fill=green!90!black},mark=oplus*\\
-	green!80!black,densely dashed,every mark/.append style={fill=green!90!black},mark=oplus\\
-	teal,dashdotted,every mark/.append style={fill=teal!80!black},mark=oplus*\\
-	orange,dashdotted,every mark/.append style={fill=orange!80!black},mark=pentagon*\\
-	cyan!60!black,dashdotted,every mark/.append style={fill=cyan!80!black},mark=halfcircle*\\
-	red,dashdotted,every mark/.append style={fill=orange!80!black},mark=halfsquare left*\\
-	black,dashdotted,every mark/.append style={solid,fill=darkgray},mark=halfsquare right*\\
-	blue,dashdotted,every mark/.append style={fill=blue!80!black},mark=halfsquare*\\
-	gray,dashdotted,every mark/.append style={fill=gray!90!black},mark=diamond*\\
-	magenta,dashdotted,every mark/.append style={fill=magenta!80!black},mark=triangle*\\
-	violet,dashdotted,every mark/.append style={fill=violet!80!black},mark=otimes*\\
-	brown!80!black,dashdotted,every mark/.append style={fill=brown!90!black},mark=square*\\
-	green!80!black,dashdotted,every mark/.append style={fill=green!90!black},mark=*\\
+	green!50!black,densely dashed,every mark/.append style={fill=green!90!black},mark=oplus\\
+	teal!70!black,dashdotted,every mark/.append style={fill=teal!80!black},mark=oplus*\\
+	orange!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=pentagon*\\
+	cyan!40!black,dashdotted,every mark/.append style={fill=cyan!80!black},mark=halfcircle*\\
+	red!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=halfsquare left*\\
+	black!90!white,dashdotted,every mark/.append style={solid,fill=darkgray},mark=halfsquare right*\\
+	blue!70!black,dashdotted,every mark/.append style={fill=blue!80!black},mark=halfsquare*\\
+	gray!70!black,dashdotted,every mark/.append style={fill=gray!90!black},mark=diamond*\\
+	magenta!70!black,dashdotted,every mark/.append style={fill=magenta!80!black},mark=triangle*\\
+	violet!70!black,dashdotted,every mark/.append style={fill=violet!80!black},mark=otimes*\\
+	brown,dashdotted,every mark/.append style={fill=brown!90!black},mark=square*\\
+	green,dashdotted,every mark/.append style={fill=green!90!black},mark=*\\
 	teal,densely dashdotdotted,every mark/.append style={fill=teal!80!black},mark=square*\\
 	orange,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=*\\
 	cyan!60!black,densely dashdotdotted,every mark/.append style={fill=cyan!80!black},mark=triangle*\\
@@ -167,13 +168,24 @@ x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 y tick label style={/pgf/number format/precision=4},%
 \BLOCK{ endif }
 \BLOCK{ endif }
+\BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
+every axis plot/.append style={fill,draw=none,no markers},%
+\BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots'] }
 \addplot+ [%
 \BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
 \VAR{ sec['fig_type'] },%
 \BLOCK{ if not sec['use_marks'] }
-no markers\BLOCK{ endif },%
+no markers,%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if not sec['use_marks'] and not fill_bar }
+no markers,%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ if not sec['use_marks'] }
+no markers,%
 \BLOCK{ endif }
 unbounded coords=discard,%
 ] table [%

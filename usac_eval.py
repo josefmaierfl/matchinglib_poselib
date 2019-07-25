@@ -113,7 +113,7 @@ def pars_calc_single_fig(**keywords):
         ret['b'].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     ret['sub_title'] = ''
     nr_it_parameters = len(ret['grp_names'][0:-1])
-    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols
+    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
     for i, val in enumerate(ret['grp_names'][0:-1]):
         ret['sub_title'] += tex_string_coding_style(val)
         if (nr_it_parameters <= 2):
@@ -132,7 +132,10 @@ def pars_calc_single_fig(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False}
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
     stats_all = ret['b'].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     # figure types: sharp plot, smooth, const plot, ybar, xbar
@@ -147,8 +150,9 @@ def pars_calc_single_fig(**keywords):
                                           ' for parameter variations of \\\\' + ret['sub_title'],
                                   'fig_type': 'smooth',
                                   'plots': list(ret['b'].columns.values),
-                                  'axis_y': 'Combined R \\& t error',
+                                  'label_y': 'Combined R \\& t error',
                                   'plot_x': str(ret['grp_names'][-1]),
+                                  'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
                                   'limits': use_limits,
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)],
                                   'legend_cols': None,
@@ -160,6 +164,7 @@ def pars_calc_single_fig(**keywords):
                                    make_index=tex_infos['make_index'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'])
     base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main']
     texf_name = base_out_name + '.tex'
@@ -232,7 +237,7 @@ def pars_calc_multiple_fig(**keywords):
     ret['b'] = ret['b'].unstack()
     ret['b'] = ret['b'].T
     ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
-    ret['b'].columns.name = '-'.join(ret['grp_names'][0:-1])
+    ret['b'].columns.name = '-'.join(ret['grp_names'][0:-2])
     ret['b'] = ret['b'].reset_index()
     nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
@@ -363,7 +368,9 @@ def get_best_comb_and_th_1(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
                                   'name': 'Smallest combined R \\& t errors and their ' + str(ret['grp_names'][-1]),
@@ -467,7 +474,9 @@ def get_best_comb_inlrat_1(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': 'Mean combined R \\& t errors over all ' + str(ret['grp_names'][-1]),
@@ -572,6 +581,7 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
                                    make_index=tex_infos['make_index'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'])
     base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
     texf_name = base_out_name + '.tex'
@@ -589,3 +599,6 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
 
 def get_best_comb_and_th_for_kpacc_1(**keywords):
     ret = pars_calc_multiple_fig(**keywords)
+    tmp = ret['b'].groupby(ret['grp_names'][-1])
+    b_min_idx = tmp.iloc[1:].idxmin(axis=0)
+    data = []

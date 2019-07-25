@@ -189,7 +189,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                           eval_columns=eval_columns,
                                           units=units,
                                           it_parameters=it_parameters,
-                                          xy_axis_columns=['th', 'kpAccSd'],
+                                          xy_axis_columns=['th', 'inlratMin'],
                                           special_calcs_func=None,
                                           special_calcs_args = special_calcs_args,
                                           calc_func=None,
