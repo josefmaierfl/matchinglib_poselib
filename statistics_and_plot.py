@@ -960,31 +960,7 @@ def main():
     make_fig_index = True
     build_pdf = True
     figs_externalize = True
-    calcSatisticAndPlot_2D(data,
-                           output_dir,
-                           tex_file_pre_str,
-                           fig_title_pre_str,
-                           eval_columns,
-                           units,
-                           it_parameters,
-                           x_axis_column,
-                           pdfsplitentry,
-                           special_calcs_func,
-                           special_calcs_args,
-                           calc_func,
-                           calc_func_args,
-                           fig_type,
-                           use_marks,
-                           ctrl_fig_size,
-                           make_fig_index,
-                           build_pdf,
-                           figs_externalize)
-    # x_axis_column = ['th', 'inlrat']
-    # fig_type = 'surface'
-    # fig_title_pre_str = 'Values for USAC Option Combinations of '
-    # special_calcs_func = get_best_comb_and_th_for_kpacc_1
-    # special_calcs_args = {'build_pdf': (True, True), 'use_marks': True, 'fig_type': 'surface'}
-    # calcSatisticAndPlot_3D(data,
+    # calcSatisticAndPlot_2D(data,
     #                        output_dir,
     #                        tex_file_pre_str,
     #                        fig_title_pre_str,
@@ -992,6 +968,7 @@ def main():
     #                        units,
     #                        it_parameters,
     #                        x_axis_column,
+    #                        pdfsplitentry,
     #                        special_calcs_func,
     #                        special_calcs_args,
     #                        calc_func,
@@ -1002,6 +979,29 @@ def main():
     #                        make_fig_index,
     #                        build_pdf,
     #                        figs_externalize)
+    x_axis_column = ['th', 'inlrat']
+    fig_type = 'surface'
+    fig_title_pre_str = 'Values for USAC Option Combinations of '
+    special_calcs_func = get_best_comb_and_th_for_kpacc_1
+    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True, 'fig_type': 'surface'}
+    calcSatisticAndPlot_3D(data,
+                           output_dir,
+                           tex_file_pre_str,
+                           fig_title_pre_str,
+                           eval_columns,
+                           units,
+                           it_parameters,
+                           x_axis_column,
+                           special_calcs_func,
+                           special_calcs_args,
+                           calc_func,
+                           calc_func_args,
+                           fig_type,
+                           use_marks,
+                           ctrl_fig_size,
+                           make_fig_index,
+                           build_pdf,
+                           figs_externalize)
 
 
 if __name__ == "__main__":

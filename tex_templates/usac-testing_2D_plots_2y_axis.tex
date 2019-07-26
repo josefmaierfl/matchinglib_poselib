@@ -114,11 +114,11 @@ xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y_l']},%
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
-\BLOCK{ if sec['limits']['miny'] is not none }
-ymin=\VAR{sec['limits']['miny']},
+\BLOCK{ if sec['limits_l']['miny'] is not none }
+ymin=\VAR{sec['limits_l']['miny']},
 \BLOCK{ endif }
-\BLOCK{ if sec['limits']['maxy'] is not none }
-ymax=\VAR{sec['limits']['maxy']},
+\BLOCK{ if sec['limits_l']['maxy'] is not none }
+ymax=\VAR{sec['limits_l']['maxy']},
 \BLOCK{ endif }
 title=\VAR{sec['name']},
 legend style={
@@ -155,11 +155,11 @@ xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ endif }
 ylabel=\VAR{sec['label_y_r']},%
 yticklabel style={/pgf/number format/precision=4},%
-\BLOCK{ if sec['limits']['miny'] is not none }
-ymin=\VAR{sec['limits']['miny']},
+\BLOCK{ if sec['limits_r']['miny'] is not none }
+ymin=\VAR{sec['limits_r']['miny']},
 \BLOCK{ endif }
-\BLOCK{ if sec['limits']['maxy'] is not none }
-ymax=\VAR{sec['limits']['maxy']},
+\BLOCK{ if sec['limits_r']['maxy'] is not none }
+ymax=\VAR{sec['limits_r']['maxy']},
 \BLOCK{ endif }
 legend style={
 	at={(0.5,-0.12)},

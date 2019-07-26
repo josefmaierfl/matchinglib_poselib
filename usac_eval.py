@@ -600,5 +600,9 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
 def get_best_comb_and_th_for_kpacc_1(**keywords):
     ret = pars_calc_multiple_fig(**keywords)
     tmp = ret['b'].groupby(ret['grp_names'][-1])
-    b_min_idx = tmp.iloc[1:].idxmin(axis=0)
-    data = []
+    grp_keys = tmp.groups.keys()
+    data_l = []
+    for grp in grp_keys:
+        b_min_i = tmp.get_group(grp).iloc[:,1:].idxmin(axis=0)
+        data_l.append([grp, tmp.get_group(grp).iloc[:,0].loc[b_min_i[i][1]]] for i in b_min_i)
+    data_l = [[grptmp.get_group(grp).iloc[1:].min(axis=0)]]
