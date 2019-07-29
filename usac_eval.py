@@ -115,7 +115,7 @@ def pars_calc_single_fig(**keywords):
     nr_it_parameters = len(ret['grp_names'][0:-1])
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
     for i, val in enumerate(ret['grp_names'][0:-1]):
-        ret['sub_title'] += tex_string_coding_style(val)
+        ret['sub_title'] += replaceCSVLabels(val, False, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -124,7 +124,7 @@ def pars_calc_single_fig(**keywords):
                 ret['sub_title'] += ', '
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
-    tex_infos = {'title': 'Combined R \\& t Errors vs ' + str(ret['grp_names'][-1]) +
+    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -146,7 +146,8 @@ def pars_calc_single_fig(**keywords):
         use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined R \\& t errors vs ' + str(ret['grp_names'][-1]) +
+                                  'name': 'Combined R \\& t errors vs ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-1]), True) +
                                           ' for parameter variations of \\\\' + ret['sub_title'],
                                   'fig_type': 'smooth',
                                   'plots': list(ret['b'].columns.values),
@@ -248,9 +249,9 @@ def pars_calc_multiple_fig(**keywords):
         ret['b'].to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     ret['sub_title'] = ''
     nr_it_parameters = len(ret['grp_names'][0:-2])
-    from statistics_and_plot import tex_string_coding_style, compile_tex
+    from statistics_and_plot import tex_string_coding_style, compile_tex, replaceCSVLabels
     for i, val in enumerate(ret['grp_names'][0:-2]):
-        ret['sub_title'] += tex_string_coding_style(val)
+        ret['sub_title'] += replaceCSVLabels(val, False, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -259,7 +260,8 @@ def pars_calc_multiple_fig(**keywords):
                 ret['sub_title'] += ', '
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
-    tex_infos = {'title': 'Combined R \\& t Errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] +
+    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(ret['grp_names'][-2], True, True) +
+                          ' and ' + replaceCSVLabels(ret['grp_names'][-1], True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -270,8 +272,9 @@ def pars_calc_multiple_fig(**keywords):
                  'figs_externalize': True}
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined R \\& t errors vs ' + str(ret['grp_names'][-2]) +
-                                          ' and ' + str(ret['grp_names'][-1]) +
+                                  'name': 'Combined R \\& t errors vs ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-2]), True, True) +
+                                          ' and ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
                                           ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': ret['fig_type'],
                                   'plots_z': list(ret['b'].columns.values)[2:],
@@ -360,7 +363,9 @@ def get_best_comb_and_th_1(**keywords):
         f.write('# Row (column options) parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
         b_worst.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     #Get data for tex file generation
-    tex_infos = {'title': 'Best and Worst Combined R \\& t Errors and Their ' + str(ret['grp_names'][-1]) +
+    from statistics_and_plot import replaceCSVLabels
+    tex_infos = {'title': 'Best and Worst Combined R \\& t Errors and Their ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -373,7 +378,8 @@ def get_best_comb_and_th_1(**keywords):
                  'fill_bar': True
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
-                                  'name': 'Smallest combined R \\& t errors and their ' + str(ret['grp_names'][-1]),
+                                  'name': 'Smallest combined R \\& t errors and their ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-1])),
                                   'fig_type': fig_type,
                                   'plots': ['b_best'],
                                   'label_y': 'error',#Label of the value axis. For xbar it labels the x-axis
@@ -392,10 +398,12 @@ def get_best_comb_and_th_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'caption': 'Smallest combined R \\& t errors (error bars) and their ' +
-                                             str(ret['grp_names'][-1]) + ' which appears on top of each bar.'
+                                             replaceCSVLabels(str(ret['grp_names'][-1])) +
+                                             ' which appears on top of each bar.'
                                   })
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_worst_name),
-                                  'name': 'Worst combined R \\& t errors and their ' + str(ret['grp_names'][-1]),
+                                  'name': 'Worst combined R \\& t errors and their ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-1])),
                                   'fig_type': fig_type,
                                   'plots': ['b_worst'],
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
@@ -414,7 +422,8 @@ def get_best_comb_and_th_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'caption': 'Biggest combined R \\& t errors (error bars) and their ' +
-                                             str(ret['grp_names'][-1]) + ' which appears on top of each bar.'
+                                             replaceCSVLabels(str(ret['grp_names'][-1])) +
+                                             ' which appears on top of each bar.'
                                   })
     ret['res'] = compile_2D_bar_chart('tex_best-worst_RT-errors_and_' + ret['grp_names'][-1], tex_infos, ret)
 
@@ -466,7 +475,9 @@ def get_best_comb_inlrat_1(**keywords):
         fig_type = 'xbar'
     else:
         fig_type = 'ybar'
-    tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' + str(ret['grp_names'][-1]) +
+    from statistics_and_plot import replaceCSVLabels
+    tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -479,7 +490,8 @@ def get_best_comb_inlrat_1(**keywords):
                  'fill_bar': True
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
-                                  'name': 'Mean combined R \\& t errors over all ' + str(ret['grp_names'][-1]),
+                                  'name': 'Mean combined R \\& t errors over all ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-1]), True),
                                   'fig_type': fig_type,
                                   'plots': ['b_mean'],
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
@@ -498,7 +510,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'caption': 'Mean combined R \\& t errors (error bars) over all ' +
-                                             str(ret['grp_names'][-1]) + '.'
+                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })
     ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
 
@@ -603,6 +615,45 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
     grp_keys = tmp.groups.keys()
     data_l = []
     for grp in grp_keys:
-        b_min_i = tmp.get_group(grp).iloc[:,1:].idxmin(axis=0)
-        data_l.append([grp, tmp.get_group(grp).iloc[:,0].loc[b_min_i[i][1]]] for i in b_min_i)
-    data_l = [[grptmp.get_group(grp).iloc[1:].min(axis=0)]]
+        b_min_i = tmp.get_group(grp).iloc[:, 2:].idxmin(axis=0)
+        rows = []
+        for idx, val in enumerate(b_min_i):
+            rows.append([grp,
+                         tmp.get_group(grp).iloc[:, 1].loc[val],
+                         tmp.get_group(grp).loc[val, b_min_i.index.values[idx]],
+                         b_min_i.index.values[idx]])
+        data_l += rows
+    data = pd.DataFrame.from_records(data=data_l, columns=[ret['grp_names'][-1],
+                                                           ret['grp_names'][-2],
+                                                           'b_min',
+                                                           ret['b'].columns.name])
+    from statistics_and_plot import replaceCSVLabels
+    tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
+                          replaceCSVLabels(str(ret['grp_names'][-2]), False, True) + ' for every ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
+                          ' and Parameter Variations of ' + ret['sub_title'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
+    data = data.set_index(ret['grp_names'][-1]).groupby(ret['b'].columns.name)
+    grp_keys = tmp.groups.keys()
+    dataf_name_main = 'data_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
+                      ret['grp_names'][-2] + '_for_option_'
+    for grp in grp_keys:
+        data_a = data.get_group(grp).drop(ret['b'].columns.name, axis=1)
+        dataf_name = dataf_name_main + str(grp) + '.csv'
+        datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
+        with open(datapf_name, 'a') as f:
+            f.write('# Smallest combined R & t errors and their ' + str(ret['grp_names'][-2])
+                    + ' for every ' + str(ret['grp_names'][-1]) + '\n')
+            f.write('# Used parameters: ' + str(grp) + '\n')
+            data_a.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    data = data.groupby([ret['b'].columns.name, ret['grp_names'][-1]])
+
