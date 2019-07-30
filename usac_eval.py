@@ -390,6 +390,8 @@ def get_best_comb_and_th_1(**keywords):
                                   #Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [str(ret['grp_names'][-1])],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
                                   'limits': None,
                                   #If None, no legend is used, otherwise use a list
                                   'legend': None,
@@ -414,6 +416,8 @@ def get_best_comb_and_th_1(**keywords):
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [str(ret['grp_names'][-1])],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
                                   'limits': None,
                                   # If None, no legend is used, otherwise use a list
                                   'legend': None,
@@ -502,6 +506,8 @@ def get_best_comb_inlrat_1(**keywords):
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': False,
                                   'plot_meta': [],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
                                   'limits': None,
                                   # If None, no legend is used, otherwise use a list
                                   'legend': None,
@@ -673,12 +679,12 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                  # If true, non-numeric entries can be provided for the x-axis
                  'nonnumeric_x': False
                  }
-    data = data.set_index(ret['grp_names'][-1]).groupby(ret['b'].columns.name)
-    grp_keys = data.groups.keys()
+    data1 = data.set_index(ret['grp_names'][-1]).groupby(ret['b'].columns.name)
+    grp_keys = data1.groups.keys()
     dataf_name_main = 'data_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
                       ret['grp_names'][-2] + '_for_option_'
     for grp in grp_keys:
-        data_a = data.get_group(grp).drop(ret['b'].columns.name, axis=1)
+        data_a = data1.get_group(grp).drop(ret['b'].columns.name, axis=1)
         dataf_name = dataf_name_main + str(grp) + '.csv'
         datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
         with open(datapf_name, 'a') as f:
@@ -726,5 +732,65 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                                       })
     ret['res'] = compile_2D_2y_axis('tex_min_RT-errors_and_corresponding_' + ret['grp_names'][-2] +
                                     '_vs_' + ret['grp_names'][-1] + '_for_', tex_infos, ret)
-    data = data.groupby([ret['b'].columns.name, ret['grp_names'][-1]])
+
+    data_min = data.loc[data.groupby(ret['grp_names'][-1])['b_min'].idxmin()]
+    col_n = str(ret['b'].columns.name) + '--' + str(ret['grp_names'][-2])
+    data_min[col_n] = data_min[[ret['b'].columns.name, ret['grp_names'][-2]]].apply(lambda x: ', '.join(map(str, x)).replace('_', '\\_'), axis=1)
+    data_min.drop([ret['b'].columns.name, ret['grp_names'][-2]], axis=1, inplace=True)
+    dataf_name_main = 'data_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
+                      ret['grp_names'][-2] + '_and_used_option'
+    dataf_name = dataf_name_main + '.csv'
+    datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
+    with open(datapf_name, 'a') as f:
+        f.write('# Smallest combined R & t errors and their corresponding ' + str(ret['grp_names'][-2])
+                + ' and parameter set for every ' + str(ret['grp_names'][-1]) + '\n')
+        f.write('# Used parameters: ' + str(ret['b'].columns.name) + '\n')
+        data_min.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
+                          replaceCSVLabels(str(ret['grp_names'][-2]), False, True) +
+                          ' and Parameter Set of ' + ret['sub_title'] +
+                          ' for every ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True),
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
+    tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
+                                  'name': 'Smallest Combined R \\& t Errors',
+                                  'fig_type': 'ybar',
+                                  'plots': ['b_min'],
+                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': ret['grp_names'][-1],
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': True,
+                                  'plot_meta': [col_n],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 45,
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': False,
+                                  'caption': 'Smallest combined R \\& t errors and their ' +
+                                             'corresponding parameter set and ' +
+                                             replaceCSVLabels(str(ret['grp_names'][-2]), False, True) +
+                                             ' (on top of bar separated by a comma)' +
+                                             ' for every ' +
+                                             replaceCSVLabels(str(ret['grp_names'][-1]), False, True) + '.'
+                                  })
+    ret['res'] = compile_2D_bar_chart('tex_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
+                      ret['grp_names'][-2] + '_and_used_option_of', tex_infos, ret)
+
+    return ret['res']
 

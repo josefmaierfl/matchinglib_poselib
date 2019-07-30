@@ -1075,7 +1075,7 @@ def main():
     pars1_opt = ['first_long_long_opt' + str(i) for i in range(0,3)]
     pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
-    data = {'R_diffAll': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
+    data = {'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
             'R_diff_yaw_deg': -1000 + np.abs(np.random.randn(num_pts)),
@@ -1117,7 +1117,7 @@ def main():
     x_axis_column = ['th']
     pdfsplitentry = ['t_distDiff']
     from usac_eval import get_best_comb_and_th_1, get_best_comb_inlrat_1, get_best_comb_and_th_for_kpacc_1
-    special_calcs_func = get_best_comb_inlrat_1#get_best_comb_and_th_1
+    special_calcs_func = get_best_comb_and_th_1#get_best_comb_inlrat_1
     special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None

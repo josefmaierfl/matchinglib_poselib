@@ -109,18 +109,22 @@ align=center,%
 xbar,%
 ylabel=\VAR{sec['label_x']},%
 xlabel=\VAR{sec['label_y']},%
+\BLOCK{ if sec['plots']|length > 1 }
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge y limits={true, value=0.15},%
+\BLOCK{ endif }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y']},%
+\BLOCK{ if sec['plots']|length > 1 }
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge x limits={true, value=0.15},%
+\BLOCK{ endif }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ else }

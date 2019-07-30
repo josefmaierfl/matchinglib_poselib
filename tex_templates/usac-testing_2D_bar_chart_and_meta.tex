@@ -117,9 +117,11 @@ title=\VAR{sec['name']},%
 xbar,%
 ylabel=\VAR{sec['label_x']},%
 xlabel=\VAR{sec['label_y']},%
+\BLOCK{ if sec['plots']|length > 1 }
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge y limits={true, abs value=0.75},%
+\BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
 enlarge x limits={upper, value=0.15},%
 \BLOCK{ endif }
@@ -128,9 +130,11 @@ xmajorgrids=true,%
 ybar,%
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y']},%
+\BLOCK{ if sec['plots']|length > 1 }
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge x limits={true, abs value=0.75},%
+\BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
 enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
@@ -153,7 +157,7 @@ nodes near coords=\pgfplotspointmeta,%
 nodes near coords align={right},
 \BLOCK{ endif }
 point meta=explicit symbolic,%
-every node near coord/.append style={font=\scriptsize, inner sep=1pt},%
+every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta'] != 0 },\BLOCK{ if sec['rotate_meta'] == 45 }anchor=south west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=\VAR{ sec['rotate_meta'] }\BLOCK{ endif }},%
 \BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels'] }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
