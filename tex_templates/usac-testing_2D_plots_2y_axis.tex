@@ -14,16 +14,107 @@
 \BLOCK{ endif }
 %\usetikzlibrary{matrix,positioning}
 \pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
+
+%\makeatletter
+%\def\pgfplots@getautoplotspec into#1{%
+%    \begingroup
+%    \let#1=\pgfutil@empty
+%    \pgfkeysgetvalue{/pgfplots/cycle multi list/@dim}\pgfplots@cycle@dim
+%    %
+%    \let\pgfplots@listindex=\pgfplots@numplots
+%    % Start new code
+%    \pgfkeysgetvalue{/pgfplots/cycle list set}\pgfplots@listindex@set
+%    \ifx\pgfplots@listindex@set\pgfutil@empty
+%    \else
+%        \c@pgf@counta=\pgfplots@listindex
+%        \c@pgf@countb=\pgfplots@listindex@set
+%        \advance\c@pgf@countb by -\c@pgf@counta
+%        \globaldefs=1\relax
+%        \edef\setshift{%
+%            \noexpand\pgfkeys{
+%                /pgfplots/cycle list shift=\the\c@pgf@countb,
+%                /pgfplots/cycle list set=
+%            }
+%        }%
+%        \setshift%
+%    \fi
+%    % End new code
+%    \pgfkeysgetvalue{/pgfplots/cycle list shift}\pgfplots@listindex@shift
+%    \ifx\pgfplots@listindex@shift\pgfutil@empty
+%    \else
+%        \c@pgf@counta=\pgfplots@listindex\relax
+%        \advance\c@pgf@counta by\pgfplots@listindex@shift\relax
+%        \ifnum\c@pgf@counta<0
+%            \c@pgf@counta=-\c@pgf@counta
+%        \fi
+%        \edef\pgfplots@listindex{\the\c@pgf@counta}%
+%    \fi
+%    \ifnum\pgfplots@cycle@dim>0
+%        % use the 'cycle multi list' feature.
+%        %
+%        % it employs a scalar -> multiindex map like
+%        % void fromScalar( size_t d, size_t scalar, size_t* Iout, const size_t* N )
+%        % {
+%        %   size_t ret=scalar;
+%        %   for( int i = d-1; i>=0; --i ) {
+%        %       Iout[i] = ret % N[i];
+%        %       ret /= N[i];
+%        %   }
+%        % }
+%        % to get the different indices into the cycle lists.
+%        %
+%        \c@pgf@counta=\pgfplots@cycle@dim\relax
+%        \c@pgf@countb=\pgfplots@listindex\relax
+%        \advance\c@pgf@counta by-1
+%        \pgfplotsloop{%
+%            \ifnum\c@pgf@counta<0
+%                \pgfplotsloopcontinuefalse
+%            \else
+%                \pgfplotsloopcontinuetrue
+%            \fi
+%        }{%
+%            \pgfkeysgetvalue{/pgfplots/cycle multi list/@N\the\c@pgf@counta}\pgfplots@cycle@N
+%            % compute list index:
+%            \pgfplotsmathmodint{\c@pgf@countb}{\pgfplots@cycle@N}%
+%            \divide\c@pgf@countb by \pgfplots@cycle@N\relax
+%            %
+%            \expandafter\pgfplots@getautoplotspec@
+%                \csname pgfp@cyclist@/pgfplots/cycle multi list/@list\the\c@pgf@counta @\endcsname
+%                {\pgfplots@cycle@N}%
+%                {\pgfmathresult}%
+%            \t@pgfplots@toka=\expandafter{#1,}%
+%            \t@pgfplots@tokb=\expandafter{\pgfplotsretval}%
+%            \edef#1{\the\t@pgfplots@toka\the\t@pgfplots@tokb}%
+%            \advance\c@pgf@counta by-1
+%        }%
+%    \else
+%        % normal cycle list:
+%        \pgfplotslistsize\autoplotspeclist\to\c@pgf@countd
+%        \pgfplots@getautoplotspec@{\autoplotspeclist}{\c@pgf@countd}{\pgfplots@listindex}%
+%        \let#1=\pgfplotsretval
+%    \fi
+%    \pgfmath@smuggleone#1%
+%    \endgroup
+%}
+%
+%\pgfplotsset{
+%    cycle list set/.initial=
+%}
+%\makeatother
+
 \begin{document}
 \author{J. Maier}
 \title{\VAR{title}}
 \maketitle
+\maketitle
 \BLOCK{ if make_index }
+\tableofcontents
+\newpage
 \listoffigures
 \newpage
 \BLOCK{ endif }
 
-\pgfplotscreateplotcyclelist{big variety}{
+\pgfplotscreateplotcyclelist{big variety1}{
 	teal,every mark/.append style={fill=teal!80!black},mark=*\\
 	teal!70!white,densely dashed,every mark/.append style={fill=teal!80!black},mark=x\\
 	orange,every mark/.append style={fill=orange!80!black},mark=square*\\
@@ -34,6 +125,53 @@
 	red!70!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=triangle\\
 	black,every mark/.append style={solid,fill=darkgray},mark=diamond*\\
 	black!70!white,densely dashed,every mark/.append style={solid,fill=darkgray},mark=diamond\\
+%	blue,every mark/.append style={fill=blue!80!black},mark=halfdiamond*\\
+%	blue!70!white,densely dashed,every mark/.append style={fill=blue!80!black},mark=asterisk\\
+%	gray,every mark/.append style={fill=gray!90!black},mark=halfsquare right*\\
+%	gray!70!white,densely dashed,every mark/.append style={fill=gray!90!black},mark=10-pointed star\\
+%	magenta,every mark/.append style={fill=magenta!80!black},mark=halfsquare left*\\
+%	magenta!70!white,densely dashed,every mark/.append style={fill=magenta!80!black},mark=Mercedes star\\
+%	violet,every mark/.append style={fill=violet!80!black},mark=halfcircle*\\
+%	violet!70!white,densely dashed,every mark/.append style={fill=violet!80!black},mark=halfcircle\\
+%	brown!80!black,every mark/.append style={fill=brown!90!black},mark=pentagon*\\
+%	brown!50!black,densely dashed,every mark/.append style={fill=brown!90!black},mark=pentagon\\
+%	green!80!black,every mark/.append style={fill=green!90!black},mark=oplus*\\
+%	green!50!black,densely dashed,every mark/.append style={fill=green!90!black},mark=oplus\\
+	teal!70!black,dashdotted,every mark/.append style={fill=teal!80!black},mark=oplus*\\
+	orange!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=pentagon*\\
+	cyan!40!black,dashdotted,every mark/.append style={fill=cyan!80!black},mark=halfcircle*\\
+	red!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=halfsquare left*\\
+	black!90!white,dashdotted,every mark/.append style={solid,fill=darkgray},mark=halfsquare right*\\
+%	blue!70!black,dashdotted,every mark/.append style={fill=blue!80!black},mark=halfsquare*\\
+%	gray!70!black,dashdotted,every mark/.append style={fill=gray!90!black},mark=diamond*\\
+%	magenta!70!black,dashdotted,every mark/.append style={fill=magenta!80!black},mark=triangle*\\
+%	violet!70!black,dashdotted,every mark/.append style={fill=violet!80!black},mark=otimes*\\
+%	brown,dashdotted,every mark/.append style={fill=brown!90!black},mark=square*\\
+%	green,dashdotted,every mark/.append style={fill=green!90!black},mark=*\\
+	teal,densely dashdotdotted,every mark/.append style={fill=teal!80!black},mark=square*\\
+	orange,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=*\\
+	cyan!60!black,densely dashdotdotted,every mark/.append style={fill=cyan!80!black},mark=triangle*\\
+	red,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=otimes*\\
+	black,densely dashdotdotted,every mark/.append style={solid,fill=darkgray},mark=halfdiamond*\\
+%	blue,densely dashdotdotted,every mark/.append style={fill=blue!80!black},mark=diamond*\\
+%	gray,densely dashdotdotted,every mark/.append style={fill=gray!90!black},mark=oplus*\\
+%	magenta,densely dashdotdotted,every mark/.append style={fill=magenta!80!black},mark=halfsquare right*\\
+%	violet,densely dashdotdotted,every mark/.append style={fill=violet!80!black},mark=pentagon*\\
+%	brown!80!black,densely dashdotdotted,every mark/.append style={fill=brown!90!black},mark=halfcircle*\\
+%	green!80!black,densely dashdotdotted,every mark/.append style={fill=green!90!black},mark=halfsquare left*\\
+}
+
+\pgfplotscreateplotcyclelist{big variety2}{
+%	teal,every mark/.append style={fill=teal!80!black},mark=*\\
+%	teal!70!white,densely dashed,every mark/.append style={fill=teal!80!black},mark=x\\
+%	orange,every mark/.append style={fill=orange!80!black},mark=square*\\
+%	orange!70!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=+\\
+%	cyan!60!black,every mark/.append style={fill=cyan!80!black},mark=otimes*\\
+%	cyan!90!black,densely dashed,every mark/.append style={fill=cyan!80!black},mark=o\\
+%	red,every mark/.append style={fill=orange!80!black},mark=triangle*\\
+%	red!70!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=triangle\\
+%	black,every mark/.append style={solid,fill=darkgray},mark=diamond*\\
+%	black!70!white,densely dashed,every mark/.append style={solid,fill=darkgray},mark=diamond\\
 	blue,every mark/.append style={fill=blue!80!black},mark=halfdiamond*\\
 	blue!70!white,densely dashed,every mark/.append style={fill=blue!80!black},mark=asterisk\\
 	gray,every mark/.append style={fill=gray!90!black},mark=halfsquare right*\\
@@ -46,22 +184,22 @@
 	brown!50!black,densely dashed,every mark/.append style={fill=brown!90!black},mark=pentagon\\
 	green!80!black,every mark/.append style={fill=green!90!black},mark=oplus*\\
 	green!50!black,densely dashed,every mark/.append style={fill=green!90!black},mark=oplus\\
-	teal!70!black,dashdotted,every mark/.append style={fill=teal!80!black},mark=oplus*\\
-	orange!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=pentagon*\\
-	cyan!40!black,dashdotted,every mark/.append style={fill=cyan!80!black},mark=halfcircle*\\
-	red!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=halfsquare left*\\
-	black!90!white,dashdotted,every mark/.append style={solid,fill=darkgray},mark=halfsquare right*\\
+%	teal!70!black,dashdotted,every mark/.append style={fill=teal!80!black},mark=oplus*\\
+%	orange!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=pentagon*\\
+%	cyan!40!black,dashdotted,every mark/.append style={fill=cyan!80!black},mark=halfcircle*\\
+%	red!70!black,dashdotted,every mark/.append style={fill=orange!80!black},mark=halfsquare left*\\
+%	black!90!white,dashdotted,every mark/.append style={solid,fill=darkgray},mark=halfsquare right*\\
 	blue!70!black,dashdotted,every mark/.append style={fill=blue!80!black},mark=halfsquare*\\
 	gray!70!black,dashdotted,every mark/.append style={fill=gray!90!black},mark=diamond*\\
 	magenta!70!black,dashdotted,every mark/.append style={fill=magenta!80!black},mark=triangle*\\
 	violet!70!black,dashdotted,every mark/.append style={fill=violet!80!black},mark=otimes*\\
 	brown,dashdotted,every mark/.append style={fill=brown!90!black},mark=square*\\
 	green,dashdotted,every mark/.append style={fill=green!90!black},mark=*\\
-	teal,densely dashdotdotted,every mark/.append style={fill=teal!80!black},mark=square*\\
-	orange,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=*\\
-	cyan!60!black,densely dashdotdotted,every mark/.append style={fill=cyan!80!black},mark=triangle*\\
-	red,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=otimes*\\
-	black,densely dashdotdotted,every mark/.append style={solid,fill=darkgray},mark=halfdiamond*\\
+%	teal,densely dashdotdotted,every mark/.append style={fill=teal!80!black},mark=square*\\
+%	orange,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=*\\
+%	cyan!60!black,densely dashdotdotted,every mark/.append style={fill=cyan!80!black},mark=triangle*\\
+%	red,densely dashdotdotted,every mark/.append style={fill=orange!80!black},mark=otimes*\\
+%	black,densely dashdotdotted,every mark/.append style={solid,fill=darkgray},mark=halfdiamond*\\
 	blue,densely dashdotdotted,every mark/.append style={fill=blue!80!black},mark=diamond*\\
 	gray,densely dashdotdotted,every mark/.append style={fill=gray!90!black},mark=oplus*\\
 	magenta,densely dashdotdotted,every mark/.append style={fill=magenta!80!black},mark=halfsquare right*\\
@@ -71,22 +209,13 @@
 }
 
 \BLOCK{ for sec in sections}
-%\section{\VAR{sec['name']}}
+\section{\VAR{sec['name']}}
 
 \BLOCK{ if make_index }
-\begin{figure}
+\begin{figure}[h!]
 \centering
 \BLOCK{ endif }
 \BLOCK{ if ctrl_fig_size }
-\BLOCK{ if sec['fig_type'] == 'ybar' }
-\resizebox{%
-	\ifdim\width>0.98\textwidth
-        0.98\textwidth
-    \else
-        \width
-    \fi
-}{!}{%
-\BLOCK{ else }
 \resizebox*{!}{%
 	\ifdim\height>0.95\textheight
         0.95\textheight
@@ -94,7 +223,6 @@
         \height
     \fi
 }{%
-\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if not make_index and not ctrl_fig_size }
 \begin{center}
@@ -114,19 +242,21 @@ xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y_l']},%
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ if sec['limits_l'] is not none }
 \BLOCK{ if sec['limits_l']['miny'] is not none }
 ymin=\VAR{sec['limits_l']['miny']},
 \BLOCK{ endif }
 \BLOCK{ if sec['limits_l']['maxy'] is not none }
 ymax=\VAR{sec['limits_l']['maxy']},
 \BLOCK{ endif }
-title=\VAR{sec['name']},
+\BLOCK{ endif }
+title=\VAR{sec['title']},
 legend style={
 	at={(0.5,-0.12)},
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},
-cycle list name=big variety,
+cycle list name=big variety1,
 ]
 \BLOCK{ for it in sec['plots_l'] }
 \addplot+ [%
@@ -155,23 +285,25 @@ xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ endif }
 ylabel=\VAR{sec['label_y_r']},%
 yticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ if sec['limits_r'] is not none }
 \BLOCK{ if sec['limits_r']['miny'] is not none }
 ymin=\VAR{sec['limits_r']['miny']},
 \BLOCK{ endif }
 \BLOCK{ if sec['limits_r']['maxy'] is not none }
 ymax=\VAR{sec['limits_r']['maxy']},
 \BLOCK{ endif }
+\BLOCK{ endif }
 legend style={
 	at={(0.5,-0.12)},
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},
-cycle list name=big variety,
+cycle list name=big variety2,
 ]
 \BLOCK{ for it in sec['plots_l'] }
 \addlegendimage{/pgfplots/refstyle=axis_l_\VAR{ it }}\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
 \BLOCK{ endfor }
-\pgfplotsset{cycle list set=\VAR{sec['plots_l']|length}}
+%\pgfplotsset{cycle list set=\VAR{sec['plots_l']|length}}
 \BLOCK{ for it in sec['plots_r'] }
 \addplot+ [%
 \VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
@@ -193,11 +325,15 @@ y=\VAR{ it }
 }
 \BLOCK{ endif }
 \BLOCK{ if make_index }
-\caption{\VAR{sec['name']}}
+\caption[\VAR{ sec['name'] }]{\VAR{sec['caption']}}
 \end{figure}
 \BLOCK{ endif }
 \BLOCK{ if not make_index and not ctrl_fig_size }
 \end{center}
+\BLOCK{ endif }
+
+\BLOCK{ if not loop.last }
+\newpage
 \BLOCK{ endif }
 
 \BLOCK{ endfor }

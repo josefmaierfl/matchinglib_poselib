@@ -176,6 +176,7 @@ def compile_tex(rendered_tex,
             except:
                 print('Unable to remove output log file')
         return retcode
+    return 0
 
 
 def calcSatisticAndPlot_2D(data,
@@ -287,7 +288,7 @@ def calcSatisticAndPlot_2D(data,
     title_name = fig_title_pre_str
     for i in range(0, nr_it_parameters):
         base_out_name += grp_names[i]
-        title_name += replaceCSVLabels(grp_names[i], False, True)
+        title_name += replaceCSVLabels(grp_names[i], True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_name += ' and '
@@ -524,7 +525,7 @@ def calcSatisticAndPlot_3D(data,
     title_name = fig_title_pre_str
     for i in range(0, nr_it_parameters):
         base_out_name += grp_names[i]
-        title_name += replaceCSVLabels(grp_names[i], False, True)
+        title_name += replaceCSVLabels(grp_names[i], True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_name += ' and '
@@ -732,19 +733,19 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         return '$\\Delta t_{z}$'
     elif label == 'th':
         if use_plural:
-            return 'Thresholds \\texttt{th}'
+            str_val = 'thresholds \\texttt{th}'
         else:
-            return 'Threshold \\texttt{th}'
+            str_val = 'threshold \\texttt{th}'
     elif label == 'kpAccSd':
         if use_plural:
-            str_val = 'Key point accuracies $\\epsilon_{kp}^{\\sigma}$'
+            str_val = 'key point accuracies $\\epsilon_{kp}^{\\sigma}$'
         else:
-            str_val = 'Key point accuracy $\\epsilon_{kp}^{\\sigma}$'
+            str_val = 'key point accuracy $\\epsilon_{kp}^{\\sigma}$'
     elif label == 'inlratMin' or label == 'inlratMax':
         if use_plural:
-            str_val = 'Inlier ratios $\\epsilon$'
+            str_val = 'inlier ratios $\\epsilon$'
         else:
-            str_val = 'Inlier ratio $\\epsilon$'
+            str_val = 'inlier ratio $\\epsilon$'
     elif label == 'R_mostLikely_diffAll':
         return '$\\Delta \\hat{R}_{\\Sigma}$'
     elif label == 'R_mostLikely_diff_roll_deg':
@@ -793,9 +794,9 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         return '$\\|\\Delta c_{x,y}^{K2}\\, f_{x,y}^{K2}\\|$'
     elif label == 'inlRat_estimated':
         if use_plural:
-            str_val = 'Estimated inlier ratios $\\tilde{\\epsilon}$'
+            str_val = 'estimated inlier ratios $\\tilde{\\epsilon}$'
         else:
-            str_val = 'Estimated inlier ratio $\\tilde{\\epsilon}$'
+            str_val = 'estimated inlier ratio $\\tilde{\\epsilon}$'
     elif label == 'inlRat_GT':
         if use_plural:
             str_val = 'GT inlier ratios $\\breve{\\epsilon}$'
@@ -818,19 +819,19 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = '# GT correspondences $n_{GT}$'
     elif label == 'filtering_us':
         if use_plural:
-            str_val = 'Filtering times $t_{f}$'
+            str_val = 'filtering times $t_{f}$'
         else:
-            str_val = 'Filtering time $t_{f}$'
+            str_val = 'filtering time $t_{f}$'
     elif label == 'robEstimationAndRef_us':
         if use_plural:
-            str_val = 'Estimation and refinement times $t_{e}$'
+            str_val = 'estimation and refinement times $t_{e}$'
         else:
-            str_val = 'Estimation and refinement time $t_{e}$'
+            str_val = 'estimation and refinement time $t_{e}$'
     elif label == 'linRefinement_us':
         if use_plural:
-            str_val = 'Linear refinement times $t_{l}$'
+            str_val = 'linear refinement times $t_{l}$'
         else:
-            str_val = 'Linear refinement time $t_{l}$'
+            str_val = 'linear refinement time $t_{l}$'
     elif label == 'bundleAdjust_us':
         if use_plural:
             str_val = 'BA times $t_{BA}$'
@@ -838,29 +839,29 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'BA time $t_{BA}$'
     elif label == 'stereoRefine_us':
         if use_plural:
-            str_val = 'Stereo refinement times $t_{s}$'
+            str_val = 'stereo refinement times $t_{s}$'
         else:
-            str_val = 'Stereo refinement time $t_{s}$'
+            str_val = 'stereo refinement time $t_{s}$'
     elif label == 'kpDistr':
         if use_plural:
-            str_val = 'Keypoint distributions'
+            str_val = 'keypoint distributions'
         else:
-            str_val = 'Keypoint distribution'
+            str_val = 'keypoint distribution'
     elif label == 'depthDistr':
         if use_plural:
-            str_val = 'Depth distributions'
+            str_val = 'depth distributions'
         else:
-            str_val = 'Depth distribution'
+            str_val = 'depth distribution'
     elif label == 'nrTP':
         if use_plural:
-            str_val = 'Numbers of TP'
+            str_val = 'numbers of TP'
         else:
             return '# TP'
     elif label == 'inlratCRate':
         if use_plural:
-            str_val = 'Inlier ratio change rates $c_{\\breve{\\epsilon}}$'
+            str_val = 'inlier ratio change rates $c_{\\breve{\\epsilon}}$'
         else:
-            str_val = 'Inlier ratio change rate $c_{\\breve{\\epsilon}}$'
+            str_val = 'inlier ratio change rate $c_{\\breve{\\epsilon}}$'
     elif label == 'USAC_parameters_th_pixels':
         if use_plural:
             str_val = 'USAC thresholds $\\texttt{th}_{USAC}$'
@@ -877,9 +878,9 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         else:
             str_val = 'USAC automatic SPRT initialization'
     elif label == 'USAC_parameters_noAutomaticProsacParamters':
-        str_val = 'Disabled automatic PROSAC parameter estimation'
+        str_val = 'disabled automatic PROSAC parameter estimation'
     elif label == 'USAC_parameters_prevalidateSample':
-        str_val = 'Sample prevalidation'
+        str_val = 'sample prevalidation'
     elif label == 'USAC_parameters_estimator':
         if use_plural:
             str_val = 'USAC estimators'
@@ -892,19 +893,19 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'USAC refinement algorithm'
     elif label == 'RobMethod':
         if use_plural:
-            str_val = 'Robust estimation methods'
+            str_val = 'robust estimation methods'
         else:
-            str_val = 'Robust estimation method'
+            str_val = 'robust estimation method'
     elif label == 'refineMethod_algorithm':
         if use_plural:
-            str_val = 'Refinement algorithms'
+            str_val = 'refinement algorithms'
         else:
-            str_val = 'Refinement algorithm'
+            str_val = 'refinement algorithm'
     elif label == 'refineMethod_costFunction':
         if use_plural:
-            str_val = 'Refinement algorithm cost functions'
+            str_val = 'refinement algorithm cost functions'
         else:
-            str_val = 'Refinement algorithm cost function'
+            str_val = 'refinement algorithm cost function'
     elif label == 'kneipInsteadBA':
         str_val = 'Kneip instead BA'
     elif label == 'BART':
@@ -920,44 +921,44 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         str_val = 'SOF correspondence filter'
     elif label == 'stereoParameters_th_pix_user':
         if use_plural:
-            str_val = 'Stereo refinement thresholds $\\texttt{th}_{s}$'
+            str_val = 'stereo refinement thresholds $\\texttt{th}_{s}$'
         else:
-            str_val = 'Stereo refinement threshold $\\texttt{th}_{s}$'
+            str_val = 'stereo refinement threshold $\\texttt{th}_{s}$'
     elif label == 'stereoParameters_keypointType':
         if use_plural:
-            str_val = 'Keypoint types'
+            str_val = 'keypoint types'
         else:
-            str_val = 'Keypoint type'
+            str_val = 'keypoint type'
     elif label == 'stereoParameters_descriptorType':
         if use_plural:
-            str_val = 'Descriptor types'
+            str_val = 'descriptor types'
         else:
-            str_val = 'Descriptor type'
+            str_val = 'descriptor type'
     elif label == 'stereoParameters_RobMethod':
         if use_plural:
-            str_val = 'Robust estimation methods for stereo refinement'
+            str_val = 'robust estimation methods for stereo refinement'
         else:
-            str_val = 'Robust estimation method for stereo refinement'
+            str_val = 'robust estimation method for stereo refinement'
     elif label == 'stereoParameters_refineMethod_algorithm':
         if use_plural:
-            str_val = 'Refinement algorithms for stereo refinement'
+            str_val = 'refinement algorithms for stereo refinement'
         else:
-            str_val = 'Refinement algorithm for stereo refinement'
+            str_val = 'refinement algorithm for stereo refinement'
     elif label == 'stereoParameters_refineMethod_costFunction':
         if use_plural:
-            str_val = 'Refinement algorithm cost functions for stereo refinement'
+            str_val = 'refinement algorithm cost functions for stereo refinement'
         else:
-            str_val = 'Refinement algorithm cost function for stereo refinement'
+            str_val = 'refinement algorithm cost function for stereo refinement'
     elif label == 'stereoParameters_refineMethod_CorrPool_algorithm':
         if use_plural:
-            str_val = 'Refinement algorithms for correspondence pool'
+            str_val = 'refinement algorithms for correspondence pool'
         else:
-            str_val = 'Refinement algorithm for correspondence pool'
+            str_val = 'refinement algorithm for correspondence pool'
     elif label == 'stereoParameters_refineMethod_CorrPool_costFunction':
         if use_plural:
-            str_val = 'Refinement algorithm cost functions for correspondence pool'
+            str_val = 'refinement algorithm cost functions for correspondence pool'
         else:
-            str_val = 'Refinement algorithm cost function for correspondence pool'
+            str_val = 'refinement algorithm cost function for correspondence pool'
     elif label == 'stereoParameters_kneipInsteadBA':
         str_val = 'Kneip instead BA for stereo refinement'
     elif label == 'stereoParameters_kneipInsteadBA_CorrPool':
@@ -974,89 +975,89 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'BA option for correspondence pool'
     elif label == 'stereoParameters_checkPoolPoseRobust':
         if use_plural:
-            str_val = 'Iteration parameters for robust correspondence pool check'
+            str_val = 'iteration parameters for robust correspondence pool check'
         else:
-            str_val = 'Iteration parameter for robust correspondence pool check'
+            str_val = 'iteration parameter for robust correspondence pool check'
     elif label == 'stereoParameters_useRANSAC_fewMatches':
         if use_plural:
-            str_val = 'Options of RANSAC usage for few matches'
+            str_val = 'options of RANSAC usage for few matches'
         else:
-            str_val = 'Use RANSAC for few matches'
+            str_val = 'use RANSAC for few matches'
     elif label == 'stereoParameters_maxPoolCorrespondences':
         if use_plural:
-            str_val = 'Maximum correspondence pool sizes $\\hat{n}_{cp}$'
+            str_val = 'maximum correspondence pool sizes $\\hat{n}_{cp}$'
         else:
-            str_val = 'Maximum correspondence pool size $\\hat{n}_{cp}$'
+            str_val = 'maximum correspondence pool size $\\hat{n}_{cp}$'
     elif label == 'stereoParameters_maxDist3DPtsZ':
         if use_plural:
-            str_val = 'Maximum depths $z_{max}$'
+            str_val = 'maximum depths $z_{max}$'
         else:
-            str_val = 'Maximum depth $z_{max}$'
+            str_val = 'maximum depth $z_{max}$'
     elif label == 'stereoParameters_maxRat3DPtsFar':
         if use_plural:
-            str_val = 'Maximum far correspondence ratios $r_{max}^{z}$'
+            str_val = 'maximum far correspondence ratios $r_{max}^{z}$'
         else:
-            str_val = 'Maximum far correspondence ratio $r_{max}^{z}$'
+            str_val = 'maximum far correspondence ratio $r_{max}^{z}$'
     elif label == 'stereoParameters_minStartAggInlRat':
         if use_plural:
-            str_val = 'Minimum initial inlier ratios $\\epsilon_{min}^{init}$'
+            str_val = 'minimum initial inlier ratios $\\epsilon_{min}^{init}$'
         else:
-            str_val = 'Minimum initial inlier ratio $\\epsilon_{min}^{init}$'
+            str_val = 'minimum initial inlier ratio $\\epsilon_{min}^{init}$'
     elif label == 'stereoParameters_minInlierRatSkip':
         if use_plural:
-            str_val = 'Minimum inlier ratios $\\epsilon_{min}^{skip}$ for skipping images'
+            str_val = 'minimum inlier ratios $\\epsilon_{min}^{skip}$ for skipping images'
         else:
-            str_val = 'Minimum inlier ratio $\\epsilon_{min}^{skip}$ for skipping images'
+            str_val = 'minimum inlier ratio $\\epsilon_{min}^{skip}$ for skipping images'
     elif label == 'stereoParameters_relInlRatThLast':
         if use_plural:
-            str_val = 'Relative inlier ratio thresholds $r_{\\epsilon}^{old}$ on old models'
+            str_val = 'relative inlier ratio thresholds $r_{\\epsilon}^{old}$ on old models'
         else:
-            str_val = 'Relative inlier ratio threshold $r_{\\epsilon}^{old}$ on old models'
+            str_val = 'relative inlier ratio threshold $r_{\\epsilon}^{old}$ on old models'
     elif label == 'stereoParameters_relInlRatThNew':
         if use_plural:
-            str_val = 'Relative inlier ratio thresholds $r_{\\epsilon}^{new}$ on new models'
+            str_val = 'relative inlier ratio thresholds $r_{\\epsilon}^{new}$ on new models'
         else:
-            str_val = 'Relative inlier ratio threshold $r_{\\epsilon}^{new}$ on new models'
+            str_val = 'relative inlier ratio threshold $r_{\\epsilon}^{new}$ on new models'
     elif label == 'stereoParameters_relMinInlierRatSkip':
         if use_plural:
-            str_val = 'Minimum relative inlier ratios $r_{min}^{\\epsilon,skip}$ for skipping images'
+            str_val = 'minimum relative inlier ratios $r_{min}^{\\epsilon,skip}$ for skipping images'
         else:
-            str_val = 'Minimum relative inlier ratio $r_{min}^{\\epsilon,skip}$ for skipping images'
+            str_val = 'minimum relative inlier ratio $r_{min}^{\\epsilon,skip}$ for skipping images'
     elif label == 'stereoParameters_minInlierRatioReInit':
         if use_plural:
-            str_val = 'Minimum inlier ratio reinitialization thresholds $\\epsilon_{min}^{reinit}$'
+            str_val = 'minimum inlier ratio reinitialization thresholds $\\epsilon_{min}^{reinit}$'
         else:
-            str_val = 'Minimum inlier ratio reinitialization threshold $\\epsilon_{min}^{reinit}$'
+            str_val = 'minimum inlier ratio reinitialization threshold $\\epsilon_{min}^{reinit}$'
     elif label == 'stereoParameters_maxSkipPairs':
         if use_plural:
-            str_val = 'Parameter values for maximum image pairs to skip $n_{max}^{skip}$'
+            str_val = 'parameter values for maximum image pairs to skip $n_{max}^{skip}$'
         else:
-            str_val = 'Maximum image pairs to skip $n_{max}^{skip}$'
+            str_val = 'maximum image pairs to skip $n_{max}^{skip}$'
     elif label == 'stereoParameters_minNormDistStable':
         if use_plural:
-            str_val = 'Minimum distances $\\|\\breve{d}_{cm}\\|$ for stability'
+            str_val = 'minimum distances $\\|\\breve{d}_{cm}\\|$ for stability'
         else:
-            str_val = 'Minimum distance $\\|\\breve{d}_{cm}\\|$ for stability'
+            str_val = 'minimum distance $\\|\\breve{d}_{cm}\\|$ for stability'
     elif label == 'stereoParameters_absThRankingStable':
         if use_plural:
-            str_val = 'Stable ranking thresholds $\\tau$'
+            str_val = 'stable ranking thresholds $\\tau$'
         else:
-            str_val = 'Stable ranking threshold $\\tau$'
+            str_val = 'stable ranking threshold $\\tau$'
     elif label == 'stereoParameters_minContStablePoses':
         if use_plural:
-            str_val = 'Parameter values for minimum continuous stable poses $n_{min}^{stable}$'
+            str_val = 'parameter values for minimum continuous stable poses $n_{min}^{stable}$'
         else:
-            str_val = 'Minimum continuous stable poses $n_{min}^{stable}$'
+            str_val = 'minimum continuous stable poses $n_{min}^{stable}$'
     elif label == 'stereoParameters_raiseSkipCnt':
         if use_plural:
-            str_val = 'Skip count raising factors $a_{skip}$'
+            str_val = 'skip count raising factors $a_{skip}$'
         else:
-            str_val = 'Skip count raising factor $a_{skip}$'
+            str_val = 'skip count raising factor $a_{skip}$'
     elif label == 'stereoParameters_minPtsDistance':
         if use_plural:
-            str_val = 'Minimum correspondence distances $d_{p}$'
+            str_val = 'minimum correspondence distances $d_{p}$'
         else:
-            str_val = 'Minimum correspondence distance $d_{p}$'
+            str_val = 'minimum correspondence distance $d_{p}$'
     else:
         return tex_string_coding_style(label)
     ex = ['and', 'of', 'for', 'to', 'with']

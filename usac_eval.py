@@ -115,7 +115,7 @@ def pars_calc_single_fig(**keywords):
     nr_it_parameters = len(ret['grp_names'][0:-1])
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
     for i, val in enumerate(ret['grp_names'][0:-1]):
-        ret['sub_title'] += replaceCSVLabels(val, False, True)
+        ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -251,7 +251,7 @@ def pars_calc_multiple_fig(**keywords):
     nr_it_parameters = len(ret['grp_names'][0:-2])
     from statistics_and_plot import tex_string_coding_style, compile_tex, replaceCSVLabels
     for i, val in enumerate(ret['grp_names'][0:-2]):
-        ret['sub_title'] += replaceCSVLabels(val, False, True)
+        ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -600,9 +600,40 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
     if ret['build_pdf'][0]:
-        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name, True, os.path.join(ret['pdf_folder'], pdf_name))
+        res1 = compile_tex(rendered_tex,
+                           ret['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(ret['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
     else:
-        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name, True)
+        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+    if res1 != 0:
+        ret['res'] += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return ret['res']
+
+def compile_2D_2y_axis(filen_pre, tex_infos, ret):
+    template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   nonnumeric_x=tex_infos['nonnumeric_x'],
+                                   sections=tex_infos['sections'])
+    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    from statistics_and_plot import compile_tex
+    if ret['build_pdf'][0]:
+        res1 = compile_tex(rendered_tex,
+                           ret['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(ret['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
     if res1 != 0:
         ret['res'] += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
@@ -627,23 +658,23 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                                                            ret['grp_names'][-2],
                                                            'b_min',
                                                            ret['b'].columns.name])
-    from statistics_and_plot import replaceCSVLabels
+    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
                           replaceCSVLabels(str(ret['grp_names'][-2]), False, True) + ' for every ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
                           ' and Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
-                 'make_index': False,
+                 'make_index': True,
                  # If True, the figures are adapted to the page height if they are too big
-                 'ctrl_fig_size': True,
+                 'ctrl_fig_size': False,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
-                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 # If true, non-numeric entries can be provided for the x-axis
+                 'nonnumeric_x': False
                  }
     data = data.set_index(ret['grp_names'][-1]).groupby(ret['b'].columns.name)
-    grp_keys = tmp.groups.keys()
+    grp_keys = data.groups.keys()
     dataf_name_main = 'data_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
                       ret['grp_names'][-2] + '_for_option_'
     for grp in grp_keys:
@@ -655,5 +686,45 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                     + ' for every ' + str(ret['grp_names'][-1]) + '\n')
             f.write('# Used parameters: ' + str(grp) + '\n')
             data_a.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        section_name = 'Smallest combined R \\& t errors and their ' +\
+                       replaceCSVLabels(str(ret['grp_names'][-2])) +\
+                       '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +\
+                       ' for parameters ' + tex_string_coding_style(str(grp))
+        tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
+                                      # Name of the whole section
+                                      'name': section_name.replace('\\\\', ' '),
+                                      # Title of the figure
+                                      'title': section_name,
+                                      'fig_type': 'smooth',
+                                      # Column name for charts based on the left y-axis
+                                      'plots_l': ['b_min'],
+                                      # Label of the left y-axis.
+                                      'label_y_l': 'error',
+                                      # Column name for charts based on the right y-axis
+                                      'plots_r': [ret['grp_names'][-2]],
+                                      # Label of the right y-axis.
+                                      'label_y_r': replaceCSVLabels(str(ret['grp_names'][-2])),
+                                      # Label of the x-axis.
+                                      'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                      # Column name of the x-axis.
+                                      'plot_x': ret['grp_names'][-1],
+                                      # Maximum and/or minimum y value/s on the left y-axis
+                                      'limits_l': None,
+                                      # Legend entries for the charts belonging to the left y-axis
+                                      'legend_l': ['Min. error (left axis)'],
+                                      # Maximum and/or minimum y value/s on the right y-axis
+                                      'limits_r': None,
+                                      # Legend entries for the charts belonging to the right y-axis
+                                      'legend_r': [replaceCSVLabels(str(ret['grp_names'][-2])) + ' (right axis)'],
+                                      'legend_cols': 1,
+                                      'use_marks': True,
+                                      'caption': 'Smallest combined R \\& t errors (left axis) and their ' +
+                                                 replaceCSVLabels(str(ret['grp_names'][-2])) +
+                                                 ' (right axis) vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +
+                                                 ' for parameters ' + tex_string_coding_style(str(grp)) + '.'
+                                      })
+    ret['res'] = compile_2D_2y_axis('tex_min_RT-errors_and_corresponding_' + ret['grp_names'][-2] +
+                                    '_vs_' + ret['grp_names'][-1] + '_for_', tex_infos, ret)
     data = data.groupby([ret['b'].columns.name, ret['grp_names'][-1]])
 
