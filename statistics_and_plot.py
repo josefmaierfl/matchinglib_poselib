@@ -352,6 +352,8 @@ def calcSatisticAndPlot_2D(data,
                                           'name': replace_stat_names(it[-1]) + ' values for ' +
                                                   replaceCSVLabels(str(it[0]), True) +
                                                   ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True),
+                                          # If caption is None, the field name is used
+                                          'caption': None,
                                           'fig_type': fig_type,
                                           'plots': list(tmp.columns.values),
                                           'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
@@ -563,7 +565,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                  'figs_externalize': figs_externalize,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True}
-    pdf_nr = 0
+    stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
     for it in errvalnames:
         if it[-1] != 'count':
             tmp = stats[it[0]].unstack()
@@ -572,6 +574,19 @@ def calcSatisticAndPlot_2D_partitions(data,
             for p in tmp1.index:
                 tmp2 = tmp1.loc[p]
                 part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
+                part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
+                               tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
+                part_name_title = ''
+                for i, val in enumerate(part_name_l):
+                    part_name_title += val
+                    if (len(part_name_l) <= 2):
+                        if i < len(part_name_l) - 1:
+                            title_name += ' and '
+                    else:
+                        if i < len(part_name_l) - 2:
+                            title_name += ', '
+                        elif i < len(part_name_l) - 1:
+                            title_name += ', and '
                 tmp2 = tmp2.reset_index().drop(partitions, axis=1)
                 tmp2 = tmp2.set_index(it_parameters).T
                 tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
@@ -581,7 +596,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                 dataf_name = dataf_name.replace('%', 'perc')
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 with open(fdataf_name, 'a') as f:
-                    f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + ' and scene ' + part_name + '\n')
+                    f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + ' and properties ' + part_name + '\n')
                     f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                     tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
@@ -603,7 +618,12 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'name': replace_stat_names(it[-1]) + ' values for ' +
                                                       replaceCSVLabels(str(it[0]), True) +
                                                       ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
-                                                      ' for different ',
+                                                      '\\\\ for properties ' + part_name,
+                                              # If caption is None, the field name is used
+                                              'caption': replace_stat_names(it[-1]) + ' values for ' +
+                                                      replaceCSVLabels(str(it[0]), True) +
+                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
+                                                      ' for properties ' + part_name_title,
                                               'fig_type': fig_type,
                                               'plots': list(tmp2.columns.values),
                                               'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
@@ -612,9 +632,59 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'limits': use_limits,
                                               'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
                                               'legend_cols': None,
-                                              'use_marks': use_marks
+                                              'use_marks': use_marks,
+                                              'stat_name': it[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    for st in stat_names:
+        # Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = replace_stat_names(st) + ' ' + tex_infos['title']
+            else:
+                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+            pdfs_info.append({'title': title,
+                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'fill_bar': True})
+
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       sections=it['sections'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+
+
+
+
+
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     #Get number of pdfs to generate

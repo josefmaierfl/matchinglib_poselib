@@ -71,7 +71,11 @@
 }
 
 \BLOCK{ for sec in sections}
-%\section{\VAR{sec['name']}}
+\BLOCK{ if sec['caption'] is not none }
+%\section{\VAR{ sec['caption'] }}
+\BLOCK{ else }
+%\caption{\VAR{ sec['name'] }}
+\BLOCK{ endif }
 
 \BLOCK{ if make_index }
 \begin{figure}
@@ -189,7 +193,11 @@ y=\VAR{ it }
 }
 \BLOCK{ endif }
 \BLOCK{ if make_index }
-\caption{\VAR{sec['name']}}
+\BLOCK{ if sec['caption'] is not none }
+\caption{\VAR{ sec['caption'] }}
+\BLOCK{ else }
+\caption{\VAR{ sec['name'] }}
+\BLOCK{ endif }
 \end{figure}
 \BLOCK{ endif }
 \BLOCK{ if not make_index and not ctrl_fig_size }

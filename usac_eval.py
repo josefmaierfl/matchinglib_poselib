@@ -149,6 +149,10 @@ def pars_calc_single_fig(**keywords):
                                   'name': 'Combined R \\& t errors vs ' +
                                           replaceCSVLabels(str(ret['grp_names'][-1]), True) +
                                           ' for parameter variations of \\\\' + ret['sub_title'],
+                                  # If caption is None, the field name is used
+                                  'caption': 'Combined R \\& t errors vs ' +
+                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) +
+                                             ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': 'smooth',
                                   'plots': list(ret['b'].columns.values),
                                   'label_y': 'Combined R \\& t error',
