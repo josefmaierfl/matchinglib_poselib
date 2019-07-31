@@ -718,7 +718,7 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                                       # Maximum and/or minimum y value/s on the left y-axis
                                       'limits_l': None,
                                       # Legend entries for the charts belonging to the left y-axis
-                                      'legend_l': ['Min. error (left axis)'],
+                                      'legend_l': ['min. error (left axis)'],
                                       # Maximum and/or minimum y value/s on the right y-axis
                                       'limits_r': None,
                                       # Legend entries for the charts belonging to the right y-axis
@@ -735,8 +735,10 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
 
     data_min = data.loc[data.groupby(ret['grp_names'][-1])['b_min'].idxmin()]
     col_n = str(ret['b'].columns.name) + '--' + str(ret['grp_names'][-2])
-    data_min[col_n] = data_min[[ret['b'].columns.name, ret['grp_names'][-2]]].apply(lambda x: ', '.join(map(str, x)).replace('_', '\\_'), axis=1)
-    data_min.drop([ret['b'].columns.name, ret['grp_names'][-2]], axis=1, inplace=True)
+    data_min[col_n] = data_min[[ret['b'].columns.name,
+                                ret['grp_names'][-2]]].apply(lambda x: ', '.join(map(str, x)).replace('_', '\\_'),
+                                                             axis=1)
+    data_min1 = data_min.drop([ret['b'].columns.name, ret['grp_names'][-2]], axis=1)
     dataf_name_main = 'data_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
                       ret['grp_names'][-2] + '_and_used_option'
     dataf_name = dataf_name_main + '.csv'
@@ -745,7 +747,7 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
         f.write('# Smallest combined R & t errors and their corresponding ' + str(ret['grp_names'][-2])
                 + ' and parameter set for every ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Used parameters: ' + str(ret['b'].columns.name) + '\n')
-        data_min.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        data_min1.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
                           replaceCSVLabels(str(ret['grp_names'][-2]), False, True) +
                           ' and Parameter Set of ' + ret['sub_title'] +
@@ -791,6 +793,47 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                                   })
     ret['res'] = compile_2D_bar_chart('tex_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
                       ret['grp_names'][-2] + '_and_used_option_of', tex_infos, ret)
+
+    data_min_c = data_min[ret['b'].columns.name].value_counts()
+    if data_min_c.count() > 1:
+        if data_min_c.iloc[0] == data_min_c.iloc[1]:
+            data_min_c = data_min_c.loc[data_min_c == data_min_c.iloc[0]]
+            data_min2 = data_min.loc[data_min[ret['b'].columns.name].isin(data_min_c.index.values)]
+            data_min2 = data_min2.loc[data_min2['b_min'].idxmin()]
+            th_mean = float(data_min2[ret['grp_names'][-2]])
+            alg = str(data_min2[ret['b'].columns.name])
+            b_min = float(data_min2['b_min'])
+        else:
+            data_min2 = data_min.loc[data_min[ret['b'].columns.name] == data_min_c.index.values[0]]
+            if len(data_min2.shape) == 1:
+                th_mean = float(data_min2[ret['grp_names'][-2]])
+                alg = str(data_min2[ret['b'].columns.name])
+                b_min = float(data_min2['b_min'])
+            else:
+                th_mean = float(data_min2[ret['grp_names'][-2]].mean())
+                alg = str(data_min2[ret['b'].columns.name].iloc[0])
+                b_min = float(data_min2['b_min'].mean())
+    else:
+        th_mean = float(data_min[ret['grp_names'][-2]].mean())
+        alg = str(data_min[ret['b'].columns.name].iloc[0])
+        b_min = float(data_min['b_min'].mean())
+
+    main_parameter_name = 'USAC_opt_refine_ops_inlrat_th'
+    # Check if file and parameters exist
+    ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
+
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = alg.split('-')
+        if len(ret['grp_names'][0:-2]) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(ret['grp_names'][0:-2]):
+            alg_w[val] = alg_comb_bestl[i]
+        yaml.dump({main_parameter_name: {'Algorithms': alg_w,
+                                         'th': th_mean,
+                                         'b_min': b_min}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return ret['res']
 
