@@ -57,15 +57,200 @@ def readYaml(file):
     return data
 
 
+def pars_calc_single_fig_partitions(**keywords):
+    if len(keywords) < 3 or len(keywords) > 5:
+        raise ValueError('Wrong number of arguments for function pars_calc_single_fig_partitions')
+    if 'data' not in keywords:
+        raise ValueError('Missing data argument of function pars_calc_single_fig_partitions')
+    if 'partitions' not in keywords:
+        raise ValueError('Missing partitions argument of function pars_calc_single_fig_partitions')
+    data = keywords['data']
+    ret = {}
+    ret['partitions'] = keywords['partitions']
+    if 'res_folder' not in keywords:
+        raise ValueError('Missing res_folder argument of function pars_calc_single_fig_partitions')
+    ret['res_folder'] = keywords['res_folder']
+    ret['use_marks'] = False
+    if 'use_marks' not in keywords:
+        print('No information provided if marks should be used: Disabling marks')
+    else:
+        ret['use_marks'] = keywords['use_marks']
+    ret['build_pdf'] = (False, True,)
+    if 'build_pdf' in keywords:
+        ret['build_pdf'] = keywords['build_pdf']
+    if len(ret['build_pdf']) != 2:
+        raise ValueError('Wrong number of arguments for build_pdf')
+    ret['pdf_folder'] = None
+    if ret['build_pdf'][0] or ret['build_pdf'][1]:
+        ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
+        try:
+            os.mkdir(ret['pdf_folder'])
+        except FileExistsError:
+            # print('Folder', ret['pdf_folder'], 'for storing pdf files already exists')
+            pass
+    ret['tex_folder'] = os.path.join(ret['res_folder'], 'tex')
+    try:
+        os.mkdir(ret['tex_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tex_folder'], 'for storing tex files already exists')
+        pass
+    ret['tdata_folder'] = os.path.join(ret['tex_folder'], 'data')
+    try:
+        os.mkdir(ret['tdata_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
+        pass
+    ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
+    ret['grp_names'] = data.index.names
+    nr_partitions = len(ret['partitions'])
+    ret['it_parameters'] = ret['grp_names'][nr_partitions:-1]
+    nr_it_parameters = len(ret['it_parameters'])
+    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
+    ret['sub_title_it_pars'] = ''
+    for i, val in enumerate(ret['it_parameters']):
+        ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True)
+        if nr_it_parameters <= 2:
+            if i < nr_it_parameters - 1:
+                ret['sub_title_it_pars'] += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                ret['sub_title_it_pars'] += ', '
+            elif i < nr_it_parameters - 1:
+                ret['sub_title_it_pars'] += ', and '
+    ret['sub_title_partitions'] = ''
+    for i, val in enumerate(ret['partitions']):
+        ret['sub_title_partitions'] += replaceCSVLabels(val, True, True)
+        if (nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                ret['sub_title_partitions'] += ' and '
+        else:
+            if i < nr_partitions - 2:
+                ret['sub_title_partitions'] += ', '
+            elif i < nr_partitions - 1:
+                ret['sub_title_partitions'] += ', and '
+
+    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + \
+                             '-'.join(ret['it_parameters']) + \
+                             '_and_properties_'
+    ret['dataf_name_partition'] = '-'.join([a[:min(3, len(a))] for a in map(str, ret['partitions'])])
+    ret['b'] = combineRt(data)
+    ret['b_all_partitions'] = ret['b'].reset_index().set_index(ret['partitions'])
+    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +
+                          ret['sub_title_partitions'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': True,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
+    ret['b_single_partitions'] = []
+    idx_old = None
+    for p in ret['b_all_partitions'].index:
+        if idx_old is not None and idx_old == p:
+            continue
+        idx_old = p
+        tmp2 = ret['b_all_partitions'].loc[p]
+        part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
+        part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
+                       tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
+        part_name_title = ''
+        for i, val in enumerate(part_name_l):
+            part_name_title += val
+            if (len(part_name_l) <= 2):
+                if i < len(part_name_l) - 1:
+                    part_name_title += ' and '
+            else:
+                if i < len(part_name_l) - 2:
+                    part_name_title += ', '
+                elif i < len(part_name_l) - 1:
+                    part_name_title += ', and '
+        tmp2 = tmp2.reset_index().drop(ret['partitions'], axis=1)
+        tmp2 = tmp2.set_index(ret['it_parameters']).T
+        tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
+        tmp2.columns.name = '-'.join(ret['it_parameters'])
+        dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
+        dataf_name = dataf_name_main_property + '.csv'
+        b_name = 'data_RTerrors_vs_' + dataf_name
+        fb_name = os.path.join(ret['tdata_folder'], b_name)
+        ret['b_single_partitions'].append({'data': tmp2,
+                                           'part_name': part_name,
+                                           'part_name_title': part_name_title,
+                                           'dataf_name_main_property': dataf_name_main_property,
+                                           'dataf_name': dataf_name})
+        with open(fb_name, 'a') as f:
+            f.write('# Combined R & t errors vs ' + str(ret['grp_names'][-1]) + ' for properties ' + part_name + '\n')
+            f.write('# Column parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+            tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        stats_all = tmp2.stack().reset_index()
+        stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+        # figure types: sharp plot, smooth, const plot, ybar, xbar
+        use_limits = {'miny': None, 'maxy': None}
+        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+        reltex_name = os.path.join(ret['rel_data_path'], b_name)
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': 'Combined R \\& t errors vs ' +
+                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) +
+                                              ' for parameter variations of \\\\' + ret['sub_title_it_pars'] +
+                                              ' based on properties \\\\' + part_name.replace('_', '\\_'),
+                                      # If caption is None, the field name is used
+                                      'caption': 'Combined R \\& t errors vs ' +
+                                                 replaceCSVLabels(str(ret['grp_names'][-1]), True) +
+                                                 ' for parameter variations of ' + ret['sub_title_it_pars'] +
+                                                 ' based on properties ' + part_name.replace('_', '\\_'),
+                                      'fig_type': 'smooth',
+                                      'plots': list(tmp2.columns.values),
+                                      'label_y': 'Combined R \\& t error',
+                                      'plot_x': str(ret['grp_names'][-1]),
+                                      'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                      'limits': use_limits,
+                                      'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
+                                      'legend_cols': None,
+                                      'use_marks': ret['use_marks']
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'])
+    base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main'] + ret['dataf_name_partition']
+    texf_name = base_out_name + '.tex'
+    if ret['build_pdf'][0]:
+        pdf_name = base_out_name + '.pdf'
+        ret['res'] = abs(compile_tex(rendered_tex,
+                                     ret['tex_folder'],
+                                     texf_name,
+                                     tex_infos['make_index'],
+                                     os.path.join(ret['pdf_folder'], pdf_name),
+                                     tex_infos['figs_externalize']))
+    else:
+        ret['res'] = abs(compile_tex(rendered_tex, ret['tex_folder'], texf_name))
+    if ret['res'] != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return ret
+
+
 def pars_calc_single_fig(**keywords):
     if len(keywords) < 2 or len(keywords) > 4:
-        raise ValueError('Wrong number of arguments for function get_best_comb_and_th_1')
+        raise ValueError('Wrong number of arguments for function pars_calc_single_fig')
     if 'data' not in keywords:
-        raise ValueError('Missing data argument of function get_best_comb_and_th_1')
+        raise ValueError('Missing data argument of function pars_calc_single_fig')
     data = keywords['data']
     ret = {}
     if 'res_folder' not in keywords:
-        raise ValueError('Missing res_folder argument of function get_best_comb_and_th_1')
+        raise ValueError('Missing res_folder argument of function pars_calc_single_fig')
     ret['res_folder'] = keywords['res_folder']
     ret['use_marks'] = False
     if 'use_marks' not in keywords:
@@ -173,7 +358,7 @@ def pars_calc_single_fig(**keywords):
                                    sections=tex_infos['sections'])
     base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main']
     texf_name = base_out_name + '.tex'
-    if ret['build_pdf'][1]:
+    if ret['build_pdf'][0]:
         pdf_name = base_out_name + '.pdf'
         ret['res'] = abs(compile_tex(rendered_tex,
                                      ret['tex_folder'],
@@ -190,13 +375,13 @@ def pars_calc_single_fig(**keywords):
 
 def pars_calc_multiple_fig(**keywords):
     if len(keywords) < 2 or len(keywords) > 5:
-        raise ValueError('Wrong number of arguments for function get_best_comb_and_th_1')
+        raise ValueError('Wrong number of arguments for function pars_calc_multiple_fig')
     if 'data' not in keywords:
-        raise ValueError('Missing data argument of function get_best_comb_and_th_1')
+        raise ValueError('Missing data argument of function pars_calc_multiple_fig')
     data = keywords['data']
     ret = {}
     if 'res_folder' not in keywords:
-        raise ValueError('Missing res_folder argument of function get_best_comb_and_th_1')
+        raise ValueError('Missing res_folder argument of function pars_calc_multiple_fig')
     ret['res_folder'] = keywords['res_folder']
     ret['fig_type'] = 'surface'
     if 'fig_type' not in keywords:
@@ -299,7 +484,7 @@ def pars_calc_multiple_fig(**keywords):
                                    sections=tex_infos['sections'])
     base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main']
     texf_name = base_out_name + '.tex'
-    if ret['build_pdf'][1]:
+    if ret['build_pdf'][0]:
         pdf_name = base_out_name + '.pdf'
         ret['res'] = abs(compile_tex(rendered_tex,
                                      ret['tex_folder'],
@@ -609,7 +794,7 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
-    if ret['build_pdf'][0]:
+    if ret['build_pdf'][1]:
         res1 = compile_tex(rendered_tex,
                            ret['tex_folder'],
                            texf_name,
@@ -635,7 +820,7 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
-    if ret['build_pdf'][0]:
+    if ret['build_pdf'][1]:
         res1 = compile_tex(rendered_tex,
                            ret['tex_folder'],
                            texf_name,
@@ -650,7 +835,7 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
     return ret['res']
 
 
-def get_best_comb_and_th_for_kpacc_1(**keywords):
+def get_best_comb_and_th_for_inlrat_1(**keywords):
     ret = pars_calc_multiple_fig(**keywords)
     tmp = ret['b'].groupby(ret['grp_names'][-1])
     grp_keys = tmp.groups.keys()
@@ -839,5 +1024,99 @@ def get_best_comb_and_th_for_kpacc_1(**keywords):
                                          'b_min': b_min}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
+    return ret['res']
+
+
+def get_best_comb_th_scenes_1(**keywords):
+    ret = pars_calc_single_fig_partitions(**keywords)
+    b_mean = ret['b'].mean(axis=1)
+    b_mean.rename('b_min', inplace=True)
+    tmp1 = b_mean.reset_index()
+    tmp2 = tmp1.loc[tmp1.groupby(ret['partitions'][:-1] + ret['it_parameters'])['b_min'].idxmin(axis=0)]
+    tmp2 = tmp2.set_index(ret['it_parameters'])
+    tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
+    it_pars_ov = '-'.join(ret['it_parameters'])
+    tmp2.index.name = it_pars_ov
+    tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
+    tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
+    partitions_ov = '-'.join(ret['partitions'][:-1])
+    tmp2.index.name = partitions_ov
+    tmp2 = tmp2.reset_index().set_index([it_pars_ov, partitions_ov]).unstack(level=0)
+
+    b_mean_best = b_mean.idxmin()
+    alg_best = str(b_mean_best)
+    b_best = float(b_mean.loc[b_mean_best])
+
+    b_mean = b_mean.reset_index()
+    b_mean.columns = ['options', 'b_mean']
+    # Insert a tex line break for long options
+    b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
+    b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
+    fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean combined R & t errors over all ' + str(ret['grp_names'][-1]) + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
+        b_mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    # Get data for tex file generation
+    if len(ret['b'].columns) > 10:
+        fig_type = 'xbar'
+    else:
+        fig_type = 'ybar'
+    from statistics_and_plot import replaceCSVLabels
+    tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          ' for Parameter Variations of ' + ret['sub_title'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
+    tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+                                  'name': 'Mean combined R \\& t errors over all ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-1]), True),
+                                  'fig_type': fig_type,
+                                  'plots': ['b_mean'],
+                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': 'Options',
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': 'options_tex',
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': False,
+                                  'plot_meta': [],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': True,
+                                  'caption': 'Mean combined R \\& t errors (error bars) over all ' +
+                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
+                                  })
+    ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
+
+    main_parameter_name = 'USAC_opt_refine_ops_inlrat'
+    # Check if file and parameters exist
+    ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
+
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = alg_best.split('-')
+        if len(ret['grp_names'][0:-1]) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(ret['grp_names'][0:-1]):
+            alg_w[val] = alg_comb_bestl[i]
+        yaml.dump({main_parameter_name: {'Algorithms': alg_w,
+                                         'b_best_val': b_best}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
     return ret['res']
 

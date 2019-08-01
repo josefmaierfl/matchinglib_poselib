@@ -187,7 +187,7 @@ def calcSatisticAndPlot_2D(data,
                            units,
                            it_parameters,
                            x_axis_column,
-                           pdfsplitentry,
+                           pdfsplitentry,# One or more column names present in eval_columns for splitting pdf
                            special_calcs_func = None,
                            special_calcs_args = None,
                            calc_func = None,
@@ -427,7 +427,6 @@ def calcSatisticAndPlot_2D_partitions(data,
                                       it_parameters,# Algorithm parameters to evaluate
                                       partitions,# Data properties to calculate statistics seperately
                                       x_axis_column,# x-axis column name
-                                      pdfsplitentry,# One or more column names present in eval_columns for splitting pdf
                                       special_calcs_func = None,
                                       special_calcs_args = None,
                                       calc_func = None,
@@ -517,6 +516,7 @@ def calcSatisticAndPlot_2D_partitions(data,
             calc_vals = False
         if calc_vals:
             special_calcs_args['data'] = stats
+            special_calcs_args['partitions'] = partitions
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -1396,11 +1396,12 @@ def main():
              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
              ('t_diff_ty', ''), ('t_diff_tz', '')]
     it_parameters = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']#, 'USAC_parameters_USACInlratFilt']
-    x_axis_column = ['th']
+    x_axis_column = ['inlrat']
     pdfsplitentry = ['t_distDiff']
-    from usac_eval import get_best_comb_and_th_1, get_best_comb_inlrat_1, get_best_comb_and_th_for_kpacc_1
-    special_calcs_func = None#get_best_comb_and_th_1#get_best_comb_inlrat_1
-    special_calcs_args = None#{'build_pdf': (True, True), 'use_marks': True}
+    from usac_eval import get_best_comb_and_th_1, \
+        get_best_comb_inlrat_1, get_best_comb_and_th_for_inlrat_1, get_best_comb_th_scenes_1
+    special_calcs_func = get_best_comb_th_scenes_1
+    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None
     calc_func_args = None
@@ -1429,8 +1430,8 @@ def main():
     #                        make_fig_index,
     #                        build_pdf,
     #                        figs_externalize)
-    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd']
-    partitions = ['depthDistr', 'kpAccSd']
+    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+    partitions = ['depthDistr', 'kpAccSd', 'th']
     calcSatisticAndPlot_2D_partitions(data,
                                       output_dir,
                                       tex_file_pre_str,
@@ -1440,7 +1441,6 @@ def main():
                                       it_parameters,  # Algorithm parameters to evaluate
                                       partitions,  # Data properties to calculate statistics seperately
                                       x_axis_column,  # x-axis column name
-                                      pdfsplitentry,
                                       # One or more column names present in eval_columns for splitting pdf
                                       special_calcs_func,
                                       special_calcs_args,
@@ -1455,7 +1455,7 @@ def main():
     # x_axis_column = ['th', 'inlrat']
     # fig_type = 'surface'
     # fig_title_pre_str = 'Values for USAC Option Combinations of '
-    # special_calcs_func = get_best_comb_and_th_for_kpacc_1
+    # special_calcs_func = get_best_comb_and_th_for_inlrat_1
     # special_calcs_args = {'build_pdf': (True, True), 'use_marks': True, 'fig_type': 'surface'}
     # calcSatisticAndPlot_3D(data,
     #                        output_dir,
