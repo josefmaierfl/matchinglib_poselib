@@ -370,6 +370,7 @@ def calcSatisticAndPlot_2D(data,
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     #Get number of pdfs to generate
     pdf_nr = tex_infos['sections'][-1]['pdf_nr']
+    res = 0
     if pdf_nr == 0:
         rendered_tex = template.render(title=tex_infos['title'],
                                        make_index=tex_infos['make_index'],
@@ -380,14 +381,14 @@ def calcSatisticAndPlot_2D(data,
         texf_name = base_out_name + '.tex'
         if build_pdf:
             pdf_name = base_out_name + '.pdf'
-            res = compile_tex(rendered_tex,
-                              tex_folder,
-                              texf_name,
-                              make_fig_index,
-                              os.path.join(pdf_folder, pdf_name),
-                              tex_infos['figs_externalize'])
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               tex_infos['figs_externalize'])
         else:
-            res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
     else:
         sections = []
         diff_pdfs = []
@@ -410,10 +411,10 @@ def calcSatisticAndPlot_2D(data,
             texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
             if build_pdf:
                 pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
-                res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
-                                  os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
+                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
+                                   os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
             else:
-                res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
     return res
 
 
@@ -571,7 +572,11 @@ def calcSatisticAndPlot_2D_partitions(data,
             tmp = stats[it[0]].unstack()
             tmp = tmp[it[1]]
             tmp1 = tmp.reset_index().set_index(partitions)
+            idx_old = None
             for p in tmp1.index:
+                if idx_old is not None and idx_old == p:
+                    continue
+                idx_old = p
                 tmp2 = tmp1.loc[p]
                 part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
                 part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
@@ -581,18 +586,18 @@ def calcSatisticAndPlot_2D_partitions(data,
                     part_name_title += val
                     if (len(part_name_l) <= 2):
                         if i < len(part_name_l) - 1:
-                            title_name += ' and '
+                            part_name_title += ' and '
                     else:
                         if i < len(part_name_l) - 2:
-                            title_name += ', '
+                            part_name_title += ', '
                         elif i < len(part_name_l) - 1:
-                            title_name += ', and '
+                            part_name_title += ', and '
                 tmp2 = tmp2.reset_index().drop(partitions, axis=1)
                 tmp2 = tmp2.set_index(it_parameters).T
                 tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
                 tmp2.columns.name = '-'.join(it_parameters)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
-                             str(grp_names[-1]) + '_for_' + part_name + '.csv'
+                             str(grp_names[-1]) + '_for_' + part_name.replace('.','d') + '.csv'
                 dataf_name = dataf_name.replace('%', 'perc')
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 with open(fdataf_name, 'a') as f:
@@ -618,7 +623,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'name': replace_stat_names(it[-1]) + ' values for ' +
                                                       replaceCSVLabels(str(it[0]), True) +
                                                       ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
-                                                      '\\\\ for properties ' + part_name,
+                                                      '\\\\ for properties ' + part_name.replace('_', '\\_'),
                                               # If caption is None, the field name is used
                                               'caption': replace_stat_names(it[-1]) + ' values for ' +
                                                       replaceCSVLabels(str(it[0]), True) +
@@ -660,13 +665,14 @@ def calcSatisticAndPlot_2D_partitions(data,
                               'ctrl_fig_size': tex_infos['ctrl_fig_size'],
                               'fill_bar': True})
 
-    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
     res = 0
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
+                                       fill_bar=it['fill_bar'],
                                        sections=it['sections'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
@@ -680,59 +686,6 @@ def calcSatisticAndPlot_2D_partitions(data,
         else:
             res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
 
-
-
-
-
-
-
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    #Get number of pdfs to generate
-    pdf_nr = tex_infos['sections'][-1]['pdf_nr']
-    if pdf_nr == 0:
-        rendered_tex = template.render(title=tex_infos['title'],
-                                       make_index=tex_infos['make_index'],
-                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                       figs_externalize=tex_infos['figs_externalize'],
-                                       fill_bar=tex_infos['fill_bar'],
-                                       sections=tex_infos['sections'])
-        texf_name = base_out_name + '.tex'
-        if build_pdf:
-            pdf_name = base_out_name + '.pdf'
-            res = compile_tex(rendered_tex,
-                              tex_folder,
-                              texf_name,
-                              make_fig_index,
-                              os.path.join(pdf_folder, pdf_name),
-                              tex_infos['figs_externalize'])
-        else:
-            res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
-    else:
-        sections = []
-        diff_pdfs = []
-        tmp_nr = 0
-        for it in tex_infos['sections']:
-            if it['pdf_nr'] == tmp_nr:
-                sections.append(it)
-            else:
-                diff_pdfs.append(deepcopy(sections))
-                sections = [it]
-                tmp_nr += 1
-        diff_pdfs.append(sections)
-        for it in diff_pdfs:
-            rendered_tex = template.render(title=tex_infos['title'],
-                                           make_index=tex_infos['make_index'],
-                                           ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                           figs_externalize=tex_infos['figs_externalize'],
-                                           fill_bar=tex_infos['fill_bar'],
-                                           sections=it)
-            texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
-            if build_pdf:
-                pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
-                res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
-                                  os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
-            else:
-                res = compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
     return res
 
 
