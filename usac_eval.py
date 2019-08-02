@@ -815,7 +815,8 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    nonnumeric_x=tex_infos['nonnumeric_x'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   fill_bar=True)
     base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -1040,83 +1041,191 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
     tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
     partitions_ov = '-'.join(ret['partitions'][:-1])
+    from statistics_and_plot import replaceCSVLabels
+    partitions_legend = ' -- '.join([replaceCSVLabels(i) for i in ret['partitions'][:-1]])
     tmp2.index.name = partitions_ov
     tmp2 = tmp2.reset_index().set_index([it_pars_ov, partitions_ov]).unstack(level=0)
+    column_legend = [' -- '.join([replaceCSVLabels(i) for i in map(str, a)]) for a in tmp2.columns]
+    tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
 
-    b_mean_best = b_mean.idxmin()
-    alg_best = str(b_mean_best)
-    b_best = float(b_mean.loc[b_mean_best])
-
-    b_mean = b_mean.reset_index()
-    b_mean.columns = ['options', 'b_mean']
-    # Insert a tex line break for long options
-    b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
-    b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
+    b_mean_name = 'data_mean_min_RTerrors_and_corresp_' + ret['partitions'][-1] + '_for_opts_' + \
+                  '-'.join(ret['it_parameters']) + '_and_props_' + ret['dataf_name_partition'] + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Mean combined R & t errors over all ' + str(ret['grp_names'][-1]) + '\n')
-        f.write('# Row (column options) parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
-        b_mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        f.write('# Minimum combined R & t errors (b_min) and corresponding ' + ret['partitions'][-1] +
+                ' over all ' + str(ret['grp_names'][-1]) + ' (mean) for options ' +
+                '-'.join(ret['it_parameters']) + ' and separately for properties ' +
+                '-'.join(map(str, ret['partitions'][:-1])) + '\n')
+        f.write('# Row (column options) parameters: (b_min/' + ret['partitions'][-1] + ')-' +
+                '-'.join(ret['it_parameters']) + '\n')
+        tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    right_cols = [a for a in tmp2.columns if ret['partitions'][-1] in a]
+    left_cols = [a for a in tmp2.columns if 'b_min' in a]
+    right_legend = [column_legend[i] for i, a in enumerate(tmp2.columns) if ret['partitions'][-1] in a]
+    left_legend = [column_legend[i] for i, a in enumerate(tmp2.columns) if 'b_min' in a]
     # Get data for tex file generation
-    if len(ret['b'].columns) > 10:
+    if len(tmp2.columns) > 10:
         fig_type = 'xbar'
     else:
         fig_type = 'ybar'
-    from statistics_and_plot import replaceCSVLabels
-    tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
-                          ' for Parameter Variations of ' + ret['sub_title'],
+
+    tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their ' + \
+                          replaceCSVLabels(str(ret['partitions'][-1]), True, True) + \
+                          ' for Parameters ' + ret['sub_title_it_pars'] + \
+                          ' and Properties ' + ret['sub_title_partitions'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
-                 'make_index': False,
+                 'make_index': True,
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
-                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 # If true, non-numeric entries can be provided for the x-axis
+                 'nonnumeric_x': True
                  }
+
+    section_name = 'Smallest combined R \\& t errors and their ' + \
+                   replaceCSVLabels(str(ret['partitions'][-1]), True) + \
+                   '\\\\for parameters ' + ret['sub_title_it_pars'] + \
+                   '\\\\and properties ' + ret['sub_title_partitions']
+    if fig_type == 'xbar':
+        caption = 'Smallest combined R \\& t errors (bottom axis) and their ' +\
+                  replaceCSVLabels(str(ret['partitions'][-1]), True) +\
+                  ' (top axis) for parameters ' + ret['sub_title_it_pars'] +\
+                  ' and properties ' + ret['sub_title_partitions'] + '.'
+    else:
+        caption = 'Smallest combined R \\& t errors (left axis) and their ' + \
+                  replaceCSVLabels(str(ret['partitions'][-1]), True) + \
+                  ' (right axis) for parameters ' + ret['sub_title_it_pars'] + \
+                  ' and properties ' + ret['sub_title_partitions'] + '.'
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
-                                  'name': 'Mean combined R \\& t errors over all ' +
-                                          replaceCSVLabels(str(ret['grp_names'][-1]), True),
+                                  # Name of the whole section
+                                  'name': section_name.replace('\\\\', ' '),
+                                  # Title of the figure
+                                  'title': section_name,
                                   'fig_type': fig_type,
-                                  'plots': ['b_mean'],
-                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
-                                  # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': 'Options',
-                                  # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': 'options_tex',
-                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                  'print_meta': False,
-                                  'plot_meta': [],
-                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 0,
-                                  'limits': None,
-                                  # If None, no legend is used, otherwise use a list
-                                  'legend': None,
+                                  # Column name for charts based on the left y-axis
+                                  'plots_l': left_cols,
+                                  # Label of the left y-axis.
+                                  'label_y_l': 'error',
+                                  # Column name for charts based on the right y-axis
+                                  'plots_r': right_cols,
+                                  # Label of the right y-axis.
+                                  'label_y_r': replaceCSVLabels(str(ret['partitions'][-1])),
+                                  # Label of the x-axis.
+                                  'label_x': partitions_legend,
+                                  # Column name of the x-axis.
+                                  'plot_x': partitions_ov,
+                                  # Maximum and/or minimum y value/s on the left y-axis
+                                  'limits_l': None,
+                                  # Legend entries for the charts belonging to the left y-axis
+                                  'legend_l': [a + ' (left axis)' if fig_type == 'ybar'
+                                               else a + ' (bottom axis)' for a in left_legend],
+                                  # Maximum and/or minimum y value/s on the right y-axis
+                                  'limits_r': None,
+                                  # Legend entries for the charts belonging to the right y-axis
+                                  'legend_r': [a + ' (right axis)' if fig_type == 'ybar'
+                                               else a + ' (top axis)' for a in right_legend],
                                   'legend_cols': 1,
-                                  'use_marks': False,
-                                  # The x/y-axis values are given as strings if True
-                                  'use_string_labels': True,
-                                  'caption': 'Mean combined R \\& t errors (error bars) over all ' +
-                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
+                                  'use_marks': True,
+                                  'caption': caption
                                   })
-    ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
 
-    main_parameter_name = 'USAC_opt_refine_ops_inlrat'
-    # Check if file and parameters exist
-    ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
+    base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \
+                    str(ret['partitions'][-1]) + '_for_opts_' + \
+                    '-'.join(ret['it_parameters']) + '_and_props_' + \
+                    ret['dataf_name_partition']
+    template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   nonnumeric_x=tex_infos['nonnumeric_x'],
+                                   sections=tex_infos['sections'],
+                                   fill_bar=True)
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    from statistics_and_plot import compile_tex
+    if ret['build_pdf'][1]:
+        res1 = compile_tex(rendered_tex,
+                           ret['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(ret['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+    if res1 != 0:
+        ret['res'] += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    with open(ppar_file, 'a') as fo:
-        # Write parameters
-        alg_comb_bestl = alg_best.split('-')
-        if len(ret['grp_names'][0:-1]) != len(alg_comb_bestl):
-            raise ValueError('Nr of refine algorithms does not match')
-        alg_w = {}
-        for i, val in enumerate(ret['grp_names'][0:-1]):
-            alg_w[val] = alg_comb_bestl[i]
-        yaml.dump({main_parameter_name: {'Algorithms': alg_w,
-                                         'b_best_val': b_best}},
-                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+
+
+    # b_mean_best = b_mean.idxmin()
+    # alg_best = str(b_mean_best)
+    # b_best = float(b_mean.loc[b_mean_best])
+    #
+    # b_mean = b_mean.reset_index()
+    # b_mean.columns = ['options', 'b_mean']
+    # # Insert a tex line break for long options
+    # b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
+    #
+    #
+    # tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
+    #                       replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+    #                       ' for Parameter Variations of ' + ret['sub_title'],
+    #              'sections': [],
+    #              # Builds an index with hyperrefs on the beginning of the pdf
+    #              'make_index': False,
+    #              # If True, the figures are adapted to the page height if they are too big
+    #              'ctrl_fig_size': True,
+    #              # If true, a pdf is generated for every figure and inserted as image in a second run
+    #              'figs_externalize': False,
+    #              # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+    #              'fill_bar': True
+    #              }
+    # tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+    #                               'name': 'Mean combined R \\& t errors over all ' +
+    #                                       replaceCSVLabels(str(ret['grp_names'][-1]), True),
+    #                               'fig_type': fig_type,
+    #                               'plots': ['b_mean'],
+    #                               'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+    #                               # Label/column name of axis with bars. For xbar it labels the y-axis
+    #                               'label_x': 'Options',
+    #                               # Column name of axis with bars. For xbar it is the column for the y-axis
+    #                               'print_x': 'options_tex',
+    #                               # Set print_meta to True if values from column plot_meta should be printed next to each bar
+    #                               'print_meta': False,
+    #                               'plot_meta': [],
+    #                               # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+    #                               'rotate_meta': 0,
+    #                               'limits': None,
+    #                               # If None, no legend is used, otherwise use a list
+    #                               'legend': None,
+    #                               'legend_cols': 1,
+    #                               'use_marks': False,
+    #                               # The x/y-axis values are given as strings if True
+    #                               'use_string_labels': True,
+    #                               'caption': 'Mean combined R \\& t errors (error bars) over all ' +
+    #                                          replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
+    #                               })
+    # ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
+    #
+    # main_parameter_name = 'USAC_opt_refine_ops_inlrat'
+    # # Check if file and parameters exist
+    # ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
+    #
+    # with open(ppar_file, 'a') as fo:
+    #     # Write parameters
+    #     alg_comb_bestl = alg_best.split('-')
+    #     if len(ret['grp_names'][0:-1]) != len(alg_comb_bestl):
+    #         raise ValueError('Nr of refine algorithms does not match')
+    #     alg_w = {}
+    #     for i, val in enumerate(ret['grp_names'][0:-1]):
+    #         alg_w[val] = alg_comb_bestl[i]
+    #     yaml.dump({main_parameter_name: {'Algorithms': alg_w,
+    #                                      'b_best_val': b_best}},
+    #               stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
     return ret['res']
 

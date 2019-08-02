@@ -216,6 +216,15 @@
 \centering
 \BLOCK{ endif }
 \BLOCK{ if ctrl_fig_size }
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+\resizebox{%
+	\ifdim\width>0.98\textwidth
+        0.98\textwidth
+    \else
+        \width
+    \fi
+}{!}{%
+\BLOCK{ else }
 \resizebox*{!}{%
 	\ifdim\height>0.95\textheight
         0.95\textheight
@@ -224,22 +233,60 @@
     \fi
 }{%
 \BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ if not make_index and not ctrl_fig_size }
 \begin{center}
 \BLOCK{ endif }
-\BLOCK{ if nonnumeric_x }
+\BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
 \BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+axis x line*=bottom,%
+\BLOCK{ else }
 axis y line*=left,%
+\BLOCK{ endif }
 align=center,%
-\BLOCK{ if nonnumeric_x }
+\BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+ytick=data,%
+yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ else }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xbar,%
+ylabel=\VAR{sec['label_x']},%
+xlabel=\VAR{sec['label_y_l']},%
+\BLOCK{ if sec['plots_l']|length > 1 }
+y=\VAR{ (0.4 + 0.35 * sec['plots_l']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge y limits={true, abs value=\VAR{ (sec['plots_l']|length / 2)|round(2) }},%
+/pgf/bar shift=-\VAR{ (0.1 + 0.35 * sec['plots_l']|length / 2)|round(2) }cm,%
+\BLOCK{ else }
+enlarge y limits={true, abs value=0.5},%
+/pgf/bar shift=-6pt,%
+\BLOCK{ endif }
+\BLOCK{ elif sec['fig_type'] == 'ybar' }
+ybar,%
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y_l']},%
+\BLOCK{ if sec['plots_l']|length > 1 }
+x=\VAR{ (0.4 + 0.35 * sec['plots_l']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge x limits={true, abs value=\VAR{ (sec['plots_l']|length / 2)|round(2) }},%
+/pgf/bar shift=-\VAR{ (0.1 + 0.35 * sec['plots_l']|length / 2)|round(2) }cm,%
+\BLOCK{ else }
+enlarge x limits={true, abs value=0.5},%
+/pgf/bar shift=-6pt,%
+\BLOCK{ endif }
+\BLOCK{ else }
+xlabel=\VAR{sec['label_x']},%
+ylabel=\VAR{sec['label_y_l']},%
+\BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['limits_l'] is not none }
@@ -257,15 +304,29 @@ legend style={
 	legend columns=\VAR{sec['legend_cols']},
 	},
 cycle list name=big variety1,
+\BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
+every axis plot/.append style={fill,draw=none,no markers},%
+\BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots_l'] }
 \addplot+ [%
+\BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
 \VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
+\BLOCK{ else }
+\BLOCK{ if not sec['use_marks'] and not fill_bar }
+no markers,%
+\BLOCK{ endif }
+\BLOCK{ endif }
 unbounded coords=discard] table [%
 col sep=semicolon,%
-\BLOCK{ if nonnumeric_x }
+\BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+y expr=\coordindex,%
+x=\VAR{ it }
+\BLOCK{ else }
 x expr=\coordindex,%
 y=\VAR{ it }
+\BLOCK{ endif }
 \BLOCK{ else }
 x=\VAR{ sec['plot_x'] },%
 y=\VAR{ it }
@@ -276,15 +337,53 @@ y=\VAR{ it }
 \end{axis}
 
 \begin{axis}[
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+axis x line*=top,%
+axis y line=none,%
+\BLOCK{ else }
 axis y line*=right,%
-axis x line=none,
+axis x line=none,%
+\BLOCK{ endif }
 align=center,%
-\BLOCK{ if nonnumeric_x }
+\BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+ytick=data,%
+yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ else }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xbar,%
+xlabel=\VAR{sec['label_y_r']},%
+\BLOCK{ if sec['plots_r']|length > 1 }
+y=\VAR{ (0.4 + 0.35 * sec['plots_r']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge y limits={true, abs value=\VAR{ (sec['plots_r']|length / 2)|round(2) }},%
+/pgf/bar shift=\VAR{ (0.1 + 0.35 * sec['plots_r']|length / 2)|round(2) }cm,%
+\BLOCK{ else }
+enlarge y limits={true, abs value=0.5},%
+/pgf/bar shift=6pt,%
+\BLOCK{ endif }
+xticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ elif sec['fig_type'] == 'ybar' }
+ybar,%
+ylabel=\VAR{sec['label_y_r']},%
+\BLOCK{ if sec['plots_r']|length > 1 }
+x=\VAR{ (0.4 + 0.35 * sec['plots_r']|length)|round(2) }cm,%
+bar width=0.3cm,%
+enlarge x limits={true, abs value=\VAR{ (sec['plots_r']|length / 2)|round(2) }},%
+/pgf/bar shift=\VAR{ (0.1 + 0.35 * sec['plots_r']|length / 2)|round(2) }cm,%
+\BLOCK{ else }
+enlarge x limits={true, abs value=0.5},%
+/pgf/bar shift=6pt,%
+\BLOCK{ endif }
+yticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ else }
 ylabel=\VAR{sec['label_y_r']},%
 yticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ endif }
 \BLOCK{ if sec['limits_r'] is not none }
 \BLOCK{ if sec['limits_r']['miny'] is not none }
 ymin=\VAR{sec['limits_r']['miny']},
@@ -299,6 +398,9 @@ legend style={
 	legend columns=\VAR{sec['legend_cols']},
 	},
 cycle list name=big variety2,
+\BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
+every axis plot/.append style={fill,draw=none,no markers},%
+\BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots_l'] }
 \addlegendimage{/pgfplots/refstyle=axis_l_\VAR{ it }}\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
@@ -306,12 +408,23 @@ cycle list name=big variety2,
 %\pgfplotsset{cycle list set=\VAR{sec['plots_l']|length}}
 \BLOCK{ for it in sec['plots_r'] }
 \addplot+ [%
+\BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
 \VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
+\BLOCK{ else }
+\BLOCK{ if not sec['use_marks'] and not fill_bar }
+no markers,%
+\BLOCK{ endif }
+\BLOCK{ endif }
 unbounded coords=discard] table [%
 col sep=semicolon,%
-\BLOCK{ if nonnumeric_x }
+\BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+y expr=\coordindex,%
+x=\VAR{ it }
+\BLOCK{ else }
 x expr=\coordindex,%
 y=\VAR{ it }
+\BLOCK{ endif }
 \BLOCK{ else }
 x=\VAR{ sec['plot_x'] },%
 y=\VAR{ it }
