@@ -2,6 +2,7 @@
 \usepackage[english]{babel}
 \usepackage{textcomp}
 \usepackage{amssymb}
+\usepackage[htt]{hyphenat}
 \BLOCK{ if make_index }
 \usepackage{hyperref}
 \BLOCK{ endif }
@@ -122,7 +123,7 @@
 	cyan!60!black,every mark/.append style={fill=cyan!80!black},mark=otimes*\\
 	cyan!90!black,densely dashed,every mark/.append style={fill=cyan!80!black},mark=o\\
 	red,every mark/.append style={fill=orange!80!black},mark=triangle*\\
-	red!70!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=triangle\\
+	red!60!white,densely dashed,every mark/.append style={fill=orange!80!black},mark=triangle\\
 	black,every mark/.append style={solid,fill=darkgray},mark=diamond*\\
 	black!70!white,densely dashed,every mark/.append style={solid,fill=darkgray},mark=diamond\\
 %	blue,every mark/.append style={fill=blue!80!black},mark=halfdiamond*\\
@@ -173,7 +174,7 @@
 %	black,every mark/.append style={solid,fill=darkgray},mark=diamond*\\
 %	black!70!white,densely dashed,every mark/.append style={solid,fill=darkgray},mark=diamond\\
 	blue,every mark/.append style={fill=blue!80!black},mark=halfdiamond*\\
-	blue!70!white,densely dashed,every mark/.append style={fill=blue!80!black},mark=asterisk\\
+	blue!60!white,densely dashed,every mark/.append style={fill=blue!80!black},mark=asterisk\\
 	gray,every mark/.append style={fill=gray!90!black},mark=halfsquare right*\\
 	gray!70!white,densely dashed,every mark/.append style={fill=gray!90!black},mark=10-pointed star\\
 	magenta,every mark/.append style={fill=magenta!80!black},mark=halfsquare left*\\
@@ -226,8 +227,8 @@
 }{!}{%
 \BLOCK{ else }
 \resizebox*{!}{%
-	\ifdim\height>0.95\textheight
-        0.95\textheight
+	\ifdim\height>0.86\textheight
+        0.86\textheight
     \else
         \height
     \fi
@@ -248,39 +249,44 @@ axis x line*=bottom,%
 axis y line*=left,%
 \BLOCK{ endif }
 align=center,%
+max space between ticks={50},%
 \BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ else }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
 ylabel=\VAR{sec['label_x']},%
 xlabel=\VAR{sec['label_y_l']},%
-\BLOCK{ if sec['plots_l']|length > 1 }
-y=\VAR{ (0.4 + 0.35 * sec['plots_l']|length)|round(2) }cm,%
-bar width=0.3cm,%
-enlarge y limits={true, abs value=\VAR{ (sec['plots_l']|length / 2)|round(2) }},%
-/pgf/bar shift=-\VAR{ (0.1 + 0.35 * sec['plots_l']|length / 2)|round(2) }cm,%
-\BLOCK{ else }
 enlarge y limits={true, abs value=0.5},%
+\BLOCK{ if sec['plots_l']|length > 1 }
+y=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_l']|length))|round(2) }cm,%
+bar width=0.3cm,%
+/pgf/bar shift={-\VAR{ (0.05 + 0.37056 * sec['plots_l']|length / 2)|round(2) }cm
+-0.5*(\numplotsofactualtype*\pgfplotbarwidth + (\numplotsofactualtype-1)*(2pt))
++(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
+\BLOCK{ else }
 /pgf/bar shift=-6pt,%
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y_l']},%
-\BLOCK{ if sec['plots_l']|length > 1 }
-x=\VAR{ (0.4 + 0.35 * sec['plots_l']|length)|round(2) }cm,%
-bar width=0.3cm,%
-enlarge x limits={true, abs value=\VAR{ (sec['plots_l']|length / 2)|round(2) }},%
-/pgf/bar shift=-\VAR{ (0.1 + 0.35 * sec['plots_l']|length / 2)|round(2) }cm,%
-\BLOCK{ else }
 enlarge x limits={true, abs value=0.5},%
+\BLOCK{ if sec['plots_l']|length > 1 }
+x=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_l']|length))|round(2) }cm,%
+bar width=0.3cm,%
+/pgf/bar shift={-\VAR{ (0.05 + 0.37056 * sec['plots_l']|length / 2)|round(2) }cm
+-0.5*(\numplotsofactualtype*\pgfplotbarwidth + (\numplotsofactualtype-1)*(2pt))
++(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
+\BLOCK{ else }
 /pgf/bar shift=-6pt,%
 \BLOCK{ endif }
 \BLOCK{ else }
@@ -291,19 +297,22 @@ xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['limits_l'] is not none }
 \BLOCK{ if sec['limits_l']['miny'] is not none }
-ymin=\VAR{sec['limits_l']['miny']},
+ymin=\VAR{sec['limits_l']['miny']},%
 \BLOCK{ endif }
 \BLOCK{ if sec['limits_l']['maxy'] is not none }
-ymax=\VAR{sec['limits_l']['maxy']},
+ymax=\VAR{sec['limits_l']['maxy']},%
 \BLOCK{ endif }
 \BLOCK{ endif }
-title=\VAR{sec['title']},
-legend style={
-	at={(0.5,-0.12)},
-	anchor=north,
-	legend columns=\VAR{sec['legend_cols']},
-	},
-cycle list name=big variety1,
+\BLOCK{ if sec['fig_type'] == 'xbar' and sec['title_rows'] > 0 }
+title style={align=center,yshift=\VAR{ 1.5 * (sec['title_rows'] + 1) }ex},%
+\BLOCK{ endif }
+title={\VAR{ sec['title'] }},%
+%legend style={
+%	at={(0.5,-0.12)},
+%	anchor=north,
+%	legend columns=\VAR{sec['legend_cols']},
+%	},
+cycle list name=big variety1,%
 \BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
 every axis plot/.append style={fill,draw=none,no markers},%
 \BLOCK{ endif }
@@ -332,7 +341,7 @@ x=\VAR{ sec['plot_x'] },%
 y=\VAR{ it }
 \BLOCK{ endif }
 ] {\VAR{ sec['file'] }};\label{axis_l_\VAR{ it }}
-\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
+%\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
 \BLOCK{ endfor }
 \end{axis}
 
@@ -357,26 +366,28 @@ xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
 xlabel=\VAR{sec['label_y_r']},%
-\BLOCK{ if sec['plots_r']|length > 1 }
-y=\VAR{ (0.4 + 0.35 * sec['plots_r']|length)|round(2) }cm,%
-bar width=0.3cm,%
-enlarge y limits={true, abs value=\VAR{ (sec['plots_r']|length / 2)|round(2) }},%
-/pgf/bar shift=\VAR{ (0.1 + 0.35 * sec['plots_r']|length / 2)|round(2) }cm,%
-\BLOCK{ else }
 enlarge y limits={true, abs value=0.5},%
+\BLOCK{ if sec['plots_r']|length > 1 }
+y=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_r']|length))|round(2) }cm,%
+bar width=0.3cm,%
+/pgf/bar shift={\VAR{ (0.05 + 0.37056 * sec['plots_r']|length / 2)|round(2) }cm
+-0.5*(\numplotsofactualtype*\pgfplotbarwidth + (\numplotsofactualtype-1)*(2pt))
++(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
+\BLOCK{ else }
 /pgf/bar shift=6pt,%
 \BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
 ylabel=\VAR{sec['label_y_r']},%
-\BLOCK{ if sec['plots_r']|length > 1 }
-x=\VAR{ (0.4 + 0.35 * sec['plots_r']|length)|round(2) }cm,%
-bar width=0.3cm,%
-enlarge x limits={true, abs value=\VAR{ (sec['plots_r']|length / 2)|round(2) }},%
-/pgf/bar shift=\VAR{ (0.1 + 0.35 * sec['plots_r']|length / 2)|round(2) }cm,%
-\BLOCK{ else }
 enlarge x limits={true, abs value=0.5},%
+\BLOCK{ if sec['plots_r']|length > 1 }
+x=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_r']|length))|round(2) }cm,%
+bar width=0.3cm,%
+/pgf/bar shift={\VAR{ (0.05 + 0.37056 * sec['plots_r']|length / 2)|round(2) }cm
+-0.5*(\numplotsofactualtype*\pgfplotbarwidth + (\numplotsofactualtype-1)*(2pt))
++(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
+\BLOCK{ else }
 /pgf/bar shift=6pt,%
 \BLOCK{ endif }
 yticklabel style={/pgf/number format/precision=4},%
@@ -393,7 +404,11 @@ ymax=\VAR{sec['limits_r']['maxy']},
 \BLOCK{ endif }
 \BLOCK{ endif }
 legend style={
-	at={(0.5,-0.12)},
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+	at={(0.5,-\VAR{ [(0.12 - 0.1 * sec['plots_r']|length)|round(2), 0.015]|max })},
+\BLOCK{ else }
+	at={(0.5,-0.15)},
+\BLOCK{ endif }
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},
