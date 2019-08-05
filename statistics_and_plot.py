@@ -188,6 +188,8 @@ def calcSatisticAndPlot_2D(data,
                            it_parameters,
                            x_axis_column,
                            pdfsplitentry,# One or more column names present in eval_columns for splitting pdf
+                           filter_func = None,
+                           filter_func_args = None,
                            special_calcs_func = None,
                            special_calcs_args = None,
                            calc_func = None,
@@ -215,6 +217,11 @@ def calcSatisticAndPlot_2D(data,
                       (data['R_out(2,0)'] == 0) &
                       (data['R_out(2,1)'] == 0) &
                       (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            raise ValueError('Expected some arguments')
+        filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
     store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
                                                        '-'.join(map(str, x_axis_column)))
     cnt = 1
@@ -427,6 +434,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                                       it_parameters,# Algorithm parameters to evaluate
                                       partitions,# Data properties to calculate statistics seperately
                                       x_axis_column,# x-axis column name
+                                      filter_func=None,
+                                      filter_func_args=None,
                                       special_calcs_func = None,
                                       special_calcs_args = None,
                                       calc_func = None,
@@ -454,6 +463,11 @@ def calcSatisticAndPlot_2D_partitions(data,
                       (data['R_out(2,0)'] == 0) &
                       (data['R_out(2,1)'] == 0) &
                       (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            raise ValueError('Expected some arguments')
+        filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
     store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)) + '_for_' +
                                               '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
@@ -697,6 +711,8 @@ def calcSatisticAndPlot_3D(data,
                            units,
                            it_parameters,
                            xy_axis_columns,
+                           filter_func=None,
+                           filter_func_args=None,
                            special_calcs_func = None,
                            special_calcs_args = None,
                            calc_func = None,
@@ -726,6 +742,11 @@ def calcSatisticAndPlot_3D(data,
                       (data['R_out(2,0)'] == 0) &
                       (data['R_out(2,1)'] == 0) &
                       (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            raise ValueError('Expected some arguments')
+        filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
     store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
                                                        '-'.join(map(str, xy_axis_columns)))
     cnt = 1
@@ -1405,6 +1426,8 @@ def main():
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     calc_func = None
     calc_func_args = None
+    filter_func = None
+    filter_func_args = None
     fig_type = 'ybar'
     use_marks = True
     ctrl_fig_size = True
@@ -1420,6 +1443,8 @@ def main():
     #                        it_parameters,
     #                        x_axis_column,
     #                        pdfsplitentry,
+    #                        filter_func,
+    #                        filter_func_args,
     #                        special_calcs_func,
     #                        special_calcs_args,
     #                        calc_func,
@@ -1441,7 +1466,8 @@ def main():
                                       it_parameters,  # Algorithm parameters to evaluate
                                       partitions,  # Data properties to calculate statistics seperately
                                       x_axis_column,  # x-axis column name
-                                      # One or more column names present in eval_columns for splitting pdf
+                                      filter_func,
+                                      filter_func_args,
                                       special_calcs_func,
                                       special_calcs_args,
                                       calc_func,
@@ -1465,6 +1491,8 @@ def main():
     #                        units,
     #                        it_parameters,
     #                        x_axis_column,
+    #                        filter_func,
+    #                        filter_func_args,
     #                        special_calcs_func,
     #                        special_calcs_args,
     #                        calc_func,
