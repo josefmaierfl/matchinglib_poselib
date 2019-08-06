@@ -219,8 +219,9 @@ def calcSatisticAndPlot_2D(data,
                       (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
-            raise ValueError('Expected some arguments')
-        filter_func_args['data'] = data
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
     store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
                                                        '-'.join(map(str, x_axis_column)))
@@ -465,8 +466,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                       (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
-            raise ValueError('Expected some arguments')
-        filter_func_args['data'] = data
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
     store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)) + '_for_' +
@@ -744,8 +746,9 @@ def calcSatisticAndPlot_3D(data,
                       (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
-            raise ValueError('Expected some arguments')
-        filter_func_args['data'] = data
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
     store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
                                                        '-'.join(map(str, xy_axis_columns)))

@@ -8,6 +8,10 @@ import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
 import ruamel.yaml as yaml
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.model_selection import KFold
+from scipy import stats
 # import tempfile
 # import shutil
 #from copy import deepcopy
@@ -1287,4 +1291,78 @@ def get_best_comb_th_scenes_1(**keywords):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     return ret['res']
+
+
+def filter_nr_kps(vars):
+    return vars['data'].loc[vars['data']['nrTP'] == '100to1000']
+
+
+def calc_Time_Model(vars):
+    # it_parameters: algorithms
+    # x_axis_column: nrCorrs_GT, inlRat_GT
+    # eval_columns: robEstimationAndRef_us
+    # partitions: inlRatMin, th
+    needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['x_axis_column']
+    df = vars['data'][needed_cols]
+    # Calculate TP
+    df['actNrTP'] = (df[vars['x_axis_column'][0]] * df[vars['x_axis_column'][1]]).round()
+    df_grp = df.groupby(vars['partitions'] + vars['it_parameters'])
+    # Check if we can use a linear model or a second degree model (t = t_fixed + t_lin * nrCorrs_GT + t_2nd * nrCorrs_GT
+    grp_keys = df_grp.groups.keys()
+    std_dev = 3 # Number of standard deviations for filtering
+    for grp in grp_keys:
+        tmp = df_grp.get_group(grp)
+        # Filter out spikes (split data in chunks first)
+        ma = tmp[vars['eval_columns'][0]].select_dtypes(include=[np.number]).dropna().values.max()
+        mi = tmp[vars['eval_columns'][0]].select_dtypes(include=[np.number]).dropna().values.min()
+        r_r = ma - mi
+        r5 = r_r / 5
+        a = mi
+        parts = []
+        for b in np.arange(mi + r5, ma + r5 / 2, r5):
+            if round(b - ma) == 0:
+                b += 1
+            part = tmp.loc[(tmp[vars['eval_columns'][0]] >= a) &
+                           (tmp[vars['eval_columns'][0]] < b)]
+            part = part.loc[np.abs(stats.zscore(part[vars['eval_columns'][0]])) < float(std_dev)]
+            parts.append(part)
+        tmp1 = pd.concat(parts, ignore_index=False, sort=False, copy=False)
+
+        # values converts it into a numpy array, -1 means that calculate the dimension of rows
+        X = pd.DataFrame(tmp1[vars['x_axis_column'][0]])
+        Y = pd.DataFrame(tmp1[vars['eval_columns'][0]])
+        model = LinearRegression(n_jobs=-1)
+        scores = []
+        kfold = KFold(n_splits=3, shuffle=True)
+        for train, test in kfold.split(X, Y):
+            model.fit(X.iloc[train, :], Y.iloc[train, :])
+            score = model.score(X.iloc[test, :], Y.iloc[test, :])
+            scores.append(score)
+        mean_score = sum(scores) / len(scores)
+        parameters = None
+        if mean_score > 0.67:
+            # The linear model will fit the data
+            model.fit(X, Y)
+            score = model.score(X, Y)
+            parameters = [model.intercept_] + model.coef_.tolist()
+        else:
+            polynomial_features = PolynomialFeatures(degree=2)
+            scores = []
+            for train, test in kfold.split(X, Y):
+                x_poly = polynomial_features.fit_transform(X.iloc[train, :])
+                model.fit(x_poly, Y.iloc[train, :])
+                x_poly_test = polynomial_features.fit_transform(X.iloc[test, :])
+                score = model.score(x_poly_test, Y.iloc[test, :])
+                scores.append(score)
+            mean_score1 = sum(scores) / len(scores)
+            if mean_score1 > 1.2 * mean_score:
+                x_poly = polynomial_features.fit_transform(X)
+                model.fit(x_poly, Y)
+                x_poly_test = polynomial_features.fit_transform(X)
+                score = model.score(x_poly_test, Y)
+                parameters = [model.intercept_] + model.coef_.tolist()
+            else:
+                model.fit(X, Y)
+                score = model.score(X, Y)
+                parameters = [model.intercept_] + model.coef_.tolist()
 
