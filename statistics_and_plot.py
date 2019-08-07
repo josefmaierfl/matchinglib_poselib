@@ -259,9 +259,17 @@ def calcSatisticAndPlot_2D(data,
     #Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
-            raise ValueError('Expected some arguments')
-        calc_func_args['data'] = data
-        df = calc_func(**calc_func_args)
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['x_axis_column'] = x_axis_column
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        it_parameters = ret['it_parameters']
+        x_axis_column = ret['x_axis_column']
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
@@ -507,9 +515,19 @@ def calcSatisticAndPlot_2D_partitions(data,
     #Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
-            raise ValueError('Expected some arguments')
-        calc_func_args['data'] = data
-        df = calc_func(**calc_func_args)
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['x_axis_column'] = x_axis_column
+        calc_func_args['partitions'] = partitions
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        it_parameters = ret['it_parameters']
+        x_axis_column = ret['x_axis_column']
+        partitions = ret['partitions']
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column + partitions
         df = data[needed_columns]
@@ -786,9 +804,17 @@ def calcSatisticAndPlot_3D(data,
     #Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
-            raise ValueError('Expected some arguments')
-        calc_func_args['data'] = data
-        df = calc_func(**calc_func_args)
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['xy_axis_columns'] = xy_axis_columns
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        it_parameters = ret['it_parameters']
+        xy_axis_columns = ret['xy_axis_columns']
     else:
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
@@ -835,7 +861,7 @@ def calcSatisticAndPlot_3D(data,
         if i < nr_it_parameters - 1:
             base_out_name += '-'
     base_out_name += '_combs_vs_' + grp_names[-2] + '_and_' + grp_names[-1]
-    title_name += ' compared to ' + replaceCSVLabels(grp_names[-2], False, True) + ' and ' + \
+    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-2], False, True) + ' and ' + \
                   replaceCSVLabels(grp_names[-1], False, True) + ' Values'
     tex_infos = {'title': title_name,
                  'sections': [],
@@ -931,6 +957,264 @@ def calcSatisticAndPlot_3D(data,
 
     # endt = time.time()
     # print(endt - startt)
+
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       sections=it['sections'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+    return res
+
+
+def calcFromFuncAndPlot_3D(data,
+                           store_path,
+                           tex_file_pre_str,
+                           fig_title_pre_str,
+                           eval_columns,
+                           #units,
+                           it_parameters,
+                           xy_axis_columns,
+                           filter_func=None,
+                           filter_func_args=None,
+                           special_calcs_func = None,
+                           special_calcs_args = None,
+                           calc_func = None,
+                           calc_func_args = None,
+                           fig_type='surface',
+                           use_marks=True,
+                           ctrl_fig_size=True,
+                           make_fig_index=True,
+                           build_pdf=False,
+                           figs_externalize=True):
+    # if len(xy_axis_columns) != 2:
+    #     raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
+    fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
+                 'surface', 'contour', 'surface-contour']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
+    #Filter rows by excluding not successful estimations
+    data = data.loc[~((data['R_out(0,0)'] == 0) &
+                      (data['R_out(0,1)'] == 0) &
+                      (data['R_out(0,2)'] == 0) &
+                      (data['R_out(1,0)'] == 0) &
+                      (data['R_out(1,1)'] == 0) &
+                      (data['R_out(1,2)'] == 0) &
+                      (data['R_out(2,0)'] == 0) &
+                      (data['R_out(2,1)'] == 0) &
+                      (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                                       '-'.join(map(str, xy_axis_columns)))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+
+    if data.empty:
+        raise ValueError('No data left after filtering unsuccessful estimations')
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+    #Select columns we need
+    if calc_func is not None:
+        if calc_func_args is None:
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['xy_axis_columns'] = xy_axis_columns
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        eval_cols_lname = ret['eval_cols_lname']
+        eval_init_input = ret['eval_init_input']
+        units = ret['units']
+        it_parameters = ret['it_parameters']
+        xy_axis_columns = ret['xy_axis_columns']
+    else:
+        raise ValueError('No function for calculating results provided')
+    if special_calcs_func is not None and special_calcs_args is not None:
+        special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args['data'] = df
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
+            if res != 0:
+                warnings.warn('Calculation of specific results failed!', UserWarning)
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(it_parameters)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    for i, val in enumerate(it_parameters):
+        base_out_name += val
+        title_name += replaceCSVLabels(val, True, True)
+        if(nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                title_name += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                title_name += ', '
+            elif i < nr_it_parameters - 1:
+                title_name += ', and '
+        if i < nr_it_parameters - 1:
+            base_out_name += '-'
+    init_pars_title = ''
+    init_pars_out_name = ''
+    nr_eval_init_input = len(eval_init_input)
+    if nr_eval_init_input > 1:
+        for i, val in enumerate(eval_init_input):
+            init_pars_out_name += val
+            init_pars_title += replaceCSVLabels(val, True, True)
+            if(nr_eval_init_input <= 2):
+                if i < nr_eval_init_input - 1:
+                    init_pars_title += ' and '
+            else:
+                if i < nr_eval_init_input - 2:
+                    init_pars_title += ', '
+                elif i < nr_eval_init_input - 1:
+                    init_pars_title += ', and '
+            if i < nr_eval_init_input - 1:
+                init_pars_out_name += '-'
+    else:
+        init_pars_out_name = eval_init_input[0]
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+    base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
+                     init_pars_out_name
+    title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
+                  replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
+                 'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
+    df = df.groupby(it_parameters)
+    grp_keys = df.groups.keys()
+    for grp in grp_keys:
+        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                     '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
+        fdataf_name = os.path.join(tdata_folder, dataf_name)
+        tmp = df.get_group(grp)
+        with open(fdataf_name, 'a') as f:
+            f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                    '-'.join(map(str, it_parameters)) + '\n')
+            f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
+            f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
+            tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        for it in eval_columns:
+            #Construct tex-file information
+            #figure types:
+            # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
+            reltex_name = os.path.join(rel_data_path, dataf_name)
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': replace_stat_names(it[-1]) + ' value for ' +
+                                                  replaceCSVLabels(str(it[0]), True) +
+                                                  ' compared to ' +
+                                                  replaceCSVLabels(str(grp_names[-2]), True) +
+                                                  ' and ' + replaceCSVLabels(str(grp_names[-1]), True),
+                                          'fig_type': fig_type,
+                                          'stat_name': it[-1],
+                                          'plots_z': list(tmp.columns.values)[2:],
+                                          'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                          'plot_x': str(tmp.columns.values[1]),
+                                          'label_x': replace_stat_names(str(tmp.columns.values[1])) +
+                                                     findUnit(str(tmp.columns.values[1]), units),
+                                          'plot_y': str(tmp.columns.values[0]),
+                                          'label_y': replace_stat_names(str(tmp.columns.values[0])) +
+                                                     findUnit(str(tmp.columns.values[0]), units),
+                                          'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
+                                          'use_marks': use_marks,
+                                          'mesh_cols': nr_equal_ss
+                                          })
+
+    pdfs_info = []
+    max_figs_pdf = 40
+    if tex_infos['ctrl_fig_size']:# and not figs_externalize:
+        max_figs_pdf = 30
+    # elif figs_externalize:
+    #     max_figs_pdf = 40
+    for st in stat_names:
+        #Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        act_figs = 0
+        cnt = 1
+        i_old = 0
+        i_new = 0
+        st_list2 = []
+        for i_new, a in enumerate(st_list):
+            act_figs += len(a['plots_z'])
+            if act_figs > max_figs_pdf:
+                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+                cnt += 1
+                i_old = i_new + 1
+                act_figs = 0
+        if (i_new + 1) != i_old:
+            st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = replace_stat_names(st) + ' ' + tex_infos['title']
+            else:
+                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+            pdfs_info.append({'title': title,
+                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
@@ -1366,6 +1650,14 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
                                            not b in ex else b for b in str_val.split(' ')])
     else:
         return str_val
+
+
+def capitalizeStr(str_val):
+    ex = ['and', 'of', 'for', 'to', 'with']
+    return ' '.join([b.capitalize() if not b.isupper() and
+                                       not '$' in b and
+                                       not '\\' in b and
+                                       not b in ex else b for b in str_val.split(' ')])
 
 #Only for testing
 def main():

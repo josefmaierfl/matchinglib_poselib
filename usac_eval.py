@@ -1299,17 +1299,20 @@ def filter_nr_kps(vars):
 
 def calc_Time_Model(vars):
     # it_parameters: algorithms
-    # x_axis_column: nrCorrs_GT, inlRat_GT
+    # x_axis_column: nrCorrs_GT, (inlRat_GT)
     # eval_columns: robEstimationAndRef_us
     # partitions: inlRatMin, th
     needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['x_axis_column']
     df = vars['data'][needed_cols]
     # Calculate TP
-    df['actNrTP'] = (df[vars['x_axis_column'][0]] * df[vars['x_axis_column'][1]]).round()
-    df_grp = df.groupby(vars['partitions'] + vars['it_parameters'])
+    # df['actNrTP'] = (df[vars['x_axis_column'][0]] * df[vars['x_axis_column'][1]]).round()
+    grpd_cols = vars['partitions'] + vars['it_parameters']
+    df_grp = df.groupby(grpd_cols)
     # Check if we can use a linear model or a second degree model (t = t_fixed + t_lin * nrCorrs_GT + t_2nd * nrCorrs_GT
     grp_keys = df_grp.groups.keys()
     std_dev = 3 # Number of standard deviations for filtering
+    model_type = []
+    model = LinearRegression(n_jobs=-1)
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
         # Filter out spikes (split data in chunks first)
@@ -1326,43 +1329,108 @@ def calc_Time_Model(vars):
                            (tmp[vars['eval_columns'][0]] < b)]
             part = part.loc[np.abs(stats.zscore(part[vars['eval_columns'][0]])) < float(std_dev)]
             parts.append(part)
+            a = b
         tmp1 = pd.concat(parts, ignore_index=False, sort=False, copy=False)
 
         # values converts it into a numpy array, -1 means that calculate the dimension of rows
-        X = pd.DataFrame(tmp1[vars['x_axis_column'][0]])
-        Y = pd.DataFrame(tmp1[vars['eval_columns'][0]])
-        model = LinearRegression(n_jobs=-1)
+        X = pd.DataFrame(tmp1[vars['x_axis_column'][0]]).values.reshape(-1, 1)
+        Y = pd.DataFrame(tmp1[vars['eval_columns'][0]]).values.reshape(-1, 1)
         scores = []
         kfold = KFold(n_splits=3, shuffle=True)
         for train, test in kfold.split(X, Y):
-            model.fit(X.iloc[train, :], Y.iloc[train, :])
-            score = model.score(X.iloc[test, :], Y.iloc[test, :])
+            model.fit(X[train], Y[train])
+            score = model.score(X[test], Y[test])
             scores.append(score)
         mean_score = sum(scores) / len(scores)
-        parameters = None
         if mean_score > 0.67:
             # The linear model will fit the data
             model.fit(X, Y)
             score = model.score(X, Y)
             parameters = [model.intercept_] + model.coef_.tolist()
+            model_type.append({'score': score, 'parameters': parameters, 'type': 0, 'data': tmp1, 'grp': grp})
         else:
             polynomial_features = PolynomialFeatures(degree=2)
             scores = []
             for train, test in kfold.split(X, Y):
-                x_poly = polynomial_features.fit_transform(X.iloc[train, :])
-                model.fit(x_poly, Y.iloc[train, :])
-                x_poly_test = polynomial_features.fit_transform(X.iloc[test, :])
-                score = model.score(x_poly_test, Y.iloc[test, :])
+                x_poly = polynomial_features.fit_transform(X[train])
+                model.fit(x_poly, Y[train])
+                x_poly_test = polynomial_features.fit_transform(X[test])
+                score = model.score(x_poly_test, Y[test])
                 scores.append(score)
             mean_score1 = sum(scores) / len(scores)
             if mean_score1 > 1.2 * mean_score:
                 x_poly = polynomial_features.fit_transform(X)
                 model.fit(x_poly, Y)
-                x_poly_test = polynomial_features.fit_transform(X)
-                score = model.score(x_poly_test, Y)
+                score = model.score(x_poly, Y)
                 parameters = [model.intercept_] + model.coef_.tolist()
+                model_type.append({'score': score, 'parameters': parameters, 'type': 1, 'data': tmp1, 'grp': grp})
             else:
                 model.fit(X, Y)
                 score = model.score(X, Y)
                 parameters = [model.intercept_] + model.coef_.tolist()
+                model_type.append({'score': score, 'parameters': parameters, 'type': 1, 'data': tmp1, 'grp': grp})
+
+    mod_sel = round(sum([a['type'] for a in model_type])/len(model_type), 4)
+    if mod_sel > 0 and mod_sel < 1:
+        scores1 = [a['score'] for a in model_type if a['type'] == 0]
+        scores11 = sum(scores1) / len(scores1)
+        scores2 = [a['score'] for a in model_type if a['type'] == 1]
+        scores21 = sum(scores2) / len(scores2)
+        l_rat2 = len(scores2) / len(model_type)
+        if l_rat2 > 0.5 and scores21 > 1.1 * scores11:
+            polynomial_features = PolynomialFeatures(degree=2)
+            for i, val in enumerate(model_type):
+                if val['type'] == 0:
+                    X = pd.DataFrame(val['data'][vars['x_axis_column'][0]]).values.reshape(-1, 1)
+                    Y = pd.DataFrame(val['data'][vars['eval_columns'][0]]).values.reshape(-1, 1)
+                    x_poly = polynomial_features.fit_transform(X)
+                    model.fit(x_poly, Y)
+                    model_type[i]['score'] = model.score(x_poly, Y)
+                    model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
+                    model_type[i]['type'] = 1
+        else:
+            for i, val in enumerate(model_type):
+                if val['type'] == 1:
+                    X = pd.DataFrame(val['data'][vars['x_axis_column'][0]]).values.reshape(-1, 1)
+                    Y = pd.DataFrame(val['data'][vars['eval_columns'][0]]).values.reshape(-1, 1)
+                    model.fit(X, Y)
+                    model_type[i]['score'] = model.score(X, Y)
+                    model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
+                    model_type[i]['type'] = 0
+
+
+    data_new = {'score': [], 'fixed_time': [], 'linear_time': []}
+    if model_type[0]['type'] == 1:
+        data_new['squared_time'] = []
+    for i in grpd_cols:
+        data_new[i] = []
+    for val in model_type:
+        data_new['score'].append(val['score'])
+        data_new['fixed_time'].append(val['parameters'][0])
+        data_new['linear_time'].append(val['parameters'][1])
+        if val['type'] == 1:
+            data_new['squared_time'].append(val['parameters'][2])
+        for i, name in enumerate(grpd_cols):
+            data_new[name].append(val['grp'][i])
+    data_new = pd.DataFrame(data_new)
+    eval_columns = ['score', 'fixed_time', 'linear_time']
+    eval_cols_lname = ['$score R^{2}$', 'fixed time $t_{f}$', 'time per keypoint $t_{n}$']
+    units = [('score', ''), ('fixed_time', '/$\\mu s$'), ('linear_time', '/$\\mu s$')]
+    if model_type[0]['type'] == 1:
+        eval_columns += ['squared_time']
+        eval_cols_lname += ['quadratic time coefficient $t_{n^{2}}$']
+        units += [('squared_time', '')]
+    ret = {'data': data_new,
+           'it_parameters': vars['it_parameters'],
+           'eval_columns': eval_columns,
+           'eval_cols_lname': eval_cols_lname,
+           'units': units,
+           'eval_init_input': vars['eval_columns']}
+    if len(vars['partitions']) > 2:
+        raise ValueError('A maximum number of 2 partitions is alllowed.')
+    elif len(vars['partitions']) == 2:
+        ret['xy_axis_columns'] = vars['partitions']
+    else:
+        ret['x_axis_column'] = vars['partitions']
+    return ret
 

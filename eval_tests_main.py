@@ -244,7 +244,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                                      build_pdf=False,
                                                      figs_externalize=True)
         elif test_nr == 5:
-            fig_title_pre_str = 'Values for USAC Option Combinations of '
+            fig_title_pre_str = 'Temporal behaviour for USAC Option Combinations of '
             eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                             't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
             units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
