@@ -49,7 +49,11 @@ align=center,
 title={\VAR{sec['legend'][loop.index0]}},
 xlabel=\VAR{sec['label_x']},
 ylabel=\VAR{sec['label_y']},
+\BLOCK{ if sec['diff_z_labels'] }
+zlabel=\VAR{sec['label_z'][loop.index0]},
+\BLOCK{ else }
 zlabel=\VAR{sec['label_z']},
+\BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
 zticklabel style={/pgf/number format/precision=4},%

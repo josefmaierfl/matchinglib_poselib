@@ -471,6 +471,7 @@ def pars_calc_multiple_fig(**keywords):
                                           ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': ret['fig_type'],
                                   'plots_z': list(ret['b'].columns.values)[2:],
+                                  'diff_z_labels': False,
                                   'label_z': 'Combined R \\& t error',
                                   'plot_x': str(ret['b'].columns.values[1]),
                                   'label_x': str(ret['b'].columns.values[1]),
@@ -1424,7 +1425,7 @@ def calc_Time_Model(vars):
            'it_parameters': vars['it_parameters'],
            'eval_columns': eval_columns,
            'eval_cols_lname': eval_cols_lname,
-           'units': units,
+           'units': units + vars['units'],
            'eval_init_input': vars['eval_columns']}
     if len(vars['partitions']) > 2:
         raise ValueError('A maximum number of 2 partitions is alllowed.')
@@ -1433,4 +1434,241 @@ def calc_Time_Model(vars):
     else:
         ret['x_axis_column'] = vars['partitions']
     return ret
+
+
+def estimate_alg_time_fixed_kp(vars):
+    df = vars['data'].groupby(vars['it_parameters'] + vars['xy_axis_columns'][0]).mean(axis=0)
+    if len(vars['eval_columns']) > 3:
+        tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] +\
+              (vars['nr_target_kps'] * vars['nr_target_kps']) * df[vars['eval_columns'][3]]
+    else:
+        tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]]
+    col_name = 't_' + str(int(vars['nr_target_kps'])) + 'kpts'
+    tmp.rename(col_name, inplace=True)
+    tmp.reset_index(inplace=True)
+    tmp1 = tmp.loc[tmp.group_by(vars['xy_axis_columns'][0])[col_name].idxmin(axis=0)]
+    tmp1.set_index(vars['it_parameters'], inplace=True)
+    index_new = ['-'.join(a) for a in tmp1.index]
+    tmp1.index = index_new
+    tmp1.index.name = '-'.join(vars['it_parameters'])
+    tmp1['pars_tex'] = insert_opt_lbreak(index_new)
+
+    if 'res_folder' not in vars:
+        raise ValueError('Missing res_folder argument of function estimate_alg_time_fixed_kp')
+    res_folder = vars['res_folder']
+    use_marks = False
+    if 'use_marks' not in vars:
+        print('No information provided if marks should be used: Disabling marks')
+    else:
+        use_marks = vars['use_marks']
+    build_pdf = (False, True,)
+    if 'build_pdf' in vars:
+        build_pdf = vars['build_pdf']
+    if len(build_pdf) != 2:
+        raise ValueError('Wrong number of arguments for build_pdf')
+    pdf_folder = None
+    if build_pdf[0] or build_pdf[1]:
+        pdf_folder = os.path.join(res_folder, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            # print('Folder', ret['pdf_folder'], 'for storing pdf files already exists')
+            pass
+    tex_folder = os.path.join(res_folder, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        # print('Folder', ret['tex_folder'], 'for storing tex files already exists')
+        pass
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
+        pass
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(vars['it_parameters'])
+    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
+    sub_title_it_pars = ''
+    for i, val in enumerate(vars['it_parameters']):
+        sub_title_it_pars += replaceCSVLabels(val, True, True)
+        if nr_it_parameters <= 2:
+            if i < nr_it_parameters - 1:
+                sub_title_it_pars += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                sub_title_it_pars += ', '
+            elif i < nr_it_parameters - 1:
+                sub_title_it_pars += ', and '
+
+    tmp.set_index(vars['it_parameters'], inplace=True)
+    tmp = tmp.T
+    tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns.columns]
+    tmp.columns.name = '-'.join(map(str, vars['it_parameters']))
+    tmp.reset_index(inplace=True)
+    tmp.set_index(vars['xy_axis_columns'][0])
+
+    t_main_name = 'mean_time_over_all_' + str(vars['xy_axis_columns'][1]) + '_for_' + \
+                  str(int(vars['nr_target_kps'])) + 'kpts_vs_' + str(vars['xy_axis_columns'][0]) + '_for_opts_' + \
+                  '-'.join(map(str, vars['it_parameters']))
+    t_mean_name = 'data_' + t_main_name + '.csv'
+    ft_mean_name = os.path.join(tdata_folder, t_mean_name)
+    with open(ft_mean_name, 'a') as f:
+        f.write('# Mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    title = 'Mean Execution Times for Parameter Variations of ' + sub_title_it_pars + ' Over All ' + \
+            replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, True) + \
+            ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
+    tex_infos = {'title': title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': False,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
+    stats_all = tmp.stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    # figure types: sharp plot, smooth, const plot, ybar, xbar
+    use_limits = {'miny': None, 'maxy': None}
+    if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+        use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+    if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+        use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    reltex_name = os.path.join(rel_data_path, t_mean_name)
+    fig_name = 'Mean execution times for parameter ariations of\\\\' + strToLower(sub_title_it_pars) + ' over all ' + \
+               replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False) + \
+               '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    tex_infos['sections'].append({'file': reltex_name,
+                                  'name': fig_name,
+                                  # If caption is None, the field name is used
+                                  'caption': fig_name.replace('\\\\', ' '),
+                                  'fig_type': 'smooth',
+                                  'plots': list(tmp.columns.values),
+                                  'label_y': 'mean execution times/$\\mu s$',
+                                  'plot_x': str(vars['xy_axis_columns'][0]),
+                                  'label_x': replaceCSVLabels(str(vars['xy_axis_columns'][0])),
+                                  'limits': use_limits,
+                                  'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
+                                  'legend_cols': None,
+                                  'use_marks': use_marks
+                                  })
+    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if build_pdf[0]:
+        pdf_name = base_out_name + '.pdf'
+        res = abs(compile_tex(rendered_tex,
+                              tex_folder,
+                              texf_name,
+                              False,
+                              os.path.join(pdf_folder, pdf_name),
+                              tex_infos['figs_externalize']))
+    else:
+        res = abs(compile_tex(rendered_tex, tex_folder, texf_name, False))
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    t_main_name = 'min_mean_time_over_all_' + str(vars['xy_axis_columns'][1]) + '_for_' + \
+                  str(int(vars['nr_target_kps'])) + 'kpts_vs_' + str(vars['xy_axis_columns'][0]) + '_for_opts_' + \
+                  '-'.join(map(str, vars['it_parameters']))
+    t_min_name = 'data_' + t_main_name + '.csv'
+    ft_min_name = os.path.join(tdata_folder, t_min_name)
+    with open(ft_min_name, 'a') as f:
+        f.write('# Minimum execution times over parameter variations of ' + '-'.join(vars['it_parameters']) +
+                ' for mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        tmp1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    title = 'Minimum Execution Times Over Parameter Variations of ' + sub_title_it_pars + \
+            ' for Mean Execution Times Over All ' + \
+            replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, True) + \
+            ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
+    # Get data for tex file generation
+    if len(tmp1.columns) > 10:
+        fig_type = 'xbar'
+    else:
+        fig_type = 'ybar'
+    tex_infos = {'title': title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True
+                 }
+    section_name = 'Minimum execution times over parameter variations of\\\\' + strToLower(sub_title_it_pars) + \
+                   ' for mean execution times over all ' + \
+                   replaceCSVLabels(str(vars['xy_axis_columns'][1]), True) + \
+                   '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    caption = 'Minimum execution times over parameter variations of ' + strToLower(sub_title_it_pars) + \
+              ' (corresponding parameter on top of bar) for mean execution times over all ' + \
+              replaceCSVLabels(str(vars['xy_axis_columns'][1]), True) + \
+              'extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints.'
+    tex_infos['sections'].append({'file': os.path.join(rel_data_path, t_min_name),
+                                  'name': section_name.replace('\\\\', ' '),
+                                  'title': section_name,
+                                  'title_rows': section_name.count('\\\\'),
+                                  'fig_type': fig_type,
+                                  'plots': ['col_name'],
+                                  # Label of the value axis. For xbar it labels the x-axis
+                                  'label_y': 'Minimum time/$\\mu s$',
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': replaceCSVLabels(str(vars['xy_axis_columns'][0])),
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': str(vars['xy_axis_columns'][0]),
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': True,
+                                  'plot_meta': ['pars_tex'],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 90,
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': False,
+                                  'caption': caption
+                                  })
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    if build_pdf[1]:
+        res1 = compile_tex(rendered_tex,
+                           tex_folder,
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(pdf_folder, pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, tex_folder, texf_name)
+    if res1 != 0:
+        res += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return res
+
 

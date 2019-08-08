@@ -907,6 +907,7 @@ def calcSatisticAndPlot_3D(data,
                                           'fig_type': fig_type,
                                           'stat_name': it[-1],
                                           'plots_z': list(tmp.columns.values)[2:],
+                                          'diff_z_labels': False,
                                           'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
                                           'plot_x': str(tmp.columns.values[1]),
                                           'label_x': replace_stat_names(str(tmp.columns.values[1])) +
@@ -986,7 +987,7 @@ def calcFromFuncAndPlot_3D(data,
                            tex_file_pre_str,
                            fig_title_pre_str,
                            eval_columns,
-                           #units,
+                           units,
                            it_parameters,
                            xy_axis_columns,
                            filter_func=None,
@@ -1065,6 +1066,7 @@ def calcFromFuncAndPlot_3D(data,
         calc_func_args['eval_columns'] = eval_columns
         calc_func_args['it_parameters'] = it_parameters
         calc_func_args['xy_axis_columns'] = xy_axis_columns
+        calc_func_args['units'] = units
         ret = calc_func(**calc_func_args)
         df = ret['data']
         eval_columns = ret['eval_columns']
@@ -1092,6 +1094,11 @@ def calcFromFuncAndPlot_3D(data,
             calc_vals = False
         if calc_vals:
             special_calcs_args['data'] = df
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['eval_cols_lname'] = eval_cols_lname
+            special_calcs_args['units'] = units
+            special_calcs_args['xy_axis_columns'] = xy_axis_columns
+            special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -1148,69 +1155,56 @@ def calcFromFuncAndPlot_3D(data,
                      '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
+        nr_equal_ss = int(tmp.groupby(xy_axis_columns[1]).size().array[0])
         with open(fdataf_name, 'a') as f:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
                     '-'.join(map(str, it_parameters)) + '\n')
             f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
             f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
             tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
-        for it in eval_columns:
+        for i, it in enumerate(eval_columns):
             #Construct tex-file information
             #figure types:
             # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
             reltex_name = os.path.join(rel_data_path, dataf_name)
+            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
+                       ' for parameters ' + '-'.join(map(str, grp)) + ' compared to ' + \
+                       replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
+                       replaceCSVLabels(xy_axis_columns[1], True)
             tex_infos['sections'].append({'file': reltex_name,
-                                          'name': replace_stat_names(it[-1]) + ' value for ' +
-                                                  replaceCSVLabels(str(it[0]), True) +
-                                                  ' compared to ' +
-                                                  replaceCSVLabels(str(grp_names[-2]), True) +
-                                                  ' and ' + replaceCSVLabels(str(grp_names[-1]), True),
+                                          'name': fig_name,
                                           'fig_type': fig_type,
-                                          'stat_name': it[-1],
-                                          'plots_z': list(tmp.columns.values)[2:],
-                                          'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
-                                          'plot_x': str(tmp.columns.values[1]),
-                                          'label_x': replace_stat_names(str(tmp.columns.values[1])) +
-                                                     findUnit(str(tmp.columns.values[1]), units),
-                                          'plot_y': str(tmp.columns.values[0]),
-                                          'label_y': replace_stat_names(str(tmp.columns.values[0])) +
-                                                     findUnit(str(tmp.columns.values[0]), units),
-                                          'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
+                                          'stat_name': it,
+                                          'plots_z': [it],
+                                          'diff_z_labels': False,
+                                          'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i])),
+                                          'plot_x': str(xy_axis_columns[0]),
+                                          'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
+                                                     findUnit(str(xy_axis_columns[0]), units),
+                                          'plot_y': str(xy_axis_columns[1]),
+                                          'label_y': replaceCSVLabels(str(xy_axis_columns[1])) +
+                                                     findUnit(str(xy_axis_columns[1]), units),
+                                          'legend': [eval_cols_lname[i]],
                                           'use_marks': use_marks,
                                           'mesh_cols': nr_equal_ss
                                           })
 
     pdfs_info = []
-    max_figs_pdf = 40
-    if tex_infos['ctrl_fig_size']:# and not figs_externalize:
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:
         max_figs_pdf = 30
-    # elif figs_externalize:
-    #     max_figs_pdf = 40
-    for st in stat_names:
-        #Get list of results using the same statistic
+    for st in eval_columns:
+        # Get list of results using the same statistic
         st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
-        act_figs = 0
-        cnt = 1
-        i_old = 0
-        i_new = 0
-        st_list2 = []
-        for i_new, a in enumerate(st_list):
-            act_figs += len(a['plots_z'])
-            if act_figs > max_figs_pdf:
-                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
-                cnt += 1
-                i_old = i_new + 1
-                act_figs = 0
-        if (i_new + 1) != i_old:
-            st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
         for it in st_list2:
             if len(st_list2) == 1:
-                title = replace_stat_names(st) + ' ' + tex_infos['title']
+                title = tex_infos['title']
             else:
-                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
             pdfs_info.append({'title': title,
-                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
-                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'texf_name': base_out_name + '_' + str(it['pdf_nr']),
                               'figs_externalize': figs_externalize,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
@@ -1659,6 +1653,19 @@ def capitalizeStr(str_val):
                                        not '\\' in b and
                                        not b in ex else b for b in str_val.split(' ')])
 
+
+def capitalizeFirstChar(str_val):
+    str_l = str_val.split(' ')
+    str_l[0] = str_l[0].capitalize()
+    return ' '.join(str_l)
+
+
+def strToLower(str_val):
+    return ' '.join([b.lower() if not sum(1 for c in b if c.isupper()) > 1 and
+                                  not '$' in b and
+                                  not '\\' in b else b for b in str_val.split(' ')])
+
+
 #Only for testing
 def main():
     num_pts = int(8000)
@@ -1669,6 +1676,7 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
+    lin_time_pars = np.array([500, 3, 0.01])
     data = {'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
@@ -1685,7 +1693,7 @@ def main():
             'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
             #'kpDistr': [pars_kpDistr_opt[i] for i in np.random.randint(0, len(pars_kpDistr_opt), num_pts)],
             'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
-            #'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
+            'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
             'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
             #'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
@@ -1700,6 +1708,11 @@ def main():
             'R_out(2,0)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
             'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10)}
+    data['nrCorrs_GT'] = [float(a) if a == pars_nrTP_opt[0] else np.random.randint(100, 1000) for a in data['nrTP']]
+    t = np.tile(lin_time_pars[0], num_pts) + \
+        lin_time_pars[1] * np.array(data['nrCorrs_GT']) + \
+        lin_time_pars[1] * np.array(data['nrCorrs_GT']) * np.array(data['nrCorrs_GT'])
+    data['robEstimationAndRef_us']
     data = pd.DataFrame(data)
 
     tex_file_pre_str = 'plots_USAC_opts_'
@@ -1751,28 +1764,28 @@ def main():
     #                        build_pdf,
     #                        figs_externalize)
     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
-    partitions = ['depthDistr', 'kpAccSd', 'th']
-    calcSatisticAndPlot_2D_partitions(data,
-                                      output_dir,
-                                      tex_file_pre_str,
-                                      fig_title_pre_str,
-                                      eval_columns,  # Column names for which statistics are calculated (y-axis)
-                                      units,  # Units in string format for every entry of eval_columns
-                                      it_parameters,  # Algorithm parameters to evaluate
-                                      partitions,  # Data properties to calculate statistics seperately
-                                      x_axis_column,  # x-axis column name
-                                      filter_func,
-                                      filter_func_args,
-                                      special_calcs_func,
-                                      special_calcs_args,
-                                      calc_func,
-                                      calc_func_args,
-                                      fig_type,
-                                      use_marks,
-                                      ctrl_fig_size,
-                                      make_fig_index,
-                                      build_pdf,
-                                      figs_externalize)
+    # partitions = ['depthDistr', 'kpAccSd', 'th']
+    # calcSatisticAndPlot_2D_partitions(data,
+    #                                   output_dir,
+    #                                   tex_file_pre_str,
+    #                                   fig_title_pre_str,
+    #                                   eval_columns,  # Column names for which statistics are calculated (y-axis)
+    #                                   units,  # Units in string format for every entry of eval_columns
+    #                                   it_parameters,  # Algorithm parameters to evaluate
+    #                                   partitions,  # Data properties to calculate statistics seperately
+    #                                   x_axis_column,  # x-axis column name
+    #                                   filter_func,
+    #                                   filter_func_args,
+    #                                   special_calcs_func,
+    #                                   special_calcs_args,
+    #                                   calc_func,
+    #                                   calc_func_args,
+    #                                   fig_type,
+    #                                   use_marks,
+    #                                   ctrl_fig_size,
+    #                                   make_fig_index,
+    #                                   build_pdf,
+    #                                   figs_externalize)
     # x_axis_column = ['th', 'inlrat']
     # fig_type = 'surface'
     # fig_title_pre_str = 'Values for USAC Option Combinations of '
@@ -1798,6 +1811,34 @@ def main():
     #                        make_fig_index,
     #                        build_pdf,
     #                        figs_externalize)
+    fig_title_pre_str = 'Temporal behaviour for USAC Option Combinations of '
+    eval_columns = ['robEstimationAndRef_us']
+    units = []
+    special_calcs_args = {'build_pdf': (True, True),
+                          'use_marks': True,
+                          'fig_type': 'smooth',
+                          'nr_target_kps': 1000}
+    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+    calcFromFuncAndPlot_3D(data=data,
+                           store_path=output_dir,
+                           tex_file_pre_str='plots_USAC_opts_',
+                           fig_title_pre_str=fig_title_pre_str,
+                           eval_columns=eval_columns,
+                           units=units,
+                           it_parameters=it_parameters,
+                           xy_axis_columns=['nrCorrs_GT'],
+                           filter_func=filter_nr_kps,
+                           filter_func_args=None,
+                           special_calcs_func=estimate_alg_time_fixed_kp,
+                           special_calcs_args=special_calcs_args,
+                           calc_func=calc_Time_Model,
+                           calc_func_args={'partitions': ['inlrat', 'th']},
+                           fig_type='surface',
+                           use_marks=True,
+                           ctrl_fig_size=False,
+                           make_fig_index=True,
+                           build_pdf=False,
+                           figs_externalize=True)
 
 
 if __name__ == "__main__":

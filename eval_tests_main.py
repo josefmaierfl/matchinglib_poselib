@@ -111,7 +111,8 @@ def eval_test(load_path, output_path, test_name, test_nr):
             raise ValueError('test_nr is required for usac-testing')
         from statistics_and_plot import calcSatisticAndPlot_2D, \
             calcSatisticAndPlot_3D, \
-            calcSatisticAndPlot_2D_partitions
+            calcSatisticAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_3D
         if test_nr == 1:
             fig_title_pre_str = 'Statistics for USAC Option Combinations of '
             eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
@@ -245,39 +246,35 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                                      figs_externalize=True)
         elif test_nr == 5:
             fig_title_pre_str = 'Temporal behaviour for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
+            eval_columns = ['robEstimationAndRef_us']
+            units = []
             it_parameters = ['USAC_parameters_estimator',
                              'USAC_parameters_refinealg']
-
-            partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
-            special_calcs_args = {'build_pdf': (False, True), 'use_marks': True, 'fig_type': 'surface'}
-            from usac_eval import filter_nr_kps
-            return calcSatisticAndPlot_2D_partitions(data=data,
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,
-                                                     units=units,
-                                                     it_parameters=it_parameters,
-                                                     partitions=partitions,
-                                                     x_axis_column=['inlratMin'],
-                                                     filter_func=filter_nr_kps,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=None,#get_best_comb_inlrat_1,
-                                                     special_calcs_args=special_calcs_args,
-                                                     calc_func=None,
-                                                     calc_func_args=None,
-                                                     fig_type='smooth',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=False,
-                                                     figs_externalize=True)
+            special_calcs_args = {'build_pdf': (True, True),
+                                  'use_marks': True,
+                                  'fig_type': 'smooth',
+                                  'nr_target_kps': 1000}
+            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+            return calcFromFuncAndPlot_3D(data=data,
+                                          store_path=output_path,
+                                          tex_file_pre_str='plots_USAC_opts_',
+                                          fig_title_pre_str=fig_title_pre_str,
+                                          eval_columns=eval_columns,
+                                          units=units,
+                                          it_parameters=it_parameters,
+                                          xy_axis_columns=['nrCorrs_GT'],
+                                          filter_func=filter_nr_kps,
+                                          filter_func_args=None,
+                                          special_calcs_func=estimate_alg_time_fixed_kp,
+                                          special_calcs_args=special_calcs_args,
+                                          calc_func=calc_Time_Model,
+                                          calc_func_args={'partitions': ['inlRatMin', 'th']},
+                                          fig_type='surface',
+                                          use_marks=True,
+                                          ctrl_fig_size=False,
+                                          make_fig_index=True,
+                                          build_pdf=False,
+                                          figs_externalize=True)
 
 
 def merge_dicts(in_dict, mainkey = None):
