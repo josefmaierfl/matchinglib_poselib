@@ -9,6 +9,7 @@ import pandas as pd
 import jinja2 as ji
 import ruamel.yaml as yaml
 from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import HuberRegressor
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import KFold
 from scipy import stats
@@ -1294,31 +1295,38 @@ def get_best_comb_th_scenes_1(**keywords):
     return ret['res']
 
 
-def filter_nr_kps(vars):
+def filter_nr_kps(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '100to1000']
 
 
-def calc_Time_Model(vars):
+def calc_Time_Model(**vars):
     # it_parameters: algorithms
-    # x_axis_column: nrCorrs_GT, (inlRat_GT)
+    # xy_axis_columns: nrCorrs_GT, (inlRat_GT)
     # eval_columns: robEstimationAndRef_us
     # partitions: inlRatMin, th
-    needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['x_axis_column']
+    if 'x_axis_column' in vars:
+        x_axis_column = vars['x_axis_column']
+    elif 'xy_axis_columns' in vars:
+        x_axis_column = vars['xy_axis_columns']
+    else:
+        raise ValueError('Missing x-axis column names')
+    needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['partitions']
     df = vars['data'][needed_cols]
     # Calculate TP
-    # df['actNrTP'] = (df[vars['x_axis_column'][0]] * df[vars['x_axis_column'][1]]).round()
+    # df['actNrTP'] = (df[x_axis_column[0]] * df[x_axis_column[1]]).round()
     grpd_cols = vars['partitions'] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)
     # Check if we can use a linear model or a second degree model (t = t_fixed + t_lin * nrCorrs_GT + t_2nd * nrCorrs_GT
     grp_keys = df_grp.groups.keys()
     std_dev = 3 # Number of standard deviations for filtering
     model_type = []
+    # model = HuberRegressor()
     model = LinearRegression(n_jobs=-1)
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
         # Filter out spikes (split data in chunks first)
-        ma = tmp[vars['eval_columns'][0]].select_dtypes(include=[np.number]).dropna().values.max()
-        mi = tmp[vars['eval_columns'][0]].select_dtypes(include=[np.number]).dropna().values.min()
+        ma = tmp[vars['eval_columns'][0]].dropna().values.max()
+        mi = tmp[vars['eval_columns'][0]].dropna().values.min()
         r_r = ma - mi
         r5 = r_r / 5
         a = mi
@@ -1334,69 +1342,145 @@ def calc_Time_Model(vars):
         tmp1 = pd.concat(parts, ignore_index=False, sort=False, copy=False)
 
         # values converts it into a numpy array, -1 means that calculate the dimension of rows
-        X = pd.DataFrame(tmp1[vars['x_axis_column'][0]]).values.reshape(-1, 1)
+        X = pd.DataFrame(tmp1[x_axis_column[0]]).values.reshape(-1, 1)
         Y = pd.DataFrame(tmp1[vars['eval_columns'][0]]).values.reshape(-1, 1)
         scores = []
+        par_negs = []
         kfold = KFold(n_splits=3, shuffle=True)
         for train, test in kfold.split(X, Y):
             model.fit(X[train], Y[train])
             score = model.score(X[test], Y[test])
             scores.append(score)
+            # For LinearRegression:
+            par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                      (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+            # For HuberRegressor:
+            # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+            #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
+            par_negs.append(par_neg)
         mean_score = sum(scores) / len(scores)
-        if mean_score > 0.67:
+        mean_par_neg = round(sum(par_negs) / len(par_negs))
+        if mean_score > 0.67 and mean_par_neg == 0:
             # The linear model will fit the data
             model.fit(X, Y)
             score = model.score(X, Y)
-            parameters = [model.intercept_] + model.coef_.tolist()
-            model_type.append({'score': score, 'parameters': parameters, 'type': 0, 'data': tmp1, 'grp': grp})
+            # For LinearRegression:
+            par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                      (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+            parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
+            # For HuberRegressor:
+            # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+            #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
+            # parameters = [model.intercept_] + model.coef_.tolist()
+            model_type.append({'score': score,
+                               'par_neg': par_neg,
+                               'parameters': parameters,
+                               'type': 0,
+                               'data': tmp1,
+                               'grp': grp})
         else:
-            polynomial_features = PolynomialFeatures(degree=2)
+            polynomial_features = PolynomialFeatures(degree=2, include_bias=False)
             scores = []
+            par_negs = []
             for train, test in kfold.split(X, Y):
                 x_poly = polynomial_features.fit_transform(X[train])
                 model.fit(x_poly, Y[train])
-                x_poly_test = polynomial_features.fit_transform(X[test])
+                x_poly_test = polynomial_features.fit_transform(X[test], Y[test])
                 score = model.score(x_poly_test, Y[test])
                 scores.append(score)
+                # For LinearRegression:
+                par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                          (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0])) + \
+                          (0 if model.coef_[0, 1] >= 0 else 2 * abs(model.coef_[0, 1]))
+                # For HuberRegressor:
+                # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+                #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0])) + \
+                #           (0 if model.coef_[1] >= 0 else 2 * abs(model.coef_[1]))
+                par_negs.append(par_neg)
             mean_score1 = sum(scores) / len(scores)
-            if mean_score1 > 1.2 * mean_score:
+            mean_par_neg1 = round(sum(par_negs) / len(par_negs))
+            if mean_score1 > 1.2 * mean_score or (mean_par_neg1 < mean_par_neg and mean_score1 > 0.95 * mean_score):
                 x_poly = polynomial_features.fit_transform(X)
                 model.fit(x_poly, Y)
                 score = model.score(x_poly, Y)
-                parameters = [model.intercept_] + model.coef_.tolist()
-                model_type.append({'score': score, 'parameters': parameters, 'type': 1, 'data': tmp1, 'grp': grp})
+                # For LinearRegression:
+                par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                          (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0])) + \
+                          (0 if model.coef_[0, 1] >= 0 else 2 * abs(model.coef_[0, 1]))
+                parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                # For HuberRegressor:
+                # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+                #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0])) + \
+                #           (0 if model.coef_[1] >= 0 else 2 * abs(model.coef_[1]))
+                # parameters = [model.intercept_] + model.coef_.tolist()
+                model_type.append({'score': score,
+                                   'par_neg': par_neg,
+                                   'parameters': parameters,
+                                   'type': 1,
+                                   'data': tmp1,
+                                   'grp': grp})
             else:
                 model.fit(X, Y)
                 score = model.score(X, Y)
-                parameters = [model.intercept_] + model.coef_.tolist()
-                model_type.append({'score': score, 'parameters': parameters, 'type': 1, 'data': tmp1, 'grp': grp})
+                # For LinearRegression:
+                par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                          (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+                parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                # For HuberRegressor:
+                # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+                #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
+                # parameters = [model.intercept_] + model.coef_.tolist()
+                model_type.append({'score': score,
+                                   'par_neg': par_neg,
+                                   'parameters': parameters,
+                                   'type': 0,
+                                   'data': tmp1,
+                                   'grp': grp})
 
     mod_sel = round(sum([a['type'] for a in model_type])/len(model_type), 4)
     if mod_sel > 0 and mod_sel < 1:
         scores1 = [a['score'] for a in model_type if a['type'] == 0]
-        scores11 = sum(scores1) / len(scores1)
+        par_negs1 = [a['par_neg'] for a in model_type if a['type'] == 0]
+        if len(scores1) > 0:
+            scores11 = sum(scores1) / len(scores1)
+            par_negs11 = sum(par_negs1) / len(par_negs1)
+        else:
+            scores11 = 0
+            par_negs11 = 0
         scores2 = [a['score'] for a in model_type if a['type'] == 1]
-        scores21 = sum(scores2) / len(scores2)
+        par_negs2 = [a['par_neg'] for a in model_type if a['type'] == 1]
+        if len(scores2) > 0:
+            scores21 = sum(scores2) / len(scores2)
+            par_negs21 = sum(par_negs2) / len(par_negs2)
+        else:
+            scores21 = 0
+            par_negs21 = 0
         l_rat2 = len(scores2) / len(model_type)
-        if l_rat2 > 0.5 and scores21 > 1.1 * scores11:
-            polynomial_features = PolynomialFeatures(degree=2)
+        if l_rat2 > 0.5 and (scores21 > scores11 or par_negs11 > par_negs21):
+            polynomial_features = PolynomialFeatures(degree=2, include_bias=False)
             for i, val in enumerate(model_type):
                 if val['type'] == 0:
-                    X = pd.DataFrame(val['data'][vars['x_axis_column'][0]]).values.reshape(-1, 1)
+                    X = pd.DataFrame(val['data'][x_axis_column[0]]).values.reshape(-1, 1)
                     Y = pd.DataFrame(val['data'][vars['eval_columns'][0]]).values.reshape(-1, 1)
                     x_poly = polynomial_features.fit_transform(X)
                     model.fit(x_poly, Y)
                     model_type[i]['score'] = model.score(x_poly, Y)
-                    model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
+                    # For LinearRegression:
+                    model_type[i]['parameters'] = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                    # For HuberRegressor:
+                    # model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
                     model_type[i]['type'] = 1
         else:
             for i, val in enumerate(model_type):
                 if val['type'] == 1:
-                    X = pd.DataFrame(val['data'][vars['x_axis_column'][0]]).values.reshape(-1, 1)
+                    X = pd.DataFrame(val['data'][x_axis_column[0]]).values.reshape(-1, 1)
                     Y = pd.DataFrame(val['data'][vars['eval_columns'][0]]).values.reshape(-1, 1)
                     model.fit(X, Y)
                     model_type[i]['score'] = model.score(X, Y)
-                    model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
+                    # For LinearRegression:
+                    model_type[i]['parameters'] = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                    # For HuberRegressor:
+                    # model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
                     model_type[i]['type'] = 0
 
 
@@ -1436,8 +1520,9 @@ def calc_Time_Model(vars):
     return ret
 
 
-def estimate_alg_time_fixed_kp(vars):
-    df = vars['data'].groupby(vars['it_parameters'] + vars['xy_axis_columns'][0]).mean(axis=0)
+def estimate_alg_time_fixed_kp(**vars):
+    df = vars['data'].groupby(vars['it_parameters'] +
+                              [vars['xy_axis_columns'][0]]).mean().drop(vars['xy_axis_columns'][1], axis=1)
     if len(vars['eval_columns']) > 3:
         tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] +\
               (vars['nr_target_kps'] * vars['nr_target_kps']) * df[vars['eval_columns'][3]]
@@ -1445,8 +1530,8 @@ def estimate_alg_time_fixed_kp(vars):
         tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]]
     col_name = 't_' + str(int(vars['nr_target_kps'])) + 'kpts'
     tmp.rename(col_name, inplace=True)
-    tmp.reset_index(inplace=True)
-    tmp1 = tmp.loc[tmp.group_by(vars['xy_axis_columns'][0])[col_name].idxmin(axis=0)]
+    tmp = tmp.reset_index()
+    tmp1 = tmp.loc[tmp.groupby(vars['xy_axis_columns'][0])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
     index_new = ['-'.join(a) for a in tmp1.index]
     tmp1.index = index_new
@@ -1503,10 +1588,12 @@ def estimate_alg_time_fixed_kp(vars):
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
-    tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns.columns]
-    tmp.columns.name = '-'.join(map(str, vars['it_parameters']))
-    tmp.reset_index(inplace=True)
-    tmp.set_index(vars['xy_axis_columns'][0])
+    par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
+    tmp.columns = par_cols
+    it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
+    tmp.columns.name = it_pars_cols_name
+    tmp = tmp.T.reset_index().set_index([vars['xy_axis_columns'][0], it_pars_cols_name]).unstack(level=-1)
+    tmp.columns = [(h for h in g if h != vars['xy_axis_columns'][0]) for g in tmp.columns]
 
     t_main_name = 'mean_time_over_all_' + str(vars['xy_axis_columns'][1]) + '_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_vs_' + str(vars['xy_axis_columns'][0]) + '_for_opts_' + \

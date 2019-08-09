@@ -1676,7 +1676,7 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    lin_time_pars = np.array([500, 3, 0.01])
+    lin_time_pars = np.array([500, 3, 0.003])
     data = {'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
@@ -1708,11 +1708,17 @@ def main():
             'R_out(2,0)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
             'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10)}
-    data['nrCorrs_GT'] = [float(a) if a == pars_nrTP_opt[0] else np.random.randint(100, 1000) for a in data['nrTP']]
+    data['nrCorrs_GT'] = [int(a) if a == pars_nrTP_opt[0] else np.random.randint(100, 1000) for a in data['nrTP']]
     t = np.tile(lin_time_pars[0], num_pts) + \
         lin_time_pars[1] * np.array(data['nrCorrs_GT']) + \
-        lin_time_pars[1] * np.array(data['nrCorrs_GT']) * np.array(data['nrCorrs_GT'])
-    data['robEstimationAndRef_us']
+        lin_time_pars[2] * np.array(data['nrCorrs_GT']) * np.array(data['nrCorrs_GT'])
+    t *= (data['inlrat'].max() / data['inlrat']) ** 2
+    t += np.random.randn(num_pts) * 40
+    idx1 = np.arange(0, num_pts, dtype=int)
+    np.random.shuffle(idx1)
+    gross_error_idx = idx1.tolist()[:int(num_pts/5)]
+    t[gross_error_idx] += lin_time_pars[0] / 3
+    data['robEstimationAndRef_us'] = t
     data = pd.DataFrame(data)
 
     tex_file_pre_str = 'plots_USAC_opts_'
