@@ -683,8 +683,11 @@ def calcSatisticAndPlot_2D_partitions(data,
     for st in stat_names:
         # Get list of results using the same statistic
         st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
-        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
-                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        if len(st_list) > max_figs_pdf:
+            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        else:
+            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
         for it in st_list2:
             if len(st_list2) == 1:
                 title = replace_stat_names(st) + ' ' + tex_infos['title']
@@ -1155,7 +1158,8 @@ def calcFromFuncAndPlot_3D(data,
                      '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
-        nr_equal_ss = int(tmp.groupby(xy_axis_columns[1]).size().array[0])
+        tmp.drop(it_parameters, axis=1, inplace=True)
+        nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
         with open(fdataf_name, 'a') as f:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
                     '-'.join(map(str, it_parameters)) + '\n')
@@ -1168,7 +1172,7 @@ def calcFromFuncAndPlot_3D(data,
             # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
             reltex_name = os.path.join(rel_data_path, dataf_name)
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
-                       ' for parameters ' + '-'.join(map(str, grp)) + ' compared to ' + \
+                       ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
                        replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
                        replaceCSVLabels(xy_axis_columns[1], True)
             tex_infos['sections'].append({'file': reltex_name,
@@ -1177,7 +1181,7 @@ def calcFromFuncAndPlot_3D(data,
                                           'stat_name': it,
                                           'plots_z': [it],
                                           'diff_z_labels': False,
-                                          'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i])),
+                                          'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i]), units),
                                           'plot_x': str(xy_axis_columns[0]),
                                           'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
                                                      findUnit(str(xy_axis_columns[0]), units),
@@ -1196,15 +1200,19 @@ def calcFromFuncAndPlot_3D(data,
     for st in eval_columns:
         # Get list of results using the same statistic
         st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
-        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
-                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
-        for it in st_list2:
+        if len(st_list) > max_figs_pdf:
+            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        else:
+            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+        for i, it in enumerate(st_list2):
             if len(st_list2) == 1:
-                title = tex_infos['title']
+                title = tex_infos['title'] + ': ' + capitalizeStr(eval_cols_lname[i])
             else:
-                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr']) + \
+                        ' for ' + capitalizeStr(eval_cols_lname[i])
             pdfs_info.append({'title': title,
-                              'texf_name': base_out_name + '_' + str(it['pdf_nr']),
+                              'texf_name': base_out_name + '_' + str(st) + '_' + str(it['pdf_nr']),
                               'figs_externalize': figs_externalize,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
@@ -1636,7 +1644,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'minimum correspondence distance $d_{p}$'
     else:
         return tex_string_coding_style(label)
-    ex = ['and', 'of', 'for', 'to', 'with']
+    ex = ['and', 'of', 'for', 'to', 'with', 'on']
     if str_capitalize:
         return ' '.join([b.capitalize() if not b.isupper() and
                                            not '$' in b and
@@ -1647,7 +1655,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
 
 
 def capitalizeStr(str_val):
-    ex = ['and', 'of', 'for', 'to', 'with']
+    ex = ['and', 'of', 'for', 'to', 'with', 'on']
     return ' '.join([b.capitalize() if not b.isupper() and
                                        not '$' in b and
                                        not '\\' in b and
@@ -1843,7 +1851,7 @@ def main():
                            use_marks=True,
                            ctrl_fig_size=False,
                            make_fig_index=True,
-                           build_pdf=False,
+                           build_pdf=True,
                            figs_externalize=True)
 
 

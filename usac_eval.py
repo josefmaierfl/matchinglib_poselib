@@ -1499,7 +1499,7 @@ def calc_Time_Model(**vars):
             data_new[name].append(val['grp'][i])
     data_new = pd.DataFrame(data_new)
     eval_columns = ['score', 'fixed_time', 'linear_time']
-    eval_cols_lname = ['$score R^{2}$', 'fixed time $t_{f}$', 'time per keypoint $t_{n}$']
+    eval_cols_lname = ['score $R^{2}$', 'fixed time $t_{f}$', 'time per keypoint $t_{n}$']
     units = [('score', ''), ('fixed_time', '/$\\mu s$'), ('linear_time', '/$\\mu s$')]
     if model_type[0]['type'] == 1:
         eval_columns += ['squared_time']
@@ -1593,7 +1593,7 @@ def estimate_alg_time_fixed_kp(**vars):
     it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
     tmp.columns.name = it_pars_cols_name
     tmp = tmp.T.reset_index().set_index([vars['xy_axis_columns'][0], it_pars_cols_name]).unstack(level=-1)
-    tmp.columns = [(h for h in g if h != vars['xy_axis_columns'][0]) for g in tmp.columns]
+    tmp.columns = [h for g in tmp.columns for h in g if h != col_name]
 
     t_main_name = 'mean_time_over_all_' + str(vars['xy_axis_columns'][1]) + '_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_vs_' + str(vars['xy_axis_columns'][0]) + '_for_opts_' + \
@@ -1713,7 +1713,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'title': section_name,
                                   'title_rows': section_name.count('\\\\'),
                                   'fig_type': fig_type,
-                                  'plots': ['col_name'],
+                                  'plots': [col_name],
                                   # Label of the value axis. For xbar it labels the x-axis
                                   'label_y': 'Minimum time/$\\mu s$',
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
