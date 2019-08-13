@@ -105,6 +105,11 @@
 \begin{tikzpicture}
 \begin{axis}[
 align=center,%
+\BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
+xmode=log,%
+\BLOCK{ elif sec['use_log_y_axis'] }
+ymode=log,%
+\BLOCK{ endif }
 \BLOCK{ if sec['limits'] is not none }
 \BLOCK{ if sec['limits']['miny'] is not none }
 ymin=\VAR{sec['limits']['miny']},%
@@ -127,7 +132,11 @@ bar width=0.3cm,%
 enlarge y limits={true, abs value=0.75},%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
+\BLOCK{ if sec['large_meta_space_needed'] }
+enlarge x limits={upper, value=0.45},%
+\BLOCK{ else }
 enlarge x limits={upper, value=0.15},%
+\BLOCK{ endif }
 \BLOCK{ endif }
 xmajorgrids=true,%
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
@@ -140,7 +149,11 @@ bar width=0.3cm,%
 enlarge x limits={true, abs value=0.75},%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
+\BLOCK{ if sec['large_meta_space_needed'] }
+enlarge y limits={upper, value=0.45},%
+\BLOCK{ else }
 enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
 \BLOCK{ endif }
 ymajorgrids=true,%
 \BLOCK{ else }

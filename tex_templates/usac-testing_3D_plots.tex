@@ -70,6 +70,11 @@ colormap/hot,
 colormap/hot,
 \BLOCK{ endif }
 colorbar,
+\BLOCK{ if sec['use_log_z_axis'] }
+%zmode=log,%
+%colorbar style={yticklabel=\pgfmathparse{10^\tick}\pgfmathprintnumber\pgfmathresult},%
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false},
+\BLOCK{ endif }
 \BLOCK{ if not sec['use_marks'] and sec['fig_type'] != 'scatter' and sec['fig_type'] !='mesh-scatter' }
 no markers,
 \BLOCK{ endif }
@@ -98,14 +103,27 @@ shader=interp,
 \BLOCK{ elif sec['fig_type'] == 'contour' or sec['fig_type'] == 'surface-contour' }
 contour gnuplot,
 \BLOCK{ endif }
-unbounded coords=jump] table [col sep=semicolon,x=\VAR{ sec['plot_x'] },y=\VAR{ sec['plot_y'] },z=\VAR{ fig }] {\VAR{ sec['file'] }};
+unbounded coords=jump] table [%
+col sep=semicolon,%
+x=\VAR{ sec['plot_x'] },%
+y=\VAR{ sec['plot_y'] },%
+\BLOCK{ if sec['use_log_z_axis'] }
+z expr=log10(\thisrow{\VAR{ fig }})
+\BLOCK{ else }
+z=\VAR{ fig }
+\BLOCK{ endif }
+] {\VAR{ sec['file'] }};
 \end{axis}
 \end{tikzpicture}
 \BLOCK{ if ctrl_fig_size }
 }
 \BLOCK{ endif }
 \BLOCK{ if make_index }
+\BLOCK{ if use_fixed_caption }
+\caption{\VAR{sec['name']}}
+\BLOCK{ else }
 \caption{\VAR{sec['name']} for parameters \VAR{sec['legend'][loop.index0]}}
+\BLOCK{ endif }
 \end{figure}
 \BLOCK{ endif }
 

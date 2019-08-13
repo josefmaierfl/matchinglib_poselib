@@ -379,6 +379,7 @@ def calcSatisticAndPlot_2D(data,
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
                                           'legend_cols': None,
                                           'use_marks': use_marks,
+                                          'use_log_y_axis': False,
                                           'pdf_nr': pdf_nr
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -672,6 +673,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
                                               'legend_cols': None,
                                               'use_marks': use_marks,
+                                              'use_log_y_axis': False,
                                               'stat_name': it[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -868,6 +870,7 @@ def calcSatisticAndPlot_3D(data,
                   replaceCSVLabels(grp_names[-1], False, True) + ' Values'
     tex_infos = {'title': title_name,
                  'sections': [],
+                 'use_fixed_caption': False,
                  'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
                  'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
     # Get names of statistics
@@ -920,7 +923,8 @@ def calcSatisticAndPlot_3D(data,
                                                      findUnit(str(tmp.columns.values[0]), units),
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
                                           'use_marks': use_marks,
-                                          'mesh_cols': nr_equal_ss
+                                          'mesh_cols': nr_equal_ss,
+                                          'use_log_z_axis': False
                                           })
 
     pdfs_info = []
@@ -957,6 +961,7 @@ def calcSatisticAndPlot_3D(data,
                               'figs_externalize': figs_externalize,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
+                              'use_fixed_caption': tex_infos['use_fixed_caption'],
                               'ctrl_fig_size': tex_infos['ctrl_fig_size']})
 
     # endt = time.time()
@@ -967,6 +972,7 @@ def calcSatisticAndPlot_3D(data,
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
+                                       use_fixed_caption=it['use_fixed_caption'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
                                        sections=it['sections'])
@@ -1074,6 +1080,7 @@ def calcFromFuncAndPlot_3D(data,
         df = ret['data']
         eval_columns = ret['eval_columns']
         eval_cols_lname = ret['eval_cols_lname']
+        eval_cols_log_scaling = ret['eval_cols_log_scaling']
         eval_init_input = ret['eval_init_input']
         units = ret['units']
         it_parameters = ret['it_parameters']
@@ -1149,6 +1156,7 @@ def calcFromFuncAndPlot_3D(data,
                   replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title
     tex_infos = {'title': title_name,
                  'sections': [],
+                 'use_fixed_caption': True,
                  'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
                  'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
     df = df.groupby(it_parameters)
@@ -1158,7 +1166,7 @@ def calcFromFuncAndPlot_3D(data,
                      '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
-        tmp.drop(it_parameters, axis=1, inplace=True)
+        tmp = tmp.drop(it_parameters, axis=1)
         nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
         with open(fdataf_name, 'a') as f:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -1188,9 +1196,11 @@ def calcFromFuncAndPlot_3D(data,
                                           'plot_y': str(xy_axis_columns[1]),
                                           'label_y': replaceCSVLabels(str(xy_axis_columns[1])) +
                                                      findUnit(str(xy_axis_columns[1]), units),
-                                          'legend': [eval_cols_lname[i]],
+                                          'legend': [eval_cols_lname[i] + ' for ' +
+                                                     tex_string_coding_style('-'.join(map(str, grp)))],
                                           'use_marks': use_marks,
-                                          'mesh_cols': nr_equal_ss
+                                          'mesh_cols': nr_equal_ss,
+                                          'use_log_z_axis': eval_cols_log_scaling[i]
                                           })
 
     pdfs_info = []
@@ -1216,6 +1226,7 @@ def calcFromFuncAndPlot_3D(data,
                               'figs_externalize': figs_externalize,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
+                              'use_fixed_caption': tex_infos['use_fixed_caption'],
                               'ctrl_fig_size': tex_infos['ctrl_fig_size']})
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
@@ -1223,6 +1234,7 @@ def calcFromFuncAndPlot_3D(data,
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
+                                       use_fixed_caption=it['use_fixed_caption'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
                                        sections=it['sections'])
@@ -1717,9 +1729,11 @@ def main():
             'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10)}
     data['nrCorrs_GT'] = [int(a) if a == pars_nrTP_opt[0] else np.random.randint(100, 1000) for a in data['nrTP']]
+    # t = np.tile(lin_time_pars[0], num_pts) + \
+    #     lin_time_pars[1] * np.array(data['nrCorrs_GT']) + \
+    #     lin_time_pars[2] * np.array(data['nrCorrs_GT']) * np.array(data['nrCorrs_GT'])
     t = np.tile(lin_time_pars[0], num_pts) + \
-        lin_time_pars[1] * np.array(data['nrCorrs_GT']) + \
-        lin_time_pars[2] * np.array(data['nrCorrs_GT']) * np.array(data['nrCorrs_GT'])
+        lin_time_pars[1] * np.array(data['nrCorrs_GT'])
     t *= (data['inlrat'].max() / data['inlrat']) ** 2
     t += np.random.randn(num_pts) * 40
     idx1 = np.arange(0, num_pts, dtype=int)

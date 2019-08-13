@@ -110,6 +110,11 @@
 \begin{tikzpicture}
 \begin{axis}[
 align=center,%
+\BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
+xmode=log,%
+\BLOCK{ elif sec['use_log_y_axis'] }
+ymode=log,%
+\BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
 ylabel=\VAR{sec['label_x']},%
