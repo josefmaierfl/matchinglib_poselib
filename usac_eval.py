@@ -1317,18 +1317,29 @@ def calc_Time_Model(**vars):
     # it_parameters: algorithms
     # xy_axis_columns: nrCorrs_GT, (inlRat_GT)
     # eval_columns: robEstimationAndRef_us
-    # partitions: inlRatMin, th
+    # data_separators: inlRatMin, th
+    if 'partitions' in vars:
+        for key in vars['partitions']:
+            if key not in vars['data_separators']:
+                raise ValueError('All partition names must be included in the data separators.')
+        if ('x_axis_column' in vars and len(vars['data_separators']) != (len(vars['partitions']) + 1)) or \
+           ('xy_axis_columns' in vars and len(vars['data_separators']) != (len(vars['partitions']) + 2)):
+            raise ValueError('Wrong number of data separators.')
+    elif 'x_axis_column' in vars and len(vars['data_separators']) != 1:
+        raise ValueError('Only one data separator is allowed.')
+    elif 'xy_axis_columns' in vars and len(vars['data_separators']) != 2:
+        raise ValueError('Only two data separators are allowed.')
     if 'x_axis_column' in vars:
         x_axis_column = vars['x_axis_column']
     elif 'xy_axis_columns' in vars:
         x_axis_column = vars['xy_axis_columns']
     else:
         raise ValueError('Missing x-axis column names')
-    needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['partitions']
+    needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
     df = vars['data'][needed_cols]
     # Calculate TP
     # df['actNrTP'] = (df[x_axis_column[0]] * df[x_axis_column[1]]).round()
-    grpd_cols = vars['partitions'] + vars['it_parameters']
+    grpd_cols = vars['data_separators'] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)
     # Check if we can use a linear model or a second degree model (t = t_fixed + t_lin * nrCorrs_GT + t_2nd * nrCorrs_GT
     grp_keys = df_grp.groups.keys()
@@ -1530,12 +1541,38 @@ def calc_Time_Model(**vars):
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': units + vars['units'],
            'eval_init_input': vars['eval_columns']}
-    if len(vars['partitions']) > 2:
-        raise ValueError('A maximum number of 2 partitions is alllowed.')
-    elif len(vars['partitions']) == 2:
-        ret['xy_axis_columns'] = vars['partitions']
+    if 'x_axis_column' in vars:
+        if 'partitions' in vars:
+            if len(vars['data_separators']) != (len(vars['partitions']) + 1):
+                raise ValueError('Wrong number of data separators.')
+            for key in vars['data_separators']:
+                if key not in vars['partitions']:
+                    ret['x_axis_column'] = [key]
+                    break
+            if 'x_axis_column' not in ret:
+                raise ValueError('One element in the data separators should not be included in partitions as '
+                                 'it is used for the x axis.')
+        elif len(vars['data_separators']) != 1:
+            raise ValueError('If no partitions for a 2D environment are used, only 1 data separator is allowed.')
+        else:
+            ret['x_axis_column'] = vars['data_separators']
     else:
-        ret['x_axis_column'] = vars['partitions']
+        if 'partitions' in vars:
+            if len(vars['data_separators']) != (len(vars['partitions']) + 2):
+                raise ValueError('Wrong number of data separators.')
+            ret['xy_axis_columns'] = []
+            for key in vars['data_separators']:
+                if key not in vars['partitions']:
+                    ret['xy_axis_columns'].append(key)
+            if len(ret['xy_axis_columns']) != 2:
+                raise ValueError('Two elements in the data separators should not be included in partitions as '
+                                 'they are used for the x- and y-axis.')
+        elif len(vars['data_separators']) != 2:
+            raise ValueError('If no partitions for a 3D environment are used, only 2 data separators are allowed.')
+        else:
+            ret['xy_axis_columns'] = vars['data_separators']
+    if 'partitions' in vars:
+        ret['partitions'] = vars['partitions']
     return ret
 
 

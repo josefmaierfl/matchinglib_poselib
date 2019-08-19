@@ -223,40 +223,10 @@ def calcSatisticAndPlot_2D(data,
         else:
             filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                       '-'.join(map(str, x_axis_column)))
-    cnt = 1
-    store_path_init = store_path_sub
-    while os.path.exists(store_path_sub):
-        store_path_sub = store_path_init + '_' + str(int(cnt))
-        cnt += 1
-    try:
-        os.mkdir(store_path_sub)
-    except FileExistsError:
-        print('Folder', store_path_sub, 'for storing statistics data already exists')
-    except:
-        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
-        raise
-
     if data.empty:
-        raise ValueError('No data left after filtering unsuccessful estimations')
-    if build_pdf:
-        pdf_folder = os.path.join(store_path_sub, 'pdf')
-        try:
-            os.mkdir(pdf_folder)
-        except FileExistsError:
-            print('Folder', pdf_folder, 'for storing pdf files already exists')
-    tex_folder = os.path.join(store_path_sub, 'tex')
-    try:
-        os.mkdir(tex_folder)
-    except FileExistsError:
-        print('Folder', tex_folder, 'for storing tex files already exists')
-    tdata_folder = os.path.join(tex_folder, 'data')
-    try:
-        os.mkdir(tdata_folder)
-    except FileExistsError:
-        print('Folder', tdata_folder, 'for storing data files already exists')
-    #Select columns we need
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -273,6 +243,38 @@ def calcSatisticAndPlot_2D(data,
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
+
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                                       '-'.join(map(str, x_axis_column)))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters + x_axis_column).describe()
     if special_calcs_func is not None and special_calcs_args is not None:
@@ -479,41 +481,10 @@ def calcSatisticAndPlot_2D_partitions(data,
         else:
             filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                              '-'.join(map(str, x_axis_column)) + '_for_' +
-                                              '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
-    cnt = 1
-    store_path_init = store_path_sub
-    while os.path.exists(store_path_sub):
-        store_path_sub = store_path_init + '_' + str(int(cnt))
-        cnt += 1
-    try:
-        os.mkdir(store_path_sub)
-    except FileExistsError:
-        print('Folder', store_path_sub, 'for storing statistics data already exists')
-    except:
-        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
-        raise
-
     if data.empty:
-        raise ValueError('No data left after filtering unsuccessful estimations')
-    if build_pdf:
-        pdf_folder = os.path.join(store_path_sub, 'pdf')
-        try:
-            os.mkdir(pdf_folder)
-        except FileExistsError:
-            print('Folder', pdf_folder, 'for storing pdf files already exists')
-    tex_folder = os.path.join(store_path_sub, 'tex')
-    try:
-        os.mkdir(tex_folder)
-    except FileExistsError:
-        print('Folder', tex_folder, 'for storing tex files already exists')
-    tdata_folder = os.path.join(tex_folder, 'data')
-    try:
-        os.mkdir(tdata_folder)
-    except FileExistsError:
-        print('Folder', tdata_folder, 'for storing data files already exists')
-    #Select columns we need
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -532,6 +503,39 @@ def calcSatisticAndPlot_2D_partitions(data,
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column + partitions
         df = data[needed_columns]
+
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, x_axis_column)) + '_for_' +
+                                              '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(partitions + it_parameters + x_axis_column).describe()
     if special_calcs_func is not None and special_calcs_args is not None:
@@ -578,7 +582,7 @@ def calcSatisticAndPlot_2D_partitions(data,
             base_out_name += '-'
     base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + \
                      '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
-    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True) + ' Values separately for '
+    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True) + ' Values Separately for '
     for i in range(0, nr_partitions):
         title_name += replaceCSVLabels(grp_names[i], True, True)
         if(nr_partitions <= 2):
@@ -728,6 +732,462 @@ def calcSatisticAndPlot_2D_partitions(data,
     return res
 
 
+def calcFromFuncAndPlot_2D_partitions(data,
+                                      store_path,
+                                      tex_file_pre_str,
+                                      fig_title_pre_str,
+                                      eval_columns,#Column names for which statistics are calculated (y-axis)
+                                      units,# Units in string format for every entry of eval_columns
+                                      it_parameters,# Algorithm parameters to evaluate
+                                      partitions,# Data properties to calculate statistics seperately
+                                      x_axis_column,# x-axis column name
+                                      filter_func=None,
+                                      filter_func_args=None,
+                                      special_calcs_func = None,
+                                      special_calcs_args = None,
+                                      calc_func = None,
+                                      calc_func_args = None,
+                                      fig_type='smooth',
+                                      use_marks=True,
+                                      ctrl_fig_size=True,
+                                      make_fig_index=True,
+                                      build_pdf=False,
+                                      figs_externalize=True):
+    if len(x_axis_column) != 1:
+        raise ValueError('Only 1 column is allowed to be selected for the x axis')
+    fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
+    # if type(data) is not pd.dataframe.DataFrame:
+    #     data = pd.utils.from_pandas(data)
+    #Filter rows by excluding not successful estimations
+    data = data.loc[~((data['R_out(0,0)'] == 0) &
+                      (data['R_out(0,1)'] == 0) &
+                      (data['R_out(0,2)'] == 0) &
+                      (data['R_out(1,0)'] == 0) &
+                      (data['R_out(1,1)'] == 0) &
+                      (data['R_out(1,2)'] == 0) &
+                      (data['R_out(2,0)'] == 0) &
+                      (data['R_out(2,1)'] == 0) &
+                      (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
+    if data.empty:
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
+    if calc_func is not None:
+        if calc_func_args is None:
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['x_axis_column'] = x_axis_column
+        calc_func_args['partitions'] = partitions
+        calc_func_args['units'] = units
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        eval_cols_lname = ret['eval_cols_lname']
+        eval_cols_log_scaling = ret['eval_cols_log_scaling']
+        eval_init_input = ret['eval_init_input']
+        units = ret['units']
+        it_parameters = ret['it_parameters']
+        x_axis_column = ret['x_axis_column']
+        partitions = ret['partitions']
+    else:
+        raise ValueError('No function for calculating results provided')
+
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, x_axis_column)) + '_for_' +
+                                              '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if special_calcs_func is not None and special_calcs_args is not None:
+        special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args['data'] = df
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['eval_cols_lname'] = eval_cols_lname
+            special_calcs_args['units'] = units
+            special_calcs_args['x_axis_column'] = x_axis_column
+            special_calcs_args['partitions'] = partitions
+            special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
+            if res != 0:
+                warnings.warn('Calculation of specific results failed!', UserWarning)
+
+
+
+
+
+
+    #Group by USAC parameters 5&6 and calculate the statistic
+    stats = df.groupby(partitions + it_parameters + x_axis_column).describe()
+
+
+
+
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(it_parameters)
+    nr_partitions = len(partitions)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    for i, val in enumerate(it_parameters):
+        base_out_name += val
+        title_name += replaceCSVLabels(val, True, True)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                title_name += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                title_name += ', '
+            elif i < nr_it_parameters - 1:
+                title_name += ', and '
+        if i < nr_it_parameters - 1:
+            base_out_name += '-'
+
+    init_pars_title = ''
+    init_pars_out_name = ''
+    nr_eval_init_input = len(eval_init_input)
+    if nr_eval_init_input > 1:
+        for i, val in enumerate(eval_init_input):
+            init_pars_out_name += val
+            init_pars_title += replaceCSVLabels(val, True, True)
+            if (nr_eval_init_input <= 2):
+                if i < nr_eval_init_input - 1:
+                    init_pars_title += ' and '
+            else:
+                if i < nr_eval_init_input - 2:
+                    init_pars_title += ', '
+                elif i < nr_eval_init_input - 1:
+                    init_pars_title += ', and '
+            if i < nr_eval_init_input - 1:
+                init_pars_out_name += '-'
+    else:
+        init_pars_out_name = eval_init_input[0]
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+    base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name + \
+                     '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+    title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True) + \
+                  ' Based On ' + init_pars_title + ' Separately for '
+    for i, val in enumerate(partitions):
+        title_name += replaceCSVLabels(val, True, True)
+        if(nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                title_name += ' and '
+        else:
+            if i < nr_partitions - 2:
+                title_name += ', '
+            elif i < nr_partitions - 1:
+                title_name += ', and '
+
+
+
+    errvalnames = stats.columns.values # Includes statistic name and error value names
+    grp_names = stats.index.names #As used when generating the groups
+
+
+
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': make_fig_index,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': figs_externalize,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True}
+    df = df.groupby(it_parameters)
+    grp_keys = df.groups.keys()
+    for grp in grp_keys:
+        df1 = df.get_group(grp)
+        df1 = df.groupby(partitions)
+        grp_keys1 = df1.groups.keys()
+        for grp1 in grp_keys1:
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                         '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
+            fdataf_name = os.path.join(tdata_folder, dataf_name)
+            tmp = df.get_group(grp)
+            tmp = tmp.drop(it_parameters, axis=1)
+            nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
+            with open(fdataf_name, 'a') as f:
+                f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                        '-'.join(map(str, it_parameters)) + '\n')
+                f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
+                f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
+                tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            for i, it in enumerate(eval_columns):
+                #Construct tex-file information
+                #figure types:
+                # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
+                reltex_name = os.path.join(rel_data_path, dataf_name)
+                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
+                           ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
+                           replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
+                           replaceCSVLabels(xy_axis_columns[1], True)
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': fig_name,
+                                              'fig_type': fig_type,
+                                              'stat_name': it,
+                                              'plots_z': [it],
+                                              'diff_z_labels': False,
+                                              'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i]), units),
+                                              'plot_x': str(xy_axis_columns[0]),
+                                              'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
+                                                         findUnit(str(xy_axis_columns[0]), units),
+                                              'plot_y': str(xy_axis_columns[1]),
+                                              'label_y': replaceCSVLabels(str(xy_axis_columns[1])) +
+                                                         findUnit(str(xy_axis_columns[1]), units),
+                                              'legend': [eval_cols_lname[i] + ' for ' +
+                                                         tex_string_coding_style('-'.join(map(str, grp)))],
+                                              'use_marks': use_marks,
+                                              'mesh_cols': nr_equal_ss,
+                                              'use_log_z_axis': eval_cols_log_scaling[i]
+                                              })
+
+
+
+
+
+    stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
+    for it in errvalnames:
+        if it[-1] != 'count':
+            tmp = stats[it[0]].unstack()
+            tmp = tmp[it[1]]
+            tmp1 = tmp.reset_index().set_index(partitions)
+            idx_old = None
+            for p in tmp1.index:
+                if idx_old is not None and idx_old == p:
+                    continue
+                idx_old = p
+                tmp2 = tmp1.loc[p]
+                part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
+                part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
+                               tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
+                part_name_title = ''
+                for i, val in enumerate(part_name_l):
+                    part_name_title += val
+                    if (len(part_name_l) <= 2):
+                        if i < len(part_name_l) - 1:
+                            part_name_title += ' and '
+                    else:
+                        if i < len(part_name_l) - 2:
+                            part_name_title += ', '
+                        elif i < len(part_name_l) - 1:
+                            part_name_title += ', and '
+                tmp2 = tmp2.reset_index().drop(partitions, axis=1)
+                tmp2 = tmp2.set_index(it_parameters).T
+                tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
+                tmp2.columns.name = '-'.join(it_parameters)
+                dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
+                             str(grp_names[-1]) + '_for_' + part_name.replace('.','d') + '.csv'
+                dataf_name = dataf_name.replace('%', 'perc')
+                fdataf_name = os.path.join(tdata_folder, dataf_name)
+                with open(fdataf_name, 'a') as f:
+                    f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + ' and properties ' + part_name + '\n')
+                    f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
+                    tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+                #Construct tex-file
+                stats_all = tmp2.stack().reset_index()
+                stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+                if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
+                    np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
+                        np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                    continue
+                #figure types: sharp plot, smooth, const plot, ybar, xbar
+                use_limits = {'miny': None, 'maxy': None}
+                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+                reltex_name = os.path.join(rel_data_path, dataf_name)
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': replace_stat_names(it[-1]) + ' values for ' +
+                                                      replaceCSVLabels(str(it[0]), True) +
+                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
+                                                      '\\\\ for properties ' + part_name.replace('_', '\\_'),
+                                              # If caption is None, the field name is used
+                                              'caption': replace_stat_names(it[-1]) + ' values for ' +
+                                                      replaceCSVLabels(str(it[0]), True) +
+                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
+                                                      ' for properties ' + part_name_title,
+                                              'fig_type': fig_type,
+                                              'plots': list(tmp2.columns.values),
+                                              'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                              'plot_x': str(grp_names[-1]),
+                                              'label_x': replaceCSVLabels(str(grp_names[-1])),
+                                              'limits': use_limits,
+                                              'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
+                                              'legend_cols': None,
+                                              'use_marks': use_marks,
+                                              'use_log_y_axis': False,
+                                              'stat_name': it[-1],
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    for st in stat_names:
+        # Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        if len(st_list) > max_figs_pdf:
+            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        else:
+            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = replace_stat_names(st) + ' ' + tex_infos['title']
+            else:
+                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+            pdfs_info.append({'title': title,
+                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'fill_bar': True})
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       fill_bar=it['fill_bar'],
+                                       sections=it['sections'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+    ################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:
+        max_figs_pdf = 30
+    for st in eval_columns:
+        # Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        if len(st_list) > max_figs_pdf:
+            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        else:
+            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+        for i, it in enumerate(st_list2):
+            if len(st_list2) == 1:
+                title = tex_infos['title'] + ': ' + capitalizeStr(eval_cols_lname[i])
+            else:
+                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr']) + \
+                        ' for ' + capitalizeStr(eval_cols_lname[i])
+            pdfs_info.append({'title': title,
+                              'texf_name': base_out_name + '_' + str(st) + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'use_fixed_caption': tex_infos['use_fixed_caption'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
+
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       use_fixed_caption=it['use_fixed_caption'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       sections=it['sections'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+    return res
+
+
 def calcSatisticAndPlot_3D(data,
                            store_path,
                            tex_file_pre_str,
@@ -773,40 +1233,10 @@ def calcSatisticAndPlot_3D(data,
         else:
             filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                       '-'.join(map(str, xy_axis_columns)))
-    cnt = 1
-    store_path_init = store_path_sub
-    while os.path.exists(store_path_sub):
-        store_path_sub = store_path_init + '_' + str(int(cnt))
-        cnt += 1
-    try:
-        os.mkdir(store_path_sub)
-    except FileExistsError:
-        print('Folder', store_path_sub, 'for storing statistics data already exists')
-    except:
-        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
-        raise
-
     if data.empty:
-        raise ValueError('No data left after filtering unsuccessful estimations')
-    if build_pdf:
-        pdf_folder = os.path.join(store_path_sub, 'pdf')
-        try:
-            os.mkdir(pdf_folder)
-        except FileExistsError:
-            print('Folder', pdf_folder, 'for storing pdf files already exists')
-    tex_folder = os.path.join(store_path_sub, 'tex')
-    try:
-        os.mkdir(tex_folder)
-    except FileExistsError:
-        print('Folder', tex_folder, 'for storing tex files already exists')
-    tdata_folder = os.path.join(tex_folder, 'data')
-    try:
-        os.mkdir(tdata_folder)
-    except FileExistsError:
-        print('Folder', tdata_folder, 'for storing data files already exists')
-    #Select columns we need
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -823,6 +1253,38 @@ def calcSatisticAndPlot_3D(data,
     else:
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
+
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                                       '-'.join(map(str, xy_axis_columns)))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters + xy_axis_columns).describe()
     if special_calcs_func is not None and special_calcs_args is not None:
@@ -1033,40 +1495,10 @@ def calcFromFuncAndPlot_3D(data,
         else:
             filter_func_args['data'] = data
         data = filter_func(**filter_func_args)
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                       '-'.join(map(str, xy_axis_columns)))
-    cnt = 1
-    store_path_init = store_path_sub
-    while os.path.exists(store_path_sub):
-        store_path_sub = store_path_init + '_' + str(int(cnt))
-        cnt += 1
-    try:
-        os.mkdir(store_path_sub)
-    except FileExistsError:
-        print('Folder', store_path_sub, 'for storing statistics data already exists')
-    except:
-        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
-        raise
-
     if data.empty:
-        raise ValueError('No data left after filtering unsuccessful estimations')
-    if build_pdf:
-        pdf_folder = os.path.join(store_path_sub, 'pdf')
-        try:
-            os.mkdir(pdf_folder)
-        except FileExistsError:
-            print('Folder', pdf_folder, 'for storing pdf files already exists')
-    tex_folder = os.path.join(store_path_sub, 'tex')
-    try:
-        os.mkdir(tex_folder)
-    except FileExistsError:
-        print('Folder', tex_folder, 'for storing tex files already exists')
-    tdata_folder = os.path.join(tex_folder, 'data')
-    try:
-        os.mkdir(tdata_folder)
-    except FileExistsError:
-        print('Folder', tdata_folder, 'for storing data files already exists')
-    #Select columns we need
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -1087,6 +1519,38 @@ def calcFromFuncAndPlot_3D(data,
         xy_axis_columns = ret['xy_axis_columns']
     else:
         raise ValueError('No function for calculating results provided')
+
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                                       '-'.join(map(str, xy_axis_columns)))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
     if special_calcs_func is not None and special_calcs_args is not None:
         special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
         cnt = 1
@@ -1860,13 +2324,34 @@ def main():
                            special_calcs_func=estimate_alg_time_fixed_kp,
                            special_calcs_args=special_calcs_args,
                            calc_func=calc_Time_Model,
-                           calc_func_args={'partitions': ['inlrat', 'th']},
+                           calc_func_args={'data_separators': ['inlrat', 'th']},
                            fig_type='surface',
                            use_marks=True,
                            ctrl_fig_size=False,
                            make_fig_index=True,
                            build_pdf=True,
                            figs_externalize=True)
+    calcFromFuncAndPlot_2D_partitions(data=data,
+                                      store_path=output_dir,
+                                      tex_file_pre_str='plots_USAC_opts_',
+                                      fig_title_pre_str=fig_title_pre_str,
+                                      eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                      units=units,  # Units in string format for every entry of eval_columns
+                                      it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                      partitions=['th'],  # Data properties to calculate results separately
+                                      x_axis_column=['nrCorrs_GT'],  # x-axis column name
+                                      filter_func=filter_nr_kps,
+                                      filter_func_args=None,
+                                      special_calcs_func=None,
+                                      special_calcs_args=None,
+                                      calc_func=calc_Time_Model,
+                                      calc_func_args={'data_separators': ['inlrat', 'th']},
+                                      fig_type='smooth',
+                                      use_marks=True,
+                                      ctrl_fig_size=False,
+                                      make_fig_index=True,
+                                      build_pdf=True,
+                                      figs_externalize=False)
 
 
 if __name__ == "__main__":
