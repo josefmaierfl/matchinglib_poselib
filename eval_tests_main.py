@@ -245,7 +245,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                                      build_pdf=False,
                                                      figs_externalize=True)
         elif test_nr == 5:
-            fig_title_pre_str = 'Temporal behaviour for USAC Option Combinations of '
+            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
             eval_columns = ['robEstimationAndRef_us']
             units = []
             it_parameters = ['USAC_parameters_estimator',

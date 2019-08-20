@@ -504,9 +504,14 @@ def calcSatisticAndPlot_2D_partitions(data,
         needed_columns = eval_columns + it_parameters + x_axis_column + partitions
         df = data[needed_columns]
 
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                              '-'.join(map(str, x_axis_column)) + '_for_' +
-                                              '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    if len(partitions) > 1:
+        store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                                  '-'.join(map(str, x_axis_column)) + '_for_' +
+                                                  '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    else:
+        store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                      '-'.join(map(str, x_axis_column)) + '_for_' +
+                                      str(partitions))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -580,8 +585,11 @@ def calcSatisticAndPlot_2D_partitions(data,
                 title_name += ', and '
         if i < nr_it_parameters - 1:
             base_out_name += '-'
-    base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + \
-                     '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+    if len(partitions) > 1:
+        base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + \
+                         '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+    else:
+        base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + str(partitions)
     title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True) + ' Values Separately for '
     for i in range(0, nr_partitions):
         title_name += replaceCSVLabels(grp_names[i], True, True)
@@ -864,35 +872,26 @@ def calcFromFuncAndPlot_2D_partitions(data,
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
 
-
-
-
-
-
-    #Group by USAC parameters 5&6 and calculate the statistic
-    stats = df.groupby(partitions + it_parameters + x_axis_column).describe()
-
-
-
-
     rel_data_path = os.path.relpath(tdata_folder, tex_folder)
     nr_it_parameters = len(it_parameters)
     nr_partitions = len(partitions)
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
+    it_title_part = ''
     for i, val in enumerate(it_parameters):
         base_out_name += val
-        title_name += replaceCSVLabels(val, True, True)
+        it_title_part += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
-                title_name += ' and '
+                it_title_part += ' and '
         else:
             if i < nr_it_parameters - 2:
-                title_name += ', '
+                it_title_part += ', '
             elif i < nr_it_parameters - 1:
-                title_name += ', and '
+                it_title_part += ', and '
         if i < nr_it_parameters - 1:
             base_out_name += '-'
+    title_name += it_title_part
 
     init_pars_title = ''
     init_pars_out_name = ''
@@ -928,14 +927,6 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 title_name += ', '
             elif i < nr_partitions - 1:
                 title_name += ', and '
-
-
-
-    errvalnames = stats.columns.values # Includes statistic name and error value names
-    grp_names = stats.index.names #As used when generating the groups
-
-
-
     tex_infos = {'title': title_name,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -946,140 +937,77 @@ def calcFromFuncAndPlot_2D_partitions(data,
                  'figs_externalize': figs_externalize,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True}
-    df = df.groupby(it_parameters)
+    df = df.groupby(partitions)
     grp_keys = df.groups.keys()
     for grp in grp_keys:
         df1 = df.get_group(grp)
-        df1 = df.groupby(partitions)
-        grp_keys1 = df1.groups.keys()
-        for grp1 in grp_keys1:
-            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                         '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
-            fdataf_name = os.path.join(tdata_folder, dataf_name)
-            tmp = df.get_group(grp)
-            tmp = tmp.drop(it_parameters, axis=1)
-            nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
-            with open(fdataf_name, 'a') as f:
-                f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
-                        '-'.join(map(str, it_parameters)) + '\n')
-                f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
-                f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
-                tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
-            for i, it in enumerate(eval_columns):
-                #Construct tex-file information
-                #figure types:
-                # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
-                reltex_name = os.path.join(rel_data_path, dataf_name)
-                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
-                           ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
-                           replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
-                           replaceCSVLabels(xy_axis_columns[1], True)
-                tex_infos['sections'].append({'file': reltex_name,
-                                              'name': fig_name,
-                                              'fig_type': fig_type,
-                                              'stat_name': it,
-                                              'plots_z': [it],
-                                              'diff_z_labels': False,
-                                              'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i]), units),
-                                              'plot_x': str(xy_axis_columns[0]),
-                                              'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
-                                                         findUnit(str(xy_axis_columns[0]), units),
-                                              'plot_y': str(xy_axis_columns[1]),
-                                              'label_y': replaceCSVLabels(str(xy_axis_columns[1])) +
-                                                         findUnit(str(xy_axis_columns[1]), units),
-                                              'legend': [eval_cols_lname[i] + ' for ' +
-                                                         tex_string_coding_style('-'.join(map(str, grp)))],
-                                              'use_marks': use_marks,
-                                              'mesh_cols': nr_equal_ss,
-                                              'use_log_z_axis': eval_cols_log_scaling[i]
-                                              })
+        df1.set_index(it_parameters, inplace=True)
+        df1 = df1.T
+        par_cols = ['-'.join(map(str, a)) for a in df1.columns]
+        df1.columns = par_cols
+        it_pars_cols_name = '-'.join(map(str, it_parameters))
+        df1.columns.name = it_pars_cols_name
+        tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name]).unstack()
+        par_cols1 = ['-'.join(map(str, a)) for a in tmp.columns]
+        tmp.columns = par_cols1
+        tmp.columns.name = 'eval-' + it_pars_cols_name
+        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name + '_on_partition_'
+        dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
+        grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
+        dataf_name += grp_name.replace('.', 'd')
+        dataf_name += '_vs_' + x_axis_column[0] + '.csv'
+        fdataf_name = os.path.join(tdata_folder, dataf_name)
+        with open(fdataf_name, 'a') as f:
+            f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                    it_pars_cols_name + '\n')
+            f.write('# Used data part of ' + '-'.join(map(str, partitions)) + ': ' + grp_name + '\n')
+            f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
+            tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        for i, ev in enumerate(eval_columns):
+            sel_cols = [a for a in par_cols1 if ev in a]
+            legend = ['-'.join([b for b in a.split('-') if ev not in b]) for a in sel_cols]
 
-
-
-
-
-    stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
-    for it in errvalnames:
-        if it[-1] != 'count':
-            tmp = stats[it[0]].unstack()
-            tmp = tmp[it[1]]
-            tmp1 = tmp.reset_index().set_index(partitions)
-            idx_old = None
-            for p in tmp1.index:
-                if idx_old is not None and idx_old == p:
-                    continue
-                idx_old = p
-                tmp2 = tmp1.loc[p]
-                part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
-                part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
-                               tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
-                part_name_title = ''
-                for i, val in enumerate(part_name_l):
-                    part_name_title += val
-                    if (len(part_name_l) <= 2):
-                        if i < len(part_name_l) - 1:
-                            part_name_title += ' and '
-                    else:
-                        if i < len(part_name_l) - 2:
-                            part_name_title += ', '
-                        elif i < len(part_name_l) - 1:
-                            part_name_title += ', and '
-                tmp2 = tmp2.reset_index().drop(partitions, axis=1)
-                tmp2 = tmp2.set_index(it_parameters).T
-                tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
-                tmp2.columns.name = '-'.join(it_parameters)
-                dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
-                             str(grp_names[-1]) + '_for_' + part_name.replace('.','d') + '.csv'
-                dataf_name = dataf_name.replace('%', 'perc')
-                fdataf_name = os.path.join(tdata_folder, dataf_name)
-                with open(fdataf_name, 'a') as f:
-                    f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + ' and properties ' + part_name + '\n')
-                    f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
-                    tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-
-                #Construct tex-file
-                stats_all = tmp2.stack().reset_index()
-                stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-                if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
-                    np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
-                        np.isclose(stats_all['min'][0], stats_all['max'][0]):
-                    continue
-                #figure types: sharp plot, smooth, const plot, ybar, xbar
-                use_limits = {'miny': None, 'maxy': None}
-                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-                reltex_name = os.path.join(rel_data_path, dataf_name)
-                tex_infos['sections'].append({'file': reltex_name,
-                                              'name': replace_stat_names(it[-1]) + ' values for ' +
-                                                      replaceCSVLabels(str(it[0]), True) +
-                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
-                                                      '\\\\ for properties ' + part_name.replace('_', '\\_'),
-                                              # If caption is None, the field name is used
-                                              'caption': replace_stat_names(it[-1]) + ' values for ' +
-                                                      replaceCSVLabels(str(it[0]), True) +
-                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
-                                                      ' for properties ' + part_name_title,
-                                              'fig_type': fig_type,
-                                              'plots': list(tmp2.columns.values),
-                                              'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
-                                              'plot_x': str(grp_names[-1]),
-                                              'label_x': replaceCSVLabels(str(grp_names[-1])),
-                                              'limits': use_limits,
-                                              'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
-                                              'legend_cols': None,
-                                              'use_marks': use_marks,
-                                              'use_log_y_axis': False,
-                                              'stat_name': it[-1],
-                                              })
-                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+            # Construct tex-file
+            stats_all = tmp.loc[:, sel_cols].stack().reset_index()
+            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
+                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
+                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                continue
+            # figure types: sharp plot, smooth, const plot, ybar, xbar
+            use_limits = {'miny': None, 'maxy': None}
+            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 3.291):
+                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
+            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
+                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
+            reltex_name = os.path.join(rel_data_path, dataf_name)
+            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
+                       '\\\\for parameter variations of ' + strToLower(it_title_part) + \
+                       ' and option ' + '\\\\compared to ' + \
+                       replaceCSVLabels(x_axis_column[0], True)
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': fig_name,
+                                          # If caption is None, the field name is used
+                                          'caption': fig_name.replace('\\\\', ' '),
+                                          'fig_type': fig_type,
+                                          'plots': sel_cols,
+                                          'label_y': eval_cols_lname[i] + findUnit(ev, units),
+                                          'plot_x': x_axis_column[0],
+                                          'label_x': replaceCSVLabels(x_axis_column[0]),
+                                          'limits': use_limits,
+                                          'legend': [tex_string_coding_style(a) for a in legend],
+                                          'legend_cols': None,
+                                          'use_marks': use_marks,
+                                          'use_log_y_axis': True,
+                                          'stat_name': ev,
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     pdfs_info = []
     max_figs_pdf = 50
     if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
         max_figs_pdf = 30
-    for st in stat_names:
+    for i, st in enumerate(eval_columns):
         # Get list of results using the same statistic
         st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
         if len(st_list) > max_figs_pdf:
@@ -1089,12 +1017,12 @@ def calcFromFuncAndPlot_2D_partitions(data,
             st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
         for it in st_list2:
             if len(st_list2) == 1:
-                title = replace_stat_names(st) + ' ' + tex_infos['title']
+                title = tex_infos['title'] + ': ' + capitalizeStr(eval_cols_lname[i])
             else:
-                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr']) + \
+                        ' for ' + capitalizeStr(eval_cols_lname[i])
             pdfs_info.append({'title': title,
-                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
-                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'texf_name': base_out_name + '_' + str(st) + '_' + str(it['pdf_nr']),
                               'figs_externalize': figs_externalize,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
@@ -1109,69 +1037,6 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
                                        fill_bar=it['fill_bar'],
-                                       sections=it['sections'])
-        texf_name = it['texf_name'] + '.tex'
-        if build_pdf:
-            pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
-
-    ################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    pdfs_info = []
-    max_figs_pdf = 50
-    if tex_infos['ctrl_fig_size']:
-        max_figs_pdf = 30
-    for st in eval_columns:
-        # Get list of results using the same statistic
-        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
-        if len(st_list) > max_figs_pdf:
-            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
-                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
-        else:
-            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
-        for i, it in enumerate(st_list2):
-            if len(st_list2) == 1:
-                title = tex_infos['title'] + ': ' + capitalizeStr(eval_cols_lname[i])
-            else:
-                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr']) + \
-                        ' for ' + capitalizeStr(eval_cols_lname[i])
-            pdfs_info.append({'title': title,
-                              'texf_name': base_out_name + '_' + str(st) + '_' + str(it['pdf_nr']),
-                              'figs_externalize': figs_externalize,
-                              'sections': it['figs'],
-                              'make_index': tex_infos['make_index'],
-                              'use_fixed_caption': tex_infos['use_fixed_caption'],
-                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
-
-    template = ji_env.get_template('usac-testing_3D_plots.tex')
-    res = 0
-    for it in pdfs_info:
-        rendered_tex = template.render(title=it['title'],
-                                       make_index=it['make_index'],
-                                       use_fixed_caption=it['use_fixed_caption'],
-                                       ctrl_fig_size=it['ctrl_fig_size'],
-                                       figs_externalize=it['figs_externalize'],
                                        sections=it['sections'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
@@ -2303,7 +2168,7 @@ def main():
     #                        make_fig_index,
     #                        build_pdf,
     #                        figs_externalize)
-    fig_title_pre_str = 'Temporal behaviour for USAC Option Combinations of '
+    fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
     eval_columns = ['robEstimationAndRef_us']
     units = []
     special_calcs_args = {'build_pdf': (True, True),
@@ -2311,26 +2176,26 @@ def main():
                           'fig_type': 'smooth',
                           'nr_target_kps': 1000}
     from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-    calcFromFuncAndPlot_3D(data=data,
-                           store_path=output_dir,
-                           tex_file_pre_str='plots_USAC_opts_',
-                           fig_title_pre_str=fig_title_pre_str,
-                           eval_columns=eval_columns,
-                           units=units,
-                           it_parameters=it_parameters,
-                           xy_axis_columns=['nrCorrs_GT'],
-                           filter_func=filter_nr_kps,
-                           filter_func_args=None,
-                           special_calcs_func=estimate_alg_time_fixed_kp,
-                           special_calcs_args=special_calcs_args,
-                           calc_func=calc_Time_Model,
-                           calc_func_args={'data_separators': ['inlrat', 'th']},
-                           fig_type='surface',
-                           use_marks=True,
-                           ctrl_fig_size=False,
-                           make_fig_index=True,
-                           build_pdf=True,
-                           figs_externalize=True)
+    # calcFromFuncAndPlot_3D(data=data,
+    #                        store_path=output_dir,
+    #                        tex_file_pre_str='plots_USAC_opts_',
+    #                        fig_title_pre_str=fig_title_pre_str,
+    #                        eval_columns=eval_columns,
+    #                        units=units,
+    #                        it_parameters=it_parameters,
+    #                        xy_axis_columns=['nrCorrs_GT'],
+    #                        filter_func=filter_nr_kps,
+    #                        filter_func_args=None,
+    #                        special_calcs_func=estimate_alg_time_fixed_kp,
+    #                        special_calcs_args=special_calcs_args,
+    #                        calc_func=calc_Time_Model,
+    #                        calc_func_args={'data_separators': ['inlrat', 'th']},
+    #                        fig_type='surface',
+    #                        use_marks=True,
+    #                        ctrl_fig_size=False,
+    #                        make_fig_index=True,
+    #                        build_pdf=True,
+    #                        figs_externalize=True)
     calcFromFuncAndPlot_2D_partitions(data=data,
                                       store_path=output_dir,
                                       tex_file_pre_str='plots_USAC_opts_',
