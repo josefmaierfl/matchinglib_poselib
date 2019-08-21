@@ -917,16 +917,18 @@ def calcFromFuncAndPlot_2D_partitions(data,
                      '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
     title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True) + \
                   ' Based On ' + init_pars_title + ' Separately for '
+    partition_text = ''
     for i, val in enumerate(partitions):
-        title_name += replaceCSVLabels(val, True, True)
+        partition_text += replaceCSVLabels(val, True, True)
         if(nr_partitions <= 2):
             if i < nr_partitions - 1:
-                title_name += ' and '
+                partition_text += ' and '
         else:
             if i < nr_partitions - 2:
-                title_name += ', '
+                partition_text += ', '
             elif i < nr_partitions - 1:
-                title_name += ', and '
+                partition_text += ', and '
+    title_name += partition_text
     tex_infos = {'title': title_name,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -937,9 +939,41 @@ def calcFromFuncAndPlot_2D_partitions(data,
                  'figs_externalize': figs_externalize,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True}
+    partition_text_val = []
+    for i, val in enumerate(partitions):
+        partition_text_val.append([replaceCSVLabels(val)])
+        if (nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                partition_text_val[-1].append(' and ')
+        else:
+            if i < nr_partitions - 2:
+                partition_text_val[-1].append(', ')
+            elif i < nr_partitions - 1:
+                partition_text_val[-1].append(', and ')
     df = df.groupby(partitions)
     grp_keys = df.groups.keys()
     for grp in grp_keys:
+        partition_text_val1 = ''
+        partition_text_val_tmp = deepcopy(partition_text_val)
+        if len(partitions) > 1:
+            for i, ptv in enumerate(partition_text_val_tmp):
+                if '$' == ptv[0][-1]:
+                    partition_text_val_tmp[i][0][-1] = '='
+                    partition_text_val_tmp[i][0] += str(grp[i]) + '$'
+                elif '}' == ptv[0][-1]:
+                    partition_text_val_tmp[i][0] += '=' + str(grp)
+                else:
+                    partition_text_val_tmp[i][0] += ' equal to ' + str(grp[i])
+            partition_text_val1 = ''.join([''.join(a) for a in partition_text_val_tmp])
+        else:
+            if '$' == partition_text_val_tmp[0][0][-1]:
+                partition_text_val_tmp[0][0][-1] = '='
+                partition_text_val_tmp[0][0] += str(grp) + '$'
+            elif '}' == partition_text_val_tmp[0][0][-1]:
+                partition_text_val_tmp[0][0] += '=' + str(grp)
+            else:
+                partition_text_val_tmp[0][0] += ' equal to ' + str(grp)
+            partition_text_val1 = ''.join(partition_text_val_tmp[0])
         df1 = df.get_group(grp)
         df1.set_index(it_parameters, inplace=True)
         df1 = df1.T
@@ -981,10 +1015,12 @@ def calcFromFuncAndPlot_2D_partitions(data,
             if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
             reltex_name = os.path.join(rel_data_path, dataf_name)
-            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
-                       '\\\\for parameter variations of ' + strToLower(it_title_part) + \
-                       ' and option ' + '\\\\compared to ' + \
-                       replaceCSVLabels(x_axis_column[0], True)
+            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+            fig_name += '\\\\for '
+            fig_name += partition_text_val1 + ' in addition to ' + \
+                        '\\\\parameter variations of ' + strToLower(it_title_part) + \
+                        '\\\\compared to ' + \
+                        replaceCSVLabels(x_axis_column[0], True)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
