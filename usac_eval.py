@@ -535,6 +535,8 @@ def combineRt(data):
 
 #def get_best_comb_and_th_1(data, res_folder, build_pdf=(False, True, )):
 def get_best_comb_and_th_1(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_single_fig(**keywords)
 
     #Output best and worst b values for every combination
@@ -646,7 +648,7 @@ def get_best_comb_and_th_1(**keywords):
     th_best_mean = round(float(b_best[ret['grp_names'][-1]].mean()), 3)
     b_best_val = float(b_best['b_best'].loc[b_best2_idx])
 
-    main_parameter_name = 'USAC_opt_refine_ops_th'
+    main_parameter_name = keywords['res_par_name']#'USAC_opt_refine_ops_th'
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
@@ -667,6 +669,8 @@ def get_best_comb_and_th_1(**keywords):
 
 
 def get_best_comb_inlrat_1(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_single_fig(**keywords)
     b_mean = ret['b'].mean(axis=0)
     b_mean_best = b_mean.idxmin()
@@ -733,7 +737,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   })
     ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
 
-    main_parameter_name = 'USAC_opt_refine_ops_inlrat'
+    main_parameter_name = keywords['res_par_name']#'USAC_opt_refine_ops_inlrat'
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
@@ -861,6 +865,8 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
 
 
 def get_best_comb_and_th_for_inlrat_1(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_multiple_fig(**keywords)
     tmp = ret['b'].groupby(ret['grp_names'][-1])
     grp_keys = tmp.groups.keys()
@@ -1037,7 +1043,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
         alg = str(data_min[ret['b'].columns.name].iloc[0])
         b_min = float(data_min['b_min'].mean())
 
-    main_parameter_name = 'USAC_opt_refine_ops_inlrat_th'
+    main_parameter_name = keywords['res_par_name']#'USAC_opt_refine_ops_inlrat_th'
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
