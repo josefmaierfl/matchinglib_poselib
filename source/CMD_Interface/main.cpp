@@ -2031,7 +2031,10 @@ bool genTemplateFile(const std::string &filename){
                         "If 100.0, the inlier ratio is chosen completely random within the given range for every "
                         "stereo frame separately. \nFor values between 0 and 100.0, the inlier ratio selected is "
                         "not allowed to change more than this factor from the inlier ratio "
-                        "of the last stereo frame.", 0);
+                        "of the last stereo frame \n"
+                        "( inlRat_new_range = [max(inlRat_old - inlRatChanges * inlRat_old, "
+                        "inlRatRange.first), "
+                        "min(inlRat_old + inlRatChanges * inlRat_old, inlRatRange.second)] ).", 0);
     fs << "inlRatChanges" << 20.0;
     cvWriteComment(*fs, "Number of true positives (TP) range for all stereo frames.", 0);
     fs << "truePosRange";
@@ -2042,7 +2045,9 @@ bool genTemplateFile(const std::string &filename){
                         "(it is selected within the given TP range in the beginning). \n"
                         "If 100.0, the true positives are chosen completely random within the given range. "
                         "For values between 0 and 100.0, \nthe true positives selected are not allowed to "
-                        "change more than this factor from the true positives of the last stereo frame.", 0);
+                        "change more than this factor from the true positives of the last stereo frame \n"
+                        "( TP_new_range = [max(TP_old - truePosChanges * TP_old, truePosRange.first), "
+                        "min(TP_old + truePosChanges * TP_old, truePosRange.second)] ).", 0);
     fs << "truePosChanges" << 40.0;
     cvWriteComment(*fs, "Minimum distance between keypoints in the first (left or top) "
                         "stereo image for every frame", 0);
