@@ -128,7 +128,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'use_marks': True,
                                   'res_par_name': 'USAC_opt_refine_ops_th'}
             from usac_eval import get_best_comb_and_th_1
-            return calcSatisticAndPlot_2D(data=data,
+            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -163,7 +163,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'use_marks': True,
                                   'res_par_name': 'USAC_opt_refine_ops_inlrat'}
             from usac_eval import get_best_comb_inlrat_1
-            return calcSatisticAndPlot_2D(data=data,
+            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -199,7 +199,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'fig_type': 'surface',
                                   'res_par_name': 'USAC_opt_refine_ops_inlrat_th'}
             from usac_eval import get_best_comb_and_th_for_inlrat_1
-            return calcSatisticAndPlot_3D(data=data,
+            return calcSatisticAndPlot_3D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -231,9 +231,9 @@ def eval_test(load_path, output_path, test_name, test_nr):
                              'USAC_parameters_refinealg']
             # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
             partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
-            special_calcs_args = {'build_pdf': (False, True), 'use_marks': True, 'fig_type': 'surface'}
-            # from usac_eval import get_best_comb_inlrat_1
-            return calcSatisticAndPlot_2D_partitions(data=data,
+            special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
+            from usac_eval import get_best_comb_th_scenes_1
+            return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                      store_path=output_path,
                                                      tex_file_pre_str='plots_USAC_opts_',
                                                      fig_title_pre_str=fig_title_pre_str,
@@ -244,7 +244,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                                      x_axis_column=['inlratMin'],
                                                      filter_func=None,
                                                      filter_func_args=None,
-                                                     special_calcs_func=None,#get_best_comb_inlrat_1,
+                                                     special_calcs_func=get_best_comb_th_scenes_1,
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=None,
                                                      calc_func_args=None,
@@ -265,7 +265,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'fig_type': 'smooth',
                                   'nr_target_kps': 1000}
             from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-            return calcFromFuncAndPlot_3D(data=data,
+            return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -292,7 +292,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             it_parameters = ['USAC_parameters_estimator',
                              'USAC_parameters_refinealg']
             from usac_eval import filter_nr_kps, calc_Time_Model
-            return calcFromFuncAndPlot_2D_partitions(data=data,
+            return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
                                                      store_path=output_path,
                                                      tex_file_pre_str='plots_USAC_opts_',
                                                      fig_title_pre_str=fig_title_pre_str,
@@ -306,7 +306,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                                      special_calcs_func=None,
                                                      special_calcs_args=None,
                                                      calc_func=calc_Time_Model,
-                                                     calc_func_args={'data_separators': ['inlrat', 'th']},
+                                                     calc_func_args={'data_separators': ['inlRatMin', 'th']},
                                                      fig_type='smooth',
                                                      use_marks=True,
                                                      ctrl_fig_size=True,
@@ -329,7 +329,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'use_marks': True,
                                   'res_par_name': 'USAC_opt_search_ops_th'}
             from usac_eval import get_best_comb_and_th_1
-            return calcSatisticAndPlot_2D(data=data,
+            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -366,7 +366,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'use_marks': True,
                                   'res_par_name': 'USAC_opt_search_ops_inlrat'}
             from usac_eval import get_best_comb_inlrat_1
-            return calcSatisticAndPlot_2D(data=data,
+            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -402,9 +402,10 @@ def eval_test(load_path, output_path, test_name, test_nr):
             special_calcs_args = {'build_pdf': (False, True),
                                   'use_marks': True,
                                   'fig_type': 'surface',
-                                  'res_par_name': 'USAC_opt_search_ops_kpAccSd_th'}
+                                  'res_par_name': 'USAC_opt_search_ops_kpAccSd_th',
+                                  'func_name': 'get_best_comb_and_th_for_kpacc_1'}
             from usac_eval import get_best_comb_and_th_for_inlrat_1
-            return calcSatisticAndPlot_3D(data=data,
+            return calcSatisticAndPlot_3D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -441,7 +442,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                   'fig_type': 'surface',
                                   'res_par_name': 'USAC_opt_search_ops_inlrat_th'}
             from usac_eval import get_best_comb_and_th_for_inlrat_1
-            return calcSatisticAndPlot_3D(data=data,
+            return calcSatisticAndPlot_3D(data=data.copy(deep=True),
                                           store_path=output_path,
                                           tex_file_pre_str='plots_USAC_opts_',
                                           fig_title_pre_str=fig_title_pre_str,
@@ -461,6 +462,39 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                           make_fig_index=True,
                                           build_pdf=False,
                                           figs_externalize=True)
+        elif test_nr == 36:
+            fig_title_pre_str = 'Values of Inlier Ratio Differences for USAC Option Combinations of '
+            eval_columns = ['inlRat_estimated', 'inlRat_GT']
+            units = [('inlRat_diff', '')]
+            it_parameters = ['USAC_parameters_automaticSprtInit',
+                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_prevalidateSample',
+                             'USAC_parameters_USACInlratFilt']
+            # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+            partitions = ['depthDistr', 'kpAccSd']
+            special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
+            from usac_eval import get_inlrat_diff, get_min_inlrat_diff
+            return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_USAC_opts_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     partitions=partitions,
+                                                     x_axis_column=['th'],
+                                                     filter_func=None,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=get_min_inlrat_diff,
+                                                     special_calcs_args=special_calcs_args,
+                                                     calc_func=get_inlrat_diff,
+                                                     calc_func_args=None,
+                                                     fig_type='smooth',
+                                                     use_marks=True,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=True)
 
 
 def merge_dicts(in_dict, mainkey = None):
