@@ -75,9 +75,9 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5', '0', '0', '0', '0', '1', '1']
             args += ['--USACInlratFilt', '0']
         elif test_nr == 2:
-            args += ['--depths', 'NMF']
-            args += ['--nr_keypoints', '500']
-            args += ['--kp_pos_distr', 'equ']
+            # args += ['--depths', 'NMF']
+            # args += ['--nr_keypoints', '500']
+            # args += ['--kp_pos_distr', 'equ']
             if not usac56:
                 raise ValueError('Enter best test results for parameters 5 & 6 of usac-testing')
             args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, usac56)) + ['1', '1', '1', '0', '0', '0']
