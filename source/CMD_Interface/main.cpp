@@ -216,7 +216,7 @@ struct randomTrackPars{
            || (xyDirectionRange.second > 1000.0)
            || ((abs(xyDirectionRange.first) > abs(xyDirectionRange.second))
                && !nearZero(xyDirectionRange.first - xyDirectionRange.second))){
-            cerr << "Parameter xzDirectionRange of random track can only be between -1000 and +1000."
+            cerr << "Parameter xyDirectionRange of random track can only be between -1000 and +1000."
                     "The first parameter of the range must be smaller or equal the second." << endl;
             return false;
         }
