@@ -297,6 +297,7 @@ def calcSatisticAndPlot_2D(data,
             calc_vals = False
         if calc_vals:
             special_calcs_args['data'] = stats
+            special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -567,6 +568,7 @@ def calcSatisticAndPlot_2D_partitions(data,
         if calc_vals:
             special_calcs_args['data'] = stats
             special_calcs_args['partitions'] = partitions
+            special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -1217,6 +1219,7 @@ def calcSatisticAndPlot_3D(data,
             calc_vals = False
         if calc_vals:
             special_calcs_args['data'] = stats
+            special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -2286,7 +2289,8 @@ def main():
                                   'use_marks': True,
                                   'fig_type': 'smooth',
                                   'nr_target_kps': 1000,
-                                  't_data_separators': ['inlratMin']}
+                                  't_data_separators': ['inlratMin'],
+                                  'res_par_name': 'USAC_opt_refine_min_time'}
             from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
             return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
                                           store_path=output_path,
@@ -2505,7 +2509,9 @@ def main():
                              'USAC_parameters_refinealg']
             # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
             partitions = ['depthDistr', 'kpAccSd']
-            special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
+            special_calcs_args = {'build_pdf': (True, True),
+                                  'use_marks': True,
+                                  'res_par_name': 'USAC_opt_search_min_inlrat_diff'}
             from usac_eval import get_inlrat_diff, get_min_inlrat_diff
             return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                      store_path=output_path,
@@ -2582,7 +2588,8 @@ def main():
                                   'use_marks': True,
                                   'fig_type': 'smooth',
                                   'nr_target_kps': 1000,
-                                  't_data_separators': ['inlratMin']}
+                                  't_data_separators': ['inlratMin'],
+                                  'res_par_name': 'USAC_opt_search_min_time'}
             from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
             return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
                                           store_path=output_path,
@@ -2619,7 +2626,8 @@ def main():
                                   'use_marks': True,
                                   'fig_type': 'smooth',
                                   'nr_target_kps': 1000,
-                                  't_data_separators': ['inlratMin', 'th']}
+                                  't_data_separators': ['inlratMin', 'th'],
+                                  'res_par_name': 'USAC_opt_search_min_time_inlrat_th'}
             return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
                                                      store_path=output_path,
                                                      tex_file_pre_str='plots_USAC_opts_',

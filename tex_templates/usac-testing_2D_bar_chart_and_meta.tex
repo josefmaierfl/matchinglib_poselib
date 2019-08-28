@@ -201,12 +201,9 @@ every axis plot/.append style={fill,draw=none,no markers},%
 no markers,%
 \BLOCK{ endif }
 \BLOCK{ else }
-\BLOCK{ if not sec['use_marks'] and not fill_bar }
+\BLOCK{ if not sec['use_marks'] or fill_bar }
 no markers,%
 \BLOCK{ endif }
-\BLOCK{ endif }
-\BLOCK{ if not sec['use_marks'] }
-no markers,%
 \BLOCK{ endif }
 unbounded coords=discard,%
 ] table [%
@@ -223,8 +220,13 @@ x expr=\coordindex,%
 y=\VAR{ it },%
 \BLOCK{ endif }
 \BLOCK{ else }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+y=\VAR{ sec['print_x'] },%
+x=\VAR{ it },%
+\BLOCK{ else }
 x=\VAR{ sec['print_x'] },%
 y=\VAR{ it },%
+\BLOCK{ endif }
 \BLOCK{ endif }
 ] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }

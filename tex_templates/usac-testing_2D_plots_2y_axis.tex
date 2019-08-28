@@ -322,7 +322,7 @@ every axis plot/.append style={fill,draw=none,no markers},%
 \BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
 \VAR{sec['fig_type']}\BLOCK{ if not sec['use_marks'] },no markers\BLOCK{ endif },
 \BLOCK{ else }
-\BLOCK{ if not sec['use_marks'] and not fill_bar }
+\BLOCK{ if not sec['use_marks'] or fill_bar }
 no markers,%
 \BLOCK{ endif }
 \BLOCK{ endif }
