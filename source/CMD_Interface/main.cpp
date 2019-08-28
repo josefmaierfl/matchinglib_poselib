@@ -206,17 +206,17 @@ struct randomTrackPars{
         }
         if((xzDirectionRange.first < -1000.0)
            || (xzDirectionRange.second > 1000.0)
-           || ((xzDirectionRange.first > xzDirectionRange.second)
+           || ((abs(xzDirectionRange.first) > abs(xzDirectionRange.second))
                && !nearZero(xzDirectionRange.first - xzDirectionRange.second))){
-            cerr << "Parameter xzDirectionRange of random track can only be between -PI/2 and +PI/2."
+            cerr << "Parameter xzDirectionRange of random track can only be between -1000 and +1000."
                     "The first parameter of the range must be smaller or equal the second." << endl;
             return false;
         }
         if((xyDirectionRange.first < -1000.0)
            || (xyDirectionRange.second > 1000.0)
-           || ((xyDirectionRange.first > xyDirectionRange.second)
+           || ((abs(xyDirectionRange.first) > abs(xyDirectionRange.second))
                && !nearZero(xyDirectionRange.first - xyDirectionRange.second))){
-            cerr << "Parameter xzDirectionRange of random track can only be between -PI/2 and +PI/2."
+            cerr << "Parameter xzDirectionRange of random track can only be between -1000 and +1000."
                     "The first parameter of the range must be smaller or equal the second." << endl;
             return false;
         }
