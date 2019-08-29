@@ -3008,6 +3008,8 @@ def main():
                                   'fig_type': 'smooth',
                                   'nr_target_kps': 1000,
                                   't_data_separators': ['kpAccSd', 'inlratMin', 'th'],
+                                  'accum_step_props': ['inlratMin', 'kpAccSd'],
+                                  'eval_minmax_for': 'th',
                                   'res_par_name': 'USAC_opt_search_min_time_kpAccSd_inlrat_th'}
             return calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
                                                      store_path=output_path,
