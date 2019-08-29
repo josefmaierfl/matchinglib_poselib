@@ -1359,48 +1359,69 @@ def calc_Time_Model(**vars):
         for grp in grp_keys:
             tmp = df_grp.get_group(grp)
             # Filter out spikes (split data in chunks first)
-            ma = tmp[vars['eval_columns'][0]].dropna().values.max()
-            mi = tmp[vars['eval_columns'][0]].dropna().values.min()
-            r_r = ma - mi
-            r5 = r_r / 5
-            a = mi
-            parts = []
-            for b in np.arange(mi + r5, ma + r5 / 2, r5):
-                if round(b - ma) == 0:
-                    b += 1
-                part = tmp.loc[(tmp[vars['eval_columns'][0]] >= a) &
-                               (tmp[vars['eval_columns'][0]] < b)]
-                part = part.loc[np.abs(stats.zscore(part[vars['eval_columns'][0]])) < float(std_dev)]
-                parts.append(part)
-                a = b
-            tmp1 = pd.concat(parts, ignore_index=False, sort=False, copy=False)
+            if tmp.shape[0] > 60:
+                ma = tmp[vars['eval_columns'][0]].dropna().values.max()
+                mi = tmp[vars['eval_columns'][0]].dropna().values.min()
+                r_r = ma - mi
+                r5 = r_r / 5
+                a = mi
+                parts = []
+                for b in np.arange(mi + r5, ma + r5 / 2, r5):
+                    if round(b - ma) == 0:
+                        b += 1
+                    part = tmp.loc[(tmp[vars['eval_columns'][0]] >= a) &
+                                   (tmp[vars['eval_columns'][0]] < b)]
+                    part = part.loc[np.abs(stats.zscore(part[vars['eval_columns'][0]])) < float(std_dev)]
+                    parts.append(part)
+                    a = b
+                tmp1 = pd.concat(parts, ignore_index=False, sort=False, copy=False)
+            if tmp.shape[0] < 4:
+                model_type.append({'score': 0,
+                                   'par_neg': 0,
+                                   'parameters': [0, 0],
+                                   'valid': False,
+                                   'type': 0,
+                                   'data': tmp,
+                                   'grp': grp})
+                continue
+            else:
+                tmp1 = tmp
 
             # values converts it into a numpy array, -1 means that calculate the dimension of rows
             X = pd.DataFrame(tmp1[x_axis_column[0]]).values.reshape(-1, 1)
             Y = pd.DataFrame(tmp1[vars['eval_columns'][0]]).values.reshape(-1, 1)
             scores = []
             par_negs = []
-            kfold = KFold(n_splits=3, shuffle=True)
-            for train, test in kfold.split(X, Y):
-                model.fit(X[train], Y[train])
-                score = model.score(X[test], Y[test])
-                scores.append(score)
-                # For LinearRegression:
-                par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
-                          (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
-                # For HuberRegressor:
-                # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
-                #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
-                par_negs.append(par_neg)
-            mean_score = sum(scores) / len(scores)
-            mean_par_neg = round(sum(par_negs) / len(par_negs))
-            if mean_score > 0.67 and mean_par_neg == 0:
-                # The linear model will fit the data
+            if X.shape[0] > 150:
+                kfold = KFold(n_splits=3, shuffle=True)
+                for train, test in kfold.split(X, Y):
+                    model.fit(X[train], Y[train])
+                    score = model.score(X[test], Y[test])
+                    scores.append(score)
+                    # For LinearRegression:
+                    par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                              (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+                    # For HuberRegressor:
+                    # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+                    #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
+                    par_negs.append(par_neg)
+                mean_score = sum(scores) / len(scores)
+                mean_par_neg = round(sum(par_negs) / len(par_negs))
+            else:
                 model.fit(X, Y)
                 score = model.score(X, Y)
-                # For LinearRegression:
                 par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
                           (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+                mean_score = score
+                mean_par_neg = round(par_neg)
+            if mean_score > 0.67 and mean_par_neg == 0:
+                # The linear model will fit the data
+                if X.shape[0] > 150:
+                    model.fit(X, Y)
+                    score = model.score(X, Y)
+                    # For LinearRegression:
+                    par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                              (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
                 parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
                 # For HuberRegressor:
                 # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
@@ -1409,38 +1430,50 @@ def calc_Time_Model(**vars):
                 model_type.append({'score': score,
                                    'par_neg': par_neg,
                                    'parameters': parameters,
+                                   'valid': True,
                                    'type': 0,
                                    'data': tmp1,
                                    'grp': grp})
             else:
                 polynomial_features = PolynomialFeatures(degree=2, include_bias=False)
-                scores = []
-                par_negs = []
-                for train, test in kfold.split(X, Y):
-                    x_poly = polynomial_features.fit_transform(X[train])
-                    model.fit(x_poly, Y[train])
-                    x_poly_test = polynomial_features.fit_transform(X[test], Y[test])
-                    score = model.score(x_poly_test, Y[test])
-                    scores.append(score)
-                    # For LinearRegression:
-                    par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
-                              (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0])) + \
-                              (0 if model.coef_[0, 1] >= 0 else 2 * abs(model.coef_[0, 1]))
-                    # For HuberRegressor:
-                    # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
-                    #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0])) + \
-                    #           (0 if model.coef_[1] >= 0 else 2 * abs(model.coef_[1]))
-                    par_negs.append(par_neg)
-                mean_score1 = sum(scores) / len(scores)
-                mean_par_neg1 = round(sum(par_negs) / len(par_negs))
-                if mean_score1 > 1.2 * mean_score or (mean_par_neg1 < mean_par_neg and mean_score1 > 0.95 * mean_score):
+                if X.shape[0] > 150:
+                    scores = []
+                    par_negs = []
+                    for train, test in kfold.split(X, Y):
+                        x_poly = polynomial_features.fit_transform(X[train])
+                        model.fit(x_poly, Y[train])
+                        x_poly_test = polynomial_features.fit_transform(X[test], Y[test])
+                        score = model.score(x_poly_test, Y[test])
+                        scores.append(score)
+                        # For LinearRegression:
+                        par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                                  (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0])) + \
+                                  (0 if model.coef_[0, 1] >= 0 else 2 * abs(model.coef_[0, 1]))
+                        # For HuberRegressor:
+                        # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
+                        #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0])) + \
+                        #           (0 if model.coef_[1] >= 0 else 2 * abs(model.coef_[1]))
+                        par_negs.append(par_neg)
+                    mean_score1 = sum(scores) / len(scores)
+                    mean_par_neg1 = round(sum(par_negs) / len(par_negs))
+                else:
                     x_poly = polynomial_features.fit_transform(X)
                     model.fit(x_poly, Y)
                     score = model.score(x_poly, Y)
-                    # For LinearRegression:
                     par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
                               (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0])) + \
                               (0 if model.coef_[0, 1] >= 0 else 2 * abs(model.coef_[0, 1]))
+                    mean_score1 = score
+                    mean_par_neg1 = round(par_neg)
+                if mean_score1 > 1.2 * mean_score or (mean_par_neg1 < mean_par_neg and mean_score1 > 0.95 * mean_score):
+                    if X.shape[0] > 150:
+                        x_poly = polynomial_features.fit_transform(X)
+                        model.fit(x_poly, Y)
+                        score = model.score(x_poly, Y)
+                        # For LinearRegression:
+                        par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
+                                  (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0])) + \
+                                  (0 if model.coef_[0, 1] >= 0 else 2 * abs(model.coef_[0, 1]))
                     parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
                     # For HuberRegressor:
                     # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
@@ -1450,6 +1483,7 @@ def calc_Time_Model(**vars):
                     model_type.append({'score': score,
                                        'par_neg': par_neg,
                                        'parameters': parameters,
+                                       'valid': True,
                                        'type': 1,
                                        'data': tmp1,
                                        'grp': grp})
@@ -1467,43 +1501,49 @@ def calc_Time_Model(**vars):
                     model_type.append({'score': score,
                                        'par_neg': par_neg,
                                        'parameters': parameters,
+                                       'valid': True,
                                        'type': 0,
                                        'data': tmp1,
                                        'grp': grp})
 
-        mod_sel = round(sum([a['type'] for a in model_type])/len(model_type), 4)
+        mod_sel_valid = [a['type'] for a in model_type if a['valid']]
+        mod_sel = round(sum(mod_sel_valid)/len(mod_sel_valid), 4)
         if mod_sel > 0 and mod_sel < 1:
-            scores1 = [a['score'] for a in model_type if a['type'] == 0]
-            par_negs1 = [a['par_neg'] for a in model_type if a['type'] == 0]
+            scores1 = [a['score'] for a in model_type if a['type'] == 0 and a['valid']]
+            par_negs1 = [a['par_neg'] for a in model_type if a['type'] == 0 and a['valid']]
             if len(scores1) > 0:
                 scores11 = sum(scores1) / len(scores1)
                 par_negs11 = sum(par_negs1) / len(par_negs1)
             else:
                 scores11 = 0
                 par_negs11 = 0
-            scores2 = [a['score'] for a in model_type if a['type'] == 1]
-            par_negs2 = [a['par_neg'] for a in model_type if a['type'] == 1]
+            scores2 = [a['score'] for a in model_type if a['type'] == 1 and a['valid']]
+            par_negs2 = [a['par_neg'] for a in model_type if a['type'] == 1 and a['valid']]
             if len(scores2) > 0:
                 scores21 = sum(scores2) / len(scores2)
                 par_negs21 = sum(par_negs2) / len(par_negs2)
             else:
                 scores21 = 0
                 par_negs21 = 0
-            l_rat2 = len(scores2) / len(model_type)
+            l_rat2 = len(scores2) / len(mod_sel_valid)
             if l_rat2 > 0.5 and (scores21 > scores11 or par_negs11 > par_negs21):
                 polynomial_features = PolynomialFeatures(degree=2, include_bias=False)
                 for i, val in enumerate(model_type):
                     if val['type'] == 0:
-                        X = pd.DataFrame(val['data'][x_axis_column[0]]).values.reshape(-1, 1)
-                        Y = pd.DataFrame(val['data'][vars['eval_columns'][0]]).values.reshape(-1, 1)
-                        x_poly = polynomial_features.fit_transform(X)
-                        model.fit(x_poly, Y)
-                        model_type[i]['score'] = model.score(x_poly, Y)
-                        # For LinearRegression:
-                        model_type[i]['parameters'] = model.intercept_.tolist() + model.coef_[0, :].tolist()
-                        # For HuberRegressor:
-                        # model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
-                        model_type[i]['type'] = 1
+                        if val['valid']:
+                            X = pd.DataFrame(val['data'][x_axis_column[0]]).values.reshape(-1, 1)
+                            Y = pd.DataFrame(val['data'][vars['eval_columns'][0]]).values.reshape(-1, 1)
+                            x_poly = polynomial_features.fit_transform(X)
+                            model.fit(x_poly, Y)
+                            model_type[i]['score'] = model.score(x_poly, Y)
+                            # For LinearRegression:
+                            model_type[i]['parameters'] = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                            # For HuberRegressor:
+                            # model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
+                            model_type[i]['type'] = 1
+                        else:
+                            model_type[i]['type'] = 1
+                            model_type[i]['parameters'] = [0, 0, 0]
             else:
                 for i, val in enumerate(model_type):
                     if val['type'] == 1:
@@ -1516,7 +1556,13 @@ def calc_Time_Model(**vars):
                         # For HuberRegressor:
                         # model_type[i]['parameters'] = [model.intercept_] + model.coef_.tolist()
                         model_type[i]['type'] = 0
-
+    if len(mod_sel_valid) != len(model_type):
+        #Get valid parameters
+        pars_valid = [a['parameters'] for a in model_type if a['valid']]
+        mean_vals = [sum([a[i] for a in pars_valid]) / len(pars_valid) for i in range(len(pars_valid[0]))]
+        for i, val in enumerate(model_type):
+            if not val['valid']:
+                model_type[i]['parameters'] = mean_vals
 
     data_new = {'score': [], 'fixed_time': [], 'linear_time': []}
     if model_type[0]['type'] == 1:

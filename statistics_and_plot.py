@@ -1636,6 +1636,349 @@ def calcFromFuncAndPlot_3D(data,
     return res
 
 
+def calcFromFuncAndPlot_3D_partitions(data,
+                                      store_path,
+                                      tex_file_pre_str,
+                                      fig_title_pre_str,
+                                      eval_columns,#Column names for which statistics are calculated (y-axis)
+                                      units,# Units in string format for every entry of eval_columns
+                                      it_parameters,# Algorithm parameters to evaluate
+                                      partitions,# Data properties to calculate statistics seperately
+                                      xy_axis_columns,# x- and y-axis column names
+                                      filter_func=None,
+                                      filter_func_args=None,
+                                      special_calcs_func = None,
+                                      special_calcs_args = None,
+                                      calc_func = None,
+                                      calc_func_args = None,
+                                      fig_type='surface',
+                                      use_marks=True,
+                                      ctrl_fig_size=True,
+                                      make_fig_index=True,
+                                      build_pdf=False,
+                                      figs_externalize=True):
+    fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
+                 'surface', 'contour', 'surface-contour']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
+    # if type(data) is not pd.dataframe.DataFrame:
+    #     data = pd.utils.from_pandas(data)
+    #Filter rows by excluding not successful estimations
+    data = data.loc[~((data['R_out(0,0)'] == 0) &
+                      (data['R_out(0,1)'] == 0) &
+                      (data['R_out(0,2)'] == 0) &
+                      (data['R_out(1,0)'] == 0) &
+                      (data['R_out(1,1)'] == 0) &
+                      (data['R_out(1,2)'] == 0) &
+                      (data['R_out(2,0)'] == 0) &
+                      (data['R_out(2,1)'] == 0) &
+                      (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
+    if data.empty:
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
+    if calc_func is not None:
+        if calc_func_args is None:
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['xy_axis_columns'] = xy_axis_columns
+        calc_func_args['partitions'] = partitions
+        calc_func_args['units'] = units
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        eval_cols_lname = ret['eval_cols_lname']
+        eval_cols_log_scaling = ret['eval_cols_log_scaling']
+        eval_init_input = ret['eval_init_input']
+        units = ret['units']
+        it_parameters = ret['it_parameters']
+        xy_axis_columns = ret['xy_axis_columns']
+        partitions = ret['partitions']
+    else:
+        raise ValueError('No function for calculating results provided')
+
+    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+                                  '-'.join(map(str, xy_axis_columns)) + '_for_' +
+                                  '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if special_calcs_func is not None and special_calcs_args is not None:
+        if 'func_name' in special_calcs_args:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_args['func_name'])
+        else:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args['data'] = df
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['eval_cols_lname'] = eval_cols_lname
+            special_calcs_args['units'] = units
+            special_calcs_args['xy_axis_columns'] = xy_axis_columns
+            special_calcs_args['partitions'] = partitions
+            special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
+            if res != 0:
+                warnings.warn('Calculation of specific results failed!', UserWarning)
+
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(it_parameters)
+    nr_partitions = len(partitions)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    it_title_part = ''
+    for i, val in enumerate(it_parameters):
+        base_out_name += val
+        it_title_part += replaceCSVLabels(val, True, True)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                it_title_part += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                it_title_part += ', '
+            elif i < nr_it_parameters - 1:
+                it_title_part += ', and '
+        if i < nr_it_parameters - 1:
+            base_out_name += '-'
+    title_name += it_title_part
+
+    init_pars_title = ''
+    init_pars_out_name = ''
+    nr_eval_init_input = len(eval_init_input)
+    if nr_eval_init_input > 1:
+        for i, val in enumerate(eval_init_input):
+            init_pars_out_name += val
+            init_pars_title += replaceCSVLabels(val, True, True)
+            if (nr_eval_init_input <= 2):
+                if i < nr_eval_init_input - 1:
+                    init_pars_title += ' and '
+            else:
+                if i < nr_eval_init_input - 2:
+                    init_pars_title += ', '
+                elif i < nr_eval_init_input - 1:
+                    init_pars_title += ', and '
+            if i < nr_eval_init_input - 1:
+                init_pars_out_name += '-'
+    else:
+        init_pars_out_name = eval_init_input[0]
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+    base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
+                     init_pars_out_name + '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+    title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
+                  replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title + ' Separately for '
+
+    partition_text = ''
+    for i, val in enumerate(partitions):
+        partition_text += replaceCSVLabels(val, True, True)
+        if(nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                partition_text += ' and '
+        else:
+            if i < nr_partitions - 2:
+                partition_text += ', '
+            elif i < nr_partitions - 1:
+                partition_text += ', and '
+    title_name += partition_text
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 'use_fixed_caption': True,
+                 'make_index': make_fig_index,  # Builds an index with hyperrefs on the beginning of the pdf
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size}
+    partition_text_val = []
+    for i, val in enumerate(partitions):
+        partition_text_val.append([replaceCSVLabels(val)])
+        if (nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                partition_text_val[-1].append(' and ')
+        else:
+            if i < nr_partitions - 2:
+                partition_text_val[-1].append(', ')
+            elif i < nr_partitions - 1:
+                partition_text_val[-1].append(', and ')
+    df = df.groupby(partitions)
+    grp_keys = df.groups.keys()
+    for grp in grp_keys:
+        partition_text_val1 = ''
+        partition_text_val_tmp = deepcopy(partition_text_val)
+        if len(partitions) > 1:
+            for i, ptv in enumerate(partition_text_val_tmp):
+                if '$' == ptv[0][-1]:
+                    partition_text_val_tmp[i][0][-1] = '='
+                    partition_text_val_tmp[i][0] += str(grp[i]) + '$'
+                elif '}' == ptv[0][-1]:
+                    partition_text_val_tmp[i][0] += '=' + str(grp)
+                else:
+                    partition_text_val_tmp[i][0] += ' equal to ' + str(grp[i])
+            partition_text_val1 = ''.join([''.join(a) for a in partition_text_val_tmp])
+        else:
+            if '$' == partition_text_val_tmp[0][0][-1]:
+                partition_text_val_tmp[0][0][-1] = '='
+                partition_text_val_tmp[0][0] += str(grp) + '$'
+            elif '}' == partition_text_val_tmp[0][0][-1]:
+                partition_text_val_tmp[0][0] += '=' + str(grp)
+            else:
+                partition_text_val_tmp[0][0] += ' equal to ' + str(grp)
+            partition_text_val1 = ''.join(partition_text_val_tmp[0])
+        df1 = df.get_group(grp)
+        df1.set_index(it_parameters, inplace=True)
+        df1 = df1.T
+        par_cols = ['-'.join(map(str, a)) for a in df1.columns]
+        df1.columns = par_cols
+        it_pars_cols_name = '-'.join(map(str, it_parameters))
+        df1.columns.name = it_pars_cols_name
+        tmp = df1.T.drop(partitions, axis=1).reset_index()
+        tmp = tmp.groupby(it_pars_cols_name)
+        grp_keys_it = tmp.groups.keys()
+        for grp_it in grp_keys_it:
+            tmp1 = tmp.get_group(grp_it)
+            tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
+            nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
+
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + grp_it + \
+                         '_on_partition_'
+            dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
+            grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
+            dataf_name += grp_name.replace('.', 'd')
+            dataf_name += '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
+            fdataf_name = os.path.join(tdata_folder, dataf_name)
+            with open(fdataf_name, 'a') as f:
+                f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                        it_pars_cols_name + '\n')
+                f.write('# Used parameter values: ' + grp_it + '\n')
+                f.write('# Used data part of ' + '-'.join(map(str, partitions)) + ': ' + grp_name + '\n')
+                f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
+                tmp1.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+            for i, it in enumerate(eval_columns):
+                # Construct tex-file information
+                reltex_name = os.path.join(rel_data_path, dataf_name)
+                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+                fig_name += ' for '
+                fig_name += partition_text_val1 + ' in addition to ' + \
+                            ' parameters ' + tex_string_coding_style(grp_it) + \
+                            ' compared to ' + \
+                            replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
+                            replaceCSVLabels(xy_axis_columns[1], True)
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': fig_name,
+                                              'fig_type': fig_type,
+                                              'stat_name': it,
+                                              'plots_z': [it],
+                                              'diff_z_labels': False,
+                                              'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i]), units),
+                                              'plot_x': str(xy_axis_columns[0]),
+                                              'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
+                                                         findUnit(str(xy_axis_columns[0]), units),
+                                              'plot_y': str(xy_axis_columns[1]),
+                                              'label_y': replaceCSVLabels(str(xy_axis_columns[1])) +
+                                                         findUnit(str(xy_axis_columns[1]), units),
+                                              'legend': [eval_cols_lname[i] + ' for ' +
+                                                         tex_string_coding_style(grp_it)],
+                                              'use_marks': use_marks,
+                                              'mesh_cols': nr_equal_ss,
+                                              'use_log_z_axis': eval_cols_log_scaling[i]
+                                              })
+
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    for i, st in enumerate(eval_columns):
+        # Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        if len(st_list) > max_figs_pdf:
+            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        else:
+            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = tex_infos['title'] + ': ' + capitalizeStr(eval_cols_lname[i])
+            else:
+                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr']) + \
+                        ' for ' + capitalizeStr(eval_cols_lname[i])
+            pdfs_info.append({'title': title,
+                              'texf_name': base_out_name + '_' + str(st) + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'use_fixed_caption': tex_infos['use_fixed_caption'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
+
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       use_fixed_caption=it['use_fixed_caption'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       sections=it['sections'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+    return res
+
+
 def replace_stat_names(name, for_tex=True):
     if name == 'max':
         return 'Maximum'
@@ -2076,7 +2419,7 @@ def strToLower(str_val):
 
 #Only for testing
 def main():
-    num_pts = int(8000)
+    num_pts = int(10000)
     pars1_opt = ['first_long_long_opt' + str(i) for i in range(0,3)]
     pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
@@ -2134,7 +2477,7 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'testing_tests'
-    test_nr = 13
+    test_nr = 14
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
@@ -2649,6 +2992,44 @@ def main():
                                                      make_fig_index=True,
                                                      build_pdf=True,
                                                      figs_externalize=False)
+        elif test_nr == 14:
+            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+            eval_columns = ['robEstimationAndRef_us']
+            units = []
+            # it_parameters = ['USAC_parameters_automaticSprtInit',
+            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_prevalidateSample',
+            #                  'USAC_parameters_USACInlratFilt']
+            it_parameters = ['USAC_parameters_estimator',
+                             'USAC_parameters_refinealg']
+            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_props
+            special_calcs_args = {'build_pdf': (True, True),
+                                  'use_marks': True,
+                                  'fig_type': 'smooth',
+                                  'nr_target_kps': 1000,
+                                  't_data_separators': ['kpAccSd', 'inlratMin', 'th'],
+                                  'res_par_name': 'USAC_opt_search_min_time_kpAccSd_inlrat_th'}
+            return calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_USAC_opts_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                     units=units,  # Units in string format for every entry of eval_columns
+                                                     it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                     partitions=['th'],  # Data properties to calculate results separately
+                                                     xy_axis_columns=['nrCorrs_GT'],  # x-axis column name
+                                                     filter_func=filter_nr_kps,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=None,#estimate_alg_time_fixed_kp_for_props,
+                                                     special_calcs_args=special_calcs_args,
+                                                     calc_func=calc_Time_Model,
+                                                     calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
+                                                     fig_type='surface',
+                                                     use_marks=True,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=True)
 
 
 if __name__ == "__main__":

@@ -568,6 +568,42 @@ def eval_test(load_path, output_path, test_name, test_nr):
                                           make_fig_index=True,
                                           build_pdf=True,
                                           figs_externalize=True)
+        elif test_nr == 13:
+            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+            eval_columns = ['robEstimationAndRef_us']
+            units = []
+            it_parameters = ['USAC_parameters_automaticSprtInit',
+                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_prevalidateSample',
+                             'USAC_parameters_USACInlratFilt']
+            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_props
+            special_calcs_args = {'build_pdf': (True, True),
+                                  'use_marks': True,
+                                  'fig_type': 'smooth',
+                                  'nr_target_kps': 1000,
+                                  't_data_separators': ['inlratMin', 'th'],
+                                  'res_par_name': 'USAC_opt_search_min_time_inlrat_th'}
+            return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_USAC_opts_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                     units=units,  # Units in string format for every entry of eval_columns
+                                                     it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                     partitions=['th'],  # Data properties to calculate results separately
+                                                     x_axis_column=['nrCorrs_GT'],  # x-axis column name
+                                                     filter_func=filter_nr_kps,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=estimate_alg_time_fixed_kp_for_props,
+                                                     special_calcs_args=special_calcs_args,
+                                                     calc_func=calc_Time_Model,
+                                                     calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                     fig_type='smooth',
+                                                     use_marks=True,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
 
 
 def merge_dicts(in_dict, mainkey = None):
