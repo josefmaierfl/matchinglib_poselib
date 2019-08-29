@@ -91,20 +91,21 @@
 }{!}{%
 \BLOCK{ else }
 \resizebox*{!}{%
-	\ifdim\height>0.9\textheight
-        0.9\textheight
+	\ifdim\height>0.85\textheight
+        0.85\textheight
     \else
         \height
     \fi
 }{%
 \BLOCK{ endif }
 \BLOCK{ endif }
-\BLOCK{ if sec['use_string_labels'] }
+\BLOCK{ if sec['use_string_labels'] or sec['plots']|length > 1 }
 \pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
 \BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
 align=center,%
+max space between ticks={50},%
 \BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
 xmode=log,%
 \BLOCK{ elif sec['use_log_y_axis'] }
@@ -118,8 +119,8 @@ ymin=\VAR{sec['limits']['miny']},%
 ymax=\VAR{sec['limits']['maxy']},%
 \BLOCK{ endif }
 \BLOCK{ endif }
-\BLOCK{ if sec['fig_type'] == 'xbar' and sec['title_rows'] > 0 }
-title style={align=center,yshift=\VAR{ 1.5 * (sec['title_rows'] + 1) }ex},%
+\BLOCK{ if sec['title_rows'] > 0 }
+%title style={align=center,yshift=\VAR{ 1.1 * (sec['title_rows'] + 1) }ex},%
 \BLOCK{ endif }
 title={\VAR{ sec['title'] }},%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
@@ -162,7 +163,11 @@ ylabel=\VAR{sec['label_y']},%
 \BLOCK{ endif }
 \BLOCK{ if sec['legend'] }
 legend style={
-	at={(0.5,-0.12)},
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+	at={(0.5,-\VAR{ [(0.18 - 0.01 * sec['plots']|length)|round(2), 0.015]|max })},
+\BLOCK{ else }
+	at={(0.5,-0.15)},
+\BLOCK{ endif }
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},%
@@ -176,16 +181,20 @@ nodes near coords align={right},
 point meta=explicit symbolic,%
 every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta'] != 0 },\BLOCK{ if sec['rotate_meta'] == 45 }anchor=south west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=\VAR{ sec['rotate_meta'] }\BLOCK{ endif }},%
 \BLOCK{ endif }
-\BLOCK{ if sec['use_string_labels'] }
+\BLOCK{ if sec['use_string_labels'] or sec['plots']|length > 1 }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
+\BLOCK{ if sec['use_string_labels'] }
 y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+\BLOCK{ endif }
 x tick label style={/pgf/number format/precision=4},%
 \BLOCK{ else }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
+\BLOCK{ if sec['use_string_labels'] }
 x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+\BLOCK{ endif }
 y tick label style={/pgf/number format/precision=4},%
 \BLOCK{ endif }
 \BLOCK{ endif }
@@ -211,7 +220,7 @@ col sep=semicolon,%
 \BLOCK{ if sec['print_meta'] }
 meta=\VAR{ sec['plot_meta'][loop.index0] },%
 \BLOCK{ endif }
-\BLOCK{ if sec['use_string_labels'] }
+\BLOCK{ if sec['use_string_labels'] or sec['plots']|length > 1 }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 y expr=\coordindex,%
 x=\VAR{ it },%

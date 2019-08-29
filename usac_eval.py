@@ -1944,6 +1944,8 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     if 'res_par_name' not in vars:
         raise ValueError('Missing parameter res_par_name')
     tmp, col_name = get_time_fixed_kp(**vars)
+    tmp[vars['t_data_separators']] = tmp[vars['t_data_separators']].round(3)
+    tmp[col_name] = tmp[col_name].round(0)
     tmp1min = tmp.loc[tmp.groupby(vars['it_parameters'] + [vars['t_data_separators'][1]])[col_name].idxmin(axis=0)]
     tmp1max = tmp.loc[tmp.groupby(vars['it_parameters'] + [vars['t_data_separators'][1]])[col_name].idxmax(axis=0)]
     tmp2min = tmp1min.loc[tmp1min.groupby(vars['it_parameters'])[col_name].idxmin(axis=0)]
@@ -2046,7 +2048,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'legend_cols': None,
                                   'use_marks': False,
                                   # The x/y-axis values are given as strings if True
-                                  'use_string_labels': True,
+                                  'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2085,7 +2087,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'legend_cols': None,
                                   'use_marks': False,
                                   # The x/y-axis values are given as strings if True
-                                  'use_string_labels': True,
+                                  'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2120,9 +2122,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2min.index.name = index_name
     tmp2min['pars_tex'] = insert_opt_lbreak(index_new1)
     meta_col1 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
-    tmp2min[meta_col1] = tmp2min.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x)) + \
+    tmp2min[meta_col1] = tmp2min.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
                          tmp2min.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
-    tmp2min.drop(vars['t_data_separators'], inplace=True)
+    tmp2min.drop(vars['t_data_separators'], axis=1, inplace=True)
 
     tmp2max.set_index(vars['it_parameters'], inplace=True)
     index_new2 = ['-'.join(a) for a in tmp2max.index]
@@ -2130,9 +2132,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2max.index.name = index_name
     tmp2max['pars_tex'] = insert_opt_lbreak(index_new2)
     meta_col2 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
-    tmp2max[meta_col2] = tmp2max.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x)) + \
+    tmp2max[meta_col2] = tmp2max.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
                          tmp2max.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
-    tmp2max.drop(vars['t_data_separators'], inplace=True)
+    tmp2max.drop(vars['t_data_separators'], axis=1, inplace=True)
 
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_and_' + str(vars['t_data_separators'][1]) + \
                   '_for_' + str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
@@ -2195,12 +2197,12 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
                                   'label_x': 'Parameter combination',
                                   # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': str(index_name),
+                                  'print_x': 'pars_tex',
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [meta_col1],
                                   # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 90,
+                                  'rotate_meta': 0,
                                   'limits': None,
                                   # If None, no legend is used, otherwise use a list
                                   'legend': None,
@@ -2235,12 +2237,12 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
                                   'label_x': 'Parameter combination',
                                   # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': str(index_name),
+                                  'print_x': 'pars_tex',
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': True,
                                   'plot_meta': [meta_col2],
                                   # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 90,
+                                  'rotate_meta': 0,
                                   'limits': None,
                                   # If None, no legend is used, otherwise use a list
                                   'legend': None,
@@ -2258,7 +2260,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'])
-    base_out_name = 'tex_' + t_main_name
+    base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     if vars['build_pdf'][1]:
@@ -2288,7 +2290,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
         alg_w = {}
         for i, val in enumerate(vars['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
-        par1 = str(min_t[meta_col2].values[0]).split('-')
+        par1 = str(min_t[meta_col2].values[0]).split(' - ')
         par_name = meta_col2.split('-')
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                          par_name[0]: par1[0],
