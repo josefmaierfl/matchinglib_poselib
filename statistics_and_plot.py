@@ -2204,10 +2204,16 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'USAC automatic SPRT initializations'
         else:
             str_val = 'USAC automatic SPRT initialization'
-    elif label == 'USAC_parameters_noAutomaticProsacParamters':
-        str_val = 'disabled automatic PROSAC parameter estimation'
+    elif label == 'USAC_parameters_automaticProsacParameters':
+        if use_plural:
+            str_val = 'automatic PROSAC parameter estimations'
+        else:
+            str_val = 'automatic PROSAC parameter estimation'
     elif label == 'USAC_parameters_prevalidateSample':
-        str_val = 'sample prevalidation'
+        if use_plural:
+            str_val = 'sample prevalidations'
+        else:
+            str_val = 'sample prevalidation'
     elif label == 'USAC_parameters_estimator':
         if use_plural:
             str_val = 'USAC estimators'
@@ -2415,6 +2421,38 @@ def strToLower(str_val):
     return ' '.join([b.lower() if not sum(1 for c in b if c.isupper()) > 1 and
                                   not '$' in b and
                                   not '\\' in b else b for b in str_val.split(' ')])
+
+def getOptionDescription(key):
+    if key == 'GMS':
+        return 'Grid-based Motion Statistics'
+    elif key == 'VFC':
+        return 'Vector Field Consensus'
+    elif key == 'SPRT_DEFAULT_INIT':
+        return 'Sequential Probability Ratio Test (SPRT) with default values $\\delta_{SPRT} = 0.05$ and ' \
+               '$\\epsilon_{SPRT} = 0.15$, where $\\delta_{SPRT}$ corresponds to the propability of a keypoint to be ' \
+               'classified as an inlier of an invalid model and $\\epsilon_{SPRT}$ to the probability ' \
+               'that a data point is consistent with a good model.'
+    elif key == 'SPRT_DELTA_AUTOM_INIT':
+        return 'Sequential Probability Ratio Test (SPRT) with automatic estimation of $\\delta_{SPRT}$ and a default ' \
+               'value $\\epsilon_{SPRT} = 0.15$, where $\\delta_{SPRT}$ corresponds to the propability of a keypoint' \
+               ' to be classified as an inlier of an invalid model and $\\epsilon_{SPRT}$ to the probability ' \
+               'that a data point is consistent with a good model.'
+    elif key == 'SPRT_EPSILON_AUTOM_INIT':
+        return 'Sequential Probability Ratio Test (SPRT) with automatic estimation of ' \
+               '$\\epsilon_{SPRT}$ and a default value $\\delta_{SPRT} = 0.05$, where $\\delta_{SPRT}$ corresponds ' \
+               'to the propability of a keypoint to be classified as an inlier of an invalid model and ' \
+               '$\\epsilon_{SPRT}$ to the probability that a data point is consistent with a good model.'
+    elif key == 'SPRT_DELTA_AND_EPSILON_AUTOM_INIT':
+        return 'Sequential Probability Ratio Test (SPRT) with automatic estimation of $\\delta_{SPRT}$ and ' \
+               '$\\epsilon_{SPRT}$, where $\\delta_{SPRT}$ corresponds to the propability of a keypoint to be ' \
+               'classified as an inlier of an invalid model and $\\epsilon_{SPRT}$ to the probability ' \
+               'that a data point is consistent with a good model.'
+    elif key == 'POSE_NISTER':
+        return 'Pose estimation using Nister\'s 5pt algorithm'
+    elif key == 'POSE_EIG_KNEIP':
+        return 'Pose estimation using Kneip\'s Eigen solver'
+    elif key == 'POSE_STEWENIUS':
+        return 'Pose estimation using Stewenius\' 5pt algorithm'
 
 
 #Only for testing

@@ -2354,27 +2354,45 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp, col_name = get_time_fixed_kp(**vars)
     tmp[vars['t_data_separators']] = tmp[vars['t_data_separators']].round(3)
     tmp[col_name] = tmp[col_name].round(0)
-    first_grp = vars['it_parameters'] + [a for a in vars['t_data_separators'] if a != vars['accum_step_props'][0]]
+    first_grp2 = [a for a in vars['t_data_separators'] if a != vars['accum_step_props'][0]]
+    first_grp = vars['it_parameters'] + first_grp2
     tmp1mean = tmp.groupby(first_grp).mean().drop(vars['accum_step_props'][0], axis=1)
-    second_grp = vars['it_parameters'] + [a for a in vars['t_data_separators'] if a != vars['accum_step_props'][1]]
+    second_grp2 = [a for a in vars['t_data_separators'] if a != vars['accum_step_props'][1]]
+    second_grp = vars['it_parameters'] + second_grp2
     tmp2mean = tmp.groupby(second_grp).mean().drop(vars['accum_step_props'][1], axis=1)
     minmax_grp = vars['it_parameters'] + [vars['eval_minmax_for']]
     tmp1mean_min = tmp1mean.loc[tmp1mean.groupby(minmax_grp)[col_name].idxmin(axis=0)]
     tmp1mean_max = tmp1mean.loc[tmp1mean.groupby(minmax_grp)[col_name].idxmax(axis=0)]
     tmp2mean_min = tmp2mean.loc[tmp2mean.groupby(minmax_grp)[col_name].idxmin(axis=0)]
     tmp2mean_max = tmp2mean.loc[tmp2mean.groupby(minmax_grp)[col_name].idxmax(axis=0)]
-
-    tmp1min = tmp.loc[tmp.groupby(vars['it_parameters'] + [vars['t_data_separators'][1]])[col_name].idxmin(axis=0)]
-    tmp1max = tmp.loc[tmp.groupby(vars['it_parameters'] + [vars['t_data_separators'][1]])[col_name].idxmax(axis=0)]
-    tmp2min = tmp1min.loc[tmp1min.groupby(vars['it_parameters'])[col_name].idxmin(axis=0)]
-    tmp2max = tmp1max.loc[tmp1max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
+    tmp12_min = tmp1mean_min.loc[tmp1mean_min[col_name].idxmin(axis=0)]
+    tmp12_max = tmp1mean_max.loc[tmp1mean_max[col_name].idxmax(axis=0)]
+    tmp22_min = tmp2mean_min.loc[tmp2mean_min[col_name].idxmin(axis=0)]
+    tmp22_max = tmp2mean_max.loc[tmp2mean_max[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    tmp1min.set_index(vars['it_parameters'], inplace=True)
-    index_new1 = ['-'.join(a) for a in tmp1min.index]
-    tmp1min.index = index_new1
+    tmp1mean.set_index(vars['it_parameters'], inplace=True)
+    index_new1 = ['-'.join(a) for a in tmp1mean.index]
+    tmp1mean.index = index_new1
     index_name = '-'.join(vars['it_parameters'])
-    tmp1min.index.name = index_name
+    tmp1mean.index.name = index_name
+    tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + index_name).unstack(level=-1)
+    index_new11 = ['-'.join(a) for a in tmp1mean.columns]
+    legend1 =
+    tmp1mean.columns =  index_new11
+    tmp1mean.reset_index(inplace=True)
+
+    tmp2mean.set_index(vars['it_parameters'], inplace=True)
+    index_new2 = ['-'.join(a) for a in tmp2mean.index]
+    tmp2mean.index = index_new2
+    tmp2mean.index.name = index_name
+    tmp2mean = tmp2mean.reset_index().set_index(second_grp2 + index_name).unstack(level=-1)
+    index_new21 = ['-'.join(a) for a in tmp2mean.columns]
+    tmp2mean.columns = index_new21
+    tmp2mean.reset_index(inplace=True)
+
+
+
     # pars_tex1 = insert_opt_lbreak(index_new1)
     pars_tex1 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new1))]
     tmp1min = tmp1min.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)

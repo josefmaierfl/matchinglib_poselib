@@ -657,7 +657,7 @@ def main():
             if args.refineRT[4] >= 0 and args.refineRT[4] < 7:
                 missdig[0] = args.refineRT[4]
         if args.refineRT[2] > 0:
-            refineRT_tmp = [[i] for i in range(0,7) if i != missdig[0]]
+            refineRT_tmp = [[i] for i in range(0,6) if i != missdig[0]]
         else:
             if args.refineRT[0] < 0 or args.refineRT[0] > 6:
                 raise ValueError('First value for refineRT out of range')
@@ -816,8 +816,8 @@ def main():
     bartrefRTdis = False
     refineRT_tmp = None
     if not args.refineRT_stereo and args.stereoRef:
-        if args.refineRT[0] < 0 or args.refineRT[0] > 6:
-            raise ValueError('First value for refineRT out of range')
+        if args.refineRT[0] < 1 or args.refineRT[0] > 6:
+            raise ValueError('First value for refineRT_stereo based on refineRT out of range')
         if args.refineRT[1] < 0 or args.refineRT[1] > 2:
             raise ValueError('Second value for refineRT out of range')
         for it in cmds:
@@ -827,7 +827,7 @@ def main():
         if len(args.refineRT_stereo) < 2 or len(args.refineRT_stereo) > 7:
             raise ValueError('Wrong number of arguments for refineRT_stereo')
         if len(args.refineRT_stereo) == 2:
-            if args.refineRT_stereo[0] < 0 or args.refineRT_stereo[0] > 6:
+            if args.refineRT_stereo[0] < 1 or args.refineRT_stereo[0] > 6:
                 raise ValueError('First value for refineRT_stereo out of range')
             if args.refineRT_stereo[1] < 0 or args.refineRT_stereo[1] > 2:
                 raise ValueError('Second value for refineRT_stereo out of range')
@@ -848,9 +848,9 @@ def main():
                 if args.refineRT_stereo[4] >= 0 and args.refineRT_stereo[4] < 7:
                     missdig[0] = args.refineRT_stereo[4]
             if args.refineRT_stereo[2] > 0:
-                refineRT_tmp = [[i] for i in range(0, 7) if i != missdig[0]]
+                refineRT_tmp = [[i] for i in range(1, 6) if i != missdig[0]]
             else:
-                if args.refineRT_stereo[0] < 0 or args.refineRT_stereo[0] > 6:
+                if args.refineRT_stereo[0] < 1 or args.refineRT_stereo[0] > 6:
                     raise ValueError('First value for refineRT_stereo out of range')
                 refineRT_tmp = [[args.refineRT_stereo[0]]]
                 if args.refineRT_stereo[0] == 0:
