@@ -2493,8 +2493,10 @@ void writeTestingParameters(cv::FileStorage &fs,
         fs << "automaticSprtInit" << "SPRT_DEFAULT_INIT";
     }else if(cp.cfg.automaticSprtInit == poselib::SprtInit::SPRT_DELTA_AUTOM_INIT){
         fs << "automaticSprtInit" << "SPRT_DELTA_AUTOM_INIT";
-    }else{
+    }else if(cp.cfg.automaticSprtInit == poselib::SprtInit::SPRT_EPSILON_AUTOM_INIT){
         fs << "automaticSprtInit" << "SPRT_EPSILON_AUTOM_INIT";
+    }else{
+        fs << "automaticSprtInit" << "SPRT_DELTA_AND_EPSILON_AUTOM_INIT";
     }
     fs << "noAutomaticProsacParamters" << cp.cfg.noAutomaticProsacParamters;
     fs << "prevalidateSample" << cp.cfg.prevalidateSample;

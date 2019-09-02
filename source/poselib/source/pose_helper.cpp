@@ -2791,7 +2791,7 @@ double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::Ke
 }
 
 /* This function estimates an initial epsilon value for the SPRT test used within USAC.
-* It estimates the probability that a data point is consistend with a good model (e.g. essential matrix)
+* It estimates the probability that a data point is consistent with a good model (e.g. essential matrix)
 * which corresponds approximately to the inlier ratio. To estimate the inlier ratio, VFC has to be applied
 * to the matches which should reject most false matches (additionally removes matches at borders) as the
 * filtering only allows smooth changes of the optical flow. VFC does not work well for low inlier ratios.
