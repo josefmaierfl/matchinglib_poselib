@@ -2498,8 +2498,8 @@ void writeTestingParameters(cv::FileStorage &fs,
     }else{
         fs << "automaticSprtInit" << "SPRT_DELTA_AND_EPSILON_AUTOM_INIT";
     }
-    fs << "noAutomaticProsacParamters" << cp.cfg.noAutomaticProsacParamters;
-    fs << "prevalidateSample" << cp.cfg.prevalidateSample;
+    fs << "automaticProsacParameters" << (cp.cfg.noAutomaticProsacParamters ? "disabled":"enabled");
+    fs << "prevalidateSample" << (cp.cfg.prevalidateSample ? "enabled":"disabled");
     if(cp.cfg.estimator == poselib::PoseEstimator::POSE_NISTER) {
         fs << "estimator" << "POSE_NISTER";
     }else if(cp.cfg.estimator == poselib::PoseEstimator::POSE_EIG_KNEIP){
@@ -2557,11 +2557,17 @@ void writeTestingParameters(cv::FileStorage &fs,
 
     fs << "kneipInsteadBA" << cp.kneipInsteadBA;
     fs << "refineRTold" << cp.refineRTold;
-    fs << "BART" << cp.BART;
+    if(cp.BART == 0) {
+        fs << "BART" << "disabled";
+    }else if(cp.BART == 1) {
+        fs << "BART" << "extr_only";
+    }else{
+        fs << "BART" << "extr_intr";
+    }
     fs << "matchesFilter" << "{";
-    fs << "refineGMS" << cp.mfo.refineGMS;
-    fs << "refineVFC" << cp.mfo.refineVFC;
-    fs << "refineSOF" << cp.mfo.refineSOF << "}";
+    fs << "refineGMS" << (cp.mfo.refineGMS ? "enabled":"disabled");
+    fs << "refineVFC" << (cp.mfo.refineVFC ? "enabled":"disabled");
+    fs << "refineSOF" << (cp.mfo.refineSOF ? "enabled":"disabled") << "}";
 
     fs << "stereoParameters" << "{";
     fs << "th_pix_user" << cp.cfg_stereo.th_pix_user;
@@ -2612,10 +2618,22 @@ void writeTestingParameters(cv::FileStorage &fs,
     fs << "kneipInsteadBA_CorrPool" << cp.cfg_stereo.kneipInsteadBA_CorrPool;
     fs << "refineRTold" << cp.cfg_stereo.refineRTold;
     fs << "refineRTold_CorrPool" << cp.cfg_stereo.refineRTold_CorrPool;
-    fs << "BART" << cp.cfg_stereo.BART;
-    fs << "BART_CorrPool" << cp.cfg_stereo.BART_CorrPool;
+    if(cp.cfg_stereo.BART == 0) {
+        fs << "BART" << "disabled";
+    }else if(cp.cfg_stereo.BART == 1) {
+        fs << "BART" << "extr_only";
+    }else{
+        fs << "BART" << "extr_intr";
+    }
+    if(cp.cfg_stereo.BART_CorrPool == 0) {
+        fs << "BART_CorrPool" << "disabled";
+    }else if(cp.cfg_stereo.BART_CorrPool == 1) {
+        fs << "BART_CorrPool" << "extr_only";
+    }else{
+        fs << "BART_CorrPool" << "extr_intr";
+    }
     fs << "checkPoolPoseRobust" << (int)cp.cfg_stereo.checkPoolPoseRobust;
-    fs << "useRANSAC_fewMatches" << cp.cfg_stereo.useRANSAC_fewMatches;
+    fs << "useRANSAC_fewMatches" << (cp.cfg_stereo.useRANSAC_fewMatches ? "enabled":"disabled");
     fs << "maxPoolCorrespondences" << (int)cp.cfg_stereo.maxPoolCorrespondences;
     fs << "maxDist3DPtsZ" << cp.cfg_stereo.maxDist3DPtsZ;
     fs << "maxRat3DPtsFar" << cp.cfg_stereo.maxRat3DPtsFar;
