@@ -323,7 +323,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             special_calcs_args = {'build_pdf': (True, True),
@@ -360,7 +360,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             special_calcs_args = {'build_pdf': (True, True),
@@ -397,7 +397,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             special_calcs_args = {'build_pdf': (False, True),
@@ -435,7 +435,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             special_calcs_args = {'build_pdf': (False, True),
@@ -468,7 +468,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             eval_columns = ['inlRat_estimated', 'inlRat_GT']
             units = [('inlRat_diff', '')]
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
@@ -505,7 +505,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
@@ -539,7 +539,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             eval_columns = ['robEstimationAndRef_us']
             units = []
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             special_calcs_args = {'build_pdf': (True, True),
@@ -573,7 +573,7 @@ def eval_test(load_path, output_path, test_name, test_nr):
             eval_columns = ['robEstimationAndRef_us']
             units = []
             it_parameters = ['USAC_parameters_automaticSprtInit',
-                             'USAC_parameters_noAutomaticProsacParamters',
+                             'USAC_parameters_automaticProsacParameters',
                              'USAC_parameters_prevalidateSample',
                              'USAC_parameters_USACInlratFilt']
             from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_props

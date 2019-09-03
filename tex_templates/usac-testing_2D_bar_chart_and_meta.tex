@@ -6,6 +6,10 @@
 \BLOCK{ if make_index }
 \usepackage{hyperref}
 \BLOCK{ endif }
+\BLOCK{ if abbreviations }
+%\usepackage[nopostdot,nogroupskip,style=super,nonumberlist,toc,automake]{glossaries}
+\usepackage[nopostdot,nogroupskip,style=super,nonumberlist,toc,sort=none]{glossaries-extra}
+\BLOCK{ endif }
 \usepackage{graphicx}%[pdftex] vor {} einfügen
 \usepackage{subfigure}
 \usepackage{pgfplots}
@@ -15,6 +19,15 @@
 \BLOCK{ endif }
 %\usetikzlibrary{matrix,positioning}
 \pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
+
+\BLOCK{ if abbreviations }
+%\makeglossaries
+\BLOCK{ for abb in abbreviations}
+\newglossaryentry{\VAR{ loop.index }}{name={\VAR{ abb['key'] }},description={\VAR{ abb['description'] }}}
+\BLOCK{ endfor }
+%\glsaddall
+\BLOCK{ endif }
+
 \begin{document}
 \author{J. Maier}
 \title{\VAR{title}}
@@ -23,6 +36,11 @@
 \tableofcontents
 \newpage
 \listoffigures
+\newpage
+\BLOCK{ endif }
+\BLOCK{ if abbreviations }
+%\printglossary[title={List of Abbreviations}]
+\printunsrtglossary[title={List of Abbreviations}]
 \newpage
 \BLOCK{ endif }
 

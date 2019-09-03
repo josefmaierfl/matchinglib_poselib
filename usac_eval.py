@@ -152,10 +152,13 @@ def pars_calc_single_fig_partitions(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': True,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations of a list of dicts
+                 'abbreviations': None
                  }
     ret['b_single_partitions'] = []
     idx_old = None
+    gloss_calced = False
     for p in ret['b_all_partitions'].index:
         if idx_old is not None and idx_old == p:
             continue
@@ -177,6 +180,15 @@ def pars_calc_single_fig_partitions(**keywords):
                     part_name_title += ', and '
         tmp2 = tmp2.reset_index().drop(ret['partitions'], axis=1)
         tmp2 = tmp2.set_index(ret['it_parameters']).T
+        if not gloss_calced:
+            from statistics_and_plot import glossary_from_list
+            if len(ret['it_parameters']) > 1:
+                ret['gloss'] = glossary_from_list([str(b) for a in tmp2.columns for b in a])
+            else:
+                ret['gloss'] = glossary_from_list([str(a) for a in tmp2.columns])
+            gloss_calced = True
+            if ret['gloss']:
+                tex_infos['abbreviations'] = ret['gloss']
         tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
         tmp2.columns.name = '-'.join(ret['it_parameters'])
         dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
@@ -231,7 +243,8 @@ def pars_calc_single_fig_partitions(**keywords):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main'] + ret['dataf_name_partition']
     texf_name = base_out_name + '.tex'
     if ret['build_pdf'][0]:
@@ -295,6 +308,11 @@ def pars_calc_single_fig(**keywords):
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].T
+    from statistics_and_plot import glossary_from_list
+    if len(ret['grp_names'][0:-1]) > 1:
+        ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
+    else:
+        ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
     ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
     ret['b'].columns.name = '-'.join(ret['grp_names'][0:-1])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
@@ -326,7 +344,9 @@ def pars_calc_single_fig(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
     stats_all = ret['b'].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
@@ -363,7 +383,8 @@ def pars_calc_single_fig(**keywords):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main']
     texf_name = base_out_name + '.tex'
     if ret['build_pdf'][0]:
@@ -434,6 +455,11 @@ def pars_calc_multiple_fig(**keywords):
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].unstack()
     ret['b'] = ret['b'].T
+    from statistics_and_plot import glossary_from_list
+    if len(ret['grp_names'][0:-2]) > 1:
+        ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
+    else:
+        ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
     ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
     ret['b'].columns.name = '-'.join(ret['grp_names'][0:-2])
     ret['b'] = ret['b'].reset_index()
@@ -466,7 +492,10 @@ def pars_calc_multiple_fig(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': False,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': True}
+                 'figs_externalize': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': 'Combined R \\& t errors vs ' +
@@ -492,7 +521,8 @@ def pars_calc_multiple_fig(**keywords):
                                    use_fixed_caption=False,
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main']
     texf_name = base_out_name + '.tex'
     if ret['build_pdf'][0]:
@@ -579,7 +609,9 @@ def get_best_comb_and_th_1(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
     section_name = 'Smallest combined R \\& t errors and their ' + replaceCSVLabels(str(ret['grp_names'][-1]))
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
@@ -705,7 +737,9 @@ def get_best_comb_inlrat_1(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
     section_name = 'Mean combined R \\& t errors over all ' + replaceCSVLabels(str(ret['grp_names'][-1]), True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
@@ -818,7 +852,8 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -845,7 +880,8 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
                                    figs_externalize=tex_infos['figs_externalize'],
                                    nonnumeric_x=tex_infos['nonnumeric_x'],
                                    sections=tex_infos['sections'],
-                                   fill_bar=True)
+                                   fill_bar=True,
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -898,7 +934,9 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true, non-numeric entries can be provided for the x-axis
-                 'nonnumeric_x': False
+                 'nonnumeric_x': False,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
     data1 = data.set_index(ret['grp_names'][-1]).groupby(ret['b'].columns.name)
     grp_keys = data1.groups.keys()
@@ -983,7 +1021,9 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
                                   'name': 'Smallest Combined R \\& t Errors',
@@ -1118,7 +1158,9 @@ def get_best_comb_th_scenes_1(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true, non-numeric entries can be provided for the x-axis
-                 'nonnumeric_x': True
+                 'nonnumeric_x': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
 
     section_name = 'Smallest combined R \\& t errors and their ' + \
@@ -1223,7 +1265,8 @@ def get_best_comb_th_scenes_1(**keywords):
                                    figs_externalize=tex_infos['figs_externalize'],
                                    nonnumeric_x=tex_infos['nonnumeric_x'],
                                    sections=tex_infos['sections'],
-                                   fill_bar=True)
+                                   fill_bar=True,
+                                   abbreviations=tex_infos['abbreviations'])
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
@@ -1251,7 +1294,9 @@ def get_best_comb_th_scenes_1(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
                  }
     section_name = 'Smallest combined R \\& t errors ' + \
                    '\\\\for parameters ' + ret['sub_title_it_pars'] + \
@@ -1297,7 +1342,8 @@ def get_best_comb_th_scenes_1(**keywords):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     if ret['build_pdf'][1]:
@@ -1693,6 +1739,11 @@ def estimate_alg_time_fixed_kp(**vars):
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
+    from statistics_and_plot import glossary_from_list
+    if len(vars['it_parameters']) > 1:
+        gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
+    else:
+        gloss = glossary_from_list([str(a) for a in tmp.columns])
     par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
     tmp.columns = par_cols
     it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
@@ -1723,7 +1774,9 @@ def estimate_alg_time_fixed_kp(**vars):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     stats_all = tmp.stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
@@ -1759,7 +1812,8 @@ def estimate_alg_time_fixed_kp(**vars):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'
     if vars['build_pdf'][0]:
@@ -1804,7 +1858,9 @@ def estimate_alg_time_fixed_kp(**vars):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     section_name = 'Minimum execution times over parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                    ' for mean execution times over all ' + \
@@ -1848,7 +1904,8 @@ def estimate_alg_time_fixed_kp(**vars):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -1999,8 +2056,13 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2max = tmp1max.loc[tmp1max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
+    from statistics_and_plot import glossary_from_list
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     index_new1 = ['-'.join(a) for a in tmp1min.index]
+    if len(vars['it_parameters']) > 1:
+        gloss = glossary_from_list([str(b) for a in tmp1min.index for b in a])
+    else:
+        gloss = glossary_from_list([str(a) for a in tmp1min.index])
     tmp1min.index = index_new1
     index_name = '-'.join(vars['it_parameters'])
     tmp1min.index.name = index_name
@@ -2060,7 +2122,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     section_name = 'Minimum execution times vs ' + \
                    replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
@@ -2147,7 +2211,8 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -2219,7 +2284,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     section_name = 'Minimum execution times over all ' + \
                    replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
@@ -2306,7 +2373,8 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -2372,13 +2440,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
+    from statistics_and_plot import glossary_from_list
+    if len(vars['it_parameters']) > 1:
+        gloss = glossary_from_list([str(b) for a in tmp1mean.index for b in a])
+    else:
+        gloss = glossary_from_list([str(a) for a in tmp1mean.index])
     index_new1 = ['-'.join(a) for a in tmp1mean.index]
     tmp1mean.index = index_new1
     index_name = '-'.join(vars['it_parameters'])
     tmp1mean.index.name = index_name
     tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + index_name).unstack(level=-1)
     index_new11 = ['-'.join(a) for a in tmp1mean.columns]
-    legend1 =
+    # legend1 =
     tmp1mean.columns =  index_new11
     tmp1mean.reset_index(inplace=True)
 
@@ -2449,7 +2522,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     section_name = 'Minimum execution times vs ' + \
                    replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
@@ -2536,7 +2611,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -2608,7 +2684,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     section_name = 'Minimum execution times over all ' + \
                    replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
@@ -2695,7 +2773,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'

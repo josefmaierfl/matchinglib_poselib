@@ -35,7 +35,8 @@ def compile_tex(rendered_tex,
                 out_tex_file,
                 make_fig_index=True,
                 out_pdf_filen=None,
-                figs_externalize=False):
+                figs_externalize=False,
+                build_glossary=False):
     texdf = os.path.join(out_tex_dir, out_tex_file)
     with open(texdf, 'w') as outfile:
         outfile.write(rendered_tex)
@@ -43,6 +44,8 @@ def compile_tex(rendered_tex,
         rep_make = 1
         if make_fig_index or figs_externalize:
             rep_make = 2
+        if build_glossary:
+            rep_make = 3
         pdfpath, pdfname = os.path.split(out_pdf_filen)
         pdfname = os.path.splitext(pdfname)[0]
         stdoutf = os.path.join(pdfpath, 'stdout_' + pdfname + '.txt')
@@ -334,14 +337,25 @@ def calcSatisticAndPlot_2D(data,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': figs_externalize,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True}
+                 'fill_bar': True,
+                 # Builds a list of abbrevations of a list of dicts
+                 'abbreviations': None}
     pdf_nr = 0
+    gloss_calced = False
     for it in errvalnames:
         if it[-1] != 'count':
             tmp = stats[it[0]].unstack()
             tmp = tmp[it[1]]
             tmp = tmp.T
             #tmp.columns = ['%s%s' % (str(a), '-%s' % str(b) if b is not None else '') for a, b in tmp.columns]
+            if not gloss_calced:
+                if len(it_parameters) > 1:
+                    gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
+                else:
+                    gloss = glossary_from_list([str(a) for a in tmp.columns])
+                gloss_calced = True
+                if gloss:
+                    tex_infos['abbreviations'] = gloss
             tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
             tmp.columns.name = '-'.join(grp_names[0:-1])
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
@@ -400,7 +414,8 @@ def calcSatisticAndPlot_2D(data,
                                        ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                        figs_externalize=tex_infos['figs_externalize'],
                                        fill_bar=tex_infos['fill_bar'],
-                                       sections=tex_infos['sections'])
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
         texf_name = base_out_name + '.tex'
         if build_pdf:
             pdf_name = base_out_name + '.pdf'
@@ -430,7 +445,8 @@ def calcSatisticAndPlot_2D(data,
                                            ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                            figs_externalize=tex_infos['figs_externalize'],
                                            fill_bar=tex_infos['fill_bar'],
-                                           sections=it)
+                                           sections=it,
+                                           abbreviations=tex_infos['abbreviations'])
             texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
             if build_pdf:
                 pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
@@ -620,8 +636,11 @@ def calcSatisticAndPlot_2D_partitions(data,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': figs_externalize,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True}
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
     stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
+    gloss_calced = False
     for it in errvalnames:
         if it[-1] != 'count':
             tmp = stats[it[0]].unstack()
@@ -649,6 +668,14 @@ def calcSatisticAndPlot_2D_partitions(data,
                             part_name_title += ', and '
                 tmp2 = tmp2.reset_index().drop(partitions, axis=1)
                 tmp2 = tmp2.set_index(it_parameters).T
+                if not gloss_calced:
+                    if len(it_parameters) > 1:
+                        gloss = glossary_from_list([str(b) for a in tmp2.columns for b in a])
+                    else:
+                        gloss = glossary_from_list([str(a) for a in tmp2.columns])
+                    gloss_calced = True
+                    if gloss:
+                        tex_infos['abbreviations'] = gloss
                 tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
                 tmp2.columns.name = '-'.join(it_parameters)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
@@ -722,7 +749,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
                               'ctrl_fig_size': tex_infos['ctrl_fig_size'],
-                              'fill_bar': True})
+                              'fill_bar': True,
+                              'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     res = 0
@@ -732,7 +760,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
                                        fill_bar=it['fill_bar'],
-                                       sections=it['sections'])
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
@@ -949,7 +978,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': figs_externalize,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True}
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
     partition_text_val = []
     for i, val in enumerate(partitions):
         partition_text_val.append([replaceCSVLabels(val)])
@@ -963,6 +994,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 partition_text_val[-1].append(', and ')
     df = df.groupby(partitions)
     grp_keys = df.groups.keys()
+    gloss_calced = False
     for grp in grp_keys:
         partition_text_val1 = ''
         partition_text_val_tmp = deepcopy(partition_text_val)
@@ -988,6 +1020,14 @@ def calcFromFuncAndPlot_2D_partitions(data,
         df1 = df.get_group(grp)
         df1.set_index(it_parameters, inplace=True)
         df1 = df1.T
+        if not gloss_calced:
+            if len(it_parameters) > 1:
+                gloss = glossary_from_list([str(b) for a in df1.columns for b in a])
+            else:
+                gloss = glossary_from_list([str(a) for a in df1.columns])
+            gloss_calced = True
+            if gloss:
+                tex_infos['abbreviations'] = gloss
         par_cols = ['-'.join(map(str, a)) for a in df1.columns]
         df1.columns = par_cols
         it_pars_cols_name = '-'.join(map(str, it_parameters))
@@ -1045,7 +1085,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'legend': [tex_string_coding_style(a) for a in legend],
                                           'legend_cols': None,
                                           'use_marks': use_marks,
-                                          'use_log_y_axis': True,
+                                          'use_log_y_axis': eval_cols_log_scaling[i],
                                           'stat_name': ev,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1074,7 +1114,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
                               'ctrl_fig_size': tex_infos['ctrl_fig_size'],
-                              'fill_bar': True})
+                              'fill_bar': True,
+                              'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     res = 0
@@ -1084,7 +1125,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
                                        fill_bar=it['fill_bar'],
-                                       sections=it['sections'])
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
@@ -1250,15 +1292,26 @@ def calcSatisticAndPlot_3D(data,
                  'sections': [],
                  'use_fixed_caption': False,
                  'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
-                 'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,#If True, the figures are adapted to the page height if they are too big
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
     # Get names of statistics
     stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
+    gloss_calced = False
     for it in errvalnames:
         if it[-1] != 'count':
             tmp = stats[it[0]].unstack()
             tmp = tmp[it[1]]
             tmp = tmp.unstack()
             tmp = tmp.T
+            if not gloss_calced:
+                if len(it_parameters) > 1:
+                    gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
+                else:
+                    gloss = glossary_from_list([str(a) for a in tmp.columns])
+                gloss_calced = True
+                if gloss:
+                    tex_infos['abbreviations'] = gloss
             tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
             tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
@@ -1340,7 +1393,8 @@ def calcSatisticAndPlot_3D(data,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
                               'use_fixed_caption': tex_infos['use_fixed_caption'],
-                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'abbreviations': tex_infos['abbreviations']})
 
     # endt = time.time()
     # print(endt - startt)
@@ -1353,7 +1407,8 @@ def calcSatisticAndPlot_3D(data,
                                        use_fixed_caption=it['use_fixed_caption'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
-                                       sections=it['sections'])
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
@@ -1541,9 +1596,17 @@ def calcFromFuncAndPlot_3D(data,
                  'sections': [],
                  'use_fixed_caption': True,
                  'make_index': make_fig_index,#Builds an index with hyperrefs on the beginning of the pdf
-                 'ctrl_fig_size': ctrl_fig_size}#If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,#If True, the figures are adapted to the page height if they are too big
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
     df = df.groupby(it_parameters)
     grp_keys = df.groups.keys()
+    if len(it_parameters) > 1:
+        gloss = glossary_from_list([str(b) for a in grp_keys for b in a])
+    else:
+        gloss = glossary_from_list([str(a) for a in grp_keys])
+    if gloss:
+        tex_infos['abbreviations'] = gloss
     for grp in grp_keys:
         dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
                      '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
@@ -1610,7 +1673,8 @@ def calcFromFuncAndPlot_3D(data,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
                               'use_fixed_caption': tex_infos['use_fixed_caption'],
-                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
@@ -1620,7 +1684,8 @@ def calcFromFuncAndPlot_3D(data,
                                        use_fixed_caption=it['use_fixed_caption'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
-                                       sections=it['sections'])
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
@@ -1833,7 +1898,9 @@ def calcFromFuncAndPlot_3D_partitions(data,
                  'use_fixed_caption': True,
                  'make_index': make_fig_index,  # Builds an index with hyperrefs on the beginning of the pdf
                  # If True, the figures are adapted to the page height if they are too big
-                 'ctrl_fig_size': ctrl_fig_size}
+                 'ctrl_fig_size': ctrl_fig_size,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
     partition_text_val = []
     for i, val in enumerate(partitions):
         partition_text_val.append([replaceCSVLabels(val)])
@@ -1847,6 +1914,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 partition_text_val[-1].append(', and ')
     df = df.groupby(partitions)
     grp_keys = df.groups.keys()
+    gloss_calced = False
     for grp in grp_keys:
         partition_text_val1 = ''
         partition_text_val_tmp = deepcopy(partition_text_val)
@@ -1872,6 +1940,14 @@ def calcFromFuncAndPlot_3D_partitions(data,
         df1 = df.get_group(grp)
         df1.set_index(it_parameters, inplace=True)
         df1 = df1.T
+        if not gloss_calced:
+            if len(it_parameters) > 1:
+                gloss = glossary_from_list([str(b) for a in df1.columns for b in a])
+            else:
+                gloss = glossary_from_list([str(a) for a in df1.columns])
+            gloss_calced = True
+            if gloss:
+                tex_infos['abbreviations'] = gloss
         par_cols = ['-'.join(map(str, a)) for a in df1.columns]
         df1.columns = par_cols
         it_pars_cols_name = '-'.join(map(str, it_parameters))
@@ -1953,7 +2029,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
                               'sections': it['figs'],
                               'make_index': tex_infos['make_index'],
                               'use_fixed_caption': tex_infos['use_fixed_caption'],
-                              'ctrl_fig_size': tex_infos['ctrl_fig_size']})
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
@@ -1963,7 +2040,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                        use_fixed_caption=it['use_fixed_caption'],
                                        ctrl_fig_size=it['ctrl_fig_size'],
                                        figs_externalize=it['figs_externalize'],
-                                       sections=it['sections'])
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
@@ -2424,35 +2502,88 @@ def strToLower(str_val):
 
 def getOptionDescription(key):
     if key == 'GMS':
-        return 'Grid-based Motion Statistics'
+        return 'Grid-based Motion Statistics', True
     elif key == 'VFC':
-        return 'Vector Field Consensus'
+        return 'Vector Field Consensus', True
     elif key == 'SPRT_DEFAULT_INIT':
         return 'Sequential Probability Ratio Test (SPRT) with default values $\\delta_{SPRT} = 0.05$ and ' \
                '$\\epsilon_{SPRT} = 0.15$, where $\\delta_{SPRT}$ corresponds to the propability of a keypoint to be ' \
                'classified as an inlier of an invalid model and $\\epsilon_{SPRT}$ to the probability ' \
-               'that a data point is consistent with a good model.'
+               'that a data point is consistent with a good model.', True
     elif key == 'SPRT_DELTA_AUTOM_INIT':
         return 'Sequential Probability Ratio Test (SPRT) with automatic estimation of $\\delta_{SPRT}$ and a default ' \
                'value $\\epsilon_{SPRT} = 0.15$, where $\\delta_{SPRT}$ corresponds to the propability of a keypoint' \
                ' to be classified as an inlier of an invalid model and $\\epsilon_{SPRT}$ to the probability ' \
-               'that a data point is consistent with a good model.'
+               'that a data point is consistent with a good model.', True
     elif key == 'SPRT_EPSILON_AUTOM_INIT':
         return 'Sequential Probability Ratio Test (SPRT) with automatic estimation of ' \
                '$\\epsilon_{SPRT}$ and a default value $\\delta_{SPRT} = 0.05$, where $\\delta_{SPRT}$ corresponds ' \
                'to the propability of a keypoint to be classified as an inlier of an invalid model and ' \
-               '$\\epsilon_{SPRT}$ to the probability that a data point is consistent with a good model.'
+               '$\\epsilon_{SPRT}$ to the probability that a data point is consistent with a good model.', True
     elif key == 'SPRT_DELTA_AND_EPSILON_AUTOM_INIT':
         return 'Sequential Probability Ratio Test (SPRT) with automatic estimation of $\\delta_{SPRT}$ and ' \
                '$\\epsilon_{SPRT}$, where $\\delta_{SPRT}$ corresponds to the propability of a keypoint to be ' \
                'classified as an inlier of an invalid model and $\\epsilon_{SPRT}$ to the probability ' \
-               'that a data point is consistent with a good model.'
+               'that a data point is consistent with a good model.', True
     elif key == 'POSE_NISTER':
-        return 'Pose estimation using Nister\'s 5pt algorithm'
+        return 'Pose estimation using Nister\'s 5pt algorithm', True
     elif key == 'POSE_EIG_KNEIP':
-        return 'Pose estimation using Kneip\'s Eigen solver'
+        return 'Pose estimation using Kneip\'s Eigen solver', True
     elif key == 'POSE_STEWENIUS':
-        return 'Pose estimation using Stewenius\' 5pt algorithm'
+        return 'Pose estimation using Stewenius\' 5pt algorithm', True
+    elif key == 'REF_WEIGHTS':
+        return 'Inner refinement algorithm of USAC: 8pt algorithm using Torr weights ' \
+               '(Equation 2.25 in Torr dissertation)', True
+    elif key == 'REF_8PT_PSEUDOHUBER':
+        return 'Inner refinement algorithm of USAC: 8pt algorithm using Pseudo-Huber weights', True
+    elif key == 'REF_EIG_KNEIP':
+        return 'Inner refinement algorithm of USAC: Kneip\'s Eigen solver using least squares', True
+    elif key == 'REF_EIG_KNEIP_WEIGHTS':
+        return 'Inner refinement algorithm of USAC: Kneip\'s Eigen solver using Torr weights ' \
+               '(Equation 2.25 in Torr dissertation)', True
+    elif key == 'REF_STEWENIUS':
+        return 'Inner refinement algorithm of USAC: Stewenius\' 5pt algorithm using least squares', True
+    elif key == 'REF_STEWENIUS_WEIGHTS':
+        return 'Inner refinement algorithm of USAC: Stewenius\' 5pt algorithm using Pseudo-Huber weights', True
+    elif key == 'REF_NISTER':
+        return 'Inner refinement algorithm of USAC: Nister\'s 5pt algorithm using least squares', True
+    elif key == 'REF_NISTER_WEIGHTS':
+        return 'Inner refinement algorithm of USAC: Nister\'s 5pt algorithm using Pseudo-Huber weights', True
+    elif key == 'extr_only':
+        return 'Bundle Adjustment (BA) for extrinsics only including structure', True
+    elif key == 'extr_intr':
+        return 'Bundle Adjustment (BA) for extrinsics and intrinsics including structure', True
+    elif key == 'PR_NO_REFINEMENT':
+        return 'Refinement disabled', True
+    elif key == 'PR_8PT':
+        return 'Refinement using 8pt algorithm', True
+    elif key == 'PR_NISTER':
+        return 'Refinement using Nister\'s 5pt algorithm', True
+    elif key == 'PR_STEWENIUS':
+        return 'Refinement using Stewenius\' 5pt algorithm', True
+    elif key == 'PR_KNEIP':
+        return 'Refinement using Kneip\'s Eigen solver', True
+    elif key == 'PR_TORR_WEIGHTS':
+        return 'Cost function for refinement: Torr weights (Equation 2.25 in Torr dissertation)', True
+    elif key == 'PR_PSEUDOHUBER_WEIGHTS':
+        return 'Cost function for refinement: Pseudo-Huber weights', True
+    elif key == 'PR_NO_WEIGHTS':
+        return 'Cost function for refinement: least squares', True
+    else:
+        test_glossary = True
+        if test_glossary:
+            warnings.warn('Glossary test is enabled!', UserWarning)
+        return tex_string_coding_style(key), False if not test_glossary else True
+
+
+def glossary_from_list(entries):
+    mylist = list(dict.fromkeys(entries))
+    gloss = []
+    for elem in mylist:
+        des, found = getOptionDescription(elem)
+        if found:
+            gloss.append({'key': tex_string_coding_style(elem), 'description': des})
+    return gloss
 
 
 #Only for testing
@@ -2515,7 +2646,7 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'testing_tests'
-    test_nr = 14
+    test_nr = 13
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
@@ -2730,7 +2861,7 @@ def main():
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2769,7 +2900,7 @@ def main():
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2808,7 +2939,7 @@ def main():
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2848,7 +2979,7 @@ def main():
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2883,7 +3014,7 @@ def main():
             eval_columns = ['inlRat_estimated', 'inlRat_GT']
             units = [('inlRat_diff', '')]
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2924,7 +3055,7 @@ def main():
                      ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                      ('t_diff_ty', ''), ('t_diff_tz', '')]
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2960,7 +3091,7 @@ def main():
             eval_columns = ['robEstimationAndRef_us']
             units = []
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -2997,7 +3128,7 @@ def main():
             eval_columns = ['robEstimationAndRef_us']
             units = []
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
@@ -3035,7 +3166,7 @@ def main():
             eval_columns = ['robEstimationAndRef_us']
             units = []
             # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_noAutomaticProsacParamters',
+            #                  'USAC_parameters_automaticProsacParameters',
             #                  'USAC_parameters_prevalidateSample',
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
