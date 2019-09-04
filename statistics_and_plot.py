@@ -87,7 +87,7 @@ def compile_tex(rendered_tex,
                     print("Child pdflatex was terminated by signal", -retcode, file=sys.stderr)
                     retcode = 1
                 else:
-                    print("Child returned", retcode)
+                    print("PDF generation successful with code ", retcode)
             except OSError as e:
                 print("Execution of pdflatex failed:", e, file=sys.stderr)
                 retcode = 1
@@ -2646,7 +2646,7 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'testing_tests'
-    test_nr = 13
+    test_nr = 14
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:

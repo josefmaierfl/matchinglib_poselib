@@ -178,6 +178,14 @@ ymajorgrids=true,%
 \BLOCK{ else }
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y']},%
+\BLOCK{ if sec['print_meta'] }
+\BLOCK{ if sec['large_meta_space_needed'] }
+enlarge y limits={upper, value=0.45},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+ymajorgrids=true,%
 \BLOCK{ endif }
 \BLOCK{ if sec['legend'] }
 legend style={
@@ -199,7 +207,7 @@ nodes near coords align={right},
 point meta=explicit symbolic,%
 every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta'] != 0 },\BLOCK{ if sec['rotate_meta'] == 45 }anchor=south west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=\VAR{ sec['rotate_meta'] }\BLOCK{ endif }},%
 \BLOCK{ endif }
-\BLOCK{ if sec['use_string_labels'] or sec['plots']|length > 1 }
+\BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar')) }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['print_x'] }},%
@@ -238,7 +246,7 @@ col sep=semicolon,%
 \BLOCK{ if sec['print_meta'] }
 meta=\VAR{ sec['plot_meta'][loop.index0] },%
 \BLOCK{ endif }
-\BLOCK{ if sec['use_string_labels'] or sec['plots']|length > 1 }
+\BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar')) }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 y expr=\coordindex,%
 x=\VAR{ it },%

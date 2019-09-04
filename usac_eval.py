@@ -2433,10 +2433,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp1mean_max = tmp1mean.loc[tmp1mean.groupby(minmax_grp)[col_name].idxmax(axis=0)]
     tmp2mean_min = tmp2mean.loc[tmp2mean.groupby(minmax_grp)[col_name].idxmin(axis=0)]
     tmp2mean_max = tmp2mean.loc[tmp2mean.groupby(minmax_grp)[col_name].idxmax(axis=0)]
-    tmp12_min = tmp1mean_min.loc[tmp1mean_min[col_name].idxmin(axis=0)]
-    tmp12_max = tmp1mean_max.loc[tmp1mean_max[col_name].idxmax(axis=0)]
-    tmp22_min = tmp2mean_min.loc[tmp2mean_min[col_name].idxmin(axis=0)]
-    tmp22_max = tmp2mean_max.loc[tmp2mean_max[col_name].idxmax(axis=0)]
+    tmp12_min = tmp1mean_min.loc[tmp1mean_min.groupby(vars['it_parameters'])[col_name].idxmin(axis=0)]
+    tmp12_max = tmp1mean_max.loc[tmp1mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
+    tmp22_min = tmp2mean_min.loc[tmp2mean_min.groupby(vars['it_parameters'])[col_name].idxmin(axis=0)]
+    tmp22_max = tmp2mean_max.loc[tmp2mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
@@ -2449,174 +2449,124 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp1mean.index = index_new1
     index_name = '-'.join(vars['it_parameters'])
     tmp1mean.index.name = index_name
-    tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + index_name).unstack(level=-1)
+    tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + [index_name]).unstack(level=-1)
     index_new11 = ['-'.join(a) for a in tmp1mean.columns]
-    # legend1 =
-    tmp1mean.columns =  index_new11
+    legend1 = [tex_string_coding_style(b) for a in tmp1mean.columns for b in a if b in index_new1]
+    tmp1mean.columns = index_new11
     tmp1mean.reset_index(inplace=True)
 
     tmp2mean.set_index(vars['it_parameters'], inplace=True)
     index_new2 = ['-'.join(a) for a in tmp2mean.index]
     tmp2mean.index = index_new2
     tmp2mean.index.name = index_name
-    tmp2mean = tmp2mean.reset_index().set_index(second_grp2 + index_name).unstack(level=-1)
+    tmp2mean = tmp2mean.reset_index().set_index(second_grp2 + [index_name]).unstack(level=-1)
     index_new21 = ['-'.join(a) for a in tmp2mean.columns]
+    legend2 = [tex_string_coding_style(b) for a in tmp2mean.columns for b in a if b in index_new2]
     tmp2mean.columns = index_new21
     tmp2mean.reset_index(inplace=True)
 
-
-
-    # pars_tex1 = insert_opt_lbreak(index_new1)
-    pars_tex1 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new1))]
-    tmp1min = tmp1min.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)
-    comb_cols1 = ['-'.join(a) for a in tmp1min.columns]
-    tmp1min.columns = comb_cols1
-    val_axis_cols1 = [a for a in comb_cols1 if col_name in a]
-    meta_cols1 = [a for a in comb_cols1 if vars['t_data_separators'][0] in a]
-
-    tmp1max.set_index(vars['it_parameters'], inplace=True)
-    index_new2 = ['-'.join(a) for a in tmp1max.index]
-    tmp1max.index = index_new2
-    tmp1max.index.name = index_name
-    # pars_tex2 = insert_opt_lbreak(index_new2)
-    pars_tex2 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new2))]
-    tmp1max = tmp1max.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)
-    comb_cols2 = ['-'.join(a) for a in tmp1max.columns]
-    tmp1max.columns = comb_cols2
-    val_axis_cols2 = [a for a in comb_cols2 if col_name in a]
-    meta_cols2 = [a for a in comb_cols2 if vars['t_data_separators'][0] in a]
-
     vars = prepare_io(**vars)
-    t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_vs_' + str(vars['t_data_separators'][1]) + \
-                  '_for_' + str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
-                  '-'.join(map(str, vars['it_parameters']))
-    t_min_name = 'data_min_' + t_main_name + '.csv'
-    ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
-    with open(ft_min_name, 'a') as f:
-        f.write('# Minimum execution times over all ' + str(vars['t_data_separators'][0]) + ' extrapolated for ' +
+
+    t_main_name1 = 'mean_time_over_all_' + str(vars['accum_step_props'][0]) + '_vs_' + \
+                  str(first_grp2[0]) + '_and_' + str(first_grp2[1]) + '_for_' + str(int(vars['nr_target_kps'])) + \
+                  'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    t_mean1_name = 'data_' + t_main_name1 + '.csv'
+    ft_mean1_name = os.path.join(vars['tdata_folder'], t_mean1_name)
+    with open(ft_mean1_name, 'a') as f:
+        f.write('# Mean execution times over all ' + str(vars['accum_step_props'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
-        tmp1min.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        tmp1mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    t_max_name = 'data_max_' + t_main_name + '.csv'
-    ft_max_name = os.path.join(vars['tdata_folder'], t_max_name)
-    with open(ft_max_name, 'a') as f:
-        f.write('# Maximum execution times over all ' + str(vars['t_data_separators'][0]) + ' extrapolated for ' +
+    t_main_name2 = 'mean_time_over_all_' + str(vars['accum_step_props'][1]) + '_vs_' + \
+                   str(second_grp2[0]) + '_and_' + str(second_grp2[1]) + '_for_' + str(int(vars['nr_target_kps'])) + \
+                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    t_mean2_name = 'data_' + t_main_name2 + '.csv'
+    ft_mean2_name = os.path.join(vars['tdata_folder'], t_mean2_name)
+    with open(ft_mean2_name, 'a') as f:
+        f.write('# Mean execution times over all ' + str(vars['accum_step_props'][1]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
-        tmp1max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        tmp2mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    title = 'Minimum and Maximum Execution Times vs ' + \
-            replaceCSVLabels(str(vars['t_data_separators'][1]), True, True) + \
+    title = 'Mean Execution Times vs ' + \
+            replaceCSVLabels(str([a for a in vars['t_data_separators'] if a not in vars['accum_step_props']][0]),
+                             True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
-            ' Over All ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True, True) + \
+            ' Seperately Over All ' + replaceCSVLabels(str(vars['accum_step_props'][0]), True, True) + \
+            ' and ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
-
-    # Get data for tex file generation
     tex_infos = {'title': title,
                  'sections': [],
+                 'use_fixed_caption': True,
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
                  # If True, the figures are adapted to the page height if they are too big
-                 'ctrl_fig_size': True,
-                 # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
-                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True,
+                 'ctrl_fig_size': False,
                  # Builds a list of abbrevations from a list of dicts
-                 'abbreviations': gloss
-                 }
-    section_name = 'Minimum execution times vs ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
-                   ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                   '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True) + \
-                   ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    caption = 'Minimum execution times vs ' + replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
-              ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' (corresponding ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0])) + ' on top of each bar) extrapolated for ' + \
-              str(int(vars['nr_target_kps'])) + ' keypoints'
-    tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
-                                  'name': section_name.replace('\\\\', ' '),
-                                  'title': section_name,
-                                  'title_rows': section_name.count('\\\\'),
-                                  'fig_type': 'xbar',
-                                  'plots': val_axis_cols1,
-                                  # Label of the value axis. For xbar it labels the x-axis
-                                  'label_y': 'Minimum time/$\\mu s$',
-                                  # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': replaceCSVLabels(str(vars['t_data_separators'][1])),
-                                  # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': str(vars['t_data_separators'][1]),
-                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                  'print_meta': True,
-                                  'plot_meta': meta_cols1,
-                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 0,
-                                  'limits': None,
-                                  # If None, no legend is used, otherwise use a list
-                                  'legend': pars_tex1,
-                                  'legend_cols': None,
-                                  'use_marks': False,
-                                  # The x/y-axis values are given as strings if True
-                                  'use_string_labels': False,
-                                  'use_log_y_axis': False,
-                                  'large_meta_space_needed': False,
-                                  'caption': caption
-                                  })
-    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-    section_name = 'Maximum execution times vs ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
-                   ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                   '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True) + \
-                   ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    caption = 'Maximum execution times vs ' + replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
-              ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' (corresponding ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0])) + ' on top of each bar) extrapolated for ' + \
-              str(int(vars['nr_target_kps'])) + ' keypoints'
-    tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_max_name),
-                                  'name': section_name.replace('\\\\', ' '),
-                                  'title': section_name,
-                                  'title_rows': section_name.count('\\\\'),
-                                  'fig_type': 'xbar',
-                                  'plots': val_axis_cols2,
-                                  # Label of the value axis. For xbar it labels the x-axis
-                                  'label_y': 'Maximum time/$\\mu s$',
-                                  # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': replaceCSVLabels(str(vars['t_data_separators'][1])),
-                                  # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': str(vars['t_data_separators'][1]),
-                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                  'print_meta': True,
-                                  'plot_meta': meta_cols2,
-                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 0,
-                                  'limits': None,
-                                  # If None, no legend is used, otherwise use a list
-                                  'legend': pars_tex2,
-                                  'legend_cols': None,
-                                  'use_marks': False,
-                                  # The x/y-axis values are given as strings if True
-                                  'use_string_labels': False,
-                                  'use_log_y_axis': False,
-                                  'large_meta_space_needed': False,
-                                  'caption': caption
-                                  })
-    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+                 'abbreviations': gloss}
 
-    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    section_name = 'Mean execution times over all ' + replaceCSVLabels(str(vars['accum_step_props'][0]), True) + \
+                   ' vs ' + replaceCSVLabels(str(first_grp2[0]), True) + ' and ' + \
+                   replaceCSVLabels(str(first_grp2[1]), True) + \
+                   ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
+                   ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
+    tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_mean1_name),
+                                  'name': section_name,
+                                  'fig_type': 'surface',
+                                  'plots_z': index_new11,
+                                  'diff_z_labels': False,
+                                  'label_z': 'Mean time/$\\mu s$',
+                                  'plot_x': str(first_grp2[0]),
+                                  'label_x': replaceCSVLabels(str(first_grp2[0])),
+                                  'plot_y': str(first_grp2[1]),
+                                  'label_y': replaceCSVLabels(str(first_grp2[0])),
+                                  'legend': legend1,
+                                  'use_marks': True,
+                                  'mesh_cols': nr_equal_ss1,
+                                  'use_log_z_axis': True
+                                  })
+
+    section_name = 'Mean execution times over all ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True) + \
+                   ' vs ' + replaceCSVLabels(str(second_grp2[0]), True) + ' and ' + \
+                   replaceCSVLabels(str(second_grp2[1]), True) + \
+                   ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
+                   ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
+    tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_mean2_name),
+                                  'name': section_name,
+                                  'fig_type': 'surface',
+                                  'plots_z': index_new21,
+                                  'diff_z_labels': False,
+                                  'label_z': 'Mean time/$\\mu s$',
+                                  'plot_x': str(second_grp2[0]),
+                                  'label_x': replaceCSVLabels(str(second_grp2[0])),
+                                  'plot_y': str(second_grp2[1]),
+                                  'label_y': replaceCSVLabels(str(second_grp2[0])),
+                                  'legend': legend2,
+                                  'use_marks': True,
+                                  'mesh_cols': nr_equal_ss2,
+                                  'use_log_z_axis': True
+                                  })
+
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
+                                   use_fixed_caption=tex_infos['use_fixed_caption'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
+                                   figs_externalize=True,
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    base_out_name = 'tex_min_max_' + t_main_name
+    t_main_name = 'mean_time_sep_over_all_' + str(vars['accum_step_props'][0]) + '_and_' + \
+                  str(vars['accum_step_props'][1]) + '_vs_' + \
+                  str([a for a in vars['t_data_separators'] if a not in vars['accum_step_props']][0]) + \
+                  '_for_' + str(int(vars['nr_target_kps'])) + \
+                  'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
-    if vars['build_pdf'][1]:
+    if vars['build_pdf'][0]:
         res = compile_tex(rendered_tex,
                           vars['tex_folder'],
                           texf_name,
@@ -2628,53 +2578,104 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    tmp2min.set_index(vars['it_parameters'], inplace=True)
-    index_new1 = ['-'.join(a) for a in tmp2min.index]
-    tmp2min.index = index_new1
-    tmp2min.index.name = index_name
-    tmp2min['pars_tex'] = insert_opt_lbreak(index_new1)
-    meta_col1 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
-    tmp2min[meta_col1] = tmp2min.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
-                         tmp2min.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
-    tmp2min.drop(vars['t_data_separators'], axis=1, inplace=True)
+    index_y4 = []
+    legend_y4 = []
+    meta_col4 = []
+    tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
+    index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
+    tmp1mean_min.index = index_new12
+    tmp1mean_min.index.name = index_name
+    tmp1mean_min = tmp1mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
+    index_y4.append(['-'.join(a) for a in tmp1mean_min.columns])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_min.columns for b in a if b in index_new12])
+    tmp1mean_min.columns = index_y4[-1]
+    tmp1mean_min.reset_index(inplace=True)
+    meta_col4.append([a for a in first_grp2 if a != vars['eval_minmax_for']][0])
+    meta_col4.append(meta_col4[-1])
 
-    tmp2max.set_index(vars['it_parameters'], inplace=True)
-    index_new2 = ['-'.join(a) for a in tmp2max.index]
-    tmp2max.index = index_new2
-    tmp2max.index.name = index_name
-    tmp2max['pars_tex'] = insert_opt_lbreak(index_new2)
-    meta_col2 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
-    tmp2max[meta_col2] = tmp2max.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
-                         tmp2max.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
-    tmp2max.drop(vars['t_data_separators'], axis=1, inplace=True)
+    tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
+    index_new13 = ['-'.join(a) for a in tmp1mean_max.index]
+    tmp1mean_max.index = index_new13
+    tmp1mean_max.index.name = index_name
+    tmp1mean_max = tmp1mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
+    index_y4.append(['-'.join(a) for a in tmp1mean_max.columns])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_max.columns for b in a if b in index_new13])
+    tmp1mean_max.columns = index_y4[-1]
+    tmp1mean_max.reset_index(inplace=True)
 
-    t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_and_' + str(vars['t_data_separators'][1]) + \
-                  '_for_' + str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
-                  '-'.join(map(str, vars['it_parameters']))
-    t_min_name = 'data_min_' + t_main_name + '.csv'
-    ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
-    with open(ft_min_name, 'a') as f:
-        f.write('# Minimum execution times over all ' + str(vars['t_data_separators'][0]) + ' and ' +
-                str(vars['t_data_separators'][1]) + ' extrapolated for ' +
+    tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
+    index_new22 = ['-'.join(a) for a in tmp2mean_min.index]
+    tmp2mean_min.index = index_new22
+    tmp2mean_min.index.name = index_name
+    tmp2mean_min = tmp2mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
+    index_y4.append(['-'.join(a) for a in tmp2mean_min.columns])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_min.columns for b in a if b in index_new22])
+    tmp2mean_min.columns = index_y4[-1]
+    tmp2mean_min.reset_index(inplace=True)
+    meta_col4.append([a for a in second_grp2 if a != vars['eval_minmax_for']][0])
+    meta_col4.append(meta_col4[-1])
+
+    tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
+    index_new23 = ['-'.join(a) for a in tmp2mean_max.index]
+    tmp2mean_max.index = index_new23
+    tmp2mean_max.index.name = index_name
+    tmp2mean_max = tmp2mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
+    index_y4.append(['-'.join(a) for a in tmp2mean_max.columns])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_max.columns for b in a if b in index_new23])
+    tmp2mean_max.columns = index_y4[-1]
+    tmp2mean_max.reset_index(inplace=True)
+
+    t_main_name1 = 'time_on_' + meta_col4[0] +\
+                   '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
+                   str(vars['eval_minmax_for']) + '_for_' + str(int(vars['nr_target_kps'])) + \
+                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    fnames4 = []
+    fnames4.append('data_min_' + t_main_name1 + '.csv')
+    ft_min1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_min1_name, 'a') as f:
+        f.write('# Minimum execution times over all ' + meta_col4[0] + ' for accumulated execution times over ' +
+                str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
-        tmp2min.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        tmp1mean_min.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    t_max_name = 'data_max_' + t_main_name + '.csv'
-    ft_max_name = os.path.join(vars['tdata_folder'], t_max_name)
-    with open(ft_max_name, 'a') as f:
-        f.write('# Maximum execution times over all ' + str(vars['t_data_separators'][0]) + ' and ' +
-                str(vars['t_data_separators'][1]) + ' extrapolated for ' +
+    fnames4.append('data_max_' + t_main_name1 + '.csv')
+    ft_max1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_max1_name, 'a') as f:
+        f.write('# Maximum execution times over all ' + meta_col4[0] + ' for accumulated execution times over ' +
+                str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
-        tmp2max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        tmp1mean_max.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    title = 'Minimum and Maximum Execution Times over all ' + \
-            replaceCSVLabels(str(vars['t_data_separators'][0]), True, True) + ' and ' + \
-            replaceCSVLabels(str(vars['t_data_separators'][1]), True, True) + \
+    t_main_name2 = 'time_on_' + meta_col4[2] + \
+                   '_over_accumul_' + str(vars['accum_step_props'][1]) + '_vs_' + \
+                   str(vars['eval_minmax_for']) + '_for_' + str(int(vars['nr_target_kps'])) + \
+                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    fnames4.append('data_min_' + t_main_name2 + '.csv')
+    ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_min2_name, 'a') as f:
+        f.write('# Minimum execution times over all ' + meta_col4[2] + ' for accumulated execution times over ' +
+                str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp2mean_min.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    fnames4.append('data_max_' + t_main_name2 + '.csv')
+    ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_max2_name, 'a') as f:
+        f.write('# Maximum execution times over all ' + meta_col4[2] + ' for accumulated execution times over ' +
+                str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp2mean_max.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    title = 'Minimum and Maximum Execution Times vs ' + \
+            replaceCSVLabels(str(vars['eval_minmax_for']), True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
+            ' Separately Over All ' + replaceCSVLabels(str(meta_col4[0]), True, True) + \
+            ' and ' + replaceCSVLabels(str(meta_col4[2]), True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
-    # Get data for tex file generation
     tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -2688,86 +2689,72 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
-    section_name = 'Minimum execution times over all ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
-                   ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                   ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    caption = 'Minimum execution times over all ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][1]), True) + ' (corresponding '  + \
-              replaceCSVLabels(str(vars['t_data_separators'][0])) + ' -- ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][1])) + ' values on top of each bar)' + \
-              ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' extrapolated for ' + \
-              str(int(vars['nr_target_kps'])) + ' keypoints'
-    tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
-                                  'name': section_name.replace('\\\\', ' '),
-                                  'title': section_name,
-                                  'title_rows': section_name.count('\\\\'),
-                                  'fig_type': 'xbar',
-                                  'plots': [col_name],
-                                  # Label of the value axis. For xbar it labels the x-axis
-                                  'label_y': 'Minimum time/$\\mu s$',
-                                  # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': 'Parameter combination',
-                                  # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': 'pars_tex',
-                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                  'print_meta': True,
-                                  'plot_meta': [meta_col1],
-                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 0,
-                                  'limits': None,
-                                  # If None, no legend is used, otherwise use a list
-                                  'legend': None,
-                                  'legend_cols': 1,
-                                  'use_marks': False,
-                                  # The x/y-axis values are given as strings if True
-                                  'use_string_labels': True,
-                                  'use_log_y_axis': False,
-                                  'large_meta_space_needed': False,
-                                  'caption': caption
-                                  })
-    section_name = 'Maximum execution times over all ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
-                   ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                   ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    caption = 'Maximum execution times over all ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][1]), True) + ' (corresponding ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][0])) + ' -- ' + \
-              replaceCSVLabels(str(vars['t_data_separators'][1])) + ' values on top of each bar)' + \
-              ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' extrapolated for ' + \
-              str(int(vars['nr_target_kps'])) + ' keypoints'
-    tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_max_name),
-                                  'name': section_name.replace('\\\\', ' '),
-                                  'title': section_name,
-                                  'title_rows': section_name.count('\\\\'),
-                                  'fig_type': 'xbar',
-                                  'plots': [col_name],
-                                  # Label of the value axis. For xbar it labels the x-axis
-                                  'label_y': 'Maximum time/$\\mu s$',
-                                  # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': 'Parameter combination',
-                                  # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': 'pars_tex',
-                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                  'print_meta': True,
-                                  'plot_meta': [meta_col2],
-                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 0,
-                                  'limits': None,
-                                  # If None, no legend is used, otherwise use a list
-                                  'legend': None,
-                                  'legend_cols': 1,
-                                  'use_marks': False,
-                                  # The x/y-axis values are given as strings if True
-                                  'use_string_labels': True,
-                                  'use_log_y_axis': False,
-                                  'large_meta_space_needed': False,
-                                  'caption': caption
-                                  })
+    section_name = []
+    caption = []
+    section_name_main1 = 'execution times vs ' + \
+                         replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
+                         ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
+                         '\\\\over all ' + replaceCSVLabels(str(meta_col4[0]), True) + \
+                         ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name.append('Minimum ' + section_name_main1)
+    section_name.append('Maximum ' + section_name_main1)
+    caption_main1 = 'execution times vs ' + \
+            replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
+            ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
+            ' over all ' + replaceCSVLabels(str(meta_col4[0]), True) + \
+            ' (corresponding ' + replaceCSVLabels(str(meta_col4[0])) + \
+            ' on top of each bar) extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    caption.append('Minimum ' + caption_main1)
+    caption.append('Maximum ' + caption_main1)
+
+    section_name_main2 = 'execution times vs ' + \
+                         replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
+                         ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
+                         '\\\\over all ' + replaceCSVLabels(str(meta_col4[2]), True) + \
+                         ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name.append('Minimum ' + section_name_main2)
+    section_name.append('Maximum ' + section_name_main2)
+    caption_main2 = 'execution times vs ' + \
+                    replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
+                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
+                    ' over all ' + replaceCSVLabels(str(meta_col4[2]), True) + \
+                    ' (corresponding ' + replaceCSVLabels(str(meta_col4[2])) + \
+                    ' on top of each bar) extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    caption.append('Minimum ' + caption_main2)
+    caption.append('Maximum ' + caption_main2)
+
+    for i in range(0, 4):
+        tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], fnames4[i]),
+                                      'name': section_name[i].replace('\\\\', ' '),
+                                      'title': section_name[i],
+                                      'title_rows': section_name[i].count('\\\\'),
+                                      'fig_type': 'xbar',
+                                      'plots': index_y4[i],
+                                      # Label of the value axis. For xbar it labels the x-axis
+                                      'label_y': 'time/$\\mu s$',
+                                      # Label/column name of axis with bars. For xbar it labels the y-axis
+                                      'label_x': replaceCSVLabels(str(vars['eval_minmax_for'])),
+                                      # Column name of axis with bars. For xbar it is the column for the y-axis
+                                      'print_x': str(vars['eval_minmax_for']),
+                                      # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                      'print_meta': True,
+                                      'plot_meta': meta_col4[i],
+                                      # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                      'rotate_meta': 0,
+                                      'limits': None,
+                                      # If None, no legend is used, otherwise use a list
+                                      'legend': legend_y4[i],
+                                      'legend_cols': None,
+                                      'use_marks': False,
+                                      # The x/y-axis values are given as strings if True
+                                      'use_string_labels': False,
+                                      'use_log_y_axis': True,
+                                      'large_meta_space_needed': False,
+                                      'caption': caption[i]
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
@@ -2775,6 +2762,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
+    t_main_name = 'time_on_' + meta_col4[0] + '_and_' + meta_col4[2] + \
+                  '_over_sep_accumul_' + str(vars['accum_step_props'][0]) + '_and_' + \
+                  str(vars['accum_step_props'][1]) + '_vs_' + str(vars['eval_minmax_for']) + '_for_' + \
+                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -2791,26 +2782,241 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         res += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    min_t = tmp2min.loc[[tmp2min[col_name].idxmin()]].reset_index()
+    meta_col4 = []
+    tmp12_min.set_index(vars['it_parameters'], inplace=True)
+    index_new13 = ['-'.join(a) for a in tmp12_min.index]
+    tmp12_min.index = index_new13
+    tmp12_min.index.name = index_name
+    meta_col4.append('-'.join(first_grp2))
+    tmp12_min[meta_col4[-1]] = tmp12_min.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
+                               tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
+    tmp12_min.drop(first_grp2, axis=1, inplace=True)
+    meta_col4.append(meta_col4[-1])
 
-    main_parameter_name = vars['res_par_name']#'USAC_opt_search_min_time_inlrat_th'
+    tmp12_max.set_index(vars['it_parameters'], inplace=True)
+    index_new14 = ['-'.join(a) for a in tmp12_min.index]
+    tmp12_max.index = index_new14
+    tmp12_max.index.name = index_name
+    tmp12_max[meta_col4[-1]] = tmp12_max.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
+                               tmp12_max.loc[:, first_grp2[1]].apply(lambda x: str(x))
+    tmp12_max.drop(first_grp2, axis=1, inplace=True)
+
+    tmp22_min.set_index(vars['it_parameters'], inplace=True)
+    index_new23 = ['-'.join(a) for a in tmp22_min.index]
+    tmp22_min.index = index_new23
+    tmp22_min.index.name = index_name
+    meta_col4.append('-'.join(second_grp2))
+    tmp22_min[meta_col4[-1]] = tmp22_min.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
+                               tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
+    tmp22_min.drop(second_grp2, axis=1, inplace=True)
+    meta_col4.append(meta_col4[-1])
+
+    tmp22_max.set_index(vars['it_parameters'], inplace=True)
+    index_new24 = ['-'.join(a) for a in tmp22_max.index]
+    tmp22_max.index = index_new24
+    tmp22_max.index.name = index_name
+    tmp22_max[meta_col4[-1]] = tmp22_max.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
+                               tmp22_max.loc[:, second_grp2[1]].apply(lambda x: str(x))
+    tmp22_max.drop(second_grp2, axis=1, inplace=True)
+
+    t_main_name1 = 'time_on_' + meta_col4[0] + \
+                   '_over_accumul_' + str(vars['accum_step_props'][0]) + \
+                   '_for_' + str(int(vars['nr_target_kps'])) + \
+                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    fnames4 = []
+    fnames4.append('data_min_' + t_main_name1 + '.csv')
+    ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_min2_name, 'a') as f:
+        f.write('# Minimum execution times over all ' + meta_col4[0] +
+                ' combinations for accumulated execution times over ' +
+                str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp12_min.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    fnames4.append('data_max_' + t_main_name1 + '.csv')
+    ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_max2_name, 'a') as f:
+        f.write('# Maximum execution times over all ' + meta_col4[0] +
+                ' combinations for accumulated execution times over ' +
+                str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp12_max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    t_main_name2 = 'time_on_' + meta_col4[2] + \
+                   '_over_accumul_' + str(vars['accum_step_props'][1]) + \
+                   '_for_' + str(int(vars['nr_target_kps'])) + \
+                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    fnames4.append('data_min_' + t_main_name2 + '.csv')
+    ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_min2_name, 'a') as f:
+        f.write('# Minimum execution times over all ' + meta_col4[2] +
+                ' combinations for accumulated execution times over ' +
+                str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp22_min.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    fnames4.append('data_max_' + t_main_name2 + '.csv')
+    ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    with open(ft_max2_name, 'a') as f:
+        f.write('# Maximum execution times over all ' + meta_col4[2] +
+                ' combinations for accumulated execution times over ' +
+                str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp22_max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    title = 'Minimum and Maximum Execution Times for Parameter Variations of ' + \
+            vars['sub_title_it_pars'] + \
+            ' Over All ' + replaceCSVLabels(first_grp2[0], False, True) + ' and ' + \
+            replaceCSVLabels(first_grp2[1], False, True) + ' Combinations in Addition to All ' + \
+            replaceCSVLabels(second_grp2[0], False, True) + ' and ' + \
+            replaceCSVLabels(second_grp2[1], False, True) + \
+            ' Combinations Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
+    tex_infos = {'title': title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
+                 }
+    section_name = []
+    caption = []
+    section_name_main1 = 'execution times for parameter variations of\\\\' + \
+                         strToLower(vars['sub_title_it_pars']) + \
+                         '\\\\over all ' + replaceCSVLabels(first_grp2[0], False, True) + ' and ' + \
+                         replaceCSVLabels(first_grp2[1], False, True) + \
+                         ' combinations\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name.append('Minimum ' + section_name_main1)
+    section_name.append('Maximum ' + section_name_main1)
+    caption_main1 = 'execution times for parameter variations of ' + \
+                    strToLower(vars['sub_title_it_pars']) + \
+                    ' over all ' + replaceCSVLabels(first_grp2[0]) + ' and ' + \
+                    replaceCSVLabels(first_grp2[1]) + \
+                    ' combinations (corresponding ' + replaceCSVLabels(first_grp2[0]) + ' -- ' + \
+                    replaceCSVLabels(first_grp2[1]) + ' values on top of each bar) extrapolated for ' + \
+                    str(int(vars['nr_target_kps'])) + ' keypoints'
+    caption.append('Minimum ' + caption_main1)
+    caption.append('Maximum ' + caption_main1)
+
+    section_name_main2 = 'execution times for parameter variations of\\\\' + \
+                         strToLower(vars['sub_title_it_pars']) + \
+                         '\\\\over all ' + replaceCSVLabels(second_grp2[0], False, True) + ' and ' + \
+                         replaceCSVLabels(second_grp2[1], False, True) + \
+                         ' combinations\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name.append('Minimum ' + section_name_main2)
+    section_name.append('Maximum ' + section_name_main2)
+    caption_main2 = 'execution times for parameter variations of ' + \
+                    strToLower(vars['sub_title_it_pars']) + \
+                    ' over all ' + replaceCSVLabels(second_grp2[0]) + ' and ' + \
+                    replaceCSVLabels(second_grp2[1]) + \
+                    ' combinations (corresponding ' + replaceCSVLabels(second_grp2[0]) + ' -- ' + \
+                    replaceCSVLabels(second_grp2[1]) + ' values on top of each bar) extrapolated for ' + \
+                    str(int(vars['nr_target_kps'])) + ' keypoints'
+    caption.append('Minimum ' + caption_main2)
+    caption.append('Maximum ' + caption_main2)
+
+    for i in range(0, 4):
+        tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], fnames4[i]),
+                                      'name': section_name[i].replace('\\\\', ' '),
+                                      'title': section_name[i],
+                                      'title_rows': section_name[i].count('\\\\'),
+                                      'fig_type': 'xbar',
+                                      'plots': [col_name],
+                                      # Label of the value axis. For xbar it labels the x-axis
+                                      'label_y': 'time/$\\mu s$',
+                                      # Label/column name of axis with bars. For xbar it labels the y-axis
+                                      'label_x': 'Parameter combination',
+                                      # Column name of axis with bars. For xbar it is the column for the y-axis
+                                      'print_x': index_name,
+                                      # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                      'print_meta': True,
+                                      'plot_meta': meta_col4[i],
+                                      # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                      'rotate_meta': 0,
+                                      'limits': None,
+                                      # If None, no legend is used, otherwise use a list
+                                      'legend': None,
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      # The x/y-axis values are given as strings if True
+                                      'use_string_labels': True,
+                                      'use_log_y_axis': True,
+                                      'large_meta_space_needed': False,
+                                      'caption': caption[i]
+                                      })
+
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    t_main_name = 'time_on_' + meta_col4[0] + '_and_' + meta_col4[2] + \
+                  '_combs_over_sep_accumul_' + str(vars['accum_step_props'][0]) + '_and_' + \
+                  str(vars['accum_step_props'][1]) + '_for_' + \
+                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+    base_out_name = 'tex_min_max_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    if vars['build_pdf'][1]:
+        res1 = compile_tex(rendered_tex,
+                           vars['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(vars['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, vars['tex_folder'], texf_name)
+    if res1 != 0:
+        res += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    min1_t = tmp12_min.loc[[tmp12_min[col_name].idxmin()]].reset_index()
+    min2_t = tmp22_min.loc[[tmp12_min[col_name].idxmin()]].reset_index()
+
+    main_parameter_name = vars['res_par_name']
     # Check if file and parameters exist
     ppar_file, res = check_par_file_exists(main_parameter_name, vars['res_folder'], res)
 
     with open(ppar_file, 'a') as fo:
         # Write parameters
-        alg_comb_bestl = str(min_t[index_name].values[0]).split('-')
-        if len(vars['it_parameters']) != len(alg_comb_bestl):
+        alg_comb_bestl1 = str(min1_t[index_name].values[0]).split('-')
+        if len(vars['it_parameters']) != len(alg_comb_bestl1):
             raise ValueError('Nr of refine algorithms does not match')
-        alg_w = {}
+        alg_w1 = {}
         for i, val in enumerate(vars['it_parameters']):
-            alg_w[val] = alg_comb_bestl[i]
-        par1 = str(min_t[meta_col2].values[0]).split(' - ')
-        par_name = meta_col2.split('-')
-        yaml.dump({main_parameter_name: {'Algorithm': alg_w,
-                                         par_name[0]: par1[0],
-                                         par_name[1]: par1[1],
-                                         'Time_us': float(min_t[col_name].values[0])}},
+            alg_w1[val] = alg_comb_bestl1[i]
+        par1 = str(min1_t[meta_col4[0]].values[0]).split(' - ')
+
+        par_name2 = meta_col4[2].split('-')
+        alg_comb_bestl2 = str(min2_t[index_name].values[0]).split('-')
+        if len(vars['it_parameters']) != len(alg_comb_bestl2):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w2 = {}
+        for i, val in enumerate(vars['it_parameters']):
+            alg_w2[val] = alg_comb_bestl2[i]
+        par2 = str(min2_t[meta_col4[2]].values[0]).split(' - ')
+        par_name1 = meta_col4[2].split('-')
+        yaml.dump({main_parameter_name: {'res1':{'Algorithm': alg_w1,
+                                                par_name1[0]: par1[0],
+                                                par_name1[1]: par1[1],
+                                                'Time_us': float(min1_t[col_name].values[0])},
+                                         'res2': {'Algorithm': alg_w2,
+                                                  par_name2[0]: par2[0],
+                                                  par_name2[1]: par2[1],
+                                                  'Time_us': float(min2_t[col_name].values[0])}
+                                         }},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return res
