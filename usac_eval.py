@@ -2006,10 +2006,10 @@ def prepare_io(**keywords):
         keywords['use_marks'] = False
     if 'build_pdf' not in keywords:
         keywords['build_pdf'] = (False, True,)
-    if len(keywords['build_pdf']) != 2:
+    if len(keywords['build_pdf']) < 2:
         raise ValueError('Wrong number of arguments for build_pdf')
     keywords['pdf_folder'] = None
-    if keywords['build_pdf'][0] or keywords['build_pdf'][1]:
+    if any(keywords['build_pdf']):
         keywords['pdf_folder'] = os.path.join(keywords['res_folder'], 'pdf')
         try:
             os.mkdir(keywords['pdf_folder'])
@@ -2424,10 +2424,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp[col_name] = tmp[col_name].round(0)
     first_grp2 = [a for a in vars['t_data_separators'] if a != vars['accum_step_props'][0]]
     first_grp = vars['it_parameters'] + first_grp2
-    tmp1mean = tmp.groupby(first_grp).mean().drop(vars['accum_step_props'][0], axis=1)
+    # tmp1mean = tmp.groupby(first_grp).mean().drop(vars['accum_step_props'][0], axis=1)
+    tmp1mean = tmp.groupby(first_grp)[col_name].mean().reset_index()
     second_grp2 = [a for a in vars['t_data_separators'] if a != vars['accum_step_props'][1]]
     second_grp = vars['it_parameters'] + second_grp2
-    tmp2mean = tmp.groupby(second_grp).mean().drop(vars['accum_step_props'][1], axis=1)
+    # tmp2mean = tmp.groupby(second_grp).mean().drop(vars['accum_step_props'][1], axis=1)
+    tmp2mean = tmp.groupby(second_grp)[col_name].mean().reset_index()
     minmax_grp = vars['it_parameters'] + [vars['eval_minmax_for']]
     tmp1mean_min = tmp1mean.loc[tmp1mean.groupby(minmax_grp)[col_name].idxmin(axis=0)]
     tmp1mean_max = tmp1mean.loc[tmp1mean.groupby(minmax_grp)[col_name].idxmax(axis=0)]
@@ -2454,6 +2456,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     legend1 = [tex_string_coding_style(b) for a in tmp1mean.columns for b in a if b in index_new1]
     tmp1mean.columns = index_new11
     tmp1mean.reset_index(inplace=True)
+    all_vals = tmp1mean.drop(first_grp2, axis=1).stack().reset_index()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    use_log1 = True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False
 
     tmp2mean.set_index(vars['it_parameters'], inplace=True)
     index_new2 = ['-'.join(a) for a in tmp2mean.index]
@@ -2464,6 +2470,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     legend2 = [tex_string_coding_style(b) for a in tmp2mean.columns for b in a if b in index_new2]
     tmp2mean.columns = index_new21
     tmp2mean.reset_index(inplace=True)
+    all_vals = tmp2mean.drop(second_grp2, axis=1).stack().reset_index()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    use_log2 = True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False
 
     vars = prepare_io(**vars)
 
@@ -2502,7 +2512,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
                  # If True, the figures are adapted to the page height if they are too big
-                 'ctrl_fig_size': False,
+                 'ctrl_fig_size': True,
+                 'figs_externalize': True,
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss}
 
@@ -2514,18 +2525,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_mean1_name),
                                   'name': section_name,
-                                  'fig_type': 'surface',
+                                  'fig_type': vars['fig_type'][0],
                                   'plots_z': index_new11,
                                   'diff_z_labels': False,
                                   'label_z': 'Mean time/$\\mu s$',
                                   'plot_x': str(first_grp2[0]),
                                   'label_x': replaceCSVLabels(str(first_grp2[0])),
                                   'plot_y': str(first_grp2[1]),
-                                  'label_y': replaceCSVLabels(str(first_grp2[0])),
+                                  'label_y': replaceCSVLabels(str(first_grp2[1])),
                                   'legend': legend1,
-                                  'use_marks': True,
+                                  'use_marks': vars['use_marks'][0],
                                   'mesh_cols': nr_equal_ss1,
-                                  'use_log_z_axis': True
+                                  'use_log_z_axis': use_log1
                                   })
 
     section_name = 'Mean execution times over all ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True) + \
@@ -2536,18 +2547,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_mean2_name),
                                   'name': section_name,
-                                  'fig_type': 'surface',
+                                  'fig_type': vars['fig_type'][0],
                                   'plots_z': index_new21,
                                   'diff_z_labels': False,
                                   'label_z': 'Mean time/$\\mu s$',
                                   'plot_x': str(second_grp2[0]),
                                   'label_x': replaceCSVLabels(str(second_grp2[0])),
                                   'plot_y': str(second_grp2[1]),
-                                  'label_y': replaceCSVLabels(str(second_grp2[0])),
+                                  'label_y': replaceCSVLabels(str(second_grp2[1])),
                                   'legend': legend2,
-                                  'use_marks': True,
+                                  'use_marks': vars['use_marks'][0],
                                   'mesh_cols': nr_equal_ss2,
-                                  'use_log_z_axis': True
+                                  'use_log_z_axis': use_log2
                                   })
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
@@ -2555,7 +2566,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                    make_index=tex_infos['make_index'],
                                    use_fixed_caption=tex_infos['use_fixed_caption'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=True,
+                                   figs_externalize=tex_infos['figs_externalize'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
     t_main_name = 'mean_time_sep_over_all_' + str(vars['accum_step_props'][0]) + '_and_' + \
@@ -2581,51 +2592,74 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     index_y4 = []
     legend_y4 = []
     meta_col4 = []
+    use_log4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
     index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
     tmp1mean_min.index = index_new12
     tmp1mean_min.index.name = index_name
     tmp1mean_min = tmp1mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp1mean_min.columns])
-    legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_min.columns for b in a if b in index_new12])
-    tmp1mean_min.columns = index_y4[-1]
+    index_y4.append(['-'.join(a) for a in tmp1mean_min.columns if col_name in a])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_min.columns if col_name in a
+                      for b in a if b in index_new12])
+    tmp1mean_min.columns = ['-'.join(a) for a in tmp1mean_min.columns]
+    meta_col4.append([a for a in tmp1mean_min.columns if col_name not in a])
     tmp1mean_min.reset_index(inplace=True)
-    meta_col4.append([a for a in first_grp2 if a != vars['eval_minmax_for']][0])
-    meta_col4.append(meta_col4[-1])
+    time_on1 = [a for a in first_grp2 if a != vars['eval_minmax_for']][0]
+    all_vals = tmp1mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
     index_new13 = ['-'.join(a) for a in tmp1mean_max.index]
     tmp1mean_max.index = index_new13
     tmp1mean_max.index.name = index_name
     tmp1mean_max = tmp1mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp1mean_max.columns])
-    legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_max.columns for b in a if b in index_new13])
-    tmp1mean_max.columns = index_y4[-1]
+    index_y4.append(['-'.join(a) for a in tmp1mean_max.columns if col_name in a])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_max.columns if col_name in a
+                      for b in a if b in index_new13])
+    tmp1mean_max.columns = ['-'.join(a) for a in tmp1mean_max.columns]
+    meta_col4.append([a for a in tmp1mean_max.columns if col_name not in a])
     tmp1mean_max.reset_index(inplace=True)
+    all_vals = tmp1mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
     index_new22 = ['-'.join(a) for a in tmp2mean_min.index]
     tmp2mean_min.index = index_new22
     tmp2mean_min.index.name = index_name
     tmp2mean_min = tmp2mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp2mean_min.columns])
-    legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_min.columns for b in a if b in index_new22])
-    tmp2mean_min.columns = index_y4[-1]
+    index_y4.append(['-'.join(a) for a in tmp2mean_min.columns if col_name in a])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_min.columns if col_name in a
+                      for b in a if b in index_new22])
+    tmp2mean_min.columns = ['-'.join(a) for a in tmp2mean_min.columns]
+    meta_col4.append([a for a in tmp2mean_min.columns if col_name not in a])
     tmp2mean_min.reset_index(inplace=True)
-    meta_col4.append([a for a in second_grp2 if a != vars['eval_minmax_for']][0])
-    meta_col4.append(meta_col4[-1])
+    time_on2 = [a for a in second_grp2 if a != vars['eval_minmax_for']][0]
+    all_vals = tmp2mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
     index_new23 = ['-'.join(a) for a in tmp2mean_max.index]
     tmp2mean_max.index = index_new23
     tmp2mean_max.index.name = index_name
     tmp2mean_max = tmp2mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp2mean_max.columns])
-    legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_max.columns for b in a if b in index_new23])
-    tmp2mean_max.columns = index_y4[-1]
+    index_y4.append(['-'.join(a) for a in tmp2mean_max.columns if col_name in a])
+    legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_max.columns if col_name in a
+                      for b in a if b in index_new23])
+    tmp2mean_max.columns = ['-'.join(a) for a in tmp2mean_max.columns]
+    meta_col4.append([a for a in tmp2mean_max.columns if col_name not in a])
     tmp2mean_max.reset_index(inplace=True)
+    all_vals = tmp2mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
-    t_main_name1 = 'time_on_' + meta_col4[0] +\
+    t_main_name1 = 'time_on_' + time_on1 +\
                    '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
                    str(vars['eval_minmax_for']) + '_for_' + str(int(vars['nr_target_kps'])) + \
                    'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
@@ -2633,7 +2667,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     with open(ft_min1_name, 'a') as f:
-        f.write('# Minimum execution times over all ' + meta_col4[0] + ' for accumulated execution times over ' +
+        f.write('# Minimum execution times over all ' + time_on1 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
@@ -2642,20 +2676,20 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_max_' + t_main_name1 + '.csv')
     ft_max1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     with open(ft_max1_name, 'a') as f:
-        f.write('# Maximum execution times over all ' + meta_col4[0] + ' for accumulated execution times over ' +
+        f.write('# Maximum execution times over all ' + time_on1 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
         tmp1mean_max.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    t_main_name2 = 'time_on_' + meta_col4[2] + \
+    t_main_name2 = 'time_on_' + time_on2 + \
                    '_over_accumul_' + str(vars['accum_step_props'][1]) + '_vs_' + \
                    str(vars['eval_minmax_for']) + '_for_' + str(int(vars['nr_target_kps'])) + \
                    'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     with open(ft_min2_name, 'a') as f:
-        f.write('# Minimum execution times over all ' + meta_col4[2] + ' for accumulated execution times over ' +
+        f.write('# Minimum execution times over all ' + time_on2 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
@@ -2664,7 +2698,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_max_' + t_main_name2 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     with open(ft_max2_name, 'a') as f:
-        f.write('# Maximum execution times over all ' + meta_col4[2] + ' for accumulated execution times over ' +
+        f.write('# Maximum execution times over all ' + time_on2 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
@@ -2673,8 +2707,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     title = 'Minimum and Maximum Execution Times vs ' + \
             replaceCSVLabels(str(vars['eval_minmax_for']), True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
-            ' Separately Over All ' + replaceCSVLabels(str(meta_col4[0]), True, True) + \
-            ' and ' + replaceCSVLabels(str(meta_col4[2]), True, True) + \
+            ' Separately Over All ' + replaceCSVLabels(str(time_on1), True, True) + \
+            ' and ' + replaceCSVLabels(str(time_on2), True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     tex_infos = {'title': title,
                  'sections': [],
@@ -2694,15 +2728,15 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     section_name_main1 = 'execution times vs ' + \
                          replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
                          ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                         '\\\\over all ' + replaceCSVLabels(str(meta_col4[0]), True) + \
+                         '\\\\over all ' + replaceCSVLabels(str(time_on1), True) + \
                          ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name.append('Minimum ' + section_name_main1)
     section_name.append('Maximum ' + section_name_main1)
     caption_main1 = 'execution times vs ' + \
             replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
             ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
-            ' over all ' + replaceCSVLabels(str(meta_col4[0]), True) + \
-            ' (corresponding ' + replaceCSVLabels(str(meta_col4[0])) + \
+            ' over all ' + replaceCSVLabels(str(time_on1), True) + \
+            ' (corresponding ' + replaceCSVLabels(str(time_on1)) + \
             ' on top of each bar) extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     caption.append('Minimum ' + caption_main1)
     caption.append('Maximum ' + caption_main1)
@@ -2710,15 +2744,15 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     section_name_main2 = 'execution times vs ' + \
                          replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
                          ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                         '\\\\over all ' + replaceCSVLabels(str(meta_col4[2]), True) + \
+                         '\\\\over all ' + replaceCSVLabels(str(time_on2), True) + \
                          ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name.append('Minimum ' + section_name_main2)
     section_name.append('Maximum ' + section_name_main2)
     caption_main2 = 'execution times vs ' + \
                     replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
                     ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
-                    ' over all ' + replaceCSVLabels(str(meta_col4[2]), True) + \
-                    ' (corresponding ' + replaceCSVLabels(str(meta_col4[2])) + \
+                    ' over all ' + replaceCSVLabels(str(time_on2), True) + \
+                    ' (corresponding ' + replaceCSVLabels(str(time_on2)) + \
                     ' on top of each bar) extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     caption.append('Minimum ' + caption_main2)
     caption.append('Maximum ' + caption_main2)
@@ -2728,7 +2762,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'name': section_name[i].replace('\\\\', ' '),
                                       'title': section_name[i],
                                       'title_rows': section_name[i].count('\\\\'),
-                                      'fig_type': 'xbar',
+                                      'fig_type': vars['fig_type'][1],
                                       'plots': index_y4[i],
                                       # Label of the value axis. For xbar it labels the x-axis
                                       'label_y': 'time/$\\mu s$',
@@ -2745,10 +2779,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       # If None, no legend is used, otherwise use a list
                                       'legend': legend_y4[i],
                                       'legend_cols': None,
-                                      'use_marks': False,
+                                      'use_marks': vars['use_marks'][1],
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': False,
-                                      'use_log_y_axis': True,
+                                      'use_log_y_axis': use_log4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
                                       })
@@ -2762,7 +2796,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    t_main_name = 'time_on_' + meta_col4[0] + '_and_' + meta_col4[2] + \
+    t_main_name = 'time_on_' + time_on1 + '_and_' + time_on2 + \
                   '_over_sep_accumul_' + str(vars['accum_step_props'][0]) + '_and_' + \
                   str(vars['accum_step_props'][1]) + '_vs_' + str(vars['eval_minmax_for']) + '_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
@@ -2783,6 +2817,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     meta_col4 = []
+    use_log4 = []
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
     index_new13 = ['-'.join(a) for a in tmp12_min.index]
     tmp12_min.index = index_new13
@@ -2792,6 +2827,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
     tmp12_min.drop(first_grp2, axis=1, inplace=True)
     meta_col4.append(meta_col4[-1])
+    min_val = tmp12_min[col_name].min()
+    max_val = tmp12_min[col_name].max()
+    use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
     index_new14 = ['-'.join(a) for a in tmp12_min.index]
@@ -2800,6 +2838,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp12_max[meta_col4[-1]] = tmp12_max.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_max.loc[:, first_grp2[1]].apply(lambda x: str(x))
     tmp12_max.drop(first_grp2, axis=1, inplace=True)
+    min_val = tmp12_max[col_name].min()
+    max_val = tmp12_max[col_name].max()
+    use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
     index_new23 = ['-'.join(a) for a in tmp22_min.index]
@@ -2810,6 +2851,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
     tmp22_min.drop(second_grp2, axis=1, inplace=True)
     meta_col4.append(meta_col4[-1])
+    min_val = tmp22_min[col_name].min()
+    max_val = tmp22_min[col_name].max()
+    use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
     index_new24 = ['-'.join(a) for a in tmp22_max.index]
@@ -2818,6 +2862,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max[meta_col4[-1]] = tmp22_max.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_max.loc[:, second_grp2[1]].apply(lambda x: str(x))
     tmp22_max.drop(second_grp2, axis=1, inplace=True)
+    min_val = tmp22_max[col_name].min()
+    max_val = tmp22_max[col_name].max()
+    use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     t_main_name1 = 'time_on_' + meta_col4[0] + \
                    '_over_accumul_' + str(vars['accum_step_props'][0]) + \
@@ -2949,12 +2996,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'use_marks': False,
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True,
-                                      'use_log_y_axis': True,
+                                      'use_log_y_axis': use_log4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
                                       })
 
-    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
@@ -2969,7 +3015,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
-    if vars['build_pdf'][1]:
+    if vars['build_pdf'][2]:
         res1 = compile_tex(rendered_tex,
                            vars['tex_folder'],
                            texf_name,

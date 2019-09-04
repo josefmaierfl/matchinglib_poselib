@@ -3171,10 +3171,10 @@ def main():
             #                  'USAC_parameters_USACInlratFilt']
             it_parameters = ['USAC_parameters_estimator',
                              'USAC_parameters_refinealg']
-            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_props
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'fig_type': 'smooth',
+            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_3_props
+            special_calcs_args = {'build_pdf': (True, True, True),
+                                  'use_marks': (True, False),
+                                  'fig_type': ('surface', 'xbar'),
                                   'nr_target_kps': 1000,
                                   't_data_separators': ['kpAccSd', 'inlratMin', 'th'],
                                   'accum_step_props': ['inlratMin', 'kpAccSd'],
@@ -3191,7 +3191,7 @@ def main():
                                                      xy_axis_columns=['nrCorrs_GT'],  # x-axis column name
                                                      filter_func=filter_nr_kps,
                                                      filter_func_args=None,
-                                                     special_calcs_func=None,#estimate_alg_time_fixed_kp_for_props,
+                                                     special_calcs_func=estimate_alg_time_fixed_kp_for_3_props,
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=calc_Time_Model,
                                                      calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
