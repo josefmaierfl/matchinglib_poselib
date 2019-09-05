@@ -3328,7 +3328,7 @@ def get_min_inlrat_diff(**keywords):
         res += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    main_parameter_name = 'USAC_opt_search_min_inlrat_diff'
+    main_parameter_name = keywords['res_par_name']#'USAC_opt_search_min_inlrat_diff'
     # Check if file and parameters exist
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
 

@@ -2646,561 +2646,822 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'testing_tests'
-    test_nr = 14
+    test_nr = 1
+    eval_nr = -1
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
         if test_nr == 1:
-            fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'res_par_name': 'USAC_opt_refine_ops_th'}
-            from usac_eval import get_best_comb_and_th_1
-            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          x_axis_column=['th'],
-                                          pdfsplitentry=['t_distDiff'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_and_th_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='smooth',
-                                          use_marks=True,
-                                          ctrl_fig_size=True,
-                                          make_fig_index=True,
-                                          build_pdf=True,
-                                          figs_externalize=True)
+            if eval_nr < 0:
+                evals = list(range(1, 7))
+            else:
+                evals = [eval_nr]
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'USAC_opt_refine_ops_th'}
+                    from usac_eval import get_best_comb_and_th_1
+                    return calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['th'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_and_th_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 2:
+                    fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'USAC_opt_refine_ops_inlrat'}
+                    from usac_eval import get_best_comb_inlrat_1
+                    return calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 3:
+                    fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (False, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'USAC_opt_refine_ops_inlrat_th'}
+                    from usac_eval import get_best_comb_and_th_for_inlrat_1
+                    return calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['th', 'inlratMin'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_and_th_for_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=False,
+                                                  figs_externalize=True)
+                elif ev == 4:
+                    fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
+                    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
+                    from usac_eval import get_best_comb_th_scenes_1
+                    return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_USAC_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_th_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True)
+                elif ev == 5:
+                    fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+                    eval_columns = ['robEstimationAndRef_us']
+                    units = []
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'smooth',
+                                          'nr_target_kps': 1000,
+                                          't_data_separators': ['inlratMin'],
+                                          'res_par_name': 'USAC_opt_refine_min_time'}
+                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+                    return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['nrCorrs_GT'],
+                                                  filter_func=filter_nr_kps,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=estimate_alg_time_fixed_kp,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=calc_Time_Model,
+                                                  calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=False,
+                                                  figs_externalize=True)
+                elif ev == 6:
+                    fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+                    eval_columns = ['robEstimationAndRef_us']
+                    units = []
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    from usac_eval import filter_nr_kps, calc_Time_Model
+                    return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_USAC_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['th'],  # Data properties to calculate results separately
+                                                             x_axis_column=['nrCorrs_GT'],  # x-axis column name
+                                                             filter_func=filter_nr_kps,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=None,
+                                                             special_calcs_args=None,
+                                                             calc_func=calc_Time_Model,
+                                                             calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr does not exist')
         elif test_nr == 2:
-            fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'res_par_name': 'USAC_opt_refine_ops_inlrat'}
-            from usac_eval import get_best_comb_inlrat_1
-            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          x_axis_column=['inlratMin'],
-                                          pdfsplitentry=['t_distDiff'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_inlrat_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='smooth',
-                                          use_marks=True,
-                                          ctrl_fig_size=True,
-                                          make_fig_index=True,
-                                          build_pdf=True,
-                                          figs_externalize=True)
-        elif test_nr == 3:
-            fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (False, True),
-                                  'use_marks': True,
-                                  'fig_type': 'surface',
-                                  'res_par_name': 'USAC_opt_refine_ops_inlrat_th'}
-            from usac_eval import get_best_comb_and_th_for_inlrat_1
-            return calcSatisticAndPlot_3D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          xy_axis_columns=['th', 'inlratMin'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_and_th_for_inlrat_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='surface',
-                                          use_marks=True,
-                                          ctrl_fig_size=False,
-                                          make_fig_index=True,
-                                          build_pdf=False,
-                                          figs_externalize=True)
-        elif test_nr == 4:
-            fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
-            partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
-            special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
-            from usac_eval import get_best_comb_th_scenes_1
-            return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,
-                                                     units=units,
-                                                     it_parameters=it_parameters,
-                                                     partitions=partitions,
-                                                     x_axis_column=['inlratMin'],
-                                                     filter_func=None,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=get_best_comb_th_scenes_1,
-                                                     special_calcs_args=special_calcs_args,
-                                                     calc_func=None,
-                                                     calc_func_args=None,
-                                                     fig_type='smooth',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=False,
-                                                     figs_externalize=True)
-        elif test_nr == 5:
-            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
-            eval_columns = ['robEstimationAndRef_us']
-            units = []
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'fig_type': 'smooth',
-                                  'nr_target_kps': 1000,
-                                  't_data_separators': ['inlratMin'],
-                                  'res_par_name': 'USAC_opt_refine_min_time'}
-            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-            return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          xy_axis_columns=['nrCorrs_GT'],
-                                          filter_func=filter_nr_kps,
-                                          filter_func_args=None,
-                                          special_calcs_func=estimate_alg_time_fixed_kp,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=calc_Time_Model,
-                                          calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                          fig_type='surface',
-                                          use_marks=True,
-                                          ctrl_fig_size=False,
-                                          make_fig_index=True,
-                                          build_pdf=False,
-                                          figs_externalize=True)
-        elif test_nr == 6:
-            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
-            eval_columns = ['robEstimationAndRef_us']
-            units = []
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            from usac_eval import filter_nr_kps, calc_Time_Model
-            return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
-                                                     units=units,  # Units in string format for every entry of eval_columns
-                                                     it_parameters=it_parameters,  # Algorithm parameters to evaluate
-                                                     partitions=['th'],  # Data properties to calculate results separately
-                                                     x_axis_column=['nrCorrs_GT'],  # x-axis column name
-                                                     filter_func=filter_nr_kps,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=None,
-                                                     special_calcs_args=None,
-                                                     calc_func=calc_Time_Model,
-                                                     calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                                     fig_type='smooth',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=True,
-                                                     figs_externalize=False)
-        elif test_nr == 7:
-            fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'res_par_name': 'USAC_opt_search_ops_th'}
-            from usac_eval import get_best_comb_and_th_1
-            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          x_axis_column=['th'],
-                                          pdfsplitentry=['t_distDiff'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_and_th_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='smooth',
-                                          use_marks=True,
-                                          ctrl_fig_size=True,
-                                          make_fig_index=True,
-                                          build_pdf=True,
-                                          figs_externalize=True)
-        elif test_nr == 8:
-            fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'res_par_name': 'USAC_opt_search_ops_inlrat'}
-            from usac_eval import get_best_comb_inlrat_1
-            return calcSatisticAndPlot_2D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          x_axis_column=['inlratMin'],
-                                          pdfsplitentry=['t_distDiff'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_inlrat_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='smooth',
-                                          use_marks=True,
-                                          ctrl_fig_size=True,
-                                          make_fig_index=True,
-                                          build_pdf=True,
-                                          figs_externalize=True)
-        elif test_nr == 9:
-            fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (False, True),
-                                  'use_marks': True,
-                                  'fig_type': 'surface',
-                                  'res_par_name': 'USAC_opt_search_ops_kpAccSd_th',
-                                  'func_name': 'get_best_comb_and_th_for_kpacc_1'}
-            from usac_eval import get_best_comb_and_th_for_inlrat_1
-            return calcSatisticAndPlot_3D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          xy_axis_columns=['th', 'kpAccSd'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_and_th_for_inlrat_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='surface',
-                                          use_marks=True,
-                                          ctrl_fig_size=False,
-                                          make_fig_index=True,
-                                          build_pdf=True,
-                                          figs_externalize=True)
-        elif test_nr == 10:
-            fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (False, True),
-                                  'use_marks': True,
-                                  'fig_type': 'surface',
-                                  'res_par_name': 'USAC_opt_search_ops_inlrat_th'}
-            from usac_eval import get_best_comb_and_th_for_inlrat_1
-            return calcSatisticAndPlot_3D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          xy_axis_columns=['th', 'inlratMin'],
-                                          filter_func=None,
-                                          filter_func_args=None,
-                                          special_calcs_func=get_best_comb_and_th_for_inlrat_1,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=None,
-                                          calc_func_args=None,
-                                          fig_type='surface',
-                                          use_marks=True,
-                                          ctrl_fig_size=False,
-                                          make_fig_index=True,
-                                          build_pdf=False,
-                                          figs_externalize=True)
-        elif test_nr == 36:
-            fig_title_pre_str = 'Values of Inlier Ratio Differences for USAC Option Combinations of '
-            eval_columns = ['inlRat_estimated', 'inlRat_GT']
-            units = [('inlRat_diff', '')]
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
-            partitions = ['depthDistr', 'kpAccSd']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'res_par_name': 'USAC_opt_search_min_inlrat_diff'}
-            from usac_eval import get_inlrat_diff, get_min_inlrat_diff
-            return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,
-                                                     units=units,
-                                                     it_parameters=it_parameters,
-                                                     partitions=partitions,
-                                                     x_axis_column=['th'],
-                                                     filter_func=None,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=get_min_inlrat_diff,
-                                                     special_calcs_args=special_calcs_args,
-                                                     calc_func=get_inlrat_diff,
-                                                     calc_func_args=None,
-                                                     fig_type='smooth',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=True,
-                                                     figs_externalize=True)
-        elif test_nr == 11:
-            fig_title_pre_str = 'Values of R\\&t Differences for USAC Option Combinations of '
-            eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                            't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
-            units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
-                     ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
-                     ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                     ('t_diff_ty', ''), ('t_diff_tz', '')]
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
-            partitions = ['depthDistr', 'kpDistr', 'th']  # th must be at the end
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True}
-            from usac_eval import get_best_comb_th_scenes_1
-            return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,
-                                                     units=units,
-                                                     it_parameters=it_parameters,
-                                                     partitions=partitions,
-                                                     x_axis_column=['inlratMin'],
-                                                     filter_func=None,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=get_best_comb_th_scenes_1,
-                                                     special_calcs_args=special_calcs_args,
-                                                     calc_func=None,
-                                                     calc_func_args=None,
-                                                     fig_type='smooth',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=False,
-                                                     figs_externalize=True)
-        elif test_nr == 12:
-            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
-            eval_columns = ['robEstimationAndRef_us']
-            units = []
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'fig_type': 'smooth',
-                                  'nr_target_kps': 1000,
-                                  't_data_separators': ['inlratMin'],
-                                  'res_par_name': 'USAC_opt_search_min_time'}
-            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-            return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
-                                          store_path=output_path,
-                                          tex_file_pre_str='plots_USAC_opts_',
-                                          fig_title_pre_str=fig_title_pre_str,
-                                          eval_columns=eval_columns,
-                                          units=units,
-                                          it_parameters=it_parameters,
-                                          xy_axis_columns=['nrCorrs_GT'],
-                                          filter_func=filter_nr_kps,
-                                          filter_func_args=None,
-                                          special_calcs_func=estimate_alg_time_fixed_kp,
-                                          special_calcs_args=special_calcs_args,
-                                          calc_func=calc_Time_Model,
-                                          calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                          fig_type='surface',
-                                          use_marks=True,
-                                          ctrl_fig_size=False,
-                                          make_fig_index=True,
-                                          build_pdf=False,
-                                          figs_externalize=True)
-        elif test_nr == 13:
-            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
-            eval_columns = ['robEstimationAndRef_us']
-            units = []
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_props
-            special_calcs_args = {'build_pdf': (True, True),
-                                  'use_marks': True,
-                                  'fig_type': 'smooth',
-                                  'nr_target_kps': 1000,
-                                  't_data_separators': ['inlratMin', 'th'],
-                                  'res_par_name': 'USAC_opt_search_min_time_inlrat_th'}
-            return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
-                                                     units=units,  # Units in string format for every entry of eval_columns
-                                                     it_parameters=it_parameters,  # Algorithm parameters to evaluate
-                                                     partitions=['th'],  # Data properties to calculate results separately
-                                                     x_axis_column=['nrCorrs_GT'],  # x-axis column name
-                                                     filter_func=filter_nr_kps,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=estimate_alg_time_fixed_kp_for_props,
-                                                     special_calcs_args=special_calcs_args,
-                                                     calc_func=calc_Time_Model,
-                                                     calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                                     fig_type='smooth',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=True,
-                                                     figs_externalize=False)
-        elif test_nr == 14:
-            fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
-            eval_columns = ['robEstimationAndRef_us']
-            units = []
-            # it_parameters = ['USAC_parameters_automaticSprtInit',
-            #                  'USAC_parameters_automaticProsacParameters',
-            #                  'USAC_parameters_prevalidateSample',
-            #                  'USAC_parameters_USACInlratFilt']
-            it_parameters = ['USAC_parameters_estimator',
-                             'USAC_parameters_refinealg']
-            from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_3_props
-            special_calcs_args = {'build_pdf': (True, True, True),
-                                  'use_marks': (True, False),
-                                  'fig_type': ('surface', 'xbar'),
-                                  'nr_target_kps': 1000,
-                                  't_data_separators': ['kpAccSd', 'inlratMin', 'th'],
-                                  'accum_step_props': ['inlratMin', 'kpAccSd'],
-                                  'eval_minmax_for': 'th',
-                                  'res_par_name': 'USAC_opt_search_min_time_kpAccSd_inlrat_th'}
-            return calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
-                                                     store_path=output_path,
-                                                     tex_file_pre_str='plots_USAC_opts_',
-                                                     fig_title_pre_str=fig_title_pre_str,
-                                                     eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
-                                                     units=units,  # Units in string format for every entry of eval_columns
-                                                     it_parameters=it_parameters,  # Algorithm parameters to evaluate
-                                                     partitions=['th'],  # Data properties to calculate results separately
-                                                     xy_axis_columns=['nrCorrs_GT'],  # x-axis column name
-                                                     filter_func=filter_nr_kps,
-                                                     filter_func_args=None,
-                                                     special_calcs_func=estimate_alg_time_fixed_kp_for_3_props,
-                                                     special_calcs_args=special_calcs_args,
-                                                     calc_func=calc_Time_Model,
-                                                     calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
-                                                     fig_type='surface',
-                                                     use_marks=True,
-                                                     ctrl_fig_size=True,
-                                                     make_fig_index=True,
-                                                     build_pdf=True,
-                                                     figs_externalize=True)
+            if eval_nr < 0:
+                evals = list(range(7, 15)) + [36]
+            else:
+                evals = [eval_nr]
+            for ev in evals:
+                if ev == 7:
+                    fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'USAC_opt_search_ops_th'}
+                    from usac_eval import get_best_comb_and_th_1
+                    return calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['th'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_and_th_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 8:
+                    fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'USAC_opt_search_ops_inlrat'}
+                    from usac_eval import get_best_comb_inlrat_1
+                    return calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 9:
+                    fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (False, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'USAC_opt_search_ops_kpAccSd_th',
+                                          'func_name': 'get_best_comb_and_th_for_kpacc_1'}
+                    from usac_eval import get_best_comb_and_th_for_inlrat_1
+                    return calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['th', 'kpAccSd'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_and_th_for_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 10:
+                    fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (False, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'USAC_opt_search_ops_inlrat_th'}
+                    from usac_eval import get_best_comb_and_th_for_inlrat_1
+                    return calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['th', 'inlratMin'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_and_th_for_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=False,
+                                                  figs_externalize=True)
+                elif ev == 36:
+                    fig_title_pre_str = 'Values of Inlier Ratio Differences for USAC Option Combinations of '
+                    eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                    units = [('inlRat_diff', '')]
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'USAC_opt_search_min_inlrat_diff'}
+                    from usac_eval import get_inlrat_diff, get_min_inlrat_diff
+                    return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_USAC_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['th'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_min_inlrat_diff,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=get_inlrat_diff,
+                                                             calc_func_args=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 11:
+                    fig_title_pre_str = 'Values of R\\&t Differences for USAC Option Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpDistr', 'th']  # th must be at the end
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True}
+                    from usac_eval import get_best_comb_th_scenes_1
+                    return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_USAC_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_th_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True)
+                elif ev == 12:
+                    fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+                    eval_columns = ['robEstimationAndRef_us']
+                    units = []
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'smooth',
+                                          'nr_target_kps': 1000,
+                                          't_data_separators': ['inlratMin'],
+                                          'res_par_name': 'USAC_opt_search_min_time'}
+                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+                    return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['nrCorrs_GT'],
+                                                  filter_func=filter_nr_kps,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=estimate_alg_time_fixed_kp,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=calc_Time_Model,
+                                                  calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=False,
+                                                  figs_externalize=True)
+                elif ev == 13:
+                    fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+                    eval_columns = ['robEstimationAndRef_us']
+                    units = []
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_props
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'smooth',
+                                          'nr_target_kps': 1000,
+                                          't_data_separators': ['inlratMin', 'th'],
+                                          'res_par_name': 'USAC_opt_search_min_time_inlrat_th'}
+                    return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_USAC_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['th'],  # Data properties to calculate results separately
+                                                             x_axis_column=['nrCorrs_GT'],  # x-axis column name
+                                                             filter_func=filter_nr_kps,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=estimate_alg_time_fixed_kp_for_props,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_Time_Model,
+                                                             calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=False)
+                elif ev == 14:
+                    fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
+                    eval_columns = ['robEstimationAndRef_us']
+                    units = []
+                    # it_parameters = ['USAC_parameters_automaticSprtInit',
+                    #                  'USAC_parameters_automaticProsacParameters',
+                    #                  'USAC_parameters_prevalidateSample',
+                    #                  'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp_for_3_props
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': (True, False),
+                                          'fig_type': ('surface', 'xbar'),
+                                          'nr_target_kps': 1000,
+                                          't_data_separators': ['kpAccSd', 'inlratMin', 'th'],
+                                          'accum_step_props': ['inlratMin', 'kpAccSd'],
+                                          'eval_minmax_for': 'th',
+                                          'res_par_name': 'USAC_opt_search_min_time_kpAccSd_inlrat_th'}
+                    return calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_USAC_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['th'],  # Data properties to calculate results separately
+                                                             xy_axis_columns=['nrCorrs_GT'],  # x-axis column name
+                                                             filter_func=filter_nr_kps,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=estimate_alg_time_fixed_kp_for_3_props,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_Time_Model,
+                                                             calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                else:
+                    raise ValueError('Eval nr does not exist')
+            else:
+                raise ValueError('Test nr does not exist')
+    elif test_name == 'usac_vs_ransac':
+        if eval_nr < 0:
+            evals = list(range(1, 8))
+        else:
+            evals = [eval_nr]
+        for ev in evals:
+            if ev == 1:
+                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'USAC_vs_RANSAC_th'}
+                from usac_eval import get_best_comb_and_th_1
+                return calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['th'],
+                                              pdfsplitentry=['t_distDiff'],
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=get_best_comb_and_th_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
+            elif ev == 2:
+                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'USAC_vs_RANSAC_inlrat'}
+                from usac_eval import get_best_comb_inlrat_1
+                return calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['inlratMin'],
+                                              pdfsplitentry=['t_distDiff'],
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=get_best_comb_inlrat_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
+            elif ev == 3:
+                fig_title_pre_str = 'Values of R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                special_calcs_args = {'build_pdf': (False, True),
+                                      'use_marks': True,
+                                      'fig_type': 'surface',
+                                      'res_par_name': 'USAC_vs_RANSAC_inlrat_th'}
+                from usac_eval import get_best_comb_and_th_for_inlrat_1
+                return calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              xy_axis_columns=['th', 'inlratMin'],
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=get_best_comb_and_th_for_inlrat_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              fig_type='surface',
+                                              use_marks=True,
+                                              ctrl_fig_size=False,
+                                              make_fig_index=True,
+                                              build_pdf=False,
+                                              figs_externalize=True)
+            elif ev == 7:
+                fig_title_pre_str = 'Values of Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                partitions = ['depthDistr', 'kpAccSd']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'USAC_vs_RANSAC_min_inlrat_diff'}
+                from usac_eval import get_inlrat_diff, get_min_inlrat_diff
+                return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         partitions=partitions,
+                                                         x_axis_column=['th'],
+                                                         filter_func=None,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=get_min_inlrat_diff,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=get_inlrat_diff,
+                                                         calc_func_args=None,
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=True)
+            elif ev == 4:
+                fig_title_pre_str = 'Values of R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
+                special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
+                from usac_eval import get_best_comb_th_scenes_1
+                return calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         partitions=partitions,
+                                                         x_axis_column=['inlratMin'],
+                                                         filter_func=None,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=get_best_comb_th_scenes_1,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=False,
+                                                         figs_externalize=True)
+            elif ev == 5:
+                fig_title_pre_str = 'Temporal Behaviour for Comparison of '
+                eval_columns = ['robEstimationAndRef_us']
+                units = []
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'fig_type': 'smooth',
+                                      'nr_target_kps': 1000,
+                                      't_data_separators': ['inlratMin'],
+                                      'res_par_name': 'USAC_vs_RANSAC_min_time'}
+                from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+                return calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              xy_axis_columns=['nrCorrs_GT'],
+                                              filter_func=filter_nr_kps,
+                                              filter_func_args=None,
+                                              special_calcs_func=estimate_alg_time_fixed_kp,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=calc_Time_Model,
+                                              calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                              fig_type='surface',
+                                              use_marks=True,
+                                              ctrl_fig_size=False,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
+            elif ev == 6:
+                fig_title_pre_str = 'Temporal Behaviour for Comparison of '
+                eval_columns = ['robEstimationAndRef_us']
+                units = []
+                # it_parameters = ['RobMethod']
+                it_parameters = ['USAC_parameters_estimator']
+                from usac_eval import filter_nr_kps, calc_Time_Model
+                return calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                         units=units,  # Units in string format for every entry of eval_columns
+                                                         it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                         partitions=['th'],  # Data properties to calculate results separately
+                                                         x_axis_column=['nrCorrs_GT'],  # x-axis column name
+                                                         filter_func=filter_nr_kps,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=calc_Time_Model,
+                                                         calc_func_args={'data_separators': ['inlRatMin', 'th']},
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+            else:
+                raise ValueError('Eval nr does not exist')
 
 
 if __name__ == "__main__":
