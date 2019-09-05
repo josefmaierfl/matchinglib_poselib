@@ -1627,12 +1627,18 @@ def calc_Time_Model(**vars):
     data_new = pd.DataFrame(data_new)
     eval_columns = ['score', 'fixed_time', 'linear_time']
     eval_cols_lname = ['score $R^{2}$', 'fixed time $t_{f}$', 'time per keypoint $t_{n}$']
-    eval_cols_log_scaling = [False, True, True]
+    eval_cols_log_scaling = [False]#, True, True]
+    eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['fixed_time'].min())) -
+                                                np.log10(np.abs(data_new['fixed_time'].max()))) > 1 else False)
+    eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['linear_time'].min())) -
+                                                np.log10(np.abs(data_new['linear_time'].max()))) > 1 else False)
     units = [('score', ''), ('fixed_time', '/$\\mu s$'), ('linear_time', '/$\\mu s$')]
     if model_type[0]['type'] == 1:
         eval_columns += ['squared_time']
         eval_cols_lname += ['quadratic time coefficient $t_{n^{2}}$']
-        eval_cols_log_scaling += [True]
+        #eval_cols_log_scaling += [True]
+        eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['squared_time'].min())) -
+                                                    np.log10(np.abs(data_new['squared_time'].max()))) > 1 else False)
         units += [('squared_time', '')]
     ret = {'data': data_new,
            'it_parameters': vars['it_parameters'],
@@ -2457,8 +2463,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp1mean.columns = index_new11
     tmp1mean.reset_index(inplace=True)
     all_vals = tmp1mean.drop(first_grp2, axis=1).stack().reset_index()
-    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
-    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log1 = True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False
 
     tmp2mean.set_index(vars['it_parameters'], inplace=True)
@@ -2471,8 +2477,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp2mean.columns = index_new21
     tmp2mean.reset_index(inplace=True)
     all_vals = tmp2mean.drop(second_grp2, axis=1).stack().reset_index()
-    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
-    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log2 = True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False
 
     vars = prepare_io(**vars)
@@ -2606,8 +2612,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp1mean_min.reset_index(inplace=True)
     time_on1 = [a for a in first_grp2 if a != vars['eval_minmax_for']][0]
     all_vals = tmp1mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
-    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
-    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
@@ -2622,8 +2628,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4.append([a for a in tmp1mean_max.columns if col_name not in a])
     tmp1mean_max.reset_index(inplace=True)
     all_vals = tmp1mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
-    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
-    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
@@ -2639,8 +2645,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp2mean_min.reset_index(inplace=True)
     time_on2 = [a for a in second_grp2 if a != vars['eval_minmax_for']][0]
     all_vals = tmp2mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
-    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
-    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
@@ -2655,8 +2661,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4.append([a for a in tmp2mean_max.columns if col_name not in a])
     tmp2mean_max.reset_index(inplace=True)
     all_vals = tmp2mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
-    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min()
-    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max()
+    min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
+    max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     t_main_name1 = 'time_on_' + time_on1 +\
@@ -2821,49 +2827,53 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
     index_new13 = ['-'.join(a) for a in tmp12_min.index]
     tmp12_min.index = index_new13
+    tmp12_min['pars_tex'] = insert_opt_lbreak(index_new13)
     tmp12_min.index.name = index_name
     meta_col4.append('-'.join(first_grp2))
     tmp12_min[meta_col4[-1]] = tmp12_min.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
     tmp12_min.drop(first_grp2, axis=1, inplace=True)
     meta_col4.append(meta_col4[-1])
-    min_val = tmp12_min[col_name].min()
-    max_val = tmp12_min[col_name].max()
+    min_val = np.abs(tmp12_min[col_name].min())
+    max_val = np.abs(tmp12_min[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
-    index_new14 = ['-'.join(a) for a in tmp12_min.index]
+    index_new14 = ['-'.join(a) for a in tmp12_max.index]
     tmp12_max.index = index_new14
+    tmp12_max['pars_tex'] = insert_opt_lbreak(index_new14)
     tmp12_max.index.name = index_name
     tmp12_max[meta_col4[-1]] = tmp12_max.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_max.loc[:, first_grp2[1]].apply(lambda x: str(x))
     tmp12_max.drop(first_grp2, axis=1, inplace=True)
-    min_val = tmp12_max[col_name].min()
-    max_val = tmp12_max[col_name].max()
+    min_val = np.abs(tmp12_max[col_name].min())
+    max_val = np.abs(tmp12_max[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
     index_new23 = ['-'.join(a) for a in tmp22_min.index]
     tmp22_min.index = index_new23
+    tmp22_min['pars_tex'] = insert_opt_lbreak(index_new23)
     tmp22_min.index.name = index_name
     meta_col4.append('-'.join(second_grp2))
     tmp22_min[meta_col4[-1]] = tmp22_min.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
     tmp22_min.drop(second_grp2, axis=1, inplace=True)
     meta_col4.append(meta_col4[-1])
-    min_val = tmp22_min[col_name].min()
-    max_val = tmp22_min[col_name].max()
+    min_val = np.abs(tmp22_min[col_name].min())
+    max_val = np.abs(tmp22_min[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
     index_new24 = ['-'.join(a) for a in tmp22_max.index]
     tmp22_max.index = index_new24
+    tmp22_max['pars_tex'] = insert_opt_lbreak(index_new24)
     tmp22_max.index.name = index_name
     tmp22_max[meta_col4[-1]] = tmp22_max.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_max.loc[:, second_grp2[1]].apply(lambda x: str(x))
     tmp22_max.drop(second_grp2, axis=1, inplace=True)
-    min_val = tmp22_max[col_name].min()
-    max_val = tmp22_max[col_name].max()
+    min_val = np.abs(tmp22_max[col_name].min())
+    max_val = np.abs(tmp22_max[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     t_main_name1 = 'time_on_' + meta_col4[0] + \
@@ -2983,10 +2993,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
                                       'label_x': 'Parameter combination',
                                       # Column name of axis with bars. For xbar it is the column for the y-axis
-                                      'print_x': index_name,
+                                      'print_x': 'pars_tex',
                                       # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                       'print_meta': True,
-                                      'plot_meta': meta_col4[i],
+                                      'plot_meta': [meta_col4[i]],
                                       # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
                                       'rotate_meta': 0,
                                       'limits': None,
@@ -3029,7 +3039,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     min1_t = tmp12_min.loc[[tmp12_min[col_name].idxmin()]].reset_index()
-    min2_t = tmp22_min.loc[[tmp12_min[col_name].idxmin()]].reset_index()
+    min2_t = tmp22_min.loc[[tmp22_min[col_name].idxmin()]].reset_index()
 
     main_parameter_name = vars['res_par_name']
     # Check if file and parameters exist

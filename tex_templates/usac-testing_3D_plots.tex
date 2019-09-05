@@ -141,6 +141,10 @@ z=\VAR{ fig }
 \end{figure}
 \BLOCK{ endif }
 
+\BLOCK{ if not loop.last }
+\newpage
+\BLOCK{ endif }
+
 \BLOCK{ endfor }
 \BLOCK{ if not loop.last }
 \newpage
