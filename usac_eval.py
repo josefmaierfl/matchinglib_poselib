@@ -111,7 +111,11 @@ def pars_calc_single_fig_partitions(**keywords):
     nr_partitions = len(ret['partitions'])
     ret['it_parameters'] = ret['grp_names'][nr_partitions:-1]
     nr_it_parameters = len(ret['it_parameters'])
-    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
+    from statistics_and_plot import tex_string_coding_style, \
+        compile_tex, \
+        calcNrLegendCols, \
+        replaceCSVLabels, \
+        add_to_glossary
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True)
@@ -189,6 +193,7 @@ def pars_calc_single_fig_partitions(**keywords):
             gloss_calced = True
             if ret['gloss']:
                 tex_infos['abbreviations'] = ret['gloss']
+        tex_infos['abbreviations'] = add_to_glossary(tmp2.index[0], tex_infos['abbreviations'])
         tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
         tmp2.columns.name = '-'.join(ret['it_parameters'])
         dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
@@ -209,10 +214,14 @@ def pars_calc_single_fig_partitions(**keywords):
         stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
         # figure types: sharp plot, smooth, const plot, ybar, xbar
         use_limits = {'miny': None, 'maxy': None}
-        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+        if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+        else:
+            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
         reltex_name = os.path.join(ret['rel_data_path'], b_name)
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': 'Combined R \\& t errors vs ' +
@@ -352,10 +361,14 @@ def pars_calc_single_fig(**keywords):
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
-    if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-        use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-    if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-        use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+    else:
+        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': 'Combined R \\& t errors vs ' +
@@ -403,7 +416,7 @@ def pars_calc_single_fig(**keywords):
 
 
 def pars_calc_multiple_fig(**keywords):
-    if len(keywords) < 4 or len(keywords) > 7:
+    if len(keywords) < 4 or len(keywords) > 8:
         raise ValueError('Wrong number of arguments for function pars_calc_multiple_fig')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_multiple_fig')
@@ -1788,12 +1801,16 @@ def estimate_alg_time_fixed_kp(**vars):
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
-    if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-        use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-    if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-        use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+    else:
+        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
-    fig_name = 'Mean execution times for parameter ariations of\\\\' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
+    fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
                replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     tex_infos['sections'].append({'file': reltex_name,
@@ -3098,7 +3115,7 @@ def get_inlrat_diff(**vars):
 def get_min_inlrat_diff(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
-    if len(keywords) < 4 or len(keywords) > 6:
+    if len(keywords) < 4 or len(keywords) > 7:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig_partitions')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_single_fig_partitions')
@@ -3198,10 +3215,14 @@ def get_min_inlrat_diff(**keywords):
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
-    if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-        use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-    if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-        use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+    else:
+        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
     reltex_name = os.path.join(keywords['rel_data_path'], b_name)
     fig_name = 'Absolute mean inlier ratio differences vs ' + replaceCSVLabels(str(grp_names[-1]), True) + \
                ' for parameter variations of \\\\' + keywords['sub_title_it_pars']

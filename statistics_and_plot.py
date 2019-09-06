@@ -87,7 +87,7 @@ def compile_tex(rendered_tex,
                     print("Child pdflatex was terminated by signal", -retcode, file=sys.stderr)
                     retcode = 1
                 else:
-                    print("PDF generation successful with code ", retcode)
+                    print("PDF generation successful with code", retcode)
             except OSError as e:
                 print("Execution of pdflatex failed:", e, file=sys.stderr)
                 retcode = 1
@@ -186,6 +186,7 @@ def calcSatisticAndPlot_2D(data,
                            store_path,
                            tex_file_pre_str,
                            fig_title_pre_str,
+                           eval_description_path,
                            eval_columns,
                            units,
                            it_parameters,
@@ -247,8 +248,8 @@ def calcSatisticAndPlot_2D(data,
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
 
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                       '-'.join(map(str, x_axis_column)))
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, x_axis_column)))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -379,10 +380,15 @@ def calcSatisticAndPlot_2D(data,
                 continue
             #figure types: sharp plot, smooth, const plot, ybar, xbar
             use_limits = {'miny': None, 'maxy': None}
-            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+            else:
+                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': replace_stat_names(it[-1]) + ' values for ' +
@@ -461,6 +467,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                       store_path,
                                       tex_file_pre_str,
                                       fig_title_pre_str,
+                                      eval_description_path,
                                       eval_columns,#Column names for which statistics are calculated (y-axis)
                                       units,# Units in string format for every entry of eval_columns
                                       it_parameters,# Algorithm parameters to evaluate
@@ -525,13 +532,13 @@ def calcSatisticAndPlot_2D_partitions(data,
         df = data[needed_columns]
 
     if len(partitions) > 1:
-        store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                  '-'.join(map(str, x_axis_column)) + '_for_' +
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) +
+                                                  '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                                   '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
     else:
-        store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                      '-'.join(map(str, x_axis_column)) + '_for_' +
-                                      str(partitions))
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) +
+                                                  '_vs_' +'-'.join(map(str, x_axis_column)) + '_for_' +
+                                                  str(partitions))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -652,6 +659,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 idx_old = p
                 tmp2 = tmp1.loc[p]
+                part_props = deepcopy(tmp2.index[0])
                 part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
                 part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
                                tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
@@ -676,6 +684,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     gloss_calced = True
                     if gloss:
                         tex_infos['abbreviations'] = gloss
+                tex_infos['abbreviations'] = add_to_glossary(part_props, tex_infos['abbreviations'])
                 tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
                 tmp2.columns.name = '-'.join(it_parameters)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
@@ -696,10 +705,14 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 #figure types: sharp plot, smooth, const plot, ybar, xbar
                 use_limits = {'miny': None, 'maxy': None}
-                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+                if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+                else:
+                    if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+                        use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+                    if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                        use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
                 reltex_name = os.path.join(rel_data_path, dataf_name)
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': replace_stat_names(it[-1]) + ' values for ' +
@@ -781,6 +794,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                       store_path,
                                       tex_file_pre_str,
                                       fig_title_pre_str,
+                                      eval_description_path,
                                       eval_columns,#Column names for which statistics are calculated (y-axis)
                                       units,# Units in string format for every entry of eval_columns
                                       it_parameters,# Algorithm parameters to evaluate
@@ -848,7 +862,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)) + '_for_' +
                                               '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
     cnt = 1
@@ -1004,7 +1018,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                     partition_text_val_tmp[i][0][-1] = '='
                     partition_text_val_tmp[i][0] += str(grp[i]) + '$'
                 elif '}' == ptv[0][-1]:
-                    partition_text_val_tmp[i][0] += '=' + str(grp)
+                    partition_text_val_tmp[i][0] += '=' + str(grp[i])
                 else:
                     partition_text_val_tmp[i][0] += ' equal to ' + str(grp[i])
             partition_text_val1 = ''.join([''.join(a) for a in partition_text_val_tmp])
@@ -1028,6 +1042,10 @@ def calcFromFuncAndPlot_2D_partitions(data,
             gloss_calced = True
             if gloss:
                 tex_infos['abbreviations'] = gloss
+        if len(partitions) > 1:
+            tex_infos['abbreviations'] = add_to_glossary(grp, tex_infos['abbreviations'])
+        else:
+            tex_infos['abbreviations'] = add_to_glossary([grp], tex_infos['abbreviations'])
         par_cols = ['-'.join(map(str, a)) for a in df1.columns]
         df1.columns = par_cols
         it_pars_cols_name = '-'.join(map(str, it_parameters))
@@ -1061,10 +1079,14 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 continue
             # figure types: sharp plot, smooth, const plot, ybar, xbar
             use_limits = {'miny': None, 'maxy': None}
-            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 3.291):
-                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
-            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
-                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
+            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+            else:
+                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 3.291):
+                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
+                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
+                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
             fig_name += '\\\\for '
@@ -1146,6 +1168,7 @@ def calcSatisticAndPlot_3D(data,
                            store_path,
                            tex_file_pre_str,
                            fig_title_pre_str,
+                           eval_description_path,
                            eval_columns,
                            units,
                            it_parameters,
@@ -1208,8 +1231,8 @@ def calcSatisticAndPlot_3D(data,
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
 
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                       '-'.join(map(str, xy_axis_columns)))
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, xy_axis_columns)))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -1326,7 +1349,7 @@ def calcSatisticAndPlot_3D(data,
                 tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             #Construct tex-file information
-            stats_all = tmp.stack().reset_index()
+            stats_all = tmp.drop(tmp.columns.values[0:2], axis=1).stack().reset_index()
             stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
             if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
                 np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
@@ -1428,6 +1451,7 @@ def calcFromFuncAndPlot_3D(data,
                            store_path,
                            tex_file_pre_str,
                            fig_title_pre_str,
+                           eval_description_path,
                            eval_columns,
                            units,
                            it_parameters,
@@ -1491,8 +1515,8 @@ def calcFromFuncAndPlot_3D(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                                       '-'.join(map(str, xy_axis_columns)))
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, xy_axis_columns)))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -1705,6 +1729,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                       store_path,
                                       tex_file_pre_str,
                                       fig_title_pre_str,
+                                      eval_description_path,
                                       eval_columns,#Column names for which statistics are calculated (y-axis)
                                       units,# Units in string format for every entry of eval_columns
                                       it_parameters,# Algorithm parameters to evaluate
@@ -1771,9 +1796,9 @@ def calcFromFuncAndPlot_3D_partitions(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, '-'.join(map(str, it_parameters)) + '_vs_' +
-                                  '-'.join(map(str, xy_axis_columns)) + '_for_' +
-                                  '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, xy_axis_columns)) + '_for_' +
+                                              '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -1924,7 +1949,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                     partition_text_val_tmp[i][0][-1] = '='
                     partition_text_val_tmp[i][0] += str(grp[i]) + '$'
                 elif '}' == ptv[0][-1]:
-                    partition_text_val_tmp[i][0] += '=' + str(grp)
+                    partition_text_val_tmp[i][0] += '=' + str(grp[i])
                 else:
                     partition_text_val_tmp[i][0] += ' equal to ' + str(grp[i])
             partition_text_val1 = ''.join([''.join(a) for a in partition_text_val_tmp])
@@ -1948,6 +1973,10 @@ def calcFromFuncAndPlot_3D_partitions(data,
             gloss_calced = True
             if gloss:
                 tex_infos['abbreviations'] = gloss
+        if len(partitions) > 1:
+            tex_infos['abbreviations'] = add_to_glossary(grp, tex_infos['abbreviations'])
+        else:
+            tex_infos['abbreviations'] = add_to_glossary([grp], tex_infos['abbreviations'])
         par_cols = ['-'.join(map(str, a)) for a in df1.columns]
         df1.columns = par_cols
         it_pars_cols_name = '-'.join(map(str, it_parameters))
@@ -2569,6 +2598,26 @@ def getOptionDescription(key):
         return 'Cost function for refinement: Pseudo-Huber weights', True
     elif key == 'PR_NO_WEIGHTS':
         return 'Cost function for refinement: least squares', True
+    elif key == 'N':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: near range', True
+    elif key == 'M':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: mid range', True
+    elif key == 'F':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: far range', True
+    elif key == 'NM':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: near and mid range', True
+    elif key == 'MF':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: mid and far range', True
+    elif key == 'NF':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: near and far range', True
+    elif key == 'NMF':
+        return 'Depth range of visible 3D points in both stereo cameras based on baseline and focal length: near, mid, and far (full) range', True
+    elif key == '1corn':
+        return 'Correspondences are concentrated mainly in one corner of the image', True
+    elif key == 'half-img':
+        return 'Correspondences are equally distributed over half the image', True
+    elif key == 'equ':
+        return 'Correspondences are equally distributed over the whole image', True
     else:
         test_glossary = True
         if test_glossary:
@@ -2583,6 +2632,22 @@ def glossary_from_list(entries):
         des, found = getOptionDescription(elem)
         if found:
             gloss.append({'key': tex_string_coding_style(elem), 'description': des})
+    return gloss
+
+def add_to_glossary(entries, gloss):
+    mylist = list(dict.fromkeys(entries))
+    for elem in mylist:
+        elem_tex = tex_string_coding_style(elem)
+        found = False
+        for entry in gloss:
+            if entry['key'] == elem_tex:
+                found = True
+                break
+        if found:
+            continue
+        des, found = getOptionDescription(elem)
+        if found:
+            gloss.append({'key': elem_tex, 'description': des})
     return gloss
 
 
@@ -2646,18 +2711,18 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'testing_tests'
-    test_nr = 1
-    eval_nr = -1
+    test_nr = 2
+    eval_nr = [-1]
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
         if test_nr == 1:
-            if eval_nr < 0:
+            if eval_nr[0] < 0:
                 evals = list(range(1, 7))
             else:
-                evals = [eval_nr]
+                evals = eval_nr
             for ev in evals:
                 if ev == 1:
                     fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
@@ -2677,6 +2742,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -2712,6 +2778,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -2739,7 +2806,7 @@ def main():
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
-                    special_calcs_args = {'build_pdf': (False, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_refine_ops_inlrat_th'}
@@ -2748,6 +2815,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -2762,7 +2830,7 @@ def main():
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
                                                   make_fig_index=True,
-                                                  build_pdf=False,
+                                                  build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 4:
                     fig_title_pre_str = 'Values of R\\&t differences for USAC Option Combinations of '
@@ -2782,6 +2850,7 @@ def main():
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -2797,7 +2866,7 @@ def main():
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=False,
+                                                             build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 5:
                     fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
@@ -2816,6 +2885,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='time',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -2830,7 +2900,7 @@ def main():
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
                                                   make_fig_index=True,
-                                                  build_pdf=False,
+                                                  build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 6:
                     fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
@@ -2843,6 +2913,7 @@ def main():
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='time',
                                                              eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
                                                              units=units,  # Units in string format for every entry of eval_columns
                                                              it_parameters=it_parameters,  # Algorithm parameters to evaluate
@@ -2863,10 +2934,10 @@ def main():
                 else:
                     raise ValueError('Eval nr does not exist')
         elif test_nr == 2:
-            if eval_nr < 0:
+            if eval_nr[0] < 0:
                 evals = list(range(7, 15)) + [36]
             else:
-                evals = [eval_nr]
+                evals = eval_nr
             for ev in evals:
                 if ev == 7:
                     fig_title_pre_str = 'Statistics on R\\&t differences for USAC Option Combinations of '
@@ -2890,6 +2961,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -2929,6 +3001,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -2960,7 +3033,7 @@ def main():
                     #                  'USAC_parameters_USACInlratFilt']
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
-                    special_calcs_args = {'build_pdf': (False, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_search_ops_kpAccSd_th',
@@ -2970,6 +3043,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -3000,7 +3074,7 @@ def main():
                     #                  'USAC_parameters_USACInlratFilt']
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
-                    special_calcs_args = {'build_pdf': (False, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_search_ops_inlrat_th'}
@@ -3009,6 +3083,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -3023,7 +3098,7 @@ def main():
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
                                                   make_fig_index=True,
-                                                  build_pdf=False,
+                                                  build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 36:
                     fig_title_pre_str = 'Values of Inlier Ratio Differences for USAC Option Combinations of '
@@ -3045,6 +3120,7 @@ def main():
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='inlRat-diff',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -3085,6 +3161,7 @@ def main():
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -3100,7 +3177,7 @@ def main():
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=False,
+                                                             build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 12:
                     fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
@@ -3123,6 +3200,7 @@ def main():
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='time',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -3137,7 +3215,7 @@ def main():
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
                                                   make_fig_index=True,
-                                                  build_pdf=False,
+                                                  build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 13:
                     fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
@@ -3160,6 +3238,7 @@ def main():
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='time',
                                                              eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
                                                              units=units,  # Units in string format for every entry of eval_columns
                                                              it_parameters=it_parameters,  # Algorithm parameters to evaluate
@@ -3200,6 +3279,7 @@ def main():
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='time',
                                                              eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
                                                              units=units,  # Units in string format for every entry of eval_columns
                                                              it_parameters=it_parameters,  # Algorithm parameters to evaluate
@@ -3219,13 +3299,13 @@ def main():
                                                              figs_externalize=True)
                 else:
                     raise ValueError('Eval nr does not exist')
-            else:
-                raise ValueError('Test nr does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
     elif test_name == 'usac_vs_ransac':
-        if eval_nr < 0:
+        if eval_nr[0] < 0:
             evals = list(range(1, 8))
         else:
-            evals = [eval_nr]
+            evals = eval_nr
         for ev in evals:
             if ev == 1:
                 fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
@@ -3245,6 +3325,7 @@ def main():
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -3280,6 +3361,7 @@ def main():
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -3307,7 +3389,7 @@ def main():
                          ('t_diff_ty', ''), ('t_diff_tz', '')]
                 # it_parameters = ['RobMethod']
                 it_parameters = ['USAC_parameters_estimator']
-                special_calcs_args = {'build_pdf': (False, True),
+                special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': True,
                                       'fig_type': 'surface',
                                       'res_par_name': 'USAC_vs_RANSAC_inlrat_th'}
@@ -3316,6 +3398,7 @@ def main():
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -3330,7 +3413,7 @@ def main():
                                               use_marks=True,
                                               ctrl_fig_size=False,
                                               make_fig_index=True,
-                                              build_pdf=False,
+                                              build_pdf=True,
                                               figs_externalize=True)
             elif ev == 7:
                 fig_title_pre_str = 'Values of Inlier Ratio Differences for Comparison of '
@@ -3348,6 +3431,7 @@ def main():
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='inlRat-diff',
                                                          eval_columns=eval_columns,
                                                          units=units,
                                                          it_parameters=it_parameters,
@@ -3383,6 +3467,7 @@ def main():
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='RT-stats',
                                                          eval_columns=eval_columns,
                                                          units=units,
                                                          it_parameters=it_parameters,
@@ -3398,7 +3483,7 @@ def main():
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
                                                          make_fig_index=True,
-                                                         build_pdf=False,
+                                                         build_pdf=True,
                                                          figs_externalize=True)
             elif ev == 5:
                 fig_title_pre_str = 'Temporal Behaviour for Comparison of '
@@ -3417,6 +3502,7 @@ def main():
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='time',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -3444,6 +3530,7 @@ def main():
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
                                                          eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
                                                          units=units,  # Units in string format for every entry of eval_columns
                                                          it_parameters=it_parameters,  # Algorithm parameters to evaluate

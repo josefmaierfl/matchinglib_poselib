@@ -117,10 +117,10 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
             calcFromFuncAndPlot_2D_partitions, \
             calcFromFuncAndPlot_3D_partitions
         if test_nr == 1:
-            if eval_nr < 0:
+            if eval_nr[0] < 0:
                 evals = list(range(1, 7))
             else:
-                evals = [eval_nr]
+                evals = eval_nr
             for ev in evals:
                 if ev == 1:
                     fig_title_pre_str = 'Statistics on R\\&t Differences for USAC Option Combinations of '
@@ -140,6 +140,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -175,6 +176,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -202,7 +204,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
-                    special_calcs_args = {'build_pdf': (False, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_refine_ops_inlrat_th'}
@@ -211,6 +213,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -225,7 +228,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
                                                   make_fig_index=True,
-                                                  build_pdf=False,
+                                                  build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 4:
                     fig_title_pre_str = 'Values of R\\&t Differences for USAC Option Combinations of '
@@ -245,6 +248,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -260,7 +264,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=False,
+                                                             build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 5:
                     fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
@@ -279,6 +283,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='time',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -306,6 +311,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='time',
                                                              # Column names for which statistics are calculated (y-axis)
                                                              eval_columns=eval_columns,
                                                              # Units in string format for every entry of eval_columns
@@ -331,10 +337,10 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                 else:
                     raise ValueError('Eval nr does not exist')
         elif test_nr == 2:
-            if eval_nr < 0:
+            if eval_nr[0] < 0:
                 evals = list(range(7, 15)) + [36]
             else:
-                evals = [eval_nr]
+                evals = eval_nr
             for ev in evals:
                 if ev == 7:
                     fig_title_pre_str = 'Statistics on R\\&t Differences for USAC Option Combinations of '
@@ -356,6 +362,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -393,6 +400,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -422,7 +430,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                      'USAC_parameters_automaticProsacParameters',
                                      'USAC_parameters_prevalidateSample',
                                      'USAC_parameters_USACInlratFilt']
-                    special_calcs_args = {'build_pdf': (False, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_search_ops_kpAccSd_th',
@@ -432,6 +440,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -460,7 +469,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                      'USAC_parameters_automaticProsacParameters',
                                      'USAC_parameters_prevalidateSample',
                                      'USAC_parameters_USACInlratFilt']
-                    special_calcs_args = {'build_pdf': (False, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_search_ops_inlrat_th'}
@@ -469,6 +478,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -483,7 +493,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
                                                   make_fig_index=True,
-                                                  build_pdf=False,
+                                                  build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 36:
                     fig_title_pre_str = 'Values of Inlier Ratio Differences for USAC Option Combinations of '
@@ -503,6 +513,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='inlRat-diff',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -541,6 +552,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -556,7 +568,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=False,
+                                                             build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 12:
                     fig_title_pre_str = 'Temporal Behaviour for USAC Option Combinations of '
@@ -576,6 +588,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='time',
                                                   eval_columns=eval_columns,
                                                   units=units,
                                                   it_parameters=it_parameters,
@@ -611,6 +624,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='time',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -649,6 +663,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='time',
                                                              eval_columns=eval_columns,
                                                              units=units,
                                                              it_parameters=it_parameters,
@@ -664,7 +679,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=False,
+                                                             build_pdf=True,
                                                              figs_externalize=True)
                 else:
                     raise ValueError('Eval nr does not exist')
@@ -676,10 +691,10 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
             calcSatisticAndPlot_2D_partitions, \
             calcFromFuncAndPlot_3D, \
             calcFromFuncAndPlot_2D_partitions
-        if eval_nr < 0:
+        if eval_nr[0] < 0:
             evals = list(range(1, 8))
         else:
-            evals = [eval_nr]
+            evals = eval_nr
         for ev in evals:
             if ev == 1:
                 fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
@@ -698,6 +713,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -732,6 +748,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -758,7 +775,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                          ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                          ('t_diff_ty', ''), ('t_diff_tz', '')]
                 it_parameters = ['RobMethod']
-                special_calcs_args = {'build_pdf': (False, True),
+                special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': True,
                                       'fig_type': 'surface',
                                       'res_par_name': 'USAC_vs_RANSAC_inlrat_th'}
@@ -767,6 +784,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -781,7 +799,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               use_marks=True,
                                               ctrl_fig_size=False,
                                               make_fig_index=True,
-                                              build_pdf=False,
+                                              build_pdf=True,
                                               figs_externalize=True)
             elif ev == 7:
                 fig_title_pre_str = 'Values of Inlier Ratio Differences for Comparison of '
@@ -798,6 +816,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='inlRat-diff',
                                                          eval_columns=eval_columns,
                                                          units=units,
                                                          it_parameters=it_parameters,
@@ -832,6 +851,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='RT-stats',
                                                          eval_columns=eval_columns,
                                                          units=units,
                                                          it_parameters=it_parameters,
@@ -847,7 +867,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
                                                          make_fig_index=True,
-                                                         build_pdf=False,
+                                                         build_pdf=True,
                                                          figs_externalize=True)
             elif ev == 5:
                 fig_title_pre_str = 'Temporal Behaviour for Comparison of '
@@ -865,6 +885,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='time',
                                               eval_columns=eval_columns,
                                               units=units,
                                               it_parameters=it_parameters,
@@ -891,6 +912,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
                                                          eval_columns=eval_columns,
                                                          units=units,
                                                          it_parameters=it_parameters,
@@ -910,6 +932,55 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          figs_externalize=False)
             else:
                 raise ValueError('Eval nr does not exist')
+    elif test_name == 'refinement_ba':
+        from statistics_and_plot import calcSatisticAndPlot_2D, \
+            calcSatisticAndPlot_3D, \
+            calcSatisticAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_3D, \
+            calcFromFuncAndPlot_2D_partitions
+        if test_nr == 1:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 4))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for different  '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction',
+                                     'BART']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refineRT_BA_opts_inlrat'}
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
 
     return ret
 
@@ -946,12 +1017,12 @@ def main():
     parser.add_argument('--test_nr', type=int, required=False,
                         help='Main test number within the main test specified by test_name starting with 1. '
                              'test_name=\'USAC-testing\' e.g. offers 2 tests with a lot of sub-tests for each of them')
-    parser.add_argument('--eval_nr', type=int, required=False, default=-1,
+    parser.add_argument('--eval_nr', type=int, nargs='*', default=[-1],
                         help='Evaluation number within test_nr starting with 1. test_name=\'USAC-testing\' '
                              'with test_nr=1 offers e.g. 15 different evaluations. The description and number for '
                              'each evaluation can be found in Autocalibration-Parametersweep-Testing.xlsx. '
                              'If a value of -1 [default] is provided, all evaluations are performed for a given '
-                             'test_name and test_nr.')
+                             'test_name and test_nr. Also, multiple numbers can be specified.')
     args = parser.parse_args()
 
     if not os.path.exists(args.path):
