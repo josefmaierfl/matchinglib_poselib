@@ -76,18 +76,39 @@ mesh/cols=\VAR{sec['mesh_cols']},
 \BLOCK{ if sec['fig_type'] == 'surf-interior' }
 mesh/interior colormap name=hot,
 colormap/blackwhite,
+colorbar,
 \BLOCK{ elif sec['fig_type'] == 'surface' or sec['fig_type'] == 'surface-contour' }
 %small,
 view={0}{90},
 colormap/hot,
-\BLOCK{ else }
-colormap/hot,
-\BLOCK{ endif }
 colorbar,
 \BLOCK{ if sec['use_log_z_axis'] }
 %zmode=log,%
 %colorbar style={yticklabel=\pgfmathparse{10^\tick}\pgfmathprintnumber\pgfmathresult},%
-colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false},
+\BLOCK{ if sec['diff_z_labels'] }
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z'][loop.index0]}},
+\BLOCK{ else }
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z']}},
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['diff_z_labels'] }
+colorbar style={ylabel=\VAR{sec['label_z'][loop.index0]}},
+\BLOCK{ else }
+colorbar style={ylabel=\VAR{sec['label_z']}},
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ else }
+colormap/hot,
+colorbar,
+\BLOCK{ if sec['use_log_z_axis'] }
+%zmode=log,%
+%colorbar style={yticklabel=\pgfmathparse{10^\tick}\pgfmathprintnumber\pgfmathresult},%
+\BLOCK{ if sec['diff_z_labels'] }
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z'][loop.index0]}},
+\BLOCK{ else }
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z']}},
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if not sec['use_marks'] and sec['fig_type'] != 'scatter' and sec['fig_type'] !='mesh-scatter' }
 no markers,

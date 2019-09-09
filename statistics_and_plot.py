@@ -357,15 +357,16 @@ def calcSatisticAndPlot_2D(data,
                 gloss_calced = True
                 if gloss:
                     tex_infos['abbreviations'] = gloss
-            tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
-            tmp.columns.name = '-'.join(grp_names[0:-1])
+            if len(it_parameters) > 1:
+                tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
+                tmp.columns.name = '-'.join(grp_names[0:-1])
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                        str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
-                f.write('# Column parameters: ' + '-'.join(grp_names[0:-1]) + '\n')
+                f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             #Construct tex-file
@@ -685,8 +686,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                     if gloss:
                         tex_infos['abbreviations'] = gloss
                 tex_infos['abbreviations'] = add_to_glossary(part_props, tex_infos['abbreviations'])
-                tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
-                tmp2.columns.name = '-'.join(it_parameters)
+                if len(it_parameters) > 1:
+                    tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
+                    tmp2.columns.name = '-'.join(it_parameters)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                              str(grp_names[-1]) + '_for_' + part_name.replace('.','d') + '.csv'
                 dataf_name = dataf_name.replace('%', 'perc')
@@ -1046,10 +1048,13 @@ def calcFromFuncAndPlot_2D_partitions(data,
             tex_infos['abbreviations'] = add_to_glossary(grp, tex_infos['abbreviations'])
         else:
             tex_infos['abbreviations'] = add_to_glossary([grp], tex_infos['abbreviations'])
-        par_cols = ['-'.join(map(str, a)) for a in df1.columns]
-        df1.columns = par_cols
-        it_pars_cols_name = '-'.join(map(str, it_parameters))
-        df1.columns.name = it_pars_cols_name
+        if len(it_parameters) > 1:
+            par_cols = ['-'.join(map(str, a)) for a in df1.columns]
+            df1.columns = par_cols
+            it_pars_cols_name = '-'.join(map(str, it_parameters))
+            df1.columns.name = it_pars_cols_name
+        else:
+            it_pars_cols_name = it_parameters[0]
         tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name]).unstack()
         par_cols1 = ['-'.join(map(str, a)) for a in tmp.columns]
         tmp.columns = par_cols1
@@ -1335,8 +1340,9 @@ def calcSatisticAndPlot_3D(data,
                 gloss_calced = True
                 if gloss:
                     tex_infos['abbreviations'] = gloss
-            tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
-            tmp.columns.name = '-'.join(grp_names[0:-2])
+            if len(it_parameters) > 1:
+                tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
+                tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
             nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
@@ -1345,7 +1351,7 @@ def calcSatisticAndPlot_3D(data,
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
-                f.write('# Column parameters: ' + '-'.join(grp_names[0:-2]) + '\n')
+                f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             #Construct tex-file information
@@ -1370,10 +1376,10 @@ def calcSatisticAndPlot_3D(data,
                                           'diff_z_labels': False,
                                           'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
                                           'plot_x': str(tmp.columns.values[1]),
-                                          'label_x': replace_stat_names(str(tmp.columns.values[1])) +
+                                          'label_x': replaceCSVLabels(str(tmp.columns.values[1])) +
                                                      findUnit(str(tmp.columns.values[1]), units),
                                           'plot_y': str(tmp.columns.values[0]),
-                                          'label_y': replace_stat_names(str(tmp.columns.values[0])) +
+                                          'label_y': replaceCSVLabels(str(tmp.columns.values[0])) +
                                                      findUnit(str(tmp.columns.values[0]), units),
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
                                           'use_marks': use_marks,
@@ -1977,10 +1983,13 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tex_infos['abbreviations'] = add_to_glossary(grp, tex_infos['abbreviations'])
         else:
             tex_infos['abbreviations'] = add_to_glossary([grp], tex_infos['abbreviations'])
-        par_cols = ['-'.join(map(str, a)) for a in df1.columns]
-        df1.columns = par_cols
-        it_pars_cols_name = '-'.join(map(str, it_parameters))
-        df1.columns.name = it_pars_cols_name
+        if len(it_parameters) > 1:
+            par_cols = ['-'.join(map(str, a)) for a in df1.columns]
+            df1.columns = par_cols
+            it_pars_cols_name = '-'.join(map(str, it_parameters))
+            df1.columns.name = it_pars_cols_name
+        else:
+            it_pars_cols_name = it_parameters[0]
         tmp = df1.T.drop(partitions, axis=1).reset_index()
         tmp = tmp.groupby(it_pars_cols_name)
         grp_keys_it = tmp.groups.keys()
@@ -2637,7 +2646,7 @@ def glossary_from_list(entries):
 def add_to_glossary(entries, gloss):
     mylist = list(dict.fromkeys(entries))
     for elem in mylist:
-        elem_tex = tex_string_coding_style(elem)
+        elem_tex = tex_string_coding_style(str(elem))
         found = False
         for entry in gloss:
             if entry['key'] == elem_tex:
@@ -2645,7 +2654,7 @@ def add_to_glossary(entries, gloss):
                 break
         if found:
             continue
-        des, found = getOptionDescription(elem)
+        des, found = getOptionDescription(str(elem))
         if found:
             gloss.append({'key': elem_tex, 'description': des})
     return gloss
@@ -2710,9 +2719,9 @@ def main():
     data['robEstimationAndRef_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'testing_tests'
+    test_name = 'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = [-1]
+    eval_nr = list(range(4, 8))#[-1]
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':

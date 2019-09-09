@@ -109,7 +109,7 @@ def pars_calc_single_fig_partitions(**keywords):
     ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
     ret['grp_names'] = data.index.names
     nr_partitions = len(ret['partitions'])
-    ret['it_parameters'] = ret['grp_names'][nr_partitions:-1]
+    ret['it_parameters'] = keywords['it_parameters']#ret['grp_names'][nr_partitions:-1]
     nr_it_parameters = len(ret['it_parameters'])
     from statistics_and_plot import tex_string_coding_style, \
         compile_tex, \
@@ -171,6 +171,7 @@ def pars_calc_single_fig_partitions(**keywords):
         part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
         part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
                        tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
+        index_entries = [a for a in tmp2.index[0]]
         part_name_title = ''
         for i, val in enumerate(part_name_l):
             part_name_title += val
@@ -193,9 +194,10 @@ def pars_calc_single_fig_partitions(**keywords):
             gloss_calced = True
             if ret['gloss']:
                 tex_infos['abbreviations'] = ret['gloss']
-        tex_infos['abbreviations'] = add_to_glossary(tmp2.index[0], tex_infos['abbreviations'])
-        tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
-        tmp2.columns.name = '-'.join(ret['it_parameters'])
+        tex_infos['abbreviations'] = add_to_glossary(index_entries, tex_infos['abbreviations'])
+        if len(ret['it_parameters']) > 1:
+            tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
+            tmp2.columns.name = '-'.join(ret['it_parameters'])
         dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
         dataf_name = dataf_name_main_property + '.csv'
         b_name = 'data_RTerrors_vs_' + dataf_name
@@ -313,27 +315,29 @@ def pars_calc_single_fig(**keywords):
         pass
     ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
     ret['grp_names'] = data.index.names
-    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + '-'.join(ret['grp_names'][0:-1])
+    ret['it_parameters'] = keywords['it_parameters']
+    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + '-'.join(keywords['it_parameters'])
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].T
     from statistics_and_plot import glossary_from_list
-    if len(ret['grp_names'][0:-1]) > 1:
+    if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
+        ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
+        ret['b'].columns.name = '-'.join(keywords['it_parameters'])
     else:
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
-    ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
-    ret['b'].columns.name = '-'.join(ret['grp_names'][0:-1])
+
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined R & t errors vs ' + str(ret['grp_names'][-1]) + '\n')
-        f.write('# Parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
+        f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         ret['b'].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     ret['sub_title'] = ''
-    nr_it_parameters = len(ret['grp_names'][0:-1])
+    nr_it_parameters = len(keywords['it_parameters'])
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
-    for i, val in enumerate(ret['grp_names'][0:-1]):
+    for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -462,31 +466,32 @@ def pars_calc_multiple_fig(**keywords):
         pass
     ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
     ret['grp_names'] = data.index.names
+    ret['it_parameters'] = keywords['it_parameters']
     ret['dataf_name_main'] = ret['grp_names'][-2] + '_and_' + ret['grp_names'][-1] + \
-                             '_for_options_' + '-'.join(ret['grp_names'][0:-2])
+                             '_for_options_' + '-'.join(keywords['it_parameters'])
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].unstack()
     ret['b'] = ret['b'].T
     from statistics_and_plot import glossary_from_list
-    if len(ret['grp_names'][0:-2]) > 1:
+    if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
+        ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
+        ret['b'].columns.name = '-'.join(keywords['it_parameters'])
     else:
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
-    ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
-    ret['b'].columns.name = '-'.join(ret['grp_names'][0:-2])
     ret['b'] = ret['b'].reset_index()
     nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] + '\n')
-        f.write('# Parameters: ' + '-'.join(ret['grp_names'][0:-2]) + '\n')
+        f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         ret['b'].to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     ret['sub_title'] = ''
-    nr_it_parameters = len(ret['grp_names'][0:-2])
+    nr_it_parameters = len(keywords['it_parameters'])
     from statistics_and_plot import tex_string_coding_style, compile_tex, replaceCSVLabels
-    for i, val in enumerate(ret['grp_names'][0:-2]):
+    for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -520,9 +525,9 @@ def pars_calc_multiple_fig(**keywords):
                                   'diff_z_labels': False,
                                   'label_z': 'Combined R \\& t error',
                                   'plot_x': str(ret['b'].columns.values[1]),
-                                  'label_x': str(ret['b'].columns.values[1]),
+                                  'label_x': replaceCSVLabels(str(ret['b'].columns.values[1])),
                                   'plot_y': str(ret['b'].columns.values[0]),
-                                  'label_y': str(ret['b'].columns.values[0]),
+                                  'label_y': replaceCSVLabels(str(ret['b'].columns.values[0])),
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)[2:]],
                                   'use_marks': ret['use_marks'],
                                   'mesh_cols': nr_equal_ss,
@@ -598,7 +603,7 @@ def get_best_comb_and_th_1(**keywords):
     fb_best_name = os.path.join(ret['tdata_folder'], b_best_name)
     with open(fb_best_name, 'a') as f:
         f.write('# Best combined R & t errors and their ' + str(ret['grp_names'][-1]) + '\n')
-        f.write('# Row (column options) parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         b_best.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     b_worst_idx = ret['b'].idxmax(axis=0)
     b_worst_l = [[val, ret['b'].loc[val].iloc[i], ret['b'].columns[i], b_cols_tex[i]] for i, val in enumerate(b_worst_idx)]
@@ -607,10 +612,12 @@ def get_best_comb_and_th_1(**keywords):
     fb_worst_name = os.path.join(ret['tdata_folder'], b_worst_name)
     with open(fb_worst_name, 'a') as f:
         f.write('# Best combined R & t errors and their ' + str(ret['grp_names'][-1]) + '\n')
-        f.write('# Row (column options) parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         b_worst.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     #Get data for tex file generation
-    from statistics_and_plot import replaceCSVLabels
+    from statistics_and_plot import replaceCSVLabels, add_to_glossary
+    ret['gloss'] = add_to_glossary(b_best[ret['grp_names'][-1]].tolist(), ret['gloss'])
+    ret['gloss'] = add_to_glossary(b_worst[ret['grp_names'][-1]].tolist(), ret['gloss'])
     tex_infos = {'title': 'Best and Worst Combined R \\& t Errors and Their ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
@@ -701,10 +708,10 @@ def get_best_comb_and_th_1(**keywords):
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg_comb_best.split('-')
-        if len(ret['grp_names'][0:-1]) != len(alg_comb_bestl):
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
-        for i, val in enumerate(ret['grp_names'][0:-1]):
+        for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          'th_best': th_best,
@@ -731,7 +738,7 @@ def get_best_comb_inlrat_1(**keywords):
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean combined R & t errors over all ' + str(ret['grp_names'][-1]) + '\n')
-        f.write('# Row (column options) parameters: ' + '-'.join(ret['grp_names'][0:-1]) + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         b_mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     # Get data for tex file generation
     if len(ret['b'].columns) > 10:
@@ -792,10 +799,10 @@ def get_best_comb_inlrat_1(**keywords):
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg_best.split('-')
-        if len(ret['grp_names'][0:-1]) != len(alg_comb_bestl):
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
-        for i, val in enumerate(ret['grp_names'][0:-1]):
+        for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          'b_best_val': b_best}},
@@ -867,7 +874,7 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
+    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['it_parameters']))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
@@ -895,7 +902,7 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
                                    sections=tex_infos['sections'],
                                    fill_bar=True,
                                    abbreviations=tex_infos['abbreviations'])
-    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['grp_names'][0:-1]))
+    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['it_parameters']))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
@@ -934,7 +941,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                            ret['grp_names'][-2],
                                                            'b_min',
                                                            ret['b'].columns.name])
-    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style
+    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, add_to_glossary
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
                           replaceCSVLabels(str(ret['grp_names'][-2]), False, True) + ' for every ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
@@ -1011,6 +1018,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
     data_min[col_n] = data_min[[ret['b'].columns.name,
                                 ret['grp_names'][-2]]].apply(lambda x: ', '.join(map(str, x)).replace('_', '\\_'),
                                                              axis=1)
+    ret['gloss'] = add_to_glossary(data_min[ret['b'].columns.name].tolist(), ret['gloss'])
+    ret['gloss'] = add_to_glossary(data_min[ret['grp_names'][-2]].tolist(), ret['gloss'])
     data_min1 = data_min.drop([ret['b'].columns.name, ret['grp_names'][-2]], axis=1)
     dataf_name_main = 'data_' + ret['grp_names'][-1] + '_vs_b_min_and_corresponding_' + \
                       ret['grp_names'][-2] + '_and_used_option'
@@ -1104,10 +1113,10 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg.split('-')
-        if len(ret['grp_names'][0:-2]) != len(alg_comb_bestl):
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
-        for i, val in enumerate(ret['grp_names'][0:-2]):
+        for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          'th': th_mean,
@@ -1124,9 +1133,12 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp1 = b_mean.reset_index()
     tmp2 = tmp1.loc[tmp1.groupby(ret['partitions'][:-1] + ret['it_parameters'])['b_min'].idxmin(axis=0)]
     tmp2 = tmp2.set_index(ret['it_parameters'])
-    tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
-    it_pars_ov = '-'.join(ret['it_parameters'])
-    tmp2.index.name = it_pars_ov
+    if len(ret['it_parameters']) > 1:
+        tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
+        it_pars_ov = '-'.join(ret['it_parameters'])
+        tmp2.index.name = it_pars_ov
+    else:
+        it_pars_ov = ret['it_parameters'][0]
     tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
     tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
     partitions_ov = '-'.join(ret['partitions'][:-1])
@@ -1301,7 +1313,7 @@ def get_best_comb_th_scenes_1(**keywords):
                           ' and Properties ' + ret['sub_title_partitions'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
-                 'make_index': False,
+                 'make_index': True,
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
@@ -1702,67 +1714,26 @@ def estimate_alg_time_fixed_kp(**vars):
     tmp1 = tmp.loc[tmp.groupby(vars['t_data_separators'])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
     index_new = ['-'.join(a) for a in tmp1.index]
+    meta_data = [str(b) for a in tmp1.index for b in a]
     tmp1.index = index_new
     index_name = '-'.join(vars['it_parameters'])
     tmp1.index.name = index_name
     tmp1['pars_tex'] = insert_opt_lbreak(index_new)
+    min_val = tmp1[col_name].min()
+    max_val = tmp1[col_name].max()
+    use_log1 = True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False
 
     vars = prepare_io(**vars)
-    # if 'res_folder' not in vars:
-    #     raise ValueError('Missing res_folder argument of function estimate_alg_time_fixed_kp')
-    # res_folder = vars['res_folder']
-    # use_marks = False
-    # if 'use_marks' not in vars:
-    #     print('No information provided if marks should be used: Disabling marks')
-    # else:
-    #     use_marks = vars['use_marks']
-    # build_pdf = (False, True,)
-    # if 'build_pdf' in vars:
-    #     build_pdf = vars['build_pdf']
-    # if len(build_pdf) != 2:
-    #     raise ValueError('Wrong number of arguments for build_pdf')
-    # pdf_folder = None
-    # if build_pdf[0] or build_pdf[1]:
-    #     pdf_folder = os.path.join(res_folder, 'pdf')
-    #     try:
-    #         os.mkdir(pdf_folder)
-    #     except FileExistsError:
-    #         # print('Folder', ret['pdf_folder'], 'for storing pdf files already exists')
-    #         pass
-    # tex_folder = os.path.join(res_folder, 'tex')
-    # try:
-    #     os.mkdir(tex_folder)
-    # except FileExistsError:
-    #     # print('Folder', ret['tex_folder'], 'for storing tex files already exists')
-    #     pass
-    # tdata_folder = os.path.join(tex_folder, 'data')
-    # try:
-    #     os.mkdir(tdata_folder)
-    # except FileExistsError:
-    #     # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
-    #     pass
-    # rel_data_path = os.path.relpath(tdata_folder, tex_folder)
-    # nr_it_parameters = len(vars['it_parameters'])
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    # sub_title_it_pars = ''
-    # for i, val in enumerate(vars['it_parameters']):
-    #     sub_title_it_pars += replaceCSVLabels(val, True, True)
-    #     if nr_it_parameters <= 2:
-    #         if i < nr_it_parameters - 1:
-    #             sub_title_it_pars += ' and '
-    #     else:
-    #         if i < nr_it_parameters - 2:
-    #             sub_title_it_pars += ', '
-    #         elif i < nr_it_parameters - 1:
-    #             sub_title_it_pars += ', and '
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, add_to_glossary
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
     else:
         gloss = glossary_from_list([str(a) for a in tmp.columns])
+    gloss = add_to_glossary(meta_data, gloss)
     par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
     tmp.columns = par_cols
     it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
@@ -1799,6 +1770,7 @@ def estimate_alg_time_fixed_kp(**vars):
                  }
     stats_all = tmp.stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
     if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
@@ -1826,7 +1798,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
                                   'legend_cols': None,
                                   'use_marks': vars['use_marks'],
-                                  'use_log_y_axis': True
+                                  'use_log_y_axis': use_log
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots.tex')
@@ -1917,7 +1889,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'use_marks': False,
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
-                                  'use_log_y_axis': True,
+                                  'use_log_y_axis': use_log1,
                                   'large_meta_space_needed': True,
                                   'caption': caption
                                   })
@@ -2079,7 +2051,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2max = tmp1max.loc[tmp1max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, add_to_glossary
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     index_new1 = ['-'.join(a) for a in tmp1min.index]
     if len(vars['it_parameters']) > 1:
@@ -2096,6 +2068,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp1min.columns = comb_cols1
     val_axis_cols1 = [a for a in comb_cols1 if col_name in a]
     meta_cols1 = [a for a in comb_cols1 if vars['t_data_separators'][0] in a]
+    gloss = add_to_glossary(tmp1min[meta_cols1].stack().tolist(), gloss)
 
     tmp1max.set_index(vars['it_parameters'], inplace=True)
     index_new2 = ['-'.join(a) for a in tmp1max.index]
@@ -2108,6 +2081,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp1max.columns = comb_cols2
     val_axis_cols2 = [a for a in comb_cols2 if col_name in a]
     meta_cols2 = [a for a in comb_cols2 if vars['t_data_separators'][0] in a]
+    gloss = add_to_glossary(tmp1min[meta_cols1].stack().tolist(), gloss)
 
     vars = prepare_io(**vars)
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_vs_' + str(vars['t_data_separators'][1]) + \
@@ -2259,6 +2233,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     meta_col1 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
     tmp2min[meta_col1] = tmp2min.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
                          tmp2min.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
+    gloss = add_to_glossary(tmp2min[vars['t_data_separators']].stack().tolist(), gloss)
     tmp2min.drop(vars['t_data_separators'], axis=1, inplace=True)
 
     tmp2max.set_index(vars['it_parameters'], inplace=True)
@@ -2269,6 +2244,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     meta_col2 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
     tmp2max[meta_col2] = tmp2max.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
                          tmp2max.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
+    gloss = add_to_glossary(tmp2max[vars['t_data_separators']].stack().tolist(), gloss)
     tmp2max.drop(vars['t_data_separators'], axis=1, inplace=True)
 
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_and_' + str(vars['t_data_separators'][1]) + \
@@ -2464,6 +2440,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max = tmp2mean_max.loc[tmp2mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
+    from statistics_and_plot import add_to_glossary
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list
     if len(vars['it_parameters']) > 1:
@@ -2627,6 +2604,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp1mean_min.columns = ['-'.join(a) for a in tmp1mean_min.columns]
     meta_col4.append([a for a in tmp1mean_min.columns if col_name not in a])
     tmp1mean_min.reset_index(inplace=True)
+    gloss = add_to_glossary(tmp1mean_min[meta_col4[-1]].stack().tolist(), gloss)
     time_on1 = [a for a in first_grp2 if a != vars['eval_minmax_for']][0]
     all_vals = tmp1mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
@@ -2644,6 +2622,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp1mean_max.columns = ['-'.join(a) for a in tmp1mean_max.columns]
     meta_col4.append([a for a in tmp1mean_max.columns if col_name not in a])
     tmp1mean_max.reset_index(inplace=True)
+    gloss = add_to_glossary(tmp1mean_max[meta_col4[-1]].stack().tolist(), gloss)
     all_vals = tmp1mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
@@ -2660,6 +2639,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp2mean_min.columns = ['-'.join(a) for a in tmp2mean_min.columns]
     meta_col4.append([a for a in tmp2mean_min.columns if col_name not in a])
     tmp2mean_min.reset_index(inplace=True)
+    gloss = add_to_glossary(tmp2mean_min[meta_col4[-1]].stack().tolist(), gloss)
     time_on2 = [a for a in second_grp2 if a != vars['eval_minmax_for']][0]
     all_vals = tmp2mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
@@ -2677,6 +2657,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp2mean_max.columns = ['-'.join(a) for a in tmp2mean_max.columns]
     meta_col4.append([a for a in tmp2mean_max.columns if col_name not in a])
     tmp2mean_max.reset_index(inplace=True)
+    gloss = add_to_glossary(tmp2mean_max[meta_col4[-1]].stack().tolist(), gloss)
     all_vals = tmp2mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
@@ -2849,6 +2830,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4.append('-'.join(first_grp2))
     tmp12_min[meta_col4[-1]] = tmp12_min.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
+    gloss = add_to_glossary(tmp12_min[first_grp2].stack().tolist(), gloss)
     tmp12_min.drop(first_grp2, axis=1, inplace=True)
     meta_col4.append(meta_col4[-1])
     min_val = np.abs(tmp12_min[col_name].min())
@@ -2862,6 +2844,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp12_max.index.name = index_name
     tmp12_max[meta_col4[-1]] = tmp12_max.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_max.loc[:, first_grp2[1]].apply(lambda x: str(x))
+    gloss = add_to_glossary(tmp12_max[first_grp2].stack().tolist(), gloss)
     tmp12_max.drop(first_grp2, axis=1, inplace=True)
     min_val = np.abs(tmp12_max[col_name].min())
     max_val = np.abs(tmp12_max[col_name].max())
@@ -2875,6 +2858,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4.append('-'.join(second_grp2))
     tmp22_min[meta_col4[-1]] = tmp22_min.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
+    gloss = add_to_glossary(tmp22_min[second_grp2].stack().tolist(), gloss)
     tmp22_min.drop(second_grp2, axis=1, inplace=True)
     meta_col4.append(meta_col4[-1])
     min_val = np.abs(tmp22_min[col_name].min())
@@ -2888,6 +2872,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max.index.name = index_name
     tmp22_max[meta_col4[-1]] = tmp22_max.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_max.loc[:, second_grp2[1]].apply(lambda x: str(x))
+    gloss = add_to_glossary(tmp22_max[second_grp2].stack().tolist(), gloss)
     tmp22_max.drop(second_grp2, axis=1, inplace=True)
     min_val = np.abs(tmp22_max[col_name].min())
     max_val = np.abs(tmp22_max[col_name].max())
@@ -3124,57 +3109,11 @@ def get_min_inlrat_diff(**keywords):
     data = keywords['data']
     partitions = keywords['partitions']
     keywords = prepare_io(**keywords)
-    # if 'res_folder' not in keywords:
-    #     raise ValueError('Missing res_folder argument of function pars_calc_single_fig_partitions')
-    # res_folder = keywords['res_folder']
-    # use_marks = False
-    # if 'use_marks' not in keywords:
-    #     print('No information provided if marks should be used: Disabling marks')
-    # else:
-    #     use_marks = keywords['use_marks']
-    # build_pdf = (False, True,)
-    # if 'build_pdf' in keywords:
-    #     build_pdf = keywords['build_pdf']
-    # if len(build_pdf) != 2:
-    #     raise ValueError('Wrong number of arguments for build_pdf')
-    # pdf_folder = None
-    # if build_pdf[0] or build_pdf[1]:
-    #     pdf_folder = os.path.join(res_folder, 'pdf')
-    #     try:
-    #         os.mkdir(pdf_folder)
-    #     except FileExistsError:
-    #         # print('Folder', pdf_folder, 'for storing pdf files already exists')
-    #         pass
-    # tex_folder = os.path.join(res_folder, 'tex')
-    # try:
-    #     os.mkdir(tex_folder)
-    # except FileExistsError:
-    #     # print('Folder', tex_folder, 'for storing tex files already exists')
-    #     pass
-    # tdata_folder = os.path.join(tex_folder, 'data')
-    # try:
-    #     os.mkdir(tdata_folder)
-    # except FileExistsError:
-    #     # print('Folder', tdata_folder, 'for storing data files already exists')
-    #     pass
-    # rel_data_path = os.path.relpath(tdata_folder, tex_folder)
     grp_names = data.index.names
     nr_partitions = len(partitions)
     it_parameters = grp_names[nr_partitions:-1]
-    nr_it_parameters = len(it_parameters)
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    # sub_title_it_pars = ''
-    # for i, val in enumerate(it_parameters):
-    #     sub_title_it_pars += replaceCSVLabels(val, True, True)
-    #     if nr_it_parameters <= 2:
-    #         if i < nr_it_parameters - 1:
-    #             sub_title_it_pars += ' and '
-    #     else:
-    #         if i < nr_it_parameters - 2:
-    #             sub_title_it_pars += ', '
-    #         elif i < nr_it_parameters - 1:
-    #             sub_title_it_pars += ', and '
-
+    from statistics_and_plot import glossary_from_list, add_to_glossary
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -3183,6 +3122,10 @@ def get_min_inlrat_diff(**keywords):
     diff_mean.name = hlp[0][0]
     diff_mean = diff_mean.abs().reset_index().drop(partitions, axis=1).groupby(it_parameters +
                                                                                [grp_names[-1]]).mean().unstack()
+    if len(keywords['it_parameters']) > 1:
+        gloss = glossary_from_list([str(b) for a in diff_mean.index for b in a])
+    else:
+        gloss = glossary_from_list([str(a) for a in diff_mean.index])
     diff_mean.index = ['-'.join(map(str,a)) for a in diff_mean.index]
     it_parameters_name = '-'.join(it_parameters)
     diff_mean.index.name = it_parameters_name
@@ -3209,7 +3152,9 @@ def get_min_inlrat_diff(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     stats_all = diff_mean.stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
@@ -3224,7 +3169,8 @@ def get_min_inlrat_diff(**keywords):
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
     reltex_name = os.path.join(keywords['rel_data_path'], b_name)
-    fig_name = 'Absolute mean inlier ratio differences vs ' + replaceCSVLabels(str(grp_names[-1]), True) + \
+    fig_name = 'Absolute mean inlier ratio differences $\\Delta \\epsilon$ vs ' + \
+               replaceCSVLabels(str(grp_names[-1]), True) + \
                ' for parameter variations of \\\\' + keywords['sub_title_it_pars']
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
@@ -3248,7 +3194,8 @@ def get_min_inlrat_diff(**keywords):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_mean_inlrat_diff_vs_' + dataf_name_main
     texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
@@ -3265,8 +3212,8 @@ def get_min_inlrat_diff(**keywords):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     min_mean_diff = min_mean_diff.loc[min_mean_diff.groupby(it_parameters_name).inlRat_diff.idxmin()]
-    min_mean_diff['options_for_tex'] = [tex_string_coding_style(a)
-                                        for i, a in min_mean_diff[it_parameters_name].iteritems()]
+    min_mean_diff['options_for_tex'] = insert_opt_lbreak([a for i, a in min_mean_diff[it_parameters_name].iteritems()])
+    gloss = add_to_glossary(min_mean_diff[grp_names[-1]].tolist(), gloss)
     b_name = 'data_min_mean_inlrat_diff_vs_' + dataf_name_main + '.csv'
     fb_name = os.path.join(keywords['tdata_folder'], b_name)
     with open(fb_name, 'a') as f:
@@ -3290,7 +3237,9 @@ def get_min_inlrat_diff(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
                  }
     section_name = 'Minimum absolute mean inlier ratio difference\\\\and its corresponding ' + \
                    replaceCSVLabels(str(grp_names[-1])) + \
@@ -3332,7 +3281,8 @@ def get_min_inlrat_diff(**keywords):
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
                                    fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'])
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_min_mean_inlrat_diff_vs_' + dataf_name_main
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
