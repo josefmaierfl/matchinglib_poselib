@@ -994,7 +994,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                      'BART']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['depthDistr', 'kpAccSd']  # th must be at the end
-                    special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
+                    special_calcs_args = {'build_pdf': (True, True, True), 'use_marks': True}
                     from usac_eval import get_best_comb_th_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,

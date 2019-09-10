@@ -1709,7 +1709,7 @@ def calcFromFuncAndPlot_3D(data,
                                           'stat_name': it,
                                           'plots_z': [it],
                                           'diff_z_labels': False,
-                                          'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i]), units),
+                                          'label_z': eval_cols_lname[i] + findUnit(str(it), units),
                                           'plot_x': str(xy_axis_columns[0]),
                                           'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
                                                      findUnit(str(xy_axis_columns[0]), units),
@@ -2089,7 +2089,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                               'stat_name': it,
                                               'plots_z': [it],
                                               'diff_z_labels': False,
-                                              'label_z': eval_cols_lname[i] + findUnit(str(eval_cols_lname[i]), units),
+                                              'label_z': eval_cols_lname[i] + findUnit(str(it), units),
                                               'plot_x': str(xy_axis_columns[0]),
                                               'label_x': replaceCSVLabels(str(xy_axis_columns[0])) +
                                                          findUnit(str(xy_axis_columns[0]), units),
@@ -2303,9 +2303,9 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'GT inlier ratio $\\breve{\\epsilon}$'
     elif label == 'inlRat_diff':
         if use_plural:
-            str_val = 'inlier differences $\\Delta \\epsilon = \\tilde{\\epsilon} - \\breve{\\epsilon}$'
+            str_val = 'inlier ratio differences $\\Delta \\epsilon = \\tilde{\\epsilon} - \\breve{\\epsilon}$'
         else:
-            str_val = 'inlier difference $\\Delta \\epsilon = \\tilde{\\epsilon} - \\breve{\\epsilon}$'
+            str_val = 'inlier ratio difference $\\Delta \\epsilon = \\tilde{\\epsilon} - \\breve{\\epsilon}$'
     elif label == 'nrCorrs_filtered':
         if use_plural:
             str_val = 'numbers of filtered correspondences $n_{fc}$'
@@ -2780,8 +2780,8 @@ def main():
     data['robEstimationAndRef_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'testing_tests'#'usac_vs_ransac'
-    test_nr = 1
+    test_name = 'usac_vs_ransac'#'testing_tests'
+    test_nr = 2
     eval_nr = [-1]
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
