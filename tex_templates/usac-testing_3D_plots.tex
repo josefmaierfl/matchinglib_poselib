@@ -86,15 +86,55 @@ colorbar,
 %zmode=log,%
 %colorbar style={yticklabel=\pgfmathparse{10^\tick}\pgfmathprintnumber\pgfmathresult},%
 \BLOCK{ if sec['diff_z_labels'] }
-colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z'][loop.index0]}},
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,%
+                scaled y ticks = false,%
+                ylabel=\VAR{sec['label_z'][loop.index0]},%
+\BLOCK{ if sec['limits'] is not none }
+\BLOCK{ if sec['limits']['minz'] is not none }
+                ymin=log10(\VAR{sec['limits']['minz']}),%
+\BLOCK{ endif }
+\BLOCK{ if sec['limits']['maxz'] is not none }
+                ymax=log10(\VAR{sec['limits']['maxz']}),%
+\BLOCK{ endif }
+\BLOCK{ endif }
+                },%
 \BLOCK{ else }
-colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z']}},
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,%
+                scaled y ticks = false,%
+                ylabel=\VAR{sec['label_z']},%
+\BLOCK{ if sec['limits'] is not none }
+\BLOCK{ if sec['limits']['minz'] is not none }
+                ymin=log10(\VAR{sec['limits']['minz']}),%
+\BLOCK{ endif }
+\BLOCK{ if sec['limits']['maxz'] is not none }
+                ymax=log10(\VAR{sec['limits']['maxz']}),%
+\BLOCK{ endif }
+\BLOCK{ endif }
+                },%
 \BLOCK{ endif }
 \BLOCK{ else }
 \BLOCK{ if sec['diff_z_labels'] }
-colorbar style={ylabel=\VAR{sec['label_z'][loop.index0]}},
+colorbar style={ylabel=\VAR{sec['label_z'][loop.index0]},
+\BLOCK{ if sec['limits'] is not none }
+\BLOCK{ if sec['limits']['minz'] is not none }
+                ymin=\VAR{sec['limits']['minz']},%
+\BLOCK{ endif }
+\BLOCK{ if sec['limits']['maxz'] is not none }
+                ymax=\VAR{sec['limits']['maxz']},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+                },%
 \BLOCK{ else }
-colorbar style={ylabel=\VAR{sec['label_z']}},
+colorbar style={ylabel=\VAR{sec['label_z']},
+\BLOCK{ if sec['limits'] is not none }
+\BLOCK{ if sec['limits']['minz'] is not none }
+                ymin=\VAR{sec['limits']['minz']},%
+\BLOCK{ endif }
+\BLOCK{ if sec['limits']['maxz'] is not none }
+                ymax=\VAR{sec['limits']['maxz']},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+                },%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ else }
@@ -104,9 +144,31 @@ colorbar,
 %zmode=log,%
 %colorbar style={yticklabel=\pgfmathparse{10^\tick}\pgfmathprintnumber\pgfmathresult},%
 \BLOCK{ if sec['diff_z_labels'] }
-colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z'][loop.index0]}},
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,%
+                scaled y ticks = false,%
+                ylabel=\VAR{sec['label_z'][loop.index0]},%
+\BLOCK{ if sec['limits'] is not none }
+\BLOCK{ if sec['limits']['minz'] is not none }
+                ymin=log10(\VAR{sec['limits']['minz']}),%
+\BLOCK{ endif }
+\BLOCK{ if sec['limits']['maxz'] is not none }
+                ymax=log10(\VAR{sec['limits']['maxz']}),%
+\BLOCK{ endif }
+\BLOCK{ endif }
+                },%
 \BLOCK{ else }
-colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,scaled y ticks = false,ylabel=\VAR{sec['label_z']}},
+colorbar style={yticklabel=$10^{\pgfmathprintnumber{\tick}}$,%
+                scaled y ticks = false,%
+                ylabel=\VAR{sec['label_z']}
+\BLOCK{ if sec['limits'] is not none }
+\BLOCK{ if sec['limits']['minz'] is not none }
+                ymin=log10(\VAR{sec['limits']['minz']}),%
+\BLOCK{ endif }
+\BLOCK{ if sec['limits']['maxz'] is not none }
+                ymax=log10(\VAR{sec['limits']['maxz']}),%
+\BLOCK{ endif }
+\BLOCK{ endif }
+                },%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ endif }

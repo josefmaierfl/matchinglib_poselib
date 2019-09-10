@@ -217,8 +217,14 @@ def pars_calc_single_fig_partitions(**keywords):
         # figure types: sharp plot, smooth, const plot, ybar, xbar
         use_limits = {'miny': None, 'maxy': None}
         if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+            if stats_all['min'][0] < 0:
+                use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+            else:
+                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+            if stats_all['max'][0] < 0:
+                use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+            else:
+                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
         else:
             if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
                 use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
@@ -366,8 +372,14 @@ def pars_calc_single_fig(**keywords):
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
     if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+        if stats_all['min'][0] < 0:
+            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
     else:
         if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
@@ -482,6 +494,18 @@ def pars_calc_multiple_fig(**keywords):
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
     ret['b'] = ret['b'].reset_index()
     nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
+    stats_all = ret['b'][ret['b'].columns.values[2:]].stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    use_limits = {'minz': None, 'maxz': None}
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        if stats_all['min'][0] < 0:
+            use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     with open(fb_name, 'a') as f:
@@ -531,7 +555,8 @@ def pars_calc_multiple_fig(**keywords):
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)[2:]],
                                   'use_marks': ret['use_marks'],
                                   'mesh_cols': nr_equal_ss,
-                                  'use_log_z_axis': False
+                                  'use_log_z_axis': False,
+                                  'limits': use_limits
                                   })
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     rendered_tex = template.render(title=tex_infos['title'],
@@ -1713,11 +1738,16 @@ def estimate_alg_time_fixed_kp(**vars):
     tmp, col_name = get_time_fixed_kp(**vars)
     tmp1 = tmp.loc[tmp.groupby(vars['t_data_separators'])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
-    index_new = ['-'.join(a) for a in tmp1.index]
-    meta_data = [str(b) for a in tmp1.index for b in a]
-    tmp1.index = index_new
-    index_name = '-'.join(vars['it_parameters'])
-    tmp1.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new = ['-'.join(a) for a in tmp1.index]
+        meta_data = [str(b) for a in tmp1.index for b in a]
+        tmp1.index = index_new
+        index_name = '-'.join(vars['it_parameters'])
+        tmp1.index.name = index_name
+    else:
+        index_new = [a for a in tmp1.index]
+        meta_data = [str(a) for a in tmp1.index]
+        index_name = vars['it_parameters'][0]
     tmp1['pars_tex'] = insert_opt_lbreak(index_new)
     min_val = tmp1[col_name].min()
     max_val = tmp1[col_name].max()
@@ -1731,13 +1761,14 @@ def estimate_alg_time_fixed_kp(**vars):
     from statistics_and_plot import glossary_from_list, add_to_glossary
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
+        par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
+        tmp.columns = par_cols
+        it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
+        tmp.columns.name = it_pars_cols_name
     else:
         gloss = glossary_from_list([str(a) for a in tmp.columns])
+        it_pars_cols_name = vars['it_parameters'][0]
     gloss = add_to_glossary(meta_data, gloss)
-    par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
-    tmp.columns = par_cols
-    it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
-    tmp.columns.name = it_pars_cols_name
     tmp = tmp.T.reset_index().set_index([vars['xy_axis_columns'][0], it_pars_cols_name]).unstack(level=-1)
     tmp.columns = [h for g in tmp.columns for h in g if h != col_name]
 
@@ -1774,8 +1805,14 @@ def estimate_alg_time_fixed_kp(**vars):
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
     if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+        if stats_all['min'][0] < 0:
+            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
     else:
         if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
@@ -2053,14 +2090,16 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary
     tmp1min.set_index(vars['it_parameters'], inplace=True)
-    index_new1 = ['-'.join(a) for a in tmp1min.index]
     if len(vars['it_parameters']) > 1:
+        index_new1 = ['-'.join(a) for a in tmp1min.index]
         gloss = glossary_from_list([str(b) for a in tmp1min.index for b in a])
+        tmp1min.index = index_new1
+        index_name = '-'.join(vars['it_parameters'])
+        tmp1min.index.name = index_name
     else:
+        index_new1 = [a for a in tmp1min.index]
         gloss = glossary_from_list([str(a) for a in tmp1min.index])
-    tmp1min.index = index_new1
-    index_name = '-'.join(vars['it_parameters'])
-    tmp1min.index.name = index_name
+        index_name = vars['it_parameters'][0]
     # pars_tex1 = insert_opt_lbreak(index_new1)
     pars_tex1 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new1))]
     tmp1min = tmp1min.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)
@@ -2071,9 +2110,12 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     gloss = add_to_glossary(tmp1min[meta_cols1].stack().tolist(), gloss)
 
     tmp1max.set_index(vars['it_parameters'], inplace=True)
-    index_new2 = ['-'.join(a) for a in tmp1max.index]
-    tmp1max.index = index_new2
-    tmp1max.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new2 = ['-'.join(a) for a in tmp1max.index]
+        tmp1max.index = index_new2
+        tmp1max.index.name = index_name
+    else:
+        index_new2 = [a for a in tmp1max.index]
     # pars_tex2 = insert_opt_lbreak(index_new2)
     pars_tex2 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new2))]
     tmp1max = tmp1max.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)
@@ -2226,9 +2268,12 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     tmp2min.set_index(vars['it_parameters'], inplace=True)
-    index_new1 = ['-'.join(a) for a in tmp2min.index]
-    tmp2min.index = index_new1
-    tmp2min.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new1 = ['-'.join(a) for a in tmp2min.index]
+        tmp2min.index = index_new1
+        tmp2min.index.name = index_name
+    else:
+        index_new1 = [a for a in tmp2min.index]
     tmp2min['pars_tex'] = insert_opt_lbreak(index_new1)
     meta_col1 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
     tmp2min[meta_col1] = tmp2min.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
@@ -2237,9 +2282,12 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2min.drop(vars['t_data_separators'], axis=1, inplace=True)
 
     tmp2max.set_index(vars['it_parameters'], inplace=True)
-    index_new2 = ['-'.join(a) for a in tmp2max.index]
-    tmp2max.index = index_new2
-    tmp2max.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new2 = ['-'.join(a) for a in tmp2max.index]
+        tmp2max.index = index_new2
+        tmp2max.index.name = index_name
+    else:
+        index_new2 = [a for a in tmp2max.index]
     tmp2max['pars_tex'] = insert_opt_lbreak(index_new2)
     meta_col2 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
     tmp2max[meta_col2] = tmp2max.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
@@ -2445,12 +2493,14 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     from statistics_and_plot import glossary_from_list
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp1mean.index for b in a])
+        index_new1 = ['-'.join(a) for a in tmp1mean.index]
+        tmp1mean.index = index_new1
+        index_name = '-'.join(vars['it_parameters'])
+        tmp1mean.index.name = index_name
     else:
         gloss = glossary_from_list([str(a) for a in tmp1mean.index])
-    index_new1 = ['-'.join(a) for a in tmp1mean.index]
-    tmp1mean.index = index_new1
-    index_name = '-'.join(vars['it_parameters'])
-    tmp1mean.index.name = index_name
+        index_new1 = [a for a in tmp1mean.index]
+        index_name = vars['it_parameters'][0]
     tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + [index_name]).unstack(level=-1)
     index_new11 = ['-'.join(a) for a in tmp1mean.columns]
     legend1 = [tex_string_coding_style(b) for a in tmp1mean.columns for b in a if b in index_new1]
@@ -2462,9 +2512,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log1 = True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False
 
     tmp2mean.set_index(vars['it_parameters'], inplace=True)
-    index_new2 = ['-'.join(a) for a in tmp2mean.index]
-    tmp2mean.index = index_new2
-    tmp2mean.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new2 = ['-'.join(a) for a in tmp2mean.index]
+        tmp2mean.index = index_new2
+        tmp2mean.index.name = index_name
+    else:
+        index_new2 = [a for a in tmp2mean.index]
     tmp2mean = tmp2mean.reset_index().set_index(second_grp2 + [index_name]).unstack(level=-1)
     index_new21 = ['-'.join(a) for a in tmp2mean.columns]
     legend2 = [tex_string_coding_style(b) for a in tmp2mean.columns for b in a if b in index_new2]
@@ -2523,6 +2576,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
+    stats_all = tmp1mean[index_new11].stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    use_limits = {'minz': None, 'maxz': None}
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        if stats_all['min'][0] < 0:
+            use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_mean1_name),
                                   'name': section_name,
                                   'fig_type': vars['fig_type'][0],
@@ -2536,7 +2601,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'legend': legend1,
                                   'use_marks': vars['use_marks'][0],
                                   'mesh_cols': nr_equal_ss1,
-                                  'use_log_z_axis': use_log1
+                                  'use_log_z_axis': use_log1,
+                                  'limits': use_limits
                                   })
 
     section_name = 'Mean execution times over all ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True) + \
@@ -2545,6 +2611,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
+    stats_all = tmp2mean[index_new21].stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    use_limits1 = {'minz': None, 'maxz': None}
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        if stats_all['min'][0] < 0:
+            use_limits1['minz'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits1['minz'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits1['maxz'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits1['maxz'] = round(1.01 * stats_all['max'][0], 6)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_mean2_name),
                                   'name': section_name,
                                   'fig_type': vars['fig_type'][0],
@@ -2558,7 +2636,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'legend': legend2,
                                   'use_marks': vars['use_marks'][0],
                                   'mesh_cols': nr_equal_ss2,
-                                  'use_log_z_axis': use_log2
+                                  'use_log_z_axis': use_log2,
+                                  'limits': use_limits1
                                   })
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
@@ -2594,9 +2673,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4 = []
     use_log4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
-    index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
-    tmp1mean_min.index = index_new12
-    tmp1mean_min.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
+        tmp1mean_min.index = index_new12
+        tmp1mean_min.index.name = index_name
+    else:
+        index_new12 = [a for a in tmp1mean_min.index]
     tmp1mean_min = tmp1mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
     index_y4.append(['-'.join(a) for a in tmp1mean_min.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_min.columns if col_name in a
@@ -2612,9 +2694,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
-    index_new13 = ['-'.join(a) for a in tmp1mean_max.index]
-    tmp1mean_max.index = index_new13
-    tmp1mean_max.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new13 = ['-'.join(a) for a in tmp1mean_max.index]
+        tmp1mean_max.index = index_new13
+        tmp1mean_max.index.name = index_name
+    else:
+        index_new13 = [a for a in tmp1mean_max.index]
     tmp1mean_max = tmp1mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
     index_y4.append(['-'.join(a) for a in tmp1mean_max.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_max.columns if col_name in a
@@ -2629,9 +2714,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
-    index_new22 = ['-'.join(a) for a in tmp2mean_min.index]
-    tmp2mean_min.index = index_new22
-    tmp2mean_min.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new22 = ['-'.join(a) for a in tmp2mean_min.index]
+        tmp2mean_min.index = index_new22
+        tmp2mean_min.index.name = index_name
+    else:
+        index_new22 = [a for a in tmp2mean_min.index]
     tmp2mean_min = tmp2mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
     index_y4.append(['-'.join(a) for a in tmp2mean_min.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_min.columns if col_name in a
@@ -2647,9 +2735,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
-    index_new23 = ['-'.join(a) for a in tmp2mean_max.index]
-    tmp2mean_max.index = index_new23
-    tmp2mean_max.index.name = index_name
+    if len(vars['it_parameters']) > 1:
+        index_new23 = ['-'.join(a) for a in tmp2mean_max.index]
+        tmp2mean_max.index = index_new23
+        tmp2mean_max.index.name = index_name
+    else:
+        index_new23 = [a for a in tmp2mean_max.index]
     tmp2mean_max = tmp2mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
     index_y4.append(['-'.join(a) for a in tmp2mean_max.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_max.columns if col_name in a
@@ -2823,10 +2914,13 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4 = []
     use_log4 = []
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
-    index_new13 = ['-'.join(a) for a in tmp12_min.index]
-    tmp12_min.index = index_new13
+    if len(vars['it_parameters']) > 1:
+        index_new13 = ['-'.join(a) for a in tmp12_min.index]
+        tmp12_min.index = index_new13
+        tmp12_min.index.name = index_name
+    else:
+        index_new13 = [a for a in tmp12_min.index]
     tmp12_min['pars_tex'] = insert_opt_lbreak(index_new13)
-    tmp12_min.index.name = index_name
     meta_col4.append('-'.join(first_grp2))
     tmp12_min[meta_col4[-1]] = tmp12_min.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
@@ -2838,10 +2932,13 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
-    index_new14 = ['-'.join(a) for a in tmp12_max.index]
-    tmp12_max.index = index_new14
+    if len(vars['it_parameters']) > 1:
+        index_new14 = ['-'.join(a) for a in tmp12_max.index]
+        tmp12_max.index = index_new14
+        tmp12_max.index.name = index_name
+    else:
+        index_new14 = [a for a in tmp12_max.index]
     tmp12_max['pars_tex'] = insert_opt_lbreak(index_new14)
-    tmp12_max.index.name = index_name
     tmp12_max[meta_col4[-1]] = tmp12_max.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_max.loc[:, first_grp2[1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp12_max[first_grp2].stack().tolist(), gloss)
@@ -2851,10 +2948,13 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
-    index_new23 = ['-'.join(a) for a in tmp22_min.index]
-    tmp22_min.index = index_new23
+    if len(vars['it_parameters']) > 1:
+        index_new23 = ['-'.join(a) for a in tmp22_min.index]
+        tmp22_min.index = index_new23
+        tmp22_min.index.name = index_name
+    else:
+        index_new23 = [a for a in tmp22_min.index]
     tmp22_min['pars_tex'] = insert_opt_lbreak(index_new23)
-    tmp22_min.index.name = index_name
     meta_col4.append('-'.join(second_grp2))
     tmp22_min[meta_col4[-1]] = tmp22_min.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
@@ -2866,10 +2966,13 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
-    index_new24 = ['-'.join(a) for a in tmp22_max.index]
-    tmp22_max.index = index_new24
+    if len(vars['it_parameters']) > 1:
+        index_new24 = ['-'.join(a) for a in tmp22_max.index]
+        tmp22_max.index = index_new24
+        tmp22_max.index.name = index_name
+    else:
+        index_new24 = [a for a in tmp22_max.index]
     tmp22_max['pars_tex'] = insert_opt_lbreak(index_new24)
-    tmp22_max.index.name = index_name
     tmp22_max[meta_col4[-1]] = tmp22_max.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_max.loc[:, second_grp2[1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp22_max[second_grp2].stack().tolist(), gloss)
@@ -3124,11 +3227,12 @@ def get_min_inlrat_diff(**keywords):
                                                                                [grp_names[-1]]).mean().unstack()
     if len(keywords['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in diff_mean.index for b in a])
+        diff_mean.index = ['-'.join(map(str, a)) for a in diff_mean.index]
+        it_parameters_name = '-'.join(it_parameters)
+        diff_mean.index.name = it_parameters_name
     else:
         gloss = glossary_from_list([str(a) for a in diff_mean.index])
-    diff_mean.index = ['-'.join(map(str,a)) for a in diff_mean.index]
-    it_parameters_name = '-'.join(it_parameters)
-    diff_mean.index.name = it_parameters_name
+        it_parameters_name = it_parameters[0]
     min_mean_diff = diff_mean.stack().reset_index()
     diff_mean = diff_mean.T.reset_index()
     diff_mean.drop(diff_mean.columns[0], axis=1, inplace=True)

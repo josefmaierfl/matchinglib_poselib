@@ -923,7 +923,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          special_calcs_func=None,
                                                          special_calcs_args=None,
                                                          calc_func=calc_Time_Model,
-                                                         calc_func_args={'data_separators': ['inlRatMin', 'th']},
+                                                         calc_func_args={'data_separators': ['inlratMin', 'th']},
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,

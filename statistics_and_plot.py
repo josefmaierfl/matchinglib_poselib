@@ -382,8 +382,14 @@ def calcSatisticAndPlot_2D(data,
             #figure types: sharp plot, smooth, const plot, ybar, xbar
             use_limits = {'miny': None, 'maxy': None}
             if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+                if stats_all['min'][0] < 0:
+                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+                else:
+                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                if stats_all['max'][0] < 0:
+                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+                else:
+                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
             else:
                 if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
                     use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
@@ -708,8 +714,14 @@ def calcSatisticAndPlot_2D_partitions(data,
                 #figure types: sharp plot, smooth, const plot, ybar, xbar
                 use_limits = {'miny': None, 'maxy': None}
                 if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+                    if stats_all['min'][0] < 0:
+                        use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+                    else:
+                        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                    if stats_all['max'][0] < 0:
+                        use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+                    else:
+                        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
                 else:
                     if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
                         use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
@@ -1085,8 +1097,14 @@ def calcFromFuncAndPlot_2D_partitions(data,
             # figure types: sharp plot, smooth, const plot, ybar, xbar
             use_limits = {'miny': None, 'maxy': None}
             if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+                if stats_all['min'][0] < 0:
+                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+                else:
+                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                if stats_all['max'][0] < 0:
+                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+                else:
+                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
             else:
                 if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 3.291):
                     use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
@@ -1361,6 +1379,16 @@ def calcSatisticAndPlot_3D(data,
                 np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
                     np.isclose(stats_all['min'][0], stats_all['max'][0]):
                 continue
+            use_limits = {'minz': None, 'maxz': None}
+            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 100):
+                if stats_all['min'][0] < 0:
+                    use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
+                else:
+                    use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
+                if stats_all['max'][0] < 0:
+                    use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
+                else:
+                    use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
             #figure types:
             # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
             reltex_name = os.path.join(rel_data_path, dataf_name)
@@ -1384,7 +1412,8 @@ def calcSatisticAndPlot_3D(data,
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
                                           'use_marks': use_marks,
                                           'mesh_cols': nr_equal_ss,
-                                          'use_log_z_axis': False
+                                          'use_log_z_axis': False,
+                                          'limits': use_limits
                                           })
 
     pdfs_info = []
@@ -1652,6 +1681,21 @@ def calcFromFuncAndPlot_3D(data,
             tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
         for i, it in enumerate(eval_columns):
             #Construct tex-file information
+            stats_all = {'min': tmp[it].min(), 'max': tmp[it].max()}
+            if (np.isclose(stats_all['min'], 0, atol=1e-06) and
+                np.isclose(stats_all['max'], 0, atol=1e-06)) or \
+                    np.isclose(stats_all['min'], stats_all['max']):
+                continue
+            use_limits = {'minz': None, 'maxz': None}
+            if np.abs(stats_all['max'] - stats_all['min']) < np.abs(stats_all['max'] / 200):
+                if stats_all['min'] < 0:
+                    use_limits['minz'] = round(1.01 * stats_all['min'], 6)
+                else:
+                    use_limits['minz'] = round(0.99 * stats_all['min'], 6)
+                if stats_all['max'] < 0:
+                    use_limits['maxz'] = round(0.99 * stats_all['max'], 6)
+                else:
+                    use_limits['maxz'] = round(1.01 * stats_all['max'], 6)
             #figure types:
             # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
             reltex_name = os.path.join(rel_data_path, dataf_name)
@@ -1676,7 +1720,8 @@ def calcFromFuncAndPlot_3D(data,
                                                      tex_string_coding_style('-'.join(map(str, grp)))],
                                           'use_marks': use_marks,
                                           'mesh_cols': nr_equal_ss,
-                                          'use_log_z_axis': eval_cols_log_scaling[i]
+                                          'use_log_z_axis': eval_cols_log_scaling[i],
+                                          'limits': use_limits
                                           })
 
     pdfs_info = []
@@ -2015,6 +2060,21 @@ def calcFromFuncAndPlot_3D_partitions(data,
 
             for i, it in enumerate(eval_columns):
                 # Construct tex-file information
+                stats_all = {'min': tmp1[it].min(), 'max': tmp1[it].max()}
+                if (np.isclose(stats_all['min'], 0, atol=1e-06) and
+                    np.isclose(stats_all['max'], 0, atol=1e-06)) or \
+                        np.isclose(stats_all['min'], stats_all['max']):
+                    continue
+                use_limits = {'minz': None, 'maxz': None}
+                if np.abs(stats_all['max'] - stats_all['min']) < np.abs(stats_all['max'] / 200):
+                    if stats_all['min'] < 0:
+                        use_limits['minz'] = round(1.01 * stats_all['min'], 6)
+                    else:
+                        use_limits['minz'] = round(0.99 * stats_all['min'], 6)
+                    if stats_all['max'] < 0:
+                        use_limits['maxz'] = round(0.99 * stats_all['max'], 6)
+                    else:
+                        use_limits['maxz'] = round(1.01 * stats_all['max'], 6)
                 reltex_name = os.path.join(rel_data_path, dataf_name)
                 fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
                 fig_name += ' for '
@@ -2040,7 +2100,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                                          tex_string_coding_style(grp_it)],
                                               'use_marks': use_marks,
                                               'mesh_cols': nr_equal_ss,
-                                              'use_log_z_axis': eval_cols_log_scaling[i]
+                                              'use_log_z_axis': eval_cols_log_scaling[i],
+                                              'limits': use_limits
                                               })
 
     pdfs_info = []
@@ -2719,9 +2780,9 @@ def main():
     data['robEstimationAndRef_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'usac_vs_ransac'#'testing_tests'
-    test_nr = 2
-    eval_nr = list(range(4, 8))#[-1]
+    test_name = 'testing_tests'#'usac_vs_ransac'
+    test_nr = 1
+    eval_nr = [-1]
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
@@ -3550,7 +3611,7 @@ def main():
                                                          special_calcs_func=None,
                                                          special_calcs_args=None,
                                                          calc_func=calc_Time_Model,
-                                                         calc_func_args={'data_separators': ['inlRatMin', 'th']},
+                                                         calc_func_args={'data_separators': ['inlratMin', 'th']},
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
