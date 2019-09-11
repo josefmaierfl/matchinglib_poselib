@@ -1667,8 +1667,14 @@ def calcFromFuncAndPlot_3D(data,
     if gloss:
         tex_infos['abbreviations'] = gloss
     for grp in grp_keys:
-        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                     '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
+        if len(it_parameters) > 1:
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                         '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + \
+                         '_and_' + xy_axis_columns[1] + '.csv'
+        else:
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                         str(grp) + '_vs_' + xy_axis_columns[0] + \
+                         '_and_' + xy_axis_columns[1] + '.csv'
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
@@ -1676,7 +1682,10 @@ def calcFromFuncAndPlot_3D(data,
         with open(fdataf_name, 'a') as f:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
                     '-'.join(map(str, it_parameters)) + '\n')
-            f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
+            if len(it_parameters) > 1:
+                f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
+            else:
+                f.write('# Used parameter values: ' + str(grp) + '\n')
             f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
             tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
         for i, it in enumerate(eval_columns):
@@ -1699,10 +1708,18 @@ def calcFromFuncAndPlot_3D(data,
             #figure types:
             # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
             reltex_name = os.path.join(rel_data_path, dataf_name)
-            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
-                       ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
-                       replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
-                       replaceCSVLabels(xy_axis_columns[1], True)
+            if len(it_parameters) > 1:
+                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
+                           ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
+                           replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
+                           replaceCSVLabels(xy_axis_columns[1], True)
+                legends = [eval_cols_lname[i] + ' for ' + tex_string_coding_style('-'.join(map(str, grp)))]
+            else:
+                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
+                           ' for parameters ' + tex_string_coding_style(str(grp)) + ' compared to ' + \
+                           replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
+                           replaceCSVLabels(xy_axis_columns[1], True)
+                legends = [eval_cols_lname[i] + ' for ' + tex_string_coding_style(str(grp))]
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           'fig_type': fig_type,
@@ -1716,8 +1733,7 @@ def calcFromFuncAndPlot_3D(data,
                                           'plot_y': str(xy_axis_columns[1]),
                                           'label_y': replaceCSVLabels(str(xy_axis_columns[1])) +
                                                      findUnit(str(xy_axis_columns[1]), units),
-                                          'legend': [eval_cols_lname[i] + ' for ' +
-                                                     tex_string_coding_style('-'.join(map(str, grp)))],
+                                          'legend': legends,
                                           'use_marks': use_marks,
                                           'mesh_cols': nr_equal_ss,
                                           'use_log_z_axis': eval_cols_log_scaling[i],
