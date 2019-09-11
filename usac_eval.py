@@ -84,10 +84,10 @@ def pars_calc_single_fig_partitions(**keywords):
     ret['build_pdf'] = (False, True,)
     if 'build_pdf' in keywords:
         ret['build_pdf'] = keywords['build_pdf']
-    if len(ret['build_pdf']) != 2:
+    if len(ret['build_pdf']) < 2:
         raise ValueError('Wrong number of arguments for build_pdf')
     ret['pdf_folder'] = None
-    if ret['build_pdf'][0] or ret['build_pdf'][1]:
+    if any(ret['build_pdf']):
         ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
         try:
             os.mkdir(ret['pdf_folder'])
@@ -297,10 +297,10 @@ def pars_calc_single_fig(**keywords):
     ret['build_pdf'] = (False, True,)
     if 'build_pdf' in keywords:
         ret['build_pdf'] = keywords['build_pdf']
-    if len(ret['build_pdf']) != 2:
+    if len(ret['build_pdf']) < 2:
         raise ValueError('Wrong number of arguments for build_pdf')
     ret['pdf_folder'] = None
-    if ret['build_pdf'][0] or ret['build_pdf'][1]:
+    if any(ret['build_pdf']):
         ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
         try:
             os.mkdir(ret['pdf_folder'])
@@ -454,10 +454,10 @@ def pars_calc_multiple_fig(**keywords):
     ret['build_pdf'] = (False, True,)
     if 'build_pdf' in keywords:
         ret['build_pdf'] = keywords['build_pdf']
-    if len(ret['build_pdf']) != 2:
+    if len(ret['build_pdf']) < 2:
         raise ValueError('Wrong number of arguments for build_pdf')
     ret['pdf_folder'] = None
-    if ret['build_pdf'][0] or ret['build_pdf'][1]:
+    if any(ret['build_pdf']):
         ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
         try:
             os.mkdir(ret['pdf_folder'])
@@ -1415,12 +1415,16 @@ def get_best_comb_th_scenes_1(**keywords):
 def filter_nr_kps(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '100to1000']
 
+def filter_nr_kps_stat(**vars):
+    return vars['data'].loc[vars['data']['nrTP'] == '500']
+
 
 def calc_Time_Model(**vars):
     # it_parameters: algorithms
     # xy_axis_columns: nrCorrs_GT, (inlRat_GT)
     # eval_columns: robEstimationAndRef_us
     # data_separators: inlRatMin, th
+    accum_all = False
     if 'partitions' in vars:
         for key in vars['partitions']:
             if key not in vars['data_separators']:
@@ -1428,21 +1432,29 @@ def calc_Time_Model(**vars):
         if ('x_axis_column' in vars and len(vars['data_separators']) != (len(vars['partitions']) + 1)) or \
            ('xy_axis_columns' in vars and len(vars['data_separators']) != (len(vars['partitions']) + 2)):
             raise ValueError('Wrong number of data separators.')
-    elif 'x_axis_column' in vars and len(vars['data_separators']) != 1:
+    elif 'x_axis_column' in vars and 'data_separators' in vars and len(vars['data_separators']) > 1:
         raise ValueError('Only one data separator is allowed.')
     elif 'xy_axis_columns' in vars and len(vars['data_separators']) != 2:
         raise ValueError('Only two data separators are allowed.')
     if 'x_axis_column' in vars:
         x_axis_column = vars['x_axis_column']
+        if 'data_separators' not in vars or not vars['data_separators']:
+            accum_all = True
     elif 'xy_axis_columns' in vars:
         x_axis_column = vars['xy_axis_columns']
     else:
         raise ValueError('Missing x-axis column names')
-    needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
+    if accum_all:
+        needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column
+    else:
+        needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
     df = vars['data'][needed_cols]
     # Calculate TP
     # df['actNrTP'] = (df[x_axis_column[0]] * df[x_axis_column[1]]).round()
-    grpd_cols = vars['data_separators'] + vars['it_parameters']
+    if accum_all:
+        grpd_cols = vars['it_parameters']
+    else:
+        grpd_cols = vars['data_separators'] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)
     # Check if we can use a linear model or a second degree model (t = t_fixed + t_lin * nrCorrs_GT + t_2nd * nrCorrs_GT
     grp_keys = df_grp.groups.keys()
@@ -1708,6 +1720,8 @@ def calc_Time_Model(**vars):
             if 'x_axis_column' not in ret:
                 raise ValueError('One element in the data separators should not be included in partitions as '
                                  'it is used for the x axis.')
+        elif accum_all:
+            ret['x_axis_column'] = None
         elif len(vars['data_separators']) != 1:
             raise ValueError('If no partitions for a 2D environment are used, only 1 data separator is allowed.')
         else:

@@ -933,11 +933,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
             else:
                 raise ValueError('Eval nr does not exist')
     elif test_name == 'refinement_ba':
+        if not test_nr:
+            raise ValueError('test_nr is required refinement_ba')
         from statistics_and_plot import calcSatisticAndPlot_2D, \
             calcSatisticAndPlot_3D, \
             calcSatisticAndPlot_2D_partitions, \
             calcFromFuncAndPlot_3D, \
-            calcFromFuncAndPlot_2D_partitions
+            calcFromFuncAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_aggregate
         if test_nr == 1:
             if eval_nr[0] < 0:
                 evals = list(range(1, 4))
@@ -945,7 +948,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                 evals = eval_nr
             for ev in evals:
                 if ev == 1:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences for different  '
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -982,7 +985,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 2:
-                    fig_title_pre_str = 'Values of R\\&t Differences for different '
+                    fig_title_pre_str = 'Values of R\\&t Differences for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -993,12 +996,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                      'refineMethod_costFunction',
                                      'BART']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
-                    partitions = ['depthDistr', 'kpAccSd']  # th must be at the end
-                    special_calcs_args = {'build_pdf': (True, True, True), 'use_marks': True}
-                    from usac_eval import get_best_comb_th_scenes_1
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refinement_ba_best_comb_scenes'}
+                    from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
-                                                             tex_file_pre_str='plots_USAC_vs_RANSAC_',
+                                                             tex_file_pre_str='plots_refineRT_BA_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
                                                              eval_description_path='RT-stats',
                                                              eval_columns=eval_columns,
@@ -1008,7 +1013,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              x_axis_column=['inlratMin'],
                                                              filter_func=None,
                                                              filter_func_args=None,
-                                                             special_calcs_func=get_best_comb_th_scenes_1,
+                                                             special_calcs_func=get_best_comb_scenes_1,
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
@@ -1018,6 +1023,42 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              make_fig_index=True,
                                                              build_pdf=True,
                                                              figs_externalize=True)
+                elif ev == 3:
+                    fig_title_pre_str = 'Temporal Behaviour for Different '
+                    eval_columns = ['linRef_BA_us']
+                    units = []
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction',
+                                     'BART']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'smooth',
+                                          'nr_target_kps': 1000,
+                                          't_data_separators': [],
+                                          'res_par_name': 'refineRT_BA_min_time'}
+                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+                    from refinement_eval import filter_nr_kps_calc_t
+                    ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         x_axis_column=['nrCorrs_GT'],
+                                                         filter_func=filter_nr_kps_calc_t,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=calc_Time_Model,
+                                                         calc_func_args={'data_separators': []},
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
 
     return ret
 

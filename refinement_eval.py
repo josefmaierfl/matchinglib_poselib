@@ -10,6 +10,13 @@ import jinja2 as ji
 import ruamel.yaml as yaml
 from usac_eval import ji_env
 
+def filter_nr_kps_calc_t(**vars):
+    tmp = vars['data'].loc[vars['data']['nrTP'] == '100to1000'].copy(deep=True)
+    linref = tmp['linRefinement_us']
+    ba = tmp['bundleAdjust_us']
+    tmp['linRef_BA_us'] = linref + ba
+    return tmp
+
 def get_best_comb_scenes_1(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
@@ -17,7 +24,7 @@ def get_best_comb_scenes_1(**keywords):
     ret = pars_calc_single_fig_partitions(**keywords)
     # if len(ret['partitions']) != 2:
     #     raise ValueError('Only a number of 2 partitions is allowed in function get_best_comb_scenes_1')
-    b_new_index = ret['b'].reset_index()
+    b_new_index = ret['b'].stack().reset_index()
     if len(ret['it_parameters'])  > 1:
         it_pars_name = '-'.join(ret['it_parameters'])
     else:
@@ -37,7 +44,9 @@ def get_best_comb_scenes_1(**keywords):
     column_legend = []
     b_mean_name = []
     part_name_title = []
+    is_numeric = []
     from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, calcNrLegendCols, strToLower, compile_tex
+    from usac_eval import insert_opt_lbreak
     tex_infos = {'title': 'Mean Combined R \\& t Errors Over Different Properties ' +
                           ' for Parameter Variations of ' + ret['sub_title_it_pars'],
                  'sections': [],
@@ -52,23 +61,23 @@ def get_best_comb_scenes_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    for i, df, dp in enumerate(zip(b_mean_l, data_parts)):
+    for i, (df, dp) in enumerate(zip(b_mean_l, data_parts)):
         tmp = df.reset_index().set_index(ret['it_parameters'])
         if len(ret['it_parameters']) > 1:
-            data_it_indices.append('-'.join(a) for a in tmp.index)
+            data_it_indices.append(['-'.join(a) for a in tmp.index])
             tmp.index = data_it_indices[-1]
             tmp.index.name = it_pars_name
         else:
-            data_it_indices.append(str(a) for a in tmp.index)
+            data_it_indices.append([str(a) for a in tmp.index])
+        is_numeric.append(pd.to_numeric(tmp[dp], errors='coerce').notnull().all())
         tmp = tmp.reset_index().set_index([dp] + [it_pars_name]).unstack(level=-1)
         column_legend.append([tex_string_coding_style(b) for a in tmp.columns for b in a if b in data_it_indices[-1]])
-        data_it_b_columns.append('-'.join([str(b) if b in data_it_indices[-1] else 'b_mean'
-                                           for b in a]) for a in tmp.columns)
+        data_it_b_columns.append(['-'.join([str(b) if b in data_it_indices[-1] else 'b_mean'
+                                           for b in a]) for a in tmp.columns])
         tmp.columns = data_it_b_columns[-1]
 
         b_mean_name.append('data_mean_RTerrors_over_' + '-'.join(map(str, drops[i])) + '_vs_' + str(dp) +
-                           '_for_opts_' + '-'.join(ret['it_parameters']) + '_and_props_' +
-                           ret['dataf_name_partition'] + '.csv')
+                           '_for_opts_' + '-'.join(ret['it_parameters']) + '.csv')
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name[-1])
         with open(fb_mean_name, 'a') as f:
             f.write('# Mean combined R & t errors (b_min) over properties ' + '-'.join(map(str, drops[i])) +
@@ -134,7 +143,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'legend_cols': None,
                                       'use_marks': ret['use_marks'],
                                       # The x/y-axis values are given as strings if True
-                                      'use_string_labels': True,
+                                      'use_string_labels': True if not is_numeric[-1] else False,
                                       'use_log_y_axis': use_log,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
@@ -157,7 +166,7 @@ def get_best_comb_scenes_1(**keywords):
         res = abs(compile_tex(rendered_tex,
                               ret['tex_folder'],
                               texf_name,
-                              False,
+                              tex_infos['make_index'],
                               os.path.join(ret['pdf_folder'], pdf_name),
                               tex_infos['figs_externalize']))
     else:
@@ -181,23 +190,32 @@ def get_best_comb_scenes_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
     data_parts_min = []
-    for i, df, dp, dit, fn, pnt in enumerate(zip(b_mean_l, data_parts, data_it_indices, b_mean_name, part_name_title)):
+    for df, dp, dit, fn, pnt, isn, dps in zip(b_mean_l,
+                                              data_parts,
+                                              data_it_indices,
+                                              b_mean_name,
+                                              part_name_title,
+                                              is_numeric,
+                                              drops):
         tmp = df.reset_index().set_index(ret['it_parameters'])
         if len(ret['it_parameters']) > 1:
             tmp.index = dit
             tmp.index.name = it_pars_name
-        data_parts_min.append(tmp.loc[tmp.groupby(dp).idxmin()].reset_index().set_index(dp))
-        data_parts_min.rename(columns={data_parts_min.columns[1]: 'b_min'}, inplace=True)
+        tmp.rename(columns={tmp.columns[1]: 'b_min'}, inplace=True)
+        tmp.reset_index(inplace=True)
+        data_parts_min.append(tmp.loc[tmp.groupby(dp)['b_min'].idxmin()].set_index(dp))
+        # data_parts_min[-1]['tex_it_pars'] = insert_opt_lbreak(data_parts_min[-1][it_pars_name].tolist())
+        data_parts_min[-1]['tex_it_pars'] = data_parts_min[-1][it_pars_name].apply(lambda x: tex_string_coding_style(x))
         data_f_name = fn.replace('data_mean','data_min_mean')
         fb_mean_name = os.path.join(ret['tdata_folder'], data_f_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Minimum mean combined R & t errors (b_min) and their corresponding options over properties ' +
-                    '-'.join(map(str, drops[i])) +
+                    '-'.join(map(str, dps)) +
                     ' compared to ' + str(dp) + ' for options ' +
                     '-'.join(ret['it_parameters']) + '\n')
             data_parts_min[-1].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        stats_all = tmp.drop(it_pars_name, axis=1).stack().reset_index()
+        stats_all = data_parts_min[-1].drop([it_pars_name, 'tex_it_pars'], axis=1).stack().reset_index()
         stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
         use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
         # figure types: sharp plot, smooth, const plot, ybar, xbar
@@ -233,16 +251,16 @@ def get_best_comb_scenes_1(**keywords):
                                       'print_x': str(dp),
                                       # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                       'print_meta': True,
-                                      'plot_meta': [it_pars_name],
+                                      'plot_meta': ['tex_it_pars'],
                                       # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
                                       'rotate_meta': 45,
                                       'limits': use_limits,
                                       # If None, no legend is used, otherwise use a list
                                       'legend': None,
                                       'legend_cols': 1,
-                                      'use_marks': ret['use_marks'],
+                                      'use_marks': False,
                                       # The x/y-axis values are given as strings if True
-                                      'use_string_labels': True,
+                                      'use_string_labels': True if not isn else False,
                                       'use_log_y_axis': use_log,
                                       'large_meta_space_needed': True,
                                       'caption': caption
@@ -262,7 +280,7 @@ def get_best_comb_scenes_1(**keywords):
         res = abs(compile_tex(rendered_tex,
                               ret['tex_folder'],
                               texf_name,
-                              False,
+                              tex_infos['make_index'],
                               os.path.join(ret['pdf_folder'], pdf_name),
                               tex_infos['figs_externalize']))
     else:

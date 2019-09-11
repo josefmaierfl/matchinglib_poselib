@@ -113,10 +113,11 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--BART', '0', '1']
             args += ['--useGTCamMat']
         elif test_nr == 2:
-            if not refineRT:
-                raise ValueError('Enter best test results for refineRT of refinement_ba')
-            args += ['--refineRT'] + list(map(str, refineRT))
-            args += ['--BART', '0', '1']
+            # if not refineRT:
+            #     raise ValueError('Enter best test results for refineRT of refinement_ba')
+            # args += ['--refineRT'] + list(map(str, refineRT))
+            args += ['--refineRT', '0', '0', '1', '1', '1']
+            args += ['--BART', '2']
             args += ['--nr_keypoints', '500']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for refinement_ba')
