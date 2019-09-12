@@ -4015,13 +4015,10 @@ def main():
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
                     special_calcs_args = {'build_pdf': (True, True),
-                                          'use_marks': True,
-                                          'fig_type': 'smooth',
                                           'nr_target_kps': 1000,
-                                          't_data_separators': [],
                                           'res_par_name': 'refineRT_BA_min_time'}
-                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-                    from refinement_eval import filter_nr_kps_calc_t
+                    from usac_eval import calc_Time_Model
+                    from refinement_eval import filter_nr_kps_calc_t, estimate_alg_time_fixed_kp_agg
                     ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_refineRT_BA_opts_',
@@ -4033,11 +4030,11 @@ def main():
                                                          x_axis_column=['nrCorrs_GT'],
                                                          filter_func=filter_nr_kps_calc_t,
                                                          filter_func_args=None,
-                                                         special_calcs_func=None,
-                                                         special_calcs_args=None,
+                                                         special_calcs_func=estimate_alg_time_fixed_kp_agg,
+                                                         special_calcs_args=special_calcs_args,
                                                          calc_func=calc_Time_Model,
                                                          calc_func_args={'data_separators': []},
-                                                         fig_type='smooth',
+                                                         fig_type='ybar',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
                                                          make_fig_index=True,

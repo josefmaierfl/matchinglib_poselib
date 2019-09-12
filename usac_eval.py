@@ -2003,10 +2003,11 @@ def estimate_alg_time_fixed_kp(**vars):
     return res
 
 def get_time_fixed_kp(**vars):
-    if 't_data_separators' not in vars:
-        raise ValueError('No data separators specified for calculating time budget')
     drop_cols = []
+    no_seperators = False
     if 'partitions' in vars:
+        if 't_data_separators' not in vars:
+            raise ValueError('No data separators specified for calculating time budget')
         if 'x_axis_column' in vars:
             for sep in vars['t_data_separators']:
                 if sep not in vars['partitions'] and sep not in vars['x_axis_column']:
@@ -2020,17 +2021,27 @@ def get_time_fixed_kp(**vars):
         else:
             raise ValueError('Either x_axis_column or xy_axis_columns must be provided')
     elif 'x_axis_column' in vars:
+        if 't_data_separators' not in vars:
+            raise ValueError('No data separators specified for calculating time budget')
         for sep in vars['t_data_separators']:
             if sep not in vars['x_axis_column']:
                 raise ValueError('Data separator ' + str(sep) + ' not found in x_axis_column')
     elif 'xy_axis_columns' in vars:
+        if 't_data_separators' not in vars:
+            raise ValueError('No data separators specified for calculating time budget')
         for sep in vars['t_data_separators']:
             if sep not in vars['xy_axis_columns']:
                 raise ValueError('Data separator ' + str(sep) + ' not found in xy_axis_columns')
         drop_cols = list(set(vars['xy_axis_columns']).difference(vars['t_data_separators']))
+    elif 't_data_separators' not in vars:
+        no_seperators = True
     else:
-        raise ValueError('Either x_axis_column or xy_axis_columns must be provided')
-    individual_grps = vars['it_parameters'] + vars['t_data_separators']
+        raise ValueError('Either x_axis_column or xy_axis_columns and t_data_separators or '
+                         'neither of those must be provided')
+    if no_seperators:
+        individual_grps = vars['it_parameters']
+    else:
+        individual_grps = vars['it_parameters'] + vars['t_data_separators']
     df = vars['data'].groupby(individual_grps).mean()
     if drop_cols:
         df.drop(drop_cols, axis=1, inplace=True)

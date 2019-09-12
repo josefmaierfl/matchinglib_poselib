@@ -8,7 +8,7 @@ import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
 import ruamel.yaml as yaml
-from usac_eval import ji_env
+from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 
 def filter_nr_kps_calc_t(**vars):
     tmp = vars['data'].loc[vars['data']['nrTP'] == '100to1000'].copy(deep=True)
@@ -46,7 +46,6 @@ def get_best_comb_scenes_1(**keywords):
     part_name_title = []
     is_numeric = []
     from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, calcNrLegendCols, strToLower, compile_tex
-    from usac_eval import insert_opt_lbreak
     tex_infos = {'title': 'Mean Combined R \\& t Errors Over Different Properties ' +
                           ' for Parameter Variations of ' + ret['sub_title_it_pars'],
                  'sections': [],
@@ -329,3 +328,142 @@ def get_best_comb_scenes_1(**keywords):
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return ret['res']
+
+
+def estimate_alg_time_fixed_kp_agg(**vars):
+    if 'res_par_name' not in vars:
+        raise ValueError('Missing parameter res_par_name')
+    tmp, col_name = get_time_fixed_kp(**vars)
+
+    tmp.set_index(vars['it_parameters'], inplace=True)
+    from statistics_and_plot import glossary_from_list
+    if len(vars['it_parameters']) > 1:
+        gloss = glossary_from_list([str(b) for a in tmp.index for b in a])
+        par_cols = ['-'.join(map(str, a)) for a in tmp.index]
+        tmp.index = par_cols
+        it_pars_cols_name = '-'.join(map(str, vars['it_parameters']))
+        tmp.index.name = it_pars_cols_name
+    else:
+        gloss = glossary_from_list([str(a) for a in tmp.index])
+        it_pars_cols_name = vars['it_parameters'][0]
+        par_cols = [a for a in tmp.index]
+    tmp['pars_tex'] = insert_opt_lbreak(par_cols)
+
+    tmp_min = tmp.loc[[tmp[col_name].idxmin(axis=0)]].reset_index()
+
+    vars = prepare_io(**vars)
+    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
+    t_main_name = 'mean_time_for_' + \
+                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
+                  '-'.join(map(str, vars['it_parameters']))
+    t_mean_name = 'data_' + t_main_name + '.csv'
+    ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
+    with open(ft_mean_name, 'a') as f:
+        f.write('# Mean execution times extrapolated for ' +
+                str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(vars['it_parameters']) + '\n')
+        tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    title = 'Mean Execution Times for Parameter Variations of ' + vars['sub_title_it_pars'] + \
+            ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
+    tex_infos = {'title': title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': False,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
+                 }
+    min_val = tmp[col_name].min()
+    max_val = tmp[col_name].max()
+    stats_all = {'min': min_val, 'max': max_val}
+    use_log = True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False
+    # figure types: sharp plot, smooth, const plot, ybar, xbar
+    use_limits = {'miny': None, 'maxy': None}
+    if np.abs(stats_all['max'] - stats_all['min']) < np.abs(stats_all['max'] / 200):
+        if stats_all['min'] < 0:
+            use_limits['miny'] = round(1.01 * stats_all['min'], 6)
+        else:
+            use_limits['miny'] = round(0.99 * stats_all['min'], 6)
+        if stats_all['max'] < 0:
+            use_limits['maxy'] = round(0.99 * stats_all['max'], 6)
+        else:
+            use_limits['maxy'] = round(1.01 * stats_all['max'], 6)
+    reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
+    fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
+               '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    tex_infos['sections'].append({'file': reltex_name,
+                                  'name': fig_name.replace('\\\\', ' '),
+                                  'title': fig_name,
+                                  'title_rows': fig_name.count('\\\\'),
+                                  'fig_type': 'ybar',
+                                  'plots': [col_name],
+                                  'label_y': 'mean execution time/$\\mu s$',
+                                  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': 'Parameter',
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': 'pars_tex',
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': False,
+                                  'plot_meta': None,
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
+                                  'limits': use_limits,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': True,
+                                  'use_log_y_axis': use_log,
+                                  'large_meta_space_needed': False,
+                                  'caption': fig_name.replace('\\\\', ' ')
+                                  })
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if any(vars['build_pdf']):
+        pdf_name = base_out_name + '.pdf'
+        res = abs(compile_tex(rendered_tex,
+                              vars['tex_folder'],
+                              texf_name,
+                              False,
+                              os.path.join(vars['pdf_folder'], pdf_name),
+                              tex_infos['figs_externalize']))
+    else:
+        res = abs(compile_tex(rendered_tex, vars['tex_folder'], texf_name, False))
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    main_parameter_name = vars['res_par_name']#'USAC_opt_refine_min_time'
+    # Check if file and parameters exist
+    from usac_eval import check_par_file_exists, NoAliasDumper
+    ppar_file, res = check_par_file_exists(main_parameter_name, vars['res_folder'], res)
+
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = tmp_min[it_pars_cols_name][0].split('-')
+        min_t = float(tmp_min[col_name][0])
+        if len(vars['it_parameters']) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(vars['it_parameters']):
+            alg_w[val] = alg_comb_bestl[i]
+        yaml.dump({main_parameter_name: {'Algorithms': alg_w,
+                                         't_min': min_t}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+
+    return res
