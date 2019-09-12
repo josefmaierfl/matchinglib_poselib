@@ -109,7 +109,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         if not test_nr:
             raise ValueError('test_nr is required for refinement_ba')
         if test_nr == 1:
-            args += ['--refineRT', '0', '0', '1', '1', '1', '-13']
+            args += ['--refineRT', '0', '0', '1', '1', '1']#, '-13']
             args += ['--BART', '0', '1']
             args += ['--useGTCamMat']
         elif test_nr == 2:

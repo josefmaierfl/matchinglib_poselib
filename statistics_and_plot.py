@@ -2891,6 +2891,7 @@ def capitalizeFirstChar(str_val):
 def strToLower(str_val):
     return ' '.join([b.lower() if not sum(1 for c in b if c.isupper()) > 1 and
                                   not '$' in b and
+                                  not len(b) == 1 and
                                   not '\\' in b else b for b in str_val.split(' ')])
 
 def getOptionDescription(key):

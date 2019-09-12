@@ -936,10 +936,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
         if not test_nr:
             raise ValueError('test_nr is required refinement_ba')
         from statistics_and_plot import calcSatisticAndPlot_2D, \
-            calcSatisticAndPlot_3D, \
             calcSatisticAndPlot_2D_partitions, \
-            calcFromFuncAndPlot_3D, \
-            calcFromFuncAndPlot_2D_partitions, \
             calcFromFuncAndPlot_aggregate
         if test_nr == 1:
             if eval_nr[0] < 0:
@@ -1001,6 +998,124 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                           'use_marks': True,
                                           'res_par_name': 'refinement_ba_best_comb_scenes'}
                     from refinement_eval import get_best_comb_scenes_1
+                    from usac_eval import filter_nr_kps_stat
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=filter_nr_kps_stat,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 3:
+                    fig_title_pre_str = 'Temporal Behaviour for Different '
+                    eval_columns = ['linRef_BA_us']
+                    units = []
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction',
+                                     'BART']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'nr_target_kps': 1000,
+                                          'res_par_name': 'refineRT_BA_min_time'}
+                    from usac_eval import calc_Time_Model
+                    from refinement_eval import filter_nr_kps_calc_t, estimate_alg_time_fixed_kp_agg
+                    ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         x_axis_column=['nrCorrs_GT'],
+                                                         filter_func=filter_nr_kps_calc_t,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=estimate_alg_time_fixed_kp_agg,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=calc_Time_Model,
+                                                         calc_func_args={'data_separators': []},
+                                                         fig_type='ybar',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr does not exist')
+        elif test_nr == 2:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 5))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences After Bundle Adjustment (BA) Including ' \
+                                        'Intrinsics and Structure Using Degenerate Input Camera Matrices for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refineRT_opts_for_BA2_inlrat'}
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 2:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences After Bundle Adjustment (BA) Including ' \
+                                        'Intrinsics and Structure Using Degenerate Input Camera Matrices for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refinement_best_comb_for_BA2_scenes'}
+                    from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refineRT_BA_opts_',
@@ -1023,42 +1138,95 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              make_fig_index=True,
                                                              build_pdf=True,
                                                              figs_externalize=True)
-                elif ev == 3:
-                    fig_title_pre_str = 'Temporal Behaviour for Different '
-                    eval_columns = ['linRef_BA_us']
-                    units = []
+                if ev == 3:
+                    fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
+                                        'after Bundle Adjustment (BA) Including Intrinsics and ' \
+                                        'Structure Using Degenerate Input Camera Matrices for Different '
+                    eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
+                                    'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff', 'K2_fxDiff', 'K1_fyDiff',
+                                    'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff', 'K1_cyDiff', 'K2_cyDiff']
+                    units = [('K1_cxyfxfyNorm', '/pixel'), ('K2_cxyfxfyNorm', '/pixel'),
+                             ('K1_cxyDiffNorm', '/pixel'), ('K2_cxyDiffNorm', '/pixel'),
+                             ('K1_fxyDiffNorm', '/pixel'), ('K2_fxyDiffNorm', '/pixel'), ('K1_fxDiff', '/pixel'),
+                             ('K2_fxDiff', '/pixel'), ('K1_fyDiff', '/pixel'), ('K2_fyDiff', '/pixel'),
+                             ('K1_cxDiff', '/pixel'), ('K2_cxDiff', '/pixel'), ('K1_cyDiff', '/pixel'),
+                             ('K2_cyDiff', '/pixel')]
                     it_parameters = ['refineMethod_algorithm',
-                                     'refineMethod_costFunction',
-                                     'BART']
+                                     'refineMethod_costFunction']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
-                                          'fig_type': 'smooth',
-                                          'nr_target_kps': 1000,
-                                          't_data_separators': [],
-                                          'res_par_name': 'refineRT_BA_min_time'}
-                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-                    from refinement_eval import filter_nr_kps_calc_t
-                    ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
-                                                         store_path=output_path,
-                                                         tex_file_pre_str='plots_refineRT_BA_opts_',
-                                                         fig_title_pre_str=fig_title_pre_str,
-                                                         eval_description_path='time',
-                                                         eval_columns=eval_columns,
-                                                         units=units,
-                                                         it_parameters=it_parameters,
-                                                         x_axis_column=['nrCorrs_GT'],
-                                                         filter_func=filter_nr_kps_calc_t,
-                                                         filter_func_args=None,
-                                                         special_calcs_func=None,
-                                                         special_calcs_args=None,
-                                                         calc_func=calc_Time_Model,
-                                                         calc_func_args={'data_separators': []},
-                                                         fig_type='smooth',
-                                                         use_marks=True,
-                                                         ctrl_fig_size=True,
-                                                         make_fig_index=True,
-                                                         build_pdf=True,
-                                                         figs_externalize=False)
+                                          'res_par_name': 'refineRT_opts_for_BA2_K_inlrat'}
+                    from refinement_eval import get_best_comb_inlrat_k
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='K-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_k,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 4:
+                    fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
+                                        'after Bundle Adjustment (BA) Including Intrinsics and ' \
+                                        'Structure Using Degenerate Input Camera Matrices for Different '
+                    eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
+                                    'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff', 'K2_fxDiff', 'K1_fyDiff',
+                                    'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff', 'K1_cyDiff', 'K2_cyDiff']
+                    units = [('K1_cxyfxfyNorm', '/pixel'), ('K2_cxyfxfyNorm', '/pixel'),
+                             ('K1_cxyDiffNorm', '/pixel'), ('K2_cxyDiffNorm', '/pixel'),
+                             ('K1_fxyDiffNorm', '/pixel'), ('K2_fxyDiffNorm', '/pixel'), ('K1_fxDiff', '/pixel'),
+                             ('K2_fxDiff', '/pixel'), ('K1_fyDiff', '/pixel'), ('K2_fyDiff', '/pixel'),
+                             ('K1_cxDiff', '/pixel'), ('K2_cxDiff', '/pixel'), ('K1_cyDiff', '/pixel'),
+                             ('K2_cyDiff', '/pixel')]
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    from refinement_eval import combineK
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'error_function': combineK,
+                                          'error_type_text': 'Combined Camera Matrix Errors',
+                                          'file_name_err_part': 'Kerror',
+                                          'error_col_name': 'ke',
+                                          'res_par_name': 'refinement_best_comb_for_BA2_K_scenes'}
+                    from refinement_eval import get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='K-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
 
     return ret
 

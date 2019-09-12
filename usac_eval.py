@@ -143,11 +143,20 @@ def pars_calc_single_fig_partitions(**keywords):
                              '-'.join(ret['it_parameters']) + \
                              '_and_properties_'
     ret['dataf_name_partition'] = '-'.join([a[:min(3, len(a))] for a in map(str, ret['partitions'])])
-    ret['b'] = combineRt(data)
+    if 'error_function' in keywords:
+        ret['b'] = keywords['error_function'](data)
+    else:
+        ret['b'] = combineRt(data)
     ret['b_all_partitions'] = ret['b'].reset_index().set_index(ret['partitions'])
-    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
-                          ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +
-                          ret['sub_title_partitions'],
+    if 'error_type_text' in keywords:
+        title_text = keywords['error_type_text'] + ' vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +\
+                     ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +\
+                     ret['sub_title_partitions']
+    else:
+        title_text = 'Combined R \\& t Errors vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +\
+                      ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +\
+                      ret['sub_title_partitions']
+    tex_infos = {'title': title_text,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -200,6 +209,10 @@ def pars_calc_single_fig_partitions(**keywords):
             tmp2.columns.name = '-'.join(ret['it_parameters'])
         dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
         dataf_name = dataf_name_main_property + '.csv'
+        if 'file_name_err_part' in keywords:
+            b_name = 'data_' + keywords['file_name_err_part'] + '_vs_' + dataf_name
+        else:
+            b_name = 'data_RTerrors_vs_' + dataf_name
         b_name = 'data_RTerrors_vs_' + dataf_name
         fb_name = os.path.join(ret['tdata_folder'], b_name)
         ret['b_single_partitions'].append({'data': tmp2,
@@ -208,7 +221,13 @@ def pars_calc_single_fig_partitions(**keywords):
                                            'dataf_name_main_property': dataf_name_main_property,
                                            'dataf_name': dataf_name})
         with open(fb_name, 'a') as f:
-            f.write('# Combined R & t errors vs ' + str(ret['grp_names'][-1]) + ' for properties ' + part_name + '\n')
+            if 'error_type_text' in keywords:
+                from statistics_and_plot import strToLower, capitalizeFirstChar
+                f.write( '# ' + capitalizeFirstChar(strToLower(keywords['error_type_text'])) +
+                         ' vs ' + str(ret['grp_names'][-1]) +
+                         ' for properties ' + part_name + '\n')
+            else:
+                f.write('# Combined R & t errors vs ' + str(ret['grp_names'][-1]) + ' for properties ' + part_name + '\n')
             f.write('# Column parameters: ' + '-'.join(ret['it_parameters']) + '\n')
             tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
@@ -231,19 +250,34 @@ def pars_calc_single_fig_partitions(**keywords):
             if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
         reltex_name = os.path.join(ret['rel_data_path'], b_name)
+        if 'error_type_text' in keywords:
+            from statistics_and_plot import strToLower, capitalizeFirstChar
+            sec_name = capitalizeFirstChar(strToLower(keywords['error_type_text'])) + ' vs ' +\
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                       ' for parameter variations of \\\\' + ret['sub_title_it_pars'] +\
+                       ' based on properties \\\\' + part_name.replace('_', '\\_')
+            cap_name = capitalizeFirstChar(strToLower(keywords['error_type_text'])) + ' vs ' + \
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
+                       ' for parameter variations of ' + ret['sub_title_it_pars'] + \
+                       ' based on properties ' + part_name.replace('_', '\\_')
+            label_y = strToLower(keywords['error_type_text'])
+        else:
+            sec_name = 'Combined R \\& t errors vs ' + \
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
+                       ' for parameter variations of \\\\' + ret['sub_title_it_pars'] + \
+                       ' based on properties \\\\' + part_name.replace('_', '\\_')
+            cap_name = 'Combined R \\& t errors vs ' +\
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                       ' for parameter variations of ' + ret['sub_title_it_pars'] +\
+                       ' based on properties ' + part_name.replace('_', '\\_')
+            label_y = 'Combined R \\& t error'
         tex_infos['sections'].append({'file': reltex_name,
-                                      'name': 'Combined R \\& t errors vs ' +
-                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) +
-                                              ' for parameter variations of \\\\' + ret['sub_title_it_pars'] +
-                                              ' based on properties \\\\' + part_name.replace('_', '\\_'),
+                                      'name': sec_name,
                                       # If caption is None, the field name is used
-                                      'caption': 'Combined R \\& t errors vs ' +
-                                                 replaceCSVLabels(str(ret['grp_names'][-1]), True) +
-                                                 ' for parameter variations of ' + ret['sub_title_it_pars'] +
-                                                 ' based on properties ' + part_name.replace('_', '\\_'),
+                                      'caption': cap_name,
                                       'fig_type': 'smooth',
                                       'plots': list(tmp2.columns.values),
-                                      'label_y': 'Combined R \\& t error',
+                                      'label_y': label_y,
                                       'plot_x': str(ret['grp_names'][-1]),
                                       'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
                                       'limits': use_limits,
@@ -262,7 +296,11 @@ def pars_calc_single_fig_partitions(**keywords):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main'] + ret['dataf_name_partition']
+    if 'file_name_err_part' in keywords:
+        base_out_name = 'tex_' + keywords['file_name_err_part'] + '_vs_' + ret['dataf_name_main'] + \
+                        ret['dataf_name_partition']
+    else:
+        base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main'] + ret['dataf_name_partition']
     texf_name = base_out_name + '.tex'
     if ret['build_pdf'][0]:
         pdf_name = base_out_name + '.pdf'

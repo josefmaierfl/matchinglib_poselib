@@ -46,8 +46,14 @@ def get_best_comb_scenes_1(**keywords):
     part_name_title = []
     is_numeric = []
     from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, calcNrLegendCols, strToLower, compile_tex
-    tex_infos = {'title': 'Mean Combined R \\& t Errors Over Different Properties ' +
-                          ' for Parameter Variations of ' + ret['sub_title_it_pars'],
+    from statistics_and_plot import capitalizeFirstChar
+    if 'error_type_text' in keywords:
+        title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
+                     ' for Parameter Variations of ' + ret['sub_title_it_pars']
+    else:
+        title_text = 'Mean Combined R \\& t Errors Over Different Properties ' +\
+                     ' for Parameter Variations of ' + ret['sub_title_it_pars']
+    tex_infos = {'title': title_text,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -71,17 +77,33 @@ def get_best_comb_scenes_1(**keywords):
         is_numeric.append(pd.to_numeric(tmp[dp], errors='coerce').notnull().all())
         tmp = tmp.reset_index().set_index([dp] + [it_pars_name]).unstack(level=-1)
         column_legend.append([tex_string_coding_style(b) for a in tmp.columns for b in a if b in data_it_indices[-1]])
-        data_it_b_columns.append(['-'.join([str(b) if b in data_it_indices[-1] else 'b_mean'
+        if 'error_col_name' in keywords:
+            err_name = keywords['error_col_name'] + '_mean'
+        else:
+            err_name = 'b_mean'
+        data_it_b_columns.append(['-'.join([str(b) if b in data_it_indices[-1] else err_name
                                            for b in a]) for a in tmp.columns])
         tmp.columns = data_it_b_columns[-1]
 
-        b_mean_name.append('data_mean_RTerrors_over_' + '-'.join(map(str, drops[i])) + '_vs_' + str(dp) +
-                           '_for_opts_' + '-'.join(ret['it_parameters']) + '.csv')
+        if 'file_name_err_part' in keywords:
+            b_mean_name_tmp = 'data_mean_' + keywords['file_name_err_part'] + '_over_' + \
+                              '-'.join(map(str, drops[i])) + '_vs_' + str(dp) +\
+                              '_for_opts_' + '-'.join(ret['it_parameters']) + '.csv'
+        else:
+            b_mean_name_tmp = 'data_mean_RTerrors_over_' + '-'.join(map(str, drops[i])) + '_vs_' + str(dp) + \
+                              '_for_opts_' + '-'.join(ret['it_parameters']) + '.csv'
+        b_mean_name.append(b_mean_name_tmp)
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name[-1])
         with open(fb_mean_name, 'a') as f:
-            f.write('# Mean combined R & t errors (b_min) over properties ' + '-'.join(map(str, drops[i])) +
-                    ' compared to ' + str(dp) + ' for options ' +
-                    '-'.join(ret['it_parameters']) + '\n')
+            if 'error_type_text' in keywords:
+                f.write('# Mean' + strToLower(keywords['error_type_text']) + '(' + err_name + ')' +
+                        ' over properties ' + '-'.join(map(str, drops[i])) +
+                        ' compared to ' + str(dp) + ' for options ' +
+                        '-'.join(ret['it_parameters']) + '\n')
+            else:
+                f.write('# Mean combined R & t errors (b_mean) over properties ' + '-'.join(map(str, drops[i])) +
+                        ' compared to ' + str(dp) + ' for options ' +
+                        '-'.join(ret['it_parameters']) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         part_name_title.append('')
@@ -117,16 +139,24 @@ def get_best_comb_scenes_1(**keywords):
             if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
         reltex_name = os.path.join(ret['rel_data_path'], b_mean_name[-1])
-        fig_name = 'Mean combined R \\& t errors over\\\\properties ' + part_name_title[-1] + \
-                   '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
-                   ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
+        if 'error_type_text' in keywords:
+            fig_name = 'Mean ' + capitalizeFirstChar(strToLower(keywords['error_type_text'])) + \
+                       ' over\\\\properties ' + part_name_title[-1] + \
+                       '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
+            label_y = 'mean ' + strToLower(keywords['error_type_text'])
+        else:
+            fig_name = 'Mean combined R \\& t errors over\\\\properties ' + part_name_title[-1] + \
+                       '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
+            label_y = 'mean R \\& t error'
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
                                       'title_rows': fig_name.count('\\\\'),
                                       'fig_type': 'smooth',
                                       'plots': data_it_b_columns[-1],
-                                      'label_y': 'mean R \\& t error',  # Label of the value axis. For xbar it labels the x-axis
+                                      'label_y': label_y,  # Label of the value axis. For xbar it labels the x-axis
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
                                       'label_x': replaceCSVLabels(str(dp)),
                                       # Column name of axis with bars. For xbar it is the column for the y-axis
@@ -157,7 +187,10 @@ def get_best_comb_scenes_1(**keywords):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    t_main_name = 'mean_RTerrors_over_different_properties_vs_1_property'
+    if 'file_name_err_part' in keywords:
+        t_main_name = 'mean_' + keywords['file_name_err_part'] + '_over_different_properties_vs_1_property'
+    else:
+        t_main_name = 'mean_RTerrors_over_different_properties_vs_1_property'
     base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'
     if ret['build_pdf'][1]:
@@ -174,8 +207,13 @@ def get_best_comb_scenes_1(**keywords):
         ret['res'] += res
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    tex_infos = {'title': 'Minimum Mean Combined R \\& t Errors Over Different Properties ' +
-                          ' for Parameter Variations of ' + ret['sub_title_it_pars'],
+    if 'error_type_text' in keywords:
+        title_text = 'Minimum Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
+                     ' for Parameter Variations of ' + ret['sub_title_it_pars']
+    else:
+        title_text = 'Minimum Mean Combined R \\& t Errors Over Different Properties ' +\
+                     ' for Parameter Variations of ' + ret['sub_title_it_pars']
+    tex_infos = {'title': title_text,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -189,6 +227,10 @@ def get_best_comb_scenes_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
     data_parts_min = []
+    if 'error_col_name' in keywords:
+        err_name = keywords['error_col_name'] + '_min'
+    else:
+        err_name = 'b_min'
     for df, dp, dit, fn, pnt, isn, dps in zip(b_mean_l,
                                               data_parts,
                                               data_it_indices,
@@ -200,18 +242,25 @@ def get_best_comb_scenes_1(**keywords):
         if len(ret['it_parameters']) > 1:
             tmp.index = dit
             tmp.index.name = it_pars_name
-        tmp.rename(columns={tmp.columns[1]: 'b_min'}, inplace=True)
+        tmp.rename(columns={tmp.columns[1]: err_name}, inplace=True)
         tmp.reset_index(inplace=True)
-        data_parts_min.append(tmp.loc[tmp.groupby(dp)['b_min'].idxmin()].set_index(dp))
+        data_parts_min.append(tmp.loc[tmp.groupby(dp)[err_name].idxmin()].set_index(dp))
         # data_parts_min[-1]['tex_it_pars'] = insert_opt_lbreak(data_parts_min[-1][it_pars_name].tolist())
         data_parts_min[-1]['tex_it_pars'] = data_parts_min[-1][it_pars_name].apply(lambda x: tex_string_coding_style(x))
         data_f_name = fn.replace('data_mean','data_min_mean')
         fb_mean_name = os.path.join(ret['tdata_folder'], data_f_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Minimum mean combined R & t errors (b_min) and their corresponding options over properties ' +
-                    '-'.join(map(str, dps)) +
-                    ' compared to ' + str(dp) + ' for options ' +
-                    '-'.join(ret['it_parameters']) + '\n')
+            if 'error_type_text' in keywords:
+                f.write('# Minimum mean' + strToLower(keywords['error_type_text']) + '(' + err_name + ')' +
+                        ' and their corresponding options over properties ' +
+                        ' compared to ' + str(dp) + ' for options ' +
+                        '-'.join(ret['it_parameters']) + '\n')
+            else:
+                f.write('# Minimum mean combined R & t errors (b_min) and their '
+                        'corresponding options over properties ' +
+                        '-'.join(map(str, dps)) +
+                        ' compared to ' + str(dp) + ' for options ' +
+                        '-'.join(ret['it_parameters']) + '\n')
             data_parts_min[-1].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         stats_all = data_parts_min[-1].drop([it_pars_name, 'tex_it_pars'], axis=1).stack().reset_index()
@@ -229,20 +278,33 @@ def get_best_comb_scenes_1(**keywords):
             else:
                 use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
         reltex_name = os.path.join(ret['rel_data_path'], data_f_name)
-        fig_name = 'Minimum mean combined R \\& t errors and their corresponding parameter over\\\\properties ' + \
-                   pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
-                   ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
-        caption = 'Minimum mean combined R \\& t errors ' \
-                  '(corresponding parameter on top of each bar) over properties ' + \
-                  pnt + ' vs ' + replaceCSVLabels(str(dp), True) + \
-                  ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
+        if 'error_type_text' in keywords:
+            fig_name = 'Minimum mean ' + capitalizeFirstChar(strToLower(keywords['error_type_text'])) + \
+                       ' and their corresponding parameter over\\\\properties ' + \
+                       pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
+            caption = 'Minimum mean combined R \\& t errors ' \
+                      '(corresponding parameter on top of each bar) over properties ' + \
+                      pnt + ' vs ' + replaceCSVLabels(str(dp), True) + \
+                      ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
+            label_y = 'min. mean ' + strToLower(keywords['error_type_text'])
+        else:
+            fig_name = 'Minimum mean combined R \\& t errors and their ' \
+                       'corresponding parameter over\\\\properties ' + \
+                       pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
+            caption = 'Minimum mean combined R \\& t errors ' \
+                      '(corresponding parameter on top of each bar) over properties ' + \
+                      pnt + ' vs ' + replaceCSVLabels(str(dp), True) + \
+                      ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
+            label_y = 'min. mean R \\& t error'
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
                                       'title_rows': fig_name.count('\\\\'),
                                       'fig_type': 'ybar',
-                                      'plots': ['b_min'],
-                                      'label_y': 'min. mean R \\& t error',
+                                      'plots': [err_name],
+                                      'label_y': label_y,
                                       # Label of the value axis. For xbar it labels the x-axis
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
                                       'label_x': replaceCSVLabels(str(dp)),
@@ -271,7 +333,10 @@ def get_best_comb_scenes_1(**keywords):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    t_main_name = 'min_mean_RTerrors_over_different_properties_vs_1_property'
+    if 'file_name_err_part' in keywords:
+        t_main_name = 'min_mean_' + keywords['file_name_err_part'] + '_over_different_properties_vs_1_property'
+    else:
+        t_main_name = 'min_mean_RTerrors_over_different_properties_vs_1_property'
     base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'
     if ret['build_pdf'][2]:
@@ -294,21 +359,21 @@ def get_best_comb_scenes_1(**keywords):
         if data_min_c.iloc[0] == data_min_c.iloc[1]:
             data_min_c = data_min_c.loc[data_min_c == data_min_c.iloc[0]]
             data_min2 = data_min.loc[data_min[it_pars_name].isin(data_min_c.index.values)]
-            data_min2 = data_min2.loc[data_min2['b_min'].idxmin()]
+            data_min2 = data_min2.loc[data_min2[err_name].idxmin()]
             th_mean = float(data_min2[ret['grp_names'][-2]])
             alg = str(data_min2[ret['b'].columns.name])
-            b_min = float(data_min2['b_min'])
+            b_min = float(data_min2[err_name])
         else:
             data_min2 = data_min.loc[data_min[it_pars_name] == data_min_c.index.values[0]]
             if len(data_min2.shape) == 1:
                 alg = str(data_min2[it_pars_name])
-                b_min = float(data_min2['b_min'])
+                b_min = float(data_min2[err_name])
             else:
                 alg = str(data_min2[it_pars_name].iloc[0])
-                b_min = float(data_min2['b_min'].mean())
+                b_min = float(data_min2[err_name].mean())
     else:
         alg = str(data_min[it_pars_name].iloc[0])
-        b_min = float(data_min['b_min'].mean())
+        b_min = float(data_min[err_name].mean())
 
     main_parameter_name = keywords['res_par_name']
     # Check if file and parameters exist
@@ -324,7 +389,7 @@ def get_best_comb_scenes_1(**keywords):
         for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
-                                         'b_min': b_min}},
+                                         err_name: b_min}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return ret['res']
@@ -467,3 +532,257 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return res
+
+
+def combineK(data):
+    #Get R and t mean and standard deviation values
+    stat_K1 = data['K1_cxyfxfyNorm'].unstack()
+    stat_K2 = data['K2_cxyfxfyNorm'].unstack()
+    stat_K12_mean = (stat_K1['mean'] + stat_K2['mean']) / 2
+    stat_K12_std = (stat_K1['std'] + stat_K2['std']) / 2
+    comb_stat_K12 = stat_K12_mean + stat_K12_std
+
+    return comb_stat_K12
+
+
+def pars_calc_single_fig_K(**keywords):
+    if len(keywords) < 3 or len(keywords) > 7:
+        raise ValueError('Wrong number of arguments for function pars_calc_single_fig_K')
+    if 'data' not in keywords:
+        raise ValueError('Missing data argument of function pars_calc_single_fig_K')
+    data = keywords['data']
+    ret = {}
+    if 'res_folder' not in keywords:
+        raise ValueError('Missing res_folder argument of function pars_calc_single_fig_K')
+    ret['res_folder'] = keywords['res_folder']
+    ret['use_marks'] = False
+    if 'use_marks' not in keywords:
+        print('No information provided if marks should be used: Disabling marks')
+    else:
+        ret['use_marks'] = keywords['use_marks']
+    ret['build_pdf'] = (False, True,)
+    if 'build_pdf' in keywords:
+        ret['build_pdf'] = keywords['build_pdf']
+    if len(ret['build_pdf']) < 2:
+        raise ValueError('Wrong number of arguments for build_pdf')
+    ret['pdf_folder'] = None
+    if any(ret['build_pdf']):
+        ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
+        try:
+            os.mkdir(ret['pdf_folder'])
+        except FileExistsError:
+            # print('Folder', ret['pdf_folder'], 'for storing pdf files already exists')
+            pass
+    ret['tex_folder'] = os.path.join(ret['res_folder'], 'tex')
+    try:
+        os.mkdir(ret['tex_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tex_folder'], 'for storing tex files already exists')
+        pass
+    ret['tdata_folder'] = os.path.join(ret['tex_folder'], 'data')
+    try:
+        os.mkdir(ret['tdata_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
+        pass
+    ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
+    ret['grp_names'] = data.index.names
+    ret['it_parameters'] = keywords['it_parameters']
+    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + '-'.join(keywords['it_parameters'])
+    ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
+    ret['b'] = combineK(data)
+    ret['b'] = ret['b'].T
+    from statistics_and_plot import glossary_from_list
+    if len(keywords['it_parameters']) > 1:
+        ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
+        ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
+        ret['b'].columns.name = '-'.join(keywords['it_parameters'])
+    else:
+        ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
+
+    b_name = 'data_Kerrors_vs_' + ret['dataf_name']
+    fb_name = os.path.join(ret['tdata_folder'], b_name)
+    with open(fb_name, 'a') as f:
+        f.write('# Combined camera matrix errors vs ' + str(ret['grp_names'][-1]) + '\n')
+        f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+        ret['b'].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    ret['sub_title'] = ''
+    nr_it_parameters = len(keywords['it_parameters'])
+    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
+    for i, val in enumerate(keywords['it_parameters']):
+        ret['sub_title'] += replaceCSVLabels(val, True, True)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                ret['sub_title'] += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                ret['sub_title'] += ', '
+            elif i < nr_it_parameters - 1:
+                ret['sub_title'] += ', and '
+    tex_infos = {'title': 'Combined Camera Matrix Errors vs ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          ' for Parameter Variations of ' + ret['sub_title'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
+    stats_all = ret['b'].stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    # figure types: sharp plot, smooth, const plot, ybar, xbar
+    use_limits = {'miny': None, 'maxy': None}
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        if stats_all['min'][0] < 0:
+            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+    else:
+        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    reltex_name = os.path.join(ret['rel_data_path'], b_name)
+    tex_infos['sections'].append({'file': reltex_name,
+                                  'name': 'Combined camera matrix errors vs ' +
+                                          replaceCSVLabels(str(ret['grp_names'][-1]), True) +
+                                          ' for parameter variations of \\\\' + ret['sub_title'],
+                                  # If caption is None, the field name is used
+                                  'caption': 'Combined camera matrix errors vs ' +
+                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) +
+                                             ' for parameter variations of ' + ret['sub_title'],
+                                  'fig_type': 'smooth',
+                                  'plots': list(ret['b'].columns.values),
+                                  'label_y': 'Combined camera matrix error',
+                                  'plot_x': str(ret['grp_names'][-1]),
+                                  'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                  'limits': use_limits,
+                                  'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)],
+                                  'legend_cols': None,
+                                  'use_marks': ret['use_marks'],
+                                  'use_log_y_axis': False,
+                                  })
+    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_Kerrors_vs_' + ret['dataf_name_main']
+    texf_name = base_out_name + '.tex'
+    if ret['build_pdf'][0]:
+        pdf_name = base_out_name + '.pdf'
+        ret['res'] = abs(compile_tex(rendered_tex,
+                                     ret['tex_folder'],
+                                     texf_name,
+                                     False,
+                                     os.path.join(ret['pdf_folder'], pdf_name),
+                                     tex_infos['figs_externalize']))
+    else:
+        ret['res'] = abs(compile_tex(rendered_tex, ret['tex_folder'], texf_name, False))
+    if ret['res'] != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return ret
+
+
+def get_best_comb_inlrat_k(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
+    ret = pars_calc_single_fig_K(**keywords)
+    b_mean = ret['b'].mean(axis=0)
+    b_mean_best = b_mean.idxmin()
+    alg_best = str(b_mean_best)
+    b_best = float(b_mean.loc[b_mean_best])
+
+    b_mean = b_mean.reset_index()
+    b_mean.columns = ['options', 'ke_mean']
+    # Insert a tex line break for long options
+    b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
+    b_mean_name = 'data_mean_Kerrors_over_all_' + ret['dataf_name']
+    fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean combined camera matrix errors over all ' + str(ret['grp_names'][-1]) + '\n')
+        f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+        b_mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    # Get data for tex file generation
+    if len(ret['b'].columns) > 10:
+        fig_type = 'xbar'
+    else:
+        fig_type = 'ybar'
+    from statistics_and_plot import replaceCSVLabels
+    tex_infos = {'title': 'Mean Combined Camera Matrix Errors over all ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          ' for Parameter Variations of ' + ret['sub_title'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
+    section_name = 'Mean combined camera matrix errors over all ' + replaceCSVLabels(str(ret['grp_names'][-1]), True)
+    tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+                                  'name': section_name,
+                                  'title': section_name,
+                                  'title_rows': section_name.count('\\\\'),
+                                  'fig_type': fig_type,
+                                  'plots': ['ke_mean'],
+                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': 'Options',
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': 'options_tex',
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': False,
+                                  'plot_meta': [],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': True,
+                                  'use_log_y_axis': False,
+                                  'large_meta_space_needed': False,
+                                  'caption': 'Mean combined camera matrix errors (error bars) over all ' +
+                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
+                                  })
+    from usac_eval import compile_2D_bar_chart, check_par_file_exists, NoAliasDumper
+    ret['res'] = compile_2D_bar_chart('tex_mean_K-errors_' + ret['grp_names'][-1], tex_infos, ret)
+
+    main_parameter_name = keywords['res_par_name']#'USAC_opt_refine_ops_inlrat'
+    # Check if file and parameters exist
+    ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
+
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = alg_best.split('-')
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            raise ValueError('Nr of algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(keywords['it_parameters']):
+            alg_w[val] = alg_comb_bestl[i]
+        yaml.dump({main_parameter_name: {'Algorithms': alg_w,
+                                         'ke_best_val': b_best}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return ret['res']
