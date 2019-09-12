@@ -1166,7 +1166,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   units=units,
                                                   it_parameters=it_parameters,
                                                   x_axis_column=['inlratMin'],
-                                                  pdfsplitentry=['t_distDiff'],
+                                                  pdfsplitentry=['K1_fxyDiffNorm', 'K1_fyDiff'],
                                                   filter_func=None,
                                                   filter_func_args=None,
                                                   special_calcs_func=get_best_comb_inlrat_k,
@@ -1227,6 +1227,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              make_fig_index=True,
                                                              build_pdf=True,
                                                              figs_externalize=True)
+                else:
+                    raise ValueError('Eval nr does not exist')
 
     return ret
 
