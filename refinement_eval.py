@@ -140,7 +140,7 @@ def get_best_comb_scenes_1(**keywords):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
         reltex_name = os.path.join(ret['rel_data_path'], b_mean_name[-1])
         if 'error_type_text' in keywords:
-            fig_name = 'Mean ' + capitalizeFirstChar(strToLower(keywords['error_type_text'])) + \
+            fig_name = 'Mean ' + strToLower(keywords['error_type_text']) + \
                        ' over\\\\properties ' + part_name_title[-1] + \
                        '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
@@ -279,12 +279,12 @@ def get_best_comb_scenes_1(**keywords):
                 use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
         reltex_name = os.path.join(ret['rel_data_path'], data_f_name)
         if 'error_type_text' in keywords:
-            fig_name = 'Minimum mean ' + capitalizeFirstChar(strToLower(keywords['error_type_text'])) + \
+            fig_name = 'Minimum mean ' + strToLower(keywords['error_type_text']) + \
                        ' and their corresponding parameter over\\\\properties ' + \
                        pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
-            caption = 'Minimum mean combined R \\& t errors ' \
-                      '(corresponding parameter on top of each bar) over properties ' + \
+            caption = 'Minimum mean combined ' + strToLower(keywords['error_type_text']) + \
+                      ' (corresponding parameter on top of each bar) over properties ' + \
                       pnt + ' vs ' + replaceCSVLabels(str(dp), True) + \
                       ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
             label_y = 'min. mean ' + strToLower(keywords['error_type_text'])
@@ -360,7 +360,6 @@ def get_best_comb_scenes_1(**keywords):
             data_min_c = data_min_c.loc[data_min_c == data_min_c.iloc[0]]
             data_min2 = data_min.loc[data_min[it_pars_name].isin(data_min_c.index.values)]
             data_min2 = data_min2.loc[data_min2[err_name].idxmin()]
-            th_mean = float(data_min2[ret['grp_names'][-2]])
             alg = str(data_min2[ret['b'].columns.name])
             b_min = float(data_min2[err_name])
         else:
@@ -401,7 +400,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     tmp, col_name = get_time_fixed_kp(**vars)
 
     tmp.set_index(vars['it_parameters'], inplace=True)
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.index for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.index]
@@ -412,6 +411,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
         gloss = glossary_from_list([str(a) for a in tmp.index])
         it_pars_cols_name = vars['it_parameters'][0]
         par_cols = [a for a in tmp.index]
+    gloss = add_to_glossary_eval(vars['t_data_separators'], gloss)
     tmp['pars_tex'] = insert_opt_lbreak(par_cols)
 
     tmp_min = tmp.loc[[tmp[col_name].idxmin(axis=0)]].reset_index()
@@ -592,13 +592,15 @@ def pars_calc_single_fig_K(**keywords):
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineK(data)
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
         ret['b'].columns.name = '-'.join(keywords['it_parameters'])
     else:
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
+    ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                        keywords['x_axis_column'], ret['gloss'])
 
     b_name = 'data_Kerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)

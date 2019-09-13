@@ -1138,7 +1138,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              make_fig_index=True,
                                                              build_pdf=True,
                                                              figs_externalize=True)
-                if ev == 3:
+                elif ev == 3:
                     fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
                                         'after Bundle Adjustment (BA) Including Intrinsics and ' \
                                         'Structure Using Degenerate Input Camera Matrices for Different '

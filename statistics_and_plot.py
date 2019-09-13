@@ -302,6 +302,8 @@ def calcSatisticAndPlot_2D(data,
         if calc_vals:
             special_calcs_args['data'] = stats
             special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['x_axis_column'] = x_axis_column
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -356,7 +358,12 @@ def calcSatisticAndPlot_2D(data,
                     gloss = glossary_from_list([str(a) for a in tmp.columns])
                 gloss_calced = True
                 if gloss:
+                    gloss = add_to_glossary_eval(eval_columns + x_axis_column, gloss)
                     tex_infos['abbreviations'] = gloss
+                else:
+                    gloss = add_to_glossary_eval(eval_columns + x_axis_column)
+                    if gloss:
+                        tex_infos['abbreviations'] = gloss
             if len(it_parameters) > 1:
                 tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
                 tmp.columns.name = '-'.join(grp_names[0:-1])
@@ -598,6 +605,8 @@ def calcSatisticAndPlot_2D_partitions(data,
         if calc_vals:
             special_calcs_args['data'] = stats
             special_calcs_args['partitions'] = partitions
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['x_axis_column'] = x_axis_column
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
@@ -690,7 +699,12 @@ def calcSatisticAndPlot_2D_partitions(data,
                         gloss = glossary_from_list([str(a) for a in tmp2.columns])
                     gloss_calced = True
                     if gloss:
+                        gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions, gloss)
                         tex_infos['abbreviations'] = gloss
+                    else:
+                        gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions)
+                        if gloss:
+                            tex_infos['abbreviations'] = gloss
                 tex_infos['abbreviations'] = add_to_glossary(part_props, tex_infos['abbreviations'])
                 if len(it_parameters) > 1:
                     tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
@@ -1055,7 +1069,12 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 gloss = glossary_from_list([str(a) for a in df1.columns])
             gloss_calced = True
             if gloss:
+                gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions, gloss)
                 tex_infos['abbreviations'] = gloss
+            else:
+                gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions)
+                if gloss:
+                    tex_infos['abbreviations'] = gloss
         if len(partitions) > 1:
             tex_infos['abbreviations'] = add_to_glossary(grp, tex_infos['abbreviations'])
         else:
@@ -1308,6 +1327,8 @@ def calcSatisticAndPlot_3D(data,
         if calc_vals:
             special_calcs_args['data'] = stats
             special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['xy_axis_columns'] = xy_axis_columns
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -1357,7 +1378,12 @@ def calcSatisticAndPlot_3D(data,
                     gloss = glossary_from_list([str(a) for a in tmp.columns])
                 gloss_calced = True
                 if gloss:
+                    gloss = add_to_glossary_eval(eval_columns + xy_axis_columns, gloss)
                     tex_infos['abbreviations'] = gloss
+                else:
+                    gloss = add_to_glossary_eval(eval_columns + xy_axis_columns)
+                    if gloss:
+                        tex_infos['abbreviations'] = gloss
             if len(it_parameters) > 1:
                 tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
                 tmp.columns.name = '-'.join(grp_names[0:-2])
@@ -1665,7 +1691,12 @@ def calcFromFuncAndPlot_3D(data,
     else:
         gloss = glossary_from_list([str(a) for a in grp_keys])
     if gloss:
+        gloss = add_to_glossary_eval(eval_columns + xy_axis_columns, gloss)
         tex_infos['abbreviations'] = gloss
+    else:
+        gloss = add_to_glossary_eval(eval_columns + xy_axis_columns)
+        if gloss:
+            tex_infos['abbreviations'] = gloss
     for grp in grp_keys:
         if len(it_parameters) > 1:
             dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
@@ -2039,7 +2070,12 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 gloss = glossary_from_list([str(a) for a in df1.columns])
             gloss_calced = True
             if gloss:
+                gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions, gloss)
                 tex_infos['abbreviations'] = gloss
+            else:
+                gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions)
+                if gloss:
+                    tex_infos['abbreviations'] = gloss
         if len(partitions) > 1:
             tex_infos['abbreviations'] = add_to_glossary(grp, tex_infos['abbreviations'])
         else:
@@ -2346,6 +2382,10 @@ def calcFromFuncAndPlot_aggregate(data,
         it_pars_index = [str(a) for a in df.index]
         gloss = glossary_from_list(it_pars_index)
         it_pars_name = it_parameters[0]
+    if gloss:
+        gloss = add_to_glossary_eval(eval_columns, gloss)
+    else:
+        gloss = add_to_glossary_eval(eval_columns)
     from usac_eval import insert_opt_lbreak
     df['tex_it_pars'] = insert_opt_lbreak(it_pars_index)
     tex_infos = {'title': title_name,
@@ -2500,6 +2540,211 @@ def calcNrLegendCols(tex_infos_section):
     return use_cols
 
 
+def add_to_glossary_eval(entry_ies, gloss=None):
+    entries = None
+    if isinstance(entry_ies, str):
+        entries = [entry_ies]
+    else:
+        try:
+            oit = iter(entry_ies)
+            entries = entry_ies
+        except TypeError as te:
+            entries = [entry_ies]
+    mylist = list(dict.fromkeys(entries))
+    for elem in mylist:
+        elem_tex = replaceCSVLabels(str(elem))
+        if gloss:
+            found = False
+            for entry in gloss:
+                if entry['key'] == elem_tex:
+                    found = True
+                    break
+            if found:
+                continue
+        else:
+            gloss = []
+        ret = getSymbolDescription(str(elem))
+        if ret[2]:
+            gloss.append({'key': ret[0], 'description': ret[1]})
+    return gloss
+
+
+def getSymbolDescription(label):
+    if label == 'R_diffAll':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation matrices '
+                '(calculated using quaternion notations)', True)
+    elif label == 'R_diff_roll_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation about the '
+                'x-axis', True)
+    elif label == 'R_diff_pitch_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation about the '
+                'y-axis', True)
+    elif label == 'R_diff_yaw_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation about the '
+                'z-axis', True)
+    elif label == 't_angDiff_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera translation vectors',
+                True)
+    elif label == 't_distDiff':
+        return (replaceCSVLabels(label),
+                'L2-norm on the difference between ground truth and estimated relative stereo camera '
+                'translation vector', True)
+    elif label == 't_diff_tx':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\|\\bm{\\tilde{t}}\\|-t_{x}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'between normalized x-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
+                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$', True)
+    elif label == 't_diff_ty':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\|\\bm{\\tilde{t}}\\|-t_{y}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'between normalized y-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
+                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$', True)
+    elif label == 't_diff_tz':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\|\\bm{\\tilde{t}}\\|-t_{z}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'between normalized z-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
+                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$', True)
+    elif label == 'th':
+        return (replaceCSVLabels(label), 'Threshold on point correspondences in pixels', True)
+    elif label == 'R_mostLikely_diffAll':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation matrices. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few estimated '
+                'rotation matrices over the last pose estimations (calculated using quaternion notations).', True)
+    elif label == 'R_mostLikely_diff_roll_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation about the '
+                'x-axis. The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True)
+    elif label == 'R_mostLikely_diff_pitch_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation about the '
+                'y-axis. The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True)
+    elif label == 'R_mostLikely_diff_yaw_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera rotation about the '
+                'z-axis. The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True)
+    elif label == 't_mostLikely_angDiff_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth and estimated relative stereo camera translation vectors. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_distDiff':
+        return (replaceCSVLabels(label),
+                'L2-norm on the difference between ground truth and estimated relative stereo camera '
+                'translation vector. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_diff_tx':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\|\\bm{\\tilde{t}}\\|-t_{x}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'between normalized x-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
+                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_diff_ty':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\|\\bm{\\tilde{t}}\\|-t_{y}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'between normalized y-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
+                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_diff_tz':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\|\\bm{\\tilde{t}}\\|-t_{z}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'between normalized z-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
+                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 'K1_fxDiff':
+        return (replaceCSVLabels(label),
+                'Difference between focal length x-components in pixels of ground truth and estimated camera matrices '
+                'from the first/left/top camera', True)
+    elif label == 'K1_fyDiff':
+        return (replaceCSVLabels(label),
+                'Difference between focal length y-components in pixels of ground truth and estimated camera matrices '
+                'from the first/left/top camera', True)
+    elif label == 'K1_fxyDiffNorm':
+        return (replaceCSVLabels(label),
+                'L2-norm of focal length x- and y-component differences in pixels of ground truth and estimated '
+                'camera matrices from the first/left/top camera', True)
+    elif label == 'K1_cxDiff':
+        return (replaceCSVLabels(label),
+                'Difference between principal point x-components in pixels of ground truth and estimated camera '
+                'matrices from the first/left/top camera', True)
+    elif label == 'K1_cyDiff':
+        return (replaceCSVLabels(label),
+                'Difference between principal point y-components in pixels of ground truth and estimated camera '
+                'matrices from the first/left/top camera', True)
+    elif label == 'K1_cxyDiffNorm':
+        return (replaceCSVLabels(label),
+                'L2-norm of principal point x- and y-component differences in pixels of ground truth and estimated '
+                'camera matrices from the first/left/top camera', True)
+    elif label == 'K1_cxyfxfyNorm':
+        return (replaceCSVLabels(label),
+                'L2-norm of principal point in addition to focal length x- and y-component '
+                'differences in pixels of ground truth and estimated '
+                'camera matrices from the first/left/top camera', True)
+    elif label == 'K2_fxDiff':
+        return (replaceCSVLabels(label),
+                'Difference between focal length x-components in pixels of ground truth and estimated camera matrices '
+                'from the second/right/bottom camera', True)
+    elif label == 'K2_fyDiff':
+        return (replaceCSVLabels(label),
+                'Difference between focal length y-components in pixels of ground truth and estimated camera matrices '
+                'from the second/right/bottom camera', True)
+    elif label == 'K2_fxyDiffNorm':
+        return (replaceCSVLabels(label),
+                'L2-norm of focal length x- and y-component differences in pixels of ground truth and estimated '
+                'camera matrices from the second/right/bottom camera', True)
+    elif label == 'K2_cxDiff':
+        return (replaceCSVLabels(label),
+                'Difference between principal point x-components in pixels of ground truth and estimated camera '
+                'matrices from the second/right/bottom camera', True)
+    elif label == 'K2_cyDiff':
+        return (replaceCSVLabels(label),
+                'Difference between principal point y-components in pixels of ground truth and estimated camera '
+                'matrices from the second/right/bottom camera', True)
+    elif label == 'K2_cxyDiffNorm':
+        return (replaceCSVLabels(label),
+                'L2-norm of principal point x- and y-component differences in pixels of ground truth and estimated '
+                'camera matrices from the second/right/bottom camera', True)
+    elif label == 'K2_cxyfxfyNorm':
+        return (replaceCSVLabels(label),
+                'L2-norm of principal point in addition to focal length x- and y-component '
+                'differences in pixels of ground truth and estimated '
+                'camera matrices from the second/right/bottom camera', True)
+    elif label == 'Rt_diff':
+        return (replaceCSVLabels(label),
+                'Combined rotation $\\bm{R}$ and translation $\\bm{t}$ error '
+                '$e_{Rt}=\\(e_{R}r_{t}+e{t}r{R}\\)/2r_{R}r{t}$ with '
+                '$e_{R}=\\lvert \\mu_{}$', True)
+    elif label == 'Rt_mostLikely_diff':
+        return (replaceCSVLabels(label),
+                'L2-norm of principal point in addition to focal length x- and y-component '
+                'differences in pixels of ground truth and estimated '
+                'camera matrices from the second/right/bottom camera', True)
+    else:
+        return (replaceCSVLabels(label), replaceCSVLabels(label), False)
+
 def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     if label == 'R_diffAll':
         return '$\\Delta R_{\\Sigma}$'
@@ -2519,6 +2764,8 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         return '$\\Delta t_{y}$'
     elif label == 't_diff_tz':
         return '$\\Delta t_{z}$'
+    elif label == 'Rt_diff':
+        return '$e_{Rt}$'
     elif label == 'th':
         if use_plural:
             str_val = 'thresholds \\texttt{th}'
@@ -2552,6 +2799,8 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         return '$\\Delta \\hat{t}_{y}$'
     elif label == 't_mostLikely_diff_tz':
         return '$\\Delta \\hat{t}_{z}$'
+    elif label == 'Rt_mostLikely_diff':
+        return '$\\hat{e}_{Rt}$'
     elif label == 'K1_fxDiff':
         return '$\\Delta f_{x}^{K1}$'
     elif label == 'K1_fyDiff':
@@ -2786,7 +3035,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         if use_plural:
             str_val = 'options of RANSAC usage for few matches'
         else:
-            str_val = 'use RANSAC for few matches'
+            str_val = 'RANSAC usage for few matches'
     elif label == 'stereoParameters_maxPoolCorrespondences':
         if use_plural:
             str_val = 'maximum correspondence pool sizes $\\hat{n}_{cp}$'
@@ -2984,7 +3233,7 @@ def getOptionDescription(key):
     elif key == 'equ':
         return 'Correspondences are equally distributed over the whole image', True
     else:
-        test_glossary = True
+        test_glossary = False
         if test_glossary:
             warnings.warn('Glossary test is enabled!', UserWarning)
         return tex_string_coding_style(key), False if not test_glossary else True
@@ -3003,13 +3252,16 @@ def add_to_glossary(entries, gloss):
     mylist = list(dict.fromkeys(entries))
     for elem in mylist:
         elem_tex = tex_string_coding_style(str(elem))
-        found = False
-        for entry in gloss:
-            if entry['key'] == elem_tex:
-                found = True
-                break
-        if found:
-            continue
+        if gloss:
+            found = False
+            for entry in gloss:
+                if entry['key'] == elem_tex:
+                    found = True
+                    break
+            if found:
+                continue
+        else:
+            gloss = []
         des, found = getOptionDescription(str(elem))
         if found:
             gloss.append({'key': elem_tex, 'description': des})
@@ -3099,7 +3351,7 @@ def main():
 
     test_name = 'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = [-1]
+    eval_nr = [4]
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
@@ -4149,7 +4401,7 @@ def main():
                                                              make_fig_index=True,
                                                              build_pdf=True,
                                                              figs_externalize=True)
-                if ev == 3:
+                elif ev == 3:
                     fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
                                         'after Bundle Adjustment (BA) Including Intrinsics and ' \
                                         'Structure Using Degenerate Input Camera Matrices for Different '

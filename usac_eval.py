@@ -64,7 +64,7 @@ def readYaml(file):
 
 
 def pars_calc_single_fig_partitions(**keywords):
-    if len(keywords) < 3 or len(keywords) > 7:
+    if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig_partitions')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_single_fig_partitions')
@@ -195,14 +195,23 @@ def pars_calc_single_fig_partitions(**keywords):
         tmp2 = tmp2.reset_index().drop(ret['partitions'], axis=1)
         tmp2 = tmp2.set_index(ret['it_parameters']).T
         if not gloss_calced:
-            from statistics_and_plot import glossary_from_list
+            from statistics_and_plot import glossary_from_list, add_to_glossary_eval
             if len(ret['it_parameters']) > 1:
                 ret['gloss'] = glossary_from_list([str(b) for a in tmp2.columns for b in a])
             else:
                 ret['gloss'] = glossary_from_list([str(a) for a in tmp2.columns])
             gloss_calced = True
             if ret['gloss']:
+                ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                                    keywords['partitions'] +
+                                                    keywords['x_axis_column'], ret['gloss'])
                 tex_infos['abbreviations'] = ret['gloss']
+            else:
+                ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                                    keywords['partitions'] +
+                                                    keywords['x_axis_column'])
+                if ret['gloss']:
+                    tex_infos['abbreviations'] = ret['gloss']
         tex_infos['abbreviations'] = add_to_glossary(index_entries, tex_infos['abbreviations'])
         if len(ret['it_parameters']) > 1:
             tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
@@ -364,13 +373,15 @@ def pars_calc_single_fig(**keywords):
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
         ret['b'].columns.name = '-'.join(keywords['it_parameters'])
     else:
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
+    ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                        keywords['x_axis_column'], ret['gloss'])
 
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
@@ -523,13 +534,15 @@ def pars_calc_multiple_fig(**keywords):
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].unstack()
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
         ret['b'].columns.name = '-'.join(keywords['it_parameters'])
     else:
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
+    ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                        keywords['xy_axis_columns'], ret['gloss'])
     ret['b'] = ret['b'].reset_index()
     nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
     stats_all = ret['b'][ret['b'].columns.values[2:]].stack().reset_index()
@@ -1810,7 +1823,7 @@ def estimate_alg_time_fixed_kp(**vars):
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
-    from statistics_and_plot import glossary_from_list, add_to_glossary
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
@@ -1821,6 +1834,8 @@ def estimate_alg_time_fixed_kp(**vars):
         gloss = glossary_from_list([str(a) for a in tmp.columns])
         it_pars_cols_name = vars['it_parameters'][0]
     gloss = add_to_glossary(meta_data, gloss)
+    gloss = add_to_glossary_eval(vars['t_data_separators'] +
+                                 vars['xy_axis_columns'], gloss)
     tmp = tmp.T.reset_index().set_index([vars['xy_axis_columns'][0], it_pars_cols_name]).unstack(level=-1)
     tmp.columns = [h for g in tmp.columns for h in g if h != col_name]
 
@@ -2151,7 +2166,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2max = tmp1max.loc[tmp1max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import glossary_from_list, add_to_glossary
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new1 = ['-'.join(a) for a in tmp1min.index]
@@ -2171,6 +2186,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     val_axis_cols1 = [a for a in comb_cols1 if col_name in a]
     meta_cols1 = [a for a in comb_cols1 if vars['t_data_separators'][0] in a]
     gloss = add_to_glossary(tmp1min[meta_cols1].stack().tolist(), gloss)
+    gloss = add_to_glossary_eval(vars['t_data_separators'], gloss)
 
     tmp1max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2551,7 +2567,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max = tmp2mean_max.loc[tmp2mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import add_to_glossary
+    from statistics_and_plot import add_to_glossary, add_to_glossary_eval
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list
     if len(vars['it_parameters']) > 1:
@@ -2564,6 +2580,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         gloss = glossary_from_list([str(a) for a in tmp1mean.index])
         index_new1 = [a for a in tmp1mean.index]
         index_name = vars['it_parameters'][0]
+    gloss = add_to_glossary_eval(vars['t_data_separators'], gloss)
     tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + [index_name]).unstack(level=-1)
     index_new11 = ['-'.join(a) for a in tmp1mean.columns]
     legend1 = [tex_string_coding_style(b) for a in tmp1mean.columns for b in a if b in index_new1]
@@ -3279,7 +3296,7 @@ def get_min_inlrat_diff(**keywords):
     nr_partitions = len(partitions)
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import glossary_from_list, add_to_glossary
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -3296,6 +3313,7 @@ def get_min_inlrat_diff(**keywords):
     else:
         gloss = glossary_from_list([str(a) for a in diff_mean.index])
         it_parameters_name = it_parameters[0]
+    gloss = add_to_glossary_eval(grp_names[-1], gloss)
     min_mean_diff = diff_mean.stack().reset_index()
     diff_mean = diff_mean.T.reset_index()
     diff_mean.drop(diff_mean.columns[0], axis=1, inplace=True)
