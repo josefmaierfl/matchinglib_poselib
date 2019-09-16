@@ -335,7 +335,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              build_pdf=True,
                                                              figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(7, 15)) + [36]
@@ -682,7 +682,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'usac_vs_ransac':
@@ -931,7 +931,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          build_pdf=True,
                                                          figs_externalize=False)
             else:
-                raise ValueError('Eval nr does not exist')
+                raise ValueError('Eval nr ' + ev + ' does not exist')
     elif test_name == 'refinement_ba':
         if not test_nr:
             raise ValueError('test_nr is required refinement_ba')
@@ -1055,7 +1055,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(1, 5))
@@ -1200,7 +1200,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'error_function': combineK,
-                                          'error_type_text': 'Combined Camera Matrix Errors',
+                                          'error_type_text': 'Combined Camera Matrix Errors $e_{\\mli{K1,2}}$',
                                           'file_name_err_part': 'Kerror',
                                           'error_col_name': 'ke',
                                           'res_par_name': 'refinement_best_comb_for_BA2_K_scenes'}
@@ -1228,7 +1228,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
 
     return ret
 

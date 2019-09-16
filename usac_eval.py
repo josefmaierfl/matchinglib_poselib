@@ -153,7 +153,8 @@ def pars_calc_single_fig_partitions(**keywords):
                      ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +\
                      ret['sub_title_partitions']
     else:
-        title_text = 'Combined R \\& t Errors vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +\
+        title_text = 'Combined R \\& t Errors vs ' + \
+                     replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +\
                       ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +\
                       ret['sub_title_partitions']
     tex_infos = {'title': title_text,
@@ -201,17 +202,18 @@ def pars_calc_single_fig_partitions(**keywords):
             else:
                 ret['gloss'] = glossary_from_list([str(a) for a in tmp2.columns])
             gloss_calced = True
-            if ret['gloss']:
-                ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
-                                                    keywords['partitions'] +
-                                                    keywords['x_axis_column'], ret['gloss'])
-                tex_infos['abbreviations'] = ret['gloss']
+            if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
+                ret['gloss'] = add_to_glossary_eval('Rt_diff', ret['gloss'])
+            elif 'R_diffAll' not in data.columns and 'R_mostLikely_diffAll' in data.columns:
+                ret['gloss'] = add_to_glossary_eval('Rt_mostLikely_diff', ret['gloss'])
+            elif 'K1_cxyfxfyNorm' in data.columns:
+                ret['gloss'] = add_to_glossary_eval('K12_cxyfxfyNorm', ret['gloss'])
             else:
-                ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
-                                                    keywords['partitions'] +
-                                                    keywords['x_axis_column'])
-                if ret['gloss']:
-                    tex_infos['abbreviations'] = ret['gloss']
+                raise ValueError('Combined Rt error column is missing.')
+            ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                                keywords['partitions'] +
+                                                keywords['x_axis_column'], ret['gloss'])
+            tex_infos['abbreviations'] = ret['gloss']
         tex_infos['abbreviations'] = add_to_glossary(index_entries, tex_infos['abbreviations'])
         if len(ret['it_parameters']) > 1:
             tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
@@ -258,6 +260,7 @@ def pars_calc_single_fig_partitions(**keywords):
                 use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
             if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+        is_numeric = pd.to_numeric(tmp2.reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
         reltex_name = os.path.join(ret['rel_data_path'], b_name)
         if 'error_type_text' in keywords:
             from statistics_and_plot import strToLower, capitalizeFirstChar
@@ -271,15 +274,15 @@ def pars_calc_single_fig_partitions(**keywords):
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = strToLower(keywords['error_type_text'])
         else:
-            sec_name = 'Combined R \\& t errors vs ' + \
+            sec_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' + \
                        replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
                        ' for parameter variations of \\\\' + ret['sub_title_it_pars'] + \
                        ' based on properties \\\\' + part_name.replace('_', '\\_')
-            cap_name = 'Combined R \\& t errors vs ' +\
+            cap_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +\
                        replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
                        ' for parameter variations of ' + ret['sub_title_it_pars'] +\
                        ' based on properties ' + part_name.replace('_', '\\_')
-            label_y = 'Combined R \\& t error'
+            label_y = 'Combined R \\& t error $e_{R\\bm{t}}$'
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': sec_name,
                                       # If caption is None, the field name is used
@@ -294,6 +297,7 @@ def pars_calc_single_fig_partitions(**keywords):
                                       'legend_cols': None,
                                       'use_marks': ret['use_marks'],
                                       'use_log_y_axis': False,
+                                      'use_string_labels': True if not is_numeric else False
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
@@ -327,7 +331,7 @@ def pars_calc_single_fig_partitions(**keywords):
 
 
 def pars_calc_single_fig(**keywords):
-    if len(keywords) < 3 or len(keywords) > 7:
+    if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_single_fig')
@@ -382,6 +386,12 @@ def pars_calc_single_fig(**keywords):
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
     ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
                                         keywords['x_axis_column'], ret['gloss'])
+    if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
+        ret['gloss'] = add_to_glossary_eval('Rt_diff', ret['gloss'])
+    elif 'R_diffAll' not in data.columns and 'R_mostLikely_diffAll' in data.columns:
+        ret['gloss'] = add_to_glossary_eval('Rt_mostLikely_diff', ret['gloss'])
+    else:
+        raise ValueError('Combined Rt error column is missing.')
 
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
@@ -434,18 +444,19 @@ def pars_calc_single_fig(**keywords):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined R \\& t errors vs ' +
+                                  'name': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
                                           replaceCSVLabels(str(ret['grp_names'][-1]), True) +
                                           ' for parameter variations of \\\\' + ret['sub_title'],
                                   # If caption is None, the field name is used
-                                  'caption': 'Combined R \\& t errors vs ' +
+                                  'caption': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) +
                                              ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': 'smooth',
                                   'plots': list(ret['b'].columns.values),
-                                  'label_y': 'Combined R \\& t error',
+                                  'label_y': 'Combined R \\& t error $e_{R\\bm{t}}$',
                                   'plot_x': str(ret['grp_names'][-1]),
                                   'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
                                   'limits': use_limits,
@@ -453,6 +464,7 @@ def pars_calc_single_fig(**keywords):
                                   'legend_cols': None,
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': False,
+                                  'use_string_labels': True if not is_numeric else False
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots.tex')
@@ -481,7 +493,7 @@ def pars_calc_single_fig(**keywords):
 
 
 def pars_calc_multiple_fig(**keywords):
-    if len(keywords) < 4 or len(keywords) > 8:
+    if len(keywords) < 4:
         raise ValueError('Wrong number of arguments for function pars_calc_multiple_fig')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_multiple_fig')
@@ -543,6 +555,12 @@ def pars_calc_multiple_fig(**keywords):
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
     ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
                                         keywords['xy_axis_columns'], ret['gloss'])
+    if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
+        ret['gloss'] = add_to_glossary_eval('Rt_diff', ret['gloss'])
+    elif 'R_diffAll' not in data.columns and 'R_mostLikely_diffAll' in data.columns:
+        ret['gloss'] = add_to_glossary_eval('Rt_mostLikely_diff', ret['gloss'])
+    else:
+        raise ValueError('Combined Rt error column is missing.')
     ret['b'] = ret['b'].reset_index()
     nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
     stats_all = ret['b'][ret['b'].columns.values[2:]].stack().reset_index()
@@ -591,14 +609,14 @@ def pars_calc_multiple_fig(**keywords):
                  }
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined R \\& t errors vs ' +
+                                  'name': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
                                           replaceCSVLabels(str(ret['grp_names'][-2]), True, True) +
                                           ' and ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
                                           ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': ret['fig_type'],
                                   'plots_z': list(ret['b'].columns.values)[2:],
                                   'diff_z_labels': False,
-                                  'label_z': 'Combined R \\& t error',
+                                  'label_z': 'Combined R \\& t error $e_{R\\bm{t}}$',
                                   'plot_x': str(ret['b'].columns.values[1]),
                                   'label_x': replaceCSVLabels(str(ret['b'].columns.values[1])),
                                   'plot_y': str(ret['b'].columns.values[0]),
@@ -636,8 +654,14 @@ def pars_calc_multiple_fig(**keywords):
 
 def combineRt(data):
     #Get R and t mean and standard deviation values
-    stat_R = data['R_diffAll'].unstack()
-    stat_t = data['t_angDiff_deg'].unstack()
+    if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
+        stat_R = data['R_diffAll'].unstack()
+        stat_t = data['t_angDiff_deg'].unstack()
+    elif 'R_mostLikely_diffAll' in data.columns and 'R_diffAll' not in data.columns:
+        stat_R = data['R_mostLikely_diffAll'].unstack()
+        stat_t = data['t_mostLikely_angDiff_deg'].unstack()
+    else:
+        raise ValueError('Unable to calculate combined Rt error as the necessary column is missing.')
     stat_R_mean = stat_R['mean']
     stat_t_mean = stat_t['mean']
     stat_R_std = stat_R['std']
@@ -709,7 +733,8 @@ def get_best_comb_and_th_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Smallest combined R \\& t errors and their ' + replaceCSVLabels(str(ret['grp_names'][-1]))
+    section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
+                   replaceCSVLabels(str(ret['grp_names'][-1]))
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -735,11 +760,12 @@ def get_best_comb_and_th_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
-                                  'caption': 'Smallest combined R \\& t errors (error bars) and their ' +
+                                  'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
                                   })
-    section_name = 'Worst combined R \\& t errors and their ' + replaceCSVLabels(str(ret['grp_names'][-1]))
+    section_name = 'Worst combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
+                   replaceCSVLabels(str(ret['grp_names'][-1]))
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_worst_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -765,7 +791,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
-                                  'caption': 'Biggest combined R \\& t errors (error bars) and their ' +
+                                  'caption': 'Biggest combined R \\& t errors  $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
                                   })
@@ -837,7 +863,7 @@ def get_best_comb_inlrat_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Mean combined R \\& t errors over all ' + replaceCSVLabels(str(ret['grp_names'][-1]), True)
+    section_name = 'Mean combined R \\& t errors $e_{R\\bm{t}}$ over all ' + replaceCSVLabels(str(ret['grp_names'][-1]), True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -863,7 +889,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
-                                  'caption': 'Mean combined R \\& t errors (error bars) over all ' +
+                                  'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })
     ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
@@ -1048,7 +1074,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
             f.write('# Used parameters: ' + str(grp) + '\n')
             data_a.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        section_name = 'Smallest combined R \\& t errors and their ' +\
+        section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +\
                        replaceCSVLabels(str(ret['grp_names'][-2])) +\
                        '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +\
                        ' for parameters ' + tex_string_coding_style(str(grp))
@@ -1081,7 +1107,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                       'legend_r': [replaceCSVLabels(str(ret['grp_names'][-2])) + ' (right axis)'],
                                       'legend_cols': 1,
                                       'use_marks': True,
-                                      'caption': 'Smallest combined R \\& t errors (left axis) and their ' +
+                                      'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) '
+                                                 'and their ' +
                                                  replaceCSVLabels(str(ret['grp_names'][-2])) +
                                                  ' (right axis) vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +
                                                  ' for parameters ' + tex_string_coding_style(str(grp)) + '.'
@@ -1124,8 +1151,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
-                                  'name': 'Smallest Combined R \\& t Errors',
-                                  'title': 'Smallest Combined R \\& t Errors',
+                                  'name': 'Smallest Combined R \\& t Errors $e_{R\\bm{t}}$',
+                                  'title': 'Smallest Combined R \\& t Errors $e_{R\\bm{t}}$',
                                   'title_rows': 0,
                                   'fig_type': 'ybar',
                                   'plots': ['b_min'],
@@ -1148,7 +1175,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
-                                  'caption': 'Smallest combined R \\& t errors and their ' +
+                                  'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +
                                              'corresponding parameter set and ' +
                                              replaceCSVLabels(str(ret['grp_names'][-2]), False, True) +
                                              ' (on top of bar separated by a comma)' +
@@ -1264,17 +1291,17 @@ def get_best_comb_th_scenes_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
 
-    section_name = 'Smallest combined R \\& t errors and their ' + \
+    section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
                    replaceCSVLabels(str(ret['partitions'][-1]), True) + \
                    '\\\\for parameters ' + ret['sub_title_it_pars'] + \
                    '\\\\and properties ' + ret['sub_title_partitions']
     if fig_type == 'xbar':
-        caption = 'Smallest combined R \\& t errors (bottom axis) and their ' +\
+        caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (bottom axis) and their ' +\
                   replaceCSVLabels(str(ret['partitions'][-1]), True) +\
                   ' (top axis) for parameters ' + ret['sub_title_it_pars'] +\
                   ' and properties ' + ret['sub_title_partitions'] + '.'
     else:
-        caption = 'Smallest combined R \\& t errors (left axis) and their ' + \
+        caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) and their ' + \
                   replaceCSVLabels(str(ret['partitions'][-1]), True) + \
                   ' (right axis) for parameters ' + ret['sub_title_it_pars'] + \
                   ' and properties ' + ret['sub_title_partitions'] + '.'
@@ -1314,12 +1341,12 @@ def get_best_comb_th_scenes_1(**keywords):
 
     for rc, lc, rl, ll in zip(right_cols, left_cols, right_legend, left_legend):
         par_str = [i for i in rl.split(' -- ') if ret['partitions'][-1] not in i][0]
-        section_name = 'Smallest combined R \\& t errors and their ' + \
+        section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
                        replaceCSVLabels(str(ret['partitions'][-1]), True) + \
                        '\\\\for parameters ' + par_str + \
                        '\\\\and properties ' + ret['sub_title_partitions']
 
-        caption = 'Smallest combined R \\& t errors (left axis) and their ' + \
+        caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) and their ' + \
                   replaceCSVLabels(str(ret['partitions'][-1]), True) + \
                   ' (right axis) for parameters ' + par_str + \
                   ' and properties ' + ret['sub_title_partitions'] + '.'
@@ -1399,10 +1426,10 @@ def get_best_comb_th_scenes_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Smallest combined R \\& t errors ' + \
+    section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ ' + \
                    '\\\\for parameters ' + ret['sub_title_it_pars'] + \
                    '\\\\and properties ' + ret['sub_title_partitions']
-    caption = 'Smallest combined R \\& t errors and their ' + \
+    caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
               replaceCSVLabels(str(ret['partitions'][-1]), True) + \
               ' (on top of each bar) for parameters ' + ret['sub_title_it_pars'] + \
               ' and properties ' + ret['sub_title_partitions'] + '.'
@@ -1885,6 +1912,7 @@ def estimate_alg_time_fixed_kp(**vars):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    is_numeric = pd.to_numeric(tmp.reset_index()[vars['xy_axis_columns'][0]], errors='coerce').notnull().all()
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
     fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
                replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False) + \
@@ -1902,7 +1930,8 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
                                   'legend_cols': None,
                                   'use_marks': vars['use_marks'],
-                                  'use_log_y_axis': use_log
+                                  'use_log_y_axis': use_log,
+                                  'use_string_labels': True if not is_numeric else False,
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots.tex')
@@ -3266,17 +3295,38 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 def get_inlrat_diff(**vars):
     if len(vars['eval_columns']) != 2:
         raise ValueError('For calculating the difference of inlier ratios, eval_columns must hold 2 entries')
-    needed_columns = vars['eval_columns'] + vars['it_parameters'] + \
-                     vars['x_axis_column'] + vars['partitions']
+    if 'inlRat_estimated' not in vars['eval_columns'] or 'inlRat_GT' not in vars['eval_columns']:
+        raise ValueError('For calculating inlier ratio differences, eval_columns must hold labels '
+                         'inlRat_estimated and inlRat_GT')
+    if 'partitions' in vars:
+        if 'x_axis_column' in vars:
+            needed_columns = vars['eval_columns'] + vars['it_parameters'] + \
+                             vars['x_axis_column'] + vars['partitions']
+        elif 'xy_axis_columns' in vars:
+            needed_columns = vars['eval_columns'] + vars['it_parameters'] + \
+                             vars['xy_axis_columns'] + vars['partitions']
+        else:
+            needed_columns = vars['eval_columns'] + vars['it_parameters'] + \
+                             vars['partitions']
+    elif 'x_axis_column' in vars:
+        needed_columns = vars['eval_columns'] + vars['it_parameters'] + vars['x_axis_column']
+    elif 'xy_axis_columns' in vars:
+        needed_columns = vars['eval_columns'] + vars['it_parameters'] + vars['xy_axis_columns']
+    else:
+        needed_columns = vars['eval_columns'] + vars['it_parameters']
     data = vars['data'].loc[:, needed_columns]
     eval_columns = ['inlRat_diff']
     data['inlRat_diff'] = data[vars['eval_columns'][0]] - data[vars['eval_columns'][1]]
     data.drop(vars['eval_columns'], axis=1, inplace=True)
     ret = {'data': data,
            'eval_columns': eval_columns,
-           'it_parameters': vars['it_parameters'],
-           'x_axis_column': vars['x_axis_column'],
-           'partitions': vars['partitions']}
+           'it_parameters': vars['it_parameters']}
+    if 'partitions' in vars:
+        ret['partitions'] = vars['partitions']
+    if 'x_axis_column' in vars:
+        ret['x_axis_column'] = vars['x_axis_column']
+    elif 'xy_axis_columns' in vars:
+        ret['xy_axis_columns'] = vars['xy_axis_columns']
     return ret
 
 
@@ -3353,6 +3403,7 @@ def get_min_inlrat_diff(**keywords):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    is_numeric = pd.to_numeric(diff_mean.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
     reltex_name = os.path.join(keywords['rel_data_path'], b_name)
     fig_name = 'Absolute mean inlier ratio differences $\\Delta \\epsilon$ vs ' + \
                replaceCSVLabels(str(grp_names[-1]), True) + \
@@ -3371,6 +3422,7 @@ def get_min_inlrat_diff(**keywords):
                                   'legend_cols': None,
                                   'use_marks': keywords['use_marks'],
                                   'use_log_y_axis': False,
+                                  'use_string_labels': True if not is_numeric else False
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots.tex')

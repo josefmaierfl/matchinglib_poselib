@@ -149,7 +149,7 @@ def get_best_comb_scenes_1(**keywords):
             fig_name = 'Mean combined R \\& t errors over\\\\properties ' + part_name_title[-1] + \
                        '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
-            label_y = 'mean R \\& t error'
+            label_y = 'mean R \\& t error $e_{R\\bm{t}}$'
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -297,7 +297,7 @@ def get_best_comb_scenes_1(**keywords):
                       '(corresponding parameter on top of each bar) over properties ' + \
                       pnt + ' vs ' + replaceCSVLabels(str(dp), True) + \
                       ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
-            label_y = 'min. mean R \\& t error'
+            label_y = 'min. mean R \\& t error $e_{R\\bm{t}}$'
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -360,7 +360,7 @@ def get_best_comb_scenes_1(**keywords):
             data_min_c = data_min_c.loc[data_min_c == data_min_c.iloc[0]]
             data_min2 = data_min.loc[data_min[it_pars_name].isin(data_min_c.index.values)]
             data_min2 = data_min2.loc[data_min2[err_name].idxmin()]
-            alg = str(data_min2[ret['b'].columns.name])
+            alg = str(data_min2[it_pars_name])
             b_min = float(data_min2[err_name])
         else:
             data_min2 = data_min.loc[data_min[it_pars_name] == data_min_c.index.values[0]]
@@ -546,7 +546,7 @@ def combineK(data):
 
 
 def pars_calc_single_fig_K(**keywords):
-    if len(keywords) < 3 or len(keywords) > 7:
+    if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig_K')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_single_fig_K')
@@ -599,6 +599,10 @@ def pars_calc_single_fig_K(**keywords):
         ret['b'].columns.name = '-'.join(keywords['it_parameters'])
     else:
         ret['gloss'] = glossary_from_list([str(a) for a in ret['b'].columns])
+    if 'K1_cxyfxfyNorm' in data.columns:
+        ret['gloss'] = add_to_glossary_eval('K12_cxyfxfyNorm', ret['gloss'])
+    else:
+        raise ValueError('Combined Rt error column is missing.')
     ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
                                         keywords['x_axis_column'], ret['gloss'])
 
@@ -654,13 +658,14 @@ def pars_calc_single_fig_K(**keywords):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined camera matrix errors vs ' +
+                                  'name': 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +
                                           replaceCSVLabels(str(ret['grp_names'][-1]), True) +
                                           ' for parameter variations of \\\\' + ret['sub_title'],
                                   # If caption is None, the field name is used
-                                  'caption': 'Combined camera matrix errors vs ' +
+                                  'caption': 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) +
                                              ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': 'smooth',
@@ -673,6 +678,7 @@ def pars_calc_single_fig_K(**keywords):
                                   'legend_cols': None,
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': False,
+                                  'use_string_labels': True if not is_numeric else False
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots.tex')
@@ -740,7 +746,8 @@ def get_best_comb_inlrat_k(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Mean combined camera matrix errors over all ' + replaceCSVLabels(str(ret['grp_names'][-1]), True)
+    section_name = 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ over all ' + \
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -766,7 +773,7 @@ def get_best_comb_inlrat_k(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'large_meta_space_needed': False,
-                                  'caption': 'Mean combined camera matrix errors (error bars) over all ' +
+                                  'caption': 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })
     from usac_eval import compile_2D_bar_chart, check_par_file_exists, NoAliasDumper

@@ -627,6 +627,9 @@ def main():
         cmds.append(['--refineSOF'])
     if args.refineGMS:
         cmds.append(['--refineGMS'])
+    if args.refineVFC and args.refineSOF and args.refineGMS:
+        #To compare with result without filtering
+        cmds.append([])
 
     if len(args.refineRT) < 2 or len(args.refineRT) > 7:
         raise ValueError('Wrong number of arguments for refineRT')

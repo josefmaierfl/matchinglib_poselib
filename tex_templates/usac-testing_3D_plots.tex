@@ -20,6 +20,8 @@
 %\usetikzlibrary{matrix,positioning}
 \pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
 
+\newcommand{\mli}[1]{\mathit{#1}}
+
 \BLOCK{ if abbreviations }
 \BLOCK{ for abb in abbreviations}
 \newglossaryentry{\VAR{ loop.index }}{name={\VAR{ abb['key'] }},description={\VAR{ abb['description'] }}}

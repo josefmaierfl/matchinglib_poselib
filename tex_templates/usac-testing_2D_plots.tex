@@ -21,6 +21,8 @@
 %\usetikzlibrary{matrix,positioning}
 \pgfplotsset{width=1.\textwidth,compat=newest}%,yticklabel style={text width=3em,align=left}}
 
+\newcommand{\mli}[1]{\mathit{#1}}
+
 \BLOCK{ if abbreviations }
 \BLOCK{ for abb in abbreviations}
 \newglossaryentry{\VAR{ loop.index }}{name={\VAR{ abb['key'] }},description={\VAR{ abb['description'] }}}
@@ -120,7 +122,7 @@
 \BLOCK{ if not make_index and not ctrl_fig_size }
 \begin{center}
 \BLOCK{ endif }
-\BLOCK{ if sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
+\BLOCK{ if sec['use_string_labels'] or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \pgfplotstableread[col sep=semicolon]{\VAR{ sec['file'] }}\datatable
 \BLOCK{ endif }
 \begin{tikzpicture}
@@ -153,6 +155,11 @@ enlarge x limits={true, value=0.15},%
 \BLOCK{ endif }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ elif sec['use_string_labels'] }
+xtick=data,%
+xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+xlabel=\VAR{sec['label_x']},%
+ylabel=\VAR{sec['label_y']},%
 \BLOCK{ else }
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y']},%
@@ -202,7 +209,7 @@ col sep=semicolon,%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 y expr=\coordindex,%
 x=\VAR{ it }
-\BLOCK{ elif sec['fig_type'] == 'ybar' }
+\BLOCK{ elif sec['use_string_labels'] or sec['fig_type'] == 'ybar' }
 x expr=\coordindex,%
 y=\VAR{ it }
 \BLOCK{ else }

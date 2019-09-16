@@ -377,9 +377,10 @@ def calcSatisticAndPlot_2D(data,
                 tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             #Construct tex-file
-            if pdf_nr < len(pdfsplitentry):
-                if pdfsplitentry[pdf_nr] == str(it[0]):
-                    pdf_nr += 1
+            if pdfsplitentry:
+                if pdf_nr < len(pdfsplitentry):
+                    if pdfsplitentry[pdf_nr] == str(it[0]):
+                        pdf_nr += 1
             stats_all = tmp.stack().reset_index()
             stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
             if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
@@ -403,6 +404,8 @@ def calcSatisticAndPlot_2D(data,
                 if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                     use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
 
+            is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
+
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': replace_stat_names(it[-1]) + ' values for ' +
@@ -420,6 +423,7 @@ def calcSatisticAndPlot_2D(data,
                                           'legend_cols': None,
                                           'use_marks': use_marks,
                                           'use_log_y_axis': False,
+                                          'use_string_labels': True if not is_numeric else False,
                                           'pdf_nr': pdf_nr
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -741,6 +745,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                         use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
                     if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                         use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+                is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
                 reltex_name = os.path.join(rel_data_path, dataf_name)
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': replace_stat_names(it[-1]) + ' values for ' +
@@ -762,6 +767,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'legend_cols': None,
                                               'use_marks': use_marks,
                                               'use_log_y_axis': False,
+                                              'use_string_labels': True if not is_numeric else False,
                                               'stat_name': it[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1129,6 +1135,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                     use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
                 if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
                     use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
+            is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(rel_data_path, dataf_name)
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
             fig_name += '\\\\for '
@@ -1150,6 +1157,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'legend_cols': None,
                                           'use_marks': use_marks,
                                           'use_log_y_axis': eval_cols_log_scaling[i],
+                                          'use_string_labels': True if not is_numeric else False,
                                           'stat_name': ev,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -2485,6 +2493,321 @@ def calcFromFuncAndPlot_aggregate(data,
     return res
 
 
+def calcSatisticAndPlot_aggregate(data,
+                                  store_path,
+                                  tex_file_pre_str,
+                                  fig_title_pre_str,
+                                  eval_description_path,
+                                  eval_columns,
+                                  units,
+                                  it_parameters,
+                                  pdfsplitentry,  # One or more column names present in eval_columns for splitting pdf
+                                  filter_func=None,
+                                  filter_func_args=None,
+                                  special_calcs_func=None,
+                                  special_calcs_args=None,
+                                  calc_func=None,
+                                  calc_func_args=None,
+                                  fig_type='smooth',
+                                  use_marks=True,
+                                  ctrl_fig_size=True,
+                                  make_fig_index=True,
+                                  build_pdf=False,
+                                  figs_externalize=True):
+    fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
+    # if type(data) is not pd.dataframe.DataFrame:
+    #     data = pd.utils.from_pandas(data)
+    # Filter rows by excluding not successful estimations
+    data = data.loc[~((data['R_out(0,0)'] == 0) &
+                      (data['R_out(0,1)'] == 0) &
+                      (data['R_out(0,2)'] == 0) &
+                      (data['R_out(1,0)'] == 0) &
+                      (data['R_out(1,1)'] == 0) &
+                      (data['R_out(1,2)'] == 0) &
+                      (data['R_out(2,0)'] == 0) &
+                      (data['R_out(2,1)'] == 0) &
+                      (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
+    if data.empty:
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
+    if calc_func is not None:
+        if calc_func_args is None:
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        it_parameters = ret['it_parameters']
+    else:
+        needed_columns = eval_columns + it_parameters
+        df = data[needed_columns]
+
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
+    # Group by USAC parameters 5&6 and calculate the statistic
+    stats = df.groupby(it_parameters).describe()
+    if special_calcs_func is not None and special_calcs_args is not None:
+        if 'func_name' in special_calcs_args:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_args['func_name'])
+        else:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args['data'] = stats
+            special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
+            if res != 0:
+                warnings.warn('Errors occured during calculation of specific results!', UserWarning)
+    errvalnames = stats.columns.values  # Includes statistic name and error value names
+    grp_names = stats.index.names  # As used when generating the groups
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(it_parameters)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    title_it_pars = ''
+    for i in range(0, nr_it_parameters):
+        base_out_name += grp_names[i]
+        title_it_pars += replaceCSVLabels(grp_names[i], True, True)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                title_it_pars += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                title_it_pars += ', '
+            elif i < nr_it_parameters - 1:
+                title_it_pars += ', and '
+        if i < nr_it_parameters - 1:
+            base_out_name += '-'
+    title_name += title_it_pars
+    base_out_name += '_combs_aggregated'
+    # holds the grouped names/entries within the group names excluding the last entry th
+    # grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': make_fig_index,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': figs_externalize,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations of a list of dicts
+                 'abbreviations': None}
+    pdf_nr = 0
+    gloss_calced = False
+    from usac_eval import insert_opt_lbreak
+    for it in errvalnames:
+        if it[-1] != 'count':
+            tmp = stats[it[0]]
+            tmp = tmp.loc[:, [it[-1]]]
+            col_name = replace_stat_names_col_tex(it[-1])
+            tmp.rename(columns={it[-1]: col_name}, inplace=True)
+            # tmp.columns = ['%s%s' % (str(a), '-%s' % str(b) if b is not None else '') for a, b in tmp.columns]
+            if not gloss_calced:
+                if len(it_parameters) > 1:
+                    gloss = glossary_from_list([str(b) for a in tmp.index for b in a])
+                else:
+                    gloss = glossary_from_list([str(a) for a in tmp.index])
+                gloss_calced = True
+                if gloss:
+                    gloss = add_to_glossary_eval(eval_columns, gloss)
+                    tex_infos['abbreviations'] = gloss
+                else:
+                    gloss = add_to_glossary_eval(eval_columns)
+                    if gloss:
+                        tex_infos['abbreviations'] = gloss
+            if len(it_parameters) > 1:
+                it_pars_index = ['-'.join(map(str, a)) for a in tmp.index]
+                tmp.index = it_pars_index
+                index_name = '-'.join(it_parameters)
+                tmp.index.name = index_name
+            else:
+                it_pars_index = [str(a) for a in tmp.index]
+                index_name = it_parameters[0]
+            tmp['tex_it_pars'] = insert_opt_lbreak(it_pars_index)
+            dataf_name = 'data_' + '_'.join(map(str, it)) + '.csv'
+            dataf_name = dataf_name.replace('%', 'perc')
+            fdataf_name = os.path.join(tdata_folder, dataf_name)
+            with open(fdataf_name, 'a') as f:
+                f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
+                f.write('# Parameters: ' + '-'.join(it_parameters) + '\n')
+                tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+            # Construct tex-file
+            if pdfsplitentry:
+                if pdf_nr < len(pdfsplitentry):
+                    if pdfsplitentry[pdf_nr] == str(it[0]):
+                        pdf_nr += 1
+            stats_all = tmp.drop('tex_it_pars', axis=1).stack().reset_index()
+            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
+                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
+                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                continue
+            # figure types: sharp plot, smooth, const plot, ybar, xbar
+            use_limits = {'miny': None, 'maxy': None}
+            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+                if stats_all['min'][0] < 0:
+                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+                else:
+                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                if stats_all['max'][0] < 0:
+                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+                else:
+                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+
+            fig_name = replace_stat_names(it[-1]) + ' values for ' +\
+                       replaceCSVLabels(str(it[0]), True) + ' comparing parameter variations of\\\\' + \
+                       strToLower(title_it_pars)
+            reltex_name = os.path.join(rel_data_path, dataf_name)
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': fig_name.replace('\\\\', ' '),
+                                          'title': fig_name,
+                                          'title_rows': fig_name.count('\\\\'),
+                                          'fig_type': fig_type,
+                                          'plots': [col_name],
+                                          'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                          # Label of the value axis. For xbar it labels the x-axis
+                                          # Label/column name of axis with bars. For xbar it labels the y-axis
+                                          'label_x': 'Parameter',
+                                          # Column name of axis with bars. For xbar it is the column for the y-axis
+                                          'print_x': 'tex_it_pars',
+                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                          'print_meta': False,
+                                          'plot_meta': None,
+                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                          'rotate_meta': 0,
+                                          'limits': use_limits,
+                                          # If None, no legend is used, otherwise use a list
+                                          'legend': None,
+                                          'legend_cols': 1,
+                                          'use_marks': use_marks,
+                                          # The x/y-axis values are given as strings if True
+                                          'use_string_labels': True,
+                                          'use_log_y_axis': False,
+                                          'large_meta_space_needed': False,
+                                          'caption': fig_name.replace('\\\\', ' '),
+                                          'pdf_nr': pdf_nr
+                                          })
+
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    # Get number of pdfs to generate
+    pdf_nr = tex_infos['sections'][-1]['pdf_nr']
+    res = 0
+    if pdf_nr == 0:
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = base_out_name + '.tex'
+        if build_pdf:
+            pdf_name = base_out_name + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               tex_infos['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+    else:
+        sections = []
+        diff_pdfs = []
+        tmp_nr = 0
+        for it in tex_infos['sections']:
+            if it['pdf_nr'] == tmp_nr:
+                sections.append(it)
+            else:
+                diff_pdfs.append(deepcopy(sections))
+                sections = [it]
+                tmp_nr += 1
+        diff_pdfs.append(sections)
+        for it in diff_pdfs:
+            rendered_tex = template.render(title=tex_infos['title'],
+                                           make_index=tex_infos['make_index'],
+                                           ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                           figs_externalize=tex_infos['figs_externalize'],
+                                           fill_bar=tex_infos['fill_bar'],
+                                           sections=it,
+                                           abbreviations=tex_infos['abbreviations'])
+            texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
+            if build_pdf:
+                pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
+                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
+                                   os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
+            else:
+                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+    return res
+
+
+def replace_stat_names_col_tex(name):
+    if name == r'25%':
+        return '25percentile'
+    elif name == '50%':
+        return 'median'
+    elif name == r'75%':
+        return '75percentile'
+    else:
+        return str(name).replace('%', 'perc')
+
 def replace_stat_names(name, for_tex=True):
     if name == 'max':
         return 'Maximum'
@@ -2501,7 +2824,7 @@ def replace_stat_names(name, for_tex=True):
             return r'25perc percentile'
     elif name == '50%':
         return 'Median'
-    elif name == '75%':
+    elif name == r'75%':
         if for_tex:
             return r'75\% percentile'
         else:
@@ -2593,25 +2916,28 @@ def getSymbolDescription(label):
     elif label == 't_distDiff':
         return (replaceCSVLabels(label),
                 'L2-norm on the difference between ground truth and estimated relative stereo camera '
-                'translation vector', True)
+                'translation vectors', True)
     elif label == 't_diff_tx':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\|\\bm{\\tilde{t}}\\|-t_{x}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                '-t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
-                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$', True)
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
     elif label == 't_diff_ty':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\|\\bm{\\tilde{t}}\\|-t_{y}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                '-t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
-                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$', True)
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
     elif label == 't_diff_tz':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\|\\bm{\\tilde{t}}\\|-t_{z}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                '-t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
-                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$', True)
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
     elif label == 'th':
         return (replaceCSVLabels(label), 'Threshold on point correspondences in pixels', True)
     elif label == 'R_mostLikely_diffAll':
@@ -2643,34 +2969,37 @@ def getSymbolDescription(label):
     elif label == 't_mostLikely_distDiff':
         return (replaceCSVLabels(label),
                 'L2-norm on the difference between ground truth and estimated relative stereo camera '
-                'translation vector. '
+                'translation vectors. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_tx':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\|\\bm{\\tilde{t}}\\|-t_{x}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                '-t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
-                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$. '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_ty':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\|\\bm{\\tilde{t}}\\|-t_{y}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                '-t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
-                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$. '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_tz':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\|\\bm{\\tilde{t}}\\|-t_{z}^{GT}/\\|\\bm{t^{GT}}\\|$ '
+                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                '-t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t^{GT}}=\\[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\]^{T}$ '
-                'and $\\bm{\\tilde{t}}=\\[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\]^{T}$. '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -2734,14 +3063,47 @@ def getSymbolDescription(label):
                 'camera matrices from the second/right/bottom camera', True)
     elif label == 'Rt_diff':
         return (replaceCSVLabels(label),
-                'Combined rotation $\\bm{R}$ and translation $\\bm{t}$ error '
-                '$e_{Rt}=\\(e_{R}r_{t}+e{t}r{R}\\)/2r_{R}r{t}$ with '
-                '$e_{R}=\\lvert \\mu_{}$', True)
+                'Combined rotation $R$ and translation $\\bm{t}$ error '
+                '$e_{R\\bm{t}}=\\left( e_{R}r_{\\bm{t}}+e_{\\bm{t}}r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
+                '$e_{R}=\\lvert \\mu_{\\Delta R_{\\Sigma}}\\rvert +\\sigma_{\\Delta R_{\\Sigma}}$, '
+                '$e_{\\bm{t}}=\\lvert \\mu_{\\angle{\\Delta \\bm{t}}}\\rvert +\\sigma_{\\angle{\\Delta \\bm{t}}}$, '
+                '$r_{R}=\\text{max}\\left( e_{R}\\right) -\\text{min}\\left( e_{R}\\right)$, and '
+                '$r_{\\bm{t}}=\\text{max}\\left( e_{\\bm{t}}\\right) -\\text{min}\\left( e_{\\bm{t}}\\right)$. '
+                '$\\mu_{\\Delta R_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\bm{t}}}$ indicate the corresponding mean '
+                'values of differential angles $\\Delta R_{\\Sigma}$ and $\\angle{\\Delta \\bm{t}}$. '
+                '$\\sigma_{\\Delta R_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\bm{t}}}$ stand for the '
+                'standard deviations of afore montioned data.', True)
     elif label == 'Rt_mostLikely_diff':
         return (replaceCSVLabels(label),
-                'L2-norm of principal point in addition to focal length x- and y-component '
-                'differences in pixels of ground truth and estimated '
-                'camera matrices from the second/right/bottom camera', True)
+                'Combined rotation $R$ and translation $\\bm{t}$ error '
+                '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}=\\left( e_{\\hat{R}}r_{\\hat{\\bm{t}}}+'
+                'e_{\\hat{\\bm{t}}}r_{\\hat{R}}\\right) /2r_{\\hat{R}}r_{\\hat{\\bm{t}}}$ with '
+                '$e_{\\hat{R}}=\\lvert \\mu_{\\Delta \\hat{R}_{\\Sigma}}\\rvert '
+                '+\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$, '
+                '$e_{\\hat{\\bm{t}}}=\\lvert \\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}\\rvert '
+                '+\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$, '
+                '$r_{\\hat{R}}=\\text{max}\\left( e_{\\hat{R}}\\right) -\\text{min}\\left( e_{\\hat{R}}\\right)$, and '
+                '$r_{\\hat{\\bm{t}}}=\\text{max}\\left( e_{\\hat{\\bm{t}}}\\right) '
+                '-\\text{min}\\left( e_{\\hat{\\bm{t}}}\\right)$. '
+                '$\\mu_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}$ '
+                'indicate the corresponding mean '
+                'values of differential angles $\\Delta \\hat{R}_{\\Sigma}$ and $\\angle{\\Delta \\hat{\\bm{t}}}$. '
+                '$\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$ stand for the '
+                'standard deviations of afore mentioned data.', True)
+    elif label == 'K12_cxyfxfyNorm':
+        return (replaceCSVLabels(label),
+                'Combined camera matrix parameter differences $e_{\\mli{K1,2}}='
+                '\\left( \\mu_{\\Delta \\mli{K1}}+'
+                '\\mu_{\\Delta \\mli{K2}}+'
+                '\\sigma_{\\Delta \\mli{K1}}+'
+                '\\sigma_{\\Delta \\mli{K2}}\\right) /2$ with '
+                'mean values $\\mu_{\\Delta \\mli{K1}}$ and '
+                '$\\mu_{\\Delta \\mli{K2}}$ '
+                'in addition to standard deviations '
+                '$\\sigma_{\\Delta \\mli{K1}}$ and '
+                '$\\sigma_{\\Delta \\mli{K2}}$ of '
+                '$\\lvert\\Delta c_{x,y}^{\\mli{K1}}\\, \\Delta f_{x,y}^{\\mli{K1}}\\rvert$ and '
+                '$\\lvert\\Delta c_{x,y}^{\\mli{K2}}\\, \\Delta f_{x,y}^{\\mli{K2}}\\rvert$.', True)
     else:
         return (replaceCSVLabels(label), replaceCSVLabels(label), False)
 
@@ -2755,9 +3117,9 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 'R_diff_yaw_deg':
         return '$\\Delta R_{z}$'
     elif label == 't_angDiff_deg':
-        return '$\\angle{\\Delta t}$'
+        return '$\\angle{\\Delta \\bm{t}}$'
     elif label == 't_distDiff':
-        return '$\\|\\Delta t\\|$'
+        return '$\\lvert\\Delta \\bm{t}\\rvert$'
     elif label == 't_diff_tx':
         return '$\\Delta t_{x}$'
     elif label == 't_diff_ty':
@@ -2765,7 +3127,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_diff_tz':
         return '$\\Delta t_{z}$'
     elif label == 'Rt_diff':
-        return '$e_{Rt}$'
+        return '$e_{R\\bm{t}}$'
     elif label == 'th':
         if use_plural:
             str_val = 'thresholds \\texttt{th}'
@@ -2790,9 +3152,9 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 'R_mostLikely_diff_yaw_deg':
         return '$\\Delta \\hat{R}_{z}$'
     elif label == 't_mostLikely_angDiff_deg':
-        return '$\\angle{\\Delta \\hat{t}}$'
+        return '$\\angle{\\Delta \\hat{\\bm{t}}}$'
     elif label == 't_mostLikely_distDiff':
-        return '$\\|\\Delta \\hat{t}\\|$'
+        return '$\\lvert\\Delta \\hat{\\bm{t}}\\rvert$'
     elif label == 't_mostLikely_diff_tx':
         return '$\\Delta \\hat{t}_{x}$'
     elif label == 't_mostLikely_diff_ty':
@@ -2800,35 +3162,38 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_mostLikely_diff_tz':
         return '$\\Delta \\hat{t}_{z}$'
     elif label == 'Rt_mostLikely_diff':
-        return '$\\hat{e}_{Rt}$'
+        return '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}$'
     elif label == 'K1_fxDiff':
-        return '$\\Delta f_{x}^{K1}$'
+        return '$\\Delta f_{x}^{\\mli{K1}}$'
     elif label == 'K1_fyDiff':
-        return '$\\Delta f_{y}^{K1}$'
+        return '$\\Delta f_{y}^{\\mli{K1}}$'
     elif label == 'K1_fxyDiffNorm':
-        return '$\\|\\Delta f_{x,y}^{K1}\\|$'
+        return '$\\lvert\\Delta f_{x,y}^{\\mli{K1}}\\rvert$'
     elif label == 'K1_cxDiff':
-        return '$\\Delta c_{x}^{K1}$'
+        return '$\\Delta c_{x}^{\\mli{K1}}$'
     elif label == 'K1_cyDiff':
-        return '$\\Delta c_{y}^{K1}$'
+        return '$\\Delta c_{y}^{\\mli{K1}}$'
     elif label == 'K1_cxyDiffNorm':
-        return '$\\|\\Delta c_{x,y}^{K1}\\|$'
+        return '$\\lvert\\Delta c_{x,y}^{\\mli{K1}}\\rvert$'
     elif label == 'K1_cxyfxfyNorm':
-        return '$\\|\\Delta c_{x,y}^{K1}\\, f_{x,y}^{K1}\\|$'
+        return '$\\lvert\\Delta c_{x,y}^{\\mli{K1}}\\, \\Delta f_{x,y}^{\\mli{K1}}\\rvert$'
     elif label == 'K2_fxDiff':
-        return '$\\Delta f_{x}^{K2}$'
+        return '$\\Delta f_{x}^{\\mli{K2}}$'
     elif label == 'K2_fyDiff':
-        return '$\\Delta f_{y}^{K2}$'
+        return '$\\Delta f_{y}^{\\mli{K2}}$'
     elif label == 'K2_fxyDiffNorm':
-        return '$\\|\\Delta f_{x,y}^{K2}\\|$'
+        return '$\\lvert\\Delta f_{x,y}^{\\mli{K2}}\\rvert$'
     elif label == 'K2_cxDiff':
-        return '$\\Delta c_{x}^{K2}$'
+        return '$\\Delta c_{x}^{\\mli{K2}}$'
     elif label == 'K2_cyDiff':
-        return '$\\Delta c_{y}^{K2}$'
+        return '$\\Delta c_{y}^{\\mli{K2}}$'
     elif label == 'K2_cxyDiffNorm':
-        return '$\\|\\Delta c_{x,y}^{K2}\\|$'
+        return '$\\lvert\\Delta c_{x,y}^{\\mli{K2}}\\rvert$'
     elif label == 'K2_cxyfxfyNorm':
-        return '$\\|\\Delta c_{x,y}^{K2}\\, f_{x,y}^{K2}\\|$'
+        return '$\\lvert\\Delta c_{x,y}^{\\mli{K2}}\\, \\Delta f_{x,y}^{\\mli{K2}}\\rvert$'
+    elif label == 'K12_cxyfxfyNorm':
+        # return '$e_{\\lvert\\Delta c_{x,y}^{\\mli{K2}}\\, \\Delta f_{x,y}^{\\mli{K2}}\\rvert }$'
+        return '$e_{\\mli{K1,2}}$'
     elif label == 'inlRat_estimated':
         if use_plural:
             str_val = 'estimated inlier ratios $\\tilde{\\epsilon}$'
@@ -3088,9 +3453,9 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'maximum image pairs to skip $n_{max}^{skip}$'
     elif label == 'stereoParameters_minNormDistStable':
         if use_plural:
-            str_val = 'minimum distances $\\|\\breve{d}_{cm}\\|$ for stability'
+            str_val = 'minimum distances $\\lvert\\breve{d}_{cm}\\rvert$ for stability'
         else:
-            str_val = 'minimum distance $\\|\\breve{d}_{cm}\\|$ for stability'
+            str_val = 'minimum distance $\\lvert\\breve{d}_{cm}\\rvert$ for stability'
     elif label == 'stereoParameters_absThRankingStable':
         if use_plural:
             str_val = 'stable ranking thresholds $\\tau$'
@@ -3128,6 +3493,10 @@ def capitalizeStr(str_val):
     return ' '.join([b.capitalize() if not b.isupper() and
                                        not '$' in b and
                                        not '\\' in b and
+                                       not len(b) == 1 and
+                                       not '{' in b and
+                                       not '}' in b and
+                                       not '_' in b and
                                        not b in ex else b for b in str_val.split(' ')])
 
 
@@ -3141,6 +3510,9 @@ def strToLower(str_val):
     return ' '.join([b.lower() if not sum(1 for c in b if c.isupper()) > 1 and
                                   not '$' in b and
                                   not len(b) == 1 and
+                                  not '{' in b and
+                                  not '}' in b and
+                                  not '_' in b and
                                   not '\\' in b else b for b in str_val.split(' ')])
 
 def getOptionDescription(key):
@@ -3349,9 +3721,9 @@ def main():
     data['bundleAdjust_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'refinement_ba'#'usac_vs_ransac'#'testing_tests'
+    test_name = 'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = [4]
+    eval_nr = [7]
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
@@ -3571,7 +3943,7 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(7, 15)) + [36]
@@ -3937,7 +4309,7 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'usac_vs_ransac':
@@ -4188,7 +4560,7 @@ def main():
                                                          build_pdf=True,
                                                          figs_externalize=False)
             else:
-                raise ValueError('Eval nr does not exist')
+                raise ValueError('Eval nr ' + ev + ' does not exist')
     elif test_name == 'refinement_ba':
         if not test_nr:
             raise ValueError('test_nr is required refinement_ba')
@@ -4314,7 +4686,7 @@ def main():
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(1, 5))
@@ -4467,7 +4839,8 @@ def main():
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'error_function': combineK,
-                                          'error_type_text': 'Combined Camera Matrix Errors',
+                                          'error_type_text': 'Combined Camera Matrix Errors '
+                                                             '$e_{\\mli{K1,2}}$',
                                           'file_name_err_part': 'Kerror',
                                           'error_col_name': 'ke',
                                           'res_par_name': 'refinement_best_comb_for_BA2_K_scenes'}
@@ -4495,7 +4868,181 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr does not exist')
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+    elif test_name == 'vfc_gms_sof':
+        if eval_nr[0] < 0:
+            evals = list(range(1, 8))
+        else:
+            evals = eval_nr
+        for ev in evals:
+            if ev == 1:
+                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'vfc_gms_sof_inlrat'}
+                from usac_eval import get_best_comb_inlrat_1
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['inlratMin'],
+                                              pdfsplitentry=['t_distDiff'],
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=get_best_comb_inlrat_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
+            elif ev == 2:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                from usac_eval import get_inlrat_diff#, get_min_inlrat_diff
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='inlRat-diff',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['kpAccSd'],
+                                              pdfsplitentry=None,
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=get_inlrat_diff,
+                                              calc_func_args=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 5:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                from usac_eval import get_inlrat_diff  # , get_min_inlrat_diff
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='inlRat-diff',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['kpDistr'],
+                                              pdfsplitentry=None,
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=get_inlrat_diff,
+                                              calc_func_args=None,
+                                              fig_type='ybar',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 6:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                from usac_eval import get_inlrat_diff  # , get_min_inlrat_diff
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='inlRat-diff',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['depthDistr'],
+                                              pdfsplitentry=None,
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=get_inlrat_diff,
+                                              calc_func_args=None,
+                                              fig_type='ybar',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 7:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                from usac_eval import get_inlrat_diff
+                from vfc_gms_sof_eval import get_min_inlrat_diff_no_fig
+                ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_vfc_gms_sof_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_description_path='inlRat-diff',
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     pdfsplitentry=None,
+                                                     filter_func=None,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=None,
+                                                     special_calcs_args=None,
+                                                     calc_func=get_inlrat_diff,
+                                                     calc_func_args=None,
+                                                     fig_type='ybar',
+                                                     use_marks=False,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
 
     return ret
 
