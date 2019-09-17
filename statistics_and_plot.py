@@ -403,14 +403,32 @@ def calcSatisticAndPlot_2D(data,
                     use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
                 if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                     use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+            if use_limits['miny'] and use_limits['maxy']:
+                use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+            elif use_limits['miny']:
+                use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+            elif use_limits['maxy']:
+                use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+            else:
+                use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
-
+            section_name = replace_stat_names(it[-1]) + ' values for ' +\
+                           replaceCSVLabels(str(it[0]), True) +\
+                           ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True)
+            if exp_value and len(section_name) < 70:
+                exp_value = False
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
-                                          'name': replace_stat_names(it[-1]) + ' values for ' +
-                                                  replaceCSVLabels(str(it[0]), True) +
-                                                  ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True),
+                                          'name': section_name,
                                           # If caption is None, the field name is used
                                           'caption': None,
                                           'fig_type': fig_type,
@@ -422,7 +440,8 @@ def calcSatisticAndPlot_2D(data,
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
                                           'legend_cols': None,
                                           'use_marks': use_marks,
-                                          'use_log_y_axis': False,
+                                          'use_log_y_axis': use_log,
+                                          'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'pdf_nr': pdf_nr
                                           })
@@ -745,13 +764,36 @@ def calcSatisticAndPlot_2D_partitions(data,
                         use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
                     if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                         use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+                if use_limits['miny'] and use_limits['maxy']:
+                    use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+                    exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                            float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                elif use_limits['miny']:
+                    use_log = True if np.abs(
+                        np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+                    exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                            float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                elif use_limits['maxy']:
+                    use_log = True if np.abs(
+                        np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+                    exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                            float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                else:
+                    use_log = True if np.abs(
+                        np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+                    exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                            float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
+                section_name = replace_stat_names(it[-1]) + ' values for ' +\
+                               replaceCSVLabels(str(it[0]), True) +\
+                               ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +\
+                               '\\\\for properties ' + part_name.replace('_', '\\_')
+                section_name = split_large_titles(section_name)
+                if exp_value and len(section_name.split('\\\\')[-1]) < 70:
+                    exp_value = False
                 reltex_name = os.path.join(rel_data_path, dataf_name)
                 tex_infos['sections'].append({'file': reltex_name,
-                                              'name': replace_stat_names(it[-1]) + ' values for ' +
-                                                      replaceCSVLabels(str(it[0]), True) +
-                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
-                                                      '\\\\ for properties ' + part_name.replace('_', '\\_'),
+                                              'name': section_name,
                                               # If caption is None, the field name is used
                                               'caption': replace_stat_names(it[-1]) + ' values for ' +
                                                       replaceCSVLabels(str(it[0]), True) +
@@ -766,7 +808,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
                                               'legend_cols': None,
                                               'use_marks': use_marks,
-                                              'use_log_y_axis': False,
+                                              'use_log_y_axis': use_log,
+                                              'enlarge_title_space': exp_value,
                                               'use_string_labels': True if not is_numeric else False,
                                               'stat_name': it[-1],
                                               })
@@ -1135,6 +1178,18 @@ def calcFromFuncAndPlot_2D_partitions(data,
                     use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
                 if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
                     use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
+            if use_limits['miny'] and use_limits['maxy']:
+                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+            elif use_limits['miny']:
+                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+            elif use_limits['maxy']:
+                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+            else:
+                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
             is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(rel_data_path, dataf_name)
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
@@ -1143,6 +1198,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
                         '\\\\parameter variations of ' + strToLower(it_title_part) + \
                         '\\\\compared to ' + \
                         replaceCSVLabels(x_axis_column[0], True)
+            fig_name = split_large_titles(fig_name)
+            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+                exp_value = False
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
@@ -1157,6 +1215,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'legend_cols': None,
                                           'use_marks': use_marks,
                                           'use_log_y_axis': eval_cols_log_scaling[i],
+                                          'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'stat_name': ev,
                                           })
@@ -2439,9 +2498,24 @@ def calcFromFuncAndPlot_aggregate(data,
                 use_limits['miny'] = round(stats_all['mean'] - stats_all['std'] * 3.291, 6)
             if stats_all['max'] > (stats_all['mean'] + stats_all['std'] * 3.291):
                 use_limits['maxy'] = round(stats_all['mean'] + stats_all['std'] * 3.291, 6)
+        if use_limits['miny'] and use_limits['maxy']:
+            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+        elif use_limits['miny']:
+            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+        elif use_limits['maxy']:
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+        else:
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
         reltex_name = os.path.join(rel_data_path, dataf_name)
         fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
                    ' for parameter variations of\\\\' + strToLower(title_it_pars)
+        fig_name = split_large_titles(fig_name)
+        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+            exp_value = False
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -2467,6 +2541,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True,
                                       'use_log_y_axis': eval_cols_log_scaling[i],
+                                      'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
                                       })
@@ -2597,13 +2672,15 @@ def calcSatisticAndPlot_aggregate(data,
         while os.path.exists(special_path_sub):
             special_path_sub = special_path_init + '_' + str(int(cnt))
             cnt += 1
-        try:
-            os.mkdir(special_path_sub)
-        except FileExistsError:
-            print('Folder', special_path_sub, 'for storing statistics data already exists')
-        except:
-            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
-            calc_vals = False
+        if 'mk_no_folder' not in special_calcs_args or not special_calcs_args['mk_no_folder']:
+            try:
+                os.mkdir(special_path_sub)
+            except FileExistsError:
+                print('Folder', special_path_sub, 'for storing statistics data already exists')
+            except:
+                print("Unexpected error "
+                      "(Unable to create directory for storing special function data):", sys.exc_info()[0])
+                calc_vals = False
         if calc_vals:
             special_calcs_args['data'] = stats
             special_calcs_args['it_parameters'] = it_parameters
@@ -2710,10 +2787,16 @@ def calcSatisticAndPlot_aggregate(data,
                     use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
                 else:
                     use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+            use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
 
             fig_name = replace_stat_names(it[-1]) + ' values for ' +\
                        replaceCSVLabels(str(it[0]), True) + ' comparing parameter variations of\\\\' + \
                        strToLower(title_it_pars)
+            fig_name = split_large_titles(fig_name)
+            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+                exp_value = False
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name.replace('\\\\', ' '),
@@ -2739,7 +2822,8 @@ def calcSatisticAndPlot_aggregate(data,
                                           'use_marks': use_marks,
                                           # The x/y-axis values are given as strings if True
                                           'use_string_labels': True,
-                                          'use_log_y_axis': False,
+                                          'use_log_y_axis': use_log,
+                                          'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'caption': fig_name.replace('\\\\', ' '),
                                           'pdf_nr': pdf_nr
@@ -2834,6 +2918,55 @@ def replace_stat_names(name, for_tex=True):
             return str(name).replace('%', '\%').capitalize()
         else:
             return str(name).replace('%', 'perc').capitalize()
+
+
+def split_large_titles(title_str):
+    if '\\\\' in title_str:
+        substr = title_str.split('\\\\')
+        substr1 = []
+        for s in substr:
+            substr1.append(split_large_str(s))
+        return '\\\\'.join(substr1)
+    else:
+        return split_large_str(title_str)
+
+
+def split_large_str(large_str):
+    ls = len(large_str)
+    if ls <= 100:
+        return large_str
+    else:
+        nr_splits = int(ls / 100)
+        ls_part = round(ls / float(nr_splits + 1), 0)
+        ls_sum = ls_part
+        it_nr = 0
+        s1 = large_str.split(' ')
+        s1_tmp = []
+        l1 = 0
+        for s2 in s1:
+            l1 += len(s2)
+            if l1 < ls_sum:
+                s1_tmp.append(s2)
+            elif l1 >= ls_sum and it_nr < nr_splits:
+                it_nr += 1
+                ls_sum += ls_part
+                if s1_tmp:
+                    if '$' in s1_tmp[-1] or\
+                       '\\' in s1_tmp[-1] or\
+                       len(s1_tmp[-1]) == 1 or\
+                       '}' in s1_tmp[-1] or\
+                       '{' in s1_tmp[-1] or\
+                       '_' in s1_tmp[-1]:
+                        it_nr -= 1
+                        ls_sum -= ls_part
+                        s1_tmp.append(s2)
+                    else:
+                        s1_tmp[-1] += '\\\\' + s2
+                else:
+                    s1_tmp.append(s2)
+            else:
+                s1_tmp.append(s2)
+        return ' '.join(s1_tmp)
 
 
 def tex_string_coding_style(text):
@@ -3719,11 +3852,12 @@ def main():
     data['robEstimationAndRef_us'] = t
     data['linRefinement_us'] = t
     data['bundleAdjust_us'] = t
+    data['filtering_us'] = t
     data = pd.DataFrame(data)
 
     test_name = 'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = [7]
+    eval_nr = list(range(5, 8))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
@@ -5020,6 +5154,8 @@ def main():
                 #                  'matchesFilter_refineSOF']
                 it_parameters = ['USAC_parameters_estimator',
                                  'USAC_parameters_refinealg']
+                special_calcs_args = {'res_par_name': 'vfc_gms_sof_min_inlrat_diff',
+                                      'mk_no_folder': True}
                 from usac_eval import get_inlrat_diff
                 from vfc_gms_sof_eval import get_min_inlrat_diff_no_fig
                 ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
@@ -5033,12 +5169,89 @@ def main():
                                                      pdfsplitentry=None,
                                                      filter_func=None,
                                                      filter_func_args=None,
-                                                     special_calcs_func=None,
-                                                     special_calcs_args=None,
+                                                     special_calcs_func=get_min_inlrat_diff_no_fig,
+                                                     special_calcs_args=special_calcs_args,
                                                      calc_func=get_inlrat_diff,
                                                      calc_func_args=None,
                                                      fig_type='ybar',
                                                      use_marks=False,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
+            elif ev == 3:
+                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                partitions = ['kpDistr', 'depthDistr', 'kpAccSd']
+                special_calcs_args = {'build_pdf': (True, True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'vfc_gms_sof_best_comb_for_scenes'}
+                from refinement_eval import get_best_comb_scenes_1
+                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_vfc_gms_sof_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='RT-stats',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         partitions=partitions,
+                                                         x_axis_column=['inlratMin'],
+                                                         filter_func=None,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=get_best_comb_scenes_1,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=True)
+            elif ev == 4:
+                fig_title_pre_str = 'Temporal Behaviour for Comparison of '
+                eval_columns = ['filtering_us']
+                units = []
+                # it_parameters = ['matchesFilter_refineGMS',
+                #                  'matchesFilter_refineVFC',
+                #                  'matchesFilter_refineSOF']
+                it_parameters = ['USAC_parameters_estimator',
+                                 'USAC_parameters_refinealg']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': False,
+                                      'nr_target_kps': 1000,
+                                      'res_par_name': 'vfc_gms_sof_min_time'}
+                from usac_eval import calc_Time_Model, filter_nr_kps
+                from refinement_eval import estimate_alg_time_fixed_kp_agg
+                ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_vfc_gms_sof_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_description_path='time',
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     x_axis_column=['nrCorrs_GT'],
+                                                     filter_func=filter_nr_kps,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=estimate_alg_time_fixed_kp_agg,
+                                                     special_calcs_args=special_calcs_args,
+                                                     calc_func=calc_Time_Model,
+                                                     calc_func_args={'data_separators': []},
+                                                     fig_type='ybar',
+                                                     use_marks=True,
                                                      ctrl_fig_size=True,
                                                      make_fig_index=True,
                                                      build_pdf=True,

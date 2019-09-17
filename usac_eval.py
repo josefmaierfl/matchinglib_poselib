@@ -115,7 +115,8 @@ def pars_calc_single_fig_partitions(**keywords):
         compile_tex, \
         calcNrLegendCols, \
         replaceCSVLabels, \
-        add_to_glossary
+        add_to_glossary, \
+        split_large_titles
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True)
@@ -260,6 +261,25 @@ def pars_calc_single_fig_partitions(**keywords):
                 use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
             if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+        if use_limits['miny'] and use_limits['maxy']:
+            use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+        elif use_limits['miny']:
+            use_log = True if np.abs(
+                np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+        elif use_limits['maxy']:
+            use_log = True if np.abs(
+                np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+        else:
+            use_log = True if np.abs(
+                np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
         is_numeric = pd.to_numeric(tmp2.reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
         reltex_name = os.path.join(ret['rel_data_path'], b_name)
         if 'error_type_text' in keywords:
@@ -283,6 +303,9 @@ def pars_calc_single_fig_partitions(**keywords):
                        ' for parameter variations of ' + ret['sub_title_it_pars'] +\
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = 'Combined R \\& t error $e_{R\\bm{t}}$'
+        sec_name = split_large_titles(sec_name)
+        if exp_value and len(sec_name.split('\\\\')[-1]) < 70:
+            exp_value = False
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': sec_name,
                                       # If caption is None, the field name is used
@@ -296,7 +319,8 @@ def pars_calc_single_fig_partitions(**keywords):
                                       'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
                                       'legend_cols': None,
                                       'use_marks': ret['use_marks'],
-                                      'use_log_y_axis': False,
+                                      'use_log_y_axis': use_log,
+                                      'enlarge_title_space': exp_value,
                                       'use_string_labels': True if not is_numeric else False
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -401,7 +425,11 @@ def pars_calc_single_fig(**keywords):
         ret['b'].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     ret['sub_title'] = ''
     nr_it_parameters = len(keywords['it_parameters'])
-    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
+    from statistics_and_plot import tex_string_coding_style, \
+        compile_tex, \
+        calcNrLegendCols, \
+        replaceCSVLabels, \
+        split_large_titles
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
@@ -444,12 +472,35 @@ def pars_calc_single_fig(**keywords):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if use_limits['miny'] and use_limits['maxy']:
+        use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    elif use_limits['miny']:
+        use_log = True if np.abs(
+            np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+    elif use_limits['maxy']:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    else:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
+    section_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +\
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                   ' for parameter variations of\\\\' + ret['sub_title']
+    section_name = split_large_titles(section_name)
+    if exp_value and len(section_name.split('\\\\')[-1]) < 70:
+        exp_value = False
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
-                                          replaceCSVLabels(str(ret['grp_names'][-1]), True) +
-                                          ' for parameter variations of \\\\' + ret['sub_title'],
+                                  'name': section_name,
                                   # If caption is None, the field name is used
                                   'caption': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) +
@@ -463,7 +514,8 @@ def pars_calc_single_fig(**keywords):
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)],
                                   'legend_cols': None,
                                   'use_marks': ret['use_marks'],
-                                  'use_log_y_axis': False,
+                                  'use_log_y_axis': use_log,
+                                  'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -759,6 +811,7 @@ def get_best_comb_and_th_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
@@ -790,6 +843,7 @@ def get_best_comb_and_th_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Biggest combined R \\& t errors  $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
@@ -863,7 +917,8 @@ def get_best_comb_inlrat_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Mean combined R \\& t errors $e_{R\\bm{t}}$ over all ' + replaceCSVLabels(str(ret['grp_names'][-1]), True)
+    section_name = 'Mean combined R \\& t errors $e_{R\\bm{t}}$ over all ' + \
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -888,6 +943,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
@@ -1174,6 +1230,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +
                                              'corresponding parameter set and ' +
@@ -1245,7 +1302,7 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
     tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
     partitions_ov = '-'.join(ret['partitions'][:-1])
-    from statistics_and_plot import replaceCSVLabels
+    from statistics_and_plot import replaceCSVLabels, split_large_titles
     partitions_legend = ' -- '.join([replaceCSVLabels(i) for i in ret['partitions'][:-1]])
     tmp2.index.name = partitions_ov
     tmp2 = tmp2.reset_index().set_index([it_pars_ov, partitions_ov]).unstack(level=0)
@@ -1433,6 +1490,7 @@ def get_best_comb_th_scenes_1(**keywords):
               replaceCSVLabels(str(ret['partitions'][-1]), True) + \
               ' (on top of each bar) for parameters ' + ret['sub_title_it_pars'] + \
               ' and properties ' + ret['sub_title_partitions'] + '.'
+    section_name = split_large_titles(section_name)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -1457,6 +1515,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
                                   })
@@ -1844,9 +1903,16 @@ def estimate_alg_time_fixed_kp(**vars):
     min_val = tmp1[col_name].min()
     max_val = tmp1[col_name].max()
     use_log1 = True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False
+    exp_value1 = True if max(float(np.abs(np.log10(min_val))),
+                            float(np.abs(np.log10(max_val)))) > 2 else False
 
     vars = prepare_io(**vars)
-    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
+    from statistics_and_plot import tex_string_coding_style, \
+        compile_tex, \
+        calcNrLegendCols, \
+        replaceCSVLabels, \
+        strToLower, \
+        split_large_titles
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
@@ -1895,7 +1961,6 @@ def estimate_alg_time_fixed_kp(**vars):
                  }
     stats_all = tmp.stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
     if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
@@ -1912,11 +1977,33 @@ def estimate_alg_time_fixed_kp(**vars):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if use_limits['miny'] and use_limits['maxy']:
+        use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    elif use_limits['miny']:
+        use_log = True if np.abs(
+            np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+    elif use_limits['maxy']:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    else:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
     is_numeric = pd.to_numeric(tmp.reset_index()[vars['xy_axis_columns'][0]], errors='coerce').notnull().all()
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
-    fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
-               replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False) + \
+    fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
+               ' over all ' + replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    fig_name = split_large_titles(fig_name)
+    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+        exp_value = False
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
@@ -1931,6 +2018,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'legend_cols': None,
                                   'use_marks': vars['use_marks'],
                                   'use_log_y_axis': use_log,
+                                  'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1998,6 +2086,9 @@ def estimate_alg_time_fixed_kp(**vars):
               ' (corresponding parameter on top of bar) for mean execution times over all ' + \
               replaceCSVLabels(str(vars['xy_axis_columns'][1]), True) + \
               'extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints.'
+    section_name = split_large_titles(section_name)
+    if exp_value1 and len(section_name.split('\\\\')[-1]) < 70:
+        exp_value1 = False
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2023,6 +2114,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': use_log1,
+                                  'enlarge_title_space': exp_value1,
                                   'large_meta_space_needed': True,
                                   'caption': caption
                                   })
@@ -2195,7 +2287,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     tmp2max = tmp1max.loc[tmp1max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new1 = ['-'.join(a) for a in tmp1min.index]
@@ -2278,6 +2370,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                    ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                    '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name = split_large_titles(section_name)
     caption = 'Minimum execution times vs ' + replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
               ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
               replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' (corresponding ' + \
@@ -2308,6 +2401,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
                                   })
@@ -2322,6 +2416,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
               replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' (corresponding ' + \
               replaceCSVLabels(str(vars['t_data_separators'][0])) + ' on top of each bar) extrapolated for ' + \
               str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name = split_large_titles(section_name)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_max_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2347,6 +2442,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
                                   })
@@ -2455,6 +2551,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
               replaceCSVLabels(str(vars['t_data_separators'][1])) + ' values on top of each bar)' + \
               ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' extrapolated for ' + \
               str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name = split_large_titles(section_name)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2480,6 +2577,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
                                   })
@@ -2495,6 +2593,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
               replaceCSVLabels(str(vars['t_data_separators'][1])) + ' values on top of each bar)' + \
               ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' extrapolated for ' + \
               str(int(vars['nr_target_kps'])) + ' keypoints'
+    section_name = split_large_titles(section_name)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_max_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2520,6 +2619,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
                                   })
@@ -2596,7 +2696,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max = tmp2mean_max.loc[tmp2mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import add_to_glossary, add_to_glossary_eval
+    from statistics_and_plot import add_to_glossary, add_to_glossary_eval, split_large_titles
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list
     if len(vars['it_parameters']) > 1:
@@ -2781,6 +2881,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     legend_y4 = []
     meta_col4 = []
     use_log4 = []
+    exp_value4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
@@ -2801,6 +2902,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val[0]))),
+                                  float(np.abs(np.log10(max_val[0])))) > 2 else False)
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2821,6 +2924,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val[0]))),
+                                  float(np.abs(np.log10(max_val[0])))) > 2 else False)
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2842,6 +2947,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val[0]))),
+                                  float(np.abs(np.log10(max_val[0])))) > 2 else False)
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2862,6 +2969,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(True if np.abs(np.log10(min_val[0]) - np.log10(max_val[0])) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val[0]))),
+                                  float(np.abs(np.log10(max_val[0])))) > 2 else False)
 
     t_main_name1 = 'time_on_' + time_on1 +\
                    '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
@@ -2934,8 +3043,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                          ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                          '\\\\over all ' + replaceCSVLabels(str(time_on1), True) + \
                          ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    section_name.append('Minimum ' + section_name_main1)
-    section_name.append('Maximum ' + section_name_main1)
+    section_name.append(split_large_titles('Minimum ' + section_name_main1))
+    section_name.append(split_large_titles('Maximum ' + section_name_main1))
     caption_main1 = 'execution times vs ' + \
             replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
             ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
@@ -2950,8 +3059,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                          ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                          '\\\\over all ' + replaceCSVLabels(str(time_on2), True) + \
                          ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    section_name.append('Minimum ' + section_name_main2)
-    section_name.append('Maximum ' + section_name_main2)
+    section_name.append(split_large_titles('Minimum ' + section_name_main2))
+    section_name.append(split_large_titles('Maximum ' + section_name_main2))
     caption_main2 = 'execution times vs ' + \
                     replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
                     ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
@@ -2962,6 +3071,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     caption.append('Maximum ' + caption_main2)
 
     for i in range(0, 4):
+        if exp_value4[i] and len(section_name[i].split('\\\\')[-1]) < 70:
+            exp_value4[i] = False
         tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], fnames4[i]),
                                       'name': section_name[i].replace('\\\\', ' '),
                                       'title': section_name[i],
@@ -2987,6 +3098,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': False,
                                       'use_log_y_axis': use_log4[i],
+                                      'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
                                       })
@@ -3022,6 +3134,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     meta_col4 = []
     use_log4 = []
+    exp_value4 = []
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new13 = ['-'.join(a) for a in tmp12_min.index]
@@ -3039,6 +3152,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = np.abs(tmp12_min[col_name].min())
     max_val = np.abs(tmp12_min[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val))),
+                                  float(np.abs(np.log10(max_val)))) > 2 else False)
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3055,6 +3170,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = np.abs(tmp12_max[col_name].min())
     max_val = np.abs(tmp12_max[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val))),
+                                  float(np.abs(np.log10(max_val)))) > 2 else False)
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3073,6 +3190,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = np.abs(tmp22_min[col_name].min())
     max_val = np.abs(tmp22_min[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val))),
+                                  float(np.abs(np.log10(max_val)))) > 2 else False)
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3089,6 +3208,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     min_val = np.abs(tmp22_max[col_name].min())
     max_val = np.abs(tmp22_max[col_name].max())
     use_log4.append(True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False)
+    exp_value4.append(True if max(float(np.abs(np.log10(min_val))),
+                                  float(np.abs(np.log10(max_val)))) > 2 else False)
 
     t_main_name1 = 'time_on_' + meta_col4[0] + \
                    '_over_accumul_' + str(vars['accum_step_props'][0]) + \
@@ -3166,8 +3287,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                          '\\\\over all ' + replaceCSVLabels(first_grp2[0], False, True) + ' and ' + \
                          replaceCSVLabels(first_grp2[1], False, True) + \
                          ' combinations\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    section_name.append('Minimum ' + section_name_main1)
-    section_name.append('Maximum ' + section_name_main1)
+    section_name.append(split_large_titles('Minimum ' + section_name_main1))
+    section_name.append(split_large_titles('Maximum ' + section_name_main1))
     caption_main1 = 'execution times for parameter variations of ' + \
                     strToLower(vars['sub_title_it_pars']) + \
                     ' over all ' + replaceCSVLabels(first_grp2[0]) + ' and ' + \
@@ -3183,8 +3304,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                          '\\\\over all ' + replaceCSVLabels(second_grp2[0], False, True) + ' and ' + \
                          replaceCSVLabels(second_grp2[1], False, True) + \
                          ' combinations\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    section_name.append('Minimum ' + section_name_main2)
-    section_name.append('Maximum ' + section_name_main2)
+    section_name.append(split_large_titles('Minimum ' + section_name_main2))
+    section_name.append(split_large_titles('Maximum ' + section_name_main2))
     caption_main2 = 'execution times for parameter variations of ' + \
                     strToLower(vars['sub_title_it_pars']) + \
                     ' over all ' + replaceCSVLabels(second_grp2[0]) + ' and ' + \
@@ -3196,6 +3317,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     caption.append('Maximum ' + caption_main2)
 
     for i in range(0, 4):
+        if exp_value4[i] and len(section_name[i].split('\\\\')[-1]) < 70:
+            exp_value4[i] = False
         tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], fnames4[i]),
                                       'name': section_name[i].replace('\\\\', ' '),
                                       'title': section_name[i],
@@ -3221,6 +3344,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True,
                                       'use_log_y_axis': use_log4[i],
+                                      'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
                                       })
@@ -3346,7 +3470,7 @@ def get_min_inlrat_diff(**keywords):
     nr_partitions = len(partitions)
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -3403,11 +3527,33 @@ def get_min_inlrat_diff(**keywords):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if use_limits['miny'] and use_limits['maxy']:
+        use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    elif use_limits['miny']:
+        use_log = True if np.abs(
+            np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+    elif use_limits['maxy']:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    else:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
     is_numeric = pd.to_numeric(diff_mean.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
     reltex_name = os.path.join(keywords['rel_data_path'], b_name)
     fig_name = 'Absolute mean inlier ratio differences $\\Delta \\epsilon$ vs ' + \
                replaceCSVLabels(str(grp_names[-1]), True) + \
                ' for parameter variations of \\\\' + keywords['sub_title_it_pars']
+    fig_name = split_large_titles(fig_name)
+    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+        exp_value = False
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
@@ -3421,7 +3567,8 @@ def get_min_inlrat_diff(**keywords):
                                   'legend': [tex_string_coding_style(a) for a in list(diff_mean.columns.values)],
                                   'legend_cols': None,
                                   'use_marks': keywords['use_marks'],
-                                  'use_log_y_axis': False,
+                                  'use_log_y_axis': use_log,
+                                  'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -3484,6 +3631,7 @@ def get_min_inlrat_diff(**keywords):
     caption = 'Minimum absolute mean inlier ratio difference and its corresponding ' + \
               replaceCSVLabels(str(grp_names[-1])) + \
               ' (on top of each bar) for parameter variations of ' + strToLower(keywords['sub_title_it_pars'])
+    section_name = split_large_titles(section_name)
     tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -3509,6 +3657,7 @@ def get_min_inlrat_diff(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
                                   })

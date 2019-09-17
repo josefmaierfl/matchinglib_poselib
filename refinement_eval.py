@@ -45,7 +45,12 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = []
     part_name_title = []
     is_numeric = []
-    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, calcNrLegendCols, strToLower, compile_tex
+    from statistics_and_plot import replaceCSVLabels, \
+        tex_string_coding_style, \
+        calcNrLegendCols, \
+        strToLower, \
+        compile_tex, \
+        split_large_titles
     from statistics_and_plot import capitalizeFirstChar
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
@@ -121,7 +126,6 @@ def get_best_comb_scenes_1(**keywords):
 
         stats_all = tmp.stack().reset_index()
         stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-        use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
         # figure types: sharp plot, smooth, const plot, ybar, xbar
         use_limits = {'miny': None, 'maxy': None}
         if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
@@ -138,6 +142,25 @@ def get_best_comb_scenes_1(**keywords):
                 use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
             if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                 use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+        if use_limits['miny'] and use_limits['maxy']:
+            use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+        elif use_limits['miny']:
+            use_log = True if np.abs(
+                np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+        elif use_limits['maxy']:
+            use_log = True if np.abs(
+                np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+        else:
+            use_log = True if np.abs(
+                np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
         reltex_name = os.path.join(ret['rel_data_path'], b_mean_name[-1])
         if 'error_type_text' in keywords:
             fig_name = 'Mean ' + strToLower(keywords['error_type_text']) + \
@@ -150,6 +173,9 @@ def get_best_comb_scenes_1(**keywords):
                        '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             label_y = 'mean R \\& t error $e_{R\\bm{t}}$'
+        fig_name = split_large_titles(fig_name)
+        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+            exp_value = False
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -174,6 +200,7 @@ def get_best_comb_scenes_1(**keywords):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True if not is_numeric[-1] else False,
                                       'use_log_y_axis': use_log,
+                                      'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
                                       })
@@ -266,6 +293,8 @@ def get_best_comb_scenes_1(**keywords):
         stats_all = data_parts_min[-1].drop([it_pars_name, 'tex_it_pars'], axis=1).stack().reset_index()
         stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
         use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
         # figure types: sharp plot, smooth, const plot, ybar, xbar
         use_limits = {'miny': None, 'maxy': None}
         if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
@@ -298,6 +327,9 @@ def get_best_comb_scenes_1(**keywords):
                       pnt + ' vs ' + replaceCSVLabels(str(dp), True) + \
                       ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
             label_y = 'min. mean R \\& t error $e_{R\\bm{t}}$'
+        fig_name = split_large_titles(fig_name)
+        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+            exp_value = False
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -323,6 +355,7 @@ def get_best_comb_scenes_1(**keywords):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True if not isn else False,
                                       'use_log_y_axis': use_log,
+                                      'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'caption': caption
                                       })
@@ -411,13 +444,12 @@ def estimate_alg_time_fixed_kp_agg(**vars):
         gloss = glossary_from_list([str(a) for a in tmp.index])
         it_pars_cols_name = vars['it_parameters'][0]
         par_cols = [a for a in tmp.index]
-    gloss = add_to_glossary_eval(vars['t_data_separators'], gloss)
     tmp['pars_tex'] = insert_opt_lbreak(par_cols)
 
     tmp_min = tmp.loc[[tmp[col_name].idxmin(axis=0)]].reset_index()
 
     vars = prepare_io(**vars)
-    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
+    from statistics_and_plot import compile_tex, strToLower, split_large_titles
     t_main_name = 'mean_time_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
                   '-'.join(map(str, vars['it_parameters']))
@@ -448,6 +480,8 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     max_val = tmp[col_name].max()
     stats_all = {'min': min_val, 'max': max_val}
     use_log = True if np.abs(np.log10(min_val) - np.log10(max_val)) > 1 else False
+    exp_value = True if max(float(np.abs(np.log10(min_val))),
+                            float(np.abs(np.log10(max_val)))) > 2 else False
     # figure types: sharp plot, smooth, const plot, ybar, xbar
     use_limits = {'miny': None, 'maxy': None}
     if np.abs(stats_all['max'] - stats_all['min']) < np.abs(stats_all['max'] / 200):
@@ -462,6 +496,9 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
     fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
+    fig_name = split_large_titles(fig_name)
+    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+        exp_value = False
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name.replace('\\\\', ' '),
                                   'title': fig_name,
@@ -487,6 +524,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': use_log,
+                                  'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': False,
                                   'caption': fig_name.replace('\\\\', ' ')
                                   })
@@ -614,7 +652,11 @@ def pars_calc_single_fig_K(**keywords):
         ret['b'].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     ret['sub_title'] = ''
     nr_it_parameters = len(keywords['it_parameters'])
-    from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels
+    from statistics_and_plot import tex_string_coding_style, \
+        compile_tex, \
+        calcNrLegendCols, \
+        replaceCSVLabels, \
+        split_large_titles
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
@@ -658,12 +700,35 @@ def pars_calc_single_fig_K(**keywords):
             use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
         if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
             use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+    if use_limits['miny'] and use_limits['maxy']:
+        use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    elif use_limits['miny']:
+        use_log = True if np.abs(
+            np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+    elif use_limits['maxy']:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+    else:
+        use_log = True if np.abs(
+            np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
+        exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
+                                float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
+    section_name = 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +\
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                   ' for parameter variations of\\\\' + ret['sub_title']
+    section_name = split_large_titles(section_name)
+    if exp_value and len(section_name.split('\\\\')[-1]) < 70:
+        exp_value = False
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +
-                                          replaceCSVLabels(str(ret['grp_names'][-1]), True) +
-                                          ' for parameter variations of \\\\' + ret['sub_title'],
+                                  'name': section_name,
                                   # If caption is None, the field name is used
                                   'caption': 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) +
@@ -677,7 +742,8 @@ def pars_calc_single_fig_K(**keywords):
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)],
                                   'legend_cols': None,
                                   'use_marks': ret['use_marks'],
-                                  'use_log_y_axis': False,
+                                  'use_log_y_axis': use_log,
+                                  'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -772,6 +838,7 @@ def get_best_comb_inlrat_k(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'

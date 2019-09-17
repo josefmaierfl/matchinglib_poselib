@@ -140,7 +140,7 @@ xlabel=\VAR{sec['label_y']},%
 \BLOCK{ if sec['plots']|length > 1 }
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
-enlarge y limits={true, value=0.15},%
+enlarge y limits={true, abs value=0.75},%
 \BLOCK{ endif }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
@@ -151,7 +151,7 @@ ylabel=\VAR{sec['label_y']},%
 \BLOCK{ if sec['plots']|length > 1 }
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
-enlarge x limits={true, value=0.15},%
+enlarge x limits={true, abs value=0.75},%
 \BLOCK{ endif }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
