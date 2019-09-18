@@ -49,7 +49,7 @@ def RepresentsInt(s):
         return False
 
 
-def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
+def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars):
     #Load test results
     res_path = os.path.join(load_path, 'results')
     if not os.path.exists(res_path):
@@ -152,6 +152,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -188,6 +189,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -224,6 +226,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -260,6 +263,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -294,6 +298,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -328,6 +333,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=None,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['inlRatMin', 'th']},
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -374,6 +380,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -412,6 +419,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -451,6 +459,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -489,6 +498,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -525,6 +535,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=get_inlrat_diff,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -564,6 +575,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -599,6 +611,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlRatMin', 'th']},
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -636,6 +649,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -675,6 +689,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
+                                                             compare_source=None,
                                                              fig_type='surface',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -725,6 +740,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -760,6 +776,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -795,6 +812,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -828,6 +846,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=get_inlrat_diff,
                                                          calc_func_args=None,
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -863,6 +882,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=None,
                                                          calc_func_args=None,
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -896,6 +916,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=special_calcs_args,
                                               calc_func=calc_Time_Model,
                                               calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -924,6 +945,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          special_calcs_args=None,
                                                          calc_func=calc_Time_Model,
                                                          calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -975,6 +997,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -1015,6 +1038,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -1048,6 +1072,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=calc_Time_Model,
                                                          calc_func_args={'data_separators': []},
+                                                         compare_source=None,
                                                          fig_type='ybar',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -1093,6 +1118,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -1132,6 +1158,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -1173,6 +1200,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -1221,6 +1249,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -1270,6 +1299,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -1300,6 +1330,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=None,
                                               calc_func=get_inlrat_diff,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -1330,6 +1361,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=None,
                                               calc_func=get_inlrat_diff,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='ybar',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -1360,6 +1392,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                               special_calcs_args=None,
                                               calc_func=get_inlrat_diff,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='ybar',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -1392,6 +1425,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=get_inlrat_diff,
                                                      calc_func_args=None,
+                                                     compare_source=None,
                                                      fig_type='ybar',
                                                      use_marks=False,
                                                      ctrl_fig_size=True,
@@ -1430,6 +1464,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=None,
                                                          calc_func_args=None,
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -1464,6 +1499,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=calc_Time_Model,
                                                      calc_func_args={'data_separators': []},
+                                                     compare_source=None,
                                                      fig_type='ybar',
                                                      use_marks=True,
                                                      ctrl_fig_size=True,
@@ -1472,8 +1508,81 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                      figs_externalize=False)
             else:
                 raise ValueError('Eval nr ' + ev + ' does not exist')
+    elif test_name == 'refinement_ba_stereo':
+        from statistics_and_plot import calcSatisticAndPlot_2D, \
+            calcSatisticAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_aggregate
+        if not test_nr:
+            raise ValueError('test_nr is required refinement_ba')
+        if test_nr == 1:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 4))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['refineMethod_algorithm',
+                    #                  'refineMethod_costFunction',
+                    #                  'BART']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refineRT_BA_opts_inlrat'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=compare_source,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
 
     return ret
+
+
+def get_compare_info(comp_pars, comp_path, test_name, test_r, eval_description_path, descr):
+    if not comp_pars:
+        raise ValueError('Parameter values for comparing refinement without kp aggregation missing')
+    c_path = os.path.join(comp_path, test_name)
+    if not os.path.exists(c_path):
+        raise ValueError('Specific test compare directory ' + c_path + '  not found')
+    c_path = os.path.join(c_path, str(test_r))
+    if not os.path.exists(c_path):
+        raise ValueError('Specific test nr compare directory ' + c_path + '  not found')
+    compare_source = {'store_path': c_path,
+                      'it_par_select': [a.split('-')[-1] for a in comp_pars],
+                      'it_parameters': [a.split('-')[0] for a in comp_pars],
+                      'eval_description_path': eval_description_path,
+                      'cmp': descr
+                      }
+    return compare_source
 
 
 def merge_dicts(in_dict, mainkey = None):
@@ -1514,6 +1623,19 @@ def main():
                              'each evaluation can be found in Autocalibration-Parametersweep-Testing.xlsx. '
                              'If a value of -1 [default] is provided, all evaluations are performed for a given '
                              'test_name and test_nr. Also, multiple numbers can be specified.')
+    parser.add_argument('--compare_pars', type=str, required=False, nargs='*', default=[],
+                        help='If provided, results from already performed evaluations can be loaded and added to '
+                             'the current evaluation for comparison. The type of evaluation must be similar '
+                             '(same axis, data partitions, ...). The argument must be provided as a list of strings '
+                             '(e.g. --compare str1 str2 str3 ...). The list must contain the parameter-parameter '
+                             'value pairs of the already performed evaluation for which the comparison should be performed '
+                             '(like \'--compare refineMethod_algorithm-PR_STEWENIUS '
+                             'refineMethod_costFunction-PR_PSEUDOHUBER_WEIGHTS BART-extr_only\' for the evaluation '
+                             'of refinement methods and bundle adjustment options).')
+    parser.add_argument('--compare_path', type=str, required=False,
+                        help='If provided, a different path is used for loading results for comparison. Otherwise, '
+                             'the path from option --path is used. Results are only loaded, if option '
+                             '--compare_pars is provided.')
     args = parser.parse_args()
 
     if not os.path.exists(args.path):
@@ -1536,8 +1658,18 @@ def main():
             os.mkdir(output_path)
         except FileExistsError:
             raise ValueError('Directory ' + output_path + ' already exists')
+    comp_path = None
+    comp_pars = None
+    if args.compare_pars:
+        comp_pars = args.compare_pars
+        if args.compare_path:
+            comp_path = args.compare_path
+            if not os.path.exists(comp_path):
+                raise ValueError('Specific main compare directory ' + comp_path + '  not found')
+        else:
+            comp_path = args.path
 
-    return eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr)
+    return eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars)
 
 
 if __name__ == "__main__":

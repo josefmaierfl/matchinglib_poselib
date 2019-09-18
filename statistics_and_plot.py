@@ -198,6 +198,7 @@ def calcSatisticAndPlot_2D(data,
                            special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
+                           compare_source = None,
                            fig_type='smooth',
                            use_marks=True,
                            ctrl_fig_size=True,
@@ -279,6 +280,26 @@ def calcSatisticAndPlot_2D(data,
     except FileExistsError:
         print('Folder', tdata_folder, 'for storing data files already exists')
 
+    if compare_source:
+        compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                   compare_source['eval_description_path'] + '_' +
+                                                   '-'.join(map(str, compare_source['it_parameters'])) + '_vs_' +
+                                                   '-'.join(map(str, x_axis_column)))
+        if not os.path.exists(compare_source['full_path']):
+            warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters + x_axis_column).describe()
     if special_calcs_func is not None and special_calcs_args is not None:
@@ -356,6 +377,9 @@ def calcSatisticAndPlot_2D(data,
                     gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
                 else:
                     gloss = glossary_from_list([str(a) for a in tmp.columns])
+                if compare_source:
+                    add_to_glossary(compare_source['it_par_select'], gloss)
+                    gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
                 gloss_calced = True
                 if gloss:
                     gloss = add_to_glossary_eval(eval_columns + x_axis_column, gloss)
@@ -367,8 +391,13 @@ def calcSatisticAndPlot_2D(data,
             if len(it_parameters) > 1:
                 tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
                 tmp.columns.name = '-'.join(grp_names[0:-1])
+            if compare_source:
+                comp_fname = 'data_' + '_'.join(map(str, compare_source['it_parameters'])) + '_vs_' + \
+                             str(grp_names[-1]) + '.csv'
+                tmp, succ = add_comparison_column(compare_source, comp_fname, tmp)
+
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
-                       str(grp_names[-1]) + '.csv'
+                         str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
@@ -516,6 +545,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                       special_calcs_args = None,
                                       calc_func = None,
                                       calc_func_args = None,
+                                      compare_source = None,
                                       fig_type='smooth',
                                       use_marks=True,
                                       ctrl_fig_size=True,
@@ -575,7 +605,7 @@ def calcSatisticAndPlot_2D_partitions(data,
     else:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) +
                                                   '_vs_' +'-'.join(map(str, x_axis_column)) + '_for_' +
-                                                  str(partitions))
+                                                  str(partitions[0]))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -604,6 +634,34 @@ def calcSatisticAndPlot_2D_partitions(data,
         os.mkdir(tdata_folder)
     except FileExistsError:
         print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if compare_source:
+        if len(partitions) > 1:
+            compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                       compare_source['eval_description_path'] + '_' +
+                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
+                                                       '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+        else:
+            compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                       compare_source['eval_description_path'] + '_' +
+                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
+                                                       str(partitions[0]))
+        if not os.path.exists(compare_source['full_path']):
+            warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
 
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(partitions + it_parameters + x_axis_column).describe()
@@ -720,6 +778,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                         gloss = glossary_from_list([str(b) for a in tmp2.columns for b in a])
                     else:
                         gloss = glossary_from_list([str(a) for a in tmp2.columns])
+                    if compare_source:
+                        add_to_glossary(compare_source['it_par_select'], gloss)
+                        gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
                     gloss_calced = True
                     if gloss:
                         gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions, gloss)
@@ -735,6 +796,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                              str(grp_names[-1]) + '_for_' + part_name.replace('.','d') + '.csv'
                 dataf_name = dataf_name.replace('%', 'perc')
+                if compare_source:
+                    tmp2, succ = add_comparison_column(compare_source, dataf_name, tmp2)
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 with open(fdataf_name, 'a') as f:
                     f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + ' and properties ' + part_name + '\n')
@@ -880,6 +943,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                       special_calcs_args = None,
                                       calc_func = None,
                                       calc_func_args = None,
+                                      compare_source = None,
                                       fig_type='smooth',
                                       use_marks=True,
                                       ctrl_fig_size=True,
@@ -936,9 +1000,16 @@ def calcFromFuncAndPlot_2D_partitions(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
-                                              '-'.join(map(str, x_axis_column)) + '_for_' +
-                                              '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    if len(partitions) > 1:
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' +
+                                      '-'.join(map(str, it_parameters)) + '_vs_' +
+                                      '-'.join(map(str, x_axis_column)) + '_for_' +
+                                      '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    else:
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' +
+                                      '-'.join(map(str, it_parameters)) +
+                                      '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
+                                      str(partitions[0]))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -968,6 +1039,34 @@ def calcFromFuncAndPlot_2D_partitions(data,
         os.mkdir(tdata_folder)
     except FileExistsError:
         print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if compare_source:
+        if len(partitions) > 1:
+            compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                       compare_source['eval_description_path'] + '_' +
+                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
+                                                       '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+        else:
+            compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                       compare_source['eval_description_path'] + '_' +
+                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
+                                                       str(partitions[0]))
+        if not os.path.exists(compare_source['full_path']):
+            warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
 
     if special_calcs_func is not None and special_calcs_args is not None:
         if 'func_name' in special_calcs_args:
@@ -1113,6 +1212,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 gloss = glossary_from_list([str(b) for a in df1.columns for b in a])
             else:
                 gloss = glossary_from_list([str(a) for a in df1.columns])
+            if compare_source:
+                add_to_glossary(compare_source['it_par_select'], gloss)
+                gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
             gloss_calced = True
             if gloss:
                 gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions, gloss)
@@ -1131,16 +1233,34 @@ def calcFromFuncAndPlot_2D_partitions(data,
             it_pars_cols_name = '-'.join(map(str, it_parameters))
             df1.columns.name = it_pars_cols_name
         else:
+            par_cols = [str(a) for a in df1.columns]
             it_pars_cols_name = it_parameters[0]
         tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name]).unstack()
         par_cols1 = ['-'.join(map(str, a)) for a in tmp.columns]
         tmp.columns = par_cols1
         tmp.columns.name = 'eval-' + it_pars_cols_name
+        if compare_source:
+            cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+            if len(compare_source['it_parameters']) > 1:
+                cmp_fname += '-'.join(map(str, compare_source['it_parameters']))
+            else:
+                cmp_fname += str(compare_source['it_parameters'][0])
+            cmp_fname += '_on_partition_'
+            cmp_fname += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
         dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name + '_on_partition_'
         dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
         grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
         dataf_name += grp_name.replace('.', 'd')
         dataf_name += '_vs_' + x_axis_column[0] + '.csv'
+        if compare_source:
+            cmp_fname += grp_name.replace('.', 'd')
+            cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
+            cmp_its = '-'.join(map(str, compare_source['it_par_select']))
+            mult_cols = [a.replace(par_cols[0], cmp_its) for a in par_cols1 if par_cols[0] in a]
+            tmp, succ = add_comparison_column(compare_source, cmp_fname, tmp, mult_cols)
+            if succ:
+                par_cols1 += mult_cols
+
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         with open(fdataf_name, 'a') as f:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -1281,6 +1401,7 @@ def calcSatisticAndPlot_3D(data,
                            special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
+                           compare_source = None,
                            fig_type='surface',
                            use_marks=True,
                            ctrl_fig_size=True,
@@ -1583,6 +1704,7 @@ def calcFromFuncAndPlot_3D(data,
                            special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
+                           compare_source = None,
                            fig_type='surface',
                            use_marks=True,
                            ctrl_fig_size=True,
@@ -1899,6 +2021,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                       special_calcs_args = None,
                                       calc_func = None,
                                       calc_func_args = None,
+                                      compare_source = None,
                                       fig_type='surface',
                                       use_marks=True,
                                       ctrl_fig_size=True,
@@ -2283,6 +2406,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                   special_calcs_args = None,
                                   calc_func = None,
                                   calc_func_args = None,
+                                  compare_source = None,
                                   fig_type='smooth',
                                   use_marks=True,
                                   ctrl_fig_size=True,
@@ -2362,6 +2486,26 @@ def calcFromFuncAndPlot_aggregate(data,
         os.mkdir(tdata_folder)
     except FileExistsError:
         print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if compare_source:
+        compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                   compare_source['eval_description_path'] + '_' +
+                                                   '-'.join(map(str, compare_source['it_parameters'])))
+        if not os.path.exists(compare_source['full_path']):
+            warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+
     if special_calcs_func is not None and special_calcs_args is not None:
         if 'func_name' in special_calcs_args:
             special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_args['func_name'])
@@ -2442,6 +2586,9 @@ def calcFromFuncAndPlot_aggregate(data,
         it_pars_index = [str(a) for a in df.index]
         gloss = glossary_from_list(it_pars_index)
         it_pars_name = it_parameters[0]
+    # if compare_source:
+    #     add_to_glossary(compare_source['it_par_select'], gloss)
+    #     gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
     if gloss:
         gloss = add_to_glossary_eval(eval_columns, gloss)
     else:
@@ -2461,6 +2608,10 @@ def calcFromFuncAndPlot_aggregate(data,
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
+    # if compare_source:
+    #     comp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+    #                  '-'.join(compare_source['it_parameters']) + '.csv'
+    #     tmp2, succ = add_comparison_column(compare_source, comp_fname, df)
     dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
                  it_pars_name + '.csv'
     fdataf_name = os.path.join(tdata_folder, dataf_name)
@@ -2572,6 +2723,7 @@ def calcSatisticAndPlot_aggregate(data,
                                   special_calcs_args=None,
                                   calc_func=None,
                                   calc_func_args=None,
+                                  compare_source = None,
                                   fig_type='smooth',
                                   use_marks=True,
                                   ctrl_fig_size=True,
@@ -2647,6 +2799,25 @@ def calcSatisticAndPlot_aggregate(data,
         os.mkdir(tdata_folder)
     except FileExistsError:
         print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if compare_source:
+        compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                   compare_source['eval_description_path'] + '_' +
+                                                   '-'.join(map(str, compare_source['it_parameters'])))
+        if not os.path.exists(compare_source['full_path']):
+            warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+        if compare_source and not os.path.exists(compare_source['tdata_folder']):
+            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
 
     # Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters).describe()
@@ -2869,6 +3040,53 @@ def calcSatisticAndPlot_aggregate(data,
             else:
                 res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
     return res
+
+
+def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None):
+    comp_col_name = '-'.join(map(str, compare_source['it_par_select']))
+    comp_fdataf_name = os.path.join(compare_source['tdata_folder'], comp_fname)
+    succ = True
+    if not os.path.isfile(comp_fdataf_name):
+        warnings.warn('CSV file ' + comp_fdataf_name + ' for comparing results not found. '
+                                                       'Skipping comparison.', UserWarning)
+        succ = False
+    else:
+        comp_data = pd.read_csv(comp_fdataf_name, delimiter=';', comment='#')
+        if not mult_cols:
+            if comp_col_name not in comp_data.columns:
+                warnings.warn('Column ' + comp_col_name + ' not found in csv file ' + comp_fdataf_name +
+                              ' for comparing results not found. Skipping comparison.', UserWarning)
+                succ = False
+            else:
+                comp_col = comp_data[comp_col_name]
+                if comp_col.shape[0] != data_new.shape[0]:
+                    warnings.warn(' Number of rows in column ' + comp_col_name +
+                                  ' of csv file ' + comp_fdataf_name +
+                                  ' for comparing results does not match. Skipping comparison.', UserWarning)
+                    succ = False
+                else:
+                    data_new['cmp-' + comp_col_name] = comp_col
+        else:
+            data_tmp = data_new.copy(deep=True)
+            for col in mult_cols:
+                if col not in comp_data.columns:
+                    warnings.warn('Column ' + col + ' not found in csv file ' + comp_fdataf_name +
+                                  ' for comparing results not found. Skipping comparison.', UserWarning)
+                    succ = False
+                    break
+                else:
+                    comp_col = comp_data[col]
+                    if comp_col.shape[0] != data_tmp.shape[0]:
+                        warnings.warn(' Number of rows in column ' + comp_col_name +
+                                      ' of csv file ' + comp_fdataf_name +
+                                      ' for comparing results does not match. Skipping comparison.', UserWarning)
+                        succ = False
+                        break
+                    else:
+                        data_tmp['cmp-' + col] = comp_col
+            if succ:
+                data_new = data_tmp
+    return data_new, succ
 
 
 def replace_stat_names_col_tex(name):
@@ -3856,11 +4074,12 @@ def main():
     data['filtering_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 2
+    test_name = 'refinement_ba'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
+    test_nr = 1
     eval_nr = [-1]#list(range(5, 8))
     ret = 0
-    output_path = '/home/maierj/work/Sequence_Test/py_test'
+    # output_path = '/home/maierj/work/Sequence_Test/py_test'
+    output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
@@ -3900,6 +4119,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -3936,6 +4156,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -3972,6 +4193,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4008,6 +4230,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4042,6 +4265,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4071,6 +4295,7 @@ def main():
                                                              special_calcs_args=None,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4119,6 +4344,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -4159,6 +4385,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -4200,6 +4427,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4240,6 +4468,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4278,6 +4507,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=get_inlrat_diff,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4319,6 +4549,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4357,6 +4588,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4396,6 +4628,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4437,6 +4670,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
+                                                             compare_source=None,
                                                              fig_type='surface',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4483,6 +4717,7 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -4519,6 +4754,7 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -4555,6 +4791,7 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -4589,6 +4826,7 @@ def main():
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=get_inlrat_diff,
                                                          calc_func_args=None,
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -4625,6 +4863,7 @@ def main():
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=None,
                                                          calc_func_args=None,
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -4659,6 +4898,7 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=calc_Time_Model,
                                               calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -4688,6 +4928,7 @@ def main():
                                                          special_calcs_args=None,
                                                          calc_func=calc_Time_Model,
                                                          calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -4738,6 +4979,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -4779,6 +5021,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4814,6 +5057,7 @@ def main():
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=calc_Time_Model,
                                                          calc_func_args={'data_separators': []},
+                                                         compare_source=None,
                                                          fig_type='ybar',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -4861,6 +5105,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -4902,6 +5147,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4945,6 +5191,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
+                                                  compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -4996,6 +5243,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
+                                                             compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -5043,6 +5291,7 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -5076,6 +5325,7 @@ def main():
                                               special_calcs_args=None,
                                               calc_func=get_inlrat_diff,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -5108,6 +5358,7 @@ def main():
                                               special_calcs_args=None,
                                               calc_func=get_inlrat_diff,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='ybar',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -5140,6 +5391,7 @@ def main():
                                               special_calcs_args=None,
                                               calc_func=get_inlrat_diff,
                                               calc_func_args=None,
+                                              compare_source=None,
                                               fig_type='ybar',
                                               use_marks=True,
                                               ctrl_fig_size=True,
@@ -5174,6 +5426,7 @@ def main():
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=get_inlrat_diff,
                                                      calc_func_args=None,
+                                                     compare_source=None,
                                                      fig_type='ybar',
                                                      use_marks=False,
                                                      ctrl_fig_size=True,
@@ -5215,6 +5468,7 @@ def main():
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=None,
                                                          calc_func_args=None,
+                                                         compare_source=None,
                                                          fig_type='smooth',
                                                          use_marks=True,
                                                          ctrl_fig_size=True,
@@ -5251,6 +5505,7 @@ def main():
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=calc_Time_Model,
                                                      calc_func_args={'data_separators': []},
+                                                     compare_source=None,
                                                      fig_type='ybar',
                                                      use_marks=True,
                                                      ctrl_fig_size=True,
@@ -5259,6 +5514,60 @@ def main():
                                                      figs_externalize=False)
             else:
                 raise ValueError('Eval nr ' + ev + ' does not exist')
+    elif test_name == 'refinement_ba_stereo':
+        if not test_nr:
+            raise ValueError('test_nr is required refinement_ba')
+        if test_nr == 1:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 4))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['refineMethod_algorithm',
+                    #                  'refineMethod_costFunction',
+                    #                  'BART']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refineRT_BA_opts_inlrat'}
+                    compare_source = {'store_path': output_path,
+                                      'it_par_select': ['first_long_long_opt0', 'second_long_opt0'],
+                                      'it_parameters': ['USAC_parameters_estimator',
+                                                        'USAC_parameters_refinealg']
+                                      }
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
 
     return ret
 
