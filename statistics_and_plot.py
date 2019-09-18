@@ -2586,9 +2586,9 @@ def calcFromFuncAndPlot_aggregate(data,
         it_pars_index = [str(a) for a in df.index]
         gloss = glossary_from_list(it_pars_index)
         it_pars_name = it_parameters[0]
-    # if compare_source:
-    #     add_to_glossary(compare_source['it_par_select'], gloss)
-    #     gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
+    if compare_source:
+        add_to_glossary(compare_source['it_par_select'], gloss)
+        gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
     if gloss:
         gloss = add_to_glossary_eval(eval_columns, gloss)
     else:
@@ -2608,10 +2608,11 @@ def calcFromFuncAndPlot_aggregate(data,
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
-    # if compare_source:
-    #     comp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-    #                  '-'.join(compare_source['it_parameters']) + '.csv'
-    #     tmp2, succ = add_comparison_column(compare_source, comp_fname, df)
+    if compare_source:
+        cmp_col_name = '-'.join(compare_source['it_parameters'])
+        comp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                     cmp_col_name + '.csv'
+        df, succ = add_comparison_column(compare_source, comp_fname, df, None, cmp_col_name)
     dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
                  it_pars_name + '.csv'
     fdataf_name = os.path.join(tdata_folder, dataf_name)
@@ -2901,6 +2902,9 @@ def calcSatisticAndPlot_aggregate(data,
                 else:
                     gloss = glossary_from_list([str(a) for a in tmp.index])
                 gloss_calced = True
+                if compare_source:
+                    add_to_glossary(compare_source['it_par_select'], gloss)
+                    gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
                 if gloss:
                     gloss = add_to_glossary_eval(eval_columns, gloss)
                     tex_infos['abbreviations'] = gloss
@@ -2919,6 +2923,9 @@ def calcSatisticAndPlot_aggregate(data,
             tmp['tex_it_pars'] = insert_opt_lbreak(it_pars_index)
             dataf_name = 'data_' + '_'.join(map(str, it)) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
+            if compare_source:
+                cmp_col_name = '-'.join(compare_source['it_parameters'])
+                df, succ = add_comparison_column(compare_source, dataf_name, df, None, cmp_col_name)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
@@ -3042,7 +3049,7 @@ def calcSatisticAndPlot_aggregate(data,
     return res
 
 
-def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None):
+def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, it_col_name=None):
     comp_col_name = '-'.join(map(str, compare_source['it_par_select']))
     comp_fdataf_name = os.path.join(compare_source['tdata_folder'], comp_fname)
     succ = True
@@ -3052,7 +3059,7 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None):
         succ = False
     else:
         comp_data = pd.read_csv(comp_fdataf_name, delimiter=';', comment='#')
-        if not mult_cols:
+        if not mult_cols and not it_col_name:
             if comp_col_name not in comp_data.columns:
                 warnings.warn('Column ' + comp_col_name + ' not found in csv file ' + comp_fdataf_name +
                               ' for comparing results not found. Skipping comparison.', UserWarning)
@@ -3066,7 +3073,7 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None):
                     succ = False
                 else:
                     data_new['cmp-' + comp_col_name] = comp_col
-        else:
+        elif not it_col_name:
             data_tmp = data_new.copy(deep=True)
             for col in mult_cols:
                 if col not in comp_data.columns:
@@ -3086,6 +3093,26 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None):
                         data_tmp['cmp-' + col] = comp_col
             if succ:
                 data_new = data_tmp
+        else:
+            if it_col_name not in comp_data.columns:
+                warnings.warn('Column ' + it_col_name + ' not found in csv file ' + comp_fdataf_name +
+                              ' for comparing results not found. Skipping comparison.', UserWarning)
+                succ = False
+            else:
+                comp_data.set_index(it_col_name, inplace=True)
+                for col1, col2 in zip(data_new.columns, comp_data.columns):
+                    if col1 != col2:
+                        succ = False
+                        break
+                if succ:
+                    if comp_col_name not in comp_data.index:
+                        warnings.warn('Parameter ' + comp_col_name + ' not found in csv file ' + comp_fdataf_name +
+                                      ' for comparing results not found. Skipping comparison.', UserWarning)
+                        succ = False
+                    else:
+                        line = comp_data.loc[comp_col_name, :]
+                        line.name = 'cmp-' + line.name
+                        data_new.append(line, ignore_index=False)
     return data_new, succ
 
 
