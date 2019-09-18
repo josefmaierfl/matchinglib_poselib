@@ -404,21 +404,21 @@ def calcSatisticAndPlot_2D(data,
                 if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                     use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
             if use_limits['miny'] and use_limits['maxy']:
-                use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
-                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
             elif use_limits['miny']:
-                use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
-                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
             elif use_limits['maxy']:
-                use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
-                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
             else:
-                use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
-                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
             section_name = replace_stat_names(it[-1]) + ' values for ' +\
@@ -765,24 +765,21 @@ def calcSatisticAndPlot_2D_partitions(data,
                     if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
                         use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
                 if use_limits['miny'] and use_limits['maxy']:
-                    use_log = True if np.abs(np.log10(use_limits['miny']) - np.log10(use_limits['maxy'])) > 1 else False
-                    exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                            float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                    use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                             np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                    exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
                 elif use_limits['miny']:
-                    use_log = True if np.abs(
-                        np.log10(use_limits['miny']) - np.log10(stats_all['max'][0])) > 1 else False
-                    exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                            float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                    use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                             np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                    exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
                 elif use_limits['maxy']:
-                    use_log = True if np.abs(
-                        np.log10(stats_all['min'][0]) - np.log10(use_limits['maxy'])) > 1 else False
-                    exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                            float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                    use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                             np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                    exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
                 else:
-                    use_log = True if np.abs(
-                        np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
-                    exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                            float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                    use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                             np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                    exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
                 section_name = replace_stat_names(it[-1]) + ' values for ' +\
                                replaceCSVLabels(str(it[0]), True) +\
@@ -1179,17 +1176,13 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
                     use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
             if use_limits['miny'] and use_limits['maxy']:
-                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], eval_cols_log_scaling[i])
             elif use_limits['miny']:
-                exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], eval_cols_log_scaling[i])
             elif use_limits['maxy']:
-                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                        float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], eval_cols_log_scaling[i])
             else:
-                exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                        float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], eval_cols_log_scaling[i])
             is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(rel_data_path, dataf_name)
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
@@ -2499,17 +2492,13 @@ def calcFromFuncAndPlot_aggregate(data,
             if stats_all['max'] > (stats_all['mean'] + stats_all['std'] * 3.291):
                 use_limits['maxy'] = round(stats_all['mean'] + stats_all['std'] * 3.291, 6)
         if use_limits['miny'] and use_limits['maxy']:
-            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+            exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], eval_cols_log_scaling[i])
         elif use_limits['miny']:
-            exp_value = True if max(float(np.abs(np.log10(use_limits['miny']))),
-                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+            exp_value = is_exp_used(use_limits['miny'], stats_all['max'], eval_cols_log_scaling[i])
         elif use_limits['maxy']:
-            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                    float(np.abs(np.log10(use_limits['maxy'])))) > 2 else False
+            exp_value = is_exp_used(stats_all['min'], use_limits['maxy'], eval_cols_log_scaling[i])
         else:
-            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+            exp_value = is_exp_used(stats_all['min'], stats_all['max'], eval_cols_log_scaling[i])
         reltex_name = os.path.join(rel_data_path, dataf_name)
         fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
                    ' for parameter variations of\\\\' + strToLower(title_it_pars)
@@ -2787,9 +2776,9 @@ def calcSatisticAndPlot_aggregate(data,
                     use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
                 else:
                     use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-            use_log = True if np.abs(np.log10(stats_all['min'][0]) - np.log10(stats_all['max'][0])) > 1 else False
-            exp_value = True if max(float(np.abs(np.log10(stats_all['min'][0]))),
-                                    float(np.abs(np.log10(stats_all['max'][0])))) > 2 else False
+            use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                     np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+            exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
 
             fig_name = replace_stat_names(it[-1]) + ' values for ' +\
                        replaceCSVLabels(str(it[0]), True) + ' comparing parameter variations of\\\\' + \
@@ -2918,6 +2907,18 @@ def replace_stat_names(name, for_tex=True):
             return str(name).replace('%', '\%').capitalize()
         else:
             return str(name).replace('%', 'perc').capitalize()
+
+
+def is_exp_used(min_val, max_val, use_log=False):
+    if use_log:
+        return False
+    m_val = min(float(np.log10(np.abs(min_val))), float(np.log10(np.abs(max_val))))
+    m_val2 = max(float(np.log10(np.abs(min_val))), float(np.log10(np.abs(max_val))))
+    if m_val < 0 and abs(m_val) > 1.01:
+        return True
+    elif m_val2 >= 4:
+        return True
+    return False
 
 
 def split_large_titles(title_str):
@@ -3857,7 +3858,7 @@ def main():
 
     test_name = 'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = list(range(5, 8))
+    eval_nr = [-1]#list(range(5, 8))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     if test_name == 'testing_tests':#'usac-testing':
@@ -5256,6 +5257,8 @@ def main():
                                                      make_fig_index=True,
                                                      build_pdf=True,
                                                      figs_externalize=False)
+            else:
+                raise ValueError('Eval nr ' + ev + ' does not exist')
 
     return ret
 

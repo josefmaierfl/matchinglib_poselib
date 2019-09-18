@@ -1229,6 +1229,249 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr):
                                                              figs_externalize=True)
                 else:
                     raise ValueError('Eval nr ' + ev + ' does not exist')
+    elif test_name == 'vfc_gms_sof':
+        from statistics_and_plot import calcSatisticAndPlot_2D, \
+            calcSatisticAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_aggregate, \
+            calcSatisticAndPlot_aggregate
+        if eval_nr[0] < 0:
+            evals = list(range(1, 8))
+        else:
+            evals = eval_nr
+        for ev in evals:
+            if ev == 1:
+                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'vfc_gms_sof_inlrat'}
+                from usac_eval import get_best_comb_inlrat_1
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['inlratMin'],
+                                              pdfsplitentry=['t_distDiff'],
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=get_best_comb_inlrat_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
+            elif ev == 2:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                from usac_eval import get_inlrat_diff
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='inlRat-diff',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['kpAccSd'],
+                                              pdfsplitentry=None,
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=get_inlrat_diff,
+                                              calc_func_args=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 5:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                from usac_eval import get_inlrat_diff  # , get_min_inlrat_diff
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='inlRat-diff',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['kpDistr'],
+                                              pdfsplitentry=None,
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=get_inlrat_diff,
+                                              calc_func_args=None,
+                                              fig_type='ybar',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 6:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                from usac_eval import get_inlrat_diff  # , get_min_inlrat_diff
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='inlRat-diff',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['depthDistr'],
+                                              pdfsplitentry=None,
+                                              filter_func=None,
+                                              filter_func_args=None,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=get_inlrat_diff,
+                                              calc_func_args=None,
+                                              fig_type='ybar',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 7:
+                fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
+                eval_columns = ['inlRat_estimated', 'inlRat_GT']
+                units = [('inlRat_diff', '')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                special_calcs_args = {'res_par_name': 'vfc_gms_sof_min_inlrat_diff',
+                                      'mk_no_folder': True}
+                from usac_eval import get_inlrat_diff
+                from vfc_gms_sof_eval import get_min_inlrat_diff_no_fig
+                ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_vfc_gms_sof_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_description_path='inlRat-diff',
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     pdfsplitentry=None,
+                                                     filter_func=None,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=get_min_inlrat_diff_no_fig,
+                                                     special_calcs_args=special_calcs_args,
+                                                     calc_func=get_inlrat_diff,
+                                                     calc_func_args=None,
+                                                     fig_type='ybar',
+                                                     use_marks=False,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
+            elif ev == 3:
+                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                partitions = ['kpDistr', 'depthDistr', 'kpAccSd']
+                special_calcs_args = {'build_pdf': (True, True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'vfc_gms_sof_best_comb_for_scenes'}
+                from refinement_eval import get_best_comb_scenes_1
+                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_vfc_gms_sof_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='RT-stats',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         partitions=partitions,
+                                                         x_axis_column=['inlratMin'],
+                                                         filter_func=None,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=get_best_comb_scenes_1,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=True)
+            elif ev == 4:
+                fig_title_pre_str = 'Temporal Behaviour for Comparison of '
+                eval_columns = ['filtering_us']
+                units = []
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': False,
+                                      'nr_target_kps': 1000,
+                                      'res_par_name': 'vfc_gms_sof_min_time'}
+                from usac_eval import calc_Time_Model, filter_nr_kps
+                from refinement_eval import estimate_alg_time_fixed_kp_agg
+                ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_vfc_gms_sof_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_description_path='time',
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     x_axis_column=['nrCorrs_GT'],
+                                                     filter_func=filter_nr_kps,
+                                                     filter_func_args=None,
+                                                     special_calcs_func=estimate_alg_time_fixed_kp_agg,
+                                                     special_calcs_args=special_calcs_args,
+                                                     calc_func=calc_Time_Model,
+                                                     calc_func_args={'data_separators': []},
+                                                     fig_type='ybar',
+                                                     use_marks=True,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
+            else:
+                raise ValueError('Eval nr ' + ev + ' does not exist')
 
     return ret
 

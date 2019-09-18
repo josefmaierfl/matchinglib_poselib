@@ -169,10 +169,11 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--BART_stereo', '0', '1']
             args += ['--useGTCamMat']
         elif test_nr == 2:
-            if not refineRT_stereo:
-                raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-            args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
-            args += ['--BART_stereo', '0', '1']
+            # if not refineRT_stereo:
+            #     raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
+            # args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
+            args += ['--refineRT_stereo', '0', '0', '1', '1', '1']
+            args += ['--BART_stereo', '2']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for refinement_ba_stereo')
     elif test_name == 'correspondence_pool':

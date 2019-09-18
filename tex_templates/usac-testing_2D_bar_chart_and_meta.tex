@@ -141,8 +141,8 @@ ymin=\VAR{sec['limits']['miny']},%
 ymax=\VAR{sec['limits']['maxy']},%
 \BLOCK{ endif }
 \BLOCK{ endif }
-\BLOCK{ if sec['title_rows'] > 0 }
-%title style={align=center,yshift=\VAR{ 1.1 * (sec['title_rows'] + 1) }ex},%
+\BLOCK{ if sec['enlarge_title_space'] }
+title style={align=center,yshift=2.1ex},%
 \BLOCK{ endif }
 title={\VAR{ sec['title'] }},%
 \BLOCK{ if sec['fig_type'] == 'xbar' }

@@ -128,6 +128,9 @@
 \begin{tikzpicture}
 \begin{axis}[
 align=center,%
+\BLOCK{ if sec['enlarge_title_space'] }
+title style={align=center,yshift=2.1ex},%
+\BLOCK{ endif }
 \BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
 xmode=log,%
 \BLOCK{ elif sec['use_log_y_axis'] }
