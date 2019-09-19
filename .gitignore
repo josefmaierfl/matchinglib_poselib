@@ -37,3 +37,4 @@ _start-cmd.bat
 # Local config unix
 .localconfig
 ci/thirdparty
+.idea
