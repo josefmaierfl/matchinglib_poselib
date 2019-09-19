@@ -308,7 +308,7 @@ bool getValidRegBorders(const cv::Mat &mask, cv::Rect &validRect){
     Mat mask_tmp = mask.clone();
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
-    cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+    cv::findContours(mask_tmp, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
     validRect = cv::boundingRect(contours[0]);
 
     if(validRect.width < (int)floor(0.2 * (double)mask.cols))

@@ -581,15 +581,15 @@ void RIFFDescriptor::Descriptor_Match( cv::Mat& image_a, cv::Mat& image_b, cv::M
 		H = findHomography( mpts_1, mpts_2, cv::RANSAC, 10.0, outlier_mask );
 	}
 	//draw the matches line with RANSAC
-	CvPoint pt1, pt2;	
+	cv::Point2f pt1, pt2;
 	cv::Mat stacked = Stack_Imgs( image_c, image_d );
 	rectangle(stacked,cv::Point(799,0),cv::Point(802,640),cv::Scalar(255,255,255),-1);
 	for( size_t i = 0; i < mpts_1.size(); ++i )
 	{
 		if(outlier_mask.at(i))
 		{
-			pt1 = cvPoint( cvRound( mpts_1.at(i).x ), cvRound( mpts_1.at(i).y) );
-			pt2 = cvPoint( cvRound( mpts_2.at(i).x ), cvRound( mpts_2.at(i).y) );
+			pt1 = cv::Point2f( cvRound( mpts_1.at(i).x ), cvRound( mpts_1.at(i).y) );
+			pt2 = cv::Point2f( cvRound( mpts_2.at(i).x ), cvRound( mpts_2.at(i).y) );
 			pt2.x += image_a.cols;
 			cv::circle( stacked, pt1,2, Scalar( 255, 0, 0 ), 3, 1 );
 			cv::circle( stacked, pt2,2, Scalar( 255, 0, 0 ), 3, 1 );

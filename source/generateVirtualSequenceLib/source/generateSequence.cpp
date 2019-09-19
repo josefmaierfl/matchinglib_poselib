@@ -382,7 +382,7 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
 
         intersectCont[0] = img1Poly;
         Mat wimg = Mat::zeros(imgSize, CV_8UC3);
-        drawContours(wimg, intersectCont, 0, Scalar(0, 255, 0), CV_FILLED);
+        drawContours(wimg, intersectCont, 0, Scalar(0, 255, 0), FILLED);
         namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
         imshow("Stereo intersection", wimg);
 
@@ -407,7 +407,7 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
 
     intersectCont[0] = img1Poly;
     Mat wimg = Mat::zeros(imgSize, CV_8UC1);
-    drawContours(wimg, intersectCont, 0, Scalar(255), CV_FILLED);
+    drawContours(wimg, intersectCont, 0, Scalar(255), FILLED);
 
     if (!mask.empty()) {
         wimg &= mask.getMat();
@@ -462,7 +462,7 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
 
         intersectCont[0] = img1Poly;
         Mat wimg = Mat::zeros(imgSize, CV_8UC1);
-        drawContours(wimg, intersectCont, 0, Scalar(255), CV_FILLED);
+        drawContours(wimg, intersectCont, 0, Scalar(255), FILLED);
 
         combDepths &= wimg;
     }
@@ -5809,7 +5809,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
             vector<vector<Point> > contours;
             vector<Vec4i> hierarchy;
             size_t dilTries = 0;
-            cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+            cv::findContours(mask_tmp, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
             while ((contours.size() > 1) &&
                    (dilTries <
                     5))//Prevent the detection of multiple objects if connections between parts are too small
@@ -5818,7 +5818,7 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 dilate(mask_tmp, mask_tmp, element);
                 contours.clear();
                 hierarchy.clear();
-                cv::findContours(mask_tmp, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+                cv::findContours(mask_tmp, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
                 dilTries++;
             }
             if (dilTries >= 5) {
@@ -7898,7 +7898,7 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
     //Get the contour of the mask
     vector<vector<Point>> contours;
     Mat finalMcopy = mask.clone();
-    findContours(finalMcopy, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+    findContours(finalMcopy, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
     //Calculate 1 single outer contour for multiple sub-objects avoiding a convex hull
     int contSize = (int) contours.size();
@@ -8323,7 +8323,7 @@ void genStereoSequ::genMovObjHulls(const cv::Mat &corrMask, std::vector<cv::Poin
     //draw the filled convex hull with enlarged borders
     Mat hullMat1 = Mat::zeros(imgSize, CV_8UC1);
     //with filled contour:
-    drawContours(hullMat1, hull, -1, Scalar(255), CV_FILLED);
+    drawContours(hullMat1, hull, -1, Scalar(255), FILLED);
 
     /*namedWindow("Convex hull filled", WINDOW_AUTOSIZE);
     imshow("Convex hull filled", hullMat1);*/
@@ -9456,7 +9456,7 @@ void genStereoSequ::getMovObjPtsCam() {
             locMOmask = (resMOmask(Rect(Point(posadd, posadd), imgSize)) > 0);
             if (keypointsMO.size() > 2) {
                 Mat hullMat = Mat::zeros(imgSize, CV_8UC1);;
-                drawContours(hullMat, hullPts, -1, Scalar(255), CV_FILLED);
+                drawContours(hullMat, hullPts, -1, Scalar(255), FILLED);
                 locMOmask &= hullMat;
             }
 

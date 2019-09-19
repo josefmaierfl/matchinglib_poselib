@@ -823,13 +823,13 @@ bool genMatchSequ::getFeatures() {
         //Load image
         Mat img;
         if(nrImgs <= maxImgLoad){
-            imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
+            imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
             img = imgs.back();
         }
         else{
-            img = cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE);
+            img = cv::imread(imageList[i], IMREAD_GRAYSCALE);
         }
-//        imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
+//        imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
         std::vector<cv::KeyPoint> keypoints1Img;
 
         //Extract keypoints
@@ -961,7 +961,7 @@ bool genMatchSequ::generateCorrespondingFeatures(){
         imgs.clear();
         imgs.reserve(imgFrameIdxMap[actFrameCnt].second.size());
         for(auto& i : imgFrameIdxMap[actFrameCnt].second){
-            imgs.emplace_back(cv::imread(imageList[i], CV_LOAD_IMAGE_GRAYSCALE));
+            imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
         }
     }
     size_t featureIdxBegin_tmp = featureIdxBegin;
@@ -1097,38 +1097,38 @@ bool genMatchSequ::writeMatchesToDisk(){
         return false;
     }
 
-    cvWriteComment(*fs, "This file contains matches and additional information for a single frame\n\n", 0);
+    fs.writeComment("This file contains matches and additional information for a single frame\n\n", 0);
 
 
-    cvWriteComment(*fs, "Keypoints for the first (left or top) stereo cam (there is no 1:1 correspondence between "
+    fs.writeComment("Keypoints for the first (left or top) stereo cam (there is no 1:1 correspondence between "
                         "frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each "
                         "of them is the same compared to their corresponding descriptor Mat (rows))", 0);
     fs << "frameKeypoints1" << frameKeypoints1;
 
-    cvWriteComment(*fs, "Keypoints for the second (right or bottom) stereo cam (there is no 1:1 correspondence between "
+    fs.writeComment("Keypoints for the second (right or bottom) stereo cam (there is no 1:1 correspondence between "
                         "frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each "
                         "of them is the same compared to their corresponding descriptor Mat (rows))", 0);
     fs << "frameKeypoints2" << frameKeypoints2;
 
-    cvWriteComment(*fs, "Descriptors for first (left or top) stereo cam (there is no 1:1 correspondence between "
+    fs.writeComment("Descriptors for first (left or top) stereo cam (there is no 1:1 correspondence between "
                         "frameDescriptors1 and frameDescriptors2 as they are shuffled but the descriptor order "
                         "is the same compared to its corresponding keypoint vector frameKeypoints1). "
                         "Descriptors corresponding to the same static 3D point (not for moving objects) in different "
                         "stereo frames are equal", 0);
     fs << "frameDescriptors1" << frameDescriptors1;
 
-    cvWriteComment(*fs, "Descriptors for second (right or bottom) stereo cam (there is no 1:1 correspondence between "
+    fs.writeComment("Descriptors for second (right or bottom) stereo cam (there is no 1:1 correspondence between "
                         "frameDescriptors1 and frameDescriptors2 as they are shuffled but the descriptor order "
                         "the same compared to its corresponding keypoint vector frameKeypoints2). "
                         "Descriptors corresponding to the same static 3D point (not for moving objects) in different "
                         "stereo frames are similar", 0);
     fs << "frameDescriptors2" << frameDescriptors2;
 
-    cvWriteComment(*fs, "Matches between features of a single stereo frame. They are sorted based on the descriptor "
+    fs.writeComment("Matches between features of a single stereo frame. They are sorted based on the descriptor "
                         "distance (smallest first)", 0);
     fs << "frameMatches" << frameMatches;
 
-    cvWriteComment(*fs, "Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) "
+    fs.writeComment("Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) "
                         "is an inlier.", 0);
     fs << "frameInliers" << "[";
     for (auto i : frameInliers) {
@@ -1136,11 +1136,11 @@ bool genMatchSequ::writeMatchesToDisk(){
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Keypoints in the second stereo image without a positioning error (in general, keypoints "
+    fs.writeComment("Keypoints in the second stereo image without a positioning error (in general, keypoints "
                         "in the first stereo image are without errors)", 0);
     fs << "frameKeypoints2NoErr" << frameKeypoints2NoErr;
 
-    cvWriteComment(*fs, "Holds the homographies for all patches arround keypoints for warping the patch which is "
+    fs.writeComment("Holds the homographies for all patches arround keypoints for warping the patch which is "
                         "then used to calculate the matching descriptor. Homographies corresponding to the same "
                         "static 3D point (not for moving objects) in different stereo frames are similar", 0);
     fs << "frameHomographies" << "[";
@@ -1149,7 +1149,7 @@ bool genMatchSequ::writeMatchesToDisk(){
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Holds the keypoints from the images used to extract patches (image indices for keypoints "
+    fs.writeComment("Holds the keypoints from the images used to extract patches (image indices for keypoints "
                         "are stored in srcImgPatchKpImgIdx)", 0);
     vector<KeyPoint> origKps;
     origKps.reserve(srcImgPatchIdxAndKp.size());
@@ -1157,7 +1157,7 @@ bool genMatchSequ::writeMatchesToDisk(){
         origKps.push_back(i.second);
     }
     fs << "srcImgPatchKp" << origKps;
-    cvWriteComment(*fs, "Holds the image indices of the images used to extract patches for every keypoint in "
+    fs.writeComment("Holds the image indices of the images used to extract patches for every keypoint in "
                         "srcImgPatchKp (same order)", 0);
     fs << "srcImgPatchKpImgIdx" << "[";
     for (auto &i : srcImgPatchIdxAndKp) {
@@ -1165,7 +1165,7 @@ bool genMatchSequ::writeMatchesToDisk(){
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object, "
+    fs.writeComment("Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object, "
                         "or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3) "
                         "object (old means, that the corresponding 3D point emerged before this stereo frame and "
                         "also has one or more correspondences in a different stereo frame))", 0);
@@ -1334,7 +1334,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdx_tmp]]];
             }
             else{
-                img = cv::imread(imageList[featureImgIdx[featureIdx_tmp]], CV_LOAD_IMAGE_GRAYSCALE);
+                img = cv::imread(imageList[featureImgIdx[featureIdx_tmp]], IMREAD_GRAYSCALE);
             }
         } else{
             img = imgs[featureImgIdx[featureIdx_tmp]];
@@ -2841,17 +2841,17 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
         cerr << "Failed to open " << kpErrImgInfoFile << endl;
         return false;
     }
-    cvWriteComment(*fs, "Mean and standard deviation of keypoint position errors in second stereo images", 0);
+    fs.writeComment("Mean and standard deviation of keypoint position errors in second stereo images", 0);
     fs << "kpErrorsStat";
     fs << "{" << "mean" << meanErr;
     fs << "SD" << sdErr << "}";
-    cvWriteComment(*fs, "Image names and folders to images used to generate features and extract patches", 0);
+    fs.writeComment("Image names and folders to images used to generate features and extract patches", 0);
     fs << "imageList" << "[";
     for (auto &i : imageList) {
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Statistic of the execution time for calculating the matches in microseconds", 0);
+    fs.writeComment("Statistic of the execution time for calculating the matches in microseconds", 0);
     fs << "timeMatchStats";
     fs << "{" << "medVal" << timeMatchStats.medVal;
     fs << "arithVal" << timeMatchStats.arithVal;
@@ -2897,7 +2897,7 @@ bool genMatchSequ::writeMatchingParameters(){
                 cerr << "Failed to open " << matchParsFileName << endl;
                 return false;
             }
-            cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+            fs.writeComment("\n\nNext parameters:\n", 0);
             parSetNr += std::to_string(nrEntries);
         } else {
             fs = FileStorage(matchParsFileName, FileStorage::WRITE);
@@ -2905,47 +2905,47 @@ bool genMatchSequ::writeMatchingParameters(){
                 cerr << "Failed to open " << matchParsFileName << endl;
                 return false;
             }
-            cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
+            fs.writeComment("This file contains the directory name and its corresponding parameters for "
                                 "generating matches out of given 3D correspondences.\n\n", 0);
             parSetNr += "0";
         }
         fs << parSetNr;
         fs << "{";
 
-        cvWriteComment(*fs, "Directory name (within the path containing this file) which holds matching results "
+        fs.writeComment("Directory name (within the path containing this file) which holds matching results "
                             "using the below parameters.", 0);
         size_t posLastSl = matchDataPath.rfind('/');
         string matchDirName = matchDataPath.substr(posLastSl + 1);
         fs << "hashMatchingPars" << matchDirName;
 
-        cvWriteComment(*fs, "Path containing the images for producing keypoint patches", 0);
+        fs.writeComment("Path containing the images for producing keypoint patches", 0);
         fs << "imgPath" << parsMtch.imgPath;
-        cvWriteComment(*fs, "Image pre- and/or postfix for images within imgPath", 0);
+        fs.writeComment("Image pre- and/or postfix for images within imgPath", 0);
         fs << "imgPrePostFix" << parsMtch.imgPrePostFix;
-        cvWriteComment(*fs, "Name of keypoint detector", 0);
+        fs.writeComment("Name of keypoint detector", 0);
         fs << "keyPointType" << parsMtch.keyPointType;
-        cvWriteComment(*fs, "Name of descriptor extractor", 0);
+        fs.writeComment("Name of descriptor extractor", 0);
         fs << "descriptorType" << parsMtch.descriptorType;
-        cvWriteComment(*fs, "Keypoint detector error (true) or error normal distribution (false)", 0);
+        fs.writeComment("Keypoint detector error (true) or error normal distribution (false)", 0);
         fs << "keypPosErrType" << parsMtch.keypPosErrType;
-        cvWriteComment(*fs, "Keypoint error distribution (mean, std)", 0);
+        fs.writeComment("Keypoint error distribution (mean, std)", 0);
         fs << "keypErrDistr";
         fs << "{" << "first" << parsMtch.keypErrDistr.first;
         fs << "second" << parsMtch.keypErrDistr.second << "}";
-        cvWriteComment(*fs, "Noise (mean, std) on the image intensity for descriptor calculation", 0);
+        fs.writeComment("Noise (mean, std) on the image intensity for descriptor calculation", 0);
         fs << "imgIntNoise";
         fs << "{" << "first" << parsMtch.imgIntNoise.first;
         fs << "second" << parsMtch.imgIntNoise.second << "}";
-        /*cvWriteComment(*fs, "Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
+        /*fs.writeComment("Portion (0 to 0.9) of lost correspondences from frame to frame.", 0);
         fs << "lostCorrPor" << parsMtch.lostCorrPor;*/
-        cvWriteComment(*fs, "If true, all PCL point clouds and necessary information to load a cam sequence "
+        fs.writeComment("If true, all PCL point clouds and necessary information to load a cam sequence "
                             "with correspondences are stored to disk", 0);
         fs << "storePtClouds" << parsMtch.storePtClouds;
-        cvWriteComment(*fs, "If true, the parameters and information are stored and read in XML format.", 0);
+        fs.writeComment("If true, the parameters and information are stored and read in XML format.", 0);
         fs << "rwXMLinfo" << parsMtch.rwXMLinfo;
-        cvWriteComment(*fs, "If true, the stored information and parameters are compressed", 0);
+        fs.writeComment("If true, the stored information and parameters are compressed", 0);
         fs << "compressedWrittenInfo" << parsMtch.compressedWrittenInfo;
-        cvWriteComment(*fs, "If true and too less images images are provided (resulting in too less keypoints), "
+        fs.writeComment("If true and too less images images are provided (resulting in too less keypoints), "
                             "only as many frames with GT matches are provided as keypoints are available.", 0);
         fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
 
@@ -2999,7 +2999,7 @@ bool genMatchSequ::writeSequenceOverviewPars(){
                 cerr << "Failed to open " << filename << endl;
                 return false;
             }
-            cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+            fs.writeComment("\n\nNext parameters:\n", 0);
             parSetNr += std::to_string(nrEntries);
         } else {
             fs = FileStorage(filename, FileStorage::WRITE);
@@ -3007,14 +3007,14 @@ bool genMatchSequ::writeSequenceOverviewPars(){
                 cerr << "Failed to open " << filename << endl;
                 return false;
             }
-            cvWriteComment(*fs, "This file contains the directory name and its corresponding parameters for "
+            fs.writeComment("This file contains the directory name and its corresponding parameters for "
                                 "generating 3D correspondences.\n\n", 0);
             parSetNr += "0";
         }
         fs << parSetNr;
         fs << "{";
 
-        cvWriteComment(*fs, "Directory name (within the path containing this file) which holds multiple frames of "
+        fs.writeComment("Directory name (within the path containing this file) which holds multiple frames of "
                             "3D correspondences using the below parameters.", 0);
         size_t posLastSl = sequParPath.rfind('/');
         string sequDirName = sequParPath.substr(posLastSl + 1);
@@ -3151,15 +3151,15 @@ void genMatchSequ::getCamCoordinatesStats(double &lenght,
 }
 
 void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
-    cvWriteComment(*fs, "Number of different stereo camera configurations", 0);
+    fs.writeComment("Number of different stereo camera configurations", 0);
     fs << "nrStereoConfs" << (int) nrStereoConfs;
-    /*cvWriteComment(*fs, "Different rotations between stereo cameras", 0);
+    /*fs.writeComment("Different rotations between stereo cameras", 0);
     fs << "R" << "[";
     for (auto &i : R) {
         fs << i;
     }
     fs << "]";*/
-    cvWriteComment(*fs, "Statistic on rotation angles (degrees) between stereo cameras", 0);
+    fs.writeComment("Statistic on rotation angles (degrees) between stereo cameras", 0);
     qualityParm stats_roll, stats_pitch, stats_yaw;
     getRotationStats(R, stats_roll, stats_pitch, stats_yaw);
     fs << "stereo_roll_stats";
@@ -3178,13 +3178,13 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     fs << "min" << stats_yaw.minVal;
     fs << "max" << stats_yaw.maxVal << "}";
 
-    /*cvWriteComment(*fs, "Different translation vectors between stereo cameras", 0);
+    /*fs.writeComment("Different translation vectors between stereo cameras", 0);
     fs << "t" << "[";
     for (auto &i : t) {
         fs << i;
     }
     fs << "]";*/
-    cvWriteComment(*fs, "Statistic on translation vector elements between stereo cameras", 0);
+    fs.writeComment("Statistic on translation vector elements between stereo cameras", 0);
     qualityParm stats_tx, stats_ty, stats_tz;
     getTranslationStats(t, stats_tx, stats_ty, stats_tz);
     fs << "stereo_tx_stats";
@@ -3203,13 +3203,13 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     fs << "min" << stats_tz.minVal;
     fs << "max" << stats_tz.maxVal << "}";
 
-    /*cvWriteComment(*fs, "Inlier ratio for every frame", 0);
+    /*fs.writeComment("Inlier ratio for every frame", 0);
     fs << "inlRat" << "[";
     for (auto &i : inlRat) {
         fs << i;
     }
     fs << "]";*/
-    cvWriteComment(*fs, "Statistic on inlier ratios", 0);
+    fs.writeComment("Statistic on inlier ratios", 0);
     qualityParm stats_inlRat;
     getStatisticfromVec(inlRat, stats_inlRat);
     fs << "inlRat_stats";
@@ -3218,11 +3218,11 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     fs << "min" << stats_inlRat.minVal;
     fs << "max" << stats_inlRat.maxVal << "}";
 
-    cvWriteComment(*fs, "# of Frames per camera configuration", 0);
+    fs.writeComment("# of Frames per camera configuration", 0);
     fs << "nFramesPerCamConf" << (int) pars.nFramesPerCamConf;
-    cvWriteComment(*fs, "Total number of frames in the sequence", 0);
+    fs.writeComment("Total number of frames in the sequence", 0);
     fs << "totalNrFrames" << (int) totalNrFrames;
-    /*cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
+    /*fs.writeComment("Absolute number of correspondences (TP+TN) per frame", 0);
     fs << "nrCorrs" << "[";
     for (auto &i : nrCorrs) {
         fs << (int) i;
@@ -3234,27 +3234,27 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     for (auto &i : nrCorrs){
         totalNrCorrs += i;
     }
-    cvWriteComment(*fs, "Statistic on the number of correspondences (TP+TN) per frame", 0);
+    fs.writeComment("Statistic on the number of correspondences (TP+TN) per frame", 0);
     fs << "nrCorrs_stats";
     fs << "{" << "mean" << stats_nrCorrs.arithVal;
     fs << "SD" << stats_nrCorrs.arithStd;
     fs << "min" << stats_nrCorrs.minVal;
     fs << "max" << stats_nrCorrs.maxVal << "}";
-    cvWriteComment(*fs, "Total number of correspondences (TP+TN) over all frames", 0);
+    fs.writeComment("Total number of correspondences (TP+TN) over all frames", 0);
     fs << "totalNrCorrs" << (int)totalNrCorrs;
 
-    cvWriteComment(*fs, "portion of correspondences at depths", 0);
+    fs.writeComment("portion of correspondences at depths", 0);
     fs << "corrsPerDepth";
     fs << "{" << "near" << pars.corrsPerDepth.near;
     fs << "mid" << pars.corrsPerDepth.mid;
     fs << "far" << pars.corrsPerDepth.far << "}";
-    /*cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
+    /*fs.writeComment("List of portions of image correspondences at regions", 0);
     fs << "corrsPerRegion" << "[";
     for (auto &i : pars.corrsPerRegion) {
         fs << i;
     }
     fs << "]";*/
-    cvWriteComment(*fs, "Mean portions of image correspondences at regions over all frames", 0);
+    fs.writeComment("Mean portions of image correspondences at regions over all frames", 0);
     Mat meanCorrsPerRegion = Mat::zeros(pars.corrsPerRegion[0].size(), pars.corrsPerRegion[0].type());
     for (auto &i : pars.corrsPerRegion) {
         meanCorrsPerRegion += i;
@@ -3262,19 +3262,19 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     meanCorrsPerRegion /= (double)pars.corrsPerRegion.size();
     fs << "meanCorrsPerRegion" << meanCorrsPerRegion;
 
-    cvWriteComment(*fs, "Number of moving objects in the scene", 0);
+    fs.writeComment("Number of moving objects in the scene", 0);
     fs << "nrMovObjs" << (int) pars.nrMovObjs;
-    cvWriteComment(*fs, "Relative area range of moving objects", 0);
+    fs.writeComment("Relative area range of moving objects", 0);
     fs << "relAreaRangeMovObjs";
     fs << "{" << "first" << pars.relAreaRangeMovObjs.first;
     fs << "second" << pars.relAreaRangeMovObjs.second << "}";
-    /*cvWriteComment(*fs, "Depth of moving objects.", 0);
+    /*fs.writeComment("Depth of moving objects.", 0);
     fs << "movObjDepth" << "[";
     for (auto &i : pars.movObjDepth) {
         fs << (int) i;
     }
     fs << "]";*/
-    cvWriteComment(*fs, "Statistic on the depths of all moving objects.", 0);
+    fs.writeComment("Statistic on the depths of all moving objects.", 0);
     qualityParm stats_movObjDepth;
     getStatisticfromVec(pars.movObjDepth, stats_movObjDepth);
     fs << "movObjDepth_stats";
@@ -3283,14 +3283,13 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     fs << "min" << stats_movObjDepth.minVal;
     fs << "max" << stats_movObjDepth.maxVal << "}";
 
-    cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
+    fs.writeComment("Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
                         "K1 & K2 based on their initial values (only the focal lengths and image centers are "
                         "randomly distorted)", 0);
     fs << "distortCamMat";
     fs << "{" << "first" << pars.distortCamMat.first;
     fs << "second" << pars.distortCamMat.second << "}";
-    /*cvWriteComment(*fs,
-                   "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
+    /*fs.writeComment(                   "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
     fs << "absCamCoordinates" << "[";
     for (auto &i : absCamCoordinates) {
         fs << "{" << "R" << i.R;
@@ -3300,9 +3299,9 @@ void genMatchSequ::writeSomeSequenceParameters(cv::FileStorage &fs){
     double track_lenght = 0;
     qualityParm stats_DiffTx, stats_DiffTy, stats_DiffTz;
     getCamCoordinatesStats(track_lenght, stats_DiffTx, stats_DiffTy, stats_DiffTz);
-    cvWriteComment(*fs, "Length of the track (moving camera centers).", 0);
+    fs.writeComment("Length of the track (moving camera centers).", 0);
     fs << "track_lenght" << track_lenght;
-    cvWriteComment(*fs, "Statistic on all camera track vector elements.", 0);
+    fs.writeComment("Statistic on all camera track vector elements.", 0);
     fs << "camTrack_tx_stats";
     fs << "{" << "mean" << stats_DiffTx.arithVal;
     fs << "SD" << stats_DiffTx.arithStd;
@@ -3327,48 +3326,48 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
         return false;
     }
 
-    cvWriteComment(*fs, "This file contains all parameters used to generate "
+    fs.writeComment("This file contains all parameters used to generate "
                         "multiple consecutive frames with stereo correspondences.\n", 0);
 
-    cvWriteComment(*fs, "Number of different stereo camera configurations", 0);
+    fs.writeComment("Number of different stereo camera configurations", 0);
     fs << "nrStereoConfs" << (int) nrStereoConfs;
-    cvWriteComment(*fs, "Inlier ratio for every frame", 0);
+    fs.writeComment("Inlier ratio for every frame", 0);
     fs << "inlRat" << "[";
     for (auto &i : inlRat) {
         fs << i;
     }
     fs << "]";
 
-    cvWriteComment(*fs, "# of Frames per camera configuration", 0);
+    fs.writeComment("# of Frames per camera configuration", 0);
     fs << "nFramesPerCamConf" << (int) pars.nFramesPerCamConf;
-    cvWriteComment(*fs, "Inlier ratio range", 0);
+    fs.writeComment("Inlier ratio range", 0);
     fs << "inlRatRange";
     fs << "{" << "first" << pars.inlRatRange.first;
     fs << "second" << pars.inlRatRange.second << "}";
-    cvWriteComment(*fs, "Inlier ratio change rate from pair to pair", 0);
+    fs.writeComment("Inlier ratio change rate from pair to pair", 0);
     fs << "inlRatChanges" << pars.inlRatChanges;
-    cvWriteComment(*fs, "# true positives range", 0);
+    fs.writeComment("# true positives range", 0);
     fs << "truePosRange";
     fs << "{" << "first" << (int) pars.truePosRange.first;
     fs << "second" << (int) pars.truePosRange.second << "}";
-    cvWriteComment(*fs, "True positives change rate from pair to pair", 0);
+    fs.writeComment("True positives change rate from pair to pair", 0);
     fs << "truePosChanges" << pars.truePosChanges;
-    cvWriteComment(*fs, "min. distance between keypoints", 0);
+    fs.writeComment("min. distance between keypoints", 0);
     fs << "minKeypDist" << pars.minKeypDist;
-    cvWriteComment(*fs, "portion of correspondences at depths", 0);
+    fs.writeComment("portion of correspondences at depths", 0);
     fs << "corrsPerDepth";
     fs << "{" << "near" << pars.corrsPerDepth.near;
     fs << "mid" << pars.corrsPerDepth.mid;
     fs << "far" << pars.corrsPerDepth.far << "}";
-    cvWriteComment(*fs, "List of portions of image correspondences at regions", 0);
+    fs.writeComment("List of portions of image correspondences at regions", 0);
     fs << "corrsPerRegion" << "[";
     for (auto &i : pars.corrsPerRegion) {
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Repeat rate of portion of correspondences at regions.", 0);
+    fs.writeComment("Repeat rate of portion of correspondences at regions.", 0);
     fs << "corrsPerRegRepRate" << (int) pars.corrsPerRegRepRate;
-    cvWriteComment(*fs, "Portion of depths per region", 0);
+    fs.writeComment("Portion of depths per region", 0);
     fs << "depthsPerRegion" << "[";
     for (auto &i : pars.depthsPerRegion) {
         for (auto &j : i) {
@@ -3378,7 +3377,7 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
         }
     }
     fs << "]";
-    cvWriteComment(*fs, "Min and Max number of connected depth areas per region", 0);
+    fs.writeComment("Min and Max number of connected depth areas per region", 0);
     fs << "nrDepthAreasPReg" << "[";
     for (auto &i : pars.nrDepthAreasPReg) {
         for (auto &j : i) {
@@ -3387,61 +3386,60 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
         }
     }
     fs << "]";
-    cvWriteComment(*fs, "Movement direction or track of the cameras", 0);
+    fs.writeComment("Movement direction or track of the cameras", 0);
     fs << "camTrack" << "[";
     for (auto &i : pars.camTrack) {
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Relative velocity of the camera movement", 0);
+    fs.writeComment("Relative velocity of the camera movement", 0);
     fs << "relCamVelocity" << pars.relCamVelocity;
-    cvWriteComment(*fs, "Rotation matrix of the first camera centre", 0);
+    fs.writeComment("Rotation matrix of the first camera centre", 0);
     fs << "R" << pars.R;
-    cvWriteComment(*fs, "Number of moving objects in the scene", 0);
+    fs.writeComment("Number of moving objects in the scene", 0);
     fs << "nrMovObjs" << (int) pars.nrMovObjs;
-    cvWriteComment(*fs, "Possible starting positions of moving objects in the image", 0);
+    fs.writeComment("Possible starting positions of moving objects in the image", 0);
     fs << "startPosMovObjs" << pars.startPosMovObjs;
-    cvWriteComment(*fs, "Relative area range of moving objects", 0);
+    fs.writeComment("Relative area range of moving objects", 0);
     fs << "relAreaRangeMovObjs";
     fs << "{" << "first" << pars.relAreaRangeMovObjs.first;
     fs << "second" << pars.relAreaRangeMovObjs.second << "}";
-    cvWriteComment(*fs, "Depth of moving objects.", 0);
+    fs.writeComment("Depth of moving objects.", 0);
     fs << "movObjDepth" << "[";
     for (auto &i : pars.movObjDepth) {
         fs << (int) i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Movement direction of moving objects relative to camera movement", 0);
+    fs.writeComment("Movement direction of moving objects relative to camera movement", 0);
     fs << "movObjDir" << pars.movObjDir;
-    cvWriteComment(*fs, "Relative velocity range of moving objects based on relative camera velocity", 0);
+    fs.writeComment("Relative velocity range of moving objects based on relative camera velocity", 0);
     fs << "relMovObjVelRange";
     fs << "{" << "first" << pars.relMovObjVelRange.first;
     fs << "second" << pars.relMovObjVelRange.second << "}";
-    cvWriteComment(*fs, "Minimal portion of correspondences on moving objects for removing them", 0);
+    fs.writeComment("Minimal portion of correspondences on moving objects for removing them", 0);
     fs << "minMovObjCorrPortion" << pars.minMovObjCorrPortion;
-    cvWriteComment(*fs, "Portion of correspondences on moving objects (compared to static objects)", 0);
+    fs.writeComment("Portion of correspondences on moving objects (compared to static objects)", 0);
     fs << "CorrMovObjPort" << pars.CorrMovObjPort;
-    cvWriteComment(*fs, "Minimum number of moving objects over the whole track", 0);
+    fs.writeComment("Minimum number of moving objects over the whole track", 0);
     fs << "minNrMovObjs" << (int) pars.minNrMovObjs;
-    cvWriteComment(*fs, "Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
+    fs.writeComment("Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
                         "K1 & K2 based on their initial values (only the focal lengths and image centers are "
                         "randomly distorted)", 0);
     fs << "distortCamMat";
     fs << "{" << "first" << pars.distortCamMat.first;
     fs << "second" << pars.distortCamMat.second << "}";
 
-    cvWriteComment(*fs, "Total number of frames in the sequence", 0);
+    fs.writeComment("Total number of frames in the sequence", 0);
     fs << "totalNrFrames" << (int) totalNrFrames;
-    cvWriteComment(*fs, "User specified number of frames in the sequence", 0);
+    fs.writeComment("User specified number of frames in the sequence", 0);
     fs << "nTotalNrFrames" << (int) pars.nTotalNrFrames;
-    cvWriteComment(*fs, "Absolute number of correspondences (TP+TN) per frame", 0);
+    fs.writeComment("Absolute number of correspondences (TP+TN) per frame", 0);
     fs << "nrCorrs" << "[";
     for (auto &i : nrCorrs) {
         fs << (int) i;
     }
     fs << "]";
-    cvWriteComment(*fs,
-                   "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
+    fs.writeComment(                   "Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame.", 0);
     fs << "absCamCoordinates" << "[";
     for (auto &i : absCamCoordinates) {
         fs << "{" << "R" << i.R;
@@ -3449,13 +3447,13 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Different rotations R between the 2 stereo cameras over the whole scene", 0);
+    fs.writeComment("Different rotations R between the 2 stereo cameras over the whole scene", 0);
     fs << "R_stereo" << "[";
     for (auto &i : R) {
         fs << i;
     }
     fs << "]";
-    cvWriteComment(*fs, "Different translation vectors t between the 2 stereo cameras over the whole scene", 0);
+    fs.writeComment("Different translation vectors t between the 2 stereo cameras over the whole scene", 0);
     fs << "t_stereo" << "[";
     for (auto &i : t) {
         fs << i;
@@ -3463,20 +3461,20 @@ bool genMatchSequ::writeSequenceParameters(const std::string &filename) {
     fs << "]";
 
     nrMovObjAllFrames = movObj3DPtsWorldAllFrames.size();
-    cvWriteComment(*fs, "Number of moving object point clouds over all frames.", 0);
+    fs.writeComment("Number of moving object point clouds over all frames.", 0);
     fs << "nrMovObjAllFrames" << (int) nrMovObjAllFrames;
 
     //Write camera parameters
-    cvWriteComment(*fs, "Camera matrix of cam 1", 0);
+    fs.writeComment("Camera matrix of cam 1", 0);
     fs << "K1" << K1;
-    cvWriteComment(*fs, "Camera matrix of cam 2", 0);
+    fs.writeComment("Camera matrix of cam 2", 0);
     fs << "K2" << K2;
-    cvWriteComment(*fs, "Image size", 0);
+    fs.writeComment("Image size", 0);
     fs << "imgSize";
     fs << "{" << "width" << imgSize.width;
     fs << "height" << imgSize.height << "}";
 
-    cvWriteComment(*fs, "Statistic of the execution time for calculating the 3D sequence in microseconds", 0);
+    fs.writeComment("Statistic of the execution time for calculating the 3D sequence in microseconds", 0);
     fs << "time3DStats";
     fs << "{" << "medVal" << time3DStats.medVal;
     fs << "arithVal" << time3DStats.arithVal;
@@ -3738,46 +3736,46 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
         return false;
     }
 
-    cvWriteComment(*fs, "This file contains all correspondences of a single frame.\n", 0);
+    fs.writeComment("This file contains all correspondences of a single frame.\n", 0);
 
-    cvWriteComment(*fs, "Frame number", 0);
+    fs.writeComment("Frame number", 0);
     fs << "actFrameCnt" << (int) actFrameCnt;
 
-    cvWriteComment(*fs, "Actual rotation matrix of the stereo rig: x2 = actR * x1 + actT", 0);
+    fs.writeComment("Actual rotation matrix of the stereo rig: x2 = actR * x1 + actT", 0);
     fs << "actR" << actR;
 
-    cvWriteComment(*fs, "Actual translation vector of the stereo rig: x2 = actR * x1 + actT", 0);
+    fs.writeComment("Actual translation vector of the stereo rig: x2 = actR * x1 + actT", 0);
     fs << "actT" << actT;
 
-    cvWriteComment(*fs, "Actual correct camera matrix of camera 1", 0);
+    fs.writeComment("Actual correct camera matrix of camera 1", 0);
     fs << "K1" << K1;
 
-    cvWriteComment(*fs, "Actual correct camera matrix of camera 2", 0);
+    fs.writeComment("Actual correct camera matrix of camera 2", 0);
     fs << "K2" << K2;
 
-    cvWriteComment(*fs, "Actual distorted camera matrix of camera 1", 0);
+    fs.writeComment("Actual distorted camera matrix of camera 1", 0);
     fs << "actKd1" << actKd1;
 
-    cvWriteComment(*fs, "Actual distorted camera matrix of camera 2", 0);
+    fs.writeComment("Actual distorted camera matrix of camera 2", 0);
     fs << "actKd2" << actKd2;
 
     fs << "actDepthNear" << actDepthNear;
     fs << "actDepthMid" << actDepthMid;
     fs << "actDepthFar" << actDepthFar;
 
-    cvWriteComment(*fs, "Combined TP correspondences (static and moving objects) of camera 1", 0);
+    fs.writeComment("Combined TP correspondences (static and moving objects) of camera 1", 0);
     fs << "combCorrsImg1TP" << combCorrsImg1TP;
-    cvWriteComment(*fs, "Combined TP correspondences (static and moving objects) of camera 2", 0);
+    fs.writeComment("Combined TP correspondences (static and moving objects) of camera 2", 0);
     fs << "combCorrsImg2TP" << combCorrsImg2TP;
 
-    cvWriteComment(*fs, "Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP", 0);
+    fs.writeComment("Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP", 0);
     fs << "comb3DPts" << "[";
     for (auto &i : comb3DPts) {
         fs << i;
     }
     fs << "]";
 
-    /*cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
+    /*fs.writeComment("Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
                         "combined TP correspondences (static and moving objects) in combCorrsImg1TP and "
                         "combCorrsImg2TP. Contains only the most 32 significant bits of the int64 indices.", 0);
     fs << "combCorrsImg12TP_IdxWorld_m32bit" << "[";
@@ -3786,7 +3784,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
         fs << (int32_t) mostsig;
     }
     fs << "]";
-    cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
+    fs.writeComment("Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
                         "combined TP correspondences (static and moving objects) in combCorrsImg1TP and "
                         "combCorrsImg2TP. Contains only the least 32 significant bits of the int64 indices.", 0);
     fs << "combCorrsImg12TP_IdxWorld_l32bit" << "[";
@@ -3796,7 +3794,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";*/
 
-    cvWriteComment(*fs, "Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
+    fs.writeComment("Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of "
                         "combined TP correspondences (static and moving objects) in combCorrsImg1TP and "
                         "combCorrsImg2TP.", 0);
     fs << "combCorrsImg12TP_IdxWorld" << "[";
@@ -3805,7 +3803,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";
 
-    /*cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
+    /*fs.writeComment("Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
                         "correspond with vector elements in movObj3DPtsWorld but with a consecutive number "
                         "pointing to moving object pointclouds that were saved after they emerged. "
                         "Contains only the most 32 significant bits of the int64 indices.", 0);
@@ -3815,7 +3813,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
         fs << (int32_t) mostsig;
     }
     fs << "]";
-    cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
+    fs.writeComment("Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
                         "correspond with vector elements in movObj3DPtsWorld but with a consecutive number "
                         "pointing to moving object pointclouds that were saved after they emerged. "
                         "Contains only the least 32 significant bits of the int64 indices.", 0);
@@ -3826,7 +3824,7 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";*/
 
-    cvWriteComment(*fs, "Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
+    fs.writeComment("Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
                         "correspond with vector elements in movObj3DPtsWorld but with a consecutive number "
                         "pointing to moving object pointclouds that were saved after they emerged.", 0);
     fs << "combCorrsImg12TPContMovObj_IdxWorld" << "[";
@@ -3835,17 +3833,17 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Combined TN correspondences (static and moving objects) in camera 1", 0);
+    fs.writeComment("Combined TN correspondences (static and moving objects) in camera 1", 0);
     fs << "combCorrsImg1TN" << combCorrsImg1TN;
-    cvWriteComment(*fs, "Combined TN correspondences (static and moving objects) in camera 2", 0);
+    fs.writeComment("Combined TN correspondences (static and moving objects) in camera 2", 0);
     fs << "combCorrsImg2TN" << combCorrsImg2TN;
 
-    cvWriteComment(*fs, "Number of overall TP correspondences (static and moving objects)", 0);
+    fs.writeComment("Number of overall TP correspondences (static and moving objects)", 0);
     fs << "combNrCorrsTP" << combNrCorrsTP;
-    cvWriteComment(*fs, "Number of overall TN correspondences (static and moving objects)", 0);
+    fs.writeComment("Number of overall TN correspondences (static and moving objects)", 0);
     fs << "combNrCorrsTN" << combNrCorrsTN;
 
-    cvWriteComment(*fs, "Distance values of all (static and moving objects) TN keypoint locations in the 2nd "
+    fs.writeComment("Distance values of all (static and moving objects) TN keypoint locations in the 2nd "
                         "image to the location that would be a perfect correspondence to the TN in image 1.", 0);
     fs << "combDistTNtoReal" << "[";
     for (auto &i : combDistTNtoReal) {
@@ -3853,32 +3851,32 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";
 
-    cvWriteComment(*fs, "Final number of new generated TP correspondences for static objects.", 0);
+    fs.writeComment("Final number of new generated TP correspondences for static objects.", 0);
     fs << "finalNrTPStatCorrs" << finalNrTPStatCorrs;
 
-    cvWriteComment(*fs, "Final number of new generated TP correspondences for moving objects.", 0);
+    fs.writeComment("Final number of new generated TP correspondences for moving objects.", 0);
     fs << "finalNrTPMovCorrs" << finalNrTPMovCorrs;
 
-    cvWriteComment(*fs, "Final number of backprojected TP correspondences for static objects.", 0);
+    fs.writeComment("Final number of backprojected TP correspondences for static objects.", 0);
     fs << "finalNrTPStatCorrsFromLast" << finalNrTPStatCorrsFromLast;
 
-    cvWriteComment(*fs, "Final number of backprojected TP correspondences for moving objects.", 0);
+    fs.writeComment("Final number of backprojected TP correspondences for moving objects.", 0);
     fs << "finalNrTPMovCorrsFromLast" << finalNrTPMovCorrsFromLast;
 
-    cvWriteComment(*fs, "Final number of TN correspondences for static objects.", 0);
+    fs.writeComment("Final number of TN correspondences for static objects.", 0);
     fs << "finalNrTNStatCorrs" << finalNrTNStatCorrs;
 
-    cvWriteComment(*fs, "Final number of TN correspondences for moving objects.", 0);
+    fs.writeComment("Final number of TN correspondences for moving objects.", 0);
     fs << "finalNrTNMovCorrs" << finalNrTNMovCorrs;
 
-    cvWriteComment(*fs, "Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts", 0);
+    fs.writeComment("Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts", 0);
     fs << "combCorrsImg12TPorder";
     fs << "{" << "statTPfromLast" << (int) combCorrsImg12TPorder.statTPfromLast;
     fs << "statTPnew" << (int) combCorrsImg12TPorder.statTPnew;
     fs << "movTPfromLast" << (int) combCorrsImg12TPorder.movTPfromLast;
     fs << "movTPnew" << (int) combCorrsImg12TPorder.movTPnew << "}";
 
-    cvWriteComment(*fs, "Indicates that TN correspondences of static objects are located at the beginning of Mats "
+    fs.writeComment("Indicates that TN correspondences of static objects are located at the beginning of Mats "
                         "combCorrsImg1TN and combCorrsImg2TN", 0);
     /*if (combCorrsImg12TPstatFirst)
         fs << "finalNrTNMovCorrs" << 1;
