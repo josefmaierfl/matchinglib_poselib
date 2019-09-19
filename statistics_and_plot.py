@@ -289,16 +289,18 @@ def calcSatisticAndPlot_2D(data,
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
             compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
 
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters + x_axis_column).describe()
@@ -391,14 +393,12 @@ def calcSatisticAndPlot_2D(data,
             if len(it_parameters) > 1:
                 tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
                 tmp.columns.name = '-'.join(grp_names[0:-1])
-            if compare_source:
-                comp_fname = 'data_' + '_'.join(map(str, compare_source['it_parameters'])) + '_vs_' + \
-                             str(grp_names[-1]) + '.csv'
-                tmp, succ = add_comparison_column(compare_source, comp_fname, tmp)
 
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                          str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
+            if compare_source:
+                tmp, succ = add_comparison_column(compare_source, dataf_name, tmp)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
@@ -472,6 +472,7 @@ def calcSatisticAndPlot_2D(data,
                                           'use_log_y_axis': use_log,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
+                                          'xaxis_txt_rows': 1,
                                           'pdf_nr': pdf_nr
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -652,16 +653,18 @@ def calcSatisticAndPlot_2D_partitions(data,
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
             compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
 
     #Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(partitions + it_parameters + x_axis_column).describe()
@@ -871,6 +874,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'use_log_y_axis': use_log,
                                               'enlarge_title_space': exp_value,
                                               'use_string_labels': True if not is_numeric else False,
+                                              'xaxis_txt_rows': 1,
                                               'stat_name': it[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1057,16 +1061,18 @@ def calcFromFuncAndPlot_2D_partitions(data,
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
             compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
 
     if special_calcs_func is not None and special_calcs_args is not None:
         if 'func_name' in special_calcs_args:
@@ -1330,6 +1336,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'use_log_y_axis': eval_cols_log_scaling[i],
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
+                                          'xaxis_txt_rows': 1,
                                           'stat_name': ev,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1401,7 +1408,6 @@ def calcSatisticAndPlot_3D(data,
                            special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
-                           compare_source = None,
                            fig_type='surface',
                            use_marks=True,
                            ctrl_fig_size=True,
@@ -1704,7 +1710,6 @@ def calcFromFuncAndPlot_3D(data,
                            special_calcs_args = None,
                            calc_func = None,
                            calc_func_args = None,
-                           compare_source = None,
                            fig_type='surface',
                            use_marks=True,
                            ctrl_fig_size=True,
@@ -2021,7 +2026,6 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                       special_calcs_args = None,
                                       calc_func = None,
                                       calc_func_args = None,
-                                      compare_source = None,
                                       fig_type='surface',
                                       use_marks=True,
                                       ctrl_fig_size=True,
@@ -2495,16 +2499,18 @@ def calcFromFuncAndPlot_aggregate(data,
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
             compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
 
     if special_calcs_func is not None and special_calcs_args is not None:
         if 'func_name' in special_calcs_args:
@@ -2595,6 +2601,11 @@ def calcFromFuncAndPlot_aggregate(data,
         gloss = add_to_glossary_eval(eval_columns)
     from usac_eval import insert_opt_lbreak
     df['tex_it_pars'] = insert_opt_lbreak(it_pars_index)
+    max_txt_rows = 1
+    for idx, val in df['tex_it_pars'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows:
+            max_txt_rows = txt_rows
     tex_infos = {'title': title_name,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -2682,6 +2693,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True,
                                       'use_log_y_axis': eval_cols_log_scaling[i],
+                                      'xaxis_txt_rows': max_txt_rows,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
@@ -2809,16 +2821,18 @@ def calcSatisticAndPlot_aggregate(data,
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
             compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
-        compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
-        if compare_source and not os.path.exists(compare_source['tdata_folder']):
-            warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
-                          'Skipping comparison.', UserWarning)
-            compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
 
     # Group by USAC parameters 5&6 and calculate the statistic
     stats = df.groupby(it_parameters).describe()
@@ -2921,6 +2935,11 @@ def calcSatisticAndPlot_aggregate(data,
                 it_pars_index = [str(a) for a in tmp.index]
                 index_name = it_parameters[0]
             tmp['tex_it_pars'] = insert_opt_lbreak(it_pars_index)
+            max_txt_rows = 1
+            for idx, val in tmp['tex_it_pars'].iteritems():
+                txt_rows = str(val).count('\\\\') + 1
+                if txt_rows > max_txt_rows:
+                    max_txt_rows = txt_rows
             dataf_name = 'data_' + '_'.join(map(str, it)) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             if compare_source:
@@ -2990,6 +3009,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           # The x/y-axis values are given as strings if True
                                           'use_string_labels': True,
                                           'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': max_txt_rows,
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'caption': fig_name.replace('\\\\', ' '),
@@ -3072,7 +3092,7 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                                   ' for comparing results does not match. Skipping comparison.', UserWarning)
                     succ = False
                 else:
-                    data_new['cmp-' + comp_col_name] = comp_col
+                    data_new['cmp-' + comp_col_name] = comp_col.values
         elif not it_col_name:
             data_tmp = data_new.copy(deep=True)
             for col in mult_cols:
@@ -3090,7 +3110,7 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                         succ = False
                         break
                     else:
-                        data_tmp['cmp-' + col] = comp_col
+                        data_tmp['cmp-' + col] = comp_col.values
             if succ:
                 data_new = data_tmp
         else:
@@ -3112,7 +3132,9 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                     else:
                         line = comp_data.loc[comp_col_name, :]
                         line.name = 'cmp-' + line.name
-                        data_new.append(line, ignore_index=False)
+                        if 'tex_it_pars' in line.index:
+                            line['tex_it_pars'] = 'cmp-' + str(line['tex_it_pars'])
+                        data_new = data_new.append(line, ignore_index=False)
     return data_new, succ
 
 
@@ -4062,7 +4084,7 @@ def main():
             'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
             'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
             'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
-            #'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
+            'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
             'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
             'useless': [1, 1, 2, 3] * int(num_pts/4),
@@ -4101,12 +4123,12 @@ def main():
     data['filtering_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'refinement_ba'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
+    test_name = 'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [-1]#list(range(5, 8))
+    eval_nr = [3]#list(range(5, 8))
     ret = 0
-    # output_path = '/home/maierj/work/Sequence_Test/py_test'
-    output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
+    output_path = '/home/maierj/work/Sequence_Test/py_test'
+    # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
@@ -4220,7 +4242,6 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4292,7 +4313,6 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4454,7 +4474,6 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4495,7 +4514,6 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4615,7 +4633,6 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -4697,7 +4714,6 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
-                                                             compare_source=None,
                                                              fig_type='surface',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -4818,7 +4834,6 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
-                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -4925,7 +4940,6 @@ def main():
                                               special_calcs_args=special_calcs_args,
                                               calc_func=calc_Time_Model,
                                               calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -5065,6 +5079,7 @@ def main():
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
                     special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
                                           'nr_target_kps': 1000,
                                           'res_par_name': 'refineRT_BA_min_time'}
                     from usac_eval import calc_Time_Model
@@ -5545,6 +5560,7 @@ def main():
         if not test_nr:
             raise ValueError('test_nr is required refinement_ba')
         if test_nr == 1:
+            from eval_tests_main import get_compare_info
             if eval_nr[0] < 0:
                 evals = list(range(1, 4))
             else:
@@ -5562,19 +5578,20 @@ def main():
                     #                  'refineMethod_costFunction',
                     #                  'BART']
                     it_parameters = ['USAC_parameters_estimator',
-                                     'USAC_parameters_refinealg']
+                                     'USAC_parameters_refinealg',
+                                     'USAC_parameters_USACInlratFilt']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'refineRT_BA_opts_inlrat'}
-                    compare_source = {'store_path': output_path,
-                                      'it_par_select': ['first_long_long_opt0', 'second_long_opt0'],
-                                      'it_parameters': ['USAC_parameters_estimator',
-                                                        'USAC_parameters_refinealg']
-                                      }
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
-                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
                                                   eval_description_path='RT-stats',
                                                   eval_columns=eval_columns,
@@ -5588,13 +5605,104 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
+                                                  compare_source=compare_source,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
                                                   make_fig_index=True,
                                                   build_pdf=True,
                                                   figs_externalize=True)
+                elif ev == 2:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['refineMethod_algorithm',
+                    #                  'refineMethod_costFunction',
+                    #                  'BART']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg',
+                                     'USAC_parameters_USACInlratFilt']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'refinement_ba_best_comb_scenes'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from refinement_eval import get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_refRT_BA_stereo_opts_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=compare_source,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 3:
+                    fig_title_pre_str = 'Temporal Behaviour for Different '
+                    eval_columns = ['linRef_BA_us']
+                    units = []
+                    # it_parameters = ['refineMethod_algorithm',
+                    #                  'refineMethod_costFunction',
+                    #                  'BART']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg',
+                                     'USAC_parameters_USACInlratFilt']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'nr_target_kps': 1000,
+                                          'res_par_name': 'refineRT_BA_min_time'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'time', descr)
+                    from usac_eval import calc_Time_Model
+                    from refinement_eval import filter_nr_kps_calc_t, estimate_alg_time_fixed_kp_agg
+                    ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         x_axis_column=['nrCorrs_GT'],
+                                                         filter_func=filter_nr_kps_calc_t,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=estimate_alg_time_fixed_kp_agg,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=calc_Time_Model,
+                                                         calc_func_args={'data_separators': []},
+                                                         compare_source=compare_source,
+                                                         fig_type='ybar',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
 
     return ret
 

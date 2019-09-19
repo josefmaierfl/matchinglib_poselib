@@ -318,6 +318,7 @@ def pars_calc_single_fig_partitions(**keywords):
                                       'legend_cols': None,
                                       'use_marks': ret['use_marks'],
                                       'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
                                       'enlarge_title_space': exp_value,
                                       'use_string_labels': True if not is_numeric else False
                                       })
@@ -510,6 +511,7 @@ def pars_calc_single_fig(**keywords):
                                   'legend_cols': None,
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
@@ -746,6 +748,11 @@ def get_best_comb_and_th_1(**keywords):
     b_best_l = [[val, ret['b'].loc[val].iloc[i], ret['b'].columns[i], b_cols_tex[i]] for i, val in enumerate(b_best_idx)]
     b_best = pd.DataFrame.from_records(data=b_best_l, columns=[ret['grp_names'][-1], 'b_best', 'options', 'options_tex'])
     #b_best.set_index('options', inplace=True)
+    max_txt_rows_best = 1
+    for idx, val in b_best['options_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows_best:
+            max_txt_rows_best = txt_rows
     b_best_name = 'data_best_RTerrors_and_' + ret['dataf_name']
     fb_best_name = os.path.join(ret['tdata_folder'], b_best_name)
     with open(fb_best_name, 'a') as f:
@@ -755,6 +762,11 @@ def get_best_comb_and_th_1(**keywords):
     b_worst_idx = ret['b'].idxmax(axis=0)
     b_worst_l = [[val, ret['b'].loc[val].iloc[i], ret['b'].columns[i], b_cols_tex[i]] for i, val in enumerate(b_worst_idx)]
     b_worst = pd.DataFrame.from_records(data=b_worst_l, columns=[ret['grp_names'][-1], 'b_worst', 'options', 'options_tex'])
+    max_txt_rows_worst = 1
+    for idx, val in b_worst['options_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows_worst:
+            max_txt_rows_worst = txt_rows
     b_worst_name = 'data_worst_RTerrors_and_' + ret['dataf_name']
     fb_worst_name = os.path.join(ret['tdata_folder'], b_worst_name)
     with open(fb_worst_name, 'a') as f:
@@ -806,6 +818,7 @@ def get_best_comb_and_th_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows_best,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (error bars) and their ' +
@@ -838,6 +851,7 @@ def get_best_comb_and_th_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows_worst,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Biggest combined R \\& t errors  $e_{R\\bm{t}}$ (error bars) and their ' +
@@ -885,6 +899,11 @@ def get_best_comb_inlrat_1(**keywords):
     b_mean.columns = ['options', 'b_mean']
     # Insert a tex line break for long options
     b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
+    max_txt_rows = 1
+    for idx, val in b_mean['options_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows:
+            max_txt_rows = txt_rows
     b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
@@ -938,6 +957,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
@@ -1158,6 +1178,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                       'legend_r': [replaceCSVLabels(str(ret['grp_names'][-2])) + ' (right axis)'],
                                       'legend_cols': 1,
                                       'use_marks': True,
+                                      'xaxis_txt_rows': 1,
                                       'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) '
                                                  'and their ' +
                                                  replaceCSVLabels(str(ret['grp_names'][-2])) +
@@ -1225,6 +1246,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +
@@ -1388,6 +1410,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                                else a + ' (top axis)' for a in right_legend],
                                   'legend_cols': 1,
                                   'use_marks': True,
+                                  'xaxis_txt_rows': 1,
                                   'caption': caption
                                   })
 
@@ -1431,6 +1454,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                       'legend_r': [rl + ' (right axis)'],
                                       'legend_cols': 1,
                                       'use_marks': True,
+                                      'xaxis_txt_rows': 1,
                                       'caption': caption
                                       })
 
@@ -1510,6 +1534,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2010,6 +2035,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'legend_cols': None,
                                   'use_marks': vars['use_marks'],
                                   'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
                                   })
@@ -2106,6 +2132,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': use_log1,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': exp_value1,
                                   'large_meta_space_needed': True,
                                   'caption': caption
@@ -2393,6 +2420,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2434,6 +2462,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2471,6 +2500,11 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     else:
         index_new1 = [a for a in tmp2min.index]
     tmp2min['pars_tex'] = insert_opt_lbreak(index_new1)
+    max_txt_rows2min = 1
+    for idx, val in tmp2min['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows2min:
+            max_txt_rows2min = txt_rows
     meta_col1 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
     tmp2min[meta_col1] = tmp2min.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
                          tmp2min.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
@@ -2485,6 +2519,11 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     else:
         index_new2 = [a for a in tmp2max.index]
     tmp2max['pars_tex'] = insert_opt_lbreak(index_new2)
+    max_txt_rows2max = 1
+    for idx, val in tmp2max['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows2max:
+            max_txt_rows2max = txt_rows
     meta_col2 = str(vars['t_data_separators'][0]) + '-' + str(vars['t_data_separators'][1])
     tmp2max[meta_col2] = tmp2max.loc[:, vars['t_data_separators'][0]].apply(lambda x: str(x) + ' - ') + \
                          tmp2max.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
@@ -2569,6 +2608,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows2min,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2611,6 +2651,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows2max,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -3086,6 +3127,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': False,
                                       'use_log_y_axis': use_log4[i],
+                                      'xaxis_txt_rows': 1,
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
@@ -3131,6 +3173,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     else:
         index_new13 = [a for a in tmp12_min.index]
     tmp12_min['pars_tex'] = insert_opt_lbreak(index_new13)
+    max_txt_rows = [1]
+    for idx, val in tmp12_min['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows[-1]:
+            max_txt_rows[-1] = txt_rows
     meta_col4.append('-'.join(first_grp2))
     tmp12_min[meta_col4[-1]] = tmp12_min.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
@@ -3150,6 +3197,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     else:
         index_new14 = [a for a in tmp12_max.index]
     tmp12_max['pars_tex'] = insert_opt_lbreak(index_new14)
+    max_txt_rows.append(1)
+    for idx, val in tmp12_max['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows[-1]:
+            max_txt_rows[-1] = txt_rows
     tmp12_max[meta_col4[-1]] = tmp12_max.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_max.loc[:, first_grp2[1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp12_max[first_grp2].stack().tolist(), gloss)
@@ -3167,6 +3219,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     else:
         index_new23 = [a for a in tmp22_min.index]
     tmp22_min['pars_tex'] = insert_opt_lbreak(index_new23)
+    max_txt_rows.append(1)
+    for idx, val in tmp22_min['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows[-1]:
+            max_txt_rows[-1] = txt_rows
     meta_col4.append('-'.join(second_grp2))
     tmp22_min[meta_col4[-1]] = tmp22_min.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
@@ -3186,6 +3243,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     else:
         index_new24 = [a for a in tmp22_max.index]
     tmp22_max['pars_tex'] = insert_opt_lbreak(index_new24)
+    max_txt_rows.append(1)
+    for idx, val in tmp22_max['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows[-1]:
+            max_txt_rows[-1] = txt_rows
     tmp22_max[meta_col4[-1]] = tmp22_max.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_max.loc[:, second_grp2[1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp22_max[second_grp2].stack().tolist(), gloss)
@@ -3328,6 +3390,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True,
                                       'use_log_y_axis': use_log4[i],
+                                      'xaxis_txt_rows': max_txt_rows[i],
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
@@ -3550,6 +3613,7 @@ def get_min_inlrat_diff(**keywords):
                                   'legend_cols': None,
                                   'use_marks': keywords['use_marks'],
                                   'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
@@ -3579,6 +3643,11 @@ def get_min_inlrat_diff(**keywords):
 
     min_mean_diff = min_mean_diff.loc[min_mean_diff.groupby(it_parameters_name).inlRat_diff.idxmin()]
     min_mean_diff['options_for_tex'] = insert_opt_lbreak([a for i, a in min_mean_diff[it_parameters_name].iteritems()])
+    max_txt_rows = 1
+    for idx, val in min_mean_diff['options_for_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows:
+            max_txt_rows = txt_rows
     gloss = add_to_glossary(min_mean_diff[grp_names[-1]].tolist(), gloss)
     b_name = 'data_min_mean_inlrat_diff_vs_' + dataf_name_main + '.csv'
     fb_name = os.path.join(keywords['tdata_folder'], b_name)
@@ -3639,6 +3708,7 @@ def get_min_inlrat_diff(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption

@@ -291,6 +291,9 @@ bar width=0.3cm,%
 +(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
 \BLOCK{ else }
 /pgf/bar shift=-6pt,%
+\BLOCK{ if sec['xaxis_txt_rows'] > 1 }
+y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
@@ -305,6 +308,9 @@ bar width=0.3cm,%
 +(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
 \BLOCK{ else }
 /pgf/bar shift=-6pt,%
+\BLOCK{ if sec['xaxis_txt_rows'] > 1 }
+x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ else }
 xlabel=\VAR{sec['label_x']},%

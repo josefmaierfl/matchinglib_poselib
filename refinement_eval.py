@@ -201,6 +201,7 @@ def get_best_comb_scenes_1(**keywords):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True if not is_numeric[-1] else False,
                                       'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
@@ -357,6 +358,7 @@ def get_best_comb_scenes_1(**keywords):
                                       # The x/y-axis values are given as strings if True
                                       'use_string_labels': True if not isn else False,
                                       'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'caption': caption
@@ -447,6 +449,11 @@ def estimate_alg_time_fixed_kp_agg(**vars):
         it_pars_cols_name = vars['it_parameters'][0]
         par_cols = [a for a in tmp.index]
     tmp['pars_tex'] = insert_opt_lbreak(par_cols)
+    max_txt_rows = 1
+    for idx, val in tmp['pars_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows:
+            max_txt_rows = txt_rows
 
     tmp_min = tmp.loc[[tmp[col_name].idxmin(axis=0)]].reset_index()
 
@@ -526,6 +533,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': max_txt_rows,
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': False,
                                   'caption': fig_name.replace('\\\\', ' ')
@@ -746,6 +754,7 @@ def pars_calc_single_fig_K(**keywords):
                                   'legend_cols': None,
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
@@ -788,6 +797,11 @@ def get_best_comb_inlrat_k(**keywords):
     b_mean.columns = ['options', 'ke_mean']
     # Insert a tex line break for long options
     b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
+    max_txt_rows = 1
+    for idx, val in b_mean['options_tex'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows:
+            max_txt_rows = txt_rows
     b_mean_name = 'data_mean_Kerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
@@ -841,6 +855,7 @@ def get_best_comb_inlrat_k(**keywords):
                                   # The x/y-axis values are given as strings if True
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
+                                  'xaxis_txt_rows': max_txt_rows,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ (error bars) over all ' +

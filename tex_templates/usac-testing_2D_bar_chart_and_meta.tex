@@ -153,6 +153,8 @@ xlabel=\VAR{sec['label_y']},%
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge y limits={true, abs value=0.75},%
+\BLOCK{ elif sec['xaxis_txt_rows'] > 1 }
+y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
 \BLOCK{ if sec['large_meta_space_needed'] }
@@ -170,6 +172,8 @@ ylabel=\VAR{sec['label_y']},%
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge x limits={true, abs value=0.75},%
+\BLOCK{ elif sec['xaxis_txt_rows'] > 1 }
+x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
 \BLOCK{ if sec['large_meta_space_needed'] }

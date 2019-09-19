@@ -144,6 +144,8 @@ xlabel=\VAR{sec['label_y']},%
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge y limits={true, abs value=0.75},%
+\BLOCK{ elif sec['xaxis_txt_rows'] > 1 }
+y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
@@ -155,6 +157,8 @@ ylabel=\VAR{sec['label_y']},%
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
 enlarge x limits={true, abs value=0.75},%
+\BLOCK{ elif sec['xaxis_txt_rows'] > 1 }
+x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%

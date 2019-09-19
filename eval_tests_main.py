@@ -226,7 +226,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -298,7 +297,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -459,7 +457,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -498,7 +495,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -611,7 +607,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=calc_Time_Model,
                                                   calc_func_args={'data_separators': ['inlRatMin', 'th']},
-                                                  compare_source=None,
                                                   fig_type='surface',
                                                   use_marks=True,
                                                   ctrl_fig_size=False,
@@ -689,7 +684,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_Time_Model,
                                                              calc_func_args={'data_separators': ['kpAccSd', 'inlratMin', 'th']},
-                                                             compare_source=None,
                                                              fig_type='surface',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -812,7 +806,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                               special_calcs_args=special_calcs_args,
                                               calc_func=None,
                                               calc_func_args=None,
-                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -916,7 +909,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                               special_calcs_args=special_calcs_args,
                                               calc_func=calc_Time_Model,
                                               calc_func_args={'data_separators': ['inlratMin', 'th']},
-                                              compare_source=None,
                                               fig_type='surface',
                                               use_marks=True,
                                               ctrl_fig_size=False,
@@ -1629,7 +1621,7 @@ def main():
                              '(same axis, data partitions, ...). The argument must be provided as a list of strings '
                              '(e.g. --compare str1 str2 str3 ...). The list must contain the parameter-parameter '
                              'value pairs of the already performed evaluation for which the comparison should be performed '
-                             '(like \'--compare refineMethod_algorithm-PR_STEWENIUS '
+                             '(like \'--compare_pars refineMethod_algorithm-PR_STEWENIUS '
                              'refineMethod_costFunction-PR_PSEUDOHUBER_WEIGHTS BART-extr_only\' for the evaluation '
                              'of refinement methods and bundle adjustment options).')
     parser.add_argument('--compare_path', type=str, required=False,
