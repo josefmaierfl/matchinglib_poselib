@@ -13,6 +13,8 @@ from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io, 
 def get_min_inlrat_diff_no_fig(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
+    if 'err_type' not in keywords:
+        raise ValueError('Missing parameter err_type')
     if len(keywords) < 2:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig_partitions')
     if 'data' not in keywords:
@@ -35,7 +37,7 @@ def get_min_inlrat_diff_no_fig(**keywords):
         for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
-                                         'inlRatDiff': float(tmp['mean'].values[0])}},
+                                         keywords['err_type']: float(tmp['mean'].values[0])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return res
