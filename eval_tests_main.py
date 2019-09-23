@@ -1601,12 +1601,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     fig_title_pre_str = 'Statistics on Execution Times for Comparison of '
                     eval_columns = ['stereoRefine_us']
                     units = [('stereoRefine_us', '/$\\mu s$')]
-                    # it_parameters = ['stereoParameters_matchesFilter_refineGMS',
-                    #                  'stereoParameters_matchesFilter_refineVFC',
-                    #                  'stereoParameters_matchesFilter_refineSOF']
-                    it_parameters = ['USAC_parameters_estimator',
-                                     'USAC_parameters_refinealg',
-                                     'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['stereoParameters_matchesFilter_refineGMS',
+                                     'stereoParameters_matchesFilter_refineVFC',
+                                     'stereoParameters_matchesFilter_refineSOF']
                     special_calcs_args = {'res_par_name': 'refRT_BA_stereo_min_time',
                                           'err_type': 'min_mean_time',
                                           'mk_no_folder': True}
@@ -1650,19 +1647,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    # it_parameters = ['stereoParameters_refineMethod_algorithm',
-                    #                  'stereoParameters_refineMethod_costFunction']
-                    it_parameters = ['USAC_parameters_estimator',
-                                     'USAC_parameters_refinealg',
-                                     'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['stereoParameters_refineMethod_algorithm',
+                                     'stereoParameters_refineMethod_costFunction']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'refRT_stereo_opts_for_BA2_inlrat'}
                     descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                             'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'RT-stats', descr)
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
@@ -1696,11 +1688,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    # it_parameters = ['stereoParameters_refineMethod_algorithm',
-                    #                  'stereoParameters_refineMethod_costFunction']
-                    it_parameters = ['USAC_parameters_estimator',
-                                     'USAC_parameters_refinealg',
-                                     'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['stereoParameters_refineMethod_algorithm',
+                                     'stereoParameters_refineMethod_costFunction']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['depthDistr', 'kpAccSd']
                     special_calcs_args = {'build_pdf': (True, True, True),
@@ -1708,9 +1697,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'ref_stereo_best_comb_for_BA2_scenes'}
                     descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                             'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'RT-stats', descr)
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
@@ -1748,19 +1735,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('K2_fxDiff', '/pixel'), ('K1_fyDiff', '/pixel'), ('K2_fyDiff', '/pixel'),
                              ('K1_cxDiff', '/pixel'), ('K2_cxDiff', '/pixel'), ('K1_cyDiff', '/pixel'),
                              ('K2_cyDiff', '/pixel')]
-                    # it_parameters = ['stereoParameters_refineMethod_algorithm',
-                    #                  'stereoParameters_refineMethod_costFunction']
-                    it_parameters = ['USAC_parameters_estimator',
-                                     'USAC_parameters_refinealg',
-                                     'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['stereoParameters_refineMethod_algorithm',
+                                     'stereoParameters_refineMethod_costFunction']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'refRT_stereo_opts_for_BA2_K_inlrat'}
                     descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                             'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'K-stats', descr)
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'K-stats', descr)
                     from refinement_eval import get_best_comb_inlrat_k
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
@@ -1798,11 +1780,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('K2_fxDiff', '/pixel'), ('K1_fyDiff', '/pixel'), ('K2_fyDiff', '/pixel'),
                              ('K1_cxDiff', '/pixel'), ('K2_cxDiff', '/pixel'), ('K1_cyDiff', '/pixel'),
                              ('K2_cyDiff', '/pixel')]
-                    # it_parameters = ['stereoParameters_refineMethod_algorithm',
-                    #                  'stereoParameters_refineMethod_costFunction']
-                    it_parameters = ['USAC_parameters_estimator',
-                                     'USAC_parameters_refinealg',
-                                     'USAC_parameters_USACInlratFilt']
+                    it_parameters = ['stereoParameters_refineMethod_algorithm',
+                                     'stereoParameters_refineMethod_costFunction']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['depthDistr', 'kpAccSd']
                     from refinement_eval import combineK
@@ -1816,9 +1795,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'ref_stereo_best_comb_for_BA2_K_scenes'}
                     descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                             'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'K-stats', descr)
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'K-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
