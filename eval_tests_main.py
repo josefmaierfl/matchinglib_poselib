@@ -1118,7 +1118,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 2:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences After Bundle Adjustment (BA) Including ' \
+                    fig_title_pre_str = 'Values of R\\&t Differences After Bundle Adjustment (BA) Including ' \
                                         'Intrinsics and Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
@@ -1200,7 +1200,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 4:
-                    fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
+                    fig_title_pre_str = 'Values on Focal Length and Principal Point Differences ' \
                                         'after Bundle Adjustment (BA) Including Intrinsics and ' \
                                         'Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
@@ -1426,7 +1426,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                      build_pdf=True,
                                                      figs_externalize=False)
             elif ev == 3:
-                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                fig_title_pre_str = 'Values of R\\&t Differences for Comparison of '
                 eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                 't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                 units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -1506,7 +1506,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             calcSatisticAndPlot_2D_partitions, \
             calcSatisticAndPlot_aggregate
         if not test_nr:
-            raise ValueError('test_nr is required refinement_ba')
+            raise ValueError('test_nr is required refinement_ba_stereo')
         if test_nr == 1:
             if eval_nr[0] < 0:
                 evals = list(range(1, 4))
@@ -1514,7 +1514,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                 evals = eval_nr
             for ev in evals:
                 if ev == 1:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -1680,7 +1680,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 2:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences After Bundle Adjustment (BA) Including ' \
+                    fig_title_pre_str = 'Values of R\\&t Differences After Bundle Adjustment (BA) Including ' \
                                         'Intrinsics and Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
@@ -1768,7 +1768,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 4:
-                    fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
+                    fig_title_pre_str = 'Values on Focal Length and Principal Point Differences ' \
                                         'after Bundle Adjustment (BA) Including Intrinsics and ' \
                                         'Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',

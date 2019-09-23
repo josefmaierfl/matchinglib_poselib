@@ -2166,30 +2166,37 @@ def calcFromFuncAndPlot_3D_partitions(data,
             base_out_name += '-'
     title_name += it_title_part
 
-    init_pars_title = ''
-    init_pars_out_name = ''
-    nr_eval_init_input = len(eval_init_input)
-    if nr_eval_init_input > 1:
-        for i, val in enumerate(eval_init_input):
-            init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True)
-            if (nr_eval_init_input <= 2):
+    if eval_init_input:
+        init_pars_title = ''
+        init_pars_out_name = ''
+        nr_eval_init_input = len(eval_init_input)
+        if nr_eval_init_input > 1:
+            for i, val in enumerate(eval_init_input):
+                init_pars_out_name += val
+                init_pars_title += replaceCSVLabels(val, True, True)
+                if (nr_eval_init_input <= 2):
+                    if i < nr_eval_init_input - 1:
+                        init_pars_title += ' and '
+                else:
+                    if i < nr_eval_init_input - 2:
+                        init_pars_title += ', '
+                    elif i < nr_eval_init_input - 1:
+                        init_pars_title += ', and '
                 if i < nr_eval_init_input - 1:
-                    init_pars_title += ' and '
-            else:
-                if i < nr_eval_init_input - 2:
-                    init_pars_title += ', '
-                elif i < nr_eval_init_input - 1:
-                    init_pars_title += ', and '
-            if i < nr_eval_init_input - 1:
-                init_pars_out_name += '-'
+                    init_pars_out_name += '-'
+        else:
+            init_pars_out_name = eval_init_input[0]
+            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+        base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
+                         init_pars_out_name + '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
+                      replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title + \
+                      ' Separately for '
     else:
-        init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
-    base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
-                     init_pars_out_name + '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
-    title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
-                  replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title + ' Separately for '
+        base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + \
+                         '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
+                      replaceCSVLabels(xy_axis_columns[1], True, True) + ' Separately for '
 
     partition_text = ''
     for i, val in enumerate(partitions):
@@ -2282,16 +2289,23 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
             nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
 
-            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + grp_it + \
-                         '_on_partition_'
+            if eval_init_input:
+                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + grp_it + \
+                             '_on_partition_'
+            else:
+                dataf_name = 'data_evals_for_pars_' + grp_it + '_on_partition_'
             dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
             grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
             dataf_name += grp_name.replace('.', 'd')
             dataf_name += '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
-                f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
-                        it_pars_cols_name + '\n')
+                if eval_init_input:
+                    f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                            it_pars_cols_name + '\n')
+                else:
+                    f.write('# Evaluations for parameter variations of ' +
+                            it_pars_cols_name + '\n')
                 f.write('# Used parameter values: ' + grp_it + '\n')
                 f.write('# Used data part of ' + '-'.join(map(str, partitions)) + ': ' + grp_name + '\n')
                 f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
@@ -2315,7 +2329,10 @@ def calcFromFuncAndPlot_3D_partitions(data,
                     else:
                         use_limits['maxz'] = round(1.01 * stats_all['max'], 6)
                 reltex_name = os.path.join(rel_data_path, dataf_name)
-                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+                if eval_init_input:
+                    fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+                else:
+                    fig_name = capitalizeFirstChar(eval_cols_lname[i])
                 fig_name += ' for '
                 fig_name += partition_text_val1 + ' in addition to ' + \
                             ' parameters ' + tex_string_coding_style(grp_it) + \
@@ -3339,6 +3356,52 @@ def getSymbolDescription(label):
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
                 'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+    if label == 'R_diffAll_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated relative '
+                'stereo camera rotation matrices (calculated using quaternion notations)', True)
+    elif label == 'R_diff_roll_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation about the x-axis', True)
+    elif label == 'R_diff_pitch_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation about the y-axis', True)
+    elif label == 'R_diff_yaw_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation about the z-axis', True)
+    elif label == 't_angDiff_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera translation vectors',
+                True)
+    elif label == 't_distDiff_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of L2-norms on the difference between ground truth and estimated '
+                'relative stereo camera translation vectors', True)
+    elif label == 't_diff_tx_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of differences '
+                '$\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
+                'between normalized x-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+    elif label == 't_diff_ty_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of differences '
+                '$\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
+                'between normalized y-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+    elif label == 't_diff_tz_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of differences '
+                '$\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
+                'between normalized z-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
     elif label == 'th':
         return (replaceCSVLabels(label), 'Threshold on point correspondences in pixels', True)
     elif label == 'R_mostLikely_diffAll':
@@ -3398,6 +3461,74 @@ def getSymbolDescription(label):
         return (replaceCSVLabels(label),
                 'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert '
                 '-t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
+                'between normalized z-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 'R_mostLikely_diffAll_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation matrices. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few estimated '
+                'rotation matrices over the last pose estimations (calculated using quaternion notations).', True)
+    elif label == 'R_mostLikely_diff_roll_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation about the '
+                'x-axis. The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True)
+    elif label == 'R_mostLikely_diff_pitch_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation about the '
+                'y-axis. The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True)
+    elif label == 'R_mostLikely_diff_yaw_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera rotation about the '
+                'z-axis. The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True)
+    elif label == 't_mostLikely_angDiff_deg_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of angular differences between ground truth and estimated '
+                'relative stereo camera translation vectors. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_distDiff_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of L2-norms on the difference between ground truth and '
+                'estimated relative stereo camera translation vectors. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_diff_tx_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of Differences '
+                '$\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
+                'between normalized x-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_diff_ty_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of differences '
+                '$\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
+                'between normalized y-components of ground truth and estimated relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
+                'estimated rotation matrices over the last pose estimations.', True
+                )
+    elif label == 't_mostLikely_diff_tz_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of differences '
+                '$\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
                 'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
@@ -3491,6 +3622,35 @@ def getSymbolDescription(label):
                 'values of differential angles $\\Delta \\hat{R}_{\\Sigma}$ and $\\angle{\\Delta \\hat{\\bm{t}}}$. '
                 '$\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$ stand for the '
                 'standard deviations of afore mentioned data.', True)
+    elif label == 'Rt_diff_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of combined rotation $R$ and translation $\\bm{t}$ errors '
+                '$e_{R\\bm{t}}=\\left( e_{R}r_{\\bm{t}}+e_{\\bm{t}}r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
+                '$e_{R}=\\lvert \\mu_{\\Delta R_{\\Sigma}}\\rvert +\\sigma_{\\Delta R_{\\Sigma}}$, '
+                '$e_{\\bm{t}}=\\lvert \\mu_{\\angle{\\Delta \\bm{t}}}\\rvert +\\sigma_{\\angle{\\Delta \\bm{t}}}$, '
+                '$r_{R}=\\text{max}\\left( e_{R}\\right) -\\text{min}\\left( e_{R}\\right)$, and '
+                '$r_{\\bm{t}}=\\text{max}\\left( e_{\\bm{t}}\\right) -\\text{min}\\left( e_{\\bm{t}}\\right)$. '
+                '$\\mu_{\\Delta R_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\bm{t}}}$ indicate the corresponding mean '
+                'values of differential angles $\\Delta R_{\\Sigma}$ and $\\angle{\\Delta \\bm{t}}$. '
+                '$\\sigma_{\\Delta R_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\bm{t}}}$ stand for the '
+                'standard deviations of afore montioned data.', True)
+    elif label == 'Rt_mostLikely_diff_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of combined rotation $R$ and translation $\\bm{t}$ errors '
+                '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}=\\left( e_{\\hat{R}}r_{\\hat{\\bm{t}}}+'
+                'e_{\\hat{\\bm{t}}}r_{\\hat{R}}\\right) /2r_{\\hat{R}}r_{\\hat{\\bm{t}}}$ with '
+                '$e_{\\hat{R}}=\\lvert \\mu_{\\Delta \\hat{R}_{\\Sigma}}\\rvert '
+                '+\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$, '
+                '$e_{\\hat{\\bm{t}}}=\\lvert \\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}\\rvert '
+                '+\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$, '
+                '$r_{\\hat{R}}=\\text{max}\\left( e_{\\hat{R}}\\right) -\\text{min}\\left( e_{\\hat{R}}\\right)$, and '
+                '$r_{\\hat{\\bm{t}}}=\\text{max}\\left( e_{\\hat{\\bm{t}}}\\right) '
+                '-\\text{min}\\left( e_{\\hat{\\bm{t}}}\\right)$. '
+                '$\\mu_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}$ '
+                'indicate the corresponding mean '
+                'values of differential angles $\\Delta \\hat{R}_{\\Sigma}$ and $\\angle{\\Delta \\hat{\\bm{t}}}$. '
+                '$\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$ stand for the '
+                'standard deviations of afore mentioned data.', True)
     elif label == 'K12_cxyfxfyNorm':
         return (replaceCSVLabels(label),
                 'Combined camera matrix parameter differences $e_{\\mli{K1,2}}='
@@ -3529,6 +3689,26 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         return '$\\Delta t_{z}$'
     elif label == 'Rt_diff':
         return '$e_{R\\bm{t}}$'
+    elif label == 'R_diffAll_diff':
+        return '$\\Delta^{2} R_{\\Sigma}$'
+    elif label == 'R_diff_roll_deg_diff':
+        return '$\\Delta^{2} R_{x}$'
+    elif label == 'R_diff_pitch_deg_diff':
+        return '$\\Delta^{2} R_{y}$'
+    elif label == 'R_diff_yaw_deg_diff':
+        return '$\\Delta^{2} R_{z}$'
+    elif label == 't_angDiff_deg_diff':
+        return '$\\angle{\\Delta^{2} \\bm{t}}$'
+    elif label == 't_distDiff_diff':
+        return '$\\Delta\\lvert\\Delta \\bm{t}\\rvert$'
+    elif label == 't_diff_tx_diff':
+        return '$\\Delta^{2} t_{x}$'
+    elif label == 't_diff_ty_diff':
+        return '$\\Delta^{2} t_{y}$'
+    elif label == 't_diff_tz_diff':
+        return '$\\Delta^{2} t_{z}$'
+    elif label == 'Rt_diff_diff':
+        return '$\\Delta e_{R\\bm{t}}$'
     elif label == 'th':
         if use_plural:
             str_val = 'thresholds \\texttt{th}'
@@ -3564,6 +3744,26 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         return '$\\Delta \\hat{t}_{z}$'
     elif label == 'Rt_mostLikely_diff':
         return '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}$'
+    elif label == 'R_mostLikely_diffAll_diff':
+        return '$\\Delta^{2} \\hat{R}_{\\Sigma}$'
+    elif label == 'R_mostLikely_diff_roll_deg_diff':
+        return '$\\Delta^{2} \\hat{R}_{x}$'
+    elif label == 'R_mostLikely_diff_pitch_deg_diff':
+        return '$\\Delta^{2} \\hat{R}_{y}$'
+    elif label == 'R_mostLikely_diff_yaw_deg_diff':
+        return '$\\Delta^{2} \\hat{R}_{z}$'
+    elif label == 't_mostLikely_angDiff_deg_diff':
+        return '$\\angle{\\Delta^{2} \\hat{\\bm{t}}}$'
+    elif label == 't_mostLikely_distDiff_diff':
+        return '$\\Delta\\lvert\\Delta \\hat{\\bm{t}}\\rvert$'
+    elif label == 't_mostLikely_diff_tx_diff':
+        return '$\\Delta^{2} \\hat{t}_{x}$'
+    elif label == 't_mostLikely_diff_ty_diff':
+        return '$\\Delta^{2} \\hat{t}_{y}$'
+    elif label == 't_mostLikely_diff_tz_diff':
+        return '$\\Delta^{2} \\hat{t}_{z}$'
+    elif label == 'Rt_mostLikely_diff_diff':
+        return '$\\Delta\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}$'
     elif label == 'K1_fxDiff':
         return '$\\Delta f_{x}^{\\mli{K1}}$'
     elif label == 'K1_fyDiff':
@@ -3655,6 +3855,11 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'linear refinement and BA times $t_{l,BA}=t_{l}+t_{BA}$'
         else:
             str_val = 'linear refinement and BA time $t_{l,BA}=t_{l}+t_{BA}$'
+    elif label == 'poolSize':
+        if use_plural:
+            str_val = 'numbers of matches $n_{pool}$ within the correspondence pool'
+        else:
+            str_val = '# of matches $n_{pool}$ within the correspondence pool'
     elif label == 'kpDistr':
         if use_plural:
             str_val = 'keypoint distributions'
@@ -5156,7 +5361,7 @@ def main():
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 2:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences After Bundle Adjustment (BA) Including ' \
+                    fig_title_pre_str = 'Values of R\\&t Differences After Bundle Adjustment (BA) Including ' \
                                         'Intrinsics and Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
@@ -5242,7 +5447,7 @@ def main():
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 4:
-                    fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
+                    fig_title_pre_str = 'Values on Focal Length and Principal Point Differences ' \
                                         'after Bundle Adjustment (BA) Including Intrinsics and ' \
                                         'Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
@@ -5478,7 +5683,7 @@ def main():
                                                      build_pdf=True,
                                                      figs_externalize=False)
             elif ev == 3:
-                fig_title_pre_str = 'Statistics on R\\&t Differences for Comparison of '
+                fig_title_pre_str = 'Values of R\\&t Differences for Comparison of '
                 eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                 't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                 units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -5560,7 +5765,7 @@ def main():
                 raise ValueError('Eval nr ' + ev + ' does not exist')
     elif test_name == 'refinement_ba_stereo':
         if not test_nr:
-            raise ValueError('test_nr is required refinement_ba')
+            raise ValueError('test_nr is required refinement_ba_stereo')
         from eval_tests_main import get_compare_info
         if test_nr == 1:
             if eval_nr[0] < 0:
@@ -5569,7 +5774,7 @@ def main():
                 evals = eval_nr
             for ev in evals:
                 if ev == 1:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -5753,7 +5958,7 @@ def main():
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 2:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences After Bundle Adjustment (BA) Including ' \
+                    fig_title_pre_str = 'Values of R\\&t Differences After Bundle Adjustment (BA) Including ' \
                                         'Intrinsics and Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
@@ -5851,7 +6056,7 @@ def main():
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 4:
-                    fig_title_pre_str = 'Statistics on Focal Length and Principal Point Differences ' \
+                    fig_title_pre_str = 'Values on Focal Length and Principal Point Differences ' \
                                         'after Bundle Adjustment (BA) Including Intrinsics and ' \
                                         'Structure Using Degenerate Input Camera Matrices for Different '
                     eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
@@ -5910,6 +6115,225 @@ def main():
                                                              figs_externalize=True)
                 else:
                     raise ValueError('Eval nr ' + ev + ' does not exist')
+    elif test_name == 'correspondence_pool':
+        if not test_nr:
+            raise ValueError('test_nr is required correspondence_pool')
+        from eval_tests_main import get_compare_info
+        if test_nr == 1:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 11))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'corrpool_size_pts_dist_inlrat'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=compare_source,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 2:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'corrpool_size_pts_dist_best_comb_scenes'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from refinement_eval import get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=compare_source,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 3:
+                    fig_title_pre_str = 'Values of R\\&t Differences over the last 30 out of 150 frames ' \
+                                        'for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'corrpool_size_pts_dist_end_frames_best_comb_scenes'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from refinement_eval import get_best_comb_scenes_1
+                    from corr_pool_eval import filter_take_end_frames
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats-last-frames',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=filter_take_end_frames,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=compare_source,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 4:
+                    fig_title_pre_str = 'R\\&t Differences from Frame to Frame with a maximum correspondence pool ' \
+                                        'size of $\\hat{n}_{cp}=40000$ features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator']
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin']}
+                    from corr_pool_eval import filter_max_pool_size, calc_rt_diff_frame_to_frame
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd'],  # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=filter_max_pool_size,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=None,
+                                                             special_calcs_args=None,
+                                                             calc_func=calc_rt_diff_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 5:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a maximum ' \
+                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator']
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin']}
+                    from corr_pool_eval import filter_max_pool_size, calc_rt_diff2_frame_to_frame
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd'],  # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=filter_max_pool_size,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=None,
+                                                             special_calcs_args=None,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+
 
     return ret
 
