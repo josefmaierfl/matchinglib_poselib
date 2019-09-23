@@ -204,6 +204,7 @@ struct algorithmResult{
     tElemsDiff t_mostLikely_elemDiff;
     CamMatDiff K1_diff, K2_diff;
     std::string addSequInfo;
+    int poolSize;
 
     algorithmResult(const std::string &addSequInfo_ = ""): addSequInfo(addSequInfo_){
         R = cv::Mat::zeros(3,3,CV_64FC1);
@@ -238,6 +239,7 @@ struct algorithmResult{
         t_mostLikely_elemDiff = tElemsDiff();
         K1_diff = CamMatDiff();
         K2_diff = CamMatDiff();
+        poolSize = 0;
     }
 
     void calcRTDiff(const cv::Mat &R_estimated,
@@ -380,6 +382,7 @@ struct algorithmResult{
             os << ";";
             os << "poseIsStable;";
             os << "mostLikelyPose_stable;";
+            os << "poolSize;";
             K1_diff.print(os, "K1");
             os << ";";
             K2_diff.print(os, "K2");
@@ -436,6 +439,7 @@ struct algorithmResult{
             os << ";";
             os << poseIsStable << ";";
             os << mostLikelyPose_stable << ";";
+            os << poolSize << ";";
             K1_diff.print(os);
             os << ";";
             K2_diff.print(os);
@@ -2203,6 +2207,7 @@ bool startEvaluation(ArgvParser& cmd)
                         !noPoseDiff && compInitPose && (verbose > 0));
 				ar[i].mostLikelyPose_stable = stereoObj->mostLikelyPose_stable;
 				ar[i].poseIsStable = stereoObj->poseIsStable;
+				ar[i].poolSize = (int)stereoObj->getCorrespondencePoolSize();
 
 				if (stereoObj->poseIsStable)
 				{

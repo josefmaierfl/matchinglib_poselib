@@ -284,6 +284,10 @@ namespace poselib
                 std::vector<cv::KeyPoint> kp2,
                 const poselib::ConfigUSAC &cfg);//Add new correspondences for estimating a new pose and estimate the pose.
 
+        size_t getCorrespondencePoolSize(){
+            return correspondencePool.size();
+        }
+
     private:
 
         int robustPoseEstimation();//Robust pose estimation with optional refinement and Bundle Adjustment
