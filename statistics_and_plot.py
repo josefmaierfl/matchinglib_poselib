@@ -3596,11 +3596,15 @@ def getSymbolDescription(label):
     elif label == 'Rt_diff':
         return (replaceCSVLabels(label),
                 'Combined rotation $R$ and translation $\\bm{t}$ error '
-                '$e_{R\\bm{t}}=\\left( e_{R}r_{\\bm{t}}+e_{\\bm{t}}r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
-                '$e_{R}=\\lvert \\mu_{\\Delta R_{\\Sigma}}\\rvert +\\sigma_{\\Delta R_{\\Sigma}}$, '
-                '$e_{\\bm{t}}=\\lvert \\mu_{\\angle{\\Delta \\bm{t}}}\\rvert +\\sigma_{\\angle{\\Delta \\bm{t}}}$, '
-                '$r_{R}=\\text{max}\\left( e_{R}\\right) -\\text{min}\\left( e_{R}\\right)$, and '
-                '$r_{\\bm{t}}=\\text{max}\\left( e_{\\bm{t}}\\right) -\\text{min}\\left( e_{\\bm{t}}\\right)$. '
+                '$e_{f\\left( R\\bm{t}\\right) }=\\left( e_{f\\left( R\\right) }r_{\\bm{t}}+'
+                'e_{f\\left( \\bm{t}\\right) }r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
+                '$e_{f\\left( R\\right) }=\\lvert \\mu_{\\Delta R_{\\Sigma}}\\rvert +\\sigma_{\\Delta R_{\\Sigma}}$, '
+                '$e_{f\\left( \\bm{t}\\right) }=\\lvert \\mu_{\\angle{\\Delta \\bm{t}}}\\rvert '
+                '+\\sigma_{\\angle{\\Delta \\bm{t}}}$, '
+                '$r_{R}=\\text{max}\\left( e_{f\\left( R\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( R\\right) }\\right)$, and '
+                '$r_{\\bm{t}}=\\text{max}\\left( e_{f\\left( \\bm{t}\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( \\bm{t}\\right) }\\right)$. '
                 '$\\mu_{\\Delta R_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\bm{t}}}$ indicate the corresponding mean '
                 'values of differential angles $\\Delta R_{\\Sigma}$ and $\\angle{\\Delta \\bm{t}}$. '
                 '$\\sigma_{\\Delta R_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\bm{t}}}$ stand for the '
@@ -3608,15 +3612,17 @@ def getSymbolDescription(label):
     elif label == 'Rt_mostLikely_diff':
         return (replaceCSVLabels(label),
                 'Combined rotation $R$ and translation $\\bm{t}$ error '
-                '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}=\\left( e_{\\hat{R}}r_{\\hat{\\bm{t}}}+'
-                'e_{\\hat{\\bm{t}}}r_{\\hat{R}}\\right) /2r_{\\hat{R}}r_{\\hat{\\bm{t}}}$ with '
-                '$e_{\\hat{R}}=\\lvert \\mu_{\\Delta \\hat{R}_{\\Sigma}}\\rvert '
+                '$\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }='
+                '\\left( e_{f\\left( \\hat{R}\\right) }r_{\\hat{\\bm{t}}}+'
+                'e_{f\\left( \\hat{\\bm{t}}\\right) }r_{\\hat{R}}\\right) /2r_{\\hat{R}}r_{\\hat{\\bm{t}}}$ with '
+                '$e_{f\\left( \\hat{R}\\right) }=\\lvert \\mu_{\\Delta \\hat{R}_{\\Sigma}}\\rvert '
                 '+\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$, '
-                '$e_{\\hat{\\bm{t}}}=\\lvert \\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}\\rvert '
+                '$e_{f\\left( \\hat{\\bm{t}}\\right) }=\\lvert \\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}\\rvert '
                 '+\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$, '
-                '$r_{\\hat{R}}=\\text{max}\\left( e_{\\hat{R}}\\right) -\\text{min}\\left( e_{\\hat{R}}\\right)$, and '
-                '$r_{\\hat{\\bm{t}}}=\\text{max}\\left( e_{\\hat{\\bm{t}}}\\right) '
-                '-\\text{min}\\left( e_{\\hat{\\bm{t}}}\\right)$. '
+                '$r_{\\hat{R}}=\\text{max}\\left( e_{f\\left( \\hat{R}\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( \\hat{R}\\right) }\\right)$, and '
+                '$r_{\\hat{\\bm{t}}}=\\text{max}\\left( e_{f\\left( \\hat{\\bm{t}}\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( \\hat{\\bm{t}}\\right) }\\right)$. '
                 '$\\mu_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}$ '
                 'indicate the corresponding mean '
                 'values of differential angles $\\Delta \\hat{R}_{\\Sigma}$ and $\\angle{\\Delta \\hat{\\bm{t}}}$. '
@@ -3625,27 +3631,42 @@ def getSymbolDescription(label):
     elif label == 'Rt_diff_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of combined rotation $R$ and translation $\\bm{t}$ errors '
-                '$e_{R\\bm{t}}=\\left( e_{R}r_{\\bm{t}}+e_{\\bm{t}}r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
-                '$e_{R}=\\lvert \\mu_{\\Delta R_{\\Sigma}}\\rvert +\\sigma_{\\Delta R_{\\Sigma}}$, '
-                '$e_{\\bm{t}}=\\lvert \\mu_{\\angle{\\Delta \\bm{t}}}\\rvert +\\sigma_{\\angle{\\Delta \\bm{t}}}$, '
-                '$r_{R}=\\text{max}\\left( e_{R}\\right) -\\text{min}\\left( e_{R}\\right)$, and '
-                '$r_{\\bm{t}}=\\text{max}\\left( e_{\\bm{t}}\\right) -\\text{min}\\left( e_{\\bm{t}}\\right)$. '
+                '$e_{f\\left( R\\bm{t}\\right) }=\\left( e_{f\\left( R\\right) }r_{\\bm{t}}+'
+                'e_{f\\left( \\bm{t}\\right) }r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
+                '$e_{f\\left( R\\right) }=\\lvert \\mu_{\\Delta R_{\\Sigma}}\\rvert +\\sigma_{\\Delta R_{\\Sigma}}$, '
+                '$e_{f\\left( \\bm{t}\\right) }=\\lvert \\mu_{\\angle{\\Delta \\bm{t}}}\\rvert '
+                '+\\sigma_{\\angle{\\Delta \\bm{t}}}$, '
+                '$r_{R}=\\text{max}\\left( e_{f\\left( R\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( R\\right) }\\right)$, and '
+                '$r_{\\bm{t}}=\\text{max}\\left( e_{f\\left( \\bm{t}\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( \\bm{t}\\right) }\\right)$. '
                 '$\\mu_{\\Delta R_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\bm{t}}}$ indicate the corresponding mean '
                 'values of differential angles $\\Delta R_{\\Sigma}$ and $\\angle{\\Delta \\bm{t}}$. '
                 '$\\sigma_{\\Delta R_{\\Sigma}}$ and $\\sigma_{\\angle{\\Delta \\bm{t}}}$ stand for the '
                 'standard deviations of afore montioned data.', True)
+    elif label == 'Rt_diff2':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame of combined rotation $R$ and translation $\\bm{t}$ errors '
+                '$e_{R\\bm{t}}=\\left( \\Delta R_{\\Sigma}r_{\\bm{t}}'
+                '+\\angle{\\Delta \\bm{t}}r_{R}\\right) /2r_{R}r_{\\bm{t}}$ with '
+                '$r_{R}=\\text{max}\\left( \\Delta R_{\\Sigma}\\right) '
+                '-\\text{min}\\left( \\Delta R_{\\Sigma}\\right)$ and '
+                '$r_{\\bm{t}}=\\text{max}\\left( \\angle{\\Delta \\bm{t}}\\right) '
+                '-\\text{min}\\left( \\angle{\\Delta \\bm{t}}\\right)$. ', True)
     elif label == 'Rt_mostLikely_diff_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of combined rotation $R$ and translation $\\bm{t}$ errors '
-                '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}=\\left( e_{\\hat{R}}r_{\\hat{\\bm{t}}}+'
-                'e_{\\hat{\\bm{t}}}r_{\\hat{R}}\\right) /2r_{\\hat{R}}r_{\\hat{\\bm{t}}}$ with '
-                '$e_{\\hat{R}}=\\lvert \\mu_{\\Delta \\hat{R}_{\\Sigma}}\\rvert '
+                '$\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }='
+                '\\left( e_{f\\left( \\hat{R}\\right) }r_{\\hat{\\bm{t}}}+'
+                'e_{f\\left( \\hat{\\bm{t}}\\right) }r_{\\hat{R}}\\right) /2r_{\\hat{R}}r_{\\hat{\\bm{t}}}$ with '
+                '$e_{f\\left( \\hat{R}\\right) }=\\lvert \\mu_{\\Delta \\hat{R}_{\\Sigma}}\\rvert '
                 '+\\sigma_{\\Delta \\hat{R}_{\\Sigma}}$, '
-                '$e_{\\hat{\\bm{t}}}=\\lvert \\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}\\rvert '
+                '$e_{f\\left( \\hat{\\bm{t}}\\right) }=\\lvert \\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}\\rvert '
                 '+\\sigma_{\\angle{\\Delta \\hat{\\bm{t}}}}$, '
-                '$r_{\\hat{R}}=\\text{max}\\left( e_{\\hat{R}}\\right) -\\text{min}\\left( e_{\\hat{R}}\\right)$, and '
-                '$r_{\\hat{\\bm{t}}}=\\text{max}\\left( e_{\\hat{\\bm{t}}}\\right) '
-                '-\\text{min}\\left( e_{\\hat{\\bm{t}}}\\right)$. '
+                '$r_{\\hat{R}}=\\text{max}\\left( e_{f\\left( \\hat{R}\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( \\hat{R}\\right) }\\right)$, and '
+                '$r_{\\hat{\\bm{t}}}=\\text{max}\\left( e_{f\\left( \\hat{\\bm{t}}\\right) }\\right) '
+                '-\\text{min}\\left( e_{f\\left( \\hat{\\bm{t}}\\right) }\\right)$. '
                 '$\\mu_{\\Delta \\hat{R}_{\\Sigma}}$ and $\\mu_{\\angle{\\Delta \\hat{\\bm{t}}}}$ '
                 'indicate the corresponding mean '
                 'values of differential angles $\\Delta \\hat{R}_{\\Sigma}$ and $\\angle{\\Delta \\hat{\\bm{t}}}$. '
@@ -3665,6 +3686,10 @@ def getSymbolDescription(label):
                 '$\\sigma_{\\Delta \\mli{K2}}$ of '
                 '$\\lvert\\Delta c_{x,y}^{\\mli{K1}}\\, \\Delta f_{x,y}^{\\mli{K1}}\\rvert$ and '
                 '$\\lvert\\Delta c_{x,y}^{\\mli{K2}}\\, \\Delta f_{x,y}^{\\mli{K2}}\\rvert$.', True)
+    elif label == 'poolSize_diff':
+        return (replaceCSVLabels(label),
+                'Difference from frame to frame on the number of matches $\\Delta n_{pool}$ '
+                'within the correspondence pool', True)
     else:
         return (replaceCSVLabels(label), replaceCSVLabels(label), False)
 
@@ -3688,7 +3713,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_diff_tz':
         return '$\\Delta t_{z}$'
     elif label == 'Rt_diff':
-        return '$e_{R\\bm{t}}$'
+        return '$e_{f\\left( R\\bm{t}\\right) }$'
     elif label == 'R_diffAll_diff':
         return '$\\Delta^{2} R_{\\Sigma}$'
     elif label == 'R_diff_roll_deg_diff':
@@ -3708,6 +3733,8 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_diff_tz_diff':
         return '$\\Delta^{2} t_{z}$'
     elif label == 'Rt_diff_diff':
+        return '$\\Delta e_{f\\left( R\\bm{t}\\right) }$'
+    elif label == 'Rt_diff2':
         return '$\\Delta e_{R\\bm{t}}$'
     elif label == 'th':
         if use_plural:
@@ -3743,7 +3770,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_mostLikely_diff_tz':
         return '$\\Delta \\hat{t}_{z}$'
     elif label == 'Rt_mostLikely_diff':
-        return '$\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}$'
+        return '$\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }$'
     elif label == 'R_mostLikely_diffAll_diff':
         return '$\\Delta^{2} \\hat{R}_{\\Sigma}$'
     elif label == 'R_mostLikely_diff_roll_deg_diff':
@@ -3763,7 +3790,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_mostLikely_diff_tz_diff':
         return '$\\Delta^{2} \\hat{t}_{z}$'
     elif label == 'Rt_mostLikely_diff_diff':
-        return '$\\Delta\\hat{e}_{\\hat{R}\\hat{\\bm{t}}}$'
+        return '$\\Delta\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }$'
     elif label == 'K1_fxDiff':
         return '$\\Delta f_{x}^{\\mli{K1}}$'
     elif label == 'K1_fyDiff':
@@ -3860,6 +3887,8 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'numbers of matches $n_{pool}$ within the correspondence pool'
         else:
             str_val = '# of matches $n_{pool}$ within the correspondence pool'
+    elif label == 'poolSize_diff':
+        str_val = '$\\Delta n_{pool}$'
     elif label == 'kpDistr':
         if use_plural:
             str_val = 'keypoint distributions'
@@ -6302,14 +6331,16 @@ def main():
                     fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a maximum ' \
                                         'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
-                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'poolSize']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
-                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                             ('t_diff_ty', ''), ('t_diff_tz', ''), ('poolSize', '')]
                     # it_parameters = ['stereoParameters_minPtsDistance']
                     it_parameters = ['USAC_parameters_estimator']
-                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin']}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin'],
+                                      'keepEval': ['poolSize']}
                     from corr_pool_eval import filter_max_pool_size, calc_rt_diff2_frame_to_frame
                     ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
