@@ -912,6 +912,8 @@ bool genMatchSequ::getFeatures() {
                 cout << "Calculating matches for only " << nrFramesGenMatches <<
                      " out of " << totalNrFrames << " frames.";
             }
+        } else{
+            return false;
         }
     } else {
         nrFramesGenMatches = totalNrFrames;
