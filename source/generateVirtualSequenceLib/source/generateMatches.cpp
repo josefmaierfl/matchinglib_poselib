@@ -49,7 +49,8 @@ bool getImgROIs(const cv::Mat &H,
                 bool &reflectionX,
                 bool &reflectionY,
                 const cv::Size &imgFeatureSi,
-                const cv::KeyPoint &kp1);
+                const cv::KeyPoint &kp1,
+                const int &maxPatchSizeMult2);
 void getRotationStats(const std::vector<cv::Mat> &Rs,
                       qualityParm &stats_roll,
                       qualityParm &stats_pitch,
@@ -1392,7 +1393,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                    reflectionX,
                                    reflectionY,
                                    imgFeatureSize,
-                                   kp)){
+                                   kp,
+                                   maxPatchSizeMult2)){
                         useFallBack = true;
                         break;
                     }
@@ -2526,7 +2528,8 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
             reflectionX,
             reflectionY,
             imgFeatureSi,
-            kp);
+            kp,
+            maxPatchSizeMult2);
 }
 
 bool getImgROIs(const cv::Mat &H,
@@ -2538,10 +2541,12 @@ bool getImgROIs(const cv::Mat &H,
                 bool &reflectionX,
                 bool &reflectionY,
                 const cv::Size &imgFeatureSi,
-                const cv::KeyPoint &kp1){
+                const cv::KeyPoint &kp1,
+                const int &maxPatchSizeMult2){
     int minSquare = minSqrROIimg2 + ((minSqrROIimg2 + 1) % 2);
     auto minSquare2 = (double)((minSquare - 1) / 2);
     auto minSquareMin = 0.7 * (double)minSquare;
+    auto maxSquare2 = (double)(maxPatchSizeMult2 * minSquare);
     auto x0 = (double)midPt.x;
     auto y0 = (double)midPt.y;
     Mat Hi = H.inv();
@@ -2626,6 +2631,9 @@ bool getImgROIs(const cv::Mat &H,
         if((width < minSquareMin) || (height < minSquareMin)){
             return false;
         }
+        if((width > maxSquare2) || (height > maxSquare2)){
+            return false;
+        }
         patchROIimg2 = cv::Rect((int)ceil(minx - DBL_EPSILON),
                                 (int)ceil(miny - DBL_EPSILON),
                                 (int)floor(width + DBL_EPSILON),
@@ -2668,6 +2676,9 @@ bool getImgROIs(const cv::Mat &H,
     dimx = abs(maxx - minx);
     dimy = abs(maxy - miny);
     if((dimx < minSquare2) || (dimy < minSquare2)){
+        return false;
+    }
+    if((dimx > maxSquare2) || (dimy > maxSquare2)){
         return false;
     }
     patchROIimg21 = cv::Rect((int)floor(minx + DBL_EPSILON),
