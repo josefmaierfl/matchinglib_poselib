@@ -466,10 +466,20 @@ if((idx3D >= 0) && !planeTo3DIdx.empty()){
         trans.col(3).rowRange(0,3) = -1.0 * absCamCoordinates[actFrameCnt].R.t() * absCamCoordinates[actFrameCnt].t;
         trans = trans.inv().t();
         Mat plane = trans * planeTo3DIdx[idx3D].first;
-        return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
+        try {
+            return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
+        }catch(SequenceException &e){
+            cout << "Exception while recalculating old homography: " << e.what() << endl;
+            throw;
+        }
     }
 }
-return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
+try {
+    return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
+}catch(SequenceException &e){
+    cout << "Exception while calculating new homography: " << e.what() << endl;
+    throw;
+}
 }
 
 /*Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
@@ -1313,16 +1323,22 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         show_cnt++;
         //Calculate homography
         Mat H;
+        bool succ = true;
         if(useTN){
             H = getHomographyForDistortionTN(combCorrsImg1TN.col(i), visualize);
         }else {
             Mat X = Mat(comb3DPts[i], true).reshape(1);
-            H = getHomographyForDistortionChkOld(X,
-                                                 combCorrsImg1TP.col(i),
-                                                 combCorrsImg2TP.col(i),
-                                                 combCorrsImg12TP_IdxWorld[i],
-                                                 featureIdx,
-                                                 visualize);
+            try {
+                H = getHomographyForDistortionChkOld(X,
+                                                     combCorrsImg1TP.col(i),
+                                                     combCorrsImg2TP.col(i),
+                                                     combCorrsImg12TP_IdxWorld[i],
+                                                     featureIdx,
+                                                     visualize);
+            }catch(SequenceException &e){
+                cout << "Using random homography." << endl;
+                succ = false;
+            }
             if((combCorrsImg12TP_IdxWorld[i] >= 0) && !planeTo3DIdx.empty()){
                 if(planeTo3DIdx.find(combCorrsImg12TP_IdxWorld[i]) != planeTo3DIdx.end()) {
                     featureIdx_tmp = planeTo3DIdx[combCorrsImg12TP_IdxWorld[i]].second;
@@ -1359,17 +1375,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         bool reflectionY = false;
         const double minPatchSize = 41.0;
         cv::Size imgFeatureSize = img.size();
-        bool succ = getRectFitsInEllipse(H,
-                                         kp,
-                                         patchROIimg1,
-                                         patchROIimg2,
-                                         patchROIimg21,
-                                         ellipseCenter,
-                                         ellipseRot,
-                                         axes,
-                                         reflectionX,
-                                         reflectionY,
-                                         imgFeatureSize);
+        if(succ) {
+            succ = getRectFitsInEllipse(H,
+                                        kp,
+                                        patchROIimg1,
+                                        patchROIimg2,
+                                        patchROIimg21,
+                                        ellipseCenter,
+                                        ellipseRot,
+                                        axes,
+                                        reflectionX,
+                                        reflectionY,
+                                        imgFeatureSize);
+        }
         if(!succ){
             //If the calculation of the necessary patch size failed, calculate a standard patch
             noEllipse = true;
