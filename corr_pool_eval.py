@@ -108,7 +108,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
                 for i1 in vars['keepEval']:
                     tmp1[-1][i1] = row[i1]
             tmp1[-1]['Nr'] = i
-            tmp1[-1].append(row[[a for a in grpd_cols if a != 'Nr']])
+            tmp1[-1] = tmp1[-1].append(row[[a for a in grpd_cols if a != 'Nr']])
         data_list.append(pd.concat(tmp1, axis=1).T)
 
         for evalv in eval_columns_diff1:
@@ -148,16 +148,36 @@ def eval_corr_pool_converge(**keywords):
         raise ValueError('Missing parameter res_par_name')
     if 'eval_columns' not in keywords:
         raise ValueError('Missing parameter eval_columns')
-    if 'poolSize' not in keywords['eval_columns'] or \
-       'poolSize_diff' not in keywords['eval_columns'] or \
-       'R_diffAll_diff' not in keywords['eval_columns'] or \
-       't_angDiff_deg_diff' not in keywords['eval_columns']:
+    needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
+    if not all([a in keywords['eval_columns'] for a in needed_evals]):
         raise ValueError('Some specific entries within parameter eval_columns is missing')
 
     keywords = prepare_io(**keywords)
-    needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff']
     needed_cols = needed_evals + keywords['partitions'] + keywords['xy_axis_columns'] + keywords['it_parameters']
     tmp = keywords['data'].loc[:, needed_cols]
+
+    # comb_vars = ['R_diffAll', 't_angDiff_deg']
+    # comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
+    # tmp_mm = tmp.loc[:,comb_vars]
+    # row = tmp_mm.loc[tmp_mm['Nr'].idxmin()]
+    # row['Nr'] -= 1
+    # row[comb_vars] -= row[comb_diff_vars]
+    # tmp_mm = tmp_mm.append(row)
+    # min_vals = tmp_mm.abs().min()
+    # max_vals = tmp_mm.abs().max()
+    # r_vals = max_vals - min_vals
+    # tmp2 = tmp_mm.div(r_vals, axis=1)
+    # tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
+
+    comb_vars = ['R_diffAll', 't_angDiff_deg']
+    tmp_mm = tmp[comb_vars]
+    tmp2 = tmp[comb_vars[0]] + tmp[comb_vars[1]]
+    min_vals = tmp2.abs().min()
+    max_vals = tmp2.abs().max()
+    r_vals = max_vals - min_vals
+    tmp2 = tmp_mm.div(r_vals, axis=1)
+    tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
+
     comb_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
     tmp_mm = tmp[comb_vars]
     min_vals = tmp_mm.abs().min()
@@ -191,11 +211,33 @@ def eval_corr_pool_converge(**keywords):
     data_new = pd.concat(data_list, ignore_index=True)
 
 
-def get_converge_img(df, nr_parts):
+def get_converge_img(df, nr_parts, th_smaller=0.03, th_bigger=0.01):
     img_min = df['Nr'].min()
     img_max = df['Nr'].max()
     ir = img_max - img_min
+    if ir <= 1:
+        return df, False
+    elif ir < nr_parts:
+        nr_parts = ir
     ir_part = round(ir / nr_parts, 0)
-    parts = [[img_min + a * ir_part] for a in range(0, nr_parts - 1)]
-    p
-    tmp = df.loc[]
+    parts = [[img_min + a * ir_part, img_min + (a + 1) * ir_part] for a in range(0, nr_parts)]
+    parts[-1][1] = img_max + 1
+    if parts[-1][1] - parts[-1][0] <= 0:
+        parts.pop()
+    data_parts = []
+    mean_dd = []
+    for sl in parts:
+        data_parts.append(df.loc[df['Nr'] >= sl[0] & df['Nr'] < sl[1]])
+        signs = data_parts[-1]['Rt_diff_single'] / data_parts[-1]['Rt_diff_single'].abs()
+        tmp = data_parts[-1]['Rt_diff2'] * signs
+        # A negative value indicates a decreasing error value and a positive number an increasing error
+        mean_dd.append(tmp.mean())
+    l1 = len(mean_dd) - 1
+    l2 = l1 - 1
+    sel_parts = []
+    for i, val in enumerate(mean_dd):
+        if i < l1:
+            diff1 = (mean_dd[i + 1] - val) / val
+            if i < l2:
+                diff2 = (mean_dd[i + 2] - mean_dd[i + 1]) / mean_dd[i + 1]
+                if diff1

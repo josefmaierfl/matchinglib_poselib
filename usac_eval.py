@@ -715,19 +715,23 @@ def combineRt(data):
     stat_t_mean = stat_t['mean']
     stat_R_std = stat_R['std']
     stat_t_std = stat_t['std']
-    # comb_stat_r = stat_R_mean.abs() + 2 * stat_R_std
-    # comb_stat_t = stat_t_mean.abs() + 2 * stat_t_std
     comb_stat_r = stat_R_mean.abs() + stat_R_std
     comb_stat_t = stat_t_mean.abs() + stat_t_std
-    ma = comb_stat_r.select_dtypes(include=[np.number]).dropna().values.max()
-    mi = comb_stat_r.select_dtypes(include=[np.number]).dropna().values.min()
-    r_r = ma - mi
-    ma = comb_stat_t.select_dtypes(include=[np.number]).dropna().values.max()
-    mi = comb_stat_t.select_dtypes(include=[np.number]).dropna().values.min()
-    r_t = ma - mi
-    comb_stat_r = comb_stat_r / r_r
-    comb_stat_t = comb_stat_t / r_t
-    b = (comb_stat_r + comb_stat_t) / 2
+    # ma = comb_stat_r.select_dtypes(include=[np.number]).dropna().values.max()
+    # mi = comb_stat_r.select_dtypes(include=[np.number]).dropna().values.min()
+    # r_r = ma - mi
+    # ma = comb_stat_t.select_dtypes(include=[np.number]).dropna().values.max()
+    # mi = comb_stat_t.select_dtypes(include=[np.number]).dropna().values.min()
+    # r_t = ma - mi
+    # comb_stat_r = comb_stat_r / r_r
+    # comb_stat_t = comb_stat_t / r_t
+    # b = (comb_stat_r + comb_stat_t) / 2
+
+    tmp = comb_stat_r + comb_stat_t
+    ma = tmp.select_dtypes(include=[np.number]).dropna().values.max()
+    mi = tmp.select_dtypes(include=[np.number]).dropna().values.min()
+    r_rt = ma - mi
+    b = (tmp - mi) / r_rt
     return b
 
 
