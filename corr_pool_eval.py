@@ -169,30 +169,7 @@ def eval_corr_pool_converge(**keywords):
     # tmp2 = tmp_mm.div(r_vals, axis=1)
     # tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
 
-    comb_vars = ['R_diffAll', 't_angDiff_deg']
-    tmp_mm = tmp[comb_vars]
-    tmp2 = tmp[comb_vars[0]] + tmp[comb_vars[1]]
-    min_vals = tmp2.abs().min()
-    max_vals = tmp2.abs().max()
-    r_vals = max_vals - min_vals
-    tmp2 = tmp_mm.div(r_vals, axis=1)
-    tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
-
-    comb_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
-    tmp_mm = tmp[comb_vars]
-    min_vals = tmp_mm.abs().min()
-    max_vals = tmp_mm.abs().max()
-    r_vals = max_vals - min_vals
-    tmp3 = tmp_mm.div(r_vals, axis=1)
-    tmp['Rt_diff2'] = (tmp3[comb_vars[0]] + tmp3[comb_vars[1]]) / 2
-
-    grpd_cols = keywords['partitions'] + \
-                [a for a in keywords['xy_axis_columns'] if a != 'Nr'] + \
-                keywords['it_parameters']
-    df_grp = tmp.groupby(grpd_cols)
-    grp_keys = df_grp.groups.keys()
-    for grp in grp_keys:
-        tmp1 = df_grp.get_group(grp)
+    tmp = combine_rt_diff2(tmp)
 
     grpd_cols = keywords['partitions'] + \
                 [a for a in keywords['xy_axis_columns'] if a != 'Nr'] + \
@@ -202,21 +179,31 @@ def eval_corr_pool_converge(**keywords):
     data_list = []
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
-        tmp2 = tmp1[comb_vars]
-        tmp3 = tmp2.div(r_vals, axis=1)
-        err_vals = (tmp3[comb_vars[0]] + tmp3[comb_vars[1]]) / 2
-        err_vals.name = 'Rt_diff2'
-        data_list.append(pd.concat([tmp1.loc[:, [a for a in needed_cols if a not in comb_vars]], err_vals], axis=1))
-
+        tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.02)
+        data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
 
 
-def get_converge_img(df, nr_parts, th_smaller=0.03, th_bigger=0.01):
+def combine_rt_diff2(df):
+    comb_vars = ['R_diffAll', 't_angDiff_deg']
+    comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
+    tmp_mm = df[comb_diff_vars]
+    tmp3 = (df[comb_vars[0]] * tmp_mm[comb_diff_vars[0]] / df[comb_vars[0]].abs() +
+            df[comb_vars[1]] * tmp_mm[comb_diff_vars[1]] / df[comb_vars[1]].abs()) / 2
+    min_vals = tmp3.min()
+    max_vals = tmp3.max()
+    r_vals = max_vals - min_vals
+    df['Rt_diff2'] = (tmp3 - min_vals) / r_vals
+
+    return df
+
+
+def get_mean_data_parts(df, nr_parts):
     img_min = df['Nr'].min()
     img_max = df['Nr'].max()
     ir = img_max - img_min
     if ir <= 1:
-        return df, False
+        return {}, False
     elif ir < nr_parts:
         nr_parts = ir
     ir_part = round(ir / nr_parts, 0)
@@ -227,17 +214,94 @@ def get_converge_img(df, nr_parts, th_smaller=0.03, th_bigger=0.01):
     data_parts = []
     mean_dd = []
     for sl in parts:
-        data_parts.append(df.loc[df['Nr'] >= sl[0] & df['Nr'] < sl[1]])
-        signs = data_parts[-1]['Rt_diff_single'] / data_parts[-1]['Rt_diff_single'].abs()
-        tmp = data_parts[-1]['Rt_diff2'] * signs
-        # A negative value indicates a decreasing error value and a positive number an increasing error
-        mean_dd.append(tmp.mean())
+        if sl[1] - sl[0] == 1:
+            tmp = df.set_index('Nr')
+            data_parts.append(tmp.loc[[sl[0]],:])
+            data_parts[-1].reset_index(inplace=True)
+            mean_dd.append(data_parts[-1]['Rt_diff2'].values[0])
+        else:
+            data_parts.append(df.loc[df['Nr'] >= sl[0] & df['Nr'] < sl[1]])
+            # A negative value indicates a decreasing error value and a positive number an increasing error
+            mean_dd.append(data_parts[-1]['Rt_diff2'].mean())
+    data = {'data_parts': data_parts, 'mean_dd': mean_dd}
+    return data, True
+
+def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
+    data, succ = get_mean_data_parts(df, nr_parts)
+    if not succ:
+        return df, False
+    data_parts = data['data_parts']
+    # A negative value indicates a decreasing error value and a positive number an increasing error
+    mean_dd = data['mean_dd']
+
+    error_gets_smaller = [False] * nr_parts
+    nr_parts1 = nr_parts
+    while not any(error_gets_smaller) and nr_parts1 < 10:
+        for i, val in enumerate(mean_dd):
+            if val < 0:
+                error_gets_smaller[i] = True
+        if not any(error_gets_smaller) and nr_parts1 < 10:
+            nr_parts1 += 1
+            data, succ = get_mean_data_parts(df, nr_parts1)
+            if not succ:
+                return df, False
+            data_parts = data['data_parts']
+            mean_dd = data['mean_dd']
+        else:
+            break
+    if not any(error_gets_smaller):
+        df1, succ = get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3)
+        if not succ:
+            return df1, False
+        else:
+            data, succ = get_mean_data_parts(df1, nr_parts)
+            if not succ:
+                return df1, False
+            data_parts = data['data_parts']
+            mean_dd = data['mean_dd']
+            error_gets_smaller = [False] * nr_parts
+            for i, val in enumerate(mean_dd):
+                if val < 0:
+                    error_gets_smaller[i] = True
+            if not any(error_gets_smaller):
+                return data_parts[0].loc[[data_parts[0]['Nr'].idxmin()], :], False
+
     l1 = len(mean_dd) - 1
     l2 = l1 - 1
     sel_parts = []
+    last = 0
     for i, val in enumerate(mean_dd):
+        if not error_gets_smaller[i]:
+            last = 0
+            continue
         if i < l1:
-            diff1 = (mean_dd[i + 1] - val) / val
-            if i < l2:
-                diff2 = (mean_dd[i + 2] - mean_dd[i + 1]) / mean_dd[i + 1]
-                if diff1
+            if not error_gets_smaller[i + 1]:
+                sel_parts.append(i)
+                break
+            diff1 = (abs(mean_dd[i + 1]) - abs(val)) / abs(val)
+            if diff1 > 0:
+                last = i + 2
+            else:
+                last = 0
+                if i < l2:
+                    if not error_gets_smaller[i + 2]:
+                        sel_parts.append(i + 1)
+                        break
+                    diff2 = (abs(mean_dd[i + 2]) - abs(mean_dd[i + 1])) / abs(mean_dd[i + 1])
+                    if abs(diff2) < th_diff3 and mean_dd[i + 1] < th_diff2 * mean_dd[0]:
+                        sel_parts.append(i + 1)
+                        break
+                    else:
+                        last = i + 3
+                else:
+                    sel_parts.append(i + 1)
+                    break
+        else:
+            sel_parts.append(i)
+    if sel_parts:
+        return get_converge_img(data_parts[sel_parts[0]], nr_parts, th_diff2, th_diff3)
+    elif last != 0:
+        return get_converge_img(data_parts[min(last, l1)], nr_parts, th_diff2, th_diff3)
+    else:
+        return get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3)
+

@@ -4311,9 +4311,18 @@ def add_to_glossary(entries, gloss):
     return gloss
 
 
+def build_list(possibilities, multiplier, num_pts):
+    tmp = []
+    for i in possibilities:
+        tmp += [i] * int(num_pts / (len(possibilities) * multiplier))
+    tmp *= multiplier
+    return tmp
+
+
 #Only for testing
 def main():
     num_pts = int(10000)
+    nr_imgs = 150
     pars1_opt = ['first_long_long_opt' + str(i) for i in range(0,3)]
     pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
@@ -4321,7 +4330,24 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
+    inlratMin_opt = list(np.arange(0.05, 0.45, 0.1))
     lin_time_pars = np.array([500, 3, 0.003])
+    poolSize = [2000, 10000, 40000]
+    min_pts = len(poolSize) * len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+              nr_imgs * len(pars1_opt)
+    if min_pts < num_pts:
+        while min_pts < num_pts:
+            pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
+            min_pts = len(poolSize) * len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+                      nr_imgs * len(pars1_opt)
+        num_pts = min_pts
+    else:
+        num_pts = int(min_pts)
+    kpAccSd_mul = int(len(pars_depthDistr_opt))
+    inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
+    poolSize_mul = int(inlratMin_mul * 4)
+    USAC_parameters_estimator_mul = int(poolSize_mul * len(pars1_opt))
+
     data = {'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
@@ -4348,15 +4374,20 @@ def main():
             # 'USAC_parameters_estimator': np.random.randint(0, 3, num_pts),
             # 'USAC_parameters_refinealg': np.random.randint(0, 7, num_pts),
             # 'USAC_parameters_USACInlratFilt': np.random.randint(8, 10, num_pts),
-            'USAC_parameters_estimator': [pars1_opt[i] for i in np.random.randint(0, len(pars1_opt), num_pts)],
+            # 'USAC_parameters_estimator': [pars1_opt[i] for i in np.random.randint(0, len(pars1_opt), num_pts)],
+            'USAC_parameters_estimator': build_list(pars1_opt, USAC_parameters_estimator_mul, num_pts),
             'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
             'kpDistr': [pars_kpDistr_opt[i] for i in np.random.randint(0, len(pars_kpDistr_opt), num_pts)],
-            'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
+            # 'kpDistr': [[i] * (num_pts / len(pars_kpDistr_opt)) for i in pars_kpDistr_opt],
+            # 'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
+            'depthDistr': build_list(pars_depthDistr_opt, 1, num_pts),
             'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
-            'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
+            # 'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
+            'kpAccSd': build_list(pars_kpAccSd_opt, kpAccSd_mul, num_pts),
             'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
-            'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
+            # 'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
+            'inlratMin': build_list(inlratMin_opt, inlratMin_mul, num_pts),
             'useless': [1, 1, 2, 3] * int(num_pts/4),
             'R_out(0,0)': [0] * 10 + [1] * int(num_pts - 10),
             'R_out(0,1)': [0] * 10 + [0] * int(num_pts - 10),
@@ -4367,11 +4398,15 @@ def main():
             'R_out(2,0)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
             'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10),
+            'Nr': list(range(0, nr_imgs)) * int(num_pts / nr_imgs),
+            'poolSize': build_list(poolSize, poolSize_mul, num_pts),
             'inlRat_GT': np.tile(np.arange(0.25, 0.72, 0.05), int(num_pts/10))}
 
     eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
                     'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff', 'K2_fxDiff', 'K1_fyDiff',
                     'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff', 'K1_cyDiff', 'K2_cyDiff']
+
+
 
 
     data['inlRat_estimated'] = data['inlRat_GT'] + 0.5 * np.random.random_sample(num_pts) - 0.25
