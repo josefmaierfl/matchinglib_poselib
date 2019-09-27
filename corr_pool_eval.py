@@ -109,6 +109,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
                     tmp1[-1][i1] = row[i1]
             tmp1[-1]['Nr'] = i
             tmp1[-1] = tmp1[-1].append(row[[a for a in grpd_cols if a != 'Nr']])
+            last = row
         data_list.append(pd.concat(tmp1, axis=1).T)
 
         for evalv in eval_columns_diff1:
@@ -130,8 +131,8 @@ def calc_rt_diff2_frame_to_frame(**vars):
     from statistics_and_plot import replaceCSVLabels
     ret = {'data': data_new,
            'it_parameters': vars['it_parameters'],
-           'eval_columns': vars['eval_columns'],
-           'eval_cols_lname': [replaceCSVLabels(a) for a in data_new.columns],
+           'eval_columns': eval_columns_diff1,
+           'eval_cols_lname': [replaceCSVLabels(a) for a in eval_columns_diff1],
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': units,
            'eval_init_input': None,
@@ -143,66 +144,11 @@ def calc_rt_diff2_frame_to_frame(**vars):
     return ret
 
 
-def eval_corr_pool_converge(**keywords):
-    if 'res_par_name' not in keywords:
-        raise ValueError('Missing parameter res_par_name')
-    if 'eval_columns' not in keywords:
-        raise ValueError('Missing parameter eval_columns')
-    needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
-    if not all([a in keywords['eval_columns'] for a in needed_evals]):
-        raise ValueError('Some specific entries within parameter eval_columns is missing')
-
-    keywords = prepare_io(**keywords)
-    needed_cols = needed_evals + keywords['partitions'] + keywords['xy_axis_columns'] + keywords['it_parameters']
-    tmp = keywords['data'].loc[:, needed_cols]
-
-    # comb_vars = ['R_diffAll', 't_angDiff_deg']
-    # comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
-    # tmp_mm = tmp.loc[:,comb_vars]
-    # row = tmp_mm.loc[tmp_mm['Nr'].idxmin()]
-    # row['Nr'] -= 1
-    # row[comb_vars] -= row[comb_diff_vars]
-    # tmp_mm = tmp_mm.append(row)
-    # min_vals = tmp_mm.abs().min()
-    # max_vals = tmp_mm.abs().max()
-    # r_vals = max_vals - min_vals
-    # tmp2 = tmp_mm.div(r_vals, axis=1)
-    # tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
-
-    tmp = combine_rt_diff2(tmp)
-
-    grpd_cols = keywords['partitions'] + \
-                [a for a in keywords['xy_axis_columns'] if a != 'Nr'] + \
-                keywords['it_parameters']
-    df_grp = tmp.groupby(grpd_cols)
-    grp_keys = df_grp.groups.keys()
-    data_list = []
-    for grp in grp_keys:
-        tmp1 = df_grp.get_group(grp)
-        tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.02)
-        data_list.append(tmp2)
-    data_new = pd.concat(data_list, ignore_index=True)
-
-
-def combine_rt_diff2(df):
-    comb_vars = ['R_diffAll', 't_angDiff_deg']
-    comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
-    tmp_mm = df[comb_diff_vars]
-    tmp3 = (df[comb_vars[0]] * tmp_mm[comb_diff_vars[0]] / df[comb_vars[0]].abs() +
-            df[comb_vars[1]] * tmp_mm[comb_diff_vars[1]] / df[comb_vars[1]].abs()) / 2
-    min_vals = tmp3.min()
-    max_vals = tmp3.max()
-    r_vals = max_vals - min_vals
-    df['Rt_diff2'] = (tmp3 - min_vals) / r_vals
-
-    return df
-
-
 def get_mean_data_parts(df, nr_parts):
     img_min = df['Nr'].min()
     img_max = df['Nr'].max()
     ir = img_max - img_min
-    if ir <= 1:
+    if ir <= 0:
         return {}, False
     elif ir < nr_parts:
         nr_parts = ir
@@ -220,11 +166,12 @@ def get_mean_data_parts(df, nr_parts):
             data_parts[-1].reset_index(inplace=True)
             mean_dd.append(data_parts[-1]['Rt_diff2'].values[0])
         else:
-            data_parts.append(df.loc[df['Nr'] >= sl[0] & df['Nr'] < sl[1]])
+            data_parts.append(df.loc[(df['Nr'] >= sl[0]) & (df['Nr'] < sl[1])])
             # A negative value indicates a decreasing error value and a positive number an increasing error
             mean_dd.append(data_parts[-1]['Rt_diff2'].mean())
     data = {'data_parts': data_parts, 'mean_dd': mean_dd}
     return data, True
+
 
 def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
     data, succ = get_mean_data_parts(df, nr_parts)
@@ -304,4 +251,116 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
         return get_converge_img(data_parts[min(last, l1)], nr_parts, th_diff2, th_diff3)
     else:
         return get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3)
+
+
+def eval_corr_pool_converge(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
+    if 'eval_columns' not in keywords:
+        raise ValueError('Missing parameter eval_columns')
+    needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
+    if not all([a in keywords['eval_columns'] for a in needed_evals]):
+        raise ValueError('Some specific entries within parameter eval_columns is missing')
+
+    keywords = prepare_io(**keywords)
+    needed_cols = needed_evals + keywords['partitions'] + keywords['xy_axis_columns'] + keywords['it_parameters']
+    tmp = keywords['data'].loc[:, needed_cols]
+
+    # comb_vars = ['R_diffAll', 't_angDiff_deg']
+    # comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
+    # tmp_mm = tmp.loc[:,comb_vars]
+    # row = tmp_mm.loc[tmp_mm['Nr'].idxmin()]
+    # row['Nr'] -= 1
+    # row[comb_vars] -= row[comb_diff_vars]
+    # tmp_mm = tmp_mm.append(row)
+    # min_vals = tmp_mm.abs().min()
+    # max_vals = tmp_mm.abs().max()
+    # r_vals = max_vals - min_vals
+    # tmp2 = tmp_mm.div(r_vals, axis=1)
+    # tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
+
+    tmp = combine_rt_diff2(tmp)
+
+    grpd_cols = keywords['partitions'] + \
+                [a for a in keywords['xy_axis_columns'] if a != 'Nr'] + \
+                keywords['it_parameters']
+    df_grp = tmp.groupby(grpd_cols)
+    grp_keys = df_grp.groups.keys()
+    data_list = []
+    for grp in grp_keys:
+        tmp1 = df_grp.get_group(grp)
+        tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.02)
+        data_list.append(tmp2)
+    data_new = pd.concat(data_list, ignore_index=True)
+
+    df_grp = tmp.groupby(keywords['partitions'])
+    grp_keys = df_grp.groups.keys()
+    for grp in grp_keys:
+        tmp1 = df_grp.get_group(grp)
+        tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'], axis=1)
+        tmp1 = tmp1.groupby(keywords['it_parameters'])
+        grp_keys1 = tmp1.groups.keys()
+        grp_list = []
+        for grp1 in grp_keys1:
+            tmp2 = tmp1.get_group(grp1)
+            #take mean for same corrPool size
+            tmp2.sort('poolSize', inplace=True)
+            row_iterator = tmp2.iterrows()
+            i_last, last = next(row_iterator)
+            mean_rows = []
+            for i, row in row_iterator:
+                if last['poolSize'] == row['poolSize']:
+                    if mean_rows:
+                        if mean_rows[-1][-1] == i_last:
+                            mean_rows[-1].append(i)
+                        else:
+                            mean_rows.append([i_last, i])
+                    else:
+                        mean_rows.append([i_last, i])
+                last = row
+                i_last = i
+            if mean_rows:
+                mean_rows_data = []
+                for val in mean_rows:
+                    mean_rows_data.append(tmp2.loc[val, :].mean(axis=0))
+                mean_rows1 = []
+                for val in mean_rows:
+                    mean_rows1 += val
+                tmp2.drop(mean_rows1, axis=0, inplace=True)
+                tmp3 = pd.concat(mean_rows_data, axis=1).T
+                tmp2 = pd.concat([tmp2, tmp3], ignore_index=True)
+                tmp2.sort('poolSize', inplace=True)
+            grp_list.append(tmp2)
+        tmp1 = pd.concat(grp_list, ignore_index=True)
+        if len(keywords['it_parameters']) > 1:
+            tmp1 = tmp1.set_index(keywords['it_parameters']).T
+            itpars_name = '-'.join(keywords['it_parameters'])
+            itpars_cols = ['-'.join(a) for a in tmp1.columns]
+            tmp1.columns = itpars_cols
+            tmp1.columns.name = itpars_name
+            tmp1 = tmp1.T.reset_index()
+        else:
+            itpars_name = keywords['it_parameters'][0]
+        tmp1.set_index(['poolSize', itpars_name], inplace=True)
+        evals = tmp1.columns.values
+        tmp1.unstack(level=-1, inplace=True)
+        col_names = ['-'.join(a) for a in tmp1.columns]
+        tmp1.columns = col_names
+        sections = [[b for b in col_names if a in b] for a in evals]
+
+
+def combine_rt_diff2(df):
+    comb_vars = ['R_diffAll', 't_angDiff_deg']
+    comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
+    tmp_mm = df[comb_diff_vars]
+    tmp3 = (df[comb_vars[0]] * tmp_mm[comb_diff_vars[0]] / df[comb_vars[0]].abs() +
+            df[comb_vars[1]] * tmp_mm[comb_diff_vars[1]] / df[comb_vars[1]].abs()) / 2
+    min_vals = tmp3.min()
+    max_vals = tmp3.max()
+    r_vals = max_vals - min_vals
+    df['Rt_diff2'] = tmp3 / r_vals
+
+    return df
+
+
 

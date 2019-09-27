@@ -3672,8 +3672,9 @@ def getSymbolDescription(label):
     elif label == 'Rt_diff2':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame $\\Delta e_{R\\bm{t}}='
-                '\\left( \\Delta e_{\\Sigma}-'
-                '\\text{min}\\left( \\Delta \\bm{e}_{\\Sigma}\\right)\\right)/r_{\\Delta e}$ '
+                # '\\left( \\Delta e_{\\Sigma}-'
+                # '\\text{min}\\left( \\Delta \\bm{e}_{\\Sigma}\\right)\\right)/r_{\\Delta e}$ '
+                '\\Delta e_{\\Sigma}/r_{\\Delta e}$ '
                 'of combined rotation $R$ and translation $\\bm{t}$ error differences '
                 '$\\Delta^{2}R_{i}=\\Delta R_{i}-'
                 '\\Delta R_{i-1}\\; \\forall i \\in \\left[ 1,\\; n_{I}\\; \\right]$ and '
@@ -4330,29 +4331,29 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(np.arange(0.05, 0.45, 0.1))
+    inlratMin_opt = list(np.arange(0.45, 0.85, 0.1))
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [2000, 10000, 40000]
-    min_pts = len(poolSize) * len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-              nr_imgs * len(pars1_opt)
+    min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+              nr_imgs * len(poolSize)
     if min_pts < num_pts:
         while min_pts < num_pts:
             pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
-            min_pts = len(poolSize) * len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-                      nr_imgs * len(pars1_opt)
+            min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+                      nr_imgs * len(poolSize)
         num_pts = min_pts
     else:
         num_pts = int(min_pts)
     kpAccSd_mul = int(len(pars_depthDistr_opt))
     inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
-    poolSize_mul = int(inlratMin_mul * 4)
-    USAC_parameters_estimator_mul = int(poolSize_mul * len(pars1_opt))
+    USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
+    poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
 
-    data = {'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
+    data = {#'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
             'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
             'R_diff_yaw_deg': -1000 + np.abs(np.random.randn(num_pts)),
-            't_angDiff_deg': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
+            # 't_angDiff_deg': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             't_distDiff': np.abs(np.random.randn(num_pts) * 100),
             't_diff_tx': -10000 + np.random.randn(num_pts) * 100,
             't_diff_ty': 20000 + np.random.randn(num_pts),
@@ -4374,6 +4375,7 @@ def main():
             # 'USAC_parameters_estimator': np.random.randint(0, 3, num_pts),
             # 'USAC_parameters_refinealg': np.random.randint(0, 7, num_pts),
             # 'USAC_parameters_USACInlratFilt': np.random.randint(8, 10, num_pts),
+            'stereoParameters_maxPoolCorrespondences': build_list(poolSize, poolSize_mul, num_pts),
             # 'USAC_parameters_estimator': [pars1_opt[i] for i in np.random.randint(0, len(pars1_opt), num_pts)],
             'USAC_parameters_estimator': build_list(pars1_opt, USAC_parameters_estimator_mul, num_pts),
             'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
@@ -4387,7 +4389,7 @@ def main():
             'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
             # 'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
-            'inlratMin': build_list(inlratMin_opt, inlratMin_mul, num_pts),
+            'inlratMin': np.array(build_list(inlratMin_opt, inlratMin_mul, num_pts)),
             'useless': [1, 1, 2, 3] * int(num_pts/4),
             'R_out(0,0)': [0] * 10 + [1] * int(num_pts - 10),
             'R_out(0,1)': [0] * 10 + [0] * int(num_pts - 10),
@@ -4399,14 +4401,26 @@ def main():
             'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
             'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10),
             'Nr': list(range(0, nr_imgs)) * int(num_pts / nr_imgs),
-            'poolSize': build_list(poolSize, poolSize_mul, num_pts),
             'inlRat_GT': np.tile(np.arange(0.25, 0.72, 0.05), int(num_pts/10))}
 
     eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
                     'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff', 'K2_fxDiff', 'K1_fyDiff',
                     'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff', 'K1_cyDiff', 'K2_cyDiff']
 
+    data['poolSize'] = data['inlratMin'] * 500 - np.random.randint(0, 50, num_pts)
+    data['poolSize'] *= (np.array(data['Nr']) + 1) * np.abs((0.01 * np.random.randn(num_pts) + 0.95))
+    data['poolSize'] = np.round(data['poolSize'], decimals=0)
 
+    min_val = data['poolSize'].min()
+    range_val = data['poolSize'].max() - min_val
+    tot = range_val / 10
+    sigma = range_val / 4
+    tau = tot + sigma / 6.67
+    exp1 = np.exp(-1 * (data['poolSize'] - min_val) / tau)
+    exp2 = np.exp(-1 * np.power(data['poolSize'] - min_val - tot, 2) / (sigma**2))
+    exp_sum = 0.34 * exp1 + 0.9 * exp2
+    data['R_diffAll'] = 0.5 + exp_sum + 0.15 * np.random.randn(num_pts)
+    data['t_angDiff_deg'] = 0.3 + exp_sum + 0.08 * np.random.randn(num_pts)
 
 
     data['inlRat_estimated'] = data['inlRat_GT'] + 0.5 * np.random.random_sample(num_pts) - 0.25
@@ -4429,9 +4443,9 @@ def main():
     data['stereoRefine_us'] = t
     data = pd.DataFrame(data)
 
-    test_name = 'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 2
-    eval_nr = [-1]#list(range(5, 8))
+    test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
+    test_nr = 1
+    eval_nr = [5]#list(range(5, 8))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
@@ -6412,7 +6426,12 @@ def main():
                     it_parameters = ['USAC_parameters_estimator']
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin'],
                                       'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg']}
-                    from corr_pool_eval import filter_max_pool_size, calc_rt_diff2_frame_to_frame
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'corrpool_size_converge'}
+                    from corr_pool_eval import filter_max_pool_size, \
+                        calc_rt_diff2_frame_to_frame, \
+                        eval_corr_pool_converge
                     ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
@@ -6425,8 +6444,8 @@ def main():
                                                              xy_axis_columns=[],  # x-axis column name
                                                              filter_func=filter_max_pool_size,
                                                              filter_func_args=None,
-                                                             special_calcs_func=None,
-                                                             special_calcs_args=None,
+                                                             special_calcs_func=eval_corr_pool_converge,
+                                                             special_calcs_args=special_calcs_args,
                                                              calc_func=calc_rt_diff2_frame_to_frame,
                                                              calc_func_args=calc_func_args,
                                                              fig_type='surface',
