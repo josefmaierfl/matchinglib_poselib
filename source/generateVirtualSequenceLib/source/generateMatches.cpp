@@ -1828,10 +1828,35 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             double meang, stdg;
             meang = getRandDoubleValRng(-10.0, 10.0);
             stdg = getRandDoubleValRng(-10.0, 10.0);
-            Mat patchfb = img(patchROIimg1);
+            bool fullImgUsed = false;
+            Mat patchfb;
+            if((patchROIimg1.width < minPatchSize) ||
+                    (patchROIimg1.height < minPatchSize) ||
+                    (patchROIimg1.x < 0) ||
+                    (patchROIimg1.y < 0)){
+                int ps21 = (minPatchSize2 - 1) / 2;
+                patchROIimg1 = Rect((int)round(kp.pt.x) - ps21,
+                                    (int)round(kp.pt.y) - ps21,
+                                    minPatchSize2,
+                                    minPatchSize2);
+                if(patchROIimg1.x < 0){
+                    patchROIimg1.width -= patchROIimg1.x;
+                    patchROIimg1.x = 0;
+                }else if((patchROIimg1.x + patchROIimg1.width) > img.size().width){
+                    int wdiff = patchROIimg1.x + patchROIimg1.width - img.size().width;
+                    patchROIimg1.x -= wdiff;
+                }
+                if(patchROIimg1.y < 0){
+                    patchROIimg1.height -= patchROIimg1.y;
+                    patchROIimg1.y = 0;
+                }else if((patchROIimg1.y + patchROIimg1.height) > img.size().height){
+                    int wdiff = patchROIimg1.y + patchROIimg1.height - img.size().height;
+                    patchROIimg1.y -= wdiff;
+                }
+            }
+            patchfb = img(patchROIimg1);
             patchwn = patchfb.clone();
             descrDist = -1.0;
-            bool fullImgUsed = false;
             kp2 = kp;
             kp2.pt.x -= (float)patchROIimg1.x;
             kp2.pt.y -= (float)patchROIimg1.y;
