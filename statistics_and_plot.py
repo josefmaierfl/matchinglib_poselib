@@ -4331,7 +4331,7 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(np.arange(0.45, 0.85, 0.1))
+    inlratMin_opt = list(map(str, list(np.arange(0.45, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [2000, 10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
@@ -4385,7 +4385,7 @@ def main():
             'depthDistr': build_list(pars_depthDistr_opt, 1, num_pts),
             'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
             # 'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
-            'kpAccSd': build_list(pars_kpAccSd_opt, kpAccSd_mul, num_pts),
+            'kpAccSd': np.array(build_list(pars_kpAccSd_opt, kpAccSd_mul, num_pts)),
             'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
             # 'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
@@ -4407,8 +4407,11 @@ def main():
                     'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff', 'K2_fxDiff', 'K1_fyDiff',
                     'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff', 'K1_cyDiff', 'K2_cyDiff']
 
-    data['poolSize'] = data['inlratMin'] * 500 - np.random.randint(0, 50, num_pts)
-    data['poolSize'] *= (np.array(data['Nr']) + 1) * np.abs((0.01 * np.random.randn(num_pts) + 0.95))
+    data['poolSize'] = data['inlratMin'].astype(np.float) * 500 - \
+                       data['inlratMin'].astype(np.float) * np.random.randint(0, 50, num_pts)
+    data['poolSize'] *= (np.array(data['Nr']) + 1) * \
+                        np.exp(-1 * (np.array(data['Nr']) + 1) * data['inlratMin'].astype(np.float) /
+                               (data['kpAccSd'].astype(np.float) * (5 * nr_imgs / 3)))
     data['poolSize'] = np.round(data['poolSize'], decimals=0)
 
     min_val = data['poolSize'].min()
@@ -4430,7 +4433,7 @@ def main():
     #     lin_time_pars[2] * np.array(data['nrCorrs_GT']) * np.array(data['nrCorrs_GT'])
     t = np.tile(lin_time_pars[0], num_pts) + \
         lin_time_pars[1] * np.array(data['nrCorrs_GT'])
-    t *= (data['inlratMin'].max() / data['inlratMin']) ** 2
+    t *= (data['inlratMin'].astype(np.float).max() / data['inlratMin'].astype(np.float)) ** 2
     t += np.random.randn(num_pts) * 40
     idx1 = np.arange(0, num_pts, dtype=int)
     np.random.shuffle(idx1)

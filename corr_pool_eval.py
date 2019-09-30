@@ -280,6 +280,7 @@ def eval_corr_pool_converge(**keywords):
     # tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
 
     tmp = combine_rt_diff2(tmp)
+    print_evals = ['Rt_diff2'] + [a for a in keywords['eval_columns'] if a != 'poolSize']
 
     grpd_cols = keywords['partitions'] + \
                 [a for a in keywords['xy_axis_columns'] if a != 'Nr'] + \
@@ -341,12 +342,15 @@ def eval_corr_pool_converge(**keywords):
             tmp1 = tmp1.T.reset_index()
         else:
             itpars_name = keywords['it_parameters'][0]
-        tmp1.set_index(['poolSize', itpars_name], inplace=True)
-        evals = tmp1.columns.values
+            itpars_cols = tmp1[itpars_name].values
+        itpars_cols = list(dict.fromkeys(itpars_cols))
+        tmp1.set_index(itpars_name, inplace=True)
         tmp1.unstack(level=-1, inplace=True)
         col_names = ['-'.join(a) for a in tmp1.columns]
         tmp1.columns = col_names
-        sections = [[b for b in col_names if a in b] for a in evals]
+        sections = [[b for b in col_names if a in b] for a in print_evals]
+        x_axis = [[b for d in itpars_cols if d in c for b in col_names if d in b and 'poolSize' in b] for a in sections
+                  for c in a]
 
 
 def combine_rt_diff2(df):
