@@ -275,6 +275,19 @@ def eval_corr_pool_converge(**keywords):
         raise ValueError('Some specific entries within parameter eval_columns is missing')
 
     keywords = prepare_io(**keywords)
+    from statistics_and_plot import replaceCSVLabels, glossary_from_list, add_to_glossary, add_to_glossary_eval
+    partition_title = ''
+    nr_partitions = len(keywords['partitions'])
+    for i, val in enumerate(keywords['partitions']):
+        partition_title += replaceCSVLabels(val, True, True)
+        if nr_partitions <= 2:
+            if i < nr_partitions - 1:
+                partition_title += ' and '
+        else:
+            if i < nr_partitions - 2:
+                partition_title += ', '
+            elif i < nr_partitions - 1:
+                partition_title += ', and '
     needed_cols = needed_evals + keywords['partitions'] + keywords['xy_axis_columns'] + keywords['it_parameters']
     tmp = keywords['data'].loc[:, needed_cols]
 
@@ -313,8 +326,25 @@ def eval_corr_pool_converge(**keywords):
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
 
+    tex_infos = {'title': 'Correspondence Pool Sizes for Converging Differences from Frame to ' + \
+                          'Frame of R \\& t Errors '
+                          ' for Parameters ' + keywords['sub_title_it_pars'] + \
+                          ' and Properties ' + partition_title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None
+                 }
     df_grp = data_new.groupby(keywords['partitions'])
     grp_keys = df_grp.groups.keys()
+    gloss_not_calced = True
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'])
@@ -322,12 +352,24 @@ def eval_corr_pool_converge(**keywords):
         tmp1 = tmp1.unstack(level=-1)
         if len(keywords['it_parameters']) > 1:
             itpars_name = '-'.join(keywords['it_parameters'])
+            if gloss_not_calced:
+                gloss = glossary_from_list([str(b) for a in tmp1.index for b in a])
+                gloss = add_to_glossary_eval([a for a in tmp1.columns], gloss)
+                # tex_infos['abbreviations'] = gloss
+                gloss_not_calced = False
             it_idxs = ['-'.join(a) for a in tmp1.index]
             tmp1.index = it_idxs
         else:
             itpars_name = keywords['it_parameters'][0]
             it_idxs = [a for a in tmp1.index]
+            if gloss_not_calced:
+                gloss = glossary_from_list(it_idxs)
+                gloss = add_to_glossary_eval([a for a in tmp1.columns], gloss)
+                # tex_infos['abbreviations'] = gloss
+                gloss_not_calced = False
+        gloss = add_to_glossary(list(grp), gloss)
         comb_cols = ['-'.join(a) for a in tmp1.columns]
+        comb_cols = [a.replace('.', 'd') for a in comb_cols]
         tmp1.columns = comb_cols
 
         t_main_name = 'converge_poolSizes_with_inlrat_part' + \
