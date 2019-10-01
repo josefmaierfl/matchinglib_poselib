@@ -731,7 +731,10 @@ def combineRt(data):
     ma = tmp.select_dtypes(include=[np.number]).dropna().values.max()
     mi = tmp.select_dtypes(include=[np.number]).dropna().values.min()
     r_rt = ma - mi
-    b = (tmp - mi) / r_rt
+    if np.isclose(r_rt, 0, atol=1e-06):
+        b = tmp - mi
+    else:
+        b = (tmp - mi) / r_rt
     return b
 
 

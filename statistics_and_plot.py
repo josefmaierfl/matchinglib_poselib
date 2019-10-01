@@ -4324,23 +4324,24 @@ def build_list(possibilities, multiplier, num_pts):
 def main():
     num_pts = int(10000)
     nr_imgs = 150
-    pars1_opt = ['first_long_long_opt' + str(i) for i in range(0,3)]
+    pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
     pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
     pars_kpDistr_opt = ['1corn', 'equ']
-    pars_depthDistr_opt = ['NMF', 'NM', 'F']
+    # pars_depthDistr_opt = ['NMF', 'NM', 'F']
+    pars_depthDistr_opt = ['NMF', 'NM']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(map(str, list(np.arange(0.45, 0.85, 0.1))))
+    inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
-    poolSize = [2000, 10000, 40000]
+    poolSize = [10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-              nr_imgs * len(poolSize)
+              nr_imgs * len(poolSize) * len(pars1_opt)
     if min_pts < num_pts:
         while min_pts < num_pts:
             pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
             min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-                      nr_imgs * len(poolSize)
+                      nr_imgs * len(poolSize) * len(pars1_opt)
         num_pts = min_pts
     else:
         num_pts = int(min_pts)
@@ -6431,6 +6432,7 @@ def main():
                                       'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg']}
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
+                                          'partition_x_axis': 'kpAccSd',
                                           'res_par_name': 'corrpool_size_converge'}
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_rt_diff2_frame_to_frame, \

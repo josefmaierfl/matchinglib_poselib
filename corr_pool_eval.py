@@ -9,6 +9,7 @@ import pandas as pd
 import jinja2 as ji
 import ruamel.yaml as yaml
 from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
+import inspect
 
 def filter_take_end_frames(**vars):
     return vars['data'].loc[vars['data']['Nr'] > 119]
@@ -150,17 +151,19 @@ def get_mean_data_parts(df, nr_parts):
     ir = img_max - img_min
     if ir <= 0:
         return {}, False
-    elif ir < nr_parts:
-        nr_parts = ir
-    ir_part = round(ir / nr_parts, 0)
+    elif ir <= nr_parts:
+        nr_parts = ir + 1
+    ir_part = round(ir / float(nr_parts) + 1e-6, 0)
     parts = [[img_min + a * ir_part, img_min + (a + 1) * ir_part] for a in range(0, nr_parts)]
     parts[-1][1] = img_max + 1
     if parts[-1][1] - parts[-1][0] <= 0:
         parts.pop()
     data_parts = []
     mean_dd = []
+    # print('Limit:', len(inspect.stack()), 'Min:', img_min, 'Max:',
+    #       img_max, 'ir_part:', ir_part, 'nr_parts:', nr_parts, 'parts:', parts)
     for sl in parts:
-        if sl[1] - sl[0] == 1:
+        if sl[1] - sl[0] <= 1:
             tmp = df.set_index('Nr')
             data_parts.append(tmp.loc[[sl[0]],:])
             data_parts[-1].reset_index(inplace=True)
@@ -168,6 +171,10 @@ def get_mean_data_parts(df, nr_parts):
         else:
             data_parts.append(df.loc[(df['Nr'] >= sl[0]) & (df['Nr'] < sl[1])])
             # A negative value indicates a decreasing error value and a positive number an increasing error
+            # if data_parts[-1].shape[0] < 3:
+            #     print('Smaller')
+            # elif data_parts[-1].isnull().values.any():
+            #     print('nan found')
             mean_dd.append(data_parts[-1]['Rt_diff2'].mean())
     data = {'data_parts': data_parts, 'mean_dd': mean_dd}
     return data, True
@@ -181,7 +188,7 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
     # A negative value indicates a decreasing error value and a positive number an increasing error
     mean_dd = data['mean_dd']
 
-    error_gets_smaller = [False] * nr_parts
+    error_gets_smaller = [False] * len(data_parts)
     nr_parts1 = nr_parts
     while not any(error_gets_smaller) and nr_parts1 < 10:
         for i, val in enumerate(mean_dd):
@@ -194,6 +201,7 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
                 return df, False
             data_parts = data['data_parts']
             mean_dd = data['mean_dd']
+            error_gets_smaller = [False] * len(data_parts)
         else:
             break
     if not any(error_gets_smaller):
@@ -206,7 +214,7 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
                 return df1, False
             data_parts = data['data_parts']
             mean_dd = data['mean_dd']
-            error_gets_smaller = [False] * nr_parts
+            error_gets_smaller = [False] * len(data_parts)
             for i, val in enumerate(mean_dd):
                 if val < 0:
                     error_gets_smaller[i] = True
@@ -258,6 +266,10 @@ def eval_corr_pool_converge(**keywords):
         raise ValueError('Missing parameter res_par_name')
     if 'eval_columns' not in keywords:
         raise ValueError('Missing parameter eval_columns')
+    if 'partition_x_axis' not in keywords:
+        raise ValueError('Missing parameter eval_columns')
+    if keywords['partition_x_axis'] not in keywords['partitions']:
+        raise ValueError('Partition ' + keywords['partition_x_axis'] + ' not found in partitions')
     needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
     if not all([a in keywords['eval_columns'] for a in needed_evals]):
         raise ValueError('Some specific entries within parameter eval_columns is missing')
@@ -288,24 +300,91 @@ def eval_corr_pool_converge(**keywords):
     df_grp = tmp.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
     data_list = []
+    # mult = 5
+    # while mult > 1:
+    #     try:
+    #         sys.setrecursionlimit(mult * sys.getrecursionlimit())
+    #         break
+    #     except:
+    #         mult -= 1
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.02)
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
 
+    df_grp = data_new.groupby(keywords['partitions'])
+    grp_keys = df_grp.groups.keys()
+    for grp in grp_keys:
+        tmp1 = df_grp.get_group(grp)
+        tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'])
+        tmp1.set_index(keywords['it_parameters'] + [a for a in keywords['xy_axis_columns'] if a != 'Nr'], inplace=True)
+        tmp1 = tmp1.unstack(level=-1)
+        if len(keywords['it_parameters']) > 1:
+            itpars_name = '-'.join(keywords['it_parameters'])
+            it_idxs = ['-'.join(a) for a in tmp1.index]
+            tmp1.index = it_idxs
+        else:
+            itpars_name = keywords['it_parameters'][0]
+            it_idxs = [a for a in tmp1.index]
+        comb_cols = ['-'.join(a) for a in tmp1.columns]
+        tmp1.columns = comb_cols
+
+        t_main_name = 'converge_poolSizes_with_inlrat_part' + \
+                      '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
+                                a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+        t_mean_name = 'data_' + t_main_name + '.csv'
+        ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        with open(ft_mean_name, 'a') as f:
+            f.write('# Correspondence pool sizes for converging differences from frame to '
+                    'frame of R & t errors and their inlier ratio '
+                    'for data partition ' + '_'.join([keywords['partitions'][i] + '-' +
+                                                      a for i, a in enumerate(map(str, grp))]) + '\n')
+            f.write('# Different parameters: ' + itpars_name + '\n')
+            tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+
+    grpd_cols = keywords['partitions'] + keywords['it_parameters']
+    df_grp = data_new.groupby(grpd_cols)
+    grp_keys = df_grp.groups.keys()
+    data_list = []
+    for grp in grp_keys:
+        tmp1 = df_grp.get_group(grp)
+        if tmp1.shape[0] < 4:
+            poolsize_med = tmp1['poolSize'].median()
+            data_list.append(tmp1.loc[[tmp1['poolSize'] == poolsize_med], :])
+        else:
+            hist, bin_edges = np.histogram(tmp1['poolSize'].values, bins='auto', density=True)
+            idx = np.argmax(hist)
+            take_edges = bin_edges[idx:(idx + 2)]
+            tmp2 = tmp1.loc[[(tmp1['poolSize'] >= take_edges[0] & tmp1['poolSize'] <= take_edges[1])], :]
+            if tmp2.shape[0] > 1:
+                poolsize_med = tmp2['poolSize'].median()
+                data_list.append(tmp2.loc[[tmp2['poolSize'] == poolsize_med], :])
+            else:
+                data_list.append(tmp2)
+    data_new2 = pd.concat(data_list, ignore_index=True)
+    data_new2.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
+    dataseps = [a for a in keywords['partitions'] if a != keywords['partition_x_axis']] + keywords['it_parameters']
+    l1 = len(dataseps)
+    data_new2.set_index([keywords['partition_x_axis']] + dataseps, inplace=True)
+    data_new2.unstack(level=-l1)
+    comb_cols = ['-'.join(a) for a in data_new2.columns]
+    data_new2.columns = comb_cols
+
+
     df_grp = tmp.groupby(keywords['partitions'])
     grp_keys = df_grp.groups.keys()
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
-        tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'], axis=1)
+        tmp1 = tmp1.drop(keywords['partitions'], axis=1, inplace=True)
         tmp1 = tmp1.groupby(keywords['it_parameters'])
         grp_keys1 = tmp1.groups.keys()
         grp_list = []
         for grp1 in grp_keys1:
             tmp2 = tmp1.get_group(grp1)
             #take mean for same corrPool size
-            tmp2.sort('poolSize', inplace=True)
+            tmp2 = tmp2.sort_values(by='poolSize')
             row_iterator = tmp2.iterrows()
             i_last, last = next(row_iterator)
             mean_rows = []
@@ -324,13 +403,17 @@ def eval_corr_pool_converge(**keywords):
                 mean_rows_data = []
                 for val in mean_rows:
                     mean_rows_data.append(tmp2.loc[val, :].mean(axis=0))
+                    for val1 in keywords['it_parameters']:
+                        mean_rows_data[-1][val1] = tmp2.loc[val, val1]
+                    for val1 in keywords['xy_axis_columns']:
+                        mean_rows_data[-1][val1] = tmp2.loc[val, val1]
                 mean_rows1 = []
                 for val in mean_rows:
                     mean_rows1 += val
                 tmp2.drop(mean_rows1, axis=0, inplace=True)
                 tmp3 = pd.concat(mean_rows_data, axis=1).T
                 tmp2 = pd.concat([tmp2, tmp3], ignore_index=True)
-                tmp2.sort('poolSize', inplace=True)
+                tmp2 = tmp2.sort_values(by='poolSize')
             grp_list.append(tmp2)
         tmp1 = pd.concat(grp_list, ignore_index=True)
         if len(keywords['it_parameters']) > 1:
@@ -344,13 +427,27 @@ def eval_corr_pool_converge(**keywords):
             itpars_name = keywords['it_parameters'][0]
             itpars_cols = tmp1[itpars_name].values
         itpars_cols = list(dict.fromkeys(itpars_cols))
-        tmp1.set_index(itpars_name, inplace=True)
-        tmp1.unstack(level=-1, inplace=True)
+        tmp1.set_index(keywords['xy_axis_columns'] + [itpars_name], inplace=True)
+        tmp1 = tmp1.unstack(level=-1)
+        tmp1.reset_index(inplace=True)
+        tmp1.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
         col_names = ['-'.join(a) for a in tmp1.columns]
         tmp1.columns = col_names
         sections = [[b for b in col_names if a in b] for a in print_evals]
         x_axis = [[b for d in itpars_cols if d in c for b in col_names if d in b and 'poolSize' in b] for a in sections
                   for c in a]
+
+        t_main_name = 'double_Rt_diff_vs_poolSize_part' + \
+                      '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
+                                a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+        t_mean_name = 'data_' + t_main_name + '.csv'
+        ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        with open(ft_mean_name, 'a') as f:
+            f.write('# Differences from frame to frame for R & t errors vs correspondence pool sizes '
+                    'for data partition ' + '_'.join([keywords['partitions'][i] + '-' +
+                                                      a for i, a in enumerate(map(str, grp))]) + '\n')
+            f.write('# Different parameters: ' + itpars_name + '\n')
+            tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
 
 def combine_rt_diff2(df):
@@ -362,7 +459,10 @@ def combine_rt_diff2(df):
     min_vals = tmp3.min()
     max_vals = tmp3.max()
     r_vals = max_vals - min_vals
-    df['Rt_diff2'] = tmp3 / r_vals
+    if np.isclose(r_vals, 0, atol=1e-06):
+        df['Rt_diff2'] = tmp3
+    else:
+        df['Rt_diff2'] = tmp3 / r_vals
 
     return df
 
