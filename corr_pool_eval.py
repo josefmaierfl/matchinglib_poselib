@@ -275,7 +275,18 @@ def eval_corr_pool_converge(**keywords):
         raise ValueError('Some specific entries within parameter eval_columns is missing')
 
     keywords = prepare_io(**keywords)
-    from statistics_and_plot import replaceCSVLabels, glossary_from_list, add_to_glossary, add_to_glossary_eval
+    from statistics_and_plot import replaceCSVLabels, \
+        glossary_from_list, \
+        add_to_glossary, \
+        add_to_glossary_eval, \
+        is_exp_used, \
+        split_large_titles, \
+        strToLower, \
+        tex_string_coding_style, \
+        calcNrLegendCols, \
+        capitalizeFirstChar, \
+        findUnit, \
+        compile_tex
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -304,8 +315,9 @@ def eval_corr_pool_converge(**keywords):
     # tmp2 = tmp_mm.div(r_vals, axis=1)
     # tmp['Rt_diff_single'] = (tmp2[comb_vars[0]] + tmp2[comb_vars[1]]) / 2
 
-    tmp = combine_rt_diff2(tmp)
-    print_evals = ['Rt_diff2'] + [a for a in keywords['eval_columns'] if a != 'poolSize']
+    tmp, keywords = combine_rt_diff2(tmp, keywords)
+    print_evals = ['Rt_diff2'] + needed_evals
+    print_evals1 = [a for a in print_evals if a != 'poolSize']
 
     grpd_cols = keywords['partitions'] + \
                 [a for a in keywords['xy_axis_columns'] if a != 'Nr'] + \
@@ -326,9 +338,9 @@ def eval_corr_pool_converge(**keywords):
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
 
-    tex_infos = {'title': 'Correspondence Pool Sizes for Converging Differences from Frame to ' + \
+    tex_infos = {'title': 'Correspondence Pool Sizes \\& Error Values for Converging Differences from Frame to ' +
                           'Frame of R \\& t Errors '
-                          ' for Parameters ' + keywords['sub_title_it_pars'] + \
+                          ' for Parameters ' + keywords['sub_title_it_pars'] +
                           ' and Properties ' + partition_title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -345,37 +357,48 @@ def eval_corr_pool_converge(**keywords):
     df_grp = data_new.groupby(keywords['partitions'])
     grp_keys = df_grp.groups.keys()
     gloss_not_calced = True
+    t_main_name = 'converge_poolSizes_with_inlrat'
+    if len(keywords['it_parameters']) > 1:
+        itpars_name = '-'.join(keywords['it_parameters'])
+    else:
+        itpars_name = keywords['it_parameters'][0]
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'])
         tmp1.set_index(keywords['it_parameters'] + [a for a in keywords['xy_axis_columns'] if a != 'Nr'], inplace=True)
         tmp1 = tmp1.unstack(level=-1)
         if len(keywords['it_parameters']) > 1:
-            itpars_name = '-'.join(keywords['it_parameters'])
             if gloss_not_calced:
                 gloss = glossary_from_list([str(b) for a in tmp1.index for b in a])
                 gloss = add_to_glossary_eval([a for a in tmp1.columns], gloss)
                 # tex_infos['abbreviations'] = gloss
                 gloss_not_calced = False
-            it_idxs = ['-'.join(a) for a in tmp1.index]
+            it_idxs = ['-'.join(map(str, a)) for a in tmp1.index]
             tmp1.index = it_idxs
         else:
-            itpars_name = keywords['it_parameters'][0]
-            it_idxs = [a for a in tmp1.index]
+            it_idxs = [str(a) for a in tmp1.index]
             if gloss_not_calced:
                 gloss = glossary_from_list(it_idxs)
                 gloss = add_to_glossary_eval([a for a in tmp1.columns], gloss)
                 # tex_infos['abbreviations'] = gloss
                 gloss_not_calced = False
         gloss = add_to_glossary(list(grp), gloss)
-        comb_cols = ['-'.join(a) for a in tmp1.columns]
+        comb_cols = ['-'.join(map(str, a)) for a in tmp1.columns]
+        comb_cols1 = ['/'.join(map(str, a)) for a in tmp1.columns]
         comb_cols = [a.replace('.', 'd') for a in comb_cols]
         tmp1.columns = comb_cols
 
-        t_main_name = 'converge_poolSizes_with_inlrat_part' + \
-                      '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
-                                a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
-        t_mean_name = 'data_' + t_main_name + '.csv'
+        tmp1['tex_it_pars'] = insert_opt_lbreak(it_idxs)
+        max_txt_rows = 1
+        for idx, val in tmp1['tex_it_pars'].iteritems():
+            txt_rows = str(val).count('\\\\') + 1
+            if txt_rows > max_txt_rows:
+                max_txt_rows = txt_rows
+
+        t_main_name1 = t_main_name + '_part_' + \
+                       '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
+                                 a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+        t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Correspondence pool sizes for converging differences from frame to '
@@ -383,8 +406,115 @@ def eval_corr_pool_converge(**keywords):
                     'for data partition ' + '_'.join([keywords['partitions'][i] + '-' +
                                                       a for i, a in enumerate(map(str, grp))]) + '\n')
             f.write('# Different parameters: ' + itpars_name + '\n')
-            tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            tmp1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+        for ev in print_evals:
+            use_cols = [a for a in comb_cols if ev in a]
+            if not use_cols:
+                continue
+            side_eval = replaceCSVLabels([a for a in keywords['xy_axis_columns'] if a != 'Nr'][0])
+            close_equ = False
+            if '$' == side_eval[-1]:
+                close_equ = True
+                side_eval[-1] = '='
+            elif '}' == side_eval[-1]:
+                side_eval += '='
+            else:
+                side_eval += ' equal to '
+            use_cols1 = [a for a in comb_cols1 if ev in a]
+            use_cols1 = [round(float(b), 6) for a in use_cols1 for b in a.split('/') if ev not in b]
+            use_cols1 = [side_eval + str(a) + '$' if close_equ else side_eval + str(a) for a in use_cols1]
+
+            stats_all = tmp1[use_cols].stack().reset_index()
+            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+            # figure types: sharp plot, smooth, const plot, ybar, xbar
+            use_limits = {'miny': None, 'maxy': None}
+            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+                if stats_all['min'][0] < 0:
+                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+                else:
+                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                if stats_all['max'][0] < 0:
+                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+                else:
+                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+            if use_limits['miny'] and use_limits['maxy']:
+                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
+            elif use_limits['miny']:
+                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
+            elif use_limits['maxy']:
+                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
+            else:
+                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+            # is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
+            reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
+            fig_name = capitalizeFirstChar(replaceCSVLabels(ev, True)) + \
+                       ' for converging differences from frame to frame of R \\& t errors\\\\for parameters ' + \
+                       strToLower(keywords['sub_title_it_pars']) + ' and properties '
+            for i1, (part, val2) in enumerate(zip(keywords['partitions'], grp)):
+                fig_name += replaceCSVLabels(part) + ' equal to ' + str(val2)
+                if nr_partitions <= 2:
+                    if i1 < nr_partitions - 1:
+                        partition_title += ' and '
+                else:
+                    if i1 < nr_partitions - 2:
+                        partition_title += ', '
+                    elif i1 < nr_partitions - 1:
+                        partition_title += ', and '
+            fig_name = split_large_titles(fig_name)
+            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+                exp_value = False
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': fig_name,
+                                          # If caption is None, the field name is used
+                                          'caption': fig_name.replace('\\\\', ' '),
+                                          'fig_type': 'ybar',
+                                          'plots': use_cols,
+                                          'label_y': replaceCSVLabels(ev) + findUnit(str(ev), keywords['units']),
+                                          'plot_x': itpars_name,
+                                          'label_x': 'Parameter',
+                                          'limits': use_limits,
+                                          'legend': use_cols1,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': max_txt_rows,
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': True,
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    tex_infos['abbreviations'] = gloss
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if keywords['build_pdf'][0]:
+        pdf_name = base_out_name + '.pdf'
+        res = abs(compile_tex(rendered_tex,
+                              keywords['tex_folder'],
+                              texf_name,
+                              False,
+                              os.path.join(keywords['pdf_folder'], pdf_name),
+                              tex_infos['figs_externalize']))
+    else:
+        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     grpd_cols = keywords['partitions'] + keywords['it_parameters']
     df_grp = data_new.groupby(grpd_cols)
@@ -407,16 +537,175 @@ def eval_corr_pool_converge(**keywords):
                 data_list.append(tmp2)
     data_new2 = pd.concat(data_list, ignore_index=True)
     data_new2.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
-    dataseps = [a for a in keywords['partitions'] if a != keywords['partition_x_axis']] + keywords['it_parameters']
+    if len(keywords['it_parameters']) > 1:
+        data_new2 = data_new2.set_index(keywords['it_parameters']).T
+        itpars_cols = ['-'.join(a) for a in data_new2.columns]
+        data_new2.columns = itpars_cols
+        data_new2.columns.name = itpars_name
+        data_new2 = data_new2.T.reset_index()
+    else:
+        itpars_cols = data_new2[itpars_name].values
+    itpars_cols = list(dict.fromkeys(itpars_cols))
+    dataseps = [a for a in keywords['partitions'] if a != keywords['partition_x_axis']] + [itpars_name]
     l1 = len(dataseps)
     data_new2.set_index([keywords['partition_x_axis']] + dataseps, inplace=True)
     data_new2.unstack(level=-l1)
-    comb_cols = ['-'.join(a) for a in data_new2.columns]
+    comb_cols = ['-'.join(map(str, a)) for a in data_new2.columns]
     data_new2.columns = comb_cols
+    t_main_name = 'converge_poolSizes_vs_' + itpars_name + '_' + keywords['partition_x_axis']
+    t_mean_name = 'data_' + t_main_name + '.csv'
+    ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    with open(ft_mean_name, 'a') as f:
+        f.write('# Most likely correspondence pool sizes for converging differences from frame to '
+                'frame of R & t errors vs data partition ' + keywords['partition_x_axis'] + '\n')
+        f.write('# Different parameters: ' + itpars_name + '\n')
+        data_new2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+    tex_infos = {'title': 'Most Likely Correspondence Pool Sizes for Converging Differences from Frame to ' +
+                          'Frame of R \\& t Errors '
+                          ' for Parameters ' + keywords['sub_title_it_pars'] +
+                          ' vs Property ' + replaceCSVLabels(keywords['partition_x_axis'], False, True),
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
+                 }
+    use_plots = [a for a in comb_cols if 'poolSize' in a]
+    data_new3 = data_new2[use_plots]
+    stats_all = data_new3.stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    # figure types: sharp plot, smooth, const plot, ybar, xbar
+    use_limits = {'miny': None, 'maxy': None}
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        if stats_all['min'][0] < 0:
+            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+    if use_limits['miny'] and use_limits['maxy']:
+        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
+        exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
+    elif use_limits['miny']:
+        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+        exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
+    elif use_limits['maxy']:
+        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
+        exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
+    else:
+        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+        exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+    is_numeric = pd.to_numeric(data_new3.reset_index()[keywords['partition_x_axis']], errors='coerce').notnull().all()
+    reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
+    fig_name = 'Most likely correspondence pool sizes for converging differences from ' \
+               'frame to frame of R \\& t errors\\\\for parameters ' + \
+               strToLower(keywords['sub_title_it_pars']) + ' vs property ' + \
+               replaceCSVLabels(keywords['partition_x_axis'])
+    fig_name = split_large_titles(fig_name)
+    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+        exp_value = False
+    tex_infos['sections'].append({'file': reltex_name,
+                                  'name': fig_name,
+                                  # If caption is None, the field name is used
+                                  'caption': fig_name.replace('\\\\', ' '),
+                                  'fig_type': 'xbar',
+                                  'plots': use_plots,
+                                  'label_y': replaceCSVLabels('poolSize') + findUnit('poolSize', keywords['units']),
+                                  'plot_x': keywords['partition_x_axis'],
+                                  'label_x': replaceCSVLabels(keywords['partition_x_axis']),
+                                  'limits': use_limits,
+                                  'legend': [tex_string_coding_style(a) for a in use_plots],
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
+                                  'enlarge_title_space': exp_value,
+                                  'use_string_labels': True if not is_numeric else False,
+                                  })
+    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if keywords['build_pdf'][1]:
+        pdf_name = base_out_name + '.pdf'
+        res1 = abs(compile_tex(rendered_tex,
+                               keywords['tex_folder'],
+                               texf_name,
+                               False,
+                               os.path.join(keywords['pdf_folder'], pdf_name),
+                               tex_infos['figs_externalize']))
+    else:
+        res1 = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+    if res1 != 0:
+        res += res1
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    data_new3 = data_new2.mean(axis=0)
+    sel_parts =[[b for b in comb_cols if a in b and ('R_diffAll' in b or 't_angDiff_deg' in b)] for a in itpars_cols]
+    sel_parts1 = [b for a in itpars_cols for b in comb_cols if a in b and 'poolSize' in b]
+    for i, (val1, val2) in enumerate(zip(sel_parts, sel_parts1)):
+        hlp = data_new3[val1[0]] + data_new3[val1[1]]
+        data_new3[itpars_cols[i]] = hlp * data_new3[val2]
+    best_alg = data_new3[itpars_cols].idxmin()
+    idx = [a for a in comb_cols if best_alg in a and 'R_diffAll' in a]
+    mean_r_error = float(data_new3[idx])
+    idx = [a for a in comb_cols if best_alg in a and 't_angDiff_deg' in a]
+    mean_t_error = float(data_new3[idx])
+    idx = [a for a in comb_cols if best_alg in a and 'poolSize' in a]
+    mean_poolSize = int(data_new3[idx])
+    main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
+    # Check if file and parameters exist
+    from usac_eval import check_par_file_exists, NoAliasDumper
+    ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = best_alg.split('-')
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(keywords['it_parameters']):
+            alg_w[val] = alg_comb_bestl[i]
+        yaml.dump({main_parameter_name: {'Algorithm': alg_w,
+                                         'mean_conv_pool_size': mean_poolSize,
+                                         'mean_R_error': mean_r_error,
+                                         'mean_t_error': mean_t_error}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     df_grp = tmp.groupby(keywords['partitions'])
     grp_keys = df_grp.groups.keys()
+    t_main_name = 'double_Rt_diff_vs_poolSize'
+    tex_infos = {'title': 'Differences from Frame to ' +
+                          'Frame of R \\& t Errors for Parameters ' + keywords['sub_title_it_pars'] +
+                          ' in Addition to Properties ' + partition_title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
+                 }
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         tmp1 = tmp1.drop(keywords['partitions'], axis=1, inplace=True)
@@ -460,13 +749,11 @@ def eval_corr_pool_converge(**keywords):
         tmp1 = pd.concat(grp_list, ignore_index=True)
         if len(keywords['it_parameters']) > 1:
             tmp1 = tmp1.set_index(keywords['it_parameters']).T
-            itpars_name = '-'.join(keywords['it_parameters'])
             itpars_cols = ['-'.join(a) for a in tmp1.columns]
             tmp1.columns = itpars_cols
             tmp1.columns.name = itpars_name
             tmp1 = tmp1.T.reset_index()
         else:
-            itpars_name = keywords['it_parameters'][0]
             itpars_cols = tmp1[itpars_name].values
         itpars_cols = list(dict.fromkeys(itpars_cols))
         tmp1.set_index(keywords['xy_axis_columns'] + [itpars_name], inplace=True)
@@ -475,24 +762,133 @@ def eval_corr_pool_converge(**keywords):
         tmp1.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
         col_names = ['-'.join(a) for a in tmp1.columns]
         tmp1.columns = col_names
-        sections = [[b for b in col_names if a in b] for a in print_evals]
+        sections = [[b for b in col_names if a in b] for a in print_evals1]
         x_axis = [[b for d in itpars_cols if d in c for b in col_names if d in b and 'poolSize' in b] for a in sections
                   for c in a]
 
-        t_main_name = 'double_Rt_diff_vs_poolSize_part' + \
-                      '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
-                                a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
-        t_mean_name = 'data_' + t_main_name + '.csv'
+        t_main_name1 = t_main_name + '_part' + \
+                       '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
+                                 a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+        t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Differences from frame to frame for R & t errors vs correspondence pool sizes '
                     'for data partition ' + '_'.join([keywords['partitions'][i] + '-' +
                                                       a for i, a in enumerate(map(str, grp))]) + '\n')
             f.write('# Different parameters: ' + itpars_name + '\n')
-            tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            tmp1.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        for ev, x, ev_name in zip(sections, x_axis, print_evals1):
+            tmp2 = tmp1.loc[:, ev + x]
+            stats_all = tmp2[ev].stack().reset_index()
+            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+            # figure types: sharp plot, smooth, const plot, ybar, xbar
+            use_limits = {'miny': None, 'maxy': None}
+            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+                if stats_all['min'][0] < 0:
+                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
+                else:
+                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
+                if stats_all['max'][0] < 0:
+                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
+                else:
+                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+            else:
+                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
+                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
+                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
+                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
+            if use_limits['miny'] and use_limits['maxy']:
+                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
+            elif use_limits['miny']:
+                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
+                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
+            elif use_limits['maxy']:
+                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
+                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
+            else:
+                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
+                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
+                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+            reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
+
+            partition_part = ''
+            for i, (val_name, val) in enumerate(zip(keywords['partitions'], grp)):
+                partition_part += replaceCSVLabels(val_name)
+                if '$' == partition_part[-1]:
+                    partition_part[-1] = '='
+                    partition_part += str(val) + '$'
+                elif '}' == partition_part[-1]:
+                    partition_part += '=' + str(val)
+                else:
+                    partition_part += ' equal to ' + str(val)
+                if nr_partitions <= 2:
+                    if i < nr_partitions - 1:
+                        partition_part += ' and '
+                else:
+                    if i < nr_partitions - 2:
+                        partition_part += ', '
+                    elif i < nr_partitions - 1:
+                        partition_part += ', and '
+
+            legend_entries = [a for b in ev for a in itpars_cols if a in b]
+            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name)) +  \
+                       ' vs correspondence pool sizes\\\\for parameters ' + \
+                       strToLower(keywords['sub_title_it_pars']) + ' and properties ' + \
+                       partition_part
+            fig_name = split_large_titles(fig_name)
+            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+                exp_value = False
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': fig_name,
+                                          # If caption is None, the field name is used
+                                          'caption': fig_name.replace('\\\\', ' '),
+                                          'fig_type': 'smooth',
+                                          'plots': ev,
+                                          'label_y': replaceCSVLabels(ev_name) + findUnit(ev_name,
+                                                                                          keywords['units']),
+                                          'plot_x': x,
+                                          'label_x': replaceCSVLabels('poolSize'),
+                                          'limits': use_limits,
+                                          'legend': [tex_string_coding_style(a) for a in legend_entries],
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          'use_log_y_axis': use_log,
+                                          'enlarge_title_space': exp_value,
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+    template = ji_env.get_template('usac-testing_2D_plots_mult_x_cols.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if keywords['build_pdf'][2]:
+        pdf_name = base_out_name + '.pdf'
+        res1 = abs(compile_tex(rendered_tex,
+                               keywords['tex_folder'],
+                               texf_name,
+                               False,
+                               os.path.join(keywords['pdf_folder'], pdf_name),
+                               tex_infos['figs_externalize']))
+    else:
+        res1 = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+    if res1 != 0:
+        res += res1
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    return res
 
 
-def combine_rt_diff2(df):
+def combine_rt_diff2(df, keywords):
     comb_vars = ['R_diffAll', 't_angDiff_deg']
     comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
     tmp_mm = df[comb_diff_vars]
@@ -505,8 +901,10 @@ def combine_rt_diff2(df):
         df['Rt_diff2'] = tmp3
     else:
         df['Rt_diff2'] = tmp3 / r_vals
+    if 'units' in keywords:
+        keywords['units'].append(('Rt_diff2', '/\\textdegree'))
 
-    return df
+    return df, keywords
 
 
 

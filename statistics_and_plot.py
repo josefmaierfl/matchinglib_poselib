@@ -6454,7 +6454,7 @@ def main():
                                                              calc_func=calc_rt_diff2_frame_to_frame,
                                                              calc_func_args=calc_func_args,
                                                              fig_type='surface',
-                                                             use_marks=True,
+                                                             use_marks=False,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
                                                              build_pdf=True,
