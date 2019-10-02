@@ -325,16 +325,16 @@ def eval_corr_pool_converge(**keywords):
     df_grp = tmp.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
     data_list = []
-    # mult = 5
-    # while mult > 1:
-    #     try:
-    #         sys.setrecursionlimit(mult * sys.getrecursionlimit())
-    #         break
-    #     except:
-    #         mult -= 1
+    mult = 5
+    while mult > 1:
+        try:
+            sys.setrecursionlimit(mult * sys.getrecursionlimit())
+            break
+        except:
+            mult -= 1
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
-        tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.02)
+        tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05)
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
 
@@ -364,7 +364,9 @@ def eval_corr_pool_converge(**keywords):
         itpars_name = keywords['it_parameters'][0]
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
-        tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'])
+        tmp1 = tmp1.drop(keywords['partitions'] + ['Nr'], axis=1)
+        if gloss_not_calced:
+            eval_names = tmp1.columns.values
         tmp1.set_index(keywords['it_parameters'] + [a for a in keywords['xy_axis_columns'] if a != 'Nr'], inplace=True)
         tmp1 = tmp1.unstack(level=-1)
         if len(keywords['it_parameters']) > 1:
@@ -379,7 +381,7 @@ def eval_corr_pool_converge(**keywords):
             it_idxs = [str(a) for a in tmp1.index]
             if gloss_not_calced:
                 gloss = glossary_from_list(it_idxs)
-                gloss = add_to_glossary_eval([a for a in tmp1.columns], gloss)
+                gloss = add_to_glossary_eval(eval_names, gloss)
                 # tex_infos['abbreviations'] = gloss
                 gloss_not_calced = False
         gloss = add_to_glossary(list(grp), gloss)
@@ -398,6 +400,7 @@ def eval_corr_pool_converge(**keywords):
         t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
                                  a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+        t_main_name1 = t_main_name1.replace('.', 'd')
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
         with open(ft_mean_name, 'a') as f:
@@ -769,6 +772,7 @@ def eval_corr_pool_converge(**keywords):
         t_main_name1 = t_main_name + '_part' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
                                  a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+        t_main_name1 = t_main_name1.replace('.', 'd')
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
         with open(ft_mean_name, 'a') as f:
