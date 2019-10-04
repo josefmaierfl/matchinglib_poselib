@@ -661,7 +661,11 @@ def eval_corr_pool_converge(**keywords):
     data_new3 = data_new2.mean(axis=0)
     sel_parts =[[b for b in comb_cols if a in b and ('R_diffAll' in b or 't_angDiff_deg' in b)
                  and not ('R_diffAll_diff' in b or 't_angDiff_deg_diff' in b)] for a in itpars_cols]
+    sel_parts2 = [[c for b in sel_parts for c in b if ('R_diffAll' in c or 't_angDiff_deg' in c) and a in c] for a in
+                  itpars_cols]
     sel_parts1 = [b for a in itpars_cols for b in comb_cols if a in b and 'poolSize' in b and 'poolSize_diff' not in b]
+    sel_parts3 = [[b for b in sel_parts1 if 'poolSize' in b and a in b] for a in
+                  itpars_cols]
     for i, (val1, val2) in enumerate(zip(sel_parts, sel_parts1)):
         hlp = data_new3[val1[0]] + data_new3[val1[1]]
         data_new3[itpars_cols[i]] = hlp * data_new3[val2]
