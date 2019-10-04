@@ -117,7 +117,8 @@ def pars_calc_single_fig_partitions(**keywords):
         replaceCSVLabels, \
         add_to_glossary, \
         split_large_titles, \
-        is_exp_used
+        is_exp_used, \
+        get_limits_log_exp
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True)
@@ -244,40 +245,7 @@ def pars_calc_single_fig_partitions(**keywords):
             f.write('# Column parameters: ' + '-'.join(ret['it_parameters']) + '\n')
             tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        stats_all = tmp2.stack().reset_index()
-        stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-        # figure types: sharp plot, smooth, const plot, ybar, xbar
-        use_limits = {'miny': None, 'maxy': None}
-        if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-            if stats_all['min'][0] < 0:
-                use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-            else:
-                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-            if stats_all['max'][0] < 0:
-                use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-            else:
-                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-        else:
-            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-        if use_limits['miny'] and use_limits['maxy']:
-            use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                     np.log10(np.abs(use_limits['maxy']))) > 1 else False
-            exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-        elif use_limits['miny']:
-            use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                     np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-            exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-        elif use_limits['maxy']:
-            use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                     np.log10(np.abs(use_limits['maxy']))) > 1 else False
-            exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-        else:
-            use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                     np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-            exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+        _, use_limits, use_log, exp_value = get_limits_log_exp(tmp2)
         is_numeric = pd.to_numeric(tmp2.reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
         reltex_name = os.path.join(ret['rel_data_path'], b_name)
         if 'error_type_text' in keywords:
@@ -428,7 +396,8 @@ def pars_calc_single_fig(**keywords):
         compile_tex, \
         calcNrLegendCols, \
         replaceCSVLabels, \
-        split_large_titles
+        split_large_titles, \
+        get_limits_log_exp
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
@@ -453,40 +422,7 @@ def pars_calc_single_fig(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    stats_all = ret['b'].stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    # figure types: sharp plot, smooth, const plot, ybar, xbar
-    use_limits = {'miny': None, 'maxy': None}
-    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        if stats_all['min'][0] < 0:
-            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-        else:
-            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        if stats_all['max'][0] < 0:
-            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-        else:
-            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-    else:
-        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-    if use_limits['miny'] and use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-    elif use_limits['miny']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-    elif use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-    else:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+    _, use_limits, use_log, exp_value = get_limits_log_exp(ret['b'])
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
     section_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +\
                    replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
@@ -1913,6 +1849,14 @@ def calc_Time_Model(**vars):
 def estimate_alg_time_fixed_kp(**vars):
     if 'res_par_name' not in vars:
         raise ValueError('Missing parameter res_par_name')
+    from statistics_and_plot import tex_string_coding_style, \
+        compile_tex, \
+        calcNrLegendCols, \
+        replaceCSVLabels, \
+        strToLower, \
+        split_large_titles, \
+        get_limits_log_exp, \
+        use_log_axis
     tmp, col_name = get_time_fixed_kp(**vars)
     tmp1 = tmp.loc[tmp.groupby(vars['t_data_separators'])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
@@ -1930,16 +1874,10 @@ def estimate_alg_time_fixed_kp(**vars):
     min_val = tmp1[col_name].min()
     max_val = tmp1[col_name].max()
     from statistics_and_plot import is_exp_used
-    use_log1 = True if np.abs(np.log10(np.abs(min_val)) - np.log10(np.abs(max_val))) > 1 else False
+    use_log1 = use_log_axis(min_val, max_val)
     exp_value1 = is_exp_used(min_val, max_val, use_log1)
 
     vars = prepare_io(**vars)
-    from statistics_and_plot import tex_string_coding_style, \
-        compile_tex, \
-        calcNrLegendCols, \
-        replaceCSVLabels, \
-        strToLower, \
-        split_large_titles
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
@@ -1986,40 +1924,7 @@ def estimate_alg_time_fixed_kp(**vars):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
-    stats_all = tmp.stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    # figure types: sharp plot, smooth, const plot, ybar, xbar
-    use_limits = {'miny': None, 'maxy': None}
-    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        if stats_all['min'][0] < 0:
-            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-        else:
-            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        if stats_all['max'][0] < 0:
-            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-        else:
-            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-    else:
-        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-    if use_limits['miny'] and use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-    elif use_limits['miny']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-    elif use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-    else:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+    _, use_limits, use_log, exp_value = get_limits_log_exp(tmp)
     is_numeric = pd.to_numeric(tmp.reset_index()[vars['xy_axis_columns'][0]], errors='coerce').notnull().all()
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
     fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
@@ -2736,9 +2641,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max = tmp2mean_max.loc[tmp2mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import add_to_glossary, add_to_glossary_eval, split_large_titles, is_exp_used
+    from statistics_and_plot import add_to_glossary, add_to_glossary_eval, split_large_titles, is_exp_used, use_log_axis
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
-    from statistics_and_plot import glossary_from_list
+    from statistics_and_plot import glossary_from_list, calc_limits
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp1mean.index for b in a])
         index_new1 = ['-'.join(a) for a in tmp1mean.index]
@@ -2758,7 +2663,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     all_vals = tmp1mean.drop(first_grp2, axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
-    use_log1 = True if np.abs(np.log10(np.abs(min_val[0])) - np.log10(np.abs(max_val[0]))) > 1 else False
+    use_log1 = use_log_axis(min_val[0], max_val[0])
 
     tmp2mean.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2775,7 +2680,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     all_vals = tmp2mean.drop(second_grp2, axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
-    use_log2 = True if np.abs(np.log10(np.abs(min_val[0])) - np.log10(np.abs(max_val[0]))) > 1 else False
+    use_log2 = use_log_axis(min_val[0], max_val[0])
 
     vars = prepare_io(**vars)
 
@@ -2941,7 +2846,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     all_vals = tmp1mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val[0])) - np.log10(np.abs(max_val[0]))) > 1 else False)
+    use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
@@ -2962,7 +2867,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     all_vals = tmp1mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val[0])) - np.log10(np.abs(max_val[0]))) > 1 else False)
+    use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
@@ -2984,7 +2889,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     all_vals = tmp2mean_min.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val[0])) - np.log10(np.abs(max_val[0]))) > 1 else False)
+    use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
@@ -3005,7 +2910,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     all_vals = tmp2mean_max.drop(meta_col4[-1] + [vars['eval_minmax_for']], axis=1).stack().reset_index()
     min_val = all_vals.drop(all_vals.columns[0:-1], axis=1).min().abs()
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val[0])) - np.log10(np.abs(max_val[0]))) > 1 else False)
+    use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
 
     t_main_name1 = 'time_on_' + time_on1 +\
@@ -3193,7 +3098,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4.append(meta_col4[-1])
     min_val = np.abs(tmp12_min[col_name].min())
     max_val = np.abs(tmp12_min[col_name].max())
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val)) - np.log10(np.abs(max_val))) > 1 else False)
+    use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
@@ -3215,7 +3120,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp12_max.drop(first_grp2, axis=1, inplace=True)
     min_val = np.abs(tmp12_max[col_name].min())
     max_val = np.abs(tmp12_max[col_name].max())
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val)) - np.log10(np.abs(max_val))) > 1 else False)
+    use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
@@ -3239,7 +3144,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4.append(meta_col4[-1])
     min_val = np.abs(tmp22_min[col_name].min())
     max_val = np.abs(tmp22_min[col_name].max())
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val)) - np.log10(np.abs(max_val))) > 1 else False)
+    use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
@@ -3261,7 +3166,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max.drop(second_grp2, axis=1, inplace=True)
     min_val = np.abs(tmp22_max[col_name].min())
     max_val = np.abs(tmp22_max[col_name].max())
-    use_log4.append(True if np.abs(np.log10(np.abs(min_val)) - np.log10(np.abs(max_val))) > 1 else False)
+    use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
 
     t_main_name1 = 'time_on_' + meta_col4[0] + \
@@ -3525,7 +3430,7 @@ def get_min_inlrat_diff(**keywords):
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import is_exp_used
+    from statistics_and_plot import is_exp_used, get_limits_log_exp
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -3570,34 +3475,7 @@ def get_min_inlrat_diff(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
-    stats_all = diff_mean.stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    # figure types: sharp plot, smooth, const plot, ybar, xbar
-    use_limits = {'miny': None, 'maxy': None}
-    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-    else:
-        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-    if use_limits['miny'] and use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-    elif use_limits['miny']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-    elif use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-    else:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+    _, use_limits, use_log, exp_value = get_limits_log_exp(diff_mean)
     is_numeric = pd.to_numeric(diff_mean.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
     reltex_name = os.path.join(keywords['rel_data_path'], b_name)
     fig_name = 'Absolute mean inlier ratio differences $\\Delta \\epsilon$ vs ' + \

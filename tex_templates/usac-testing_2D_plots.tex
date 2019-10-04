@@ -149,6 +149,9 @@ y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ if sec['use_string_labels'] }
+y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+\BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
 xlabel=\VAR{sec['label_x']},%
@@ -162,9 +165,13 @@ x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+\BLOCK{ if sec['use_string_labels'] }
+x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+\BLOCK{ endif }
 \BLOCK{ elif sec['use_string_labels'] }
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
+x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y']},%
 \BLOCK{ else }

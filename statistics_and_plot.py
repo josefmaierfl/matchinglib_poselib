@@ -410,44 +410,9 @@ def calcSatisticAndPlot_2D(data,
                 if pdf_nr < len(pdfsplitentry):
                     if pdfsplitentry[pdf_nr] == str(it[0]):
                         pdf_nr += 1
-            stats_all = tmp.stack().reset_index()
-            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
-                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
-                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+            useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, False, False, True)
+            if useless:
                 continue
-            #figure types: sharp plot, smooth, const plot, ybar, xbar
-            use_limits = {'miny': None, 'maxy': None}
-            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                if stats_all['min'][0] < 0:
-                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-                else:
-                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                if stats_all['max'][0] < 0:
-                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-                else:
-                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-            else:
-                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-            if use_limits['miny'] and use_limits['maxy']:
-                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-            elif use_limits['miny']:
-                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-            elif use_limits['maxy']:
-                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-            else:
-                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
             section_name = replace_stat_names(it[-1]) + ' values for ' +\
@@ -808,44 +773,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                     tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
                 #Construct tex-file
-                stats_all = tmp2.stack().reset_index()
-                stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-                if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
-                    np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
-                        np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp2, False, False, True)
+                if useless:
                     continue
-                #figure types: sharp plot, smooth, const plot, ybar, xbar
-                use_limits = {'miny': None, 'maxy': None}
-                if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                    if stats_all['min'][0] < 0:
-                        use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-                    else:
-                        use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                    if stats_all['max'][0] < 0:
-                        use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-                    else:
-                        use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-                else:
-                    if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                        use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-                    if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                        use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-                if use_limits['miny'] and use_limits['maxy']:
-                    use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                             np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                    exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-                elif use_limits['miny']:
-                    use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                             np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                    exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-                elif use_limits['maxy']:
-                    use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                             np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                    exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-                else:
-                    use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                             np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                    exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
                 section_name = replace_stat_names(it[-1]) + ' values for ' +\
                                replaceCSVLabels(str(it[0]), True) +\
@@ -1194,8 +1124,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
         if len(partitions) > 1:
             for i, ptv in enumerate(partition_text_val_tmp):
                 if '$' == ptv[0][-1]:
-                    partition_text_val_tmp[i][0][-1] = '='
-                    partition_text_val_tmp[i][0] += str(grp[i]) + '$'
+                    partition_text_val_tmp[i][0] = partition_text_val_tmp[i][0][:-1] + '=' + str(grp[i]) + '$'
                 elif '}' == ptv[0][-1]:
                     partition_text_val_tmp[i][0] += '=' + str(grp[i])
                 else:
@@ -1203,8 +1132,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
             partition_text_val1 = ''.join([''.join(a) for a in partition_text_val_tmp])
         else:
             if '$' == partition_text_val_tmp[0][0][-1]:
-                partition_text_val_tmp[0][0][-1] = '='
-                partition_text_val_tmp[0][0] += str(grp) + '$'
+                partition_text_val_tmp[0][0] = partition_text_val_tmp[0][0][:-1] + '=' + str(grp) + '$'
             elif '}' == partition_text_val_tmp[0][0][-1]:
                 partition_text_val_tmp[0][0] += '=' + str(grp)
             else:
@@ -1279,28 +1207,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
             legend = ['-'.join([b for b in a.split('-') if ev not in b]) for a in sel_cols]
 
             # Construct tex-file
-            stats_all = tmp.loc[:, sel_cols].stack().reset_index()
-            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
-                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
-                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+            useless, stats_all, use_limits = calc_limits(tmp, True, False, None, sel_cols, 3.291)
+            if useless:
                 continue
-            # figure types: sharp plot, smooth, const plot, ybar, xbar
-            use_limits = {'miny': None, 'maxy': None}
-            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                if stats_all['min'][0] < 0:
-                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-                else:
-                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                if stats_all['max'][0] < 0:
-                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-                else:
-                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-            else:
-                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 3.291):
-                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 3.291, 6)
-                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 3.291):
-                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 3.291, 6)
             if use_limits['miny'] and use_limits['maxy']:
                 exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], eval_cols_log_scaling[i])
             elif use_limits['miny']:
@@ -2238,8 +2147,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
         if len(partitions) > 1:
             for i, ptv in enumerate(partition_text_val_tmp):
                 if '$' == ptv[0][-1]:
-                    partition_text_val_tmp[i][0][-1] = '='
-                    partition_text_val_tmp[i][0] += str(grp[i]) + '$'
+                    partition_text_val_tmp[i][0] = partition_text_val_tmp[i][0][:-1] + '=' + str(grp[i]) + '$'
                 elif '}' == ptv[0][-1]:
                     partition_text_val_tmp[i][0] += '=' + str(grp[i])
                 else:
@@ -2247,8 +2155,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             partition_text_val1 = ''.join([''.join(a) for a in partition_text_val_tmp])
         else:
             if '$' == partition_text_val_tmp[0][0][-1]:
-                partition_text_val_tmp[0][0][-1] = '='
-                partition_text_val_tmp[0][0] += str(grp) + '$'
+                partition_text_val_tmp[0][0] = partition_text_val_tmp[0][0][:-1] + '=' + str(grp) + '$'
             elif '}' == partition_text_val_tmp[0][0][-1]:
                 partition_text_val_tmp[0][0] += '=' + str(grp)
             else:
@@ -2651,26 +2558,9 @@ def calcFromFuncAndPlot_aggregate(data,
         df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     for i, it in enumerate(eval_columns):
         # Construct tex-file information
-        stats_all = df[it].describe().T
-        if (np.isclose(stats_all['min'], 0, atol=1e-06) and
-            np.isclose(stats_all['max'], 0, atol=1e-06)) or \
-                np.isclose(stats_all['min'], stats_all['max']):
+        useless, stats_all, use_limits = calc_limits(df, True, False, None, it, 3.291)
+        if useless:
             continue
-        use_limits = {'miny': None, 'maxy': None}
-        if np.abs(stats_all['max'] - stats_all['min']) < np.abs(stats_all['max'] / 200):
-            if stats_all['min'] < 0:
-                use_limits['miny'] = round(1.01 * stats_all['min'], 6)
-            else:
-                use_limits['miny'] = round(0.99 * stats_all['min'], 6)
-            if stats_all['max'] < 0:
-                use_limits['maxy'] = round(0.99 * stats_all['max'], 6)
-            else:
-                use_limits['maxy'] = round(1.01 * stats_all['max'], 6)
-        else:
-            if stats_all['min'] < (stats_all['mean'] - stats_all['std'] * 3.291):
-                use_limits['miny'] = round(stats_all['mean'] - stats_all['std'] * 3.291, 6)
-            if stats_all['max'] > (stats_all['mean'] + stats_all['std'] * 3.291):
-                use_limits['maxy'] = round(stats_all['mean'] + stats_all['std'] * 3.291, 6)
         if use_limits['miny'] and use_limits['maxy']:
             exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], eval_cols_log_scaling[i])
         elif use_limits['miny']:
@@ -2973,26 +2863,9 @@ def calcSatisticAndPlot_aggregate(data,
                 if pdf_nr < len(pdfsplitentry):
                     if pdfsplitentry[pdf_nr] == str(it[0]):
                         pdf_nr += 1
-            stats_all = tmp.drop('tex_it_pars', axis=1).stack().reset_index()
-            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-            if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
-                np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
-                    np.isclose(stats_all['min'][0], stats_all['max'][0]):
+            useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, True, 'tex_it_pars')
+            if useless:
                 continue
-            # figure types: sharp plot, smooth, const plot, ybar, xbar
-            use_limits = {'miny': None, 'maxy': None}
-            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                if stats_all['min'][0] < 0:
-                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-                else:
-                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                if stats_all['max'][0] < 0:
-                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-                else:
-                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-            use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                     np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-            exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
 
             fig_name = replace_stat_names(it[-1]) + ' values for ' +\
                        replaceCSVLabels(str(it[0]), True) + ' comparing parameter variations of\\\\' + \
@@ -3203,6 +3076,119 @@ def is_exp_used(min_val, max_val, use_log=False):
     elif m_val2 >= 4:
         return True
     return False
+
+def use_log_axis_and_exp_val(min_val, max_val, limit_min=None, limit_max=None):
+    if limit_min and limit_max:
+        use_log = use_log_axis(limit_min, limit_max)
+        exp_value = is_exp_used(limit_min, limit_max, use_log)
+    elif limit_min:
+        use_log = use_log_axis(limit_min, max_val)
+        exp_value = is_exp_used(limit_min, max_val, use_log)
+    elif limit_max:
+        use_log = use_log_axis(min_val, limit_max)
+        exp_value = is_exp_used(min_val, limit_max, use_log)
+    else:
+        use_log = use_log_axis(min_val, max_val)
+        exp_value = is_exp_used(min_val, max_val, use_log)
+    return use_log, exp_value
+
+
+def use_log_axis(min_val, max_val):
+    if min_val < 0 or max_val < 0:
+        use_log = False
+    else:
+        use_log = True if np.abs(np.log10(np.abs(min_val)) -
+                                 np.log10(np.abs(max_val))) > 1 else False
+    return use_log
+
+
+def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = None, filter_pars=None, std_mult=None):
+    if filter_pars:
+        stats_all = df[filter_pars].stack().reset_index()
+    elif drop_cols:
+        stats_all = df.drop(drop_cols, axis=1).stack().reset_index()
+    else:
+        stats_all = df.stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).astype(float).describe().T
+    use_limits = {'miny': None, 'maxy': None}
+    is_series = False
+    if filter_pars:
+        if isinstance(filter_pars, str):
+            is_series = True
+        else:
+            try:
+                oit = iter(filter_pars)
+            except TypeError as te:
+                is_series = True
+    if is_series:
+        min_val = stats_all['min']
+        max_val = stats_all['max']
+        mean_val = stats_all['mean']
+        std_val = stats_all['std']
+    else:
+        min_val = stats_all['min'][0]
+        max_val = stats_all['max'][0]
+        mean_val = stats_all['mean'][0]
+        std_val = stats_all['std'][0]
+    if check_useless_data:
+        if (np.isclose(min_val, 0, atol=1e-06) and
+            np.isclose(max_val, 0, atol=1e-06)) or \
+                np.isclose(min_val, max_val):
+            return True, stats_all, use_limits
+    if np.abs(max_val - min_val) < np.abs(max_val / 200):
+        if min_val < 0:
+            use_limits['miny'] = round(1.01 * min_val, 6)
+        else:
+            use_limits['miny'] = round(0.99 * min_val, 6)
+        if max_val < 0:
+            use_limits['maxy'] = round(0.99 * max_val, 6)
+        else:
+            use_limits['maxy'] = round(1.01 * max_val, 6)
+    elif not no_big_limit:
+        mult = 2.576
+        if std_mult:
+            mult = std_mult
+        if min_val < (mean_val - std_val * mult):
+            use_limits['miny'] = round(mean_val - std_val * mult, 6)
+        if max_val > (mean_val + std_val * mult):
+            use_limits['maxy'] = round(mean_val + std_val * mult, 6)
+    return False, stats_all, use_limits
+
+
+def get_limits_log_exp(df,
+                       no_big_limit=False,
+                       no_limit_log=False,
+                       check_useless_data=False,
+                       drop_cols=None,
+                       filter_pars=None,
+                       std_mult=None):
+    useless, stats_all, use_limits = calc_limits(df, check_useless_data, no_big_limit, drop_cols, filter_pars, std_mult)
+    if useless:
+        return True, use_limits, False, False
+    is_series = False
+    if filter_pars:
+        if isinstance(filter_pars, str):
+            is_series = True
+        else:
+            try:
+                oit = iter(filter_pars)
+            except TypeError as te:
+                is_series = True
+    if is_series:
+        min_val = stats_all['min']
+        max_val = stats_all['max']
+    else:
+        min_val = stats_all['min'][0]
+        max_val = stats_all['max'][0]
+    if no_limit_log:
+        use_log, exp_value = use_log_axis_and_exp_val(min_val,
+                                                      max_val)
+    else:
+        use_log, exp_value = use_log_axis_and_exp_val(min_val,
+                                                      max_val,
+                                                      use_limits['miny'],
+                                                      use_limits['maxy'])
+    return False, use_limits, use_log, exp_value
 
 
 def split_large_titles(title_str):
@@ -3676,11 +3662,11 @@ def getSymbolDescription(label):
                 # '\\text{min}\\left( \\Delta \\bm{e}_{\\Sigma}\\right)\\right)/r_{\\Delta e}$ '
                 '\\Delta e_{\\Sigma}/r_{\\Delta e}$ '
                 'of combined rotation $R$ and translation $\\bm{t}$ error differences '
-                '$\\Delta^{2}R_{i}=\\Delta R_{i}-'
-                '\\Delta R_{i-1}\\; \\forall i \\in \\left[ 1,\\; n_{I}\\; \\right]$ and '
+                '$\\Delta^{2}R_{i}=\\Delta R_{\\Sigma ,i}-'
+                '\\Delta R_{\\Sigma ,i-1}\\; \\forall i \\in \\left[ 1,\\; n_{I}\\; \\right]$ and '
                 '$\\angle{\\Delta^{2} \\bm{t}_{i}}=\\angle{\\Delta \\bm{t}_{i}}-\\angle{\\Delta \\bm{t}_{i-1}}\\; '
                 '\\forall i \\in \\left[ 1,\\; n_{I}\\; \\right]$ with '
-                '$\\Delta e_{\\Sigma ,i}=\\text{sgn}\\left( \\Delta R_{i}\\right)\\Delta^{2}R_{i}+'
+                '$\\Delta e_{\\Sigma ,i}=\\text{sgn}\\left( \\Delta R_{\\Sigma ,i}\\right)\\Delta^{2}R_{i}+'
                 '\\text{sgn}\\left( \\angle{\\Delta \\bm{t}_{i}}\\right)\\angle{\\Delta^{2} \\bm{t}_{i}}$, '
                 '$r_{\\Delta e}=\\text{max}\\left( \\Delta \\bm{e}_{\\Sigma}\\right)'
                 '-\\text{min}\\left( \\Delta \\bm{e}_{\\Sigma}\\right)$, '
@@ -3725,7 +3711,7 @@ def getSymbolDescription(label):
                 '$\\lvert\\Delta c_{x,y}^{\\mli{K2}}\\, \\Delta f_{x,y}^{\\mli{K2}}\\rvert$.', True)
     elif label == 'poolSize_diff':
         return (replaceCSVLabels(label),
-                'Difference from frame to frame on the number of matches $\\Delta n_{pool}$ '
+                'Difference from frame to frame on the number of matches $n_{pool}$ '
                 'within the correspondence pool', True)
     else:
         return (replaceCSVLabels(label), replaceCSVLabels(label), False)
@@ -3878,17 +3864,17 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         if use_plural:
             str_val = 'numbers of filtered correspondences $n_{fc}$'
         else:
-            str_val = '# filtered correspondences $n_{fc}$'
+            str_val = '\\# filtered correspondences $n_{fc}$'
     elif label == 'nrCorrs_estimated':
         if use_plural:
             str_val = 'numbers of estimated correspondences $\\tilde{n}_{c}$'
         else:
-            str_val = '# estimated correspondences $\\tilde{n}_{c}$'
+            str_val = '\\# estimated correspondences $\\tilde{n}_{c}$'
     elif label == 'nrCorrs_GT':
         if use_plural:
             str_val = 'numbers of GT correspondences $n_{GT}$'
         else:
-            str_val = '# GT correspondences $n_{GT}$'
+            str_val = '\\# GT correspondences $n_{GT}$'
     elif label == 'filtering_us':
         if use_plural:
             str_val = 'filtering times $t_{f}$'
@@ -3923,7 +3909,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         if use_plural:
             str_val = 'numbers of matches $n_{pool}$ within the correspondence pool'
         else:
-            str_val = '# of matches $n_{pool}$ within the correspondence pool'
+            str_val = '\\# of matches $n_{pool}$ within the correspondence pool'
     elif label == 'poolSize_diff':
         str_val = '$\\Delta n_{pool}$'
     elif label == 'kpDistr':
@@ -3940,7 +3926,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
         if use_plural:
             str_val = 'numbers of TP'
         else:
-            return '# TP'
+            return '\\# TP'
     elif label == 'inlratCRate':
         if use_plural:
             str_val = 'inlier ratio change rates $c_{\\breve{\\epsilon}}$'
@@ -4174,6 +4160,9 @@ def capitalizeStr(str_val):
 
 def capitalizeFirstChar(str_val):
     str_l = str_val.split(' ')
+    b = str_l[0]
+    if b.isupper() or '$' in b or '\\' in b or len(b) == 1 or '{' in b or '}' in b or '_' in b:
+        return str_val
     str_l[0] = str_l[0].capitalize()
     return ' '.join(str_l)
 

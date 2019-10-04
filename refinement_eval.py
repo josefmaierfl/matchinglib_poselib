@@ -50,7 +50,8 @@ def get_best_comb_scenes_1(**keywords):
         calcNrLegendCols, \
         strToLower, \
         compile_tex, \
-        split_large_titles
+        split_large_titles, \
+        get_limits_log_exp
     from statistics_and_plot import capitalizeFirstChar
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
@@ -124,44 +125,7 @@ def get_best_comb_scenes_1(**keywords):
                 elif i1 < len_drops - 1:
                     part_name_title[-1] += ', and '
 
-        stats_all = tmp.stack().reset_index()
-        stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-        # figure types: sharp plot, smooth, const plot, ybar, xbar
-        use_limits = {'miny': None, 'maxy': None}
-        if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-            if stats_all['min'][0] < 0:
-                use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-            else:
-                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-            if stats_all['max'][0] < 0:
-                use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-            else:
-                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-        else:
-            if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-            if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-        if use_limits['miny'] and use_limits['maxy']:
-            use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                     np.log10(np.abs(use_limits['maxy']))) > 1 else False
-            exp_value = True if max(float(np.abs(np.log10(np.abs(use_limits['miny'])))),
-                                    float(np.abs(np.log10(np.abs(use_limits['maxy']))))) > 1.01 else False
-        elif use_limits['miny']:
-            use_log = True if np.abs(
-                np.log10(np.abs(use_limits['miny'])) - np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-            exp_value = True if max(float(np.abs(np.log10(np.abs(use_limits['miny'])))),
-                                    float(np.abs(np.log10(np.abs(stats_all['max'][0]))))) > 1.01 else False
-        elif use_limits['maxy']:
-            use_log = True if np.abs(
-                np.log10(np.abs(stats_all['min'][0])) - np.log10(np.abs(use_limits['maxy']))) > 1 else False
-            exp_value = True if max(float(np.abs(np.log10(np.abs(stats_all['min'][0])))),
-                                    float(np.abs(np.log10(np.abs(use_limits['maxy']))))) > 1.01 else False
-        else:
-            use_log = True if np.abs(
-                np.log10(np.abs(stats_all['min'][0])) - np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-            exp_value = True if max(float(np.abs(np.log10(np.abs(stats_all['min'][0])))),
-                                    float(np.abs(np.log10(np.abs(stats_all['max'][0]))))) > 1.01 else False
+        _, use_limits, use_log, exp_value = get_limits_log_exp(tmp)
         reltex_name = os.path.join(ret['rel_data_path'], b_mean_name[-1])
         if 'error_type_text' in keywords:
             fig_name = 'Mean ' + strToLower(keywords['error_type_text']) + \
@@ -292,23 +256,8 @@ def get_best_comb_scenes_1(**keywords):
                         '-'.join(ret['it_parameters']) + '\n')
             data_parts_min[-1].to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        stats_all = data_parts_min[-1].drop([it_pars_name, 'tex_it_pars'], axis=1).stack().reset_index()
-        stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = True if max(float(np.abs(np.log10(np.abs(stats_all['min'][0])))),
-                                float(np.abs(np.log10(np.abs(stats_all['max'][0]))))) > 1.01 else False
-        # figure types: sharp plot, smooth, const plot, ybar, xbar
-        use_limits = {'miny': None, 'maxy': None}
-        if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-            if stats_all['min'][0] < 0:
-                use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-            else:
-                use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-            if stats_all['max'][0] < 0:
-                use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-            else:
-                use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
+        _, use_limits, use_log, exp_value = get_limits_log_exp(data_parts_min[-1], True, True, False,
+                                                               [it_pars_name, 'tex_it_pars'])
         reltex_name = os.path.join(ret['rel_data_path'], data_f_name)
         if 'error_type_text' in keywords:
             fig_name = 'Minimum mean ' + strToLower(keywords['error_type_text']) + \
@@ -437,7 +386,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     tmp, col_name = get_time_fixed_kp(**vars)
 
     tmp.set_index(vars['it_parameters'], inplace=True)
-    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, get_limits_log_exp
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.index for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.index]
@@ -485,23 +434,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
-    min_val = tmp[col_name].min()
-    max_val = tmp[col_name].max()
-    stats_all = {'min': min_val, 'max': max_val}
-    use_log = True if np.abs(np.log10(np.abs(min_val)) - np.log10(np.abs(max_val))) > 1 else False
-    exp_value = True if max(float(np.abs(np.log10(np.abs(min_val)))),
-                            float(np.abs(np.log10(np.abs(max_val))))) > 1.01 else False
-    # figure types: sharp plot, smooth, const plot, ybar, xbar
-    use_limits = {'miny': None, 'maxy': None}
-    if np.abs(stats_all['max'] - stats_all['min']) < np.abs(stats_all['max'] / 200):
-        if stats_all['min'] < 0:
-            use_limits['miny'] = round(1.01 * stats_all['min'], 6)
-        else:
-            use_limits['miny'] = round(0.99 * stats_all['min'], 6)
-        if stats_all['max'] < 0:
-            use_limits['maxy'] = round(0.99 * stats_all['max'], 6)
-        else:
-            use_limits['maxy'] = round(1.01 * stats_all['max'], 6)
+    _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, None, col_name)
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
     fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
@@ -666,7 +599,8 @@ def pars_calc_single_fig_K(**keywords):
         compile_tex, \
         calcNrLegendCols, \
         replaceCSVLabels, \
-        split_large_titles
+        split_large_titles, \
+        get_limits_log_exp
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True)
         if (nr_it_parameters <= 2):
@@ -692,44 +626,7 @@ def pars_calc_single_fig_K(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    stats_all = ret['b'].stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    # figure types: sharp plot, smooth, const plot, ybar, xbar
-    use_limits = {'miny': None, 'maxy': None}
-    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        if stats_all['min'][0] < 0:
-            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-        else:
-            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        if stats_all['max'][0] < 0:
-            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-        else:
-            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-    else:
-        if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-            use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-        if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-            use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-    if use_limits['miny'] and use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = True if max(float(np.abs(np.log10(np.abs(use_limits['miny'])))),
-                                float(np.abs(np.log10(np.abs(use_limits['maxy']))))) > 1.01 else False
-    elif use_limits['miny']:
-        use_log = True if np.abs(
-            np.log10(np.abs(use_limits['miny'])) - np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = True if max(float(np.abs(np.log10(np.abs(use_limits['miny'])))),
-                                float(np.abs(np.log10(np.abs(stats_all['max'][0]))))) > 1.01 else False
-    elif use_limits['maxy']:
-        use_log = True if np.abs(
-            np.log10(np.abs(stats_all['min'][0])) - np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = True if max(float(np.abs(np.log10(np.abs(stats_all['min'][0])))),
-                                float(np.abs(np.log10(np.abs(use_limits['maxy']))))) > 1.01 else False
-    else:
-        use_log = True if np.abs(
-            np.log10(np.abs(stats_all['min'][0])) - np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = True if max(float(np.abs(np.log10(np.abs(stats_all['min'][0])))),
-                                float(np.abs(np.log10(np.abs(stats_all['max'][0]))))) > 1.01 else False
+    _, use_limits, use_log, exp_value = get_limits_log_exp(ret['b'])
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
     section_name = 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +\
                    replaceCSVLabels(str(ret['grp_names'][-1]), True) +\

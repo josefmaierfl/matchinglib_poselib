@@ -286,7 +286,8 @@ def eval_corr_pool_converge(**keywords):
         calcNrLegendCols, \
         capitalizeFirstChar, \
         findUnit, \
-        compile_tex
+        compile_tex, \
+        get_limits_log_exp
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -325,13 +326,13 @@ def eval_corr_pool_converge(**keywords):
     df_grp = tmp.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
     data_list = []
-    mult = 5
-    while mult > 1:
-        try:
-            sys.setrecursionlimit(mult * sys.getrecursionlimit())
-            break
-        except:
-            mult -= 1
+    # mult = 5
+    # while mult > 1:
+    #     try:
+    #         sys.setrecursionlimit(mult * sys.getrecursionlimit())
+    #         break
+    #     except:
+    #         mult -= 1
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05)
@@ -412,51 +413,42 @@ def eval_corr_pool_converge(**keywords):
             tmp1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         for ev in print_evals:
-            use_cols = [a for a in comb_cols if ev in a]
+            surpr_ev = [a for a in print_evals if ev in a and ev != a]
+            use_cols = []
+            for a in comb_cols:
+                if ev in a:
+                    take_it = True
+                    for b in surpr_ev:
+                        if b in a:
+                            take_it = False
+                            break
+                    if take_it:
+                        use_cols.append(a)
             if not use_cols:
                 continue
             side_eval = replaceCSVLabels([a for a in keywords['xy_axis_columns'] if a != 'Nr'][0])
             close_equ = False
             if '$' == side_eval[-1]:
                 close_equ = True
-                side_eval[-1] = '='
+                side_eval = side_eval[:-1] + '='
             elif '}' == side_eval[-1]:
                 side_eval += '='
             else:
                 side_eval += ' equal to '
-            use_cols1 = [a for a in comb_cols1 if ev in a]
+            use_cols1 = []
+            for a in comb_cols1:
+                if ev in a:
+                    take_it = True
+                    for b in surpr_ev:
+                        if b in a:
+                            take_it = False
+                            break
+                    if take_it:
+                        use_cols1.append(a)
             use_cols1 = [round(float(b), 6) for a in use_cols1 for b in a.split('/') if ev not in b]
             use_cols1 = [side_eval + str(a) + '$' if close_equ else side_eval + str(a) for a in use_cols1]
 
-            stats_all = tmp1[use_cols].stack().reset_index()
-            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-            # figure types: sharp plot, smooth, const plot, ybar, xbar
-            use_limits = {'miny': None, 'maxy': None}
-            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                if stats_all['min'][0] < 0:
-                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-                else:
-                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                if stats_all['max'][0] < 0:
-                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-                else:
-                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-            if use_limits['miny'] and use_limits['maxy']:
-                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-            elif use_limits['miny']:
-                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-            elif use_limits['maxy']:
-                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-            else:
-                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+            _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, use_cols)
             # is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
             fig_name = capitalizeFirstChar(replaceCSVLabels(ev, True)) + \
@@ -466,12 +458,12 @@ def eval_corr_pool_converge(**keywords):
                 fig_name += replaceCSVLabels(part) + ' equal to ' + str(val2)
                 if nr_partitions <= 2:
                     if i1 < nr_partitions - 1:
-                        partition_title += ' and '
+                        fig_name += ' and '
                 else:
                     if i1 < nr_partitions - 2:
-                        partition_title += ', '
+                        fig_name += ', '
                     elif i1 < nr_partitions - 1:
-                        partition_title += ', and '
+                        fig_name += ', and '
             fig_name = split_large_titles(fig_name)
             if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
                 exp_value = False
@@ -482,7 +474,7 @@ def eval_corr_pool_converge(**keywords):
                                           'fig_type': 'ybar',
                                           'plots': use_cols,
                                           'label_y': replaceCSVLabels(ev) + findUnit(str(ev), keywords['units']),
-                                          'plot_x': itpars_name,
+                                          'plot_x': 'tex_it_pars',
                                           'label_x': 'Parameter',
                                           'limits': use_limits,
                                           'legend': use_cols1,
@@ -527,15 +519,15 @@ def eval_corr_pool_converge(**keywords):
         tmp1 = df_grp.get_group(grp)
         if tmp1.shape[0] < 4:
             poolsize_med = tmp1['poolSize'].median()
-            data_list.append(tmp1.loc[[tmp1['poolSize'] == poolsize_med], :])
+            data_list.append(tmp1.loc[tmp1['poolSize'] == poolsize_med])
         else:
             hist, bin_edges = np.histogram(tmp1['poolSize'].values, bins='auto', density=True)
             idx = np.argmax(hist)
             take_edges = bin_edges[idx:(idx + 2)]
-            tmp2 = tmp1.loc[[(tmp1['poolSize'] >= take_edges[0] & tmp1['poolSize'] <= take_edges[1])], :]
+            tmp2 = tmp1.loc[(tmp1['poolSize'] >= take_edges[0] & tmp1['poolSize'] <= take_edges[1])]
             if tmp2.shape[0] > 1:
                 poolsize_med = tmp2['poolSize'].median()
-                data_list.append(tmp2.loc[[tmp2['poolSize'] == poolsize_med], :])
+                data_list.append(tmp2.loc[tmp2['poolSize'] == poolsize_med])
             else:
                 data_list.append(tmp2)
     data_new2 = pd.concat(data_list, ignore_index=True)
@@ -552,9 +544,11 @@ def eval_corr_pool_converge(**keywords):
     dataseps = [a for a in keywords['partitions'] if a != keywords['partition_x_axis']] + [itpars_name]
     l1 = len(dataseps)
     data_new2.set_index([keywords['partition_x_axis']] + dataseps, inplace=True)
-    data_new2.unstack(level=-l1)
-    comb_cols = ['-'.join(map(str, a)) for a in data_new2.columns]
-    data_new2.columns = comb_cols
+    comb_cols = None
+    for i in range(0, l1):
+        data_new2 = data_new2.unstack(level=-1)
+        comb_cols = ['-'.join(map(str, a)) for a in data_new2.columns]
+        data_new2.columns = comb_cols
     t_main_name = 'converge_poolSizes_vs_' + itpars_name + '_' + keywords['partition_x_axis']
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
@@ -580,37 +574,9 @@ def eval_corr_pool_converge(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
-    use_plots = [a for a in comb_cols if 'poolSize' in a]
+    use_plots = [a for a in comb_cols if 'poolSize' in a and 'poolSize_diff' not in a]
     data_new3 = data_new2[use_plots]
-    stats_all = data_new3.stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    # figure types: sharp plot, smooth, const plot, ybar, xbar
-    use_limits = {'miny': None, 'maxy': None}
-    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        if stats_all['min'][0] < 0:
-            use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-        else:
-            use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-        if stats_all['max'][0] < 0:
-            use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-        else:
-            use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-    if use_limits['miny'] and use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-    elif use_limits['miny']:
-        use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-    elif use_limits['maxy']:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(use_limits['maxy']))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-    else:
-        use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                 np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-        exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+    _, use_limits, use_log, exp_value = get_limits_log_exp(data_new3, True, True)
     is_numeric = pd.to_numeric(data_new3.reset_index()[keywords['partition_x_axis']], errors='coerce').notnull().all()
     reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
     fig_name = 'Most likely correspondence pool sizes for converging differences from ' \
@@ -638,6 +604,36 @@ def eval_corr_pool_converge(**keywords):
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
                                   })
+    # tex_infos['sections'].append({'file': reltex_name,
+    #                               'name': fig_name.replace('\\\\', ' '),
+    #                               'title': fig_name,
+    #                               'title_rows': fig_name.count('\\\\'),
+    #                               'fig_type': 'xbar',
+    #                               'plots': use_plots,
+    #                               # Label of the value axis. For xbar it labels the x-axis
+    #                               'label_y': replaceCSVLabels('poolSize') + findUnit('poolSize', keywords['units']),
+    #                               # Label/column name of axis with bars. For xbar it labels the y-axis
+    #                               'label_x': replaceCSVLabels(keywords['partition_x_axis']),
+    #                               # Column name of axis with bars. For xbar it is the column for the y-axis
+    #                               'print_x': keywords['partition_x_axis'],
+    #                               # Set print_meta to True if values from column plot_meta should be printed next to each bar
+    #                               'print_meta': False,
+    #                               'plot_meta': None,
+    #                               # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+    #                               'rotate_meta': 0,
+    #                               'limits': use_limits,
+    #                               # If None, no legend is used, otherwise use a list
+    #                               'legend': [tex_string_coding_style(a) for a in use_plots],
+    #                               'legend_cols': 1,
+    #                               'use_marks': False,
+    #                               # The x/y-axis values are given as strings if True
+    #                               'use_string_labels': True if not is_numeric else False,
+    #                               'use_log_y_axis': use_log,
+    #                               'xaxis_txt_rows': 1,
+    #                               'enlarge_title_space': exp_value,
+    #                               'large_meta_space_needed': False,
+    #                               'caption': fig_name.replace('\\\\', ' ')
+    #                               })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
@@ -663,17 +659,18 @@ def eval_corr_pool_converge(**keywords):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     data_new3 = data_new2.mean(axis=0)
-    sel_parts =[[b for b in comb_cols if a in b and ('R_diffAll' in b or 't_angDiff_deg' in b)] for a in itpars_cols]
-    sel_parts1 = [b for a in itpars_cols for b in comb_cols if a in b and 'poolSize' in b]
+    sel_parts =[[b for b in comb_cols if a in b and ('R_diffAll' in b or 't_angDiff_deg' in b)
+                 and not ('R_diffAll_diff' in b or 't_angDiff_deg_diff' in b)] for a in itpars_cols]
+    sel_parts1 = [b for a in itpars_cols for b in comb_cols if a in b and 'poolSize' in b and 'poolSize_diff' not in b]
     for i, (val1, val2) in enumerate(zip(sel_parts, sel_parts1)):
         hlp = data_new3[val1[0]] + data_new3[val1[1]]
         data_new3[itpars_cols[i]] = hlp * data_new3[val2]
     best_alg = data_new3[itpars_cols].idxmin()
-    idx = [a for a in comb_cols if best_alg in a and 'R_diffAll' in a]
+    idx = [a for a in comb_cols if best_alg in a and 'R_diffAll' in a and 'R_diffAll_diff' not in a]
     mean_r_error = float(data_new3[idx])
-    idx = [a for a in comb_cols if best_alg in a and 't_angDiff_deg' in a]
+    idx = [a for a in comb_cols if best_alg in a and 't_angDiff_deg' in a and 't_angDiff_deg_diff' not in a]
     mean_t_error = float(data_new3[idx])
-    idx = [a for a in comb_cols if best_alg in a and 'poolSize' in a]
+    idx = [a for a in comb_cols if best_alg in a and 'poolSize' in a and 'poolSize_diff' not in a]
     mean_poolSize = int(data_new3[idx])
     main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
     # Check if file and parameters exist
@@ -765,9 +762,42 @@ def eval_corr_pool_converge(**keywords):
         tmp1.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
         col_names = ['-'.join(a) for a in tmp1.columns]
         tmp1.columns = col_names
-        sections = [[b for b in col_names if a in b] for a in print_evals1]
-        x_axis = [[b for d in itpars_cols if d in c for b in col_names if d in b and 'poolSize' in b] for a in sections
-                  for c in a]
+        surpr_ev = [b for a in print_evals1 for b in print_evals1 if a in b and a != b]
+        sections = []
+        for ev in print_evals1:
+            surpr_ev = [a for a in print_evals1 if ev in a and a != ev]
+            sections1 = []
+            for a in col_names:
+                if ev in a:
+                    take_it = True
+                    for b in surpr_ev:
+                        if b in a:
+                            take_it = False
+                            break
+                    if take_it:
+                        sections1.append(a)
+            if sections1:
+                sections.append(sections1)
+        # sections = [[b for b in col_names if a in b] for a in print_evals1]
+        # x_axis = [[b for d in itpars_cols if d in c for b in col_names
+        #            if d in b and 'poolSize' in b and 'poolSize_diff' not in b] for a in sections
+        #           for c in a]
+        x_axis = []
+        for a in sections:
+            for c in a:
+                hlp = []
+                break_it = False
+                for d in itpars_cols:
+                    if d in c:
+                        for b in col_names:
+                            if d in b and 'poolSize' in b and 'poolSize_diff' not in b:
+                                hlp.append(b)
+                                break_it = True
+                                break
+                        if break_it:
+                            break
+                if hlp:
+                    x_axis.append(hlp)
 
         t_main_name1 = t_main_name + '_part' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
@@ -784,48 +814,14 @@ def eval_corr_pool_converge(**keywords):
 
         for ev, x, ev_name in zip(sections, x_axis, print_evals1):
             tmp2 = tmp1.loc[:, ev + x]
-            stats_all = tmp2[ev].stack().reset_index()
-            stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-            # figure types: sharp plot, smooth, const plot, ybar, xbar
-            use_limits = {'miny': None, 'maxy': None}
-            if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-                if stats_all['min'][0] < 0:
-                    use_limits['miny'] = round(1.01 * stats_all['min'][0], 6)
-                else:
-                    use_limits['miny'] = round(0.99 * stats_all['min'][0], 6)
-                if stats_all['max'][0] < 0:
-                    use_limits['maxy'] = round(0.99 * stats_all['max'][0], 6)
-                else:
-                    use_limits['maxy'] = round(1.01 * stats_all['max'][0], 6)
-            else:
-                if stats_all['min'][0] < (stats_all['mean'][0] - stats_all['std'][0] * 2.576):
-                    use_limits['miny'] = round(stats_all['mean'][0] - stats_all['std'][0] * 2.576, 6)
-                if stats_all['max'][0] > (stats_all['mean'][0] + stats_all['std'][0] * 2.576):
-                    use_limits['maxy'] = round(stats_all['mean'][0] + stats_all['std'][0] * 2.576, 6)
-            if use_limits['miny'] and use_limits['maxy']:
-                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], use_log)
-            elif use_limits['miny']:
-                use_log = True if np.abs(np.log10(np.abs(use_limits['miny'])) -
-                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], use_log)
-            elif use_limits['maxy']:
-                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                         np.log10(np.abs(use_limits['maxy']))) > 1 else False
-                exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], use_log)
-            else:
-                use_log = True if np.abs(np.log10(np.abs(stats_all['min'][0])) -
-                                         np.log10(np.abs(stats_all['max'][0]))) > 1 else False
-                exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], use_log)
+            _, use_limits, use_log, exp_value = get_limits_log_exp(tmp2, False, False, False, None, ev)
             reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
 
             partition_part = ''
             for i, (val_name, val) in enumerate(zip(keywords['partitions'], grp)):
                 partition_part += replaceCSVLabels(val_name)
                 if '$' == partition_part[-1]:
-                    partition_part[-1] = '='
-                    partition_part += str(val) + '$'
+                    partition_part = partition_part[:-1] + '=' + str(val) + '$'
                 elif '}' == partition_part[-1]:
                     partition_part += '=' + str(val)
                 else:
