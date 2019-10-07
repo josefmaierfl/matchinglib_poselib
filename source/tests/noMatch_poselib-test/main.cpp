@@ -799,6 +799,16 @@ int SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("addSequInfo", "<Optional additional information (string) about the used test sequence or"
                                     " matches that will be stored in a seperate column in the results csv-file.>",
                      ArgvParser::OptionRequiresValue);
+    cmd.defineOption("accumCorrs", "<If provided, correspondences are aggregated over a given number of stereo frames "
+                                   "in a sliding window scheme "
+                                   "(e.g. 4 frames: 1st frame: aggregation of matches from 1 frame, "
+                                   "2nd frame: aggregation of matches from 2 frames, "
+                                   "3rd frame: aggregation of matches from 3 frames, "
+                                   "4th frame: aggregation of matches from 4 frames, "
+                                   "5th frame: aggregation of matches from last 4 frames, ...,"
+                                   "nth frame: aggregation of matches from last 4 frames). "
+                                   "This option is ignored if the option stereoRef is provided.>",
+                     ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
     int result = -1;
@@ -838,14 +848,22 @@ bool startEvaluation(ArgvParser& cmd)
 	float minPtsDistance = 3.f;
 	bool useRANSAC_fewMatches = false;
 	bool compInitPose = false;
+	bool accumCorrs_enabled = false;
 	string raiseSkipCnt = "00";
 	int raiseSkipCntnr[2] = { 0,0 };
 	double maxRat3DPtsFar = 0.5;
 	double maxDist3DPtsZ = 50.0;
+	int accumCorrs = 0;
     calibPars cp = calibPars();
 
     if(cmd.foundOption("addSequInfo")){
         addSequInfo = cmd.optionValue("addSequInfo");
+    }
+    if(cmd.foundOption("accumCorrs")){
+        accumCorrs = stoi(cmd.optionValue("accumCorrs"));
+        if(accumCorrs > 1) {
+            accumCorrs_enabled = true;
+        }
     }
 
 	//Load basic matching information
@@ -1546,6 +1564,7 @@ bool startEvaluation(ArgvParser& cmd)
 		cp.cfg_stereo.maxDist3DPtsZ = maxDist3DPtsZ;
 
 		stereoObj.reset(new poselib::StereoRefine(cp.cfg_stereo, verbose > 0));
+        accumCorrs_enabled = false;
 	}else{
         cp.cfg_stereo.keypointType = kpNameM;
         cp.cfg_stereo.descriptorType = descrName;
@@ -1561,6 +1580,11 @@ bool startEvaluation(ArgvParser& cmd)
     for(size_t i = 0; i < filenamesMatches.size(); ++i){
         ar.emplace_back(algorithmResult(addSequInfo));
     }
+    std::list<std::vector<cv::KeyPoint>> kp1_accum, kp2_accum;
+    std::list<vector<cv::Point2f>> points1_accum, points2_accum;
+    std::list<std::pair<int, int>> nrFeatures;
+    std::list<std::vector<cv::DMatch>> matches_accum;
+    std::list<std::vector<bool>> frameInliers_accum;
     for(int i = 0; i < (int)filenamesMatches.size(); i++)
     {
         //Load stereo configuration
@@ -1643,6 +1667,64 @@ bool startEvaluation(ArgvParser& cmd)
 				t_mea = 1000 * ((double)getTickCount() - t_mea) / getTickFrequency(); //End time measurement
 				std::cout << "Time for coordinate conversion & undistortion (2 imgs): " << t_mea << "ms" << endl;
 				t_oa = t_mea;
+			}
+
+			if(accumCorrs_enabled){
+                kp1_accum.push_back(kp1);
+                kp2_accum.push_back(kp2);
+                points1_accum.push_back(points1);
+                points2_accum.push_back(points2);
+                matches_accum.push_back(finalMatches);
+                nrFeatures.emplace_back(std::make_pair((int)kp1.size(), (int)kp2.size()));
+                frameInliers_accum.push_back(sm.frameInliers);
+			    if (i >= accumCorrs){
+                    nrFeatures.pop_front();
+                    kp1_accum.pop_front();
+                    kp2_accum.pop_front();
+                    points1_accum.pop_front();
+                    points2_accum.pop_front();
+                    matches_accum.pop_front();
+                    frameInliers_accum.pop_front();
+			    }
+			    if(kp1_accum.size() > 1) {
+			        auto kp1_it = kp1_accum.begin();
+                    auto kp2_it = kp2_accum.begin();
+                    auto p1_it = points1_accum.begin();
+                    auto p2_it = points2_accum.begin();
+                    auto m_it = matches_accum.begin();
+                    auto nrf_it = nrFeatures.begin();
+                    auto finl_it = frameInliers_accum.begin();
+                    std::pair<int, int> zero_idx = *nrf_it;
+                    std::vector<bool> frame_inl_tmp = *finl_it;
+                    kp1 = *kp1_it;
+                    kp2 = *kp2_it;
+                    points1 = *p1_it;
+                    points2 = *p2_it;
+                    finalMatches = *m_it;
+                    for (size_t j = 1; j < kp1_accum.size(); j++) {
+                        kp1_it++;
+                        kp2_it++;
+                        p1_it++;
+                        p2_it++;
+                        m_it++;
+                        nrf_it++;
+                        finl_it++;
+                        kp1.insert(kp1.end(), kp1_it->begin(), kp1_it->end());
+                        kp2.insert(kp2.end(), kp2_it->begin(), kp2_it->end());
+                        points1.insert(points1.end(), p1_it->begin(), p1_it->end());
+                        points2.insert(points2.end(), p2_it->begin(), p2_it->end());
+                        std::vector<cv::DMatch> match_tmp = *m_it;
+                        for(auto &m:match_tmp){
+                            m.queryIdx += zero_idx.first;
+                            m.trainIdx += zero_idx.second;
+                        }
+                        finalMatches.insert(finalMatches.end(), match_tmp.begin(), match_tmp.end());
+                        zero_idx.first += nrf_it->first;
+                        zero_idx.second += nrf_it->second;
+                        frame_inl_tmp.insert(frame_inl_tmp.end(), finl_it->begin(), finl_it->end());
+                    }
+                    ar[i].calcInlRatGT(frame_inl_tmp);
+                }
 			}
 
 			if (verbose > 1)
