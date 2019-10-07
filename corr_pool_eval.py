@@ -663,19 +663,58 @@ def eval_corr_pool_converge(**keywords):
                  and not ('R_diffAll_diff' in b or 't_angDiff_deg_diff' in b)] for a in itpars_cols]
     sel_parts2 = [[c for b in sel_parts for c in b if ('R_diffAll' in c or 't_angDiff_deg' in c) and a in c] for a in
                   itpars_cols]
+    sel_parts4 = [[[b for b in a if 'R_diffAll' in b], [b for b in a if 't_angDiff_deg' in b]] for a in sel_parts2]
+    rem_parts = [[c for c in list(dict.fromkeys(b.split('-'))) if c != 'R_diffAll' and c not in
+                  [e1 for d in itpars_cols for e1 in d.split('-')]] for a in sel_parts4 for b in a[0]]
+    rem_parts = list(dict.fromkeys([b for a in rem_parts for b in a]))
     sel_parts1 = [b for a in itpars_cols for b in comb_cols if a in b and 'poolSize' in b and 'poolSize_diff' not in b]
-    sel_parts3 = [[b for b in sel_parts1 if 'poolSize' in b and a in b] for a in
-                  itpars_cols]
-    for i, (val1, val2) in enumerate(zip(sel_parts, sel_parts1)):
-        hlp = data_new3[val1[0]] + data_new3[val1[1]]
-        data_new3[itpars_cols[i]] = hlp * data_new3[val2]
+    sel_parts3 = [[b for b in sel_parts1 if 'poolSize' in b and a in b] for a in itpars_cols]
+    for i, (val1, val2) in enumerate(zip(sel_parts4, sel_parts3)):
+        hlp3 = []
+        for rp in rem_parts:
+            hlp = None
+            hlp1 = None
+            hlp2 = None
+            for rh in val1[0]:
+                if rp in rh:
+                    take_it = True
+                    for rp1 in rh.split('-'):
+                        if rp in rp1 and rp1 != rp:
+                            take_it = False
+                    if not take_it:
+                        continue
+                    hlp = data_new3[rh]
+                    break
+            for rh in val1[1]:
+                if rp in rh:
+                    take_it = True
+                    for rp1 in rh.split('-'):
+                        if rp in rp1 and rp1 != rp:
+                            take_it = False
+                    if not take_it:
+                        continue
+                    hlp1 = data_new3[rh]
+                    break
+            for rh in val2:
+                if rp in rh:
+                    take_it = True
+                    for rp1 in rh.split('-'):
+                        if rp in rp1 and rp1 != rp:
+                            take_it = False
+                    if not take_it:
+                        continue
+                    hlp2 = data_new3[rh]
+                    break
+            if hlp and hlp1 and hlp2:
+                hlp3.append((hlp + hlp1) * hlp2)
+        data_new3[itpars_cols[i]] = sum(hlp3)
     best_alg = data_new3[itpars_cols].idxmin()
     idx = [a for a in comb_cols if best_alg in a and 'R_diffAll' in a and 'R_diffAll_diff' not in a]
-    mean_r_error = float(data_new3[idx])
+    mean_r_error = float(data_new3[idx].mean())
     idx = [a for a in comb_cols if best_alg in a and 't_angDiff_deg' in a and 't_angDiff_deg_diff' not in a]
-    mean_t_error = float(data_new3[idx])
+    mean_t_error = float(data_new3[idx].mean())
     idx = [a for a in comb_cols if best_alg in a and 'poolSize' in a and 'poolSize_diff' not in a]
-    mean_poolSize = int(data_new3[idx])
+    mean_poolSize = int(data_new3[idx].mean())
     main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
@@ -712,7 +751,7 @@ def eval_corr_pool_converge(**keywords):
                  }
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
-        tmp1 = tmp1.drop(keywords['partitions'], axis=1, inplace=True)
+        tmp1 = tmp1.drop(keywords['partitions'], axis=1)
         tmp1 = tmp1.groupby(keywords['it_parameters'])
         grp_keys1 = tmp1.groups.keys()
         grp_list = []
@@ -739,18 +778,18 @@ def eval_corr_pool_converge(**keywords):
                 for val in mean_rows:
                     mean_rows_data.append(tmp2.loc[val, :].mean(axis=0))
                     for val1 in keywords['it_parameters']:
-                        mean_rows_data[-1][val1] = tmp2.loc[val, val1]
+                        mean_rows_data[-1][val1] = tmp2.loc[val[0], val1]
                     for val1 in keywords['xy_axis_columns']:
-                        mean_rows_data[-1][val1] = tmp2.loc[val, val1]
+                        mean_rows_data[-1][val1] = tmp2.loc[val[0], val1]
                 mean_rows1 = []
                 for val in mean_rows:
                     mean_rows1 += val
                 tmp2.drop(mean_rows1, axis=0, inplace=True)
                 tmp3 = pd.concat(mean_rows_data, axis=1).T
-                tmp2 = pd.concat([tmp2, tmp3], ignore_index=True)
+                tmp2 = pd.concat([tmp2, tmp3], ignore_index=True, sort=True)
                 tmp2 = tmp2.sort_values(by='poolSize')
             grp_list.append(tmp2)
-        tmp1 = pd.concat(grp_list, ignore_index=True)
+        tmp1 = pd.concat(grp_list, ignore_index=True, sort=True, axis=0)
         if len(keywords['it_parameters']) > 1:
             tmp1 = tmp1.set_index(keywords['it_parameters']).T
             itpars_cols = ['-'.join(a) for a in tmp1.columns]
@@ -763,10 +802,10 @@ def eval_corr_pool_converge(**keywords):
         tmp1.set_index(keywords['xy_axis_columns'] + [itpars_name], inplace=True)
         tmp1 = tmp1.unstack(level=-1)
         tmp1.reset_index(inplace=True)
-        tmp1.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
+        tmp1.drop(keywords['xy_axis_columns'], axis=1, inplace=True, level=0)
         col_names = ['-'.join(a) for a in tmp1.columns]
         tmp1.columns = col_names
-        surpr_ev = [b for a in print_evals1 for b in print_evals1 if a in b and a != b]
+        # surpr_ev = [b for a in print_evals1 for b in print_evals1 if a in b and a != b]
         sections = []
         for ev in print_evals1:
             surpr_ev = [a for a in print_evals1 if ev in a and a != ev]
@@ -788,8 +827,8 @@ def eval_corr_pool_converge(**keywords):
         #           for c in a]
         x_axis = []
         for a in sections:
+            hlp = []
             for c in a:
-                hlp = []
                 break_it = False
                 for d in itpars_cols:
                     if d in c:
@@ -800,10 +839,33 @@ def eval_corr_pool_converge(**keywords):
                                 break
                         if break_it:
                             break
-                if hlp:
-                    x_axis.append(hlp)
+            if hlp:
+                x_axis.append(hlp)
+        if len(sections) != len(x_axis):
+            warnings.warn('Unable to extract column names for x- and y-axis. There might be similar names. '
+                          'Aborting calculation of next figure.', UserWarning)
+            return 1
 
-        t_main_name1 = t_main_name + '_part' + \
+        it_split = []
+        it_split_x = []
+        for it in itpars_cols:
+            evals1 = []
+            it_split_x1 = []
+            for i, ev in enumerate(sections):
+                for i1, ev1 in enumerate(ev):
+                    if it in ev1:
+                        evals1.append(ev1)
+                        it_split_x1.append(x_axis[i][i1])
+            it_split.append(evals1)
+            it_split_x.append(list(dict.fromkeys(it_split_x1)))
+        cols_list = []
+        for it_x, it in zip(it_split_x, it_split):
+            tmpi = tmp1.loc[:, it_x + it]
+            tmpi = tmpi.sort_values(by=it_x).reset_index(drop=True)
+            cols_list.append(tmpi)
+        tmp1 = pd.concat(cols_list, axis=1, ignore_index=False)
+
+        t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
                                  a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
         t_main_name1 = t_main_name1.replace('.', 'd')
@@ -851,7 +913,7 @@ def eval_corr_pool_converge(**keywords):
                                           'name': fig_name,
                                           # If caption is None, the field name is used
                                           'caption': fig_name.replace('\\\\', ' '),
-                                          'fig_type': 'smooth',
+                                          'fig_type': 'sharp plot',
                                           'plots': ev,
                                           'label_y': replaceCSVLabels(ev_name) + findUnit(ev_name,
                                                                                           keywords['units']),
@@ -870,7 +932,6 @@ def eval_corr_pool_converge(**keywords):
                                    make_index=tex_infos['make_index'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                    figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
