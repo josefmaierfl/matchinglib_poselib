@@ -1968,12 +1968,15 @@ void genStereoSequ::checkDepthSeeds() {
             mmx[1] = mmx[0] + regSi.width - 1;
             std::uniform_int_distribution<int32_t> distributionX(mmx[0], mmx[1]);
             int32_t diffNr = nrDepthAreasPRegNear[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t) seedsNear[y][x].size();
-            while (diffNr > 0)//Generate seeds for near depth areas
+            uint32_t it_cnt = 0;
+            const uint32_t max_it_cnt = 500000;
+            while ((diffNr > 0) && (it_cnt < max_it_cnt))//Generate seeds for near depth areas
             {
                 pt.x = distributionX(rand_gen);
                 pt.y = distributionY(rand_gen);
                 Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
                 if (s_tmp.at<unsigned char>(posadd1, posadd1) > 0) {
+                    it_cnt++;
                     continue;
                 } else {
                     csurr1.copyTo(s_tmp);
@@ -1981,13 +1984,20 @@ void genStereoSequ::checkDepthSeeds() {
                     diffNr--;
                 }
             }
+            if (diffNr > 0){
+                nrDepthAreasPRegNear[actCorrsPRIdx].at<int32_t>(y, x) -= diffNr;
+                cout << "Unable to reach desired number of near depth areas in region ("
+                << y << ", " << x << "). " << diffNr << " areas cannot be assigned." << endl;
+            }
+            it_cnt = 0;
             diffNr = nrDepthAreasPRegMid[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t) seedsMid[y][x].size();
-            while (diffNr > 0)//Generate seeds for mid depth areas
+            while ((diffNr > 0) && (it_cnt < max_it_cnt))//Generate seeds for mid depth areas
             {
                 pt.x = distributionX(rand_gen);
                 pt.y = distributionY(rand_gen);
                 Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
                 if (s_tmp.at<unsigned char>(posadd1, posadd1) > 0) {
+                    it_cnt++;
                     continue;
                 } else {
                     csurr1.copyTo(s_tmp);
@@ -1995,19 +2005,31 @@ void genStereoSequ::checkDepthSeeds() {
                     diffNr--;
                 }
             }
+            if (diffNr > 0){
+                nrDepthAreasPRegMid[actCorrsPRIdx].at<int32_t>(y, x) -= diffNr;
+                cout << "Unable to reach desired number of mid depth areas in region ("
+                     << y << ", " << x << "). " << diffNr << " areas cannot be assigned." << endl;
+            }
+            it_cnt = 0;
             diffNr = nrDepthAreasPRegFar[actCorrsPRIdx].at<int32_t>(y, x) - (int32_t) seedsFar[y][x].size();
-            while (diffNr > 0)//Generate seeds for far depth areas
+            while ((diffNr > 0) && (it_cnt < max_it_cnt))//Generate seeds for far depth areas
             {
                 pt.x = distributionX(rand_gen);
                 pt.y = distributionY(rand_gen);
                 Mat s_tmp = filtInitPts(Range(pt.y, pt.y + sqrSi1), Range(pt.x, pt.x + sqrSi1));
                 if (s_tmp.at<unsigned char>(posadd1, posadd1) > 0) {
+                    it_cnt++;
                     continue;
                 } else {
                     csurr1.copyTo(s_tmp);
                     seedsFar[y][x].push_back(pt);
                     diffNr--;
                 }
+            }
+            if (diffNr > 0){
+                nrDepthAreasPRegFar[actCorrsPRIdx].at<int32_t>(y, x) -= diffNr;
+                cout << "Unable to reach desired number of far depth areas in region ("
+                     << y << ", " << x << "). " << diffNr << " areas cannot be assigned." << endl;
             }
         }
     }

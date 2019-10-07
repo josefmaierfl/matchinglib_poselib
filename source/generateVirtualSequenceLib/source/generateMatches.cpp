@@ -49,7 +49,8 @@ bool getImgROIs(const cv::Mat &H,
                 bool &reflectionX,
                 bool &reflectionY,
                 const cv::Size &imgFeatureSi,
-                const cv::KeyPoint &kp1);
+                const cv::KeyPoint &kp1,
+                const int &maxPatchSizeMult2);
 void getRotationStats(const std::vector<cv::Mat> &Rs,
                       qualityParm &stats_roll,
                       qualityParm &stats_pitch,
@@ -465,10 +466,20 @@ if((idx3D >= 0) && !planeTo3DIdx.empty()){
         trans.col(3).rowRange(0,3) = -1.0 * absCamCoordinates[actFrameCnt].R.t() * absCamCoordinates[actFrameCnt].t;
         trans = trans.inv().t();
         Mat plane = trans * planeTo3DIdx[idx3D].first;
-        return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
+        try {
+            return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
+        }catch(SequenceException &e){
+            cout << "Exception while recalculating old homography: " << e.what() << endl;
+            throw;
+        }
     }
 }
-return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
+try {
+    return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
+}catch(SequenceException &e){
+    cout << "Exception while calculating new homography: " << e.what() << endl;
+    throw;
+}
 }
 
 /*Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
@@ -910,7 +921,7 @@ bool genMatchSequ::getFeatures() {
                 return false;
             } else {
                 cout << "Calculating matches for only " << nrFramesGenMatches <<
-                     " out of " << totalNrFrames << " frames.";
+                     " out of " << totalNrFrames << " frames." << endl;
             }
         } else {
             return false;
@@ -1312,16 +1323,22 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         show_cnt++;
         //Calculate homography
         Mat H;
+        bool succ = true;
         if(useTN){
             H = getHomographyForDistortionTN(combCorrsImg1TN.col(i), visualize);
         }else {
             Mat X = Mat(comb3DPts[i], true).reshape(1);
-            H = getHomographyForDistortionChkOld(X,
-                                                 combCorrsImg1TP.col(i),
-                                                 combCorrsImg2TP.col(i),
-                                                 combCorrsImg12TP_IdxWorld[i],
-                                                 featureIdx,
-                                                 visualize);
+            try {
+                H = getHomographyForDistortionChkOld(X,
+                                                     combCorrsImg1TP.col(i),
+                                                     combCorrsImg2TP.col(i),
+                                                     combCorrsImg12TP_IdxWorld[i],
+                                                     featureIdx,
+                                                     visualize);
+            }catch(SequenceException &e){
+                cout << "Using random homography." << endl;
+                succ = false;
+            }
             if((combCorrsImg12TP_IdxWorld[i] >= 0) && !planeTo3DIdx.empty()){
                 if(planeTo3DIdx.find(combCorrsImg12TP_IdxWorld[i]) != planeTo3DIdx.end()) {
                     featureIdx_tmp = planeTo3DIdx[combCorrsImg12TP_IdxWorld[i]].second;
@@ -1358,17 +1375,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
         bool reflectionY = false;
         const double minPatchSize = 41.0;
         cv::Size imgFeatureSize = img.size();
-        bool succ = getRectFitsInEllipse(H,
-                                         kp,
-                                         patchROIimg1,
-                                         patchROIimg2,
-                                         patchROIimg21,
-                                         ellipseCenter,
-                                         ellipseRot,
-                                         axes,
-                                         reflectionX,
-                                         reflectionY,
-                                         imgFeatureSize);
+        if(succ) {
+            succ = getRectFitsInEllipse(H,
+                                        kp,
+                                        patchROIimg1,
+                                        patchROIimg2,
+                                        patchROIimg21,
+                                        ellipseCenter,
+                                        ellipseRot,
+                                        axes,
+                                        reflectionX,
+                                        reflectionY,
+                                        imgFeatureSize);
+        }
         if(!succ){
             //If the calculation of the necessary patch size failed, calculate a standard patch
             noEllipse = true;
@@ -1392,7 +1411,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                    reflectionX,
                                    reflectionY,
                                    imgFeatureSize,
-                                   kp)){
+                                   kp,
+                                   maxPatchSizeMult2)){
                         useFallBack = true;
                         break;
                     }
@@ -1808,10 +1828,35 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             double meang, stdg;
             meang = getRandDoubleValRng(-10.0, 10.0);
             stdg = getRandDoubleValRng(-10.0, 10.0);
-            Mat patchfb = img(patchROIimg1);
+            bool fullImgUsed = false;
+            Mat patchfb;
+            if((patchROIimg1.width < minPatchSize) ||
+                    (patchROIimg1.height < minPatchSize) ||
+                    (patchROIimg1.x < 0) ||
+                    (patchROIimg1.y < 0)){
+                int ps21 = (minPatchSize2 - 1) / 2;
+                patchROIimg1 = Rect((int)round(kp.pt.x) - ps21,
+                                    (int)round(kp.pt.y) - ps21,
+                                    minPatchSize2,
+                                    minPatchSize2);
+                if(patchROIimg1.x < 0){
+                    patchROIimg1.width -= patchROIimg1.x;
+                    patchROIimg1.x = 0;
+                }else if((patchROIimg1.x + patchROIimg1.width) > img.size().width){
+                    int wdiff = patchROIimg1.x + patchROIimg1.width - img.size().width;
+                    patchROIimg1.x -= wdiff;
+                }
+                if(patchROIimg1.y < 0){
+                    patchROIimg1.height -= patchROIimg1.y;
+                    patchROIimg1.y = 0;
+                }else if((patchROIimg1.y + patchROIimg1.height) > img.size().height){
+                    int wdiff = patchROIimg1.y + patchROIimg1.height - img.size().height;
+                    patchROIimg1.y -= wdiff;
+                }
+            }
+            patchfb = img(patchROIimg1);
             patchwn = patchfb.clone();
             descrDist = -1.0;
-            bool fullImgUsed = false;
             kp2 = kp;
             kp2.pt.x -= (float)patchROIimg1.x;
             kp2.pt.y -= (float)patchROIimg1.y;
@@ -2526,7 +2571,8 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
             reflectionX,
             reflectionY,
             imgFeatureSi,
-            kp);
+            kp,
+            maxPatchSizeMult2);
 }
 
 bool getImgROIs(const cv::Mat &H,
@@ -2538,10 +2584,12 @@ bool getImgROIs(const cv::Mat &H,
                 bool &reflectionX,
                 bool &reflectionY,
                 const cv::Size &imgFeatureSi,
-                const cv::KeyPoint &kp1){
+                const cv::KeyPoint &kp1,
+                const int &maxPatchSizeMult2){
     int minSquare = minSqrROIimg2 + ((minSqrROIimg2 + 1) % 2);
     auto minSquare2 = (double)((minSquare - 1) / 2);
     auto minSquareMin = 0.7 * (double)minSquare;
+    auto maxSquare2 = (double)(maxPatchSizeMult2 * minSquare);
     auto x0 = (double)midPt.x;
     auto y0 = (double)midPt.y;
     Mat Hi = H.inv();
@@ -2626,6 +2674,9 @@ bool getImgROIs(const cv::Mat &H,
         if((width < minSquareMin) || (height < minSquareMin)){
             return false;
         }
+        if((width > maxSquare2) || (height > maxSquare2)){
+            return false;
+        }
         patchROIimg2 = cv::Rect((int)ceil(minx - DBL_EPSILON),
                                 (int)ceil(miny - DBL_EPSILON),
                                 (int)floor(width + DBL_EPSILON),
@@ -2668,6 +2719,9 @@ bool getImgROIs(const cv::Mat &H,
     dimx = abs(maxx - minx);
     dimy = abs(maxy - miny);
     if((dimx < minSquare2) || (dimy < minSquare2)){
+        return false;
+    }
+    if((dimx > maxSquare2) || (dimy > maxSquare2)){
         return false;
     }
     patchROIimg21 = cv::Rect((int)floor(minx + DBL_EPSILON),
