@@ -288,6 +288,7 @@ def pars_calc_single_fig_partitions(**keywords):
                                       'use_marks': ret['use_marks'],
                                       'use_log_y_axis': use_log,
                                       'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'use_string_labels': True if not is_numeric else False
                                       })
@@ -450,6 +451,7 @@ def pars_calc_single_fig(**keywords):
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
@@ -764,6 +766,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows_best,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (error bars) and their ' +
@@ -797,6 +800,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows_worst,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Biggest combined R \\& t errors  $e_{R\\bm{t}}$ (error bars) and their ' +
@@ -903,6 +907,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
@@ -1192,6 +1197,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +
@@ -1480,6 +1486,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -1875,7 +1882,7 @@ def estimate_alg_time_fixed_kp(**vars):
     tmp1['pars_tex'] = insert_opt_lbreak(index_new)
     min_val = tmp1[col_name].min()
     max_val = tmp1[col_name].max()
-    from statistics_and_plot import is_exp_used
+    from statistics_and_plot import is_exp_used, check_legend_enlarge
     use_log1 = use_log_axis(min_val, max_val)
     exp_value1 = is_exp_used(min_val, max_val, use_log1)
 
@@ -1950,6 +1957,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'use_marks': vars['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
                                   })
@@ -2019,6 +2027,7 @@ def estimate_alg_time_fixed_kp(**vars):
               replaceCSVLabels(str(vars['xy_axis_columns'][1]), True) + \
               'extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints.'
     section_name = split_large_titles(section_name)
+    enlarge_lbl_dist = check_legend_enlarge(tmp1, vars['xy_axis_columns'][0], 1, fig_type)
     if exp_value1 and len(section_name.split('\\\\')[-1]) < 70:
         exp_value1 = False
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
@@ -2047,6 +2056,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'use_string_labels': False,
                                   'use_log_y_axis': use_log1,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': exp_value1,
                                   'large_meta_space_needed': True,
                                   'caption': caption
@@ -2221,6 +2231,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
+    from statistics_and_plot import check_legend_enlarge
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new1 = ['-'.join(a) for a in tmp1min.index]
@@ -2278,6 +2289,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
         f.write('# Parameters: ' + '-'.join(vars['it_parameters']) + '\n')
         tmp1max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+    enlarge_lbl_dist = check_legend_enlarge(tmp1min, vars['t_data_separators'][1], len(val_axis_cols1), 'xbar')
     title = 'Minimum and Maximum Execution Times vs ' + \
             replaceCSVLabels(str(vars['t_data_separators'][1]), True, True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
@@ -2335,6 +2347,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2351,6 +2364,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
               replaceCSVLabels(str(vars['t_data_separators'][0])) + ' on top of each bar) extrapolated for ' + \
               str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name = split_large_titles(section_name)
+    enlarge_lbl_dist = check_legend_enlarge(tmp1max, vars['t_data_separators'][1], len(val_axis_cols2), 'xbar')
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_max_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2377,6 +2391,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2523,6 +2538,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows2min,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2566,6 +2582,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows2max,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption
@@ -2645,7 +2662,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import add_to_glossary, add_to_glossary_eval, split_large_titles, is_exp_used, use_log_axis
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
-    from statistics_and_plot import glossary_from_list, calc_limits
+    from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp1mean.index for b in a])
         index_new1 = ['-'.join(a) for a in tmp1mean.index]
@@ -2831,6 +2848,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4 = []
     use_log4 = []
     exp_value4 = []
+    enlarge_lbl_dist4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
@@ -2852,6 +2870,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
+    enlarge_lbl_dist4.append(check_legend_enlarge(tmp1mean_min, vars['eval_minmax_for'],
+                                                  len(index_y4[-1]), vars['fig_type'][1]))
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2873,6 +2893,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
+    enlarge_lbl_dist4.append(check_legend_enlarge(tmp1mean_max, vars['eval_minmax_for'],
+                                                  len(index_y4[-1]), vars['fig_type'][1]))
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2895,6 +2917,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
+    enlarge_lbl_dist4.append(check_legend_enlarge(tmp2mean_min, vars['eval_minmax_for'],
+                                                  len(index_y4[-1]), vars['fig_type'][1]))
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2916,6 +2940,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = all_vals.drop(all_vals.columns[0:-1], axis=1).max().abs()
     use_log4.append(use_log_axis(min_val[0], max_val[0]))
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
+    enlarge_lbl_dist4.append(check_legend_enlarge(tmp2mean_max, vars['eval_minmax_for'],
+                                                  len(index_y4[-1]), vars['fig_type'][1]))
 
     t_main_name1 = 'time_on_' + time_on1 +\
                    '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
@@ -3044,6 +3070,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'use_string_labels': False,
                                       'use_log_y_axis': use_log4[i],
                                       'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist4[i],
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
@@ -3307,6 +3334,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'use_string_labels': True,
                                       'use_log_y_axis': use_log4[i],
                                       'xaxis_txt_rows': max_txt_rows[i],
+                                      'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'caption': caption[i]
@@ -3503,6 +3531,7 @@ def get_min_inlrat_diff(**keywords):
                                   'use_marks': keywords['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
@@ -3598,6 +3627,7 @@ def get_min_inlrat_diff(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': caption

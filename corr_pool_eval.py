@@ -8,6 +8,7 @@ import pandas as pd
 #from jinja2 import Template as ji
 import jinja2 as ji
 import ruamel.yaml as yaml
+from pandas.api.types import is_numeric_dtype
 from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 import inspect
 
@@ -287,7 +288,8 @@ def eval_corr_pool_converge(**keywords):
         capitalizeFirstChar, \
         findUnit, \
         compile_tex, \
-        get_limits_log_exp
+        get_limits_log_exp, \
+        check_legend_enlarge
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -482,6 +484,7 @@ def eval_corr_pool_converge(**keywords):
                                           'use_marks': False,
                                           'use_log_y_axis': use_log,
                                           'xaxis_txt_rows': max_txt_rows,
+                                          'enlarge_lbl_dist': None,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True,
                                           })
@@ -518,16 +521,23 @@ def eval_corr_pool_converge(**keywords):
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         if tmp1.shape[0] < 4:
-            poolsize_med = tmp1['poolSize'].median()
-            data_list.append(tmp1.loc[tmp1['poolSize'] == poolsize_med])
+            if tmp1.shape[0] > 2:
+                poolsize_med = tmp1['poolSize'].median()
+                data_list.append(tmp1.loc[tmp1['poolSize'] == poolsize_med])
+            else:
+                poolsize_mean = mean_with_strings(tmp1)
+                data_list.append(poolsize_mean)
         else:
             hist, bin_edges = np.histogram(tmp1['poolSize'].values, bins='auto', density=True)
             idx = np.argmax(hist)
             take_edges = bin_edges[idx:(idx + 2)]
-            tmp2 = tmp1.loc[(tmp1['poolSize'] >= take_edges[0] & tmp1['poolSize'] <= take_edges[1])]
-            if tmp2.shape[0] > 1:
+            tmp2 = tmp1.loc[((tmp1['poolSize'] >= take_edges.item(0)) & (tmp1['poolSize'] <= take_edges.item(1)))]
+            if tmp2.shape[0] > 2:
                 poolsize_med = tmp2['poolSize'].median()
                 data_list.append(tmp2.loc[tmp2['poolSize'] == poolsize_med])
+            elif tmp2.shape[0] > 1:
+                poolsize_mean = mean_with_strings(tmp2)
+                data_list.append(poolsize_mean)
             else:
                 data_list.append(tmp2)
     data_new2 = pd.concat(data_list, ignore_index=True)
@@ -578,6 +588,7 @@ def eval_corr_pool_converge(**keywords):
     data_new3 = data_new2[use_plots]
     _, use_limits, use_log, exp_value = get_limits_log_exp(data_new3, True, True)
     is_numeric = pd.to_numeric(data_new3.reset_index()[keywords['partition_x_axis']], errors='coerce').notnull().all()
+    enlarge_lbl_dist = check_legend_enlarge(data_new2, keywords['partition_x_axis'], len(use_plots), 'xbar')
     reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
     fig_name = 'Most likely correspondence pool sizes for converging differences from ' \
                'frame to frame of R \\& t errors\\\\for parameters ' + \
@@ -601,6 +612,7 @@ def eval_corr_pool_converge(**keywords):
                                   'use_marks': False,
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
                                   })
@@ -630,6 +642,7 @@ def eval_corr_pool_converge(**keywords):
     #                               'use_string_labels': True if not is_numeric else False,
     #                               'use_log_y_axis': use_log,
     #                               'xaxis_txt_rows': 1,
+    #                               'enlarge_lbl_dist': enlarge_lbl_dist,
     #                               'enlarge_title_space': exp_value,
     #                               'large_meta_space_needed': False,
     #                               'caption': fig_name.replace('\\\\', ' ')
@@ -925,6 +938,7 @@ def eval_corr_pool_converge(**keywords):
                                           'use_marks': False,
                                           'use_log_y_axis': use_log,
                                           'enlarge_title_space': exp_value,
+                                          'enlarge_lbl_dist': None,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots_mult_x_cols.tex')
@@ -970,6 +984,19 @@ def combine_rt_diff2(df, keywords):
         keywords['units'].append(('Rt_diff2', '/\\textdegree'))
 
     return df, keywords
+
+
+def mean_with_strings(df):
+    return df.agg(mean_str, axis=0).to_frame().T
+
+
+def mean_str(col):
+    if is_numeric_dtype(col):
+        return col.mean()
+    else:
+        return col.unique()[0] if col.nunique() == 1 else col.iloc[0]
+
+# def calc_rt_diff
 
 
 

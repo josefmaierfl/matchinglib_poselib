@@ -203,9 +203,15 @@ ymajorgrids=true,%
 \BLOCK{ if sec['legend'] }
 legend style={
 \BLOCK{ if sec['fig_type'] == 'xbar' }
+\BLOCK{ if sec['enlarge_lbl_dist'] }
+    at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
+\BLOCK{ else }
 	at={(0.5,-\VAR{ [(0.18 - 0.01 * sec['plots']|length)|round(2), 0.015]|max })},
+\BLOCK{ endif }
 \BLOCK{ elif sec['use_string_labels'] or (sec['plots']|length > 1 and sec['fig_type'] == 'ybar') }
 	at={(0.5,-0.25)},
+\BLOCK{ elif sec['enlarge_lbl_dist'] }
+    at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
 \BLOCK{ else }
 	at={(0.5,-0.15)},
 \BLOCK{ endif }

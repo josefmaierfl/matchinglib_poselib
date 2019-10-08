@@ -203,6 +203,8 @@ title={\VAR{ sec['name'] }},
 legend style={
 \BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and sec['fig_type'] == 'ybar') }
 	at={(0.5,-0.25)},
+\BLOCK{ elif sec['enlarge_lbl_dist'] }
+    at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
 \BLOCK{ else }
 	at={(0.5,-0.12)},
 \BLOCK{ endif }

@@ -166,6 +166,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'use_string_labels': True if not is_numeric[-1] else False,
                                       'use_log_y_axis': use_log,
                                       'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
@@ -308,6 +309,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'use_string_labels': True if not isn else False,
                                       'use_log_y_axis': use_log,
                                       'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'caption': caption
@@ -467,6 +469,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                                   'use_string_labels': True,
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': max_txt_rows,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': False,
                                   'caption': fig_name.replace('\\\\', ' ')
@@ -652,6 +655,7 @@ def pars_calc_single_fig_K(**keywords):
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
                                   })
@@ -753,6 +757,7 @@ def get_best_comb_inlrat_k(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': max_txt_rows,
+                                  'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'caption': 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ (error bars) over all ' +

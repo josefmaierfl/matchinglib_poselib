@@ -415,6 +415,7 @@ def calcSatisticAndPlot_2D(data,
                 continue
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
+            enlarge_lbl_dist = check_legend_enlarge(tmp, grp_names[-1], len(list(tmp.columns.values)), fig_type)
             section_name = replace_stat_names(it[-1]) + ' values for ' +\
                            replaceCSVLabels(str(it[0]), True, False, True) +\
                            ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
@@ -438,6 +439,7 @@ def calcSatisticAndPlot_2D(data,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist,
                                           'pdf_nr': pdf_nr
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -777,6 +779,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                 if useless:
                     continue
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
+                enlarge_lbl_dist = check_legend_enlarge(tmp2, grp_names[-1], len(list(tmp2.columns.values)), fig_type)
                 section_name = replace_stat_names(it[-1]) + ' values for ' +\
                                replaceCSVLabels(str(it[0]), True, False, True) +\
                                ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
@@ -805,6 +808,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'enlarge_title_space': exp_value,
                                               'use_string_labels': True if not is_numeric else False,
                                               'xaxis_txt_rows': 1,
+                                              'enlarge_lbl_dist': enlarge_lbl_dist,
                                               'stat_name': it[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1219,6 +1223,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
             else:
                 exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], eval_cols_log_scaling[i])
             is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
+            enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(sel_cols), fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
             fig_name += '\\\\for '
@@ -1246,6 +1251,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist,
                                           'stat_name': ev,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -2603,6 +2609,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       'use_string_labels': True,
                                       'use_log_y_axis': eval_cols_log_scaling[i],
                                       'xaxis_txt_rows': max_txt_rows,
+                                      'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'caption': fig_name.replace('\\\\', ' ')
@@ -2902,6 +2909,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           'use_string_labels': True,
                                           'use_log_y_axis': use_log,
                                           'xaxis_txt_rows': max_txt_rows,
+                                          'enlarge_lbl_dist': None,
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'caption': fig_name.replace('\\\\', ' '),
@@ -3349,21 +3357,21 @@ def getSymbolDescription(label):
                 '-t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$', True)
     elif label == 't_diff_ty':
         return (replaceCSVLabels(label),
                 'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert '
                 '-t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$', True)
     elif label == 't_diff_tz':
         return (replaceCSVLabels(label),
                 'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert '
                 '-t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$', True)
     if label == 'R_diffAll_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of angular differences between ground truth and estimated relative '
@@ -3395,21 +3403,21 @@ def getSymbolDescription(label):
                 '$\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$', True)
     elif label == 't_diff_ty_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of differences '
                 '$\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$', True)
     elif label == 't_diff_tz_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of differences '
                 '$\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$', True)
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$', True)
     elif label == 'th':
         return (replaceCSVLabels(label), 'Threshold on point correspondences in pixels', True)
     elif label == 'R_mostLikely_diffAll':
@@ -3451,7 +3459,7 @@ def getSymbolDescription(label):
                 '-t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -3461,7 +3469,7 @@ def getSymbolDescription(label):
                 '-t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -3471,7 +3479,7 @@ def getSymbolDescription(label):
                 '-t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -3519,7 +3527,7 @@ def getSymbolDescription(label):
                 '$\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -3529,7 +3537,7 @@ def getSymbolDescription(label):
                 '$\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -3539,7 +3547,7 @@ def getSymbolDescription(label):
                 '$\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z},\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z},\\right]^{T}$. '
+                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -4373,6 +4381,29 @@ def build_list(possibilities, multiplier, num_pts):
     return tmp
 
 
+def get_fig_x_size(df, x_axis_column, nr_plots, fig_type):
+    if not isinstance(x_axis_column, str):
+        try:
+            oit = iter(x_axis_column)
+            x_axis_column = x_axis_column[0]
+        except TypeError as te:
+            pass
+    data_points = df.reset_index()[x_axis_column].nunique()
+    if fig_type == 'xbar' or fig_type == 'ybar':
+        data_points *= int(nr_plots)
+    return data_points
+
+
+def check_legend_enlarge(df, x_axis_column, nr_plots, fig_type):
+    data_points = get_fig_x_size(df, x_axis_column, nr_plots, fig_type)
+    if fig_type == 'xbar' and data_points < 20:
+        dist = -0.04 * float(data_points) + 0.73
+        if dist < 0.15:
+            dist = 0.15
+        return dist
+    return None
+
+
 #Only for testing
 def main():
     num_pts = int(10000)
@@ -4385,7 +4416,7 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
+    inlratMin_opt = list(map(str, list(np.arange(0.35, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
@@ -6512,6 +6543,92 @@ def main():
                                                              make_fig_index=True,
                                                              build_pdf=True,
                                                              figs_externalize=True)
+                elif ev == 6:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a maximum ' \
+                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'poolSize']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''), ('poolSize', '')]
+                    # it_parameters = ['stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator']
+                    calc_func_args = {'data_separators': ['Nr', 'inlratMin'],
+                                      'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg']}
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'partition_x_axis': 'kpAccSd',
+                                          'res_par_name': 'corrpool_size_converge'}
+                    from corr_pool_eval import filter_max_pool_size, \
+                        calc_rt_diff2_frame_to_frame, \
+                        eval_corr_pool_converge
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd'],  # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=filter_max_pool_size,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=eval_corr_pool_converge,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_USAC_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['th', 'inlratMin'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                    from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
+                    ret += calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-diff',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['Nr', 'depthDistr', 'kpAccSd', 'inlratMin'],
+                                                  filter_func=filter_nr_kps,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=estimate_alg_time_fixed_kp,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=calc_Time_Model,
+                                                  calc_func_args={'data_separators': ['inlratMin', 'th']},
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
 
 
     return ret

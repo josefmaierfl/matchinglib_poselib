@@ -148,7 +148,11 @@ ymax=\VAR{sec['limits']['maxy']},%
 \BLOCK{ endif }
 title={\VAR{ sec['name'] }},
 legend style={
+\BLOCK{ if sec['enlarge_lbl_dist'] }
+    at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
+\BLOCK{ else }
 	at={(0.5,-0.12)},
+\BLOCK{ endif }
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},
