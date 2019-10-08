@@ -115,7 +115,7 @@ def get_best_comb_scenes_1(**keywords):
         part_name_title.append('')
         len_drops = len(drops[i])
         for i1, val in enumerate(drops[i]):
-            part_name_title[-1] += replaceCSVLabels(val, True)
+            part_name_title[-1] += replaceCSVLabels(val, True, False, True)
             if (len_drops <= 2):
                 if i1 < len_drops - 1:
                     part_name_title[-1] += ' and '
@@ -130,12 +130,12 @@ def get_best_comb_scenes_1(**keywords):
         if 'error_type_text' in keywords:
             fig_name = 'Mean ' + strToLower(keywords['error_type_text']) + \
                        ' over\\\\properties ' + part_name_title[-1] + \
-                       '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       '\\\\vs ' + replaceCSVLabels(str(dp), True, False, True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             label_y = 'mean ' + strToLower(keywords['error_type_text'])
         else:
             fig_name = 'Mean combined R \\& t errors over\\\\properties ' + part_name_title[-1] + \
-                       '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       '\\\\vs ' + replaceCSVLabels(str(dp), True, False, True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             label_y = 'mean R \\& t error $e_{R\\bm{t}}$'
         fig_name = split_large_titles(fig_name)
@@ -262,7 +262,7 @@ def get_best_comb_scenes_1(**keywords):
         if 'error_type_text' in keywords:
             fig_name = 'Minimum mean ' + strToLower(keywords['error_type_text']) + \
                        ' and their corresponding parameter over\\\\properties ' + \
-                       pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True, False, True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             caption = 'Minimum mean combined ' + strToLower(keywords['error_type_text']) + \
                       ' (corresponding parameter on top of each bar) over properties ' + \
@@ -272,7 +272,7 @@ def get_best_comb_scenes_1(**keywords):
         else:
             fig_name = 'Minimum mean combined R \\& t errors and their ' \
                        'corresponding parameter over\\\\properties ' + \
-                       pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True) + \
+                       pnt + '\\\\vs ' + replaceCSVLabels(str(dp), True, False, True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             caption = 'Minimum mean combined R \\& t errors ' \
                       '(corresponding parameter on top of each bar) over properties ' + \
@@ -602,7 +602,7 @@ def pars_calc_single_fig_K(**keywords):
         split_large_titles, \
         get_limits_log_exp
     for i, val in enumerate(keywords['it_parameters']):
-        ret['sub_title'] += replaceCSVLabels(val, True, True)
+        ret['sub_title'] += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -612,7 +612,7 @@ def pars_calc_single_fig_K(**keywords):
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
     tex_infos = {'title': 'Combined Camera Matrix Errors vs ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -629,7 +629,7 @@ def pars_calc_single_fig_K(**keywords):
     _, use_limits, use_log, exp_value = get_limits_log_exp(ret['b'])
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
     section_name = 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +\
-                   replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
     section_name = split_large_titles(section_name)
     if exp_value and len(section_name.split('\\\\')[-1]) < 70:
@@ -712,7 +712,7 @@ def get_best_comb_inlrat_k(**keywords):
         fig_type = 'ybar'
     from statistics_and_plot import replaceCSVLabels
     tex_infos = {'title': 'Mean Combined Camera Matrix Errors over all ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -727,7 +727,7 @@ def get_best_comb_inlrat_k(**keywords):
                  'abbreviations': ret['gloss']
                  }
     section_name = 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ over all ' + \
-                   replaceCSVLabels(str(ret['grp_names'][-1]), True)
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
                                   'title': section_name,

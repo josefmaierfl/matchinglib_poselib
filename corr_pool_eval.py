@@ -54,7 +54,7 @@ def calc_rt_diff_frame_to_frame(**vars):
     ret = {'data': df,
            'it_parameters': vars['it_parameters'],
            'eval_columns': vars['eval_columns'],
-           'eval_cols_lname': [replaceCSVLabels(a) for a in vars['eval_columns']],
+           'eval_cols_lname': [replaceCSVLabels(a, False, False, True) for a in vars['eval_columns']],
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': vars['units'],
            'eval_init_input': None,
@@ -133,7 +133,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
     ret = {'data': data_new,
            'it_parameters': vars['it_parameters'],
            'eval_columns': eval_columns_diff1,
-           'eval_cols_lname': [replaceCSVLabels(a) for a in eval_columns_diff1],
+           'eval_cols_lname': [replaceCSVLabels(a, False, False, True) for a in eval_columns_diff1],
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': units,
            'eval_init_input': None,
@@ -291,7 +291,7 @@ def eval_corr_pool_converge(**keywords):
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
-        partition_title += replaceCSVLabels(val, True, True)
+        partition_title += replaceCSVLabels(val, True, True, True)
         if nr_partitions <= 2:
             if i < nr_partitions - 1:
                 partition_title += ' and '
@@ -451,7 +451,7 @@ def eval_corr_pool_converge(**keywords):
             _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, use_cols)
             # is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
-            fig_name = capitalizeFirstChar(replaceCSVLabels(ev, True)) + \
+            fig_name = capitalizeFirstChar(replaceCSVLabels(ev, True, False, True)) + \
                        ' for converging differences from frame to frame of R \\& t errors\\\\for parameters ' + \
                        strToLower(keywords['sub_title_it_pars']) + ' and properties '
             for i1, (part, val2) in enumerate(zip(keywords['partitions'], grp)):
@@ -561,7 +561,7 @@ def eval_corr_pool_converge(**keywords):
     tex_infos = {'title': 'Most Likely Correspondence Pool Sizes for Converging Differences from Frame to ' +
                           'Frame of R \\& t Errors '
                           ' for Parameters ' + keywords['sub_title_it_pars'] +
-                          ' vs Property ' + replaceCSVLabels(keywords['partition_x_axis'], False, True),
+                          ' vs Property ' + replaceCSVLabels(keywords['partition_x_axis'], False, True, True),
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -582,7 +582,7 @@ def eval_corr_pool_converge(**keywords):
     fig_name = 'Most likely correspondence pool sizes for converging differences from ' \
                'frame to frame of R \\& t errors\\\\for parameters ' + \
                strToLower(keywords['sub_title_it_pars']) + ' vs property ' + \
-               replaceCSVLabels(keywords['partition_x_axis'])
+               replaceCSVLabels(keywords['partition_x_axis'], False, False, True)
     fig_name = split_large_titles(fig_name)
     if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
         exp_value = False
@@ -885,7 +885,7 @@ def eval_corr_pool_converge(**keywords):
 
             partition_part = ''
             for i, (val_name, val) in enumerate(zip(keywords['partitions'], grp)):
-                partition_part += replaceCSVLabels(val_name)
+                partition_part += replaceCSVLabels(val_name, False, False, True)
                 if '$' == partition_part[-1]:
                     partition_part = partition_part[:-1] + '=' + str(val) + '$'
                 elif '}' == partition_part[-1]:
@@ -902,7 +902,7 @@ def eval_corr_pool_converge(**keywords):
                         partition_part += ', and '
 
             legend_entries = [a for b in ev for a in itpars_cols if a in b]
-            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name)) +  \
+            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name, False, False, True)) +  \
                        ' vs correspondence pool sizes\\\\for parameters ' + \
                        strToLower(keywords['sub_title_it_pars']) + ' and properties ' + \
                        partition_part

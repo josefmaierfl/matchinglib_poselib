@@ -121,7 +121,7 @@ def pars_calc_single_fig_partitions(**keywords):
         get_limits_log_exp
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
-        ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True)
+        ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
         if nr_it_parameters <= 2:
             if i < nr_it_parameters - 1:
                 ret['sub_title_it_pars'] += ' and '
@@ -132,7 +132,7 @@ def pars_calc_single_fig_partitions(**keywords):
                 ret['sub_title_it_pars'] += ', and '
     ret['sub_title_partitions'] = ''
     for i, val in enumerate(ret['partitions']):
-        ret['sub_title_partitions'] += replaceCSVLabels(val, True, True)
+        ret['sub_title_partitions'] += replaceCSVLabels(val, True, True, True)
         if (nr_partitions <= 2):
             if i < nr_partitions - 1:
                 ret['sub_title_partitions'] += ' and '
@@ -152,12 +152,13 @@ def pars_calc_single_fig_partitions(**keywords):
         ret['b'] = combineRt(data)
     ret['b_all_partitions'] = ret['b'].reset_index().set_index(ret['partitions'])
     if 'error_type_text' in keywords:
-        title_text = keywords['error_type_text'] + ' vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +\
+        title_text = keywords['error_type_text'] + ' vs ' + \
+                     replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +\
                      ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +\
                      ret['sub_title_partitions']
     else:
         title_text = 'Combined R \\& t Errors vs ' + \
-                     replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +\
+                     replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +\
                       ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' +\
                       ret['sub_title_partitions']
     tex_infos = {'title': title_text,
@@ -182,7 +183,7 @@ def pars_calc_single_fig_partitions(**keywords):
         idx_old = p
         tmp2 = ret['b_all_partitions'].loc[p]
         part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
-        part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
+        part_name_l = [replaceCSVLabels(str(ni), False, False, True) + ' = ' +
                        tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
         index_entries = [a for a in tmp2.index[0]]
         part_name_title = ''
@@ -251,21 +252,21 @@ def pars_calc_single_fig_partitions(**keywords):
         if 'error_type_text' in keywords:
             from statistics_and_plot import strToLower, capitalizeFirstChar
             sec_name = capitalizeFirstChar(strToLower(keywords['error_type_text'])) + ' vs ' +\
-                       replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                        ' for parameter variations of \\\\' + ret['sub_title_it_pars'] +\
                        ' based on properties \\\\' + part_name.replace('_', '\\_')
             cap_name = capitalizeFirstChar(strToLower(keywords['error_type_text'])) + ' vs ' + \
-                       replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) + \
                        ' for parameter variations of ' + ret['sub_title_it_pars'] + \
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = strToLower(keywords['error_type_text'])
         else:
             sec_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' + \
-                       replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) + \
                        ' for parameter variations of \\\\' + ret['sub_title_it_pars'] + \
                        ' based on properties \\\\' + part_name.replace('_', '\\_')
             cap_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +\
-                       replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                       replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                        ' for parameter variations of ' + ret['sub_title_it_pars'] +\
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = 'Combined R \\& t error $e_{R\\bm{t}}$'
@@ -399,7 +400,7 @@ def pars_calc_single_fig(**keywords):
         split_large_titles, \
         get_limits_log_exp
     for i, val in enumerate(keywords['it_parameters']):
-        ret['sub_title'] += replaceCSVLabels(val, True, True)
+        ret['sub_title'] += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -408,7 +409,8 @@ def pars_calc_single_fig(**keywords):
                 ret['sub_title'] += ', '
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
-    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+    tex_infos = {'title': 'Combined R \\& t Errors vs ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -425,7 +427,7 @@ def pars_calc_single_fig(**keywords):
     _, use_limits, use_log, exp_value = get_limits_log_exp(ret['b'])
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
     section_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +\
-                   replaceCSVLabels(str(ret['grp_names'][-1]), True) +\
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
     section_name = split_large_titles(section_name)
     if exp_value and len(section_name.split('\\\\')[-1]) < 70:
@@ -570,7 +572,7 @@ def pars_calc_multiple_fig(**keywords):
     nr_it_parameters = len(keywords['it_parameters'])
     from statistics_and_plot import tex_string_coding_style, compile_tex, replaceCSVLabels
     for i, val in enumerate(keywords['it_parameters']):
-        ret['sub_title'] += replaceCSVLabels(val, True, True)
+        ret['sub_title'] += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 ret['sub_title'] += ' and '
@@ -579,8 +581,8 @@ def pars_calc_multiple_fig(**keywords):
                 ret['sub_title'] += ', '
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
-    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(ret['grp_names'][-2], True, True) +
-                          ' and ' + replaceCSVLabels(ret['grp_names'][-1], True, True) +
+    tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(ret['grp_names'][-2], True, True, True) +
+                          ' and ' + replaceCSVLabels(ret['grp_names'][-1], True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -595,8 +597,8 @@ def pars_calc_multiple_fig(**keywords):
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
-                                          replaceCSVLabels(str(ret['grp_names'][-2]), True, True) +
-                                          ' and ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                                          replaceCSVLabels(str(ret['grp_names'][-2]), True, False, True) +
+                                          ' and ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +
                                           ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': ret['fig_type'],
                                   'plots_z': list(ret['b'].columns.values)[2:],
@@ -721,7 +723,7 @@ def get_best_comb_and_th_1(**keywords):
     ret['gloss'] = add_to_glossary(b_best[ret['grp_names'][-1]].tolist(), ret['gloss'])
     ret['gloss'] = add_to_glossary(b_worst[ret['grp_names'][-1]].tolist(), ret['gloss'])
     tex_infos = {'title': 'Best and Worst Combined R \\& t Errors and Their ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -736,7 +738,7 @@ def get_best_comb_and_th_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
     section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
-                   replaceCSVLabels(str(ret['grp_names'][-1]))
+                   replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -769,7 +771,7 @@ def get_best_comb_and_th_1(**keywords):
                                              ' which appears on top of each bar.'
                                   })
     section_name = 'Worst combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
-                   replaceCSVLabels(str(ret['grp_names'][-1]))
+                   replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_worst_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -860,7 +862,7 @@ def get_best_comb_inlrat_1(**keywords):
         fig_type = 'ybar'
     from statistics_and_plot import replaceCSVLabels
     tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True) +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -875,7 +877,7 @@ def get_best_comb_inlrat_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
     section_name = 'Mean combined R \\& t errors $e_{R\\bm{t}}$ over all ' + \
-                   replaceCSVLabels(str(ret['grp_names'][-1]), True)
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -1059,8 +1061,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                            ret['b'].columns.name])
     from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, add_to_glossary
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
-                          replaceCSVLabels(str(ret['grp_names'][-2]), False, True) + ' for every ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True) +
+                          replaceCSVLabels(str(ret['grp_names'][-2]), False, True, True) + ' for every ' +
+                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True, True) +
                           ' and Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -1089,8 +1091,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
             data_a.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +\
-                       replaceCSVLabels(str(ret['grp_names'][-2])) +\
-                       '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +\
+                       replaceCSVLabels(str(ret['grp_names'][-2]), False, False, True) +\
+                       '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True) +\
                        ' for parameters ' + tex_string_coding_style(str(grp))
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
                                       # Name of the whole section
@@ -1149,10 +1151,10 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
         f.write('# Used parameters: ' + str(ret['b'].columns.name) + '\n')
         data_min1.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
-                          replaceCSVLabels(str(ret['grp_names'][-2]), False, True) +
+                          replaceCSVLabels(str(ret['grp_names'][-2]), False, True, True) +
                           ' and Parameter Set of ' + ret['sub_title'] +
                           ' for every ' +
-                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True),
+                          replaceCSVLabels(str(ret['grp_names'][-1]), False, True, True),
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -1292,7 +1294,7 @@ def get_best_comb_th_scenes_1(**keywords):
         fig_type = 'ybar'
 
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their ' + \
-                          replaceCSVLabels(str(ret['partitions'][-1]), True, True) + \
+                          replaceCSVLabels(str(ret['partitions'][-1]), True, True, True) + \
                           ' for Parameters ' + ret['sub_title_it_pars'] + \
                           ' and Properties ' + ret['sub_title_partitions'],
                  'sections': [],
@@ -1309,7 +1311,7 @@ def get_best_comb_th_scenes_1(**keywords):
                  }
 
     section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
-                   replaceCSVLabels(str(ret['partitions'][-1]), True) + \
+                   replaceCSVLabels(str(ret['partitions'][-1]), True, False, True) + \
                    '\\\\for parameters ' + ret['sub_title_it_pars'] + \
                    '\\\\and properties ' + ret['sub_title_partitions']
     if fig_type == 'xbar':
@@ -1360,7 +1362,7 @@ def get_best_comb_th_scenes_1(**keywords):
     for rc, lc, rl, ll in zip(right_cols, left_cols, right_legend, left_legend):
         par_str = [i for i in rl.split(' -- ') if ret['partitions'][-1] not in i][0]
         section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
-                       replaceCSVLabels(str(ret['partitions'][-1]), True) + \
+                       replaceCSVLabels(str(ret['partitions'][-1]), True, False, True) + \
                        '\\\\for parameters ' + par_str + \
                        '\\\\and properties ' + ret['sub_title_partitions']
 
@@ -1909,7 +1911,7 @@ def estimate_alg_time_fixed_kp(**vars):
         tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     title = 'Mean Execution Times for Parameter Variations of ' + vars['sub_title_it_pars'] + ' Over All ' + \
-            replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, True) + \
+            replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     tex_infos = {'title': title,
                  'sections': [],
@@ -1928,7 +1930,7 @@ def estimate_alg_time_fixed_kp(**vars):
     is_numeric = pd.to_numeric(tmp.reset_index()[vars['xy_axis_columns'][0]], errors='coerce').notnull().all()
     reltex_name = os.path.join(vars['rel_data_path'], t_mean_name)
     fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-               ' over all ' + replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False) + \
+               ' over all ' + replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False, True) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     fig_name = split_large_titles(fig_name)
     if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
@@ -1988,7 +1990,7 @@ def estimate_alg_time_fixed_kp(**vars):
 
     title = 'Minimum Execution Times Over Parameter Variations of ' + vars['sub_title_it_pars'] + \
             ' for Mean Execution Times Over All ' + \
-            replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, True) + \
+            replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     # Get data for tex file generation
     if len(tmp1.columns) > 10:
@@ -2010,7 +2012,7 @@ def estimate_alg_time_fixed_kp(**vars):
                  }
     section_name = 'Minimum execution times over parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                    ' for mean execution times over all ' + \
-                   replaceCSVLabels(str(vars['xy_axis_columns'][1]), True) + \
+                   replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False, True) + \
                    '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     caption = 'Minimum execution times over parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
               ' (corresponding parameter on top of bar) for mean execution times over all ' + \
@@ -2195,7 +2197,7 @@ def prepare_io(**keywords):
     from statistics_and_plot import replaceCSVLabels
     keywords['sub_title_it_pars'] = ''
     for i, val in enumerate(keywords['it_parameters']):
-        keywords['sub_title_it_pars'] += replaceCSVLabels(val, True, True)
+        keywords['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
         if nr_it_parameters <= 2:
             if i < nr_it_parameters - 1:
                 keywords['sub_title_it_pars'] += ' and '
@@ -2277,9 +2279,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
         tmp1max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     title = 'Minimum and Maximum Execution Times vs ' + \
-            replaceCSVLabels(str(vars['t_data_separators'][1]), True, True) + \
+            replaceCSVLabels(str(vars['t_data_separators'][1]), True, True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
-            ' Over All ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True, True) + \
+            ' Over All ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True, True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
 
     # Get data for tex file generation
@@ -2297,9 +2299,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                  'abbreviations': gloss
                  }
     section_name = 'Minimum execution times vs ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
+                   replaceCSVLabels(str(vars['t_data_separators'][1]), True, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                   '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True) + \
+                   '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True, False, True) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name = split_large_titles(section_name)
     caption = 'Minimum execution times vs ' + replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
@@ -2339,9 +2341,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     section_name = 'Maximum execution times vs ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
+                   replaceCSVLabels(str(vars['t_data_separators'][1]), True, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                   '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True) + \
+                   '\\\\over all ' + replaceCSVLabels(str(vars['t_data_separators'][0]), True, False, True) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     caption = 'Maximum execution times vs ' + replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
               ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + ' over all ' + \
@@ -2464,8 +2466,8 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
         tmp2max.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     title = 'Minimum and Maximum Execution Times over all ' + \
-            replaceCSVLabels(str(vars['t_data_separators'][0]), True, True) + ' and ' + \
-            replaceCSVLabels(str(vars['t_data_separators'][1]), True, True) + \
+            replaceCSVLabels(str(vars['t_data_separators'][0]), True, True, True) + ' and ' + \
+            replaceCSVLabels(str(vars['t_data_separators'][1]), True, True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     # Get data for tex file generation
@@ -2483,8 +2485,8 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                  'abbreviations': gloss
                  }
     section_name = 'Minimum execution times over all ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
+                   replaceCSVLabels(str(vars['t_data_separators'][0]), True, False, True) + ' and ' + \
+                   replaceCSVLabels(str(vars['t_data_separators'][1]), True, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     caption = 'Minimum execution times over all ' + \
@@ -2526,8 +2528,8 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'caption': caption
                                   })
     section_name = 'Maximum execution times over all ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][0]), True) + ' and ' + \
-                   replaceCSVLabels(str(vars['t_data_separators'][1]), True) + \
+                   replaceCSVLabels(str(vars['t_data_separators'][0]), True, False, True) + ' and ' + \
+                   replaceCSVLabels(str(vars['t_data_separators'][1]), True, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     caption = 'Maximum execution times over all ' + \
@@ -2708,10 +2710,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     title = 'Mean Execution Times vs ' + \
             replaceCSVLabels(str([a for a in vars['t_data_separators'] if a not in vars['accum_step_props']][0]),
-                             True, True) + \
+                             True, True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
-            ' Seperately Over All ' + replaceCSVLabels(str(vars['accum_step_props'][0]), True, True) + \
-            ' and ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True, True) + \
+            ' Seperately Over All ' + replaceCSVLabels(str(vars['accum_step_props'][0]), True, True, True) + \
+            ' and ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True, True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     tex_infos = {'title': title,
                  'sections': [],
@@ -2724,9 +2726,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss}
 
-    section_name = 'Mean execution times over all ' + replaceCSVLabels(str(vars['accum_step_props'][0]), True) + \
-                   ' vs ' + replaceCSVLabels(str(first_grp2[0]), True) + ' and ' + \
-                   replaceCSVLabels(str(first_grp2[1]), True) + \
+    section_name = 'Mean execution times over all ' + \
+                   replaceCSVLabels(str(vars['accum_step_props'][0]), True, False, True) + \
+                   ' vs ' + replaceCSVLabels(str(first_grp2[0]), True, False, True) + ' and ' + \
+                   replaceCSVLabels(str(first_grp2[1]), True, False, True) + \
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
@@ -2759,9 +2762,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'limits': use_limits
                                   })
 
-    section_name = 'Mean execution times over all ' + replaceCSVLabels(str(vars['accum_step_props'][1]), True) + \
-                   ' vs ' + replaceCSVLabels(str(second_grp2[0]), True) + ' and ' + \
-                   replaceCSVLabels(str(second_grp2[1]), True) + \
+    section_name = 'Mean execution times over all ' + \
+                   replaceCSVLabels(str(vars['accum_step_props'][1]), True, False, True) + \
+                   ' vs ' + replaceCSVLabels(str(second_grp2[0]), True, False, True) + ' and ' + \
+                   replaceCSVLabels(str(second_grp2[1]), True, False, True) + \
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
@@ -2959,10 +2963,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         tmp2mean_max.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     title = 'Minimum and Maximum Execution Times vs ' + \
-            replaceCSVLabels(str(vars['eval_minmax_for']), True, True) + \
+            replaceCSVLabels(str(vars['eval_minmax_for']), True, True, True) + \
             ' for Parameter Variations of ' + vars['sub_title_it_pars'] + \
-            ' Separately Over All ' + replaceCSVLabels(str(time_on1), True, True) + \
-            ' and ' + replaceCSVLabels(str(time_on2), True, True) + \
+            ' Separately Over All ' + replaceCSVLabels(str(time_on1), True, True, True) + \
+            ' and ' + replaceCSVLabels(str(time_on2), True, True, True) + \
             ' Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     tex_infos = {'title': title,
                  'sections': [],
@@ -2980,9 +2984,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     section_name = []
     caption = []
     section_name_main1 = 'execution times vs ' + \
-                         replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
+                         replaceCSVLabels(str(vars['eval_minmax_for']), True, False, True) + \
                          ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                         '\\\\over all ' + replaceCSVLabels(str(time_on1), True) + \
+                         '\\\\over all ' + replaceCSVLabels(str(time_on1), True, False, True) + \
                          ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name.append(split_large_titles('Minimum ' + section_name_main1))
     section_name.append(split_large_titles('Maximum ' + section_name_main1))
@@ -2996,9 +3000,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     caption.append('Maximum ' + caption_main1)
 
     section_name_main2 = 'execution times vs ' + \
-                         replaceCSVLabels(str(vars['eval_minmax_for']), True) + \
+                         replaceCSVLabels(str(vars['eval_minmax_for']), True, False, True) + \
                          ' for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
-                         '\\\\over all ' + replaceCSVLabels(str(time_on2), True) + \
+                         '\\\\over all ' + replaceCSVLabels(str(time_on2), True, False, True) + \
                          ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name.append(split_large_titles('Minimum ' + section_name_main2))
     section_name.append(split_large_titles('Maximum ' + section_name_main2))
@@ -3220,10 +3224,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     title = 'Minimum and Maximum Execution Times for Parameter Variations of ' + \
             vars['sub_title_it_pars'] + \
-            ' Over All ' + replaceCSVLabels(first_grp2[0], False, True) + ' and ' + \
-            replaceCSVLabels(first_grp2[1], False, True) + ' Combinations in Addition to All ' + \
-            replaceCSVLabels(second_grp2[0], False, True) + ' and ' + \
-            replaceCSVLabels(second_grp2[1], False, True) + \
+            ' Over All ' + replaceCSVLabels(first_grp2[0], False, True, True) + ' and ' + \
+            replaceCSVLabels(first_grp2[1], False, True, True) + ' Combinations in Addition to All ' + \
+            replaceCSVLabels(second_grp2[0], False, True, True) + ' and ' + \
+            replaceCSVLabels(second_grp2[1], False, True, True) + \
             ' Combinations Extrapolated for ' + str(int(vars['nr_target_kps'])) + ' Keypoints'
     tex_infos = {'title': title,
                  'sections': [],
@@ -3242,8 +3246,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     caption = []
     section_name_main1 = 'execution times for parameter variations of\\\\' + \
                          strToLower(vars['sub_title_it_pars']) + \
-                         '\\\\over all ' + replaceCSVLabels(first_grp2[0], False, True) + ' and ' + \
-                         replaceCSVLabels(first_grp2[1], False, True) + \
+                         '\\\\over all ' + replaceCSVLabels(first_grp2[0], False, False, True) + ' and ' + \
+                         replaceCSVLabels(first_grp2[1], False, False, True) + \
                          ' combinations\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name.append(split_large_titles('Minimum ' + section_name_main1))
     section_name.append(split_large_titles('Maximum ' + section_name_main1))
@@ -3259,8 +3263,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     section_name_main2 = 'execution times for parameter variations of\\\\' + \
                          strToLower(vars['sub_title_it_pars']) + \
-                         '\\\\over all ' + replaceCSVLabels(second_grp2[0], False, True) + ' and ' + \
-                         replaceCSVLabels(second_grp2[1], False, True) + \
+                         '\\\\over all ' + replaceCSVLabels(second_grp2[0], False, False, True) + ' and ' + \
+                         replaceCSVLabels(second_grp2[1], False, False, True) + \
                          ' combinations\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     section_name.append(split_large_titles('Minimum ' + section_name_main2))
     section_name.append(split_large_titles('Maximum ' + section_name_main2))
@@ -3461,7 +3465,7 @@ def get_min_inlrat_diff(**keywords):
         diff_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     tex_infos = {'title': 'Absolute Mean Inlier Ratio Differences vs ' +
-                          replaceCSVLabels(str(grp_names[-1]), True, True) +
+                          replaceCSVLabels(str(grp_names[-1]), True, True, True) +
                           ' for Parameter Variations of ' + keywords['sub_title_it_pars'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -3479,7 +3483,7 @@ def get_min_inlrat_diff(**keywords):
     is_numeric = pd.to_numeric(diff_mean.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
     reltex_name = os.path.join(keywords['rel_data_path'], b_name)
     fig_name = 'Absolute mean inlier ratio differences $\\Delta \\epsilon$ vs ' + \
-               replaceCSVLabels(str(grp_names[-1]), True) + \
+               replaceCSVLabels(str(grp_names[-1]), True, False, True) + \
                ' for parameter variations of \\\\' + keywords['sub_title_it_pars']
     fig_name = split_large_titles(fig_name)
     if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
@@ -3547,7 +3551,7 @@ def get_min_inlrat_diff(**keywords):
     else:
         fig_type = 'ybar'
     tex_infos = {'title': 'Minimum Absolute Mean Inlier Ratio Difference and its Corresponding ' +
-                          replaceCSVLabels(str(grp_names[-1]), False, True) +
+                          replaceCSVLabels(str(grp_names[-1]), False, True, True) +
                           ' for Parameter Variations of ' + keywords['sub_title_it_pars'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -3562,7 +3566,7 @@ def get_min_inlrat_diff(**keywords):
                  'abbreviations': gloss
                  }
     section_name = 'Minimum absolute mean inlier ratio difference\\\\and its corresponding ' + \
-                   replaceCSVLabels(str(grp_names[-1])) + \
+                   replaceCSVLabels(str(grp_names[-1]), False, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(keywords['sub_title_it_pars'])
     caption = 'Minimum absolute mean inlier ratio difference and its corresponding ' + \
               replaceCSVLabels(str(grp_names[-1])) + \

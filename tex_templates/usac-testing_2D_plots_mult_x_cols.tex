@@ -23,6 +23,11 @@
 
 \newcommand{\mli}[1]{\mathit{#1}}
 
+\DeclareRobustCommand{\vect}[1]{\bm{#1}}
+\pdfstringdefDisableCommands{%
+  \renewcommand{\vect}[1]{#1}%
+}
+
 \BLOCK{ if abbreviations }
 \BLOCK{ for abb in abbreviations}
 \newglossaryentry{\VAR{ loop.index }}{name={\VAR{ abb['key'] }},description={\VAR{ abb['description'] }}}

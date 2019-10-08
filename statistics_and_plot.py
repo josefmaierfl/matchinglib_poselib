@@ -339,7 +339,7 @@ def calcSatisticAndPlot_2D(data,
     title_name = fig_title_pre_str
     for i in range(0, nr_it_parameters):
         base_out_name += grp_names[i]
-        title_name += replaceCSVLabels(grp_names[i], True, True)
+        title_name += replaceCSVLabels(grp_names[i], True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_name += ' and '
@@ -351,7 +351,7 @@ def calcSatisticAndPlot_2D(data,
         if i < nr_it_parameters - 1:
             base_out_name += '-'
     base_out_name += '_combs_vs_' + grp_names[-1]
-    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True) + ' Values'
+    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True, True) + ' Values'
     # holds the grouped names/entries within the group names excluding the last entry th
     #grp_values = list(dict.fromkeys([i[0:2] for i in stats.index.values]))
     tex_infos = {'title': title_name,
@@ -416,8 +416,8 @@ def calcSatisticAndPlot_2D(data,
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
             section_name = replace_stat_names(it[-1]) + ' values for ' +\
-                           replaceCSVLabels(str(it[0]), True) +\
-                           ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True)
+                           replaceCSVLabels(str(it[0]), True, False, True) +\
+                           ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
             if exp_value and len(section_name) < 70:
                 exp_value = False
             reltex_name = os.path.join(rel_data_path, dataf_name)
@@ -670,7 +670,7 @@ def calcSatisticAndPlot_2D_partitions(data,
     title_name = fig_title_pre_str
     for i in range(0, nr_it_parameters):
         base_out_name += grp_names[nr_partitions + i]
-        title_name += replaceCSVLabels(grp_names[nr_partitions + i], True, True)
+        title_name += replaceCSVLabels(grp_names[nr_partitions + i], True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_name += ' and '
@@ -686,9 +686,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                          '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
     else:
         base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + str(partitions)
-    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True) + ' Values Separately for '
+    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True, True) + ' Values Separately for '
     for i in range(0, nr_partitions):
-        title_name += replaceCSVLabels(grp_names[i], True, True)
+        title_name += replaceCSVLabels(grp_names[i], True, True, True)
         if(nr_partitions <= 2):
             if i < nr_partitions - 1:
                 title_name += ' and '
@@ -726,7 +726,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                 tmp2 = tmp1.loc[p]
                 part_props = deepcopy(tmp2.index[0])
                 part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
-                part_name_l = [replaceCSVLabels(str(ni)) + ' = ' +
+                part_name_l = [replaceCSVLabels(str(ni), False, False, True) + ' = ' +
                                tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
                 part_name_title = ''
                 for i, val in enumerate(part_name_l):
@@ -778,8 +778,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
                 section_name = replace_stat_names(it[-1]) + ' values for ' +\
-                               replaceCSVLabels(str(it[0]), True) +\
-                               ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +\
+                               replaceCSVLabels(str(it[0]), True, False, True) +\
+                               ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
                                '\\\\for properties ' + part_name.replace('_', '\\_')
                 section_name = split_large_titles(section_name)
                 if exp_value and len(section_name.split('\\\\')[-1]) < 70:
@@ -1043,7 +1043,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
     it_title_part = ''
     for i, val in enumerate(it_parameters):
         base_out_name += val
-        it_title_part += replaceCSVLabels(val, True, True)
+        it_title_part += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 it_title_part += ' and '
@@ -1062,7 +1062,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
     if nr_eval_init_input > 1:
         for i, val in enumerate(eval_init_input):
             init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True)
+            init_pars_title += replaceCSVLabels(val, True, True, True)
             if (nr_eval_init_input <= 2):
                 if i < nr_eval_init_input - 1:
                     init_pars_title += ' and '
@@ -1075,14 +1075,14 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 init_pars_out_name += '-'
     else:
         init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
     base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name + \
                      '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
-    title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True) + \
+    title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + \
                   ' Based On ' + init_pars_title + ' Separately for '
     partition_text = ''
     for i, val in enumerate(partitions):
-        partition_text += replaceCSVLabels(val, True, True)
+        partition_text += replaceCSVLabels(val, True, True, True)
         if(nr_partitions <= 2):
             if i < nr_partitions - 1:
                 partition_text += ' and '
@@ -1106,7 +1106,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                  'abbreviations': None}
     partition_text_val = []
     for i, val in enumerate(partitions):
-        partition_text_val.append([replaceCSVLabels(val)])
+        partition_text_val.append([replaceCSVLabels(val, False, False, True)])
         if (nr_partitions <= 2):
             if i < nr_partitions - 1:
                 partition_text_val[-1].append(' and ')
@@ -1225,7 +1225,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
             fig_name += partition_text_val1 + ' in addition to ' + \
                         '\\\\parameter variations of ' + strToLower(it_title_part) + \
                         '\\\\compared to ' + \
-                        replaceCSVLabels(x_axis_column[0], True)
+                        replaceCSVLabels(x_axis_column[0], True, False, True)
             fig_name = split_large_titles(fig_name)
             if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
                 exp_value = False
@@ -1437,7 +1437,7 @@ def calcSatisticAndPlot_3D(data,
     title_name = fig_title_pre_str
     for i in range(0, nr_it_parameters):
         base_out_name += grp_names[i]
-        title_name += replaceCSVLabels(grp_names[i], True, True)
+        title_name += replaceCSVLabels(grp_names[i], True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_name += ' and '
@@ -1449,8 +1449,8 @@ def calcSatisticAndPlot_3D(data,
         if i < nr_it_parameters - 1:
             base_out_name += '-'
     base_out_name += '_combs_vs_' + grp_names[-2] + '_and_' + grp_names[-1]
-    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-2], False, True) + ' and ' + \
-                  replaceCSVLabels(grp_names[-1], False, True) + ' Values'
+    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-2], False, True, True) + ' and ' + \
+                  replaceCSVLabels(grp_names[-1], False, True, True) + ' Values'
     tex_infos = {'title': title_name,
                  'sections': [],
                  'use_fixed_caption': False,
@@ -1516,10 +1516,10 @@ def calcSatisticAndPlot_3D(data,
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': replace_stat_names(it[-1]) + ' value for ' +
-                                                  replaceCSVLabels(str(it[0]), True) +
+                                                  replaceCSVLabels(str(it[0]), True, False, True) +
                                                   ' compared to ' +
-                                                  replaceCSVLabels(str(grp_names[-2]), True) +
-                                                  ' and ' + replaceCSVLabels(str(grp_names[-1]), True),
+                                                  replaceCSVLabels(str(grp_names[-2]), True, False, True) +
+                                                  ' and ' + replaceCSVLabels(str(grp_names[-1]), True, False, True),
                                           'fig_type': fig_type,
                                           'stat_name': it[-1],
                                           'plots_z': list(tmp.columns.values)[2:],
@@ -1738,7 +1738,7 @@ def calcFromFuncAndPlot_3D(data,
     title_name = fig_title_pre_str
     for i, val in enumerate(it_parameters):
         base_out_name += val
-        title_name += replaceCSVLabels(val, True, True)
+        title_name += replaceCSVLabels(val, True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_name += ' and '
@@ -1755,7 +1755,7 @@ def calcFromFuncAndPlot_3D(data,
     if nr_eval_init_input > 1:
         for i, val in enumerate(eval_init_input):
             init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True)
+            init_pars_title += replaceCSVLabels(val, True, True, True)
             if(nr_eval_init_input <= 2):
                 if i < nr_eval_init_input - 1:
                     init_pars_title += ' and '
@@ -1768,11 +1768,11 @@ def calcFromFuncAndPlot_3D(data,
                 init_pars_out_name += '-'
     else:
         init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
     base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
                      init_pars_out_name
-    title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
-                  replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title
+    title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True, True) + ' and ' + \
+                  replaceCSVLabels(xy_axis_columns[1], True, True, True) + ' Based On ' + init_pars_title
     tex_infos = {'title': title_name,
                  'sections': [],
                  'use_fixed_caption': True,
@@ -1805,7 +1805,8 @@ def calcFromFuncAndPlot_3D(data,
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
-        nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
+        # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
+        nr_equal_ss = get_block_length_3D(tmp, xy_axis_columns)
         with open(fdataf_name, 'a') as f:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
                     '-'.join(map(str, it_parameters)) + '\n')
@@ -1838,14 +1839,14 @@ def calcFromFuncAndPlot_3D(data,
             if len(it_parameters) > 1:
                 fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
                            ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
-                           replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
-                           replaceCSVLabels(xy_axis_columns[1], True)
+                           replaceCSVLabels(xy_axis_columns[0], True, False, True) + ' and ' + \
+                           replaceCSVLabels(xy_axis_columns[1], True, False, True)
                 legends = [eval_cols_lname[i] + ' for ' + tex_string_coding_style('-'.join(map(str, grp)))]
             else:
                 fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
                            ' for parameters ' + tex_string_coding_style(str(grp)) + ' compared to ' + \
-                           replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
-                           replaceCSVLabels(xy_axis_columns[1], True)
+                           replaceCSVLabels(xy_axis_columns[0], True, False, True) + ' and ' + \
+                           replaceCSVLabels(xy_axis_columns[1], True, False, True)
                 legends = [eval_cols_lname[i] + ' for ' + tex_string_coding_style(str(grp))]
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
@@ -2062,7 +2063,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
     it_title_part = ''
     for i, val in enumerate(it_parameters):
         base_out_name += val
-        it_title_part += replaceCSVLabels(val, True, True)
+        it_title_part += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 it_title_part += ' and '
@@ -2082,7 +2083,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
         if nr_eval_init_input > 1:
             for i, val in enumerate(eval_init_input):
                 init_pars_out_name += val
-                init_pars_title += replaceCSVLabels(val, True, True)
+                init_pars_title += replaceCSVLabels(val, True, True, True)
                 if (nr_eval_init_input <= 2):
                     if i < nr_eval_init_input - 1:
                         init_pars_title += ' and '
@@ -2095,21 +2096,21 @@ def calcFromFuncAndPlot_3D_partitions(data,
                     init_pars_out_name += '-'
         else:
             init_pars_out_name = eval_init_input[0]
-            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
         base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
                          init_pars_out_name + '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
-        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
-                      replaceCSVLabels(xy_axis_columns[1], True, True) + ' Based On ' + init_pars_title + \
+        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True, True) + ' and ' + \
+                      replaceCSVLabels(xy_axis_columns[1], True, True, True) + ' Based On ' + init_pars_title + \
                       ' Separately for '
     else:
         base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + \
                          '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
-        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True) + ' and ' + \
-                      replaceCSVLabels(xy_axis_columns[1], True, True) + ' Separately for '
+        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True, True) + ' and ' + \
+                      replaceCSVLabels(xy_axis_columns[1], True, True, True) + ' Separately for '
 
     partition_text = ''
     for i, val in enumerate(partitions):
-        partition_text += replaceCSVLabels(val, True, True)
+        partition_text += replaceCSVLabels(val, True, True, True)
         if(nr_partitions <= 2):
             if i < nr_partitions - 1:
                 partition_text += ' and '
@@ -2129,7 +2130,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                  'abbreviations': None}
     partition_text_val = []
     for i, val in enumerate(partitions):
-        partition_text_val.append([replaceCSVLabels(val)])
+        partition_text_val.append([replaceCSVLabels(val, False, False, True)])
         if (nr_partitions <= 2):
             if i < nr_partitions - 1:
                 partition_text_val[-1].append(' and ')
@@ -2194,7 +2195,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
         for grp_it in grp_keys_it:
             tmp1 = tmp.get_group(grp_it)
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
-            nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
+            # nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
+            nr_equal_ss = get_block_length_3D(tmp1, xy_axis_columns)
 
             if eval_init_input:
                 dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + grp_it + \
@@ -2244,8 +2246,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 fig_name += partition_text_val1 + ' in addition to ' + \
                             ' parameters ' + tex_string_coding_style(grp_it) + \
                             ' compared to ' + \
-                            replaceCSVLabels(xy_axis_columns[0], True) + ' and ' + \
-                            replaceCSVLabels(xy_axis_columns[1], True)
+                            replaceCSVLabels(xy_axis_columns[0], True, False, True) + ' and ' + \
+                            replaceCSVLabels(xy_axis_columns[1], True, False, True)
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': fig_name,
                                               'fig_type': fig_type,
@@ -2471,7 +2473,7 @@ def calcFromFuncAndPlot_aggregate(data,
     title_it_pars = ''
     for i, val in enumerate(it_parameters):
         base_out_name += val
-        title_it_pars += replaceCSVLabels(val, True, True)
+        title_it_pars += replaceCSVLabels(val, True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_it_pars += ' and '
@@ -2489,7 +2491,7 @@ def calcFromFuncAndPlot_aggregate(data,
     if nr_eval_init_input > 1:
         for i, val in enumerate(eval_init_input):
             init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True)
+            init_pars_title += replaceCSVLabels(val, True, True, True)
             if(nr_eval_init_input <= 2):
                 if i < nr_eval_init_input - 1:
                     init_pars_title += ' and '
@@ -2502,7 +2504,7 @@ def calcFromFuncAndPlot_aggregate(data,
                 init_pars_out_name += '-'
     else:
         init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True)
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
     base_out_name += '_combs_based_on_' + init_pars_out_name
     title_name += ' Based On ' + init_pars_title
     df.set_index(it_parameters, inplace=True)
@@ -2780,7 +2782,7 @@ def calcSatisticAndPlot_aggregate(data,
     title_it_pars = ''
     for i in range(0, nr_it_parameters):
         base_out_name += grp_names[i]
-        title_it_pars += replaceCSVLabels(grp_names[i], True, True)
+        title_it_pars += replaceCSVLabels(grp_names[i], True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
                 title_it_pars += ' and '
@@ -2868,7 +2870,7 @@ def calcSatisticAndPlot_aggregate(data,
                 continue
 
             fig_name = replace_stat_names(it[-1]) + ' values for ' +\
-                       replaceCSVLabels(str(it[0]), True) + ' comparing parameter variations of\\\\' + \
+                       replaceCSVLabels(str(it[0]), True, False, True) + ' comparing parameter variations of\\\\' + \
                        strToLower(title_it_pars)
             fig_name = split_large_titles(fig_name)
             if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
@@ -3064,6 +3066,26 @@ def replace_stat_names(name, for_tex=True):
             return str(name).replace('%', '\%').capitalize()
         else:
             return str(name).replace('%', 'perc').capitalize()
+
+
+def replace_bm_in_headings(str_in):
+    if '\\bm{' in str_in:
+        return str_in.replace('\\bm{', '\\vect{')
+    return str_in
+
+
+def get_block_length_3D(df, xy_axis_columns):
+    x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
+    y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
+    if np.isclose(x_diff, 0, atol=1e-06) and not np.isclose(y_diff, 0, atol=1e-06):
+        nr_equal_ss = int(df.groupby(xy_axis_columns[0]).size().array[0])
+    elif not np.isclose(x_diff, 0, atol=1e-06) and np.isclose(y_diff, 0, atol=1e-06):
+        nr_equal_ss = int(df.groupby(xy_axis_columns[1]).size().array[0])
+    else:
+        nr_equal_ss1 = int(df.groupby(xy_axis_columns[0]).size().array[0])
+        nr_equal_ss2 = int(df.groupby(xy_axis_columns[1]).size().array[0])
+        nr_equal_ss = max(nr_equal_ss1, nr_equal_ss2)
+    return nr_equal_ss
 
 
 def is_exp_used(min_val, max_val, use_log=False):
@@ -3716,7 +3738,8 @@ def getSymbolDescription(label):
     else:
         return (replaceCSVLabels(label), replaceCSVLabels(label), False)
 
-def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
+
+def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=False):
     if label == 'R_diffAll':
         return '$\\Delta R_{\\Sigma}$'
     elif label == 'R_diff_roll_deg':
@@ -3726,9 +3749,15 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 'R_diff_yaw_deg':
         return '$\\Delta R_{z}$'
     elif label == 't_angDiff_deg':
-        return '$\\angle{\\Delta \\bm{t}}$'
+        str_val = '$\\angle{\\Delta \\bm{t}}$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_distDiff':
-        return '$\\lvert\\Delta \\bm{t}\\rvert$'
+        str_val = '$\\lvert\\Delta \\bm{t}\\rvert$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_diff_tx':
         return '$\\Delta t_{x}$'
     elif label == 't_diff_ty':
@@ -3736,7 +3765,10 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_diff_tz':
         return '$\\Delta t_{z}$'
     elif label == 'Rt_diff':
-        return '$e_{f\\left( R\\bm{t}\\right) }$'
+        str_val = '$e_{f\\left( R\\bm{t}\\right) }$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 'R_diffAll_diff':
         return '$\\Delta^{2} R_{\\Sigma}$'
     elif label == 'R_diff_roll_deg_diff':
@@ -3746,9 +3778,15 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 'R_diff_yaw_deg_diff':
         return '$\\Delta^{2} R_{z}$'
     elif label == 't_angDiff_deg_diff':
-        return '$\\angle{\\Delta^{2} \\bm{t}}$'
+        str_val = '$\\angle{\\Delta^{2} \\bm{t}}$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_distDiff_diff':
-        return '$\\Delta\\lvert\\Delta \\bm{t}\\rvert$'
+        str_val = '$\\Delta\\lvert\\Delta \\bm{t}\\rvert$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_diff_tx_diff':
         return '$\\Delta^{2} t_{x}$'
     elif label == 't_diff_ty_diff':
@@ -3756,9 +3794,15 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_diff_tz_diff':
         return '$\\Delta^{2} t_{z}$'
     elif label == 'Rt_diff_diff':
-        return '$\\Delta e_{f\\left( R\\bm{t}\\right) }$'
+        str_val = '$\\Delta e_{f\\left( R\\bm{t}\\right) }$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 'Rt_diff2':
-        return '$\\Delta e_{R\\bm{t}}$'
+        str_val = '$\\Delta e_{R\\bm{t}}$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 'th':
         if use_plural:
             str_val = 'thresholds \\texttt{th}'
@@ -3783,9 +3827,15 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 'R_mostLikely_diff_yaw_deg':
         return '$\\Delta \\hat{R}_{z}$'
     elif label == 't_mostLikely_angDiff_deg':
-        return '$\\angle{\\Delta \\hat{\\bm{t}}}$'
+        str_val = '$\\angle{\\Delta \\hat{\\bm{t}}}$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_mostLikely_distDiff':
-        return '$\\lvert\\Delta \\hat{\\bm{t}}\\rvert$'
+        str_val = '$\\lvert\\Delta \\hat{\\bm{t}}\\rvert$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_mostLikely_diff_tx':
         return '$\\Delta \\hat{t}_{x}$'
     elif label == 't_mostLikely_diff_ty':
@@ -3793,7 +3843,10 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_mostLikely_diff_tz':
         return '$\\Delta \\hat{t}_{z}$'
     elif label == 'Rt_mostLikely_diff':
-        return '$\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }$'
+        str_val = '$\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 'R_mostLikely_diffAll_diff':
         return '$\\Delta^{2} \\hat{R}_{\\Sigma}$'
     elif label == 'R_mostLikely_diff_roll_deg_diff':
@@ -3803,9 +3856,15 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 'R_mostLikely_diff_yaw_deg_diff':
         return '$\\Delta^{2} \\hat{R}_{z}$'
     elif label == 't_mostLikely_angDiff_deg_diff':
-        return '$\\angle{\\Delta^{2} \\hat{\\bm{t}}}$'
+        str_val = '$\\angle{\\Delta^{2} \\hat{\\bm{t}}}$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_mostLikely_distDiff_diff':
-        return '$\\Delta\\lvert\\Delta \\hat{\\bm{t}}\\rvert$'
+        str_val = '$\\Delta\\lvert\\Delta \\hat{\\bm{t}}\\rvert$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 't_mostLikely_diff_tx_diff':
         return '$\\Delta^{2} \\hat{t}_{x}$'
     elif label == 't_mostLikely_diff_ty_diff':
@@ -3813,7 +3872,10 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
     elif label == 't_mostLikely_diff_tz_diff':
         return '$\\Delta^{2} \\hat{t}_{z}$'
     elif label == 'Rt_mostLikely_diff_diff':
-        return '$\\Delta\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }$'
+        str_val = '$\\Delta\\hat{e}_{f\\left( \\hat{R}\\hat{\\bm{t}}\\right) }$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
     elif label == 'K1_fxDiff':
         return '$\\Delta f_{x}^{\\mli{K1}}$'
     elif label == 'K1_fyDiff':
@@ -4136,6 +4198,8 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False):
             str_val = 'minimum correspondence distance $d_{p}$'
     else:
         return tex_string_coding_style(label)
+    if in_heading:
+        str_val = replace_bm_in_headings(str_val)
     ex = ['and', 'of', 'for', 'to', 'with', 'on']
     if str_capitalize:
         return ' '.join([b.capitalize() if not b.isupper() and
