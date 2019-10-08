@@ -996,7 +996,44 @@ def mean_str(col):
     else:
         return col.unique()[0] if col.nunique() == 1 else col.iloc[0]
 
-# def calc_rt_diff
+def calc_rt_diff_n_matches(**keywords):
+    if 'partitions' in keywords:
+        grp_cols = keywords['it_parameters'] + keywords['partitions']
+        if 'x_axis_column' in keywords:
+            needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + \
+                             keywords['x_axis_column'] + keywords['partitions']
+        elif 'xy_axis_columns' in keywords:
+            needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + \
+                             keywords['xy_axis_columns'] + keywords['partitions']
+        else:
+            needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + \
+                             keywords['partitions']
+    elif 'x_axis_column' in keywords:
+        needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + keywords['x_axis_column']
+        grp_cols = keywords['it_parameters']
+    elif 'xy_axis_columns' in keywords:
+        needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + keywords['xy_axis_columns']
+        grp_cols = keywords['it_parameters']
+    else:
+        needed_columns = keywords['eval_columns'] + keywords['it_parameters']
+        grp_cols = keywords['it_parameters']
+    data = keywords['data'].loc[:, needed_columns]
+    data = data.groupby(grp_cols)
+    grp_keys = data.groups.keys()
+    grp_list = []
+    for grp in grp_keys:
+        tmp = data.get_group(grp)
+        bin_edges = np.histogram_bin_edges(tmp['poolSize'].values, bins='auto')
+        first = None
+        for be in np.nditer(bin_edges):
+            if not first:
+                first = be
+            else:
+                tmp1 = tmp.loc[((tmp['poolSize'] > first) & (tmp['poolSize'] <= be))]
+                mean = (be - first) / 2
+                tmp1['poolSize'].apply()
+
+                first = be
 
 
 
