@@ -996,9 +996,11 @@ def mean_str(col):
     else:
         return col.unique()[0] if col.nunique() == 1 else col.iloc[0]
 
+
 def calc_rt_diff_n_matches(**keywords):
+    # Calculate new poolSize values which are near their original value but equal to other poolSize values from other
+    # evaluations to be able to use the same poolSize values for visualization (x-axis) of different evaluations
     if 'partitions' in keywords:
-        grp_cols = keywords['it_parameters'] + keywords['partitions']
         if 'x_axis_column' in keywords:
             needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + \
                              keywords['x_axis_column'] + keywords['partitions']
@@ -1010,30 +1012,50 @@ def calc_rt_diff_n_matches(**keywords):
                              keywords['partitions']
     elif 'x_axis_column' in keywords:
         needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + keywords['x_axis_column']
-        grp_cols = keywords['it_parameters']
     elif 'xy_axis_columns' in keywords:
         needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + keywords['xy_axis_columns']
-        grp_cols = keywords['it_parameters']
     else:
         needed_columns = keywords['eval_columns'] + keywords['it_parameters']
-        grp_cols = keywords['it_parameters']
     data = keywords['data'].loc[:, needed_columns]
-    data = data.groupby(grp_cols)
-    grp_keys = data.groups.keys()
-    grp_list = []
-    for grp in grp_keys:
-        tmp = data.get_group(grp)
-        bin_edges = np.histogram_bin_edges(tmp['poolSize'].values, bins='auto')
+    if 'partitions' in keywords:
+        data = data.groupby(keywords['partitions'])
+        grp_keys = data.groups.keys()
+        grp_list = []
+        for grp in grp_keys:
+            tmp = data.get_group(grp)
+            bin_edges = np.histogram_bin_edges(tmp['poolSize'].values, bins='auto')
+            first = None
+            for be in np.nditer(bin_edges):
+                if not first:
+                    first = be
+                else:
+                    mean = round((be - first) / 2, 0)
+                    tmp.loc[((tmp['poolSize'] > first) & (tmp['poolSize'] <= be)), 'poolSize'] = mean
+                    first = be
+            grp_list.append(tmp)
+        df = pd.concat(grp_list, ignore_index=True)
+    else:
+        bin_edges = np.histogram_bin_edges(data['poolSize'].values, bins='auto')
         first = None
         for be in np.nditer(bin_edges):
             if not first:
-                first = be
+                first = float(be)
             else:
-                tmp1 = tmp.loc[((tmp['poolSize'] > first) & (tmp['poolSize'] <= be))]
-                mean = (be - first) / 2
-                tmp1['poolSize'].apply()
+                mean = round(first + (be - first) / 2, 0)
+                data.loc[((data['poolSize'] > first) & (data['poolSize'] <= be)), 'poolSize'] = mean
+                first = float(be)
+        df = data
+    ret = {'data': df,
+           'eval_columns': keywords['eval_columns'],
+           'it_parameters': keywords['it_parameters']}
+    if 'partitions' in keywords:
+        ret['partitions'] = keywords['partitions']
+    if 'x_axis_column' in keywords:
+        ret['x_axis_column'] = keywords['x_axis_column']
+    elif 'xy_axis_columns' in keywords:
+        ret['xy_axis_columns'] = keywords['xy_axis_columns']
+    return ret
 
-                first = be
 
 
 
