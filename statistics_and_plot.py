@@ -865,6 +865,362 @@ def calcSatisticAndPlot_2D_partitions(data,
     return res
 
 
+def calcFromFuncAndPlot_2D(data,
+                           store_path,
+                           tex_file_pre_str,
+                           fig_title_pre_str,
+                           eval_description_path,
+                           eval_columns,
+                           units,
+                           it_parameters,
+                           x_axis_column,
+                           filter_func = None,
+                           filter_func_args = None,
+                           special_calcs_func = None,
+                           special_calcs_args = None,
+                           calc_func = None,
+                           calc_func_args = None,
+                           compare_source = None,
+                           fig_type='smooth',
+                           use_marks=True,
+                           ctrl_fig_size=True,
+                           make_fig_index=True,
+                           build_pdf=False,
+                           figs_externalize=True):
+    if len(x_axis_column) != 1:
+        raise ValueError('Only 1 column is allowed to be selected for the x axis')
+    fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
+    # if type(data) is not pd.dataframe.DataFrame:
+    #     data = pd.utils.from_pandas(data)
+    #Filter rows by excluding not successful estimations
+    data = data.loc[~((data['R_out(0,0)'] == 0) &
+                      (data['R_out(0,1)'] == 0) &
+                      (data['R_out(0,2)'] == 0) &
+                      (data['R_out(1,0)'] == 0) &
+                      (data['R_out(1,1)'] == 0) &
+                      (data['R_out(1,2)'] == 0) &
+                      (data['R_out(2,0)'] == 0) &
+                      (data['R_out(2,1)'] == 0) &
+                      (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
+    if data.empty:
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
+    if calc_func is not None:
+        if calc_func_args is None:
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['x_axis_column'] = x_axis_column
+        calc_func_args['units'] = units
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        eval_cols_lname = ret['eval_cols_lname']
+        eval_cols_log_scaling = ret['eval_cols_log_scaling']
+        eval_init_input = ret['eval_init_input']
+        units = ret['units']
+        it_parameters = ret['it_parameters']
+        x_axis_column = ret['x_axis_column']
+    else:
+        raise ValueError('No function for calculating results provided')
+
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+                                              '-'.join(map(str, x_axis_column)))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
+    if compare_source:
+        compare_source['full_path'] = os.path.join(compare_source['store_path'],
+                                                   compare_source['eval_description_path'] + '_' +
+                                                   '-'.join(map(str, compare_source['it_parameters'])) + '_vs_' +
+                                                   '-'.join(map(str, x_axis_column)))
+        if not os.path.exists(compare_source['full_path']):
+            warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
+                          'Skipping comparison.', UserWarning)
+            compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['full_path'], 'tex')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Tex folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+        if compare_source:
+            compare_source['tdata_folder'] = os.path.join(compare_source['tdata_folder'], 'data')
+            if compare_source and not os.path.exists(compare_source['tdata_folder']):
+                warnings.warn('Data folder ' + compare_source['tdata_folder'] + ' for comparing results not found. '
+                              'Skipping comparison.', UserWarning)
+                compare_source = None
+
+    if special_calcs_func is not None and special_calcs_args is not None:
+        if 'func_name' in special_calcs_args:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_args['func_name'])
+        else:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args['data'] = df
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['eval_cols_lname'] = eval_cols_lname
+            special_calcs_args['units'] = units
+            special_calcs_args['x_axis_column'] = x_axis_column
+            special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
+            if res != 0:
+                warnings.warn('Calculation of specific results failed!', UserWarning)
+
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(it_parameters)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    it_title_part = ''
+    for i, val in enumerate(it_parameters):
+        base_out_name += val
+        it_title_part += replaceCSVLabels(val, True, True, True)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                it_title_part += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                it_title_part += ', '
+            elif i < nr_it_parameters - 1:
+                it_title_part += ', and '
+        if i < nr_it_parameters - 1:
+            base_out_name += '-'
+    title_name += it_title_part
+
+    init_pars_title = ''
+    init_pars_out_name = ''
+    nr_eval_init_input = len(eval_init_input)
+    if nr_eval_init_input > 1:
+        for i, val in enumerate(eval_init_input):
+            init_pars_out_name += val
+            init_pars_title += replaceCSVLabels(val, True, True, True)
+            if (nr_eval_init_input <= 2):
+                if i < nr_eval_init_input - 1:
+                    init_pars_title += ' and '
+            else:
+                if i < nr_eval_init_input - 2:
+                    init_pars_title += ', '
+                elif i < nr_eval_init_input - 1:
+                    init_pars_title += ', and '
+            if i < nr_eval_init_input - 1:
+                init_pars_out_name += '-'
+    else:
+        init_pars_out_name = eval_init_input[0]
+        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
+    base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name
+    title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + \
+                  ' Based On ' + init_pars_title
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': make_fig_index,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': ctrl_fig_size,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': figs_externalize,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
+
+    df.set_index(it_parameters, inplace=True)
+    df = df.T
+    if len(it_parameters) > 1:
+        gloss = glossary_from_list([str(b) for a in df.columns for b in a])
+    else:
+        gloss = glossary_from_list([str(a) for a in df.columns])
+    if compare_source:
+        add_to_glossary(compare_source['it_par_select'], gloss)
+        gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
+    if gloss:
+        gloss = add_to_glossary_eval(eval_columns + x_axis_column, gloss)
+        tex_infos['abbreviations'] = gloss
+    else:
+        gloss = add_to_glossary_eval(eval_columns + x_axis_column)
+        if gloss:
+            tex_infos['abbreviations'] = gloss
+    if len(it_parameters) > 1:
+        par_cols = ['-'.join(map(str, a)) for a in df.columns]
+        df.columns = par_cols
+        it_pars_cols_name = '-'.join(map(str, it_parameters))
+        df.columns.name = it_pars_cols_name
+    else:
+        par_cols = [str(a) for a in df.columns]
+        it_pars_cols_name = it_parameters[0]
+    tmp = df.T.reset_index().set_index(x_axis_column + [it_pars_cols_name]).unstack()
+    par_cols1 = ['-'.join(map(str, a)) for a in tmp.columns]
+    tmp.columns = par_cols1
+    tmp.columns.name = 'eval-' + it_pars_cols_name
+    if compare_source:
+        cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+        if len(compare_source['it_parameters']) > 1:
+            cmp_fname += '-'.join(map(str, compare_source['it_parameters']))
+        else:
+            cmp_fname += str(compare_source['it_parameters'][0])
+    dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name
+    dataf_name += '_vs_' + x_axis_column[0] + '.csv'
+    if compare_source:
+        cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
+        cmp_its = '-'.join(map(str, compare_source['it_par_select']))
+        mult_cols = [a.replace(par_cols[0], cmp_its) for a in par_cols1 if par_cols[0] in a]
+        tmp, succ = add_comparison_column(compare_source, cmp_fname, tmp, mult_cols)
+        if succ:
+            par_cols1 += mult_cols
+
+    fdataf_name = os.path.join(tdata_folder, dataf_name)
+    with open(fdataf_name, 'a') as f:
+        f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                it_pars_cols_name + '\n')
+        f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
+        tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    for i, ev in enumerate(eval_columns):
+        sel_cols = [a for a in par_cols1 if ev in a]
+        legend = ['-'.join([b for b in a.split('-') if ev not in b]) for a in sel_cols]
+
+        # Construct tex-file
+        useless, stats_all, use_limits = calc_limits(tmp, True, False, None, sel_cols, 3.291)
+        if useless:
+            continue
+        if use_limits['miny'] and use_limits['maxy']:
+            exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], eval_cols_log_scaling[i])
+        elif use_limits['miny']:
+            exp_value = is_exp_used(use_limits['miny'], stats_all['max'][0], eval_cols_log_scaling[i])
+        elif use_limits['maxy']:
+            exp_value = is_exp_used(stats_all['min'][0], use_limits['maxy'], eval_cols_log_scaling[i])
+        else:
+            exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], eval_cols_log_scaling[i])
+        is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
+        enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(sel_cols), fig_type)
+        reltex_name = os.path.join(rel_data_path, dataf_name)
+        fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+        fig_name += '\\\\parameter variations of ' + strToLower(it_title_part) + \
+                    '\\\\compared to ' + \
+                    replaceCSVLabels(x_axis_column[0], True, False, True)
+        fig_name = split_large_titles(fig_name)
+        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+            exp_value = False
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': fig_name,
+                                      # If caption is None, the field name is used
+                                      'caption': fig_name.replace('\\\\', ' '),
+                                      'fig_type': fig_type,
+                                      'plots': sel_cols,
+                                      'label_y': eval_cols_lname[i] + findUnit(ev, units),
+                                      'plot_x': x_axis_column[0],
+                                      'label_x': replaceCSVLabels(x_axis_column[0]),
+                                      'limits': use_limits,
+                                      'legend': [tex_string_coding_style(a) for a in legend],
+                                      'legend_cols': None,
+                                      'use_marks': use_marks,
+                                      'use_log_y_axis': eval_cols_log_scaling[i],
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True if not is_numeric else False,
+                                      'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'stat_name': ev,
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    st_list = tex_infos['sections']
+    if len(st_list) > max_figs_pdf:
+        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+    else:
+        st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+    for it in st_list2:
+        if len(st_list2) == 1:
+            title = tex_infos['title']
+        else:
+            title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+        pdfs_info.append({'title': title,
+                          'texf_name': base_out_name + '_' + str(it['pdf_nr']),
+                          'figs_externalize': figs_externalize,
+                          'sections': it['figs'],
+                          'make_index': tex_infos['make_index'],
+                          'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                          'fill_bar': tex_infos['fill_bar'],
+                          'abbreviations': tex_infos['abbreviations']})
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    res = 0
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       fill_bar=it['fill_bar'],
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            res += compile_tex(rendered_tex,
+                               tex_folder,
+                               texf_name,
+                               make_fig_index,
+                               os.path.join(pdf_folder, pdf_name),
+                               it['figs_externalize'])
+        else:
+            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+
+    return res
+
+
 def calcFromFuncAndPlot_2D_partitions(data,
                                       store_path,
                                       tex_file_pre_str,
@@ -4538,7 +4894,7 @@ def main():
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [6]#list(range(5, 8))
+    eval_nr = [7]#list(range(5, 8))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
@@ -6582,7 +6938,80 @@ def main():
                                                   make_fig_index=True,
                                                   build_pdf=True,
                                                   figs_externalize=True)
-
+                elif ev == 7:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences from Frame to Frame with a maximum ' \
+                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator']
+                    from corr_pool_eval import filter_max_pool_size, \
+                        calc_rt_diff_n_matches
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-diff',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['poolSize'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=filter_max_pool_size,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=calc_rt_diff_n_matches,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=False,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 8:
+                    fig_title_pre_str = 'Differences on Frame to Frame Statistics of R\\&t Errors with a maximum ' \
+                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'USAC_opt_refine_ops_inlrat'}
+                    from corr_pool_eval import filter_max_pool_size, \
+                        calc_rt_diff_n_matches
+                    ret += calcFromFuncAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-diff',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['poolSize'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
 
     return ret
 

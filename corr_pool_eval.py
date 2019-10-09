@@ -82,6 +82,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
             if i not in vars['eval_columns']:
                 raise ValueError('Label ' + i + ' not found in \'eval_columns\'')
 
+    from statistics_and_plot import use_log_axis
     needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']
     df = vars['data'][needed_cols]
     grpd_cols = [a for a in vars['data_separators'] if a != 'Nr'] + vars['it_parameters']
@@ -94,9 +95,11 @@ def calc_rt_diff2_frame_to_frame(**vars):
     else:
         eval_columns_diff1 = eval_columns_diff
     eval_log = {}
+    eval_log_glob = {}
     eval_cols_log_scaling = []
     for evalv in eval_columns_diff1:
         eval_log[evalv] = []
+        eval_log_glob[evalv] = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
         tmp.set_index('Nr', inplace=True)
@@ -115,11 +118,12 @@ def calc_rt_diff2_frame_to_frame(**vars):
         data_list.append(pd.concat(tmp1, axis=1).T)
 
         for evalv in eval_columns_diff1:
-            eval_log[evalv].append(True if np.abs(np.log10(np.abs(data_list[-1][evalv].min())) -
-                                                  np.log10(np.abs(data_list[-1][evalv].max()))) > 1 else False)
+            ev_min = data_list[-1][evalv].min()
+            eval_log_glob[evalv].append(True if ev_min > 0 else False)
+            eval_log[evalv].append(use_log_axis(ev_min, data_list[-1][evalv].max()))
     data_new = pd.concat(data_list, ignore_index=True)
     for evalv in eval_columns_diff1:
-        if any(eval_log[evalv]):
+        if any(eval_log[evalv]) and all(eval_log_glob):
             eval_cols_log_scaling.append(True)
         else:
             eval_cols_log_scaling.append(False)
@@ -1057,5 +1061,69 @@ def calc_rt_diff_n_matches(**keywords):
     return ret
 
 
+def calc_diff_stat_rt_diff_n_matches(**keywords):
+    vars = calc_rt_diff_n_matches(**keywords)
+    accum_all = False
+    if 'partitions' in vars:
+        for key in vars['partitions']:
+            if key not in vars['data_separators']:
+                raise ValueError('All partition names must be included in the data separators.')
+        if ('x_axis_column' in vars and len(vars['data_separators']) != (len(vars['partitions']) + 1)) or \
+                ('xy_axis_columns' in vars and len(vars['data_separators']) != (len(vars['partitions']) + 2)):
+            raise ValueError('Wrong number of data separators.')
+    elif 'x_axis_column' in vars and 'data_separators' in vars and len(vars['data_separators']) > 1:
+        raise ValueError('Only one data separator is allowed.')
+    elif 'xy_axis_columns' in vars and len(vars['data_separators']) != 2:
+        raise ValueError('Only two data separators are allowed.')
+    if 'x_axis_column' in vars:
+        x_axis_column = vars['x_axis_column']
+        if 'data_separators' not in vars or not vars['data_separators']:
+            accum_all = True
+    elif 'xy_axis_columns' in vars:
+        x_axis_column = vars['xy_axis_columns']
+    else:
+        raise ValueError('Missing x-axis column names')
+    if accum_all:
+        needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column
+    else:
+        needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
+    df = vars['data'][needed_cols]
+    if accum_all:
+        grpd_cols = vars['it_parameters']
+    else:
+        grpd_cols = vars['data_separators'] + vars['it_parameters']
+    stats = vars['data'].groupby(grpd_cols).describe()
+    errvalnames = stats.columns.values  # Includes statistic name and error value names
+    grp_names = stats.index.names  # As used when generating the groups
+    for it in errvalnames:
+        if it[-1] != 'count':
+            tmp = stats[it[0]].unstack()
+            tmp = tmp[it[1]]
+            tmp = tmp.T.reset_index().T.reset_index()
+
+            # if len(vars['it_parameters']) > 1:
+            #     tmp = tmp.reset_index().T.reset_index()
+                # tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
+                # tmp.columns.name = '-'.join(grp_names[0:-1])
 
 
+            # tex_infos['sections'].append({'file': reltex_name,
+            #                               'name': section_name,
+            #                               # If caption is None, the field name is used
+            #                               'caption': None,
+            #                               'fig_type': fig_type,
+            #                               'plots': list(tmp.columns.values),
+            #                               'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+            #                               'plot_x': str(grp_names[-1]),
+            #                               'label_x': replaceCSVLabels(str(grp_names[-1])),
+            #                               'limits': use_limits,
+            #                               'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
+            #                               'legend_cols': None,
+            #                               'use_marks': use_marks,
+            #                               'use_log_y_axis': use_log,
+            #                               'enlarge_title_space': exp_value,
+            #                               'use_string_labels': True if not is_numeric else False,
+            #                               'xaxis_txt_rows': 1,
+            #                               'enlarge_lbl_dist': enlarge_lbl_dist,
+            #                               'pdf_nr': pdf_nr
+            #                               })
