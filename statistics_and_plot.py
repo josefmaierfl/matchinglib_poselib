@@ -4894,7 +4894,7 @@ def main():
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [7]#list(range(5, 8))
+    eval_nr = [8]#list(range(5, 8))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
@@ -6874,7 +6874,9 @@ def main():
                     # it_parameters = ['stereoParameters_minPtsDistance']
                     it_parameters = ['USAC_parameters_estimator']
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin'],
-                                      'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg']}
+                                      'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg'],
+                                      'eval_on': ['poolSize'],
+                                      'diff_by': 'Nr'}
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'partition_x_axis': 'kpAccSd',
@@ -6913,6 +6915,7 @@ def main():
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    calc_func_args = {'eval_on': ['poolSize']}
                     # it_parameters = ['stereoParameters_minPtsDistance']
                     it_parameters = ['USAC_parameters_estimator']
                     from corr_pool_eval import filter_max_pool_size, \
@@ -6931,7 +6934,7 @@ def main():
                                                   special_calcs_func=None,
                                                   special_calcs_args=None,
                                                   calc_func=calc_rt_diff_n_matches,
-                                                  calc_func_args=None,
+                                                  calc_func_args=calc_func_args,
                                                   fig_type='surface',
                                                   use_marks=False,
                                                   ctrl_fig_size=False,
@@ -6947,6 +6950,7 @@ def main():
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    calc_func_args = {'eval_on': ['poolSize']}
                     # it_parameters = ['stereoParameters_minPtsDistance']
                     it_parameters = ['USAC_parameters_estimator']
                     from corr_pool_eval import filter_max_pool_size, \
@@ -6966,7 +6970,7 @@ def main():
                                                   special_calcs_func=None,
                                                   special_calcs_args=None,
                                                   calc_func=calc_rt_diff_n_matches,
-                                                  calc_func_args=None,
+                                                  calc_func_args=calc_func_args,
                                                   compare_source=None,
                                                   fig_type='smooth',
                                                   use_marks=False,
@@ -6985,11 +6989,14 @@ def main():
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
                     # it_parameters = ['stereoParameters_minPtsDistance']
                     it_parameters = ['USAC_parameters_estimator']
+                    calc_func_args = {'data_separators': ['poolSize'],
+                                      'eval_on': ['poolSize'],
+                                      'diff_by': 'poolSize'}
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'USAC_opt_refine_ops_inlrat'}
                     from corr_pool_eval import filter_max_pool_size, \
-                        calc_rt_diff_n_matches
+                        calc_diff_stat_rt_diff_n_matches
                     ret += calcFromFuncAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
@@ -6999,15 +7006,15 @@ def main():
                                                   units=units,
                                                   it_parameters=it_parameters,
                                                   x_axis_column=['poolSize'],
-                                                  filter_func=None,
+                                                  filter_func=filter_max_pool_size,
                                                   filter_func_args=None,
-                                                  special_calcs_func=get_best_comb_inlrat_1,
-                                                  special_calcs_args=special_calcs_args,
-                                                  calc_func=None,
-                                                  calc_func_args=None,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=calc_diff_stat_rt_diff_n_matches,
+                                                  calc_func_args=calc_func_args,
                                                   compare_source=None,
                                                   fig_type='smooth',
-                                                  use_marks=True,
+                                                  use_marks=False,
                                                   ctrl_fig_size=True,
                                                   make_fig_index=True,
                                                   build_pdf=True,

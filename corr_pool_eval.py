@@ -68,16 +68,26 @@ def calc_rt_diff_frame_to_frame(**vars):
 
 
 def calc_rt_diff2_frame_to_frame(**vars):
-    if 'partitions' not in vars:
-        raise ValueError('Partitions are necessary.')
-    for key in vars['partitions']:
-        if key not in vars['data_separators']:
-            raise ValueError('All partition names must be included in the data separators.')
-    if 'xy_axis_columns' not in vars:
-        raise ValueError('xy_axis_columns are necessary.')
-    if len(vars['data_separators']) != (len(vars['partitions']) + 2):
-        raise ValueError('Wrong number of data separators.')
-    if 'keepEval' in vars:
+    if 'data_separators' not in vars:
+        raise ValueError('data_separators are necessary.')
+    if ('lname_pre' in vars) != ('eval_pre' in vars):
+        raise ValueError('Either both or none of \'lname_pre\' and \'eval_pre\' have to be provided')
+    if 'partitions' in vars:
+        for key in vars['partitions']:
+            if key not in vars['data_separators']:
+                raise ValueError('All partition names must be included in the data separators.')
+        if 'xy_axis_columns' in vars:
+            if len(vars['data_separators']) != (len(vars['partitions']) + 2):
+                raise ValueError('Wrong number of data separators.')
+        elif 'x_axis_column' in vars:
+            if len(vars['data_separators']) != (len(vars['partitions']) + 1):
+                raise ValueError('Wrong number of data separators.')
+    if 'eval_on' not in vars:
+        raise ValueError('Information (column name) for which evaluation this is performed must be provided.')
+    if 'diff_by' not in vars:
+        raise ValueError('No information provided on which consecutive data basis the diff should be performed')
+
+    if 'keepEval' in vars and vars['keepEval']:
         for i in vars['keepEval']:
             if i not in vars['eval_columns']:
                 raise ValueError('Label ' + i + ' not found in \'eval_columns\'')
@@ -85,15 +95,22 @@ def calc_rt_diff2_frame_to_frame(**vars):
     from statistics_and_plot import use_log_axis
     needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']
     df = vars['data'][needed_cols]
-    grpd_cols = [a for a in vars['data_separators'] if a != 'Nr'] + vars['it_parameters']
+    grpd_cols = [a for a in vars['data_separators'] if a != vars['diff_by']] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
     data_list = []
-    eval_columns_diff = [a + '_diff' for a in vars['eval_columns']]
+    if 'eval_pre' in vars:
+        eval_columns_diff = [vars['eval_pre'] + a + '_diff' for a in vars['eval_columns']]
+    else:
+        eval_columns_diff = [a + '_diff' for a in vars['eval_columns']]
     if 'keepEval' in vars:
-        eval_columns_diff1 = eval_columns_diff + vars['keepEval']
+        if 'eval_pre' in vars:
+            eval_columns_diff1 = eval_columns_diff + [vars['eval_pre'] + a for a in vars['keepEval']]
+        else:
+            eval_columns_diff1 = eval_columns_diff + vars['keepEval']
     else:
         eval_columns_diff1 = eval_columns_diff
+
     eval_log = {}
     eval_log_glob = {}
     eval_cols_log_scaling = []
@@ -102,18 +119,18 @@ def calc_rt_diff2_frame_to_frame(**vars):
         eval_log_glob[evalv] = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
-        tmp.set_index('Nr', inplace=True)
+        tmp.set_index(vars['diff_by'], inplace=True)
         row_iterator = tmp.iterrows()
         _, last = next(row_iterator)
         tmp1 = []
         for i, row in row_iterator:
             tmp1.append(row[vars['eval_columns']] - last[vars['eval_columns']])
             tmp1[-1].index = eval_columns_diff
-            if 'keepEval' in vars:
+            if 'keepEval' in vars and vars['keepEval']:
                 for i1 in vars['keepEval']:
                     tmp1[-1][i1] = row[i1]
-            tmp1[-1]['Nr'] = i
-            tmp1[-1] = tmp1[-1].append(row[[a for a in grpd_cols if a != 'Nr']])
+            tmp1[-1][vars['diff_by']] = i
+            tmp1[-1] = tmp1[-1].append(row[[a for a in grpd_cols if a != vars['diff_by']]])
             last = row
         data_list.append(pd.concat(tmp1, axis=1).T)
 
@@ -129,24 +146,49 @@ def calc_rt_diff2_frame_to_frame(**vars):
             eval_cols_log_scaling.append(False)
 
     # data_new.columns = [a + '_diff' if a in vars['eval_columns'] else a for a in data_new.columns]
-    units = [(a[0] + '_diff', a[1]) for a in vars['units']]
-    if 'keepEval' in vars:
+    if 'eval_pre' in vars:
+        units = [(vars['eval_pre'] + a[0] + '_diff', a[1]) for a in vars['units']]
+    else:
+        units = [(a[0] + '_diff', a[1]) for a in vars['units']]
+    if 'keepEval' in vars and vars['keepEval']:
         units1 = [a for a in vars['units'] if a[0] in vars['keepEval']]
+        if 'eval_pre' in vars:
+            units1 = [(vars['eval_pre'] + a[0], a[1]) for a in units1]
         units += units1
 
     from statistics_and_plot import replaceCSVLabels
+    if 'lname_pre' in vars:
+        eval_cols_lname = [vars['lname_pre'] + ' ' +
+                           replaceCSVLabels(a.replace(vars['eval_pre'], ''), False, False, True)
+                           for a in eval_columns_diff1]
+    else:
+        eval_cols_lname = [replaceCSVLabels(a, False, False, True) for a in eval_columns_diff1]
+
     ret = {'data': data_new,
            'it_parameters': vars['it_parameters'],
            'eval_columns': eval_columns_diff1,
-           'eval_cols_lname': [replaceCSVLabels(a, False, False, True) for a in eval_columns_diff1],
+           'eval_cols_lname': eval_cols_lname,
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': units,
-           'eval_init_input': None,
-           'xy_axis_columns': [],
-           'partitions': vars['partitions']}
-    for key in vars['data_separators']:
-        if key not in vars['partitions']:
-            ret['xy_axis_columns'].append(key)
+           'eval_init_input': vars['eval_on']}
+    if 'partitions' in vars:
+        if 'x_axis_column' in vars:
+            ret['x_axis_column'] = []
+            for key in vars['data_separators']:
+                if key not in vars['partitions']:
+                    ret['x_axis_column'].append(key)
+        elif 'xy_axis_columns' in vars:
+            ret['xy_axis_columns'] = []
+            for key in vars['data_separators']:
+                if key not in vars['partitions']:
+                    ret['xy_axis_columns'].append(key)
+        ret['partitions'] = vars['partitions']
+    else:
+        if 'x_axis_column' in vars:
+            ret['x_axis_column'] = vars['x_axis_column']
+        elif 'xy_axis_columns' in vars:
+            ret['xy_axis_columns'] = vars['xy_axis_columns']
+
     return ret
 
 
@@ -1020,6 +1062,9 @@ def calc_rt_diff_n_matches(**keywords):
         needed_columns = keywords['eval_columns'] + keywords['it_parameters'] + keywords['xy_axis_columns']
     else:
         needed_columns = keywords['eval_columns'] + keywords['it_parameters']
+    if 'data_separators' in keywords:
+        needed_columns += keywords['data_separators']
+        needed_columns = list(dict.fromkeys(needed_columns))
     data = keywords['data'].loc[:, needed_columns]
     if 'partitions' in keywords:
         data = data.groupby(keywords['partitions'])
@@ -1051,9 +1096,18 @@ def calc_rt_diff_n_matches(**keywords):
         df = data
     ret = {'data': df,
            'eval_columns': keywords['eval_columns'],
-           'it_parameters': keywords['it_parameters']}
+           'it_parameters': keywords['it_parameters'],
+           'eval_init_input': ['poolSize']}
     if 'partitions' in keywords:
         ret['partitions'] = keywords['partitions']
+    if 'data_separators' in keywords:
+        ret['data_separators'] = keywords['data_separators']
+    if 'units' in keywords:
+        ret['units'] = keywords['units']
+    if 'eval_on' in keywords:
+        ret['eval_on'] = keywords['eval_on']
+    if 'diff_by' in keywords:
+        ret['diff_by'] = keywords['diff_by']
     if 'x_axis_column' in keywords:
         ret['x_axis_column'] = keywords['x_axis_column']
     elif 'xy_axis_columns' in keywords:
@@ -1083,23 +1137,72 @@ def calc_diff_stat_rt_diff_n_matches(**keywords):
         x_axis_column = vars['xy_axis_columns']
     else:
         raise ValueError('Missing x-axis column names')
+    if 'eval_on' not in vars:
+        raise ValueError('Information (column name) for which evaluation this is performed must be provided.')
+    from statistics_and_plot import replace_stat_names, replace_stat_names_col_tex
     if accum_all:
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column
     else:
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
+    needed_cols = list(dict.fromkeys(needed_cols))
     df = vars['data'][needed_cols]
     if accum_all:
         grpd_cols = vars['it_parameters']
     else:
-        grpd_cols = vars['data_separators'] + vars['it_parameters']
-    stats = vars['data'].groupby(grpd_cols).describe()
-    errvalnames = stats.columns.values  # Includes statistic name and error value names
-    grp_names = stats.index.names  # As used when generating the groups
-    for it in errvalnames:
-        if it[-1] != 'count':
-            tmp = stats[it[0]].unstack()
-            tmp = tmp[it[1]]
-            tmp = tmp.T.reset_index().T.reset_index()
+        grpd_cols = vars['eval_on'] + vars['it_parameters']
+    stats = df.groupby(grpd_cols).describe()
+    # errvalnames = stats.columns.values  # Includes statistic name and error value names
+    # grp_names = stats.index.names  # As used when generating the groups
+    algpars = vars
+    data_parts = []
+    stat_values = list(dict.fromkeys(stats.columns.get_level_values(1).tolist()))
+    for it in stat_values:
+        if it != 'count':
+            tmp = stats.xs(it, axis=1, level=1, drop_level=True).reset_index()
+            algpars['data'] = tmp
+            algpars['eval_pre'] = replace_stat_names_col_tex(it) + '_'
+            algpars['lname_pre'] = replace_stat_names(it)
+            data_parts.append(calc_rt_diff2_frame_to_frame(**algpars))
+            data_parts[-1]['data'].set_index(vars['it_parameters'] + vars['eval_on'], inplace=True)
+    data = pd.concat([a['data'] for a in data_parts], ignore_index=False, axis=1)
+    data.reset_index(inplace=True)
+    eval_columns = []
+    eval_cols_lname = []
+    eval_cols_log_scaling = []
+    units = []
+    for it in data_parts:
+        eval_columns += it['eval_columns']
+        eval_cols_lname += it['eval_cols_lname']
+        eval_cols_log_scaling += it['eval_cols_log_scaling']
+        units += it['units']
+
+    ret = {'data': data,
+           'it_parameters': vars['it_parameters'],
+           'eval_columns': eval_columns,
+           'eval_cols_lname': eval_cols_lname,
+           'eval_cols_log_scaling': eval_cols_log_scaling,
+           'units': units,
+           'eval_init_input': vars['eval_on']}
+    if 'partitions' in vars:
+        if 'x_axis_column' in vars:
+            ret['x_axis_column'] = []
+            for key in vars['data_separators']:
+                if key not in vars['partitions']:
+                    ret['x_axis_column'].append(key)
+        elif 'xy_axis_columns' in vars:
+            ret['xy_axis_columns'] = []
+            for key in vars['data_separators']:
+                if key not in vars['partitions']:
+                    ret['xy_axis_columns'].append(key)
+        ret['partitions'] = vars['partitions']
+    else:
+        if 'x_axis_column' in vars:
+            ret['x_axis_column'] = vars['x_axis_column']
+        elif 'xy_axis_columns' in vars:
+            ret['xy_axis_columns'] = vars['xy_axis_columns']
+
+    return ret
+
 
             # if len(vars['it_parameters']) > 1:
             #     tmp = tmp.reset_index().T.reset_index()
