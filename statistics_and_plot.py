@@ -1017,6 +1017,8 @@ def calcFromFuncAndPlot_2D(data,
             special_calcs_args['x_axis_column'] = x_axis_column
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            if evals_for_gloss:
+                special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -1148,7 +1150,20 @@ def calcFromFuncAndPlot_2D(data,
         f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
         tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     for i, ev in enumerate(eval_columns):
-        sel_cols = [a for a in par_cols1 if ev in a]
+        # sel_cols = [a for a in par_cols1 if ev in a]
+        sel_cols = []
+        for a in par_cols1:
+            if ev in a:
+                not_found = True
+                for b in a.split('-'):
+                    if b == ev:
+                        not_found = False
+                        break
+                if not_found:
+                    continue
+                else:
+                    sel_cols.append(a)
+
         legend = ['-'.join([b for b in a.split('-') if ev not in b]) for a in sel_cols]
 
         # Construct tex-file
@@ -1420,6 +1435,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
             special_calcs_args['partitions'] = partitions
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            if evals_for_gloss:
+                special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -1612,7 +1629,19 @@ def calcFromFuncAndPlot_2D_partitions(data,
             f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
         for i, ev in enumerate(eval_columns):
-            sel_cols = [a for a in par_cols1 if ev in a]
+            # sel_cols = [a for a in par_cols1 if ev in a]
+            sel_cols = []
+            for a in par_cols1:
+                if ev in a:
+                    not_found = True
+                    for b in a.split('-'):
+                        if b == ev:
+                            not_found = False
+                            break
+                    if not_found:
+                        continue
+                    else:
+                        sel_cols.append(a)
             legend = ['-'.join([b for b in a.split('-') if ev not in b]) for a in sel_cols]
 
             # Construct tex-file
@@ -2146,6 +2175,8 @@ def calcFromFuncAndPlot_3D(data,
             special_calcs_args['xy_axis_columns'] = xy_axis_columns
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            if evals_for_gloss:
+                special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -2502,6 +2533,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
             special_calcs_args['partitions'] = partitions
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            if evals_for_gloss:
+                special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -2923,6 +2956,8 @@ def calcFromFuncAndPlot_aggregate(data,
             special_calcs_args['units'] = units
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            if evals_for_gloss:
+                special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -7108,6 +7143,7 @@ def main():
                     # it_parameters = ['stereoParameters_minPtsDistance']
                     it_parameters = ['USAC_parameters_estimator']
                     calc_func_args = {'data_separators': ['poolSize'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'eval_on': ['poolSize'],
                                       'diff_by': 'poolSize'}
                     special_calcs_args = {'build_pdf': (True, True),

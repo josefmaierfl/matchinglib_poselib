@@ -128,7 +128,10 @@ def calc_rt_diff2_frame_to_frame(**vars):
             tmp1[-1].index = eval_columns_diff
             if 'keepEval' in vars and vars['keepEval']:
                 for i1 in vars['keepEval']:
-                    tmp1[-1][i1] = row[i1]
+                    if 'eval_pre' in vars:
+                        tmp1[-1][vars['eval_pre'] + i1] = row[i1]
+                    else:
+                        tmp1[-1][i1] = row[i1]
             tmp1[-1][vars['diff_by']] = i
             tmp1[-1] = tmp1[-1].append(row[[a for a in grpd_cols if a != vars['diff_by']]])
             last = row
@@ -192,7 +195,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
     return ret
 
 
-def get_mean_data_parts(df, nr_parts):
+def get_mean_data_parts(df, nr_parts, key_name='Rt_diff2'):
     img_min = df['Nr'].min()
     img_max = df['Nr'].max()
     ir = img_max - img_min
@@ -214,7 +217,7 @@ def get_mean_data_parts(df, nr_parts):
             tmp = df.set_index('Nr')
             data_parts.append(tmp.loc[[sl[0]],:])
             data_parts[-1].reset_index(inplace=True)
-            mean_dd.append(data_parts[-1]['Rt_diff2'].values[0])
+            mean_dd.append(data_parts[-1][key_name].values[0])
         else:
             data_parts.append(df.loc[(df['Nr'] >= sl[0]) & (df['Nr'] < sl[1])])
             # A negative value indicates a decreasing error value and a positive number an increasing error
@@ -222,13 +225,13 @@ def get_mean_data_parts(df, nr_parts):
             #     print('Smaller')
             # elif data_parts[-1].isnull().values.any():
             #     print('nan found')
-            mean_dd.append(data_parts[-1]['Rt_diff2'].mean())
+            mean_dd.append(data_parts[-1][key_name].mean())
     data = {'data_parts': data_parts, 'mean_dd': mean_dd}
     return data, True
 
 
-def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
-    data, succ = get_mean_data_parts(df, nr_parts)
+def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02, key_name='Rt_diff2'):
+    data, succ = get_mean_data_parts(df, nr_parts, key_name)
     if not succ:
         return df, False
     data_parts = data['data_parts']
@@ -243,7 +246,7 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
                 error_gets_smaller[i] = True
         if not any(error_gets_smaller) and nr_parts1 < 10:
             nr_parts1 += 1
-            data, succ = get_mean_data_parts(df, nr_parts1)
+            data, succ = get_mean_data_parts(df, nr_parts1, key_name)
             if not succ:
                 return df, False
             data_parts = data['data_parts']
@@ -256,7 +259,7 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02):
         if not succ:
             return df1, False
         else:
-            data, succ = get_mean_data_parts(df1, nr_parts)
+            data, succ = get_mean_data_parts(df1, nr_parts, key_name)
             if not succ:
                 return df1, False
             data_parts = data['data_parts']
@@ -1014,8 +1017,14 @@ def eval_corr_pool_converge(**keywords):
 
 
 def combine_rt_diff2(df, keywords):
-    comb_vars = ['R_diffAll', 't_angDiff_deg']
-    comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
+    if 'eval_pre' in keywords:
+        comb_vars = [keywords['eval_pre'] + 'R_diffAll', keywords['eval_pre'] + 't_angDiff_deg']
+        comb_diff_vars = [keywords['eval_pre'] + 'R_diffAll_diff', keywords['eval_pre'] + 't_angDiff_deg_diff']
+        key_out = keywords['eval_pre'] + 'Rt_diff2'
+    else:
+        comb_vars = ['R_diffAll', 't_angDiff_deg']
+        comb_diff_vars = ['R_diffAll_diff', 't_angDiff_deg_diff']
+        key_out = 'Rt_diff2'
     tmp_mm = df[comb_diff_vars]
     tmp3 = (df[comb_vars[0]] * tmp_mm[comb_diff_vars[0]] / df[comb_vars[0]].abs() +
             df[comb_vars[1]] * tmp_mm[comb_diff_vars[1]] / df[comb_vars[1]].abs()) / 2
@@ -1023,11 +1032,11 @@ def combine_rt_diff2(df, keywords):
     max_vals = tmp3.max()
     r_vals = max_vals - min_vals
     if np.isclose(r_vals, 0, atol=1e-06):
-        df['Rt_diff2'] = tmp3
+        df[key_out] = tmp3
     else:
-        df['Rt_diff2'] = tmp3 / r_vals
+        df[key_out] = tmp3 / r_vals
     if 'units' in keywords:
-        keywords['units'].append(('Rt_diff2', '/\\textdegree'))
+        keywords['units'].append((key_out, '/\\textdegree'))
 
     return df, keywords
 
@@ -1108,6 +1117,8 @@ def calc_rt_diff_n_matches(**keywords):
         ret['eval_on'] = keywords['eval_on']
     if 'diff_by' in keywords:
         ret['diff_by'] = keywords['diff_by']
+    if 'keepEval' in keywords:
+        ret['keepEval'] = keywords['keepEval']
     if 'x_axis_column' in keywords:
         ret['x_axis_column'] = keywords['x_axis_column']
     elif 'xy_axis_columns' in keywords:
@@ -1212,3 +1223,241 @@ def calc_diff_stat_rt_diff_n_matches(**keywords):
             ret['xy_axis_columns'] = vars['xy_axis_columns']
 
     return ret
+
+
+def eval_corr_pool_converge_vs_x(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
+    if 'eval_columns' not in keywords:
+        raise ValueError('Missing parameter eval_columns')
+    if 'evals_for_gloss' not in keywords:
+        raise ValueError('Missing parameter evals_for_gloss')
+    needed_evals_p = [['mean_R_diffAll_diff', 'mean_t_angDiff_deg_diff', 'mean_R_diffAll', 'mean_t_angDiff_deg'],
+                      ['median_R_diffAll_diff', 'median_t_angDiff_deg_diff', 'median_R_diffAll',
+                       'median_t_angDiff_deg']]
+    needed_evals = [b for a in needed_evals_p for b in a]
+    if not all([a in keywords['eval_columns'] for a in needed_evals]):
+        raise ValueError('Some specific entries within parameter eval_columns is missing')
+
+    keywords = prepare_io(**keywords)
+    from statistics_and_plot import replaceCSVLabels, \
+        glossary_from_list, \
+        add_to_glossary, \
+        add_to_glossary_eval, \
+        is_exp_used, \
+        split_large_titles, \
+        strToLower, \
+        tex_string_coding_style, \
+        calcNrLegendCols, \
+        capitalizeFirstChar, \
+        findUnit, \
+        compile_tex, \
+        get_limits_log_exp, \
+        check_legend_enlarge
+
+    base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
+
+    needed_cols = needed_evals + keywords['x_axis_column'] + keywords['it_parameters']
+    tmp = keywords['data'].loc[:, needed_cols]
+
+    df_nr = tmp.groupby(keywords['it_parameters'])
+    grp_keys = df_nr.groups.keys()
+    data_list = []
+    for grp in grp_keys:
+        tmp1 = df_nr.get_group(grp)
+        tmp1 = tmp1.sort_values(by=keywords['x_axis_column'])
+        tmp1['Nr'] = list(range(int(tmp1.shape[0])))
+        data_list.append(tmp1['Nr'])
+    tmp_new = pd.concat(data_list, axis=0, ignore_index=False)
+
+    keywords['eval_pre'] = 'mean_'
+    tmp_new, keywords = combine_rt_diff2(tmp_new, keywords)
+    keywords['eval_pre'] = 'median_'
+    tmp_new, keywords = combine_rt_diff2(tmp_new, keywords)
+    print_evals = [[['mean_Rt_diff2'] + needed_evals_p[0]],
+                   [['median_Rt_diff2'] + needed_evals_p[1]]]
+    print_evals_tmp = ['mean_Rt_diff2', 'median_Rt_diff2'] + needed_evals
+    gloss_evals = list(dict.fromkeys([a.replace('mean_', '')
+                                      if 'mean_' in a else a.replace('median_', '') for a in print_evals_tmp]))
+    gloss = add_to_glossary_eval(gloss_evals)
+
+    df_grp = tmp_new.groupby(keywords['it_parameters'])
+    grp_keys = df_grp.groups.keys()
+    data_list = []
+    # mult = 5
+    # while mult > 1:
+    #     try:
+    #         sys.setrecursionlimit(mult * sys.getrecursionlimit())
+    #         break
+    #     except:
+    #         mult -= 1
+    for grp in grp_keys:
+        tmp1 = df_grp.get_group(grp)
+        tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05, 'mean_Rt_diff2')
+        tmp2.drop(['Nr'] + print_evals[1], axis=1, inplace=True)
+        tmp2['stat_type'] = ['mean'] * int(tmp2.shape[0])
+        tmp2.columns = [a.replace('mean_', '') for a in tmp2.columns]
+        data_list.append(tmp2)
+        tmp3, succ = get_converge_img(tmp1, 3, 0.33, 0.05, 'median_Rt_diff2')
+        tmp3.drop(['Nr'] + print_evals[0], axis=1, inplace=True)
+        tmp3['stat_type'] = ['median'] * int(tmp3.shape[0])
+        tmp3.columns = [a.replace('median_', '') for a in tmp3.columns]
+        data_list.append(tmp3)
+    data_new = pd.concat(data_list, ignore_index=True)
+
+    tex_infos = {'title': 'Most Likely Correspondence Pool Sizes \\& Error Values for Converging Differences ' +
+                          'from Frame to Frame of R \\& t Errors '
+                          ' for Parameters ' + keywords['sub_title_it_pars'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None
+                 }
+    gloss_not_calced = True
+    t_main_name = 'ml_converge_poolSizes'
+    if len(keywords['it_parameters']) > 1:
+        itpars_name = '-'.join(keywords['it_parameters'])
+    else:
+        itpars_name = keywords['it_parameters'][0]
+    p_pre = ['mean', 'median']
+
+    tmp1 = data_new.set_index(keywords['it_parameters'])
+    if len(keywords['it_parameters']) > 1:
+        if gloss_not_calced:
+            gloss = add_to_glossary([str(b) for a in tmp1.index for b in a], gloss)
+            gloss_not_calced = False
+        it_idxs = ['-'.join(map(str, a)) for a in tmp1.index]
+        tmp1.index = it_idxs
+    else:
+        it_idxs = [str(a) for a in tmp1.index]
+        if gloss_not_calced:
+            gloss = add_to_glossary(it_idxs, gloss)
+            gloss_not_calced = False
+    tmp1 = tmp1.reset_index().set_index(['stat_type', itpars_name]).unstack(level=-1)
+    comb_cols = ['-'.join(a) for a in tmp1.columns]
+    tmp1.columns = comb_cols
+
+    t_main_name1 = t_main_name + '_for_opts_' + itpars_name
+    t_mean_name = 'data_' + t_main_name1 + '.csv'
+    ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    with open(ft_mean_name, 'a') as f:
+        f.write('# Most likely correspondence pool sizes for converging differences from frame to '
+                'frame of mean and median R & t errors ' + '\n')
+        f.write('# Different parameters: ' + itpars_name + '\n')
+        tmp1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    use_cols = []
+    for a in base_ev:
+        use_cols1 = []
+        for b in comb_cols:
+            if a in b:
+                not_found = True
+                for c in b.split('-'):
+                    if a == c:
+                        not_found = False
+                        break
+                if not_found:
+                    continue
+                else:
+                    use_cols1.append(b)
+        if use_cols1:
+            use_cols.append(use_cols1)
+
+    for i, ev in enumerate(use_cols):
+        legend = []
+        for a in ev:
+            for b in it_idxs:
+                if b in a:
+                    legend.append(tex_string_coding_style(b))
+                    break
+        _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, ev)
+        reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
+        fig_name = capitalizeFirstChar(replaceCSVLabels(base_ev[i], True, False, True)) + \
+                   ' for converging differences from frame to frame of mean and median R \\& t errors' \
+                   '\\\\for parameters ' + \
+                   strToLower(keywords['sub_title_it_pars'])
+        fig_name = split_large_titles(fig_name)
+        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
+            exp_value = False
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': fig_name,
+                                      # If caption is None, the field name is used
+                                      'caption': fig_name.replace('\\\\', ' '),
+                                      'fig_type': 'ybar',
+                                      'plots': ev,
+                                      'label_y': replaceCSVLabels(base_ev[i]) +
+                                                 findUnit(str(base_ev[i]), keywords['units']),
+                                      'plot_x': 'stat_type',
+                                      'label_x': 'Used statistic',
+                                      'limits': use_limits,
+                                      'legend': legend,
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True,
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    tex_infos['abbreviations'] = gloss
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if keywords['build_pdf'][0]:
+        pdf_name = base_out_name + '.pdf'
+        res = abs(compile_tex(rendered_tex,
+                              keywords['tex_folder'],
+                              texf_name,
+                              False,
+                              os.path.join(keywords['pdf_folder'], pdf_name),
+                              tex_infos['figs_externalize']))
+    else:
+        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    sel_parts = [b for a in use_cols[3:] for b in a]
+    data_new3 = tmp1[sel_parts].mean(axis=0)
+    it_idxs = list(dict.fromkeys(it_idxs))
+    for it in it_idxs:
+        data_new3[it] = data_new3[[a for a in sel_parts if it in a and 'R_diffAll' in a][0]] + \
+                        data_new3[[a for a in sel_parts if it in a and 't_angDiff_deg' in a][0]]
+    alg_idx = str(data_new3[it_idxs].idx_min(axis=1))
+    rdiff = float(data_new3[[a for a in sel_parts if alg_idx in a and 'R_diffAll' in a][0]])
+    tdiff = float(data_new3[[a for a in sel_parts if alg_idx in a and 't_angDiff_deg' in a][0]])
+
+
+    mean_poolSize = int(data_new3[idx].mean())
+    main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
+    # Check if file and parameters exist
+    from usac_eval import check_par_file_exists, NoAliasDumper
+    ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = best_alg.split('-')
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(keywords['it_parameters']):
+            alg_w[val] = alg_comb_bestl[i]
+        yaml.dump({main_parameter_name: {'Algorithm': alg_w,
+                                         'mean_conv_pool_size': mean_poolSize,
+                                         'mean_R_error': mean_r_error,
+                                         'mean_t_error': mean_t_error}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
