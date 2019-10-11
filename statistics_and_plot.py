@@ -914,6 +914,7 @@ def calcFromFuncAndPlot_2D(data,
         raise ValueError('No data left after filtering')
 
     # Select columns we need
+    evals_for_gloss = []
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -932,6 +933,8 @@ def calcFromFuncAndPlot_2D(data,
         units = ret['units']
         it_parameters = ret['it_parameters']
         x_axis_column = ret['x_axis_column']
+        if 'evals_for_gloss' in ret:
+            evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
 
@@ -1038,29 +1041,33 @@ def calcFromFuncAndPlot_2D(data,
             base_out_name += '-'
     title_name += it_title_part
 
-    init_pars_title = ''
-    init_pars_out_name = ''
-    nr_eval_init_input = len(eval_init_input)
-    if nr_eval_init_input > 1:
-        for i, val in enumerate(eval_init_input):
-            init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True, True)
-            if (nr_eval_init_input <= 2):
+    if eval_init_input:
+        init_pars_title = ''
+        init_pars_out_name = ''
+        nr_eval_init_input = len(eval_init_input)
+        if nr_eval_init_input > 1:
+            for i, val in enumerate(eval_init_input):
+                init_pars_out_name += val
+                init_pars_title += replaceCSVLabels(val, True, True, True)
+                if (nr_eval_init_input <= 2):
+                    if i < nr_eval_init_input - 1:
+                        init_pars_title += ' and '
+                else:
+                    if i < nr_eval_init_input - 2:
+                        init_pars_title += ', '
+                    elif i < nr_eval_init_input - 1:
+                        init_pars_title += ', and '
                 if i < nr_eval_init_input - 1:
-                    init_pars_title += ' and '
-            else:
-                if i < nr_eval_init_input - 2:
-                    init_pars_title += ', '
-                elif i < nr_eval_init_input - 1:
-                    init_pars_title += ', and '
-            if i < nr_eval_init_input - 1:
-                init_pars_out_name += '-'
+                    init_pars_out_name += '-'
+        else:
+            init_pars_out_name = eval_init_input[0]
+            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
+        base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name
+        title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + \
+                      ' Based On ' + init_pars_title
     else:
-        init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
-    base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name
-    title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + \
-                  ' Based On ' + init_pars_title
+        base_out_name += '_combs_vs_' + x_axis_column[0]
+        title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True)
     tex_infos = {'title': title_name,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -1084,10 +1091,16 @@ def calcFromFuncAndPlot_2D(data,
         add_to_glossary(compare_source['it_par_select'], gloss)
         gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
     if gloss:
-        gloss = add_to_glossary_eval(eval_columns + x_axis_column, gloss)
+        if evals_for_gloss:
+            gloss = add_to_glossary_eval(evals_for_gloss + x_axis_column, gloss)
+        else:
+            gloss = add_to_glossary_eval(eval_columns + x_axis_column, gloss)
         tex_infos['abbreviations'] = gloss
     else:
-        gloss = add_to_glossary_eval(eval_columns + x_axis_column)
+        if evals_for_gloss:
+            gloss = add_to_glossary_eval(evals_for_gloss + x_axis_column)
+        else:
+            gloss = add_to_glossary_eval(eval_columns + x_axis_column)
         if gloss:
             tex_infos['abbreviations'] = gloss
     if len(it_parameters) > 1:
@@ -1103,12 +1116,18 @@ def calcFromFuncAndPlot_2D(data,
     tmp.columns = par_cols1
     tmp.columns.name = 'eval-' + it_pars_cols_name
     if compare_source:
-        cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+        if eval_init_input:
+            cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+        else:
+            cmp_fname = 'data_evals_for_pars_'
         if len(compare_source['it_parameters']) > 1:
             cmp_fname += '-'.join(map(str, compare_source['it_parameters']))
         else:
             cmp_fname += str(compare_source['it_parameters'][0])
-    dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name
+    if eval_init_input:
+        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name
+    else:
+        dataf_name = 'data_evals_for_pars_' + it_pars_cols_name
     dataf_name += '_vs_' + x_axis_column[0] + '.csv'
     if compare_source:
         cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
@@ -1120,8 +1139,12 @@ def calcFromFuncAndPlot_2D(data,
 
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     with open(fdataf_name, 'a') as f:
-        f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
-                it_pars_cols_name + '\n')
+        if eval_init_input:
+            f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                    it_pars_cols_name + '\n')
+        else:
+            f.write('# Evaluations for parameter variations of ' +
+                    it_pars_cols_name + '\n')
         f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
         tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     for i, ev in enumerate(eval_columns):
@@ -1143,10 +1166,13 @@ def calcFromFuncAndPlot_2D(data,
         is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
         enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(sel_cols), fig_type)
         reltex_name = os.path.join(rel_data_path, dataf_name)
-        fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
-        fig_name += '\\\\parameter variations of ' + strToLower(it_title_part) + \
-                    '\\\\compared to ' + \
-                    replaceCSVLabels(x_axis_column[0], True, False, True)
+        if eval_init_input:
+            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+            fig_name += '\\\\for parameter variations of ' + strToLower(it_title_part)
+        else:
+            fig_name = capitalizeFirstChar(eval_cols_lname[i])
+            fig_name += ' for parameter variations of\\\\' + strToLower(it_title_part)
+        fig_name += '\\\\compared to ' + replaceCSVLabels(x_axis_column[0], True, False, True)
         fig_name = split_large_titles(fig_name)
         if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
             exp_value = False
@@ -1271,6 +1297,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
         raise ValueError('No data left after filtering')
 
     # Select columns we need
+    evals_for_gloss = []
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -1291,6 +1318,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
         it_parameters = ret['it_parameters']
         x_axis_column = ret['x_axis_column']
         partitions = ret['partitions']
+        if 'evals_for_gloss' in ret:
+            evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
 
@@ -1416,30 +1445,35 @@ def calcFromFuncAndPlot_2D_partitions(data,
             base_out_name += '-'
     title_name += it_title_part
 
-    init_pars_title = ''
-    init_pars_out_name = ''
-    nr_eval_init_input = len(eval_init_input)
-    if nr_eval_init_input > 1:
-        for i, val in enumerate(eval_init_input):
-            init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True, True)
-            if (nr_eval_init_input <= 2):
+    if eval_init_input:
+        init_pars_title = ''
+        init_pars_out_name = ''
+        nr_eval_init_input = len(eval_init_input)
+        if nr_eval_init_input > 1:
+            for i, val in enumerate(eval_init_input):
+                init_pars_out_name += val
+                init_pars_title += replaceCSVLabels(val, True, True, True)
+                if (nr_eval_init_input <= 2):
+                    if i < nr_eval_init_input - 1:
+                        init_pars_title += ' and '
+                else:
+                    if i < nr_eval_init_input - 2:
+                        init_pars_title += ', '
+                    elif i < nr_eval_init_input - 1:
+                        init_pars_title += ', and '
                 if i < nr_eval_init_input - 1:
-                    init_pars_title += ' and '
-            else:
-                if i < nr_eval_init_input - 2:
-                    init_pars_title += ', '
-                elif i < nr_eval_init_input - 1:
-                    init_pars_title += ', and '
-            if i < nr_eval_init_input - 1:
-                init_pars_out_name += '-'
+                    init_pars_out_name += '-'
+        else:
+            init_pars_out_name = eval_init_input[0]
+            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
+        base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name + \
+                         '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+        title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + \
+                      ' Based On ' + init_pars_title + ' Separately for '
     else:
-        init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
-    base_out_name += '_combs_vs_' + x_axis_column[0] + '_based_on_' + init_pars_out_name + \
-                     '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
-    title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + \
-                  ' Based On ' + init_pars_title + ' Separately for '
+        base_out_name += '_combs_vs_' + x_axis_column[0] + \
+                         '_for_' + '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+        title_name += ' Compared to ' + replaceCSVLabels(x_axis_column[0], True, True, True) + ' Separately for '
     partition_text = ''
     for i, val in enumerate(partitions):
         partition_text += replaceCSVLabels(val, True, True, True)
@@ -1511,10 +1545,16 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
             gloss_calced = True
             if gloss:
-                gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions, gloss)
+                if evals_for_gloss:
+                    gloss = add_to_glossary_eval(evals_for_gloss + x_axis_column + partitions, gloss)
+                else:
+                    gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions, gloss)
                 tex_infos['abbreviations'] = gloss
             else:
-                gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions)
+                if evals_for_gloss:
+                    gloss = add_to_glossary_eval(evals_for_gloss + x_axis_column + partitions)
+                else:
+                    gloss = add_to_glossary_eval(eval_columns + x_axis_column + partitions)
                 if gloss:
                     tex_infos['abbreviations'] = gloss
         if len(partitions) > 1:
@@ -1534,14 +1574,20 @@ def calcFromFuncAndPlot_2D_partitions(data,
         tmp.columns = par_cols1
         tmp.columns.name = 'eval-' + it_pars_cols_name
         if compare_source:
-            cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+            if eval_init_input:
+                cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+            else:
+                cmp_fname = 'data_evals_for_pars_'
             if len(compare_source['it_parameters']) > 1:
                 cmp_fname += '-'.join(map(str, compare_source['it_parameters']))
             else:
                 cmp_fname += str(compare_source['it_parameters'][0])
             cmp_fname += '_on_partition_'
             cmp_fname += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
-        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name + '_on_partition_'
+        if eval_init_input:
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name + '_on_partition_'
+        else:
+            dataf_name = 'data_evals_for_pars_' + it_pars_cols_name + '_on_partition_'
         dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
         grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
         dataf_name += grp_name.replace('.', 'd')
@@ -1557,8 +1603,11 @@ def calcFromFuncAndPlot_2D_partitions(data,
 
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         with open(fdataf_name, 'a') as f:
-            f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
-                    it_pars_cols_name + '\n')
+            if eval_init_input:
+                f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                        it_pars_cols_name + '\n')
+            else:
+                f.write('# Evaluations for parameter variations of ' + it_pars_cols_name + '\n')
             f.write('# Used data part of ' + '-'.join(map(str, partitions)) + ': ' + grp_name + '\n')
             f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -1581,8 +1630,11 @@ def calcFromFuncAndPlot_2D_partitions(data,
             is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
             enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(sel_cols), fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
-            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
-            fig_name += '\\\\for '
+            if eval_init_input:
+                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+                fig_name += '\\\\for '
+            else:
+                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' for '
             fig_name += partition_text_val1 + ' in addition to ' + \
                         '\\\\parameter variations of ' + strToLower(it_title_part) + \
                         '\\\\compared to ' + \
@@ -2013,6 +2065,7 @@ def calcFromFuncAndPlot_3D(data,
         raise ValueError('No data left after filtering')
 
     # Select columns we need
+    evals_for_gloss = []
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -2031,6 +2084,8 @@ def calcFromFuncAndPlot_3D(data,
         units = ret['units']
         it_parameters = ret['it_parameters']
         xy_axis_columns = ret['xy_axis_columns']
+        if 'evals_for_gloss' in ret:
+            evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
 
@@ -2111,30 +2166,35 @@ def calcFromFuncAndPlot_3D(data,
                 title_name += ', and '
         if i < nr_it_parameters - 1:
             base_out_name += '-'
-    init_pars_title = ''
-    init_pars_out_name = ''
-    nr_eval_init_input = len(eval_init_input)
-    if nr_eval_init_input > 1:
-        for i, val in enumerate(eval_init_input):
-            init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True, True)
-            if(nr_eval_init_input <= 2):
+    if eval_init_input:
+        init_pars_title = ''
+        init_pars_out_name = ''
+        nr_eval_init_input = len(eval_init_input)
+        if nr_eval_init_input > 1:
+            for i, val in enumerate(eval_init_input):
+                init_pars_out_name += val
+                init_pars_title += replaceCSVLabels(val, True, True, True)
+                if(nr_eval_init_input <= 2):
+                    if i < nr_eval_init_input - 1:
+                        init_pars_title += ' and '
+                else:
+                    if i < nr_eval_init_input - 2:
+                        init_pars_title += ', '
+                    elif i < nr_eval_init_input - 1:
+                        init_pars_title += ', and '
                 if i < nr_eval_init_input - 1:
-                    init_pars_title += ' and '
-            else:
-                if i < nr_eval_init_input - 2:
-                    init_pars_title += ', '
-                elif i < nr_eval_init_input - 1:
-                    init_pars_title += ', and '
-            if i < nr_eval_init_input - 1:
-                init_pars_out_name += '-'
+                    init_pars_out_name += '-'
+        else:
+            init_pars_out_name = eval_init_input[0]
+            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
+        base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
+                         init_pars_out_name
+        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True, True) + ' and ' + \
+                      replaceCSVLabels(xy_axis_columns[1], True, True, True) + ' Based On ' + init_pars_title
     else:
-        init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
-    base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '_based_on_' + \
-                     init_pars_out_name
-    title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True, True) + ' and ' + \
-                  replaceCSVLabels(xy_axis_columns[1], True, True, True) + ' Based On ' + init_pars_title
+        base_out_name += '_combs_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1]
+        title_name += ' Compared to ' + replaceCSVLabels(xy_axis_columns[0], True, True, True) + ' and ' + \
+                      replaceCSVLabels(xy_axis_columns[1], True, True, True)
     tex_infos = {'title': title_name,
                  'sections': [],
                  'use_fixed_caption': True,
@@ -2149,29 +2209,49 @@ def calcFromFuncAndPlot_3D(data,
     else:
         gloss = glossary_from_list([str(a) for a in grp_keys])
     if gloss:
-        gloss = add_to_glossary_eval(eval_columns + xy_axis_columns, gloss)
+        if evals_for_gloss:
+            gloss = add_to_glossary_eval(evals_for_gloss + xy_axis_columns, gloss)
+        else:
+            gloss = add_to_glossary_eval(eval_columns + xy_axis_columns, gloss)
         tex_infos['abbreviations'] = gloss
     else:
-        gloss = add_to_glossary_eval(eval_columns + xy_axis_columns)
+        if evals_for_gloss:
+            gloss = add_to_glossary_eval(evals_for_gloss + xy_axis_columns)
+        else:
+            gloss = add_to_glossary_eval(eval_columns + xy_axis_columns)
         if gloss:
             tex_infos['abbreviations'] = gloss
     for grp in grp_keys:
         if len(it_parameters) > 1:
-            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                         '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + \
-                         '_and_' + xy_axis_columns[1] + '.csv'
+            if eval_init_input:
+                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                             '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + \
+                             '_and_' + xy_axis_columns[1] + '.csv'
+            else:
+                dataf_name = 'data_evals_for_pars_' + \
+                             '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + \
+                             '_and_' + xy_axis_columns[1] + '.csv'
         else:
-            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                         str(grp) + '_vs_' + xy_axis_columns[0] + \
-                         '_and_' + xy_axis_columns[1] + '.csv'
+            if eval_init_input:
+                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                             str(grp) + '_vs_' + xy_axis_columns[0] + \
+                             '_and_' + xy_axis_columns[1] + '.csv'
+            else:
+                dataf_name = 'data_evals_for_pars_' + \
+                             str(grp) + '_vs_' + xy_axis_columns[0] + \
+                             '_and_' + xy_axis_columns[1] + '.csv'
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
         nr_equal_ss = get_block_length_3D(tmp, xy_axis_columns)
         with open(fdataf_name, 'a') as f:
-            f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
-                    '-'.join(map(str, it_parameters)) + '\n')
+            if eval_init_input:
+                f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                        '-'.join(map(str, it_parameters)) + '\n')
+            else:
+                f.write('# Evaluations for parameter variations of ' +
+                        '-'.join(map(str, it_parameters)) + '\n')
             if len(it_parameters) > 1:
                 f.write('# Used parameter values: ' + '-'.join(map(str, grp)) + '\n')
             else:
@@ -2199,14 +2279,20 @@ def calcFromFuncAndPlot_3D(data,
             # scatter, mesh, mesh-scatter, mesh, surf, surf-scatter, surf-interior, surface, contour, surface-contour
             reltex_name = os.path.join(rel_data_path, dataf_name)
             if len(it_parameters) > 1:
-                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) +\
-                           ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
+                if eval_init_input:
+                    fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+                else:
+                    fig_name = capitalizeFirstChar(eval_cols_lname[i])
+                fig_name += ' for parameters ' + tex_string_coding_style('-'.join(map(str, grp))) + ' compared to ' + \
                            replaceCSVLabels(xy_axis_columns[0], True, False, True) + ' and ' + \
                            replaceCSVLabels(xy_axis_columns[1], True, False, True)
                 legends = [eval_cols_lname[i] + ' for ' + tex_string_coding_style('-'.join(map(str, grp)))]
             else:
-                fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
-                           ' for parameters ' + tex_string_coding_style(str(grp)) + ' compared to ' + \
+                if eval_init_input:
+                    fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
+                else:
+                    fig_name = capitalizeFirstChar(eval_cols_lname[i])
+                fig_name += ' for parameters ' + tex_string_coding_style(str(grp)) + ' compared to ' + \
                            replaceCSVLabels(xy_axis_columns[0], True, False, True) + ' and ' + \
                            replaceCSVLabels(xy_axis_columns[1], True, False, True)
                 legends = [eval_cols_lname[i] + ' for ' + tex_string_coding_style(str(grp))]
@@ -2330,6 +2416,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
         raise ValueError('No data left after filtering')
 
     # Select columns we need
+    evals_for_gloss = []
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -2350,6 +2437,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
         it_parameters = ret['it_parameters']
         xy_axis_columns = ret['xy_axis_columns']
         partitions = ret['partitions']
+        if 'evals_for_gloss' in ret:
+            evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
 
@@ -2534,10 +2623,16 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 gloss = glossary_from_list([str(a) for a in df1.columns])
             gloss_calced = True
             if gloss:
-                gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions, gloss)
+                if evals_for_gloss:
+                    gloss = add_to_glossary_eval(evals_for_gloss + xy_axis_columns + partitions, gloss)
+                else:
+                    gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions, gloss)
                 tex_infos['abbreviations'] = gloss
             else:
-                gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions)
+                if evals_for_gloss:
+                    gloss = add_to_glossary_eval(evals_for_gloss + xy_axis_columns + partitions)
+                else:
+                    gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions)
                 if gloss:
                     tex_infos['abbreviations'] = gloss
         if len(partitions) > 1:
@@ -2728,6 +2823,7 @@ def calcFromFuncAndPlot_aggregate(data,
         raise ValueError('No data left after filtering')
 
     # Select columns we need
+    evals_for_gloss = []
     if calc_func is not None:
         if calc_func_args is None:
             calc_func_args = {'data': data}
@@ -2745,6 +2841,8 @@ def calcFromFuncAndPlot_aggregate(data,
         eval_init_input = ret['eval_init_input']
         units = ret['units']
         it_parameters = ret['it_parameters']
+        if 'evals_for_gloss' in ret:
+            evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
 
@@ -2847,28 +2945,31 @@ def calcFromFuncAndPlot_aggregate(data,
         if i < nr_it_parameters - 1:
             base_out_name += '-'
     title_name += title_it_pars
-    init_pars_title = ''
-    init_pars_out_name = ''
-    nr_eval_init_input = len(eval_init_input)
-    if nr_eval_init_input > 1:
-        for i, val in enumerate(eval_init_input):
-            init_pars_out_name += val
-            init_pars_title += replaceCSVLabels(val, True, True, True)
-            if(nr_eval_init_input <= 2):
+    if eval_init_input:
+        init_pars_title = ''
+        init_pars_out_name = ''
+        nr_eval_init_input = len(eval_init_input)
+        if nr_eval_init_input > 1:
+            for i, val in enumerate(eval_init_input):
+                init_pars_out_name += val
+                init_pars_title += replaceCSVLabels(val, True, True, True)
+                if(nr_eval_init_input <= 2):
+                    if i < nr_eval_init_input - 1:
+                        init_pars_title += ' and '
+                else:
+                    if i < nr_eval_init_input - 2:
+                        init_pars_title += ', '
+                    elif i < nr_eval_init_input - 1:
+                        init_pars_title += ', and '
                 if i < nr_eval_init_input - 1:
-                    init_pars_title += ' and '
-            else:
-                if i < nr_eval_init_input - 2:
-                    init_pars_title += ', '
-                elif i < nr_eval_init_input - 1:
-                    init_pars_title += ', and '
-            if i < nr_eval_init_input - 1:
-                init_pars_out_name += '-'
+                    init_pars_out_name += '-'
+        else:
+            init_pars_out_name = eval_init_input[0]
+            init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
+        base_out_name += '_combs_based_on_' + init_pars_out_name
+        title_name += ' Based On ' + init_pars_title
     else:
-        init_pars_out_name = eval_init_input[0]
-        init_pars_title = replaceCSVLabels(eval_init_input[0], True, True, True)
-    base_out_name += '_combs_based_on_' + init_pars_out_name
-    title_name += ' Based On ' + init_pars_title
+        base_out_name += '_combs'
     df.set_index(it_parameters, inplace=True)
     if len(it_parameters) > 1:
         gloss = glossary_from_list([str(b) for a in df.index for b in a])
@@ -2884,9 +2985,15 @@ def calcFromFuncAndPlot_aggregate(data,
         add_to_glossary(compare_source['it_par_select'], gloss)
         gloss.append({'key': 'cmp', 'description': compare_source['cmp']})
     if gloss:
-        gloss = add_to_glossary_eval(eval_columns, gloss)
+        if evals_for_gloss:
+            gloss = add_to_glossary_eval(evals_for_gloss, gloss)
+        else:
+            gloss = add_to_glossary_eval(eval_columns, gloss)
     else:
-        gloss = add_to_glossary_eval(eval_columns)
+        if evals_for_gloss:
+            gloss = add_to_glossary_eval(evals_for_gloss)
+        else:
+            gloss = add_to_glossary_eval(eval_columns)
     from usac_eval import insert_opt_lbreak
     df['tex_it_pars'] = insert_opt_lbreak(it_pars_index)
     max_txt_rows = 1
@@ -2909,15 +3016,22 @@ def calcFromFuncAndPlot_aggregate(data,
                  }
     if compare_source:
         cmp_col_name = '-'.join(compare_source['it_parameters'])
-        comp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                     cmp_col_name + '.csv'
+        if eval_init_input:
+            comp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_' + cmp_col_name + '.csv'
+        else:
+            comp_fname = 'data_evals_for_pars_' + cmp_col_name + '.csv'
         df, succ = add_comparison_column(compare_source, comp_fname, df, None, cmp_col_name)
-    dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                 it_pars_name + '.csv'
+    if eval_init_input:
+        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_name + '.csv'
+    else:
+        dataf_name = 'data_evals_for_pars_' + it_pars_name + '.csv'
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     with open(fdataf_name, 'a') as f:
-        f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
-                it_pars_name + '\n')
+        if eval_init_input:
+            f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
+                    it_pars_name + '\n')
+        else:
+            f.write('# Evaluations for parameter variations of ' + it_pars_name + '\n')
         f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
         df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
     for i, it in enumerate(eval_columns):
@@ -2934,8 +3048,12 @@ def calcFromFuncAndPlot_aggregate(data,
         else:
             exp_value = is_exp_used(stats_all['min'], stats_all['max'], eval_cols_log_scaling[i])
         reltex_name = os.path.join(rel_data_path, dataf_name)
-        fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
-                   ' for parameter variations of\\\\' + strToLower(title_it_pars)
+        if eval_init_input:
+            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title) + \
+                       ' for parameter variations of\\\\' + strToLower(title_it_pars)
+        else:
+            fig_name = capitalizeFirstChar(eval_cols_lname[i]) + \
+                       ' for parameter variations of\\\\' + strToLower(title_it_pars)
         fig_name = split_large_titles(fig_name)
         if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
             exp_value = False
@@ -4569,7 +4687,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
         return tex_string_coding_style(label)
     if in_heading:
         str_val = replace_bm_in_headings(str_val)
-    ex = ['and', 'of', 'for', 'to', 'with', 'on']
+    ex = ['and', 'of', 'for', 'to', 'with', 'on', 'in', 'within']
     if str_capitalize:
         return ' '.join([b.capitalize() if not b.isupper() and
                                            not '$' in b and
@@ -4580,7 +4698,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
 
 
 def capitalizeStr(str_val):
-    ex = ['and', 'of', 'for', 'to', 'with', 'on']
+    ex = ['and', 'of', 'for', 'to', 'with', 'on', 'in', 'within']
     return ' '.join([b.capitalize() if not b.isupper() and
                                        not '$' in b and
                                        not '\\' in b and
@@ -6779,7 +6897,7 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 3:
-                    fig_title_pre_str = 'Values of R\\&t Differences over the last 30 out of 150 frames ' \
+                    fig_title_pre_str = 'Values of R\\&t Differences over the Last 30 out of 150 Frames ' \
                                         'for Combinations of Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
@@ -6827,8 +6945,8 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 4:
-                    fig_title_pre_str = 'R\\&t Differences from Frame to Frame with a maximum correspondence pool ' \
-                                        'size of $\\hat{n}_{cp}=40000$ features for Different '
+                    fig_title_pre_str = 'R\\&t Differences from Frame to Frame with a Maximum Correspondence Pool ' \
+                                        'Size of $\\hat{n}_{cp}=40000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -6862,8 +6980,8 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 5:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a maximum ' \
-                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a Maximum ' \
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
                                     'poolSize']
@@ -6907,8 +7025,8 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 elif ev == 6:
-                    fig_title_pre_str = 'Values on R\\&t Differences from Frame to Frame with a maximum ' \
-                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    fig_title_pre_str = 'Values on R\\&t Differences from Frame to Frame with a Maximum ' \
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -6942,8 +7060,8 @@ def main():
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 7:
-                    fig_title_pre_str = 'Statistics on R\\&t Differences from Frame to Frame with a maximum ' \
-                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    fig_title_pre_str = 'Statistics on R\\&t Differences from Frame to Frame with a Maximum ' \
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -6979,8 +7097,8 @@ def main():
                                                   build_pdf=True,
                                                   figs_externalize=True)
                 elif ev == 8:
-                    fig_title_pre_str = 'Differences on Frame to Frame Statistics of R\\&t Errors with a maximum ' \
-                                        'correspondence pool size of $\\hat{n}_{cp}=40000$ features for Different '
+                    fig_title_pre_str = 'Differences on Frame to Frame Statistics of R\\&t Errors with a Maximum ' \
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),

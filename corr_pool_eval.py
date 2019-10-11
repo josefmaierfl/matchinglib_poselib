@@ -170,7 +170,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
            'eval_cols_lname': eval_cols_lname,
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': units,
-           'eval_init_input': vars['eval_on']}
+           'eval_init_input': None}
     if 'partitions' in vars:
         if 'x_axis_column' in vars:
             ret['x_axis_column'] = []
@@ -1176,13 +1176,23 @@ def calc_diff_stat_rt_diff_n_matches(**keywords):
         eval_cols_log_scaling += it['eval_cols_log_scaling']
         units += it['units']
 
+    stat_values_tex = [replace_stat_names_col_tex(a) + '_' for a in stat_values if a != 'count']
+    evals_for_gloss = []
+    for a in eval_columns:
+        for b in stat_values_tex:
+            if b in a:
+                evals_for_gloss.append(a.replace(b, ''))
+                break
+    evals_for_gloss = list(dict.fromkeys(evals_for_gloss))
+
     ret = {'data': data,
            'it_parameters': vars['it_parameters'],
            'eval_columns': eval_columns,
            'eval_cols_lname': eval_cols_lname,
            'eval_cols_log_scaling': eval_cols_log_scaling,
            'units': units,
-           'eval_init_input': vars['eval_on']}
+           'evals_for_gloss': evals_for_gloss,
+           'eval_init_input': None}
     if 'partitions' in vars:
         if 'x_axis_column' in vars:
             ret['x_axis_column'] = []
@@ -1202,31 +1212,3 @@ def calc_diff_stat_rt_diff_n_matches(**keywords):
             ret['xy_axis_columns'] = vars['xy_axis_columns']
 
     return ret
-
-
-            # if len(vars['it_parameters']) > 1:
-            #     tmp = tmp.reset_index().T.reset_index()
-                # tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
-                # tmp.columns.name = '-'.join(grp_names[0:-1])
-
-
-            # tex_infos['sections'].append({'file': reltex_name,
-            #                               'name': section_name,
-            #                               # If caption is None, the field name is used
-            #                               'caption': None,
-            #                               'fig_type': fig_type,
-            #                               'plots': list(tmp.columns.values),
-            #                               'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
-            #                               'plot_x': str(grp_names[-1]),
-            #                               'label_x': replaceCSVLabels(str(grp_names[-1])),
-            #                               'limits': use_limits,
-            #                               'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
-            #                               'legend_cols': None,
-            #                               'use_marks': use_marks,
-            #                               'use_log_y_axis': use_log,
-            #                               'enlarge_title_space': exp_value,
-            #                               'use_string_labels': True if not is_numeric else False,
-            #                               'xaxis_txt_rows': 1,
-            #                               'enlarge_lbl_dist': enlarge_lbl_dist,
-            #                               'pdf_nr': pdf_nr
-            #                               })
