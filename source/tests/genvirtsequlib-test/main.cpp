@@ -1354,13 +1354,13 @@ std::string getKeyPointType(int idx){
 #if defined(USE_NON_FREE_CODE)
 			10;
 #else
-			8;
+			7;//8;
 #endif
 
 	static std::string types [] = {"FAST",
 								   "MSER",
 								   "ORB",
-								   "BRISK",
+								   //"BRISK",
 								   "KAZE",
 								   "AKAZE",
 #if defined(USE_NON_FREE_CODE)
@@ -1378,9 +1378,9 @@ std::string getDescriptorType(int idx){
 #if defined(USE_NON_FREE_CODE)
 			22;
 #else
-			20;
+			19;//20;
 #endif
-	static std::string types [] = {"BRISK",
+	static std::string types [] = {//"BRISK",
 								   "ORB",
 								   "KAZE",
 								   "AKAZE",

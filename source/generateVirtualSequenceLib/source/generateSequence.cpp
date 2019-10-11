@@ -538,10 +538,10 @@ bool genStereoSequ::initFracCorrImgReg() {
         }
         pars.corrsPerRegRepRate = 1;
     } else if (pars.corrsPerRegRepRate == 0) {
-        pars.corrsPerRegRepRate = totalNrFrames / pars.corrsPerRegion.size();
+        pars.corrsPerRegRepRate = std::max<size_t>(totalNrFrames / pars.corrsPerRegion.size(), 1);
     } else if (pars.corrsPerRegion.empty()) {
         //Randomly initialize the fractions
-        size_t nrMats = totalNrFrames / pars.corrsPerRegRepRate;
+        size_t nrMats = std::max<size_t>(totalNrFrames / pars.corrsPerRegRepRate, 1);
         for (size_t i = 0; i < nrMats; i++) {
             Mat newCorrsPerRegion(3, 3, CV_64FC1);
             double sumNewCorrsPerRegion = 0;
@@ -10213,6 +10213,8 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
         double kSi = (double) max(((csurr.rows - 1) / 2), 1);
         kSi = kSi > 3.0 ? 3.0 : kSi;
         leaf_size = (float) (kSi * usedZ / K1.at<double>(0, 0));
+        if(nearZero(leaf_size))
+            leaf_size = 0.1;
         dx = static_cast<int64_t>(d1 / leaf_size) + 1;
         dy = static_cast<int64_t>(d2 / leaf_size) + 1;
         dz = static_cast<int64_t>(d3 / leaf_size) + 1;
@@ -10234,6 +10236,8 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
                 return true;
             } else {
                 leaf_size = (float)lNew;
+                if(nearZero(leaf_size))
+                    leaf_size = 0.1;
                 dx = static_cast<int64_t>(d1 / leaf_size) + 1;
                 dy = static_cast<int64_t>(d2 / leaf_size) + 1;
                 dz = static_cast<int64_t>(d3 / leaf_size) + 1;
