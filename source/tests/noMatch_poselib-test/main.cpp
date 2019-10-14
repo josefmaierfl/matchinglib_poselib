@@ -205,6 +205,7 @@ struct algorithmResult{
     CamMatDiff K1_diff, K2_diff;
     std::string addSequInfo;
     int poolSize;
+    int ransac_agg;
 
     algorithmResult(const std::string &addSequInfo_ = ""): addSequInfo(addSequInfo_){
         R = cv::Mat::zeros(3,3,CV_64FC1);
@@ -240,6 +241,7 @@ struct algorithmResult{
         K1_diff = CamMatDiff();
         K2_diff = CamMatDiff();
         poolSize = 0;
+        ransac_agg = 1;
     }
 
     void calcRTDiff(const cv::Mat &R_estimated,
@@ -383,6 +385,7 @@ struct algorithmResult{
             os << "poseIsStable;";
             os << "mostLikelyPose_stable;";
             os << "poolSize;";
+            os << "ransac_agg;";
             K1_diff.print(os, "K1");
             os << ";";
             K2_diff.print(os, "K2");
@@ -440,6 +443,7 @@ struct algorithmResult{
             os << poseIsStable << ";";
             os << mostLikelyPose_stable << ";";
             os << poolSize << ";";
+            os << ransac_agg << ";";
             K1_diff.print(os);
             os << ";";
             K2_diff.print(os);
@@ -502,6 +506,7 @@ struct calibPars{
     bool useMostLikelyPose;
     bool stereoRef;
     bool kneipInsteadBA;
+    int accumCorrs;
 
     calibPars():
     sequ_path(""),
@@ -523,7 +528,8 @@ struct calibPars{
     useOnlyStablePose(false),
     useMostLikelyPose(false),
     stereoRef(false),
-    kneipInsteadBA(false){}
+    kneipInsteadBA(false),
+    accumCorrs(1){}
 };
 
 void cinfigureUSAC(poselib::ConfigUSAC &cfg,
@@ -1568,6 +1574,9 @@ bool startEvaluation(ArgvParser& cmd)
 	}else{
         cp.cfg_stereo.keypointType = kpNameM;
         cp.cfg_stereo.descriptorType = descrName;
+        if(accumCorrs_enabled){
+            cp.accumCorrs = accumCorrs;
+        }
 	}
 
     int failNr = 0;
@@ -1686,6 +1695,7 @@ bool startEvaluation(ArgvParser& cmd)
                     matches_accum.pop_front();
                     frameInliers_accum.pop_front();
 			    }
+			    ar[i].ransac_agg = (int)frameInliers_accum.size();
 			    if(kp1_accum.size() > 1) {
 			        auto kp1_it = kp1_accum.begin();
                     auto kp2_it = kp2_accum.begin();
@@ -2745,6 +2755,7 @@ void writeTestingParameters(cv::FileStorage &fs,
     fs << "useMostLikelyPose" << cp.useMostLikelyPose;
     fs << "useOnlyStablePose" << cp.useOnlyStablePose;
     fs << "evStepStereoStable" << cp.evStepStereoStable;
+    fs << "accumCorrs" << cp.accumCorrs;
 }
 
 bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries){
