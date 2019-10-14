@@ -419,8 +419,8 @@ def calcSatisticAndPlot_2D(data,
             section_name = replace_stat_names(it[-1]) + ' values for ' +\
                            replaceCSVLabels(str(it[0]), True, False, True) +\
                            ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
-            if exp_value and len(section_name) < 70:
-                exp_value = False
+            exp_value = enl_space_title(exp_value, section_name, tmp, grp_names[-1],
+                                        len(list(tmp.columns.values)), fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': section_name,
@@ -785,8 +785,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                                ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
                                '\\\\for properties ' + part_name.replace('_', '\\_')
                 section_name = split_large_titles(section_name)
-                if exp_value and len(section_name.split('\\\\')[-1]) < 70:
-                    exp_value = False
+                exp_value = enl_space_title(exp_value, section_name, tmp2, grp_names[-1],
+                                            len(list(tmp2.columns.values)), fig_type)
                 reltex_name = os.path.join(rel_data_path, dataf_name)
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': section_name,
@@ -1189,8 +1189,8 @@ def calcFromFuncAndPlot_2D(data,
             fig_name += ' for parameter variations of\\\\' + strToLower(it_title_part)
         fig_name += '\\\\compared to ' + replaceCSVLabels(x_axis_column[0], True, False, True)
         fig_name = split_large_titles(fig_name)
-        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-            exp_value = False
+        exp_value = enl_space_title(exp_value, fig_name, tmp, x_axis_column[0],
+                                    len(sel_cols), fig_type)
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name,
                                       # If caption is None, the field name is used
@@ -1669,8 +1669,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
                         '\\\\compared to ' + \
                         replaceCSVLabels(x_axis_column[0], True, False, True)
             fig_name = split_large_titles(fig_name)
-            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-                exp_value = False
+            exp_value = enl_space_title(exp_value, fig_name, tmp, x_axis_column[0],
+                                        len(sel_cols), fig_type)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
@@ -3090,8 +3090,8 @@ def calcFromFuncAndPlot_aggregate(data,
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + \
                        ' for parameter variations of\\\\' + strToLower(title_it_pars)
         fig_name = split_large_titles(fig_name)
-        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-            exp_value = False
+        exp_value = enl_space_title(exp_value, fig_name, df, 'tex_it_pars',
+                                    1, fig_type)
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -3389,8 +3389,8 @@ def calcSatisticAndPlot_aggregate(data,
                        replaceCSVLabels(str(it[0]), True, False, True) + ' comparing parameter variations of\\\\' + \
                        strToLower(title_it_pars)
             fig_name = split_large_titles(fig_name)
-            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-                exp_value = False
+            exp_value = enl_space_title(exp_value, fig_name, tmp, 'tex_it_pars',
+                                        1, fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name.replace('\\\\', ' '),
@@ -3615,6 +3615,19 @@ def is_exp_used(min_val, max_val, use_log=False):
     elif m_val2 >= 4:
         return True
     return False
+
+
+def enl_space_title(exp_value, title, df, x_axis_column, nr_plots, fig_type):
+    if not exp_value:
+        return False
+    data_points = get_fig_x_size(df, x_axis_column, nr_plots, fig_type)
+    text_l = len(title.split('\\\\')[-1])
+    if fig_type == 'ybar' and data_points * 3 < text_l:
+        return True
+    elif text_l < 70:
+        return False
+    return True
+
 
 def use_log_axis_and_exp_val(min_val, max_val, limit_min=None, limit_max=None):
     if limit_min and limit_max:
@@ -7147,10 +7160,10 @@ def main():
                                       'eval_on': ['poolSize'],
                                       'diff_by': 'poolSize'}
                     special_calcs_args = {'build_pdf': (True, True),
-                                          'use_marks': True,
-                                          'res_par_name': 'USAC_opt_refine_ops_inlrat'}
+                                          'use_marks': False,
+                                          'res_par_name': 'corrpool_size_converge_mean'}
                     from corr_pool_eval import filter_max_pool_size, \
-                        calc_diff_stat_rt_diff_n_matches
+                        calc_diff_stat_rt_diff_n_matches, eval_corr_pool_converge_vs_x
                     ret += calcFromFuncAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
@@ -7162,8 +7175,8 @@ def main():
                                                   x_axis_column=['poolSize'],
                                                   filter_func=filter_max_pool_size,
                                                   filter_func_args=None,
-                                                  special_calcs_func=None,
-                                                  special_calcs_args=None,
+                                                  special_calcs_func=eval_corr_pool_converge_vs_x,
+                                                  special_calcs_args=special_calcs_args,
                                                   calc_func=calc_diff_stat_rt_diff_n_matches,
                                                   calc_func_args=calc_func_args,
                                                   compare_source=None,

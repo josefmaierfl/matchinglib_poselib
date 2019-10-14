@@ -204,7 +204,7 @@ def get_mean_data_parts(df, nr_parts, key_name='Rt_diff2'):
     elif ir <= nr_parts:
         nr_parts = ir + 1
     ir_part = round(ir / float(nr_parts) + 1e-6, 0)
-    parts = [[img_min + a * ir_part, img_min + (a + 1) * ir_part] for a in range(0, nr_parts)]
+    parts = [np.array([img_min + a * ir_part, img_min + (a + 1) * ir_part]).astype(img_max.dtype) for a in range(0, nr_parts)]
     parts[-1][1] = img_max + 1
     if parts[-1][1] - parts[-1][0] <= 0:
         parts.pop()
@@ -304,11 +304,11 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02, key_name='Rt_di
         else:
             sel_parts.append(i)
     if sel_parts:
-        return get_converge_img(data_parts[sel_parts[0]], nr_parts, th_diff2, th_diff3)
+        return get_converge_img(data_parts[sel_parts[0]], nr_parts, th_diff2, th_diff3, key_name)
     elif last != 0:
-        return get_converge_img(data_parts[min(last, l1)], nr_parts, th_diff2, th_diff3)
+        return get_converge_img(data_parts[min(last, l1)], nr_parts, th_diff2, th_diff3, key_name)
     else:
-        return get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3)
+        return get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3, key_name)
 
 
 def eval_corr_pool_converge(**keywords):
@@ -329,7 +329,6 @@ def eval_corr_pool_converge(**keywords):
         glossary_from_list, \
         add_to_glossary, \
         add_to_glossary_eval, \
-        is_exp_used, \
         split_large_titles, \
         strToLower, \
         tex_string_coding_style, \
@@ -338,7 +337,8 @@ def eval_corr_pool_converge(**keywords):
         findUnit, \
         compile_tex, \
         get_limits_log_exp, \
-        check_legend_enlarge
+        check_legend_enlarge, \
+        enl_space_title
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -516,8 +516,8 @@ def eval_corr_pool_converge(**keywords):
                     elif i1 < nr_partitions - 1:
                         fig_name += ', and '
             fig_name = split_large_titles(fig_name)
-            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-                exp_value = False
+            exp_value = enl_space_title(exp_value, fig_name, tmp1, 'tex_it_pars',
+                                        len(use_cols), 'ybar')
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
@@ -555,7 +555,7 @@ def eval_corr_pool_converge(**keywords):
         res = abs(compile_tex(rendered_tex,
                               keywords['tex_folder'],
                               texf_name,
-                              False,
+                              tex_infos['make_index'],
                               os.path.join(keywords['pdf_folder'], pdf_name),
                               tex_infos['figs_externalize']))
     else:
@@ -644,8 +644,8 @@ def eval_corr_pool_converge(**keywords):
                strToLower(keywords['sub_title_it_pars']) + ' vs property ' + \
                replaceCSVLabels(keywords['partition_x_axis'], False, False, True)
     fig_name = split_large_titles(fig_name)
-    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-        exp_value = False
+    exp_value = enl_space_title(exp_value, fig_name, data_new3, keywords['partition_x_axis'],
+                                len(use_plots), 'xbar')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
@@ -711,7 +711,7 @@ def eval_corr_pool_converge(**keywords):
         res1 = abs(compile_tex(rendered_tex,
                                keywords['tex_folder'],
                                texf_name,
-                               False,
+                               tex_infos['make_index'],
                                os.path.join(keywords['pdf_folder'], pdf_name),
                                tex_infos['figs_externalize']))
     else:
@@ -969,8 +969,8 @@ def eval_corr_pool_converge(**keywords):
                        strToLower(keywords['sub_title_it_pars']) + ' and properties ' + \
                        partition_part
             fig_name = split_large_titles(fig_name)
-            if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-                exp_value = False
+            exp_value = enl_space_title(exp_value, fig_name, tmp2, x,
+                                        len(ev), 'sharp plot')
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
@@ -1004,7 +1004,7 @@ def eval_corr_pool_converge(**keywords):
         res1 = abs(compile_tex(rendered_tex,
                                keywords['tex_folder'],
                                texf_name,
-                               False,
+                               tex_infos['make_index'],
                                os.path.join(keywords['pdf_folder'], pdf_name),
                                tex_infos['figs_externalize']))
     else:
@@ -1241,10 +1241,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
 
     keywords = prepare_io(**keywords)
     from statistics_and_plot import replaceCSVLabels, \
-        glossary_from_list, \
         add_to_glossary, \
         add_to_glossary_eval, \
-        is_exp_used, \
         split_large_titles, \
         strToLower, \
         tex_string_coding_style, \
@@ -1253,9 +1251,9 @@ def eval_corr_pool_converge_vs_x(**keywords):
         findUnit, \
         compile_tex, \
         get_limits_log_exp, \
-        check_legend_enlarge
+        enl_space_title
 
-    base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
+    base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg', 'poolSize']
 
     needed_cols = needed_evals + keywords['x_axis_column'] + keywords['it_parameters']
     tmp = keywords['data'].loc[:, needed_cols]
@@ -1267,15 +1265,15 @@ def eval_corr_pool_converge_vs_x(**keywords):
         tmp1 = df_nr.get_group(grp)
         tmp1 = tmp1.sort_values(by=keywords['x_axis_column'])
         tmp1['Nr'] = list(range(int(tmp1.shape[0])))
-        data_list.append(tmp1['Nr'])
+        data_list.append(tmp1)
     tmp_new = pd.concat(data_list, axis=0, ignore_index=False)
 
     keywords['eval_pre'] = 'mean_'
     tmp_new, keywords = combine_rt_diff2(tmp_new, keywords)
     keywords['eval_pre'] = 'median_'
     tmp_new, keywords = combine_rt_diff2(tmp_new, keywords)
-    print_evals = [[['mean_Rt_diff2'] + needed_evals_p[0]],
-                   [['median_Rt_diff2'] + needed_evals_p[1]]]
+    print_evals = [['mean_Rt_diff2'] + needed_evals_p[0],
+                   ['median_Rt_diff2'] + needed_evals_p[1]]
     print_evals_tmp = ['mean_Rt_diff2', 'median_Rt_diff2'] + needed_evals
     gloss_evals = list(dict.fromkeys([a.replace('mean_', '')
                                       if 'mean_' in a else a.replace('median_', '') for a in print_evals_tmp]))
@@ -1320,7 +1318,6 @@ def eval_corr_pool_converge_vs_x(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': None
                  }
-    gloss_not_calced = True
     t_main_name = 'ml_converge_poolSizes'
     if len(keywords['it_parameters']) > 1:
         itpars_name = '-'.join(keywords['it_parameters'])
@@ -1330,16 +1327,12 @@ def eval_corr_pool_converge_vs_x(**keywords):
 
     tmp1 = data_new.set_index(keywords['it_parameters'])
     if len(keywords['it_parameters']) > 1:
-        if gloss_not_calced:
-            gloss = add_to_glossary([str(b) for a in tmp1.index for b in a], gloss)
-            gloss_not_calced = False
+        gloss = add_to_glossary([str(b) for a in tmp1.index for b in a], gloss)
         it_idxs = ['-'.join(map(str, a)) for a in tmp1.index]
         tmp1.index = it_idxs
     else:
         it_idxs = [str(a) for a in tmp1.index]
-        if gloss_not_calced:
-            gloss = add_to_glossary(it_idxs, gloss)
-            gloss_not_calced = False
+        gloss = add_to_glossary(it_idxs, gloss)
     tmp1 = tmp1.reset_index().set_index(['stat_type', itpars_name]).unstack(level=-1)
     comb_cols = ['-'.join(a) for a in tmp1.columns]
     tmp1.columns = comb_cols
@@ -1384,8 +1377,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
                    '\\\\for parameters ' + \
                    strToLower(keywords['sub_title_it_pars'])
         fig_name = split_large_titles(fig_name)
-        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-            exp_value = False
+        exp_value = enl_space_title(exp_value, fig_name, tmp1, 'stat_type',
+                                    len(ev), 'ybar')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name,
                                       # If caption is None, the field name is used
@@ -1424,7 +1417,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
         res = abs(compile_tex(rendered_tex,
                               keywords['tex_folder'],
                               texf_name,
-                              False,
+                              tex_infos['make_index'],
                               os.path.join(keywords['pdf_folder'], pdf_name),
                               tex_infos['figs_externalize']))
     else:
@@ -1438,26 +1431,26 @@ def eval_corr_pool_converge_vs_x(**keywords):
     for it in it_idxs:
         data_new3[it] = data_new3[[a for a in sel_parts if it in a and 'R_diffAll' in a][0]] + \
                         data_new3[[a for a in sel_parts if it in a and 't_angDiff_deg' in a][0]]
-    alg_idx = str(data_new3[it_idxs].idx_min(axis=1))
+    alg_idx = str(data_new3[it_idxs].idxmin())
     rdiff = float(data_new3[[a for a in sel_parts if alg_idx in a and 'R_diffAll' in a][0]])
     tdiff = float(data_new3[[a for a in sel_parts if alg_idx in a and 't_angDiff_deg' in a][0]])
+    poolSize = int(data_new3[[a for a in sel_parts if alg_idx in a and 'poolSize' in a][0]])
 
-
-    mean_poolSize = int(data_new3[idx].mean())
     main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
     with open(ppar_file, 'a') as fo:
         # Write parameters
-        alg_comb_bestl = best_alg.split('-')
+        alg_comb_bestl = alg_idx.split('-')
         if len(keywords['it_parameters']) != len(alg_comb_bestl):
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
-                                         'mean_conv_pool_size': mean_poolSize,
-                                         'mean_R_error': mean_r_error,
-                                         'mean_t_error': mean_t_error}},
+                                         'mean_conv_pool_size': poolSize,
+                                         'mean_R_error': rdiff,
+                                         'mean_t_error': tdiff}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return res

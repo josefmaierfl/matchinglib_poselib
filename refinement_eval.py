@@ -51,8 +51,8 @@ def get_best_comb_scenes_1(**keywords):
         strToLower, \
         compile_tex, \
         split_large_titles, \
-        get_limits_log_exp
-    from statistics_and_plot import capitalizeFirstChar
+        get_limits_log_exp, \
+        enl_space_title
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
                      ' for Parameter Variations of ' + ret['sub_title_it_pars']
@@ -139,8 +139,8 @@ def get_best_comb_scenes_1(**keywords):
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             label_y = 'mean R \\& t error $e_{R\\bm{t}}$'
         fig_name = split_large_titles(fig_name)
-        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-            exp_value = False
+        exp_value = enl_space_title(exp_value, fig_name, tmp, dp,
+                                    len(data_it_b_columns[-1]), 'smooth')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -281,8 +281,8 @@ def get_best_comb_scenes_1(**keywords):
                       ' for parameter variations of ' + strToLower(ret['sub_title_it_pars'])
             label_y = 'min. mean R \\& t error $e_{R\\bm{t}}$'
         fig_name = split_large_titles(fig_name)
-        if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-            exp_value = False
+        exp_value = enl_space_title(exp_value, fig_name, data_parts_min[-1], dp,
+                                    1, 'ybar')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -388,7 +388,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     tmp, col_name = get_time_fixed_kp(**vars)
 
     tmp.set_index(vars['it_parameters'], inplace=True)
-    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, get_limits_log_exp
+    from statistics_and_plot import glossary_from_list, get_limits_log_exp, enl_space_title
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.index for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.index]
@@ -441,8 +441,8 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     fig_name = 'Mean execution times for parameter variations of\\\\' + strToLower(vars['sub_title_it_pars']) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     fig_name = split_large_titles(fig_name)
-    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-        exp_value = False
+    exp_value = enl_space_title(exp_value, fig_name, tmp, 'pars_tex',
+                                1, 'ybar')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name.replace('\\\\', ' '),
                                   'title': fig_name,
@@ -576,7 +576,7 @@ def pars_calc_single_fig_K(**keywords):
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineK(data)
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, enl_space_title
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
@@ -635,8 +635,8 @@ def pars_calc_single_fig_K(**keywords):
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
     section_name = split_large_titles(section_name)
-    if exp_value and len(section_name.split('\\\\')[-1]) < 70:
-        exp_value = False
+    exp_value = enl_space_title(exp_value, section_name, ret['b'], ret['grp_names'][-1],
+                                len(list(ret['b'].columns.values)), 'smooth')
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': section_name,

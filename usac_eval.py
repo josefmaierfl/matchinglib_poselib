@@ -117,8 +117,8 @@ def pars_calc_single_fig_partitions(**keywords):
         replaceCSVLabels, \
         add_to_glossary, \
         split_large_titles, \
-        is_exp_used, \
-        get_limits_log_exp
+        get_limits_log_exp, \
+        enl_space_title
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
@@ -271,8 +271,8 @@ def pars_calc_single_fig_partitions(**keywords):
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = 'Combined R \\& t error $e_{R\\bm{t}}$'
         sec_name = split_large_titles(sec_name)
-        if exp_value and len(sec_name.split('\\\\')[-1]) < 70:
-            exp_value = False
+        exp_value = enl_space_title(exp_value, sec_name, tmp2, ret['grp_names'][-1],
+                                    len(list(tmp2.columns.values)), 'smooth')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': sec_name,
                                       # If caption is None, the field name is used
@@ -399,7 +399,8 @@ def pars_calc_single_fig(**keywords):
         calcNrLegendCols, \
         replaceCSVLabels, \
         split_large_titles, \
-        get_limits_log_exp
+        get_limits_log_exp, \
+        enl_space_title
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
@@ -431,8 +432,8 @@ def pars_calc_single_fig(**keywords):
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
     section_name = split_large_titles(section_name)
-    if exp_value and len(section_name.split('\\\\')[-1]) < 70:
-        exp_value = False
+    exp_value = enl_space_title(exp_value, section_name, ret['b'], ret['grp_names'][-1],
+                                len(list(ret['b'].columns.values)), 'smooth')
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': section_name,
@@ -1865,7 +1866,8 @@ def estimate_alg_time_fixed_kp(**vars):
         strToLower, \
         split_large_titles, \
         get_limits_log_exp, \
-        use_log_axis
+        use_log_axis, \
+        enl_space_title
     tmp, col_name = get_time_fixed_kp(**vars)
     tmp1 = tmp.loc[tmp.groupby(vars['t_data_separators'])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
@@ -1940,8 +1942,8 @@ def estimate_alg_time_fixed_kp(**vars):
                ' over all ' + replaceCSVLabels(str(vars['xy_axis_columns'][1]), True, False, True) + \
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     fig_name = split_large_titles(fig_name)
-    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-        exp_value = False
+    exp_value = enl_space_title(exp_value, fig_name, tmp, vars['xy_axis_columns'][0],
+                                len(list(tmp.columns.values)), 'smooth')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
@@ -2028,8 +2030,8 @@ def estimate_alg_time_fixed_kp(**vars):
               'extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints.'
     section_name = split_large_titles(section_name)
     enlarge_lbl_dist = check_legend_enlarge(tmp1, vars['xy_axis_columns'][0], 1, fig_type)
-    if exp_value1 and len(section_name.split('\\\\')[-1]) < 70:
-        exp_value1 = False
+    exp_value1 = enl_space_title(exp_value1, section_name, tmp1, vars['xy_axis_columns'][0],
+                                 1, fig_type)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2660,7 +2662,12 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     tmp22_max = tmp2mean_max.loc[tmp2mean_max.groupby(vars['it_parameters'])[col_name].idxmax(axis=0)]
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
-    from statistics_and_plot import add_to_glossary, add_to_glossary_eval, split_large_titles, is_exp_used, use_log_axis
+    from statistics_and_plot import add_to_glossary, \
+        add_to_glossary_eval, \
+        split_large_titles, \
+        is_exp_used, \
+        use_log_axis, \
+        enl_space_title
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
@@ -3041,9 +3048,16 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     caption.append('Minimum ' + caption_main2)
     caption.append('Maximum ' + caption_main2)
 
+    exp_value4[0] = enl_space_title(exp_value4[0], section_name[0], tmp1mean_min, vars['eval_minmax_for'],
+                                    len(index_y4[0]), vars['fig_type'][1])
+    exp_value4[1] = enl_space_title(exp_value4[1], section_name[1], tmp1mean_max, vars['eval_minmax_for'],
+                                    len(index_y4[1]), vars['fig_type'][1])
+    exp_value4[2] = enl_space_title(exp_value4[2], section_name[2], tmp2mean_min, vars['eval_minmax_for'],
+                                    len(index_y4[2]), vars['fig_type'][1])
+    exp_value4[3] = enl_space_title(exp_value4[3], section_name[3], tmp2mean_max, vars['eval_minmax_for'],
+                                    len(index_y4[3]), vars['fig_type'][1])
+
     for i in range(0, 4):
-        if exp_value4[i] and len(section_name[i].split('\\\\')[-1]) < 70:
-            exp_value4[i] = False
         tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], fnames4[i]),
                                       'name': section_name[i].replace('\\\\', ' '),
                                       'title': section_name[i],
@@ -3305,9 +3319,16 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     caption.append('Minimum ' + caption_main2)
     caption.append('Maximum ' + caption_main2)
 
+    exp_value4[0] = enl_space_title(exp_value4[0], section_name[0], tmp12_min, 'pars_tex',
+                                    1, 'xbar')
+    exp_value4[1] = enl_space_title(exp_value4[1], section_name[1], tmp12_max, 'pars_tex',
+                                    1, 'xbar')
+    exp_value4[2] = enl_space_title(exp_value4[2], section_name[2], tmp22_min, 'pars_tex',
+                                    1, 'xbar')
+    exp_value4[3] = enl_space_title(exp_value4[3], section_name[3], tmp22_max, 'pars_tex',
+                                    1, 'xbar')
+
     for i in range(0, 4):
-        if exp_value4[i] and len(section_name[i].split('\\\\')[-1]) < 70:
-            exp_value4[i] = False
         tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], fnames4[i]),
                                       'name': section_name[i].replace('\\\\', ' '),
                                       'title': section_name[i],
@@ -3462,7 +3483,7 @@ def get_min_inlrat_diff(**keywords):
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import is_exp_used, get_limits_log_exp
+    from statistics_and_plot import get_limits_log_exp, enl_space_title
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -3514,8 +3535,8 @@ def get_min_inlrat_diff(**keywords):
                replaceCSVLabels(str(grp_names[-1]), True, False, True) + \
                ' for parameter variations of \\\\' + keywords['sub_title_it_pars']
     fig_name = split_large_titles(fig_name)
-    if exp_value and len(fig_name.split('\\\\')[-1]) < 70:
-        exp_value = False
+    exp_value = enl_space_title(exp_value, fig_name, diff_mean, grp_names[-1],
+                                len(list(diff_mean.columns.values)), 'smooth')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
