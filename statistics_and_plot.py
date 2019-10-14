@@ -13,6 +13,7 @@ import jinja2 as ji
 from copy import deepcopy
 import shutil
 # import time
+import multiprocessing
 
 # warnings.simplefilter('ignore', category=UserWarning)
 
@@ -36,122 +37,129 @@ def compile_tex(rendered_tex,
                 make_fig_index=True,
                 out_pdf_filen=None,
                 figs_externalize=False,
-                build_glossary=False):
-    texdf = os.path.join(out_tex_dir, out_tex_file)
-    with open(texdf, 'w') as outfile:
-        outfile.write(rendered_tex)
+                build_glossary=False,
+                nr_cpus=-1):
+    mult_proc = False
+    if isinstance(out_tex_dir, list):
+        raise ValueError('Only a single output directory is supported')
+    if isinstance(rendered_tex, list):
+        if not isinstance(out_tex_file, list):
+            raise ValueError('A list of tex texts is provided but no list of file names.')
+        if len(rendered_tex) != len(out_tex_file):
+            raise ValueError('Number of tex texts and file names must be equal.')
+        if out_pdf_filen is not None and not isinstance(out_pdf_filen, list):
+            raise ValueError('A list of tex texts is provided but no list of pdf file names.')
+        if len(rendered_tex) > 1 and out_pdf_filen is not None and nr_cpus != 1:
+            mult_proc = True
+    else:
+        rendered_tex = [rendered_tex]
+        out_tex_file = [out_tex_file]
+        if out_pdf_filen is not None:
+            out_pdf_filen = [out_pdf_filen]
+    texdf = []
+    for tf, rt in zip(out_tex_file, rendered_tex):
+        texdf.append(os.path.join(out_tex_dir, tf))
+        with open(texdf[-1], 'w') as outfile:
+            outfile.write(rt)
     if out_pdf_filen is not None:
+        av_cpus = os.cpu_count()
+        if av_cpus:
+            if nr_cpus < 1:
+                cpu_use = av_cpus
+            elif nr_cpus > av_cpus:
+                print('Demanded ' + str(nr_cpus) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
+                      + str(av_cpus) + ' CPUs.')
+                cpu_use = av_cpus
+            else:
+                cpu_use = nr_cpus
         rep_make = 1
         if make_fig_index or figs_externalize:
             rep_make = 2
         if build_glossary:
             rep_make = 3
-        pdfpath, pdfname = os.path.split(out_pdf_filen)
-        pdfname = os.path.splitext(pdfname)[0]
-        stdoutf = os.path.join(pdfpath, 'stdout_' + pdfname + '.txt')
-        erroutf = os.path.join(pdfpath, 'error_' + pdfname + '.txt')
-        cmdline = ['pdflatex',
-                   '--jobname=' + pdfname,
-                   '--output-directory=' + pdfpath,
-                   '-synctex=1',
-                   '--interaction=nonstopmode']
-        if figs_externalize:
-            cmdline += ['--shell-escape', texdf]
-            figs = os.path.join(pdfpath, 'figures')
-            try:
-                os.mkdir(figs)
-            except FileExistsError:
-                print('Folder', figs, 'for storing temp images already exists')
-            except:
-                print("Unexpected error (Unable to create directory for storing temp images):", sys.exc_info()[0])
-            try:
-                os.symlink(figs, os.path.join(out_tex_dir, 'figures'))
-            except OSError:
-                print('Unable to create a symlink to the stored images')
-            except:
-                print("Unexpected error (Unable to create directory for storing temp images):", sys.exc_info()[0])
-        else:
-            cmdline += [texdf]
-        stdoutfh = open(stdoutf, 'w')
-        erroutfh = open(erroutf, 'w')
-        retcode = 0
-        while rep_make > 0 and retcode == 0:
-            try:
-                retcode = sp.run(cmdline,
-                                 shell=False,
-                                 check=True,
-                                 cwd=out_tex_dir,
-                                 stdout=stdoutfh,
-                                 stderr=erroutfh).returncode
-                if retcode < 0:
-                    print("Child pdflatex was terminated by signal", -retcode, file=sys.stderr)
-                    retcode = 1
-                else:
-                    print("PDF generation successful with code", retcode)
-            except OSError as e:
-                print("Execution of pdflatex failed:", e, file=sys.stderr)
-                retcode = 1
-            except sp.CalledProcessError as e:
-                print("Execution of pdflatex failed:", e, file=sys.stderr)
-                retcode = 1
-            rep_make -= 1
-            if rep_make > 0 and retcode == 0:
-                stdoutfh.close()
-                erroutfh.close()
-                try:
-                    os.remove(stdoutf)
-                except:
-                    print('Unable to remove output log file')
-                try:
-                    os.remove(erroutf)
-                except:
-                    print('Unable to remove output log file')
-                stdoutfh = open(stdoutf, 'w')
-                erroutfh = open(erroutf, 'w')
+        dir_created = False
+        pdf_info = {'pdfpath': [],
+                    'pdfname': [],
+                    'stdoutf': [],
+                    'erroutf': [],
+                    'cmdline': []}
+        for of, td in zip(out_pdf_filen, texdf):
+            pdfpath, pdfname = os.path.split(of)
+            pdf_info['pdfpath'].append(pdfpath)
+            pdfname = os.path.splitext(pdfname)[0]
+            pdf_info['pdfname'].append(pdfname)
+            stdoutf = os.path.join(pdfpath, 'stdout_' + pdfname + '.txt')
+            erroutf = os.path.join(pdfpath, 'error_' + pdfname + '.txt')
+            cmdline = ['pdflatex',
+                       '--jobname=' + pdfname,
+                       '--output-directory=' + pdfpath,
+                       '-synctex=1',
+                       '--interaction=nonstopmode']
+            if figs_externalize:
+                cmdline += ['--shell-escape', td]
+                if not dir_created:
+                    figs = os.path.join(pdfpath, 'figures')
+                    try:
+                        os.mkdir(figs)
+                    except FileExistsError:
+                        print('Folder', figs, 'for storing temp images already exists')
+                    except:
+                        print("Unexpected error (Unable to create directory for storing temp images):",
+                              sys.exc_info()[0])
+                    try:
+                        os.symlink(figs, os.path.join(out_tex_dir, 'figures'))
+                    except OSError:
+                        print('Unable to create a symlink to the stored images')
+                    except:
+                        print("Unexpected error (Unable to create directory for storing temp images):",
+                              sys.exc_info()[0])
+                    dir_created = True
+            else:
+                cmdline += [td]
+            pdf_info['cmdline'].append(cmdline)
+            pdf_info['stdoutf'].append(stdoutf)
+            pdf_info['erroutf'].append(erroutf)
 
-        stdoutfh.close()
-        erroutfh.close()
-        auxf = os.path.join(pdfpath, pdfname + '.aux')
-        if os.path.exists(auxf):
-            try:
-                os.remove(auxf)
-            except:
-                print('Unable to remove aux file')
-        loff = os.path.join(pdfpath, pdfname + '.lof')
-        if os.path.exists(loff):
-            try:
-                os.remove(loff)
-            except:
-                print('Unable to remove lof file')
-        synctex = os.path.join(pdfpath, pdfname + '.synctex.gz')
-        if os.path.exists(synctex):
-            try:
-                os.remove(synctex)
-            except:
-                print('Unable to remove synctex.gz file')
-        outf = os.path.join(pdfpath, pdfname + '.out')
-        if os.path.exists(outf):
-            try:
-                os.remove(outf)
-            except:
-                print('Unable to remove out file')
-        if os.path.exists(auxf):
-            try:
-                os.remove(auxf)
-            except:
-                print('Unable to remove aux file')
-        tocf = os.path.join(pdfpath, pdfname + '.toc')
-        if os.path.exists(tocf):
-            try:
-                os.remove(tocf)
-            except:
-                print('Unable to remove toc file')
-        auxlockf = os.path.join(pdfpath, pdfname + '.auxlock')
-        if os.path.exists(auxlockf):
-            try:
-                os.remove(auxlockf)
-            except:
-                print('Unable to remove auxlock file')
+        if mult_proc:
+            tasks = [(pdf_info['pdfpath'][it],
+                      pdf_info['pdfname'][it],
+                      pdf_info['cmdline'][it],
+                      pdf_info['stdoutf'][it],
+                      pdf_info['erroutf'][it],
+                      rep_make,
+                      out_tex_dir)
+                     for it in range(0, len(pdf_info['pdfpath']))]
+            retcode_mp = []
+            with multiprocessing.Pool(processes=cpu_use) as pool:
+                results = [pool.apply_async(compile_pdf_base, t) for t in tasks]
+                for r in results:
+                    cnt_dot = 0
+                    while 1:
+                        sys.stdout.flush()
+                        try:
+                            res = r.get(2.0)
+                            break
+                        except multiprocessing.TimeoutError:
+                            if cnt_dot >= 90:
+                                print()
+                                cnt_dot = 0
+                            sys.stdout.write('.')
+                            cnt_dot = cnt_dot + 1
+                        except:
+                            res = 1
+                            break
+                    retcode_mp.append(res)
+            retcode = sum(retcode_mp)
+        else:
+            retcode = 0
+            for it in range(0, len(pdf_info['pdfpath'])):
+                retcode += compile_pdf_base(pdf_info['pdfpath'][it],
+                      pdf_info['pdfname'][it],
+                      pdf_info['cmdline'][it],
+                      pdf_info['stdoutf'][it],
+                      pdf_info['erroutf'][it],
+                      rep_make,
+                      out_tex_dir)
         if figs_externalize:
             if os.path.exists(figs):
                 try:
@@ -164,12 +172,38 @@ def compile_tex(rendered_tex,
                     shutil.rmtree(figs, ignore_errors=True)
                 except:
                     print('Unable to remove figures directory')
-        if retcode == 0:
-            logf = os.path.join(pdfpath, pdfname + '.log')
-            try:
-                os.remove(logf)
-            except:
-                print('Unable to remove log file')
+        return retcode
+    return 0
+
+
+def compile_pdf_base(pdfpath, pdfname, cmdline, stdoutf, erroutf, rep_make_in, out_tex_dir):
+    stdoutfh = open(stdoutf, 'w')
+    erroutfh = open(erroutf, 'w')
+    retcode = 0
+    rep_make = rep_make_in
+    while rep_make > 0 and retcode == 0:
+        try:
+            retcode = sp.run(cmdline,
+                             shell=False,
+                             check=True,
+                             cwd=out_tex_dir,
+                             stdout=stdoutfh,
+                             stderr=erroutfh).returncode
+            if retcode < 0:
+                print("Child pdflatex was terminated by signal", -retcode, file=sys.stderr)
+                retcode = 1
+            else:
+                print("PDF generation successful with code", retcode)
+        except OSError as e:
+            print("Execution of pdflatex failed:", e, file=sys.stderr)
+            retcode = 1
+        except sp.CalledProcessError as e:
+            print("Execution of pdflatex failed:", e, file=sys.stderr)
+            retcode = 1
+        rep_make -= 1
+        if rep_make > 0 and retcode == 0:
+            stdoutfh.close()
+            erroutfh.close()
             try:
                 os.remove(stdoutf)
             except:
@@ -178,8 +212,67 @@ def compile_tex(rendered_tex,
                 os.remove(erroutf)
             except:
                 print('Unable to remove output log file')
-        return retcode
-    return 0
+            stdoutfh = open(stdoutf, 'w')
+            erroutfh = open(erroutf, 'w')
+
+    stdoutfh.close()
+    erroutfh.close()
+    auxf = os.path.join(pdfpath, pdfname + '.aux')
+    if os.path.exists(auxf):
+        try:
+            os.remove(auxf)
+        except:
+            print('Unable to remove aux file')
+    loff = os.path.join(pdfpath, pdfname + '.lof')
+    if os.path.exists(loff):
+        try:
+            os.remove(loff)
+        except:
+            print('Unable to remove lof file')
+    synctex = os.path.join(pdfpath, pdfname + '.synctex.gz')
+    if os.path.exists(synctex):
+        try:
+            os.remove(synctex)
+        except:
+            print('Unable to remove synctex.gz file')
+    outf = os.path.join(pdfpath, pdfname + '.out')
+    if os.path.exists(outf):
+        try:
+            os.remove(outf)
+        except:
+            print('Unable to remove out file')
+    if os.path.exists(auxf):
+        try:
+            os.remove(auxf)
+        except:
+            print('Unable to remove aux file')
+    tocf = os.path.join(pdfpath, pdfname + '.toc')
+    if os.path.exists(tocf):
+        try:
+            os.remove(tocf)
+        except:
+            print('Unable to remove toc file')
+    auxlockf = os.path.join(pdfpath, pdfname + '.auxlock')
+    if os.path.exists(auxlockf):
+        try:
+            os.remove(auxlockf)
+        except:
+            print('Unable to remove auxlock file')
+    if retcode == 0:
+        logf = os.path.join(pdfpath, pdfname + '.log')
+        try:
+            os.remove(logf)
+        except:
+            print('Unable to remove log file')
+        try:
+            os.remove(stdoutf)
+        except:
+            print('Unable to remove output log file')
+        try:
+            os.remove(erroutf)
+        except:
+            print('Unable to remove output log file')
+    return retcode
 
 
 def calcSatisticAndPlot_2D(data,
@@ -479,6 +572,7 @@ def calcSatisticAndPlot_2D(data,
                 sections = [it]
                 tmp_nr += 1
         diff_pdfs.append(sections)
+        pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
         for it in diff_pdfs:
             rendered_tex = template.render(title=tex_infos['title'],
                                            make_index=tex_infos['make_index'],
@@ -487,13 +581,14 @@ def calcSatisticAndPlot_2D(data,
                                            fill_bar=tex_infos['fill_bar'],
                                            sections=it,
                                            abbreviations=tex_infos['abbreviations'])
+            pdf_l_info['rendered_tex'].append(rendered_tex)
             texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
+            pdf_l_info['texf_name'].append(texf_name)
             if build_pdf:
                 pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
-                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
-                                   os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
-            else:
-                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+                pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+        res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                          pdf_l_info['pdf_name'], tex_infos['figs_externalize'])
     return res
 
 
@@ -842,6 +937,7 @@ def calcSatisticAndPlot_2D_partitions(data,
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     res = 0
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
@@ -853,14 +949,12 @@ def calcSatisticAndPlot_2D_partitions(data,
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
 
     return res
 
@@ -1239,6 +1333,7 @@ def calcFromFuncAndPlot_2D(data,
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     res = 0
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
@@ -1250,14 +1345,12 @@ def calcFromFuncAndPlot_2D(data,
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
 
     return res
 
@@ -1722,6 +1815,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     res = 0
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
@@ -1733,14 +1827,12 @@ def calcFromFuncAndPlot_2D_partitions(data,
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
 
     return res
 
@@ -2024,6 +2116,7 @@ def calcSatisticAndPlot_3D(data,
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
@@ -2035,14 +2128,12 @@ def calcSatisticAndPlot_3D(data,
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
 
     return res
 
@@ -2376,6 +2467,7 @@ def calcFromFuncAndPlot_3D(data,
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
@@ -2387,14 +2479,12 @@ def calcFromFuncAndPlot_3D(data,
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
 
     return res
 
@@ -2788,6 +2878,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     res = 0
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
                                        make_index=it['make_index'],
@@ -2799,14 +2890,12 @@ def calcFromFuncAndPlot_3D_partitions(data,
         texf_name = it['texf_name'] + '.tex'
         if build_pdf:
             pdf_name = it['texf_name'] + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               it['figs_externalize'])
-        else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
 
     return res
 
@@ -3460,6 +3549,7 @@ def calcSatisticAndPlot_aggregate(data,
                 sections = [it]
                 tmp_nr += 1
         diff_pdfs.append(sections)
+        pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
         for it in diff_pdfs:
             rendered_tex = template.render(title=tex_infos['title'],
                                            make_index=tex_infos['make_index'],
@@ -3471,10 +3561,12 @@ def calcSatisticAndPlot_aggregate(data,
             texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
             if build_pdf:
                 pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
-                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index,
-                                   os.path.join(pdf_folder, pdf_name), tex_infos['figs_externalize'])
-            else:
-                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+                pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+            pdf_l_info['rendered_tex'].append(rendered_tex)
+            pdf_l_info['texf_name'].append(texf_name)
+        res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                          pdf_l_info['pdf_name'], tex_infos['figs_externalize'])
     return res
 
 
