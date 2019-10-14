@@ -936,7 +936,6 @@ def calcSatisticAndPlot_2D_partitions(data,
                               'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
-    res = 0
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
@@ -1332,7 +1331,6 @@ def calcFromFuncAndPlot_2D(data,
                           'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
-    res = 0
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
@@ -1814,7 +1812,6 @@ def calcFromFuncAndPlot_2D_partitions(data,
                               'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_2D_plots.tex')
-    res = 0
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
@@ -2115,7 +2112,6 @@ def calcSatisticAndPlot_3D(data,
     # print(endt - startt)
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
-    res = 0
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
@@ -2466,7 +2462,6 @@ def calcFromFuncAndPlot_3D(data,
                               'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
-    res = 0
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
@@ -2877,7 +2872,6 @@ def calcFromFuncAndPlot_3D_partitions(data,
                               'abbreviations': tex_infos['abbreviations']})
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')
-    res = 0
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=it['title'],
