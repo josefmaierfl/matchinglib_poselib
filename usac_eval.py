@@ -261,7 +261,7 @@ def pars_calc_single_fig_partitions(**keywords):
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = strToLower(keywords['error_type_text'])
         else:
-            sec_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' + \
+            sec_name = 'Combined R \\& t errors $e_{R\\vect{t}}$ vs ' + \
                        replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) + \
                        ' for parameter variations of \\\\' + ret['sub_title_it_pars'] + \
                        ' based on properties \\\\' + part_name.replace('_', '\\_')
@@ -428,7 +428,7 @@ def pars_calc_single_fig(**keywords):
                  }
     _, use_limits, use_log, exp_value = get_limits_log_exp(ret['b'])
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
-    section_name = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +\
+    section_name = 'Combined R \\& t errors $e_{R\\vect{t}}$ vs ' +\
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
     section_name = split_large_titles(section_name)
@@ -599,7 +599,7 @@ def pars_calc_multiple_fig(**keywords):
                  }
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
     tex_infos['sections'].append({'file': reltex_name,
-                                  'name': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
+                                  'name': 'Combined R \\& t errors $e_{R\\vect{t}}$ vs ' +
                                           replaceCSVLabels(str(ret['grp_names'][-2]), True, False, True) +
                                           ' and ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +
                                           ' for parameter variations of ' + ret['sub_title'],
@@ -740,7 +740,7 @@ def get_best_comb_and_th_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
+    section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
                                   'name': section_name,
@@ -774,7 +774,7 @@ def get_best_comb_and_th_1(**keywords):
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
                                   })
-    section_name = 'Worst combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
+    section_name = 'Worst combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_worst_name),
                                   'name': section_name,
@@ -881,7 +881,7 @@ def get_best_comb_inlrat_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Mean combined R \\& t errors $e_{R\\bm{t}}$ over all ' + \
+    section_name = 'Mean combined R \\& t errors $e_{R\\vect{t}}$ over all ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
@@ -1096,7 +1096,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
             f.write('# Used parameters: ' + str(grp) + '\n')
             data_a.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +\
+        section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' +\
                        replaceCSVLabels(str(ret['grp_names'][-2]), False, False, True) +\
                        '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True) +\
                        ' for parameters ' + tex_string_coding_style(str(grp))
@@ -1174,7 +1174,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
-                                  'name': 'Smallest Combined R \\& t Errors $e_{R\\bm{t}}$',
+                                  'name': 'Smallest Combined R \\& t Errors $e_{R\\vect{t}}$',
                                   'title': 'Smallest Combined R \\& t Errors $e_{R\\bm{t}}$',
                                   'title_rows': 0,
                                   'fig_type': 'ybar',
@@ -1317,7 +1317,7 @@ def get_best_comb_th_scenes_1(**keywords):
                  'abbreviations': ret['gloss']
                  }
 
-    section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
+    section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                    replaceCSVLabels(str(ret['partitions'][-1]), True, False, True) + \
                    '\\\\for parameters ' + ret['sub_title_it_pars'] + \
                    '\\\\and properties ' + ret['sub_title_partitions']
@@ -1368,7 +1368,7 @@ def get_best_comb_th_scenes_1(**keywords):
 
     for rc, lc, rl, ll in zip(right_cols, left_cols, right_legend, left_legend):
         par_str = [i for i in rl.split(' -- ') if ret['partitions'][-1] not in i][0]
-        section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \
+        section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                        replaceCSVLabels(str(ret['partitions'][-1]), True, False, True) + \
                        '\\\\for parameters ' + par_str + \
                        '\\\\and properties ' + ret['sub_title_partitions']
@@ -1454,7 +1454,7 @@ def get_best_comb_th_scenes_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
-    section_name = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ ' + \
+    section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ ' + \
                    '\\\\for parameters ' + ret['sub_title_it_pars'] + \
                    '\\\\and properties ' + ret['sub_title_partitions']
     caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' + \

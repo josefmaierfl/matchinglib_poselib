@@ -1601,9 +1601,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     fig_title_pre_str = 'Statistics on Execution Times for Comparison of '
                     eval_columns = ['stereoRefine_us']
                     units = [('stereoRefine_us', '/$\\mu s$')]
-                    it_parameters = ['stereoParameters_matchesFilter_refineGMS',
-                                     'stereoParameters_matchesFilter_refineVFC',
-                                     'stereoParameters_matchesFilter_refineSOF']
+                    it_parameters = ['stereoParameters_refineMethod_algorithm',
+                                     'stereoParameters_refineMethod_costFunction',
+                                     'stereoParameters_BART']
                     special_calcs_args = {'res_par_name': 'refRT_BA_stereo_min_time',
                                           'err_type': 'min_mean_time',
                                           'mk_no_folder': True}

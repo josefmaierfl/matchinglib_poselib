@@ -3286,6 +3286,8 @@ def calcSatisticAndPlot_aggregate(data,
         ret = calc_func(**calc_func_args)
         df = ret['data']
         eval_columns = ret['eval_columns']
+        if 'units' in ret:
+            units = ret['units']
         it_parameters = ret['it_parameters']
     else:
         needed_columns = eval_columns + it_parameters
@@ -3368,6 +3370,7 @@ def calcSatisticAndPlot_aggregate(data,
             special_calcs_args['data'] = stats
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['units'] = units
             special_calcs_args['res_folder'] = special_path_sub
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
@@ -3694,8 +3697,17 @@ def get_block_length_3D(df, xy_axis_columns):
 def is_exp_used(min_val, max_val, use_log=False):
     if use_log:
         return False
-    m_val = min(float(np.log10(np.abs(min_val))), float(np.log10(np.abs(max_val))))
-    m_val2 = max(float(np.log10(np.abs(min_val))), float(np.log10(np.abs(max_val))))
+    if np.isclose(min_val, 0, atol=1e-06) and np.isclose(max_val, 0, atol=1e-06):
+        return False
+    elif np.isclose(min_val, 0, atol=1e-06):
+        m_val = min(0, float(np.log10(np.abs(max_val))))
+        m_val2 = max(0, float(np.log10(np.abs(max_val))))
+    elif np.isclose(max_val, 0, atol=1e-06):
+        m_val = min(float(np.log10(np.abs(min_val))), 0)
+        m_val2 = max(float(np.log10(np.abs(min_val))), 0)
+    else:
+        m_val = min(float(np.log10(np.abs(min_val))), float(np.log10(np.abs(max_val))))
+        m_val2 = max(float(np.log10(np.abs(min_val))), float(np.log10(np.abs(max_val))))
     if m_val < 0 and abs(m_val) > 1.01:
         return True
     elif m_val2 >= 4:
@@ -3734,31 +3746,128 @@ def use_log_axis_and_exp_val(min_val, max_val, limit_min=None, limit_max=None):
 def use_log_axis(min_val, max_val):
     if min_val < 0 or max_val < 0:
         use_log = False
+    elif np.isclose(min_val, 0, atol=1e-06) and np.isclose(max_val, 0, atol=1e-06):
+        use_log = False
+    elif np.isclose(min_val, 0, atol=1e-06):
+        use_log = True if np.abs(np.log10(np.abs(max_val))) > 1 else False
+    elif np.isclose(max_val, 0, atol=1e-06):
+        use_log = True if np.abs(np.log10(np.abs(min_val))) > 1 else False
     else:
         use_log = True if np.abs(np.log10(np.abs(min_val)) -
                                  np.log10(np.abs(max_val))) > 1 else False
     return use_log
 
 
-def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = None, filter_pars=None, std_mult=None):
-    if filter_pars:
-        stats_all = df[filter_pars].stack().reset_index()
-    elif drop_cols:
-        stats_all = df.drop(drop_cols, axis=1).stack().reset_index()
+def check_if_series(df):
+    if 'modin.pandas' not in sys.modules:
+        if isinstance(df, pd.DataFrame):
+            return False
+        else:
+            return True
     else:
-        stats_all = df.stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).astype(float).describe().T
+        try:
+            if isinstance(df, pd.dataframe.DataFrame):
+                return False
+            else:
+                return True
+        except:
+            if isinstance(df, pd.DataFrame):
+                return False
+            else:
+                return True
+
+
+def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = None, filter_pars=None, std_mult=None):
     use_limits = {'miny': None, 'maxy': None}
     is_series = False
+    is_series = check_if_series(df)
+    is_series_filter = False
     if filter_pars:
         if isinstance(filter_pars, str):
-            is_series = True
+            is_series_filter = True
         else:
             try:
                 oit = iter(filter_pars)
             except TypeError as te:
-                is_series = True
-    if is_series:
+                is_series_filter = True
+    mult_drops = False
+    if drop_cols:
+        if isinstance(drop_cols, str):
+            mult_drops = True
+        else:
+            try:
+                oit = iter(drop_cols)
+            except TypeError as te:
+                mult_drops = True
+    if filter_pars and drop_cols:
+        if is_series:
+            if is_series_filter:
+                warnings.warn('Unable to calculate limits including filtering with a '
+                              'single label on a series', UserWarning)
+                return False, None, use_limits
+            else:
+                for lbl in filter_pars:
+                    if lbl not in df.index:
+                        warnings.warn('Unable to calculate limits including '
+                                      'filtering with unknown labels on a series', UserWarning)
+                        return False, None, use_limits
+            if mult_drops:
+                for lbl in drop_cols:
+                    if lbl not in df.index:
+                        warnings.warn('Unable to calculate limits and '
+                                      'dropping values with unknown labels on a series', UserWarning)
+                        return False, None, use_limits
+            elif drop_cols not in df.index:
+                warnings.warn('Unable to calculate limits and '
+                              'dropping values with unknown labels on a series', UserWarning)
+                return False, None, use_limits
+            stats_all = df.drop(drop_cols)[filter_pars].to_frame().stack().reset_index()
+        elif is_series_filter:
+            stats_all = df.drop(drop_cols)[filter_pars].to_frame().stack().reset_index()
+            is_series_filter = False
+        else:
+            stats_all = df.drop(drop_cols, axis=1)[filter_pars].stack().reset_index()
+    elif filter_pars:
+        if is_series:
+            if is_series_filter:
+                warnings.warn('Unable to calculate limits including '
+                              'filtering with a single label on a series', UserWarning)
+                return False, None, use_limits
+            else:
+                for lbl in filter_pars:
+                    if lbl not in df.index:
+                        warnings.warn('Unable to calculate limits including '
+                                      'filtering with unknown labels on a series', UserWarning)
+                        return False, None, use_limits
+            stats_all = df[filter_pars].to_frame().stack().reset_index()
+        elif is_series_filter:
+            stats_all = df[filter_pars].to_frame().stack().reset_index()
+            is_series_filter = False
+        else:
+            stats_all = df[filter_pars].stack().reset_index()
+    elif drop_cols:
+        if is_series:
+            if mult_drops:
+                for lbl in drop_cols:
+                    if lbl not in df.index:
+                        warnings.warn('Unable to calculate limits and '
+                                      'dropping values with unknown labels on a series', UserWarning)
+                        return False, None, use_limits
+            elif drop_cols not in df.index:
+                warnings.warn('Unable to calculate limits and '
+                              'dropping values with unknown labels on a series', UserWarning)
+                return False, None, use_limits
+            stats_all = df.drop(drop_cols).to_frame().stack().reset_index()
+            is_series_filter = False
+        else:
+            stats_all = df.drop(drop_cols, axis=1).stack().reset_index()
+    elif is_series:
+        stats_all = df.to_frame().stack().reset_index()
+        is_series_filter = False
+    else:
+        stats_all = df.stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).astype(float).describe().T
+    if is_series_filter:
         min_val = stats_all['min']
         max_val = stats_all['max']
         mean_val = stats_all['mean']
@@ -3768,6 +3877,7 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
         max_val = stats_all['max'][0]
         mean_val = stats_all['mean'][0]
         std_val = stats_all['std'][0]
+
     if check_useless_data:
         if (np.isclose(min_val, 0, atol=1e-06) and
             np.isclose(max_val, 0, atol=1e-06)) or \
@@ -3782,7 +3892,7 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
             use_limits['maxy'] = round(0.99 * max_val, 6)
         else:
             use_limits['maxy'] = round(1.01 * max_val, 6)
-    elif not no_big_limit:
+    elif not no_big_limit and not np.isnan(std_val):
         mult = 2.576
         if std_mult:
             mult = std_mult
@@ -3804,6 +3914,8 @@ def get_limits_log_exp(df,
     if useless:
         return True, use_limits, False, False
     is_series = False
+    if stats_all is None:
+        return False, use_limits, False, False
     if filter_pars:
         if isinstance(filter_pars, str):
             is_series = True
@@ -3812,12 +3924,12 @@ def get_limits_log_exp(df,
                 oit = iter(filter_pars)
             except TypeError as te:
                 is_series = True
-    if is_series:
-        min_val = stats_all['min']
-        max_val = stats_all['max']
-    else:
-        min_val = stats_all['min'][0]
-        max_val = stats_all['max'][0]
+    # if is_series:
+    #     min_val = stats_all['min']
+    #     max_val = stats_all['max']
+    # else:
+    min_val = stats_all['min'][0]
+    max_val = stats_all['max'][0]
     if no_limit_log:
         use_log, exp_value = use_log_axis_and_exp_val(min_val,
                                                       max_val)
@@ -5146,7 +5258,7 @@ def main():
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [8]#list(range(5, 8))
+    eval_nr = list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
@@ -6686,9 +6798,9 @@ def main():
                     fig_title_pre_str = 'Statistics on Execution Times for Comparison of '
                     eval_columns = ['stereoRefine_us']
                     units = [('stereoRefine_us', '/$\\mu s$')]
-                    # it_parameters = ['stereoParameters_matchesFilter_refineGMS',
-                    #                  'stereoParameters_matchesFilter_refineVFC',
-                    #                  'stereoParameters_matchesFilter_refineSOF']
+                    # it_parameters = ['stereoParameters_refineMethod_algorithm',
+                    #                  'stereoParameters_refineMethod_costFunction',
+                    #                  'stereoParameters_BART']
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg',
                                      'USAC_parameters_USACInlratFilt']
@@ -6936,7 +7048,7 @@ def main():
         from eval_tests_main import get_compare_info
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 11))
+                evals = list(range(1, 10))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -7108,7 +7220,7 @@ def main():
                                                              calc_func=calc_rt_diff_frame_to_frame,
                                                              calc_func_args=calc_func_args,
                                                              fig_type='surface',
-                                                             use_marks=True,
+                                                             use_marks=False,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
                                                              build_pdf=True,
@@ -7272,6 +7384,72 @@ def main():
                                                   make_fig_index=True,
                                                   build_pdf=True,
                                                   figs_externalize=True)
+                elif ev == 9:
+                    fig_title_pre_str = 'Statistics on Execution Times for Comparison of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    # it_parameters = ['stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_corrPool_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=None,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=None,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                elif ev == 10:
+                    fig_title_pre_str = 'Statistics on Execution Times over the Last 30 Stereo Frames ' \
+                                        'out of 150 Frames for Comparison of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    # it_parameters = ['stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'stereoParameters_maxPoolCorrespondences']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False}
+                    from corr_pool_eval import filter_take_end_frames, eval_mean_time_poolcorrs
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_corrPool_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=filter_take_end_frames,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=eval_mean_time_poolcorrs,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=None,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
 
     return ret
 

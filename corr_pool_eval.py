@@ -204,7 +204,13 @@ def get_mean_data_parts(df, nr_parts, key_name='Rt_diff2'):
     elif ir <= nr_parts:
         nr_parts = ir + 1
     ir_part = round(ir / float(nr_parts) + 1e-6, 0)
-    parts = [np.array([img_min + a * ir_part, img_min + (a + 1) * ir_part]).astype(img_max.dtype) for a in range(0, nr_parts)]
+    if isinstance(img_max, int):
+        parts = [[img_min + int(a * ir_part), img_min + int((a + 1) * ir_part)] for a in range(0, nr_parts)]
+    elif isinstance(img_max, float):
+        parts = [[img_min + float(a * ir_part), img_min + float((a + 1) * ir_part)] for a in range(0, nr_parts)]
+    else:
+        parts = [np.array([img_min + a * ir_part, img_min + (a + 1) * ir_part]).astype(img_max.dtype)
+                 for a in range(0, nr_parts)]
     parts[-1][1] = img_max + 1
     if parts[-1][1] - parts[-1][0] <= 0:
         parts.pop()
@@ -1453,4 +1459,121 @@ def eval_corr_pool_converge_vs_x(**keywords):
                                          'mean_R_error': rdiff,
                                          'mean_t_error': tdiff}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return res
+
+
+def eval_mean_time_poolcorrs(**keywords):
+    if 'eval_columns' not in keywords:
+        raise ValueError('Missing parameter eval_columns')
+    if 'it_parameters' not in keywords:
+        raise ValueError('Missing parameter it_parameters')
+
+    grp_itp = 'stereoParameters_maxPoolCorrespondences'
+    if 'stereoParameters_maxPoolCorrespondences' not in keywords['it_parameters']:
+        raise ValueError('Missing column name stereoParameters_maxPoolCorrespondences in parameter it_parameters')
+    if len(keywords['it_parameters']) < 2:
+        raise ValueError('Too less it_parameters')
+
+    keywords = prepare_io(**keywords)
+    from statistics_and_plot import replaceCSVLabels, \
+        glossary_from_list, \
+        add_to_glossary_eval, \
+        split_large_titles, \
+        findUnit, \
+        compile_tex, \
+        get_limits_log_exp, \
+        enl_space_title
+
+    df_grp = keywords['data'].xs('mean', axis=1, level=1,
+                                 drop_level=True).reset_index().drop([a for a in keywords['it_parameters']
+                                                                      if grp_itp not in a],
+                                                                     axis=1).groupby(grp_itp).mean()
+
+    it_idxs = [str(a) for a in df_grp.index]
+    gloss = glossary_from_list(it_idxs)
+    gloss = add_to_glossary_eval([a for a in df_grp.columns], gloss)
+    errvalnames = df_grp.columns.values
+    df_grp['tex_it_pars'] = insert_opt_lbreak(it_idxs)
+    max_txt_rows = 1
+    for idx, val in df_grp['tex_it_pars'].iteritems():
+        txt_rows = str(val).count('\\\\') + 1
+        if txt_rows > max_txt_rows:
+            max_txt_rows = txt_rows
+
+    title = 'Mean Execution Times over the Last 30 Stereo Frames out of 150 Frames for Comparison of Different ' + \
+            replaceCSVLabels(grp_itp, True, True, True)
+
+    tex_infos = {'title': title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
+                 }
+    t_main_name = 'mean_time_for_opt_' + grp_itp
+    t_mean_name = 'data_' + t_main_name + '.csv'
+    ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    with open(ft_mean_name, 'a') as f:
+        f.write('# Mean execution times over the last 30 stereo frames out of 150 frames\n')
+        f.write('# Different parameters: ' + grp_itp + '\n')
+        df_grp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    for ev in errvalnames:
+        _, use_limits, use_log, exp_value = get_limits_log_exp(df_grp, True, True, False, 'tex_it_pars',
+                                                               ev if len(errvalnames) > 1 else None)
+        reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
+        fig_name = 'Mean execution times over the last 30 stereo frames ' \
+                   'out of 150 frames for comparison of different ' + \
+                    replaceCSVLabels(grp_itp, True, False, True)
+        fig_name = split_large_titles(fig_name)
+        exp_value = enl_space_title(exp_value, fig_name, df_grp, 'tex_it_pars',
+                                    1, 'ybar')
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': fig_name,
+                                      # If caption is None, the field name is used
+                                      'caption': fig_name.replace('\\\\', ' '),
+                                      'fig_type': 'ybar',
+                                      'plots': [ev],
+                                      'label_y': replaceCSVLabels(ev) +
+                                                 findUnit(str(ev), keywords['units']),
+                                      'plot_x': 'tex_it_pars',
+                                      'label_x': replaceCSVLabels(grp_itp),
+                                      'limits': use_limits,
+                                      'legend': None,
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': max_txt_rows,
+                                      'enlarge_lbl_dist': None,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True,
+                                      })
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if keywords['build_pdf'][0]:
+        pdf_name = base_out_name + '.pdf'
+        res = abs(compile_tex(rendered_tex,
+                              keywords['tex_folder'],
+                              texf_name,
+                              tex_infos['make_index'],
+                              os.path.join(keywords['pdf_folder'], pdf_name),
+                              tex_infos['figs_externalize']))
+    else:
+        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return res

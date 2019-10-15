@@ -5,9 +5,7 @@
 \usepackage{bm}
 \usepackage{amsmath}
 \usepackage[htt]{hyphenat}
-\BLOCK{ if make_index }
 \usepackage{hyperref}
-\BLOCK{ endif }
 \BLOCK{ if abbreviations }
 \usepackage[nopostdot,nogroupskip,style=super,nonumberlist,toc,sort=none]{glossaries-extra}
 \BLOCK{ endif }
@@ -200,6 +198,7 @@ ymax=\VAR{sec['limits']['maxy']},
 \BLOCK{ endif }
 \BLOCK{ endif }
 title={\VAR{ sec['name'] }},
+\BLOCK{ if sec['legend'] }
 legend style={
 \BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and sec['fig_type'] == 'ybar') }
 	at={(0.5,-0.25)},
@@ -211,6 +210,7 @@ legend style={
 	anchor=north,
 	legend columns=\VAR{sec['legend_cols']},
 	},
+\BLOCK{ endif }
 cycle list name=big variety,
 \BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
 every axis plot/.append style={fill,draw=none,no markers},%
@@ -240,7 +240,9 @@ y=\VAR{ it }
 ] {\VAR{ sec['file'] }};
 \BLOCK{ endfor }
 
+\BLOCK{ if sec['legend'] }
 \legend{\BLOCK{ for it in sec['legend'] } \VAR{ it },\BLOCK{ endfor }}
+\BLOCK{ endif }
 \end{axis}
 \end{tikzpicture}
 \BLOCK{ if ctrl_fig_size }
