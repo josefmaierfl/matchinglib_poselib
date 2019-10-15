@@ -5257,8 +5257,8 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 1
-    eval_nr = list(range(5, 11))
+    test_nr = 2
+    eval_nr = [13]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
@@ -7048,7 +7048,7 @@ def main():
         from eval_tests_main import get_compare_info
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 10))
+                evals = list(range(1, 11))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -7438,6 +7438,137 @@ def main():
                                                          filter_func=filter_take_end_frames,
                                                          filter_func_args=None,
                                                          special_calcs_func=eval_mean_time_poolcorrs,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=None,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 2:
+            if eval_nr[0] < 0:
+                evals = list(range(11, 14))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 11:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                    #                  'stereoParameters_maxDist3DPtsZ']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'corrpool_rat_dist_3Dpts_inlrat'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratMin'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=compare_source,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 12:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                    #                  'stereoParameters_maxDist3DPtsZ']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'corrpool_rat_dist_3Dpts_best_comb_scenes'}
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    from refinement_eval import get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratMin'],
+                                                             filter_func=None,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=compare_source,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
+                elif ev == 13:
+                    fig_title_pre_str = 'Statistics on Execution Times over the Last 30 Stereo Frames ' \
+                                        'out of 150 Frames for Comparison of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    # it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                    #                  'stereoParameters_maxDist3DPtsZ']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False}
+                    from corr_pool_eval import filter_take_end_frames, eval_mean_time_pool_3D_dist
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_corrPool_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=filter_take_end_frames,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=eval_mean_time_pool_3D_dist,
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=None,
                                                          calc_func_args=None,

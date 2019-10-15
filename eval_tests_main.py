@@ -1837,7 +1837,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             raise ValueError('test_nr is required correspondence_pool')
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 10))
+                evals = list(range(1, 11))
             else:
                 evals = eval_nr
             for ev in evals:
