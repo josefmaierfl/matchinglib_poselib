@@ -1701,10 +1701,10 @@ def eval_mean_time_pool_3D_dist(**keywords):
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    df = pd.concat(df_list).groupby(keywords['eval_columns']).describe()
+    df = pd.concat(df_list).describe()
     t_main_name1 = 'statistics_over_mean_time_for_opts_' + '-'.join(keywords['it_parameters'])
     t_mean_name = 'data_' + t_main_name1 + '.csv'
-    ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    ft_mean_name = os.path.join(keywords['res_folder'], t_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Statistic over mean execution times over the last 30 stereo frames out of 150 frames\n')
         f.write('# Different parameters: ' + '-'.join(keywords['it_parameters']) + '\n')

@@ -5258,7 +5258,7 @@ def main():
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = [13]#list(range(5, 11))
+    eval_nr = [-1]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
