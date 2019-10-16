@@ -463,6 +463,7 @@ def calcSatisticAndPlot_2D(data,
     gloss_calced = False
     for it in errvalnames:
         if it[-1] != 'count':
+            it_tmp = list(it)
             tmp = stats[it[0]].unstack()
             tmp = tmp[it[1]]
             tmp = tmp.T
@@ -491,17 +492,30 @@ def calcSatisticAndPlot_2D(data,
                          str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             if compare_source:
-                tmp, succ = add_comparison_column(compare_source, dataf_name, tmp)
+                if compare_source['replace_evals']:
+                    succe, dst_eval, new_name = get_replace_eval(compare_source, str(it[0]))
+                    if succe:
+                        datafc_name = dataf_name.replace(str(it[0]), dst_eval)
+                        dataf_name = dataf_name.replace(str(it[0]), new_name)
+                        tmp.rename(columns={it[0]: new_name}, inplace=True)
+                        it_tmp[0] = new_name
+                    else:
+                        datafc_name = dataf_name
+                    _, dst_eval, _ = get_replace_eval(compare_source, grp_names[-1], True)
+                    datafc_name = datafc_name.replace(str(grp_names[-1]), str(dst_eval))
+                else:
+                    datafc_name = dataf_name
+                tmp, succ = add_comparison_column(compare_source, datafc_name, tmp)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
-                f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
+                f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             #Construct tex-file
             if pdfsplitentry:
                 if pdf_nr < len(pdfsplitentry):
-                    if pdfsplitentry[pdf_nr] == str(it[0]):
+                    if pdfsplitentry[pdf_nr] == str(it_tmp[0]):
                         pdf_nr += 1
             useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, False, False, True)
             if useless:
@@ -509,8 +523,8 @@ def calcSatisticAndPlot_2D(data,
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
             enlarge_lbl_dist = check_legend_enlarge(tmp, grp_names[-1], len(list(tmp.columns.values)), fig_type)
-            section_name = replace_stat_names(it[-1]) + ' values for ' +\
-                           replaceCSVLabels(str(it[0]), True, False, True) +\
+            section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
+                           replaceCSVLabels(str(it_tmp[0]), True, False, True) +\
                            ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
             exp_value = enl_space_title(exp_value, section_name, tmp, grp_names[-1],
                                         len(list(tmp.columns.values)), fig_type)
@@ -521,7 +535,7 @@ def calcSatisticAndPlot_2D(data,
                                           'caption': None,
                                           'fig_type': fig_type,
                                           'plots': list(tmp.columns.values),
-                                          'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                          'label_y': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
                                           'plot_x': str(grp_names[-1]),
                                           'label_x': replaceCSVLabels(str(grp_names[-1])),
                                           'limits': use_limits,
@@ -812,6 +826,7 @@ def calcSatisticAndPlot_2D_partitions(data,
     gloss_calced = False
     for it in errvalnames:
         if it[-1] != 'count':
+            it_tmp = list(it)
             tmp = stats[it[0]].unstack()
             tmp = tmp[it[1]]
             tmp1 = tmp.reset_index().set_index(partitions)
@@ -862,10 +877,24 @@ def calcSatisticAndPlot_2D_partitions(data,
                              str(grp_names[-1]) + '_for_' + part_name.replace('.','d') + '.csv'
                 dataf_name = dataf_name.replace('%', 'perc')
                 if compare_source:
-                    tmp2, succ = add_comparison_column(compare_source, dataf_name, tmp2)
+                    if compare_source['replace_evals']:
+                        succe, dst_eval, new_name = get_replace_eval(compare_source, str(it[0]))
+                        if succe:
+                            datafc_name = dataf_name.replace(str(it[0]), dst_eval)
+                            dataf_name = dataf_name.replace(str(it[0]), new_name)
+                            tmp2.rename(columns={it[0]: new_name}, inplace=True)
+                            it_tmp[0] = new_name
+                        else:
+                            datafc_name = dataf_name
+                        _, dst_eval, _ = get_replace_eval(compare_source, grp_names[-1], True)
+                        datafc_name = datafc_name.replace(str(grp_names[-1]), str(dst_eval))
+                    else:
+                        datafc_name = dataf_name
+                    tmp2, succ = add_comparison_column(compare_source, datafc_name, tmp2)
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 with open(fdataf_name, 'a') as f:
-                    f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + ' and properties ' + part_name + '\n')
+                    f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
+                            ' and properties ' + part_name + '\n')
                     f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                     tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
@@ -875,8 +904,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
                 enlarge_lbl_dist = check_legend_enlarge(tmp2, grp_names[-1], len(list(tmp2.columns.values)), fig_type)
-                section_name = replace_stat_names(it[-1]) + ' values for ' +\
-                               replaceCSVLabels(str(it[0]), True, False, True) +\
+                section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
+                               replaceCSVLabels(str(it_tmp[0]), True, False, True) +\
                                ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
                                '\\\\for properties ' + part_name.replace('_', '\\_')
                 section_name = split_large_titles(section_name)
@@ -886,13 +915,14 @@ def calcSatisticAndPlot_2D_partitions(data,
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': section_name,
                                               # If caption is None, the field name is used
-                                              'caption': replace_stat_names(it[-1]) + ' values for ' +
-                                                      replaceCSVLabels(str(it[0]), True) +
+                                              'caption': replace_stat_names(it_tmp[-1]) + ' values for ' +
+                                                      replaceCSVLabels(str(it_tmp[0]), True) +
                                                       ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
                                                       ' for properties ' + part_name_title,
                                               'fig_type': fig_type,
                                               'plots': list(tmp2.columns.values),
-                                              'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                              'label_y': replace_stat_names(it_tmp[-1]) +
+                                                         findUnit(str(it_tmp[0]), units),
                                               'plot_x': str(grp_names[-1]),
                                               'label_x': replaceCSVLabels(str(grp_names[-1])),
                                               'limits': use_limits,
@@ -904,7 +934,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'use_string_labels': True if not is_numeric else False,
                                               'xaxis_txt_rows': 1,
                                               'enlarge_lbl_dist': enlarge_lbl_dist,
-                                              'stat_name': it[-1],
+                                              'stat_name': it_tmp[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
@@ -1212,7 +1242,17 @@ def calcFromFuncAndPlot_2D(data,
     tmp.columns.name = 'eval-' + it_pars_cols_name
     if compare_source:
         if eval_init_input:
-            cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+            if compare_source['replace_evals']:
+                eval_init_input_old = []
+                for ie in eval_init_input:
+                    _, dst_eval, _ = get_replace_eval(compare_source, str(ie), True)
+                    eval_init_input_old.append(dst_eval)
+                init_pars_out_name_c = (init_pars_out_name + '.')[:-1]
+                for act, rep in zip(eval_init_input, eval_init_input_old):
+                    init_pars_out_name_c.replace(act, rep)
+            else:
+                init_pars_out_name_c = init_pars_out_name
+            cmp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_'
         else:
             cmp_fname = 'data_evals_for_pars_'
         if len(compare_source['it_parameters']) > 1:
@@ -1225,7 +1265,11 @@ def calcFromFuncAndPlot_2D(data,
         dataf_name = 'data_evals_for_pars_' + it_pars_cols_name
     dataf_name += '_vs_' + x_axis_column[0] + '.csv'
     if compare_source:
-        cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
+        if compare_source['replace_evals']:
+            _, dst_eval, _ = get_replace_eval(compare_source, x_axis_column[0], True)
+            cmp_fname += '_vs_' + dst_eval + '.csv'
+        else:
+            cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
         cmp_its = '-'.join(map(str, compare_source['it_par_select']))
         mult_cols = [a.replace(par_cols[0], cmp_its) for a in par_cols1 if par_cols[0] in a]
         tmp, succ = add_comparison_column(compare_source, cmp_fname, tmp, mult_cols)
@@ -1683,7 +1727,17 @@ def calcFromFuncAndPlot_2D_partitions(data,
         tmp.columns.name = 'eval-' + it_pars_cols_name
         if compare_source:
             if eval_init_input:
-                cmp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_'
+                if compare_source['replace_evals']:
+                    eval_init_input_old = []
+                    for ie in eval_init_input:
+                        _, dst_eval, _ = get_replace_eval(compare_source, str(ie), True)
+                        eval_init_input_old.append(dst_eval)
+                    init_pars_out_name_c = (init_pars_out_name + '.')[:-1]
+                    for act, rep in zip(eval_init_input, eval_init_input_old):
+                        init_pars_out_name_c.replace(act, rep)
+                else:
+                    init_pars_out_name_c = init_pars_out_name
+                cmp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_'
             else:
                 cmp_fname = 'data_evals_for_pars_'
             if len(compare_source['it_parameters']) > 1:
@@ -1691,7 +1745,14 @@ def calcFromFuncAndPlot_2D_partitions(data,
             else:
                 cmp_fname += str(compare_source['it_parameters'][0])
             cmp_fname += '_on_partition_'
-            cmp_fname += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
+            if compare_source['replace_evals']:
+                partitions_old = []
+                for ie in partitions:
+                    _, dst_eval, _ = get_replace_eval(compare_source, ie, True)
+                    partitions_old.append(dst_eval)
+            else:
+                partitions_old = partitions
+            cmp_fname += '-'.join([a[:min(3, len(a))] for a in map(str, partitions_old)]) + '_'
         if eval_init_input:
             dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name + '_on_partition_'
         else:
@@ -1701,8 +1762,19 @@ def calcFromFuncAndPlot_2D_partitions(data,
         dataf_name += grp_name.replace('.', 'd')
         dataf_name += '_vs_' + x_axis_column[0] + '.csv'
         if compare_source:
-            cmp_fname += grp_name.replace('.', 'd')
-            cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
+            if compare_source['replace_evals']:
+                grp_old = []
+                for ie in grp:
+                    _, dst_eval, _ = get_replace_eval(compare_source, ie, True)
+                    grp_old.append(dst_eval)
+                grp_name_old = '-'.join([a[:min(4, len(a))] for a in map(str, grp_old)]) \
+                    if len(partitions) > 1 else str(grp_old)
+                cmp_fname += grp_name_old.replace('.', 'd')
+                _, dst_eval, _ = get_replace_eval(compare_source, x_axis_column[0], True)
+                cmp_fname += '_vs_' + dst_eval + '.csv'
+            else:
+                cmp_fname += grp_name.replace('.', 'd')
+                cmp_fname += '_vs_' + x_axis_column[0] + '.csv'
             cmp_its = '-'.join(map(str, compare_source['it_par_select']))
             mult_cols = [a.replace(par_cols[0], cmp_its) for a in par_cols1 if par_cols[0] in a]
             tmp, succ = add_comparison_column(compare_source, cmp_fname, tmp, mult_cols)
@@ -3135,7 +3207,17 @@ def calcFromFuncAndPlot_aggregate(data,
     if compare_source:
         cmp_col_name = '-'.join(compare_source['it_parameters'])
         if eval_init_input:
-            comp_fname = 'data_evals_' + init_pars_out_name + '_for_pars_' + cmp_col_name + '.csv'
+            if compare_source['replace_evals']:
+                eval_init_input_old = []
+                for ie in eval_init_input:
+                    _, dst_eval, _ = get_replace_eval(compare_source, str(ie), True)
+                    eval_init_input_old.append(dst_eval)
+                init_pars_out_name_c = (init_pars_out_name + '.')[:-1]
+                for act, rep in zip(eval_init_input, eval_init_input_old):
+                    init_pars_out_name_c.replace(act, rep)
+            else:
+                init_pars_out_name_c = init_pars_out_name
+            comp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_' + cmp_col_name + '.csv'
         else:
             comp_fname = 'data_evals_for_pars_' + cmp_col_name + '.csv'
         df, succ = add_comparison_column(compare_source, comp_fname, df, None, cmp_col_name)
@@ -3416,6 +3498,7 @@ def calcSatisticAndPlot_aggregate(data,
     from usac_eval import insert_opt_lbreak
     for it in errvalnames:
         if it[-1] != 'count':
+            it_tmp = list(it)
             tmp = stats[it[0]]
             tmp = tmp.loc[:, [it[-1]]]
             col_name = replace_stat_names_col_tex(it[-1])
@@ -3454,25 +3537,36 @@ def calcSatisticAndPlot_aggregate(data,
             dataf_name = 'data_' + '_'.join(map(str, it)) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             if compare_source:
+                if compare_source['replace_evals']:
+                    succe, dst_eval, new_name = get_replace_eval(compare_source, str(it[0]))
+                    if succe:
+                        datafc_name = dataf_name.replace(str(it[0]), dst_eval)
+                        dataf_name = dataf_name.replace(str(it[0]), new_name)
+                        tmp.rename(columns={it[0]: new_name}, inplace=True)
+                        it_tmp[0] = new_name
+                    else:
+                        datafc_name = dataf_name
+                else:
+                    datafc_name = dataf_name
                 cmp_col_name = '-'.join(compare_source['it_parameters'])
-                df, succ = add_comparison_column(compare_source, dataf_name, df, None, cmp_col_name)
+                tmp, succ = add_comparison_column(compare_source, datafc_name, tmp, None, cmp_col_name)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
-                f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
+                f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
                 f.write('# Parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             # Construct tex-file
             if pdfsplitentry:
                 if pdf_nr < len(pdfsplitentry):
-                    if pdfsplitentry[pdf_nr] == str(it[0]):
+                    if pdfsplitentry[pdf_nr] == str(it_tmp[0]):
                         pdf_nr += 1
             useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, True, 'tex_it_pars')
             if useless:
                 continue
 
-            fig_name = replace_stat_names(it[-1]) + ' values for ' +\
-                       replaceCSVLabels(str(it[0]), True, False, True) + ' comparing parameter variations of\\\\' + \
+            fig_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
+                       replaceCSVLabels(str(it_tmp[0]), True, False, True) + ' comparing parameter variations of\\\\' + \
                        strToLower(title_it_pars)
             fig_name = split_large_titles(fig_name)
             exp_value = enl_space_title(exp_value, fig_name, tmp, 'tex_it_pars',
@@ -3484,7 +3578,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           'title_rows': fig_name.count('\\\\'),
                                           'fig_type': fig_type,
                                           'plots': [col_name],
-                                          'label_y': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
+                                          'label_y': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
                                           # Label of the value axis. For xbar it labels the x-axis
                                           # Label/column name of axis with bars. For xbar it labels the y-axis
                                           'label_x': 'Parameter',
@@ -3593,6 +3687,98 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                     data_new['cmp-' + comp_col_name] = comp_col.values
         elif not it_col_name:
             data_tmp = data_new.copy(deep=True)
+            if compare_source['replace_evals']:
+                dnew_cols = []
+                for a in data_tmp.columns:
+                    if isinstance(a, str) and '-' in str(a):
+                        found_i = False
+                        for b in a.split('-'):
+                            for i, c in enumerate(compare_source['replace_evals']['actual']):
+                                if b == c:
+                                    if c != compare_source['replace_evals']['new'][i]:
+                                        dnew_cols.append(a.replace(b, compare_source['replace_evals']['new'][i]))
+                                    else:
+                                        dnew_cols.append(a)
+                                    found_i = True
+                                    break
+                            if found_i:
+                                break
+                        if not found_i:
+                            dnew_cols.append(a)
+                    else:
+                        found_i = False
+                        for i, c in enumerate(compare_source['replace_evals']['actual']):
+                            if a == c:
+                                if c != compare_source['replace_evals']['new'][i]:
+                                    dnew_cols.append(compare_source['replace_evals']['new'][i])
+                                else:
+                                    dnew_cols.append(a)
+                                found_i = True
+                                break
+                        if not found_i:
+                            dnew_cols.append(a)
+                data_tmp.columns = dnew_cols
+                dold_cols = []
+                for a in comp_data.columns:
+                    if isinstance(a, str) and '-' in str(a):
+                        found_i = False
+                        for b in a.split('-'):
+                            for i, c in enumerate(compare_source['replace_evals']['old']):
+                                if b == c:
+                                    if c != compare_source['replace_evals']['new'][i]:
+                                        dold_cols.append(a.replace(b, compare_source['replace_evals']['new'][i]))
+                                    else:
+                                        dold_cols.append(a)
+                                    found_i = True
+                                    break
+                            if found_i:
+                                break
+                        if not found_i:
+                            dold_cols.append(a)
+                    else:
+                        found_i = False
+                        for i, c in enumerate(compare_source['replace_evals']['old']):
+                            if a == c:
+                                if c != compare_source['replace_evals']['new'][i]:
+                                    dold_cols.append(compare_source['replace_evals']['new'][i])
+                                else:
+                                    dold_cols.append(a)
+                                found_i = True
+                                break
+                        if not found_i:
+                            dold_cols.append(a)
+                comp_data.columns = dold_cols
+                dmult_cols = []
+                for a in mult_cols:
+                    if isinstance(a, str) and '-' in str(a):
+                        found_i = False
+                        for b in a.split('-'):
+                            for i, c in enumerate(compare_source['replace_evals']['old']):
+                                if b == c:
+                                    if c != compare_source['replace_evals']['new'][i]:
+                                        dmult_cols.append(a.replace(b, compare_source['replace_evals']['new'][i]))
+                                    else:
+                                        dmult_cols.append(a)
+                                    found_i = True
+                                    break
+                            if found_i:
+                                break
+                        if not found_i:
+                            dmult_cols.append(a)
+                    else:
+                        found_i = False
+                        for i, c in enumerate(compare_source['replace_evals']['old']):
+                            if a == c:
+                                if c != compare_source['replace_evals']['new'][i]:
+                                    dmult_cols.append(compare_source['replace_evals']['new'][i])
+                                else:
+                                    dmult_cols.append(a)
+                                found_i = True
+                                break
+                        if not found_i:
+                            dmult_cols.append(a)
+                mult_cols = dmult_cols
+
             for col in mult_cols:
                 if col not in comp_data.columns:
                     warnings.warn('Column ' + col + ' not found in csv file ' + comp_fdataf_name +
@@ -3618,7 +3804,70 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                 succ = False
             else:
                 comp_data.set_index(it_col_name, inplace=True)
-                for col1, col2 in zip(data_new.columns, comp_data.columns):
+                data_tmp = data_new.copy(deep=True)
+                if compare_source['replace_evals']:
+                    dnew_cols = []
+                    for a in data_tmp.columns:
+                        if isinstance(a, str) and '-' in str(a):
+                            found_i = False
+                            for b in a.split('-'):
+                                for i, c in enumerate(compare_source['replace_evals']['actual']):
+                                    if b == c:
+                                        if c != compare_source['replace_evals']['new'][i]:
+                                            dnew_cols.append(a.replace(b, compare_source['replace_evals']['new'][i]))
+                                        else:
+                                            dnew_cols.append(a)
+                                        found_i = True
+                                        break
+                                if found_i:
+                                    break
+                            if not found_i:
+                                dnew_cols.append(a)
+                        else:
+                            found_i = False
+                            for i, c in enumerate(compare_source['replace_evals']['actual']):
+                                if a == c:
+                                    if c != compare_source['replace_evals']['new'][i]:
+                                        dnew_cols.append(compare_source['replace_evals']['new'][i])
+                                    else:
+                                        dnew_cols.append(a)
+                                    found_i = True
+                                    break
+                            if not found_i:
+                                dnew_cols.append(a)
+                    data_tmp.columns = dnew_cols
+                    dold_cols = []
+                    for a in comp_data.columns:
+                        if isinstance(a, str) and '-' in str(a):
+                            found_i = False
+                            for b in a.split('-'):
+                                for i, c in enumerate(compare_source['replace_evals']['old']):
+                                    if b == c:
+                                        if c != compare_source['replace_evals']['new'][i]:
+                                            dold_cols.append(a.replace(b, compare_source['replace_evals']['new'][i]))
+                                        else:
+                                            dold_cols.append(a)
+                                        found_i = True
+                                        break
+                                if found_i:
+                                    break
+                            if not found_i:
+                                dold_cols.append(a)
+                        else:
+                            found_i = False
+                            for i, c in enumerate(compare_source['replace_evals']['old']):
+                                if a == c:
+                                    if c != compare_source['replace_evals']['new'][i]:
+                                        dold_cols.append(compare_source['replace_evals']['new'][i])
+                                    else:
+                                        dold_cols.append(a)
+                                    found_i = True
+                                    break
+                            if not found_i:
+                                dold_cols.append(a)
+                    comp_data.columns = dold_cols
+
+                for col1, col2 in zip(data_tmp.columns, comp_data.columns):
                     if col1 != col2:
                         succ = False
                         break
@@ -3632,7 +3881,8 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                         line.name = 'cmp-' + line.name
                         if 'tex_it_pars' in line.index:
                             line['tex_it_pars'] = 'cmp-' + str(line['tex_it_pars'])
-                        data_new = data_new.append(line, ignore_index=False)
+                        data_tmp = data_tmp.append(line, ignore_index=False)
+                        data_new = data_tmp
     return data_new, succ
 
 
@@ -3678,6 +3928,24 @@ def replace_bm_in_headings(str_in):
     if '\\bm{' in str_in:
         return str_in.replace('\\bm{', '\\vect{')
     return str_in
+
+def get_replace_eval(compare_source, act_eval, is_not_eval=False):
+    if not compare_source['replace_evals']:
+        return False, act_eval, act_eval
+    if act_eval not in compare_source['replace_evals']['actual']:
+        return False, act_eval, act_eval
+    dest_eval = None
+    i_f = 0
+    for i, a in enumerate(compare_source['replace_evals']['actual']):
+        if act_eval == a:
+            dest_eval = compare_source['replace_evals']['old'][i]
+            i_f = i
+    if dest_eval is None:
+        return False, act_eval, act_eval
+
+    if compare_source['replace_evals']['new'][i_f] is None or is_not_eval:
+        compare_source['replace_evals']['new'][i_f] = act_eval
+    return True, dest_eval, compare_source['replace_evals']['new'][i_f]
 
 
 def get_block_length_3D(df, xy_axis_columns):
@@ -4695,6 +4963,16 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
             str_val = 'linear refinement and BA times $t_{l,BA}=t_{l}+t_{BA}$'
         else:
             str_val = 'linear refinement and BA time $t_{l,BA}=t_{l}+t_{BA}$'
+    elif label == 'linRef_BA_sac_us':
+        if use_plural:
+            str_val = 'robust estimation, linear refinement, and BA times $t_{e,l,BA}=t_{e}+t_{l}+t_{BA}$'
+        else:
+            str_val = 'robust estimation, linear refinement, and BA time $t_{e,l,BA}=t_{e}+t_{l}+t_{BA}$'
+    elif label == 'comp_time':
+        if use_plural:
+            str_val = 'execution times $t_{c}$'
+        else:
+            str_val = 'execution time $t_{c}$'
     elif label == 'poolSize':
         if use_plural:
             str_val = 'numbers of matches $n_{pool}$ within the correspondence pool'
@@ -5257,11 +5535,11 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 2
-    eval_nr = [-1]#list(range(5, 11))
+    test_nr = 3
+    eval_nr = [15]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
-    # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
+    # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
     if test_name == 'testing_tests':#'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
@@ -6116,7 +6394,7 @@ def main():
             raise ValueError('test_nr is required refinement_ba')
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 4))
+                evals = list(range(1, 6))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -6235,6 +6513,79 @@ def main():
                                                          compare_source=None,
                                                          fig_type='ybar',
                                                          use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                elif ev == 4:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['refineMethod_algorithm',
+                    #                  'refineMethod_costFunction',
+                    #                  'BART']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'func_name': 'get_best_comb_kpAccSd_1',
+                                          'res_par_name': 'refineRT_BA_opts_kpAccSd'}
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['kpAccSd'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 5:
+                    fig_title_pre_str = 'Statistics on Execution for Comparison of '
+                    eval_columns = ['linRef_BA_sac_us']
+                    units = [('linRef_BA_sac_us', '/$\\mu s$')]
+                    # it_parameters = ['refineMethod_algorithm',
+                    #                  'refineMethod_costFunction',
+                    #                  'BART']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    from refinement_eval import filter_nr_kps_calc_t_all
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time-agg',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=filter_nr_kps_calc_t_all,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=None,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
                                                          ctrl_fig_size=True,
                                                          make_fig_index=True,
                                                          build_pdf=True,
@@ -7067,11 +7418,11 @@ def main():
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_size_pts_dist_inlrat'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                    #              'USAC_parameters_refinealg-second_long_opt0']
+                    # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
@@ -7089,7 +7440,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=compare_source,
+                                                  compare_source=None,#compare_source,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -7113,11 +7464,11 @@ def main():
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_size_pts_dist_best_comb_scenes'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                    #              'USAC_parameters_refinealg-second_long_opt0']
+                    # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
@@ -7135,7 +7486,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
-                                                             compare_source=compare_source,
+                                                             compare_source=None,#compare_source,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -7160,11 +7511,11 @@ def main():
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_size_pts_dist_end_frames_best_comb_scenes'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                    #              'USAC_parameters_refinealg-second_long_opt0']
+                    # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     from corr_pool_eval import filter_take_end_frames
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
@@ -7183,7 +7534,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
-                                                             compare_source=compare_source,
+                                                             compare_source=None,#compare_source,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -7471,11 +7822,11 @@ def main():
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_rat_dist_3Dpts_inlrat'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                    #              'USAC_parameters_refinealg-second_long_opt0']
+                    # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
@@ -7493,7 +7844,7 @@ def main():
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=compare_source,
+                                                  compare_source=None,#compare_source,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -7516,11 +7867,11 @@ def main():
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_rat_dist_3Dpts_best_comb_scenes'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                 'USAC_parameters_refinealg-second_long_opt0']
-                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                    #              'USAC_parameters_refinealg-second_long_opt0']
+                    # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
@@ -7538,7 +7889,7 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
-                                                             compare_source=compare_source,
+                                                             compare_source=None,#compare_source,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -7573,6 +7924,96 @@ def main():
                                                          calc_func=None,
                                                          calc_func_args=None,
                                                          compare_source=None,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 3:
+            if eval_nr[0] < 0:
+                evals = list(range(14, 16))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 14:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Specific Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                    #                  'stereoParameters_maxDist3DPtsZ',
+                    #                  'stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['kpAccSd'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=compare_source,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 15:
+                    fig_title_pre_str = 'Statistics on Execution Times for Specific Combinations of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    # it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                    #                  'stereoParameters_maxDist3DPtsZ',
+                    #                  'stereoParameters_maxPoolCorrespondences',
+                    #                  'stereoParameters_minPtsDistance']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'USAC_parameters_refinealg']
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
+                                 'USAC_parameters_refinealg-second_long_opt0']
+                    repl_eval = {'actual': ['stereoRefine_us'], 'old': ['linRef_BA_sac_us'], 'new': ['comp_time']}
+                    compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'time-agg', descr,
+                                                      repl_eval)
+                    from usac_eval import filter_nr_kps_stat
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_corrPool_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=filter_nr_kps_stat,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=compare_source,
                                                          fig_type='xbar',
                                                          use_marks=False,
                                                          ctrl_fig_size=True,

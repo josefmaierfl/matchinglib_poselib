@@ -951,10 +951,11 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             raise ValueError('test_nr is required refinement_ba')
         from statistics_and_plot import calcSatisticAndPlot_2D, \
             calcSatisticAndPlot_2D_partitions, \
-            calcFromFuncAndPlot_aggregate
+            calcFromFuncAndPlot_aggregate, \
+            calcSatisticAndPlot_aggregate
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 4))
+                evals = list(range(1, 6))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -1067,6 +1068,75 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          compare_source=None,
                                                          fig_type='ybar',
                                                          use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                elif ev == 4:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different  '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction',
+                                     'BART']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'func_name': 'get_best_comb_kpAccSd_1',
+                                          'res_par_name': 'refineRT_BA_opts_kpAccSd'}
+                    from usac_eval import get_best_comb_inlrat_1
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['kpAccSd'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=get_best_comb_inlrat_1,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 5:
+                    fig_title_pre_str = 'Statistics on Execution for Comparison of '
+                    eval_columns = ['linRef_BA_sac_us']
+                    units = [('linRef_BA_sac_us', '/$\\mu s$')]
+                    it_parameters = ['refineMethod_algorithm',
+                                     'refineMethod_costFunction',
+                                     'BART']
+                    from refinement_eval import filter_nr_kps_calc_t_all
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_refineRT_BA_opts_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time-agg',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=filter_nr_kps_calc_t_all,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=None,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
                                                          ctrl_fig_size=True,
                                                          make_fig_index=True,
                                                          build_pdf=True,
@@ -1854,9 +1924,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_size_pts_dist_inlrat'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
@@ -1874,7 +1944,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=compare_source,
+                                                  compare_source=None,#compare_source,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -1896,9 +1966,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_size_pts_dist_best_comb_scenes'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
@@ -1916,7 +1986,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
-                                                             compare_source=compare_source,
+                                                             compare_source=None,#compare_source,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -1939,9 +2009,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_size_pts_dist_end_frames_best_comb_scenes'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     from corr_pool_eval import filter_take_end_frames
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
@@ -1960,7 +2030,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
-                                                             compare_source=compare_source,
+                                                             compare_source=None,#compare_source,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -2237,9 +2307,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_rat_dist_3Dpts_inlrat'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
                     ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                   store_path=output_path,
@@ -2257,7 +2327,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   special_calcs_args=special_calcs_args,
                                                   calc_func=None,
                                                   calc_func_args=None,
-                                                  compare_source=compare_source,
+                                                  compare_source=None,#compare_source,
                                                   fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
@@ -2278,9 +2348,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'res_par_name': 'corrpool_rat_dist_3Dpts_best_comb_scenes'}
-                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
-                            'multiple stereo frames'
-                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    # descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                    #         'multiple stereo frames'
+                    # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
@@ -2298,7 +2368,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
-                                                             compare_source=compare_source,
+                                                             compare_source=None,#compare_source,
                                                              fig_type='smooth',
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
@@ -2343,7 +2413,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     return ret
 
 
-def get_compare_info(comp_pars, comp_path, test_name, test_r, eval_description_path, descr):
+def get_compare_info(comp_pars, comp_path, test_name, test_r, eval_description_path, descr, repl_eval=None):
     if not comp_pars:
         raise ValueError('Parameter values for comparing refinement without kp aggregation missing')
     c_path = os.path.join(comp_path, test_name)
@@ -2356,7 +2426,8 @@ def get_compare_info(comp_pars, comp_path, test_name, test_r, eval_description_p
                       'it_par_select': [a.split('-')[-1] for a in comp_pars],
                       'it_parameters': [a.split('-')[0] for a in comp_pars],
                       'eval_description_path': eval_description_path,
-                      'cmp': descr
+                      'cmp': descr,
+                      'replace_evals': repl_eval
                       }
     return compare_source
 

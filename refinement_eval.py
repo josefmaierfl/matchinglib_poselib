@@ -17,6 +17,14 @@ def filter_nr_kps_calc_t(**vars):
     tmp['linRef_BA_us'] = linref + ba
     return tmp
 
+def filter_nr_kps_calc_t_all(**vars):
+    tmp = vars['data'].loc[vars['data']['nrTP'] == '500'].copy(deep=True)
+    linref = tmp['linRefinement_us']
+    ba = tmp['bundleAdjust_us']
+    sac = tmp['robEstimationAndRef_us']
+    tmp['linRef_BA_sac_us'] = linref + ba + sac
+    return tmp
+
 def get_best_comb_scenes_1(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
