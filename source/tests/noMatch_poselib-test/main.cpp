@@ -206,6 +206,10 @@ struct algorithmResult{
     std::string addSequInfo;
     int poolSize;
     int ransac_agg;
+    rotAngles R_GT_n_diff;
+    tElemsDiff t_GT_n_elemDiff;
+    double R_GT_n_diffAll;
+    double t_GT_n_angDiff;
 
     algorithmResult(const std::string &addSequInfo_ = ""): addSequInfo(addSequInfo_){
         R = cv::Mat::zeros(3,3,CV_64FC1);
@@ -242,6 +246,10 @@ struct algorithmResult{
         K2_diff = CamMatDiff();
         poolSize = 0;
         ransac_agg = 1;
+        R_GT_n_diff = rotAngles();
+        t_GT_n_elemDiff = tElemsDiff();
+        R_GT_n_diffAll = 0;
+        t_GT_n_angDiff = 0;
     }
 
     void calcRTDiff(const cv::Mat &R_estimated,
@@ -249,7 +257,8 @@ struct algorithmResult{
                     const cv::Mat &t_estimated,
                     const cv::Mat &t_GT_,
                     bool isMostLikely,
-                    bool verbose = false){
+                    bool verbose = false,
+                    bool gt_elem_diff = false){
         if(R_estimated.empty()
            || (R_estimated.rows != 3)
            || (R_estimated.cols != 3)
@@ -257,7 +266,9 @@ struct algorithmResult{
            || t_estimated.empty()
            || (t_estimated.rows != 3)
            || (t_estimated.cols != 1)
-           || (t_estimated.type() != CV_64FC1)){
+           || (t_estimated.type() != CV_64FC1)
+           || !poselib::isMatRoationMat(R_estimated)
+           || !poselib::isMatRoationMat(R_GT_)){
             return;
         }
 
@@ -270,35 +281,44 @@ struct algorithmResult{
         if(isMostLikely){
             R_estimated.copyTo(R_mostLikely);
             t_mostLikely = scale * t_estimated_tmp;
-        }else{
+        }else if(!gt_elem_diff){
             R_estimated.copyTo(R);
             t = scale * t_estimated_tmp;
         }
-        R_GT_.copyTo(R_GT);
-        t_GT_.copyTo(t_GT);
+        if(!gt_elem_diff) {
+            R_GT_.copyTo(R_GT);
+            t_GT_.copyTo(t_GT);
+        }
 
         if(isMostLikely){
             t_mostLikely_elemDiff.calcDiff(t_estimated_tmp, t_GT_tmp);
+        }else if(gt_elem_diff){
+            t_GT_n_elemDiff.calcDiff(t_estimated_tmp, t_GT_tmp);
         }else {
             t_elemDiff.calcDiff(t_estimated_tmp, t_GT_tmp);
         }
 
         double rdiff, tdiff, tdiff_angle;
-        poselib::compareRTs(R_estimated, R_GT, t_estimated_tmp, t_GT_tmp, &rdiff, &tdiff, verbose);
+        poselib::compareRTs(R_estimated, R_GT_, t_estimated_tmp, t_GT_tmp, &rdiff, &tdiff, verbose);
         if(isMostLikely){
             R_mostLikely_diffAll = 180.0 * rdiff / M_PI;
             t_mostLikely_distDiff = tdiff;
+        }else if(gt_elem_diff){
+            R_GT_n_diffAll = round(180000000.0 * rdiff / M_PI) / 1000000.0;
         }else{
             R_diffAll = 180.0 * rdiff / M_PI;
             t_distDiff = tdiff;
         }
-        cv::Mat R_diff_tmp = R_estimated * R_GT.t();
+        cv::Mat R_diff_tmp = R_estimated * R_GT_.t();
         double roll_d, pitch_d, yaw_d;
         poselib::getAnglesRotMat(R_diff_tmp, roll_d, pitch_d, yaw_d);
         tdiff_angle = poselib::getAnglesBetwVectors(t_estimated_tmp, t_GT_tmp);
         if(isMostLikely){
             R_mostLikely_diff = rotAngles(roll_d, pitch_d, yaw_d);
             t_mostLikely_angDiff = tdiff_angle;
+        }else if(gt_elem_diff){
+            R_GT_n_diff = rotAngles(roll_d, pitch_d, yaw_d);
+            t_GT_n_angDiff = round(1000000.0 * tdiff_angle) / 1000000.0;
         }else{
             R_diff = rotAngles(roll_d, pitch_d, yaw_d);
             t_angDiff = tdiff_angle;
@@ -382,6 +402,12 @@ struct algorithmResult{
             os << ";";
             printCVMat(t_GT, os, "t_GT");
             os << ";";
+            os << "R_GT_n_diffAll;";
+            R_GT_n_diff.print(os, "R_GT_n_diff");
+            os << ";";
+            os << "t_GT_n_angDiff;";
+            t_GT_n_elemDiff.print(os, "t_GT_n_elemDiff");
+            os << ";";
             os << "poseIsStable;";
             os << "mostLikelyPose_stable;";
             os << "poolSize;";
@@ -439,6 +465,12 @@ struct algorithmResult{
             printCVMat(R_GT, os);
             os << ";";
             printCVMat(t_GT, os);
+            os << ";";
+            os << R_GT_n_diffAll << ";";
+            R_GT_n_diff.print(os);
+            os << ";";
+            os << t_GT_n_angDiff << ";";
+            t_GT_n_elemDiff.print(os);
             os << ";";
             os << poseIsStable << ";";
             os << mostLikelyPose_stable << ";";
@@ -2356,6 +2388,11 @@ bool startEvaluation(ArgvParser& cmd)
                       << t.at<double>(1) << " " << t.at<double>(2) << " ]" << endl;
             std::cout << std::endl << std::endl;
         }
+    }
+
+    //Calculate difference of GT extrinsics from frame to frame
+    for (size_t l = 1; l < ar.size(); ++l) {
+        ar[l].calcRTDiff(ar[l].R_GT, ar[l - 1].R_GT, ar[l].t_GT, ar[l - 1].t_GT, false, false, true);
     }
 
     //Write results to disk
