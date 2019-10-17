@@ -14,6 +14,7 @@ from copy import deepcopy
 import shutil
 # import time
 import multiprocessing
+from difflib import SequenceMatcher
 
 # warnings.simplefilter('ignore', category=UserWarning)
 
@@ -297,7 +298,8 @@ def calcSatisticAndPlot_2D(data,
                            ctrl_fig_size=True,
                            make_fig_index=True,
                            build_pdf=False,
-                           figs_externalize=True):
+                           figs_externalize=True,
+                           no_tex=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -512,6 +514,9 @@ def calcSatisticAndPlot_2D(data,
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+            if no_tex:
+                continue
+
             #Construct tex-file
             if pdfsplitentry:
                 if pdf_nr < len(pdfsplitentry):
@@ -551,6 +556,8 @@ def calcSatisticAndPlot_2D(data,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
+    if no_tex:
+        return 0
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     #Get number of pdfs to generate
     pdf_nr = tex_infos['sections'][-1]['pdf_nr']
@@ -628,7 +635,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                                       ctrl_fig_size=True,
                                       make_fig_index=True,
                                       build_pdf=False,
-                                      figs_externalize=True):
+                                      figs_externalize=True,
+                                      no_tex=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -898,6 +906,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                     f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                     tmp2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+                if no_tex:
+                    continue
+
                 #Construct tex-file
                 useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp2, False, False, True)
                 if useless:
@@ -937,6 +948,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'stat_name': it_tmp[-1],
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    if no_tex:
+        return 0
 
     pdfs_info = []
     max_figs_pdf = 50
@@ -1009,7 +1023,8 @@ def calcFromFuncAndPlot_2D(data,
                            ctrl_fig_size=True,
                            make_fig_index=True,
                            build_pdf=False,
-                           figs_externalize=True):
+                           figs_externalize=True,
+                           no_tex=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -1286,6 +1301,10 @@ def calcFromFuncAndPlot_2D(data,
                     it_pars_cols_name + '\n')
         f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
         tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    if no_tex:
+        return 0
+
     for i, ev in enumerate(eval_columns):
         # sel_cols = [a for a in par_cols1 if ev in a]
         sel_cols = []
@@ -1419,7 +1438,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                       ctrl_fig_size=True,
                                       make_fig_index=True,
                                       build_pdf=False,
-                                      figs_externalize=True):
+                                      figs_externalize=True,
+                                      no_tex=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -1791,6 +1811,10 @@ def calcFromFuncAndPlot_2D_partitions(data,
             f.write('# Used data part of ' + '-'.join(map(str, partitions)) + ': ' + grp_name + '\n')
             f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        if no_tex:
+            continue
+
         for i, ev in enumerate(eval_columns):
             # sel_cols = [a for a in par_cols1 if ev in a]
             sel_cols = []
@@ -1855,6 +1879,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'stat_name': ev,
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    if no_tex:
+        return 0
 
     pdfs_info = []
     max_figs_pdf = 50
@@ -1926,7 +1953,8 @@ def calcSatisticAndPlot_3D(data,
                            ctrl_fig_size=True,
                            make_fig_index=True,
                            build_pdf=False,
-                           figs_externalize=True):
+                           figs_externalize=True,
+                           no_tex=False):
     if len(xy_axis_columns) != 2:
         raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
@@ -2098,6 +2126,9 @@ def calcSatisticAndPlot_3D(data,
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+            if no_tex:
+                continue
+
             #Construct tex-file information
             stats_all = tmp.drop(tmp.columns.values[0:2], axis=1).stack().reset_index()
             stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
@@ -2141,6 +2172,9 @@ def calcSatisticAndPlot_3D(data,
                                           'use_log_z_axis': False,
                                           'limits': use_limits
                                           })
+
+    if no_tex:
+        return 0
 
     pdfs_info = []
     max_figs_pdf = 40
@@ -2226,7 +2260,8 @@ def calcFromFuncAndPlot_3D(data,
                            ctrl_fig_size=True,
                            make_fig_index=True,
                            build_pdf=False,
-                           figs_externalize=True):
+                           figs_externalize=True,
+                           no_tex=False):
     # if len(xy_axis_columns) != 2:
     #     raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
@@ -2448,6 +2483,10 @@ def calcFromFuncAndPlot_3D(data,
                 f.write('# Used parameter values: ' + str(grp) + '\n')
             f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
             tmp.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        if no_tex:
+            continue
+
         for i, it in enumerate(eval_columns):
             #Construct tex-file information
             stats_all = {'min': tmp[it].min(), 'max': tmp[it].max()}
@@ -2505,6 +2544,9 @@ def calcFromFuncAndPlot_3D(data,
                                           'use_log_z_axis': eval_cols_log_scaling[i],
                                           'limits': use_limits
                                           })
+
+    if no_tex:
+        return 0
 
     pdfs_info = []
     max_figs_pdf = 50
@@ -2577,7 +2619,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                       ctrl_fig_size=True,
                                       make_fig_index=True,
                                       build_pdf=False,
-                                      figs_externalize=True):
+                                      figs_externalize=True,
+                                      no_tex=False):
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
                  'surface', 'contour', 'surface-contour']
     if not fig_type in fig_types:
@@ -2867,6 +2910,9 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
                 tmp1.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+            if no_tex:
+                continue
+
             for i, it in enumerate(eval_columns):
                 # Construct tex-file information
                 stats_all = {'min': tmp1[it].min(), 'max': tmp1[it].max()}
@@ -2915,6 +2961,9 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                               'use_log_z_axis': eval_cols_log_scaling[i],
                                               'limits': use_limits
                                               })
+
+    if no_tex:
+        return 0
 
     pdfs_info = []
     max_figs_pdf = 50
@@ -2987,7 +3036,8 @@ def calcFromFuncAndPlot_aggregate(data,
                                   ctrl_fig_size=True,
                                   make_fig_index=True,
                                   build_pdf=False,
-                                  figs_externalize=False):
+                                  figs_externalize=False,
+                                  no_tex=False):
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
@@ -3234,6 +3284,10 @@ def calcFromFuncAndPlot_aggregate(data,
             f.write('# Evaluations for parameter variations of ' + it_pars_name + '\n')
         f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
         df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    if no_tex:
+        return 0
+
     for i, it in enumerate(eval_columns):
         # Construct tex-file information
         useless, stats_all, use_limits = calc_limits(df, True, False, None, it, 3.291)
@@ -3332,7 +3386,8 @@ def calcSatisticAndPlot_aggregate(data,
                                   ctrl_fig_size=True,
                                   make_fig_index=True,
                                   build_pdf=False,
-                                  figs_externalize=True):
+                                  figs_externalize=True,
+                                  no_tex=False):
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
@@ -3375,7 +3430,7 @@ def calcSatisticAndPlot_aggregate(data,
         needed_columns = eval_columns + it_parameters
         df = data[needed_columns]
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)))
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -3556,6 +3611,9 @@ def calcSatisticAndPlot_aggregate(data,
                 f.write('# Parameters: ' + '-'.join(it_parameters) + '\n')
                 tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
+            if no_tex:
+                continue
+
             # Construct tex-file
             if pdfsplitentry:
                 if pdf_nr < len(pdfsplitentry):
@@ -3604,6 +3662,9 @@ def calcSatisticAndPlot_aggregate(data,
                                           'caption': fig_name.replace('\\\\', ' '),
                                           'pdf_nr': pdf_nr
                                           })
+
+    if no_tex:
+        return 0
 
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     # Get number of pdfs to generate
@@ -3946,6 +4007,115 @@ def get_replace_eval(compare_source, act_eval, is_not_eval=False):
     if compare_source['replace_evals']['new'][i_f] is None or is_not_eval:
         compare_source['replace_evals']['new'][i_f] = act_eval
     return True, dest_eval, compare_source['replace_evals']['new'][i_f]
+
+def short_concat_str(str_list):
+    if len(str_list) == 1 and len(str(str_list[0])) < 30:
+        return str_list[0]
+    elif len(str_list) < 4 and sum([len(str(a)) for a in str_list]) < 40:
+        return '-'.join(map(str, str_list))
+
+    #Get longest string sequence first which can be found in every element
+    str_list_tmp = list(map(str, str_list))
+    l1 = len(str_list_tmp[0])
+    matches = []
+    for i in range(1, len(str_list_tmp)):
+        seqMatch = SequenceMatcher(None, str_list_tmp[0], str_list_tmp[i])
+        match = seqMatch.find_longest_match(0, l1, 0, len(str_list_tmp[i]))
+        if (match.size > 3):
+            matches.append((match.a, match.size, str_list_tmp[i][match.a: match.a + match.size]))
+    if matches:
+        start_pos_l = []
+        same_matches = [True] * len(matches)
+        for i in range(1, len(matches)):
+            if matches[i][2] != matches[0][2]:
+                same_matches[i] = False
+        if all(same_matches):
+            l2 = min(4, matches[0][1])
+            str_list_tmp[0] = str_list_tmp[0].replace(matches[0][2][l2:], '')
+            start_pos_l.append([(matches[0][0], l2)])
+            for i in range(1, len(str_list_tmp)):
+                str_list_tmp[i] = str_list_tmp[i].replace(matches[0][2], '')
+                start_pos_l.append([])
+        else:
+            matches2 = []
+            start_pos_l = [[]] * len(str_list_tmp)
+            for i in range(0, len(str_list_tmp) - 1):
+                matches = []
+                for j in range(i + 1, len(str_list_tmp)):
+                    seqMatch = SequenceMatcher(None, str_list_tmp[i], str_list_tmp[j])
+                    match = seqMatch.find_longest_match(0, len(str_list_tmp[i]), 0, len(str_list_tmp[j]))
+                    if (match.size > 3):
+                        matches.append((i, j, str_list_tmp[i][match.a: match.a + match.size]))
+                matches2.append(matches)
+            del_list2 = []
+            for elm in matches2:
+                del_list = []
+                if elm:
+                    for j in range(0, len(elm) - 1):
+                        for j1 in range(j + 1, len(matches2)):
+                            if elm[j][2] == elm[j1][2]:
+                                del_list.append(j1)
+                if del_list:
+                    del_list = list(dict.fromkeys(del_list))
+                del_list2.append(del_list)
+            for i, elm in enumerate(del_list2):
+                if elm:
+                    for j in range(len(elm) - 1, -1, -1):
+                        del matches2[i][j]
+            found_matches = {'keys': [], 'hit_poses': [], 'first_elem': []}
+            for i in range(0, len(matches2) - 1):
+                if matches2[i]:
+                    for i2 in range(i + 1, len(matches2)):
+                        if matches2[i2]:
+                            for j, elm in enumerate(matches2[i]):
+                                if elm[2] in found_matches['keys']:
+                                    for k, k1 in enumerate(found_matches['keys']):
+                                        if elm[2] == k1:
+                                            found_matches['hit_poses'][k] += [elm[0], elm[1]]
+                                            break
+                                else:
+                                    found_matches['keys'].append(elm[2])
+                                    found_matches['hit_poses'].append([elm[0], elm[1]])
+            del_list = []
+            for i in range(0, len(found_matches['keys'])):
+                found_matches['hit_poses'][i] = list(dict.fromkeys(found_matches['hit_poses'][i])).sort()
+                found_matches['first_elem'].append(found_matches['hit_poses'][i][0])
+                for j in range(1, len(found_matches['hit_poses'][i])):
+                    if found_matches['hit_poses'][i][j] - found_matches['hit_poses'][i][j - 1] > 1:
+                        del_list.append(i)
+                        break
+                    del found_matches['hit_poses'][i][0]
+            if del_list:
+                for i in range(len(del_list) - 1, -1, -1):
+                    del found_matches['hit_poses'][i]
+                    del found_matches['keys'][i]
+            for i, it in enumerate(found_matches['keys']):
+                for j in found_matches['hit_poses']:
+                    str_list_tmp[j].replace(it, '')
+            for i, it in enumerate(found_matches['keys']):
+                l2 = min(4, len(it))
+                start_pos_l[found_matches['first_elem'][i]].append(
+                    (str_list_tmp[found_matches['first_elem'][i]].find(it), l2))
+                str_list_tmp[found_matches['first_elem'][i]].replace(it[l2:], '')
+        elems_new = []
+        for i, it in enumerate(str_list_tmp):
+            if start_pos_l[i]:
+                #For later: if this whole procedure should be called in an iterated fashion, the last list index must
+                #be iterated instaed of taking pos 0 (but track must be taken of the positions and lengths of found
+                #matches in the original strings
+                if start_pos_l[i][0][0] > 0:
+                    tmp = it[:start_pos_l[i][0][0]]
+                    tmp = tmp[:min(4, len(tmp))]
+                    tmp += it[start_pos_l[i][0][0]: start_pos_l[i][0][0] + start_pos_l[i][0][1]]
+                else:
+                    tmp = it[:start_pos_l[i][0][1]]
+                tmp2 = it[start_pos_l[i][0][0] + start_pos_l[i][0][1]:]
+                tmp2 = tmp2[:min(4, len(tmp2))]
+                elems_new.append(tmp + tmp2)
+            else:
+                elems_new.append(it[:min(4, len(it))])
+        return '-'.join(elems_new)
+    return '-'.join([a[:min(4, len(a))] for a in str_list_tmp])
 
 
 def get_block_length_3D(df, xy_axis_columns):
@@ -5536,7 +5706,7 @@ def main():
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 3
-    eval_nr = [-1]#list(range(5, 11))
+    eval_nr = [15]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
