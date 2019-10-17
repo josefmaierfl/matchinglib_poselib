@@ -3877,10 +3877,10 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
                                       ' for comparing results not found. Skipping comparison.', UserWarning)
                         succ = False
                     else:
-                        line = comp_data.loc[comp_col_name, :]
+                        line = comp_data.loc[comp_col_name, :].copy(deep=True)
                         line.name = 'cmp-' + line.name
                         if 'tex_it_pars' in line.index:
-                            line['tex_it_pars'] = 'cmp-' + str(line['tex_it_pars'])
+                            line.loc['tex_it_pars'] = 'cmp-' + str(line['tex_it_pars'])
                         data_tmp = data_tmp.append(line, ignore_index=False)
                         data_new = data_tmp
     return data_new, succ
@@ -5536,7 +5536,7 @@ def main():
 
     test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 3
-    eval_nr = [15]#list(range(5, 11))
+    eval_nr = [-1]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
