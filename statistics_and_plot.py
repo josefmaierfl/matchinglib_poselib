@@ -344,7 +344,7 @@ def calcSatisticAndPlot_2D(data,
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)))
     cnt = 1
     store_path_init = store_path_sub
@@ -378,7 +378,7 @@ def calcSatisticAndPlot_2D(data,
     if compare_source:
         compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                    compare_source['eval_description_path'] + '_' +
-                                                   '-'.join(map(str, compare_source['it_parameters'])) + '_vs_' +
+                                                   short_concat_str(compare_source['it_parameters']) + '_vs_' +
                                                    '-'.join(map(str, x_axis_column)))
         if not os.path.exists(compare_source['full_path']):
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
@@ -432,8 +432,8 @@ def calcSatisticAndPlot_2D(data,
     nr_it_parameters = len(it_parameters)
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
+    base_out_name += concat_combs(grp_names, nr_it_parameters)
     for i in range(0, nr_it_parameters):
-        base_out_name += grp_names[i]
         title_name += replaceCSVLabels(grp_names[i], True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -443,8 +443,6 @@ def calcSatisticAndPlot_2D(data,
                 title_name += ', '
             elif i < nr_it_parameters - 1:
                 title_name += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     base_out_name += '_combs_vs_' + grp_names[-1]
     title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True, True) + ' Values'
     # holds the grouped names/entries within the group names excluding the last entry th
@@ -684,11 +682,11 @@ def calcSatisticAndPlot_2D_partitions(data,
         df = data[needed_columns]
 
     if len(partitions) > 1:
-        store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) +
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
                                                   '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                                   '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
     else:
-        store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) +
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
                                                   '_vs_' +'-'.join(map(str, x_axis_column)) + '_for_' +
                                                   str(partitions[0]))
     cnt = 1
@@ -724,13 +722,13 @@ def calcSatisticAndPlot_2D_partitions(data,
         if len(partitions) > 1:
             compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                        compare_source['eval_description_path'] + '_' +
-                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       short_concat_str(compare_source['it_parameters']) +
                                                        '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                                        '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
         else:
             compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                        compare_source['eval_description_path'] + '_' +
-                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       short_concat_str(compare_source['it_parameters']) +
                                                        '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                                        str(partitions[0]))
         if not os.path.exists(compare_source['full_path']):
@@ -787,8 +785,8 @@ def calcSatisticAndPlot_2D_partitions(data,
     nr_partitions = len(partitions)
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
+    base_out_name += concat_combs(grp_names, nr_it_parameters, nr_partitions)
     for i in range(0, nr_it_parameters):
-        base_out_name += grp_names[nr_partitions + i]
         title_name += replaceCSVLabels(grp_names[nr_partitions + i], True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -798,8 +796,6 @@ def calcSatisticAndPlot_2D_partitions(data,
                 title_name += ', '
             elif i < nr_it_parameters - 1:
                 title_name += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     if len(partitions) > 1:
         base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + \
                          '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
@@ -1076,7 +1072,7 @@ def calcFromFuncAndPlot_2D(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)))
     cnt = 1
     store_path_init = store_path_sub
@@ -1110,7 +1106,7 @@ def calcFromFuncAndPlot_2D(data,
     if compare_source:
         compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                    compare_source['eval_description_path'] + '_' +
-                                                   '-'.join(map(str, compare_source['it_parameters'])) + '_vs_' +
+                                                   short_concat_str(compare_source['it_parameters']) + '_vs_' +
                                                    '-'.join(map(str, x_axis_column)))
         if not os.path.exists(compare_source['full_path']):
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
@@ -1166,8 +1162,9 @@ def calcFromFuncAndPlot_2D(data,
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
     it_title_part = ''
+    it_pars_short = short_concat_str(it_parameters)
+    base_out_name += it_pars_short
     for i, val in enumerate(it_parameters):
-        base_out_name += val
         it_title_part += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -1177,8 +1174,6 @@ def calcFromFuncAndPlot_2D(data,
                 it_title_part += ', '
             elif i < nr_it_parameters - 1:
                 it_title_part += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     title_name += it_title_part
 
     if eval_init_input:
@@ -1270,14 +1265,11 @@ def calcFromFuncAndPlot_2D(data,
             cmp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_'
         else:
             cmp_fname = 'data_evals_for_pars_'
-        if len(compare_source['it_parameters']) > 1:
-            cmp_fname += '-'.join(map(str, compare_source['it_parameters']))
-        else:
-            cmp_fname += str(compare_source['it_parameters'][0])
+        cmp_fname += short_concat_str(compare_source['it_parameters'])
     if eval_init_input:
-        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name
+        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_short
     else:
-        dataf_name = 'data_evals_for_pars_' + it_pars_cols_name
+        dataf_name = 'data_evals_for_pars_' + it_pars_short
     dataf_name += '_vs_' + x_axis_column[0] + '.csv'
     if compare_source:
         if compare_source['replace_evals']:
@@ -1495,12 +1487,12 @@ def calcFromFuncAndPlot_2D_partitions(data,
 
     if len(partitions) > 1:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' +
-                                      '-'.join(map(str, it_parameters)) + '_vs_' +
+                                      short_concat_str(it_parameters) + '_vs_' +
                                       '-'.join(map(str, x_axis_column)) + '_for_' +
                                       '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
     else:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' +
-                                      '-'.join(map(str, it_parameters)) +
+                                      short_concat_str(it_parameters) +
                                       '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                       str(partitions[0]))
     cnt = 1
@@ -1537,13 +1529,13 @@ def calcFromFuncAndPlot_2D_partitions(data,
         if len(partitions) > 1:
             compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                        compare_source['eval_description_path'] + '_' +
-                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       short_concat_str(compare_source['it_parameters']) +
                                                        '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                                        '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
         else:
             compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                        compare_source['eval_description_path'] + '_' +
-                                                       '-'.join(map(str, compare_source['it_parameters'])) +
+                                                       short_concat_str(compare_source['it_parameters']) +
                                                        '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
                                                        str(partitions[0]))
         if not os.path.exists(compare_source['full_path']):
@@ -1602,8 +1594,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
     it_title_part = ''
+    it_pars_short = short_concat_str(it_parameters)
+    base_out_name += it_pars_short
     for i, val in enumerate(it_parameters):
-        base_out_name += val
         it_title_part += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -1613,8 +1606,6 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 it_title_part += ', '
             elif i < nr_it_parameters - 1:
                 it_title_part += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     title_name += it_title_part
 
     if eval_init_input:
@@ -1760,10 +1751,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 cmp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_'
             else:
                 cmp_fname = 'data_evals_for_pars_'
-            if len(compare_source['it_parameters']) > 1:
-                cmp_fname += '-'.join(map(str, compare_source['it_parameters']))
-            else:
-                cmp_fname += str(compare_source['it_parameters'][0])
+            cmp_fname += short_concat_str(compare_source['it_parameters'])
             cmp_fname += '_on_partition_'
             if compare_source['replace_evals']:
                 partitions_old = []
@@ -1774,9 +1762,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 partitions_old = partitions
             cmp_fname += '-'.join([a[:min(3, len(a))] for a in map(str, partitions_old)]) + '_'
         if eval_init_input:
-            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_cols_name + '_on_partition_'
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_short + '_on_partition_'
         else:
-            dataf_name = 'data_evals_for_pars_' + it_pars_cols_name + '_on_partition_'
+            dataf_name = 'data_evals_for_pars_' + it_pars_short + '_on_partition_'
         dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
         grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
         dataf_name += grp_name.replace('.', 'd')
@@ -2001,7 +1989,7 @@ def calcSatisticAndPlot_3D(data,
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)))
     cnt = 1
     store_path_init = store_path_sub
@@ -2067,8 +2055,8 @@ def calcSatisticAndPlot_3D(data,
     nr_it_parameters = len(it_parameters)
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
+    base_out_name += concat_combs(grp_names, nr_it_parameters)
     for i in range(0, nr_it_parameters):
-        base_out_name += grp_names[i]
         title_name += replaceCSVLabels(grp_names[i], True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -2078,8 +2066,6 @@ def calcSatisticAndPlot_3D(data,
                 title_name += ', '
             elif i < nr_it_parameters - 1:
                 title_name += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     base_out_name += '_combs_vs_' + grp_names[-2] + '_and_' + grp_names[-1]
     title_name += ' Compared to ' + replaceCSVLabels(grp_names[-2], False, True, True) + ' and ' + \
                   replaceCSVLabels(grp_names[-1], False, True, True) + ' Values'
@@ -2312,7 +2298,7 @@ def calcFromFuncAndPlot_3D(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)))
     cnt = 1
     store_path_init = store_path_sub
@@ -2378,8 +2364,8 @@ def calcFromFuncAndPlot_3D(data,
     nr_it_parameters = len(it_parameters)
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
+    base_out_name += short_concat_str(it_parameters)
     for i, val in enumerate(it_parameters):
-        base_out_name += val
         title_name += replaceCSVLabels(val, True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -2389,8 +2375,6 @@ def calcFromFuncAndPlot_3D(data,
                 title_name += ', '
             elif i < nr_it_parameters - 1:
                 title_name += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     if eval_init_input:
         init_pars_title = ''
         init_pars_out_name = ''
@@ -2447,24 +2431,14 @@ def calcFromFuncAndPlot_3D(data,
         if gloss:
             tex_infos['abbreviations'] = gloss
     for grp in grp_keys:
-        if len(it_parameters) > 1:
-            if eval_init_input:
-                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                             '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + \
-                             '_and_' + xy_axis_columns[1] + '.csv'
-            else:
-                dataf_name = 'data_evals_for_pars_' + \
-                             '-'.join(map(str, grp)) + '_vs_' + xy_axis_columns[0] + \
-                             '_and_' + xy_axis_columns[1] + '.csv'
+        if eval_init_input:
+            dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
+                         short_concat_str(grp) + '_vs_' + xy_axis_columns[0] + \
+                         '_and_' + xy_axis_columns[1] + '.csv'
         else:
-            if eval_init_input:
-                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + \
-                             str(grp) + '_vs_' + xy_axis_columns[0] + \
-                             '_and_' + xy_axis_columns[1] + '.csv'
-            else:
-                dataf_name = 'data_evals_for_pars_' + \
-                             str(grp) + '_vs_' + xy_axis_columns[0] + \
-                             '_and_' + xy_axis_columns[1] + '.csv'
+            dataf_name = 'data_evals_for_pars_' + \
+                         short_concat_str(grp) + '_vs_' + xy_axis_columns[0] + \
+                         '_and_' + xy_axis_columns[1] + '.csv'
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
@@ -2673,7 +2647,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)) + '_vs_' +
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)) + '_for_' +
                                               '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
     cnt = 1
@@ -2745,8 +2719,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
     it_title_part = ''
+    base_out_name += short_concat_str(it_parameters)
     for i, val in enumerate(it_parameters):
-        base_out_name += val
         it_title_part += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -2756,8 +2730,6 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 it_title_part += ', '
             elif i < nr_it_parameters - 1:
                 it_title_part += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     title_name += it_title_part
 
     if eval_init_input:
@@ -2889,10 +2861,10 @@ def calcFromFuncAndPlot_3D_partitions(data,
             nr_equal_ss = get_block_length_3D(tmp1, xy_axis_columns)
 
             if eval_init_input:
-                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + grp_it + \
+                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + short_concat_str(grp_it.split('-')) + \
                              '_on_partition_'
             else:
-                dataf_name = 'data_evals_for_pars_' + grp_it + '_on_partition_'
+                dataf_name = 'data_evals_for_pars_' + short_concat_str(grp_it.split('-')) + '_on_partition_'
             dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
             grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
             dataf_name += grp_name.replace('.', 'd')
@@ -3084,7 +3056,7 @@ def calcFromFuncAndPlot_aggregate(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    store_path_sub = os.path.join(store_path, eval_description_path + '_' + '-'.join(map(str, it_parameters)))
+    store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters))
     cnt = 1
     store_path_init = store_path_sub
     while os.path.exists(store_path_sub):
@@ -3118,7 +3090,7 @@ def calcFromFuncAndPlot_aggregate(data,
     if compare_source:
         compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                    compare_source['eval_description_path'] + '_' +
-                                                   '-'.join(map(str, compare_source['it_parameters'])))
+                                                   short_concat_str(compare_source['it_parameters']))
         if not os.path.exists(compare_source['full_path']):
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
@@ -3171,8 +3143,9 @@ def calcFromFuncAndPlot_aggregate(data,
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
     title_it_pars = ''
+    it_pars_short = short_concat_str(it_parameters)
+    base_out_name += it_pars_short
     for i, val in enumerate(it_parameters):
-        base_out_name += val
         title_it_pars += replaceCSVLabels(val, True, True, True)
         if(nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -3182,8 +3155,6 @@ def calcFromFuncAndPlot_aggregate(data,
                 title_it_pars += ', '
             elif i < nr_it_parameters - 1:
                 title_it_pars += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     title_name += title_it_pars
     if eval_init_input:
         init_pars_title = ''
@@ -3267,14 +3238,15 @@ def calcFromFuncAndPlot_aggregate(data,
                     init_pars_out_name_c.replace(act, rep)
             else:
                 init_pars_out_name_c = init_pars_out_name
-            comp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_' + cmp_col_name + '.csv'
+            comp_fname = 'data_evals_' + init_pars_out_name_c + '_for_pars_' + \
+                         short_concat_str(compare_source['it_parameters']) + '.csv'
         else:
-            comp_fname = 'data_evals_for_pars_' + cmp_col_name + '.csv'
+            comp_fname = 'data_evals_for_pars_' + short_concat_str(compare_source['it_parameters']) + '.csv'
         df, succ = add_comparison_column(compare_source, comp_fname, df, None, cmp_col_name)
     if eval_init_input:
-        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_name + '.csv'
+        dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_short + '.csv'
     else:
-        dataf_name = 'data_evals_for_pars_' + it_pars_name + '.csv'
+        dataf_name = 'data_evals_for_pars_' + it_pars_short + '.csv'
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     with open(fdataf_name, 'a') as f:
         if eval_init_input:
@@ -3463,7 +3435,7 @@ def calcSatisticAndPlot_aggregate(data,
     if compare_source:
         compare_source['full_path'] = os.path.join(compare_source['store_path'],
                                                    compare_source['eval_description_path'] + '_' +
-                                                   '-'.join(map(str, compare_source['it_parameters'])))
+                                                   short_concat_str(compare_source['it_parameters']))
         if not os.path.exists(compare_source['full_path']):
             warnings.warn('Path ' + compare_source['full_path'] + ' for comparing results not found. '
                           'Skipping comparison.', UserWarning)
@@ -3519,8 +3491,8 @@ def calcSatisticAndPlot_aggregate(data,
     base_out_name = tex_file_pre_str
     title_name = fig_title_pre_str
     title_it_pars = ''
+    base_out_name += concat_combs(grp_names, nr_it_parameters)
     for i in range(0, nr_it_parameters):
-        base_out_name += grp_names[i]
         title_it_pars += replaceCSVLabels(grp_names[i], True, True, True)
         if (nr_it_parameters <= 2):
             if i < nr_it_parameters - 1:
@@ -3530,8 +3502,6 @@ def calcSatisticAndPlot_aggregate(data,
                 title_it_pars += ', '
             elif i < nr_it_parameters - 1:
                 title_it_pars += ', and '
-        if i < nr_it_parameters - 1:
-            base_out_name += '-'
     title_name += title_it_pars
     base_out_name += '_combs_aggregated'
     # holds the grouped names/entries within the group names excluding the last entry th
@@ -4008,11 +3978,16 @@ def get_replace_eval(compare_source, act_eval, is_not_eval=False):
         compare_source['replace_evals']['new'][i_f] = act_eval
     return True, dest_eval, compare_source['replace_evals']['new'][i_f]
 
-def short_concat_str(str_list):
+
+def concat_combs(str_list, nr_elems, start=0, join_char='-'):
+    return short_concat_str(str_list[start: start + nr_elems], join_char)
+
+
+def short_concat_str(str_list, join_char='-'):
     if len(str_list) == 1 and len(str(str_list[0])) < 30:
-        return str_list[0]
+        return str(str_list[0])
     elif len(str_list) < 4 and sum([len(str(a)) for a in str_list]) < 40:
-        return '-'.join(map(str, str_list))
+        return join_char.join(map(str, str_list))
 
     #Get longest string sequence first which can be found in every element
     str_list_tmp = list(map(str, str_list))
@@ -4030,15 +4005,23 @@ def short_concat_str(str_list):
             if matches[i][2] != matches[0][2]:
                 same_matches[i] = False
         if all(same_matches):
-            l2 = min(4, matches[0][1])
-            str_list_tmp[0] = str_list_tmp[0].replace(matches[0][2][l2:], '')
-            start_pos_l.append([(matches[0][0], l2)])
+            shorty = ''
+            if '_' == matches[0][2][0]:
+                shorty += matches[0][2][0:3]
+            else:
+                shorty += matches[0][2][0:2]
+            if matches[0][0] == 0:
+                shorty += '_'
+            shorty = shorty.upper()
+            l2 = min(6, matches[0][1])
+            # str_list_tmp[0] = str_list_tmp[0].replace(matches[0][2][l2:], '')
+            start_pos_l.append([(matches[0][0], l2, matches[0][1])])
             for i in range(1, len(str_list_tmp)):
-                str_list_tmp[i] = str_list_tmp[i].replace(matches[0][2], '')
+                str_list_tmp[i] = str_list_tmp[i].replace(matches[0][2], shorty)
                 start_pos_l.append([])
         else:
             matches2 = []
-            start_pos_l = [[]] * len(str_list_tmp)
+            start_pos_l = [[] for i in range(0, len(str_list_tmp))]
             for i in range(0, len(str_list_tmp) - 1):
                 matches = []
                 for j in range(i + 1, len(str_list_tmp)):
@@ -4052,7 +4035,7 @@ def short_concat_str(str_list):
                 del_list = []
                 if elm:
                     for j in range(0, len(elm) - 1):
-                        for j1 in range(j + 1, len(matches2)):
+                        for j1 in range(j + 1, len(elm)):
                             if elm[j][2] == elm[j1][2]:
                                 del_list.append(j1)
                 if del_list:
@@ -4063,40 +4046,91 @@ def short_concat_str(str_list):
                     for j in range(len(elm) - 1, -1, -1):
                         del matches2[i][j]
             found_matches = {'keys': [], 'hit_poses': [], 'first_elem': []}
-            for i in range(0, len(matches2) - 1):
-                if matches2[i]:
-                    for i2 in range(i + 1, len(matches2)):
-                        if matches2[i2]:
-                            for j, elm in enumerate(matches2[i]):
-                                if elm[2] in found_matches['keys']:
-                                    for k, k1 in enumerate(found_matches['keys']):
-                                        if elm[2] == k1:
-                                            found_matches['hit_poses'][k] += [elm[0], elm[1]]
-                                            break
-                                else:
-                                    found_matches['keys'].append(elm[2])
-                                    found_matches['hit_poses'].append([elm[0], elm[1]])
-            del_list = []
+            for elmb in matches2:
+                if elmb:
+                    for j, elm in enumerate(elmb):
+                        if elm[2] in found_matches['keys']:
+                            for k, k1 in enumerate(found_matches['keys']):
+                                if elm[2] == k1:
+                                    found_matches['hit_poses'][k] += [elm[0], elm[1]]
+                                    break
+                        elif found_matches['keys']:
+                            nfound = True
+                            for k, k1 in enumerate(found_matches['keys']):
+                                if elm[2] in k1:
+                                    found_matches['keys'][k] = elm[2]
+                                    found_matches['hit_poses'][k] += [elm[0], elm[1]]
+                                    nfound = False
+                                    break
+                                elif k1 in elm[2]:
+                                    found_matches['hit_poses'][k] += [elm[0], elm[1]]
+                                    nfound = False
+                                    break
+                            if nfound:
+                                found_matches['keys'].append(elm[2])
+                                found_matches['hit_poses'].append([elm[0], elm[1]])
+                        else:
+                            found_matches['keys'].append(elm[2])
+                            found_matches['hit_poses'].append([elm[0], elm[1]])
+            del_list2 = []
             for i in range(0, len(found_matches['keys'])):
-                found_matches['hit_poses'][i] = list(dict.fromkeys(found_matches['hit_poses'][i])).sort()
+                found_matches['hit_poses'][i] = list(dict.fromkeys(found_matches['hit_poses'][i]))
+                found_matches['hit_poses'][i].sort()
                 found_matches['first_elem'].append(found_matches['hit_poses'][i][0])
-                for j in range(1, len(found_matches['hit_poses'][i])):
-                    if found_matches['hit_poses'][i][j] - found_matches['hit_poses'][i][j - 1] > 1:
-                        del_list.append(i)
-                        break
-                    del found_matches['hit_poses'][i][0]
-            if del_list:
-                for i in range(len(del_list) - 1, -1, -1):
-                    del found_matches['hit_poses'][i]
-                    del found_matches['keys'][i]
+                # del_list = []
+                # for j in range(1, len(found_matches['hit_poses'][i])):
+                #     if found_matches['hit_poses'][i][j] - found_matches['hit_poses'][i][j - 1] > 1:
+                #         del_list.append(j)
+                # if del_list:
+                #     if 0 not in del_list:
+                #         del_list.append(0)
+                #     del_list.sort(reverse=True)
+                #     for j in del_list:
+                #         del found_matches['hit_poses'][i][j]
+                del found_matches['hit_poses'][i][0]
+                if not found_matches['hit_poses'][i]:
+                    del_list2.append(i)
+            if del_list2:
+                for i in range(len(del_list2) - 1, -1, -1):
+                    del found_matches['hit_poses'][del_list2[i]]
+                    del found_matches['keys'][del_list2[i]]
+                    del found_matches['first_elem'][del_list2[i]]
+            # del_list = []
+            # for i in range(0, len(found_matches['keys']) - 1):
+            #     for j in range(i + 1, len(found_matches['keys'])):
+            #         if found_matches['keys'][i] in found_matches['keys'][j]:
+            #             if len(found_matches['hit_poses'][i]) >= len(found_matches['hit_poses'][j]):
+            #                 del_list.append(j)
+            #             else:
+            #                 del_list.append(i)
+            #         elif found_matches['keys'][j] in found_matches['keys'][i]:
+            #             if len(found_matches['hit_poses'][j]) >= len(found_matches['hit_poses'][i]):
+            #                 del_list.append(i)
+            #             else:
+            #                 del_list.append(j)
+            # if del_list:
+            #     del_list = list(dict.fromkeys(del_list))
+            #     del_list.sort(reverse=True)
+            #     for i in del_list:
+            #         del found_matches['hit_poses'][i]
+            #         del found_matches['keys'][i]
+            #         del found_matches['first_elem'][i]
+            if not found_matches['keys']:
+                return join_char.join([a[:min(8, len(a))] for a in str_list_tmp])
             for i, it in enumerate(found_matches['keys']):
-                for j in found_matches['hit_poses']:
-                    str_list_tmp[j].replace(it, '')
+                shorty = ''
+                if '_' == it[0]:
+                    shorty += it[0:3]
+                else:
+                    shorty += it[0:2]
+                shorty += '_'
+                shorty = shorty.upper()
+                for j in found_matches['hit_poses'][i]:
+                    str_list_tmp[j] = str_list_tmp[j].replace(it, shorty)
             for i, it in enumerate(found_matches['keys']):
-                l2 = min(4, len(it))
-                start_pos_l[found_matches['first_elem'][i]].append(
-                    (str_list_tmp[found_matches['first_elem'][i]].find(it), l2))
-                str_list_tmp[found_matches['first_elem'][i]].replace(it[l2:], '')
+                l2 = min(6, len(it))
+                start_pos_l[found_matches['first_elem'][i]].append((str_list_tmp[found_matches['first_elem'][i]].find(it), l2, len(it)))
+                # str_list_tmp[found_matches['first_elem'][i]].replace(it[l2:], '')
         elems_new = []
         for i, it in enumerate(str_list_tmp):
             if start_pos_l[i]:
@@ -4105,17 +4139,17 @@ def short_concat_str(str_list):
                 #matches in the original strings
                 if start_pos_l[i][0][0] > 0:
                     tmp = it[:start_pos_l[i][0][0]]
-                    tmp = tmp[:min(4, len(tmp))]
-                    tmp += it[start_pos_l[i][0][0]: start_pos_l[i][0][0] + start_pos_l[i][0][1]]
+                    tmp = tmp[:min(8, len(tmp))] + ('_' if tmp[-1] == '_' else '')
+                    tmp += it[start_pos_l[i][0][0]: start_pos_l[i][0][0] + start_pos_l[i][0][1]].capitalize()
                 else:
-                    tmp = it[:start_pos_l[i][0][1]]
-                tmp2 = it[start_pos_l[i][0][0] + start_pos_l[i][0][1]:]
-                tmp2 = tmp2[:min(4, len(tmp2))]
+                    tmp = it[:start_pos_l[i][0][1]] + ('_' if it[start_pos_l[i][0][2] - 1] == '_' else '')
+                tmp2 = it[start_pos_l[i][0][0] + start_pos_l[i][0][2]:].capitalize()
+                tmp2 = tmp2[:min(8, len(tmp2))]
                 elems_new.append(tmp + tmp2)
             else:
-                elems_new.append(it[:min(4, len(it))])
-        return '-'.join(elems_new)
-    return '-'.join([a[:min(4, len(a))] for a in str_list_tmp])
+                elems_new.append(it[:min(8, len(it))])
+        return join_char.join(elems_new)
+    return join_char.join([a[:min(8, len(a))] for a in str_list_tmp])
 
 
 def get_block_length_3D(df, xy_axis_columns):
