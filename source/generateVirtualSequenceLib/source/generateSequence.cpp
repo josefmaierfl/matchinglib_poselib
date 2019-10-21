@@ -6057,6 +6057,11 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                     actTNPerMovObj.erase(actTNPerMovObj.begin() + actAreaIdx[nr_movObj - 1].first);
                     movObjLabelsROIs.erase(movObjLabelsROIs.begin() + actAreaIdx[nr_movObj - 1].first);
                     actArea.erase(actArea.begin() + actAreaIdx[nr_movObj - 1].first);
+                    for (int j = 0; j < (int)nr_movObj - 1; ++j){
+                        if(actAreaIdx[nr_movObj - 1].first < actAreaIdx[j].first){
+                            actAreaIdx[j].first--;
+                        }
+                    }
                     nr_movObj--;
                     vector<size_t> delList;
                     for (size_t i = 0; i < nr_movObj; ++i) {
@@ -10202,13 +10207,13 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     Eigen::Vector4f min_p, max_p;
     pcl::getMinMax3D(*cloudIn.get(), min_p, max_p);
     float d1, d2, d3;
-    d1 = max_p[0] - min_p[0];
-    d2 = max_p[1] - min_p[1];
-    d3 = max_p[2] - min_p[2];
+    d1 = abs(max_p[0] - min_p[0]);
+    d2 = abs(max_p[1] - min_p[1]);
+    d3 = abs(max_p[2] - min_p[2]);
     int64_t dx = static_cast<int64_t>(d1 / leaf_size) + 1;
     int64_t dy = static_cast<int64_t>(d2 / leaf_size) + 1;
     int64_t dz = static_cast<int64_t>(d3 / leaf_size) + 1;
-    auto maxIdxSize = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+    auto maxIdxSize = static_cast<int64_t>(std::numeric_limits<int32_t>::max()) - 1;
     if ((dx * dy * dz) > maxIdxSize) {
         double kSi = (double) max(((csurr.rows - 1) / 2), 1);
         kSi = kSi > 3.0 ? 3.0 : kSi;
@@ -10262,7 +10267,17 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
 
     voxelFilter.setLeafSize(leaf_size, leaf_size,
                             leaf_size);//1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
-    voxelFilter.initializeVoxelGrid();
+    try {
+        voxelFilter.initializeVoxelGrid();
+    }catch (exception &e){
+        std::cerr << "Exception during filtering background: " << e.what() << endl;
+        std::cerr << "Skipping filtering step." << endl;
+        //Go on without filtering
+//                    *cloudOut.get() = *cloudIn.get();
+        cloudOut.resize(cloudIn->size());
+        std::iota(cloudOut.begin(), cloudOut.end(), 0);
+        return true;
+    }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded_;//(new pcl::PointCloud<pcl::PointXYZ>);
     if (cloudOccluded.get() != nullptr) {

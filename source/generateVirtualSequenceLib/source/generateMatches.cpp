@@ -1830,10 +1830,15 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             stdg = getRandDoubleValRng(-10.0, 10.0);
             bool fullImgUsed = false;
             Mat patchfb;
+            Point2i kp_ri = Point2i((int)round(kp.pt.x), (int)round(kp.pt.y));
             if((patchROIimg1.width < minPatchSize) ||
                     (patchROIimg1.height < minPatchSize) ||
                     (patchROIimg1.x < 0) ||
-                    (patchROIimg1.y < 0)){
+                    (patchROIimg1.y < 0) ||
+                    (kp_ri.x < (patchROIimg1.x + 10)) ||
+                    (kp_ri.x > (patchROIimg1.x + patchROIimg1.width - 10)) ||
+                    (kp_ri.y < (patchROIimg1.y + 10)) ||
+                    (kp_ri.y > (patchROIimg1.y + patchROIimg1.height - 10))){
                 int ps21 = (minPatchSize2 - 1) / 2;
                 patchROIimg1 = Rect((int)round(kp.pt.x) - ps21,
                                     (int)round(kp.pt.y) - ps21,
@@ -2038,7 +2043,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                                         //Show correspondence in original image
                                         Mat fullimg, patchCol;
                                         cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
-                                        Point c = Point((int) round(kp.pt.x), (int) round(kp.pt.y));
+                                        Point c = kp_ri;
                                         cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
                                         //Draw exact correspondence location
                                         cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
