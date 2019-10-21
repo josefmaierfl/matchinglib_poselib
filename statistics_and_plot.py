@@ -4647,31 +4647,31 @@ def getSymbolDescription(label):
                 )
     elif label == 't_mostLikely_diff_tx':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                'Difference $\\Delta \\hat{t}_{x}=\\hat{t}_{x}/\\lvert\\hat{\\bm{t}}\\rvert '
                 '-t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized x-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
+                'and $\\hat{\\bm{t}}=\\left[\\hat{t}_{x},\\;\\hat{t}_{y},\\;\\hat{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_ty':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                'Difference $\\Delta \\hat{t}_{y}=\\hat{t}_{y}/\\lvert\\hat{\\bm{t}}\\rvert '
                 '-t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized y-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
+                'and $\\hat{\\bm{t}}=\\left[\\hat{t}_{x},\\;\\hat{t}_{y},\\;\\hat{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_tz':
         return (replaceCSVLabels(label),
-                'Difference $\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert '
+                'Difference $\\Delta \\hat{t}_{z}=\\hat{t}_{z}/\\lvert\\hat{\\bm{t}}\\rvert '
                 '-t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
                 'between normalized z-components of ground truth and estimated relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
+                'and $\\hat{\\bm{t}}=\\left[\\hat{t}_{x},\\;\\hat{t}_{y},\\;\\hat{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -4716,30 +4716,30 @@ def getSymbolDescription(label):
     elif label == 't_mostLikely_diff_tx_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of Differences '
-                '$\\Delta t_{x}=\\tilde{t}_{x}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{x}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
-                'between normalized x-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
+                '$\\Delta \\hat{t}_{x}=\\hat{t}_{x}/\\lvert\\hat{\\bm{t}}\\rvert -t_{x}^{GT}/\\lvert\\bm{t}^{GT}'
+                '\\rvert$ between normalized x-components of ground truth and estimated relative stereo camera '
+                'translation vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
+                'and $\\hat{\\bm{t}}=\\left[\\hat{t}_{x},\\;\\hat{t}_{y},\\;\\hat{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_ty_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of differences '
-                '$\\Delta t_{y}=\\tilde{t}_{y}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{y}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
-                'between normalized y-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
+                '$\\Delta \\hat{t}_{y}=\\hat{t}_{y}/\\lvert\\hat{\\bm{t}}\\rvert -t_{y}^{GT}/\\lvert\\bm{t}^{GT}'
+                '\\rvert$ between normalized y-components of ground truth and estimated relative stereo camera '
+                'translation vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
+                'and $\\hat{\\bm{t}}=\\left[\\hat{t}_{x},\\;\\hat{t}_{y},\\;\\hat{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
     elif label == 't_mostLikely_diff_tz_diff':
         return (replaceCSVLabels(label),
                 'Difference from frame to frame of differences '
-                '$\\Delta t_{z}=\\tilde{t}_{z}/\\lvert\\tilde{\\bm{t}}\\rvert -t_{z}^{GT}/\\lvert\\bm{t}^{GT}\\rvert$ '
-                'between normalized z-components of ground truth and estimated relative stereo camera translation '
-                'vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
-                'and $\\tilde{\\bm{t}}=\\left[\\tilde{t}_{x},\\;\\tilde{t}_{y},\\;\\tilde{t}_{z}\\right]^{T}$. '
+                '$\\Delta \\hat{t}_{z}=\\hat{t}_{z}/\\lvert\\hat{\\bm{t}}\\rvert -t_{z}^{GT}/\\lvert\\bm{t}^{GT}'
+                '\\rvert$ between normalized z-components of ground truth and estimated relative stereo camera '
+                'translation vectors $\\bm{t}^{GT}=\\left[t^{GT}_{x},\\;t^{GT}_{y},\\;t^{GT}_{z}\\right]^{T}$ '
+                'and $\\hat{\\bm{t}}=\\left[\\hat{t}_{x},\\;\\hat{t}_{y},\\;\\hat{t}_{z}\\right]^{T}$. '
                 'The latter was chosen as most accurate in a Monte Carlo similar fashion among a few '
                 'estimated rotation matrices over the last pose estimations.', True
                 )
@@ -4935,6 +4935,47 @@ def getSymbolDescription(label):
         return (replaceCSVLabels(label),
                 'Difference from frame to frame on the number of matches $n_{pool}$ '
                 'within the correspondence pool', True)
+    elif label == 'R_GT_n_diffAll':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth (GT) relative stereo camera rotation matrices from '
+                'frame to frame (calculated using quaternion notations)', True)
+    elif label == 'R_GT_n_diff_roll_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth (GT) relative stereo camera rotation from frame to frame '
+                'about the x-axis', True)
+    elif label == 'R_GT_n_diff_pitch_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth (GT) relative stereo camera rotation from frame to frame '
+                'about the y-axis', True)
+    elif label == 'R_GT_n_diff_yaw_deg':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth (GT) relative stereo camera rotation from frame to frame '
+                'about the z-axis', True)
+    elif label == 't_GT_n_angDiff':
+        return (replaceCSVLabels(label),
+                'Angular difference between ground truth (GT) relative stereo camera translation vectors from '
+                'frame to frame', True)
+    elif label == 't_GT_n_elemDiff_tx':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{x,i}^{GT}=t_{x,i}^{GT}/\\lvert\\bm{t}^{GT}_{i}\\rvert '
+                '-t_{x,i-1}^{GT}/\\lvert\\bm{t}^{GT}_{i-1}\\rvert$ '
+                'between normalized x-components of ground truth relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}_{i}=\\left[t^{GT}_{x,i},\\;t^{GT}_{y,i},\\;t^{GT}_{z,i}\\right]^{T}$ '
+                'for frame numbers $i$', True)
+    elif label == 't_GT_n_elemDiff_ty':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{y,i}^{GT}=t_{y,i}^{GT}/\\lvert\\bm{t}^{GT}_{i}\\rvert '
+                '-t_{y,i-1}^{GT}/\\lvert\\bm{t}^{GT}_{i-1}\\rvert$ '
+                'between normalized y-components of ground truth relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}_{i}=\\left[t^{GT}_{x,i},\\;t^{GT}_{y,i},\\;t^{GT}_{z,i}\\right]^{T}$ '
+                'for frame numbers $i$', True)
+    elif label == 't_GT_n_elemDiff_tz':
+        return (replaceCSVLabels(label),
+                'Difference $\\Delta t_{z,i}^{GT}=t_{z,i}^{GT}/\\lvert\\bm{t}^{GT}_{i}\\rvert '
+                '-t_{z,i-1}^{GT}/\\lvert\\bm{t}^{GT}_{i-1}\\rvert$ '
+                'between normalized z-components of ground truth relative stereo camera translation '
+                'vectors $\\bm{t}^{GT}_{i}=\\left[t^{GT}_{x,i},\\;t^{GT}_{y,i},\\;t^{GT}_{z,i}\\right]^{T}$ '
+                'for frame numbers $i$', True)
     else:
         return (replaceCSVLabels(label), replaceCSVLabels(label), False)
 
@@ -5076,6 +5117,32 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
         if in_heading:
             str_val = replace_bm_in_headings(str_val)
         return str_val
+    elif label == 'R_GT_n_diffAll':
+        return '$\\Delta R_{\\Sigma}^{GT}$'
+    elif label == 't_GT_n_angDiff':
+        str_val = '$\\angle{\\Delta \\bm{t}^{GT}}$'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
+        return str_val
+    elif label == 'R_GT_n_diff_roll_deg':
+        return '$\\Delta R_{x}^{GT}$'
+    elif label == 'R_GT_n_diff_pitch_deg':
+        return '$\\Delta R_{y}^{GT}$'
+    elif label == 'R_GT_n_diff_yaw_deg':
+        return '$\\Delta R_{z}^{GT}$'
+    elif label == 't_GT_n_elemDiff_tx':
+        return '$\\Delta t_{x}^{GT}$'
+    elif label == 't_GT_n_elemDiff_ty':
+        return '$\\Delta t_{y}^{GT}$'
+    elif label == 't_GT_n_elemDiff_tz':
+        return '$\\Delta t_{z}^{GT}$'
+    elif label == 'rt_change_type':
+        if use_plural:
+            str_val = 'types of $R^{GT}$ \\& $\\bm{t}^{GT}$ changes on a frame to frame basis'
+        else:
+            str_val = 'type of $R^{GT}$ \\& $\\bm{t}^{GT}$ change on a frame to frame basis'
+        if in_heading:
+            str_val = replace_bm_in_headings(str_val)
     elif label == 'K1_fxDiff':
         return '$\\Delta f_{x}^{\\mli{K1}}$'
     elif label == 'K1_fyDiff':
@@ -5544,6 +5611,58 @@ def getOptionDescription(key):
         return 'Correspondences are equally distributed over half the image', True
     elif key == 'equ':
         return 'Correspondences are equally distributed over the whole image', True
+    elif key == 'crt':
+        return 'Continuous change in ground truth relative stereo rotation (all axis) and ' \
+               'translation (every axis) from frame to frame', True
+    elif key == 'cra':
+        return 'Continuous change in ground truth relative stereo rotation only (all axis) from frame to frame', True
+    elif key == 'cta':
+        return 'Continuous change in ground truth relative translation only (every axis) from frame to frame', True
+    elif key == 'crx':
+        return 'Continuous change in ground truth relative stereo rotation around x-axis only ' \
+               'from frame to frame', True
+    elif key == 'cry':
+        return 'Continuous change in ground truth relative stereo rotation around y-axis only ' \
+               'from frame to frame', True
+    elif key == 'crz':
+        return 'Continuous change in ground truth relative stereo rotation around z-axis only ' \
+               'from frame to frame', True
+    elif key == 'ctx':
+        return 'Continuous change in ground truth relative stereo translation in x-direction only ' \
+               'from frame to frame', True
+    elif key == 'cty':
+        return 'Continuous change in ground truth relative stereo translation in y-direction only ' \
+               'from frame to frame', True
+    elif key == 'ctz':
+        return 'Continuous change in ground truth relative stereo translation in z-direction only ' \
+               'from frame to frame', True
+    elif key == 'jrt':
+        return 'Single jump of the ground truth relative stereo rotation (all axis) and ' \
+               'translation (every axis) to different values after a few frames', True
+    elif key == 'jra':
+        return 'Single jump of the ground truth relative stereo rotation only (all axis) ' \
+               'to different values after a few frames', True
+    elif key == 'jta':
+        return 'Single jump of the ground truth relative stereo translation only (every axis) ' \
+               'to different values after a few frames', True
+    elif key == 'jrx':
+        return 'Single jump of the ground truth relative stereo rotation about x-axis only ' \
+               'to a different value after a few frames', True
+    elif key == 'jry':
+        return 'Single jump of the ground truth relative stereo rotation about y-axis only ' \
+               'to a different value after a few frames', True
+    elif key == 'jrz':
+        return 'Single jump of the ground truth relative stereo rotation about z-axis only ' \
+               'to a different value after a few frames', True
+    elif key == 'jtx':
+        return 'Single jump of the ground truth relative stereo translation in x-direction only ' \
+               'to a different value after a few frames', True
+    elif key == 'jty':
+        return 'Single jump of the ground truth relative stereo translation in y-direction only ' \
+               'to a different value after a few frames', True
+    elif key == 'jtz':
+        return 'Single jump of the ground truth relative stereo translation in z-direction only ' \
+               'to a different value after a few frames', True
     else:
         test_glossary = False
         if test_glossary:
