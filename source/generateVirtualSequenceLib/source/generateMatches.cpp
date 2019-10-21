@@ -876,7 +876,7 @@ bool genMatchSequ::getFeatures() {
         kpCnt += keypoints1Img.size();
         vector<size_t> imgNr_tmp = vector<size_t>(keypoints1Img.size(), i);
         featureImgIdx.insert(featureImgIdx.end(), imgNr_tmp.begin(), imgNr_tmp.end());
-        if (kpCnt >= nrCorrsFullSequ) {
+        if (kpCnt > (size_t)(1.03 *(double)nrCorrsFullSequ)) {
             break;
         }
     }
@@ -907,7 +907,7 @@ bool genMatchSequ::getFeatures() {
             nrCorrsFullSequ = 0;
             size_t i = 0;
             for (; i < nrCorrs.size(); ++i) {
-                if ((kpCnt - nrCorrs[i]) >= nrCorrsFullSequ) {
+                if ((kpCnt - nrCorrs[i]) > nrCorrsFullSequ) {
                     nrCorrsFullSequ += nrCorrs[i];
                 } else {
                     break;
@@ -1316,6 +1316,13 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
 
     for (int i = 0; i < nrcombCorrs; ++i) {
         size_t featureIdx_tmp = featureIdx;
+        //Check if the feature index is higher than the available nr of features
+        if (featureIdx_tmp >= featureImgIdx.size()){
+            //Set the index to a random number in the allowed range
+            cerr << "Feature index out of range for a few correspondences. Using new random index which "
+                    "will point to an already used feature." << endl;
+            featureIdx_tmp = (size_t)rand2() % featureImgIdx.size();
+        }
         bool visualize = false;
         if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((show_cnt % show_interval) == 0)){
             visualize = true;
