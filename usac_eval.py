@@ -118,7 +118,8 @@ def pars_calc_single_fig_partitions(**keywords):
         add_to_glossary, \
         split_large_titles, \
         get_limits_log_exp, \
-        enl_space_title
+        enl_space_title, \
+        short_concat_str
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
@@ -143,7 +144,7 @@ def pars_calc_single_fig_partitions(**keywords):
                 ret['sub_title_partitions'] += ', and '
 
     ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + \
-                             '-'.join(ret['it_parameters']) + \
+                             short_concat_str(ret['it_parameters']) + \
                              '_and_properties_'
     ret['dataf_name_partition'] = '-'.join([a[:min(3, len(a))] for a in map(str, ret['partitions'])])
     if 'error_function' in keywords:
@@ -270,54 +271,99 @@ def pars_calc_single_fig_partitions(**keywords):
                        ' for parameter variations of ' + ret['sub_title_it_pars'] +\
                        ' based on properties ' + part_name.replace('_', '\\_')
             label_y = 'Combined R \\& t error $e_{R\\bm{t}}$'
-        sec_name = split_large_titles(sec_name)
-        exp_value = enl_space_title(exp_value, sec_name, tmp2, ret['grp_names'][-1],
-                                    len(list(tmp2.columns.values)), 'smooth')
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': sec_name,
-                                      # If caption is None, the field name is used
-                                      'caption': cap_name,
-                                      'fig_type': 'smooth',
-                                      'plots': list(tmp2.columns.values),
-                                      'label_y': label_y,
-                                      'plot_x': str(ret['grp_names'][-1]),
-                                      'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
-                                      'limits': use_limits,
-                                      'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
-                                      'legend_cols': None,
-                                      'use_marks': ret['use_marks'],
-                                      'use_log_y_axis': use_log,
-                                      'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': None,
-                                      'enlarge_title_space': exp_value,
-                                      'use_string_labels': True if not is_numeric else False
-                                      })
-        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+        nr_plots = len(list(tmp2.columns.values))
+        exp_value_o = exp_value
+        nr_plots_i = []
+        if nr_plots <= 20:
+            nr_plots_i = [nr_plots]
+        else:
+            pp = math.floor(nr_plots / 20)
+            nr_plots_i = [20] * int(pp)
+            rp = nr_plots - pp * 20
+            if rp > 0:
+                nr_plots_i += [nr_plots - pp * 20]
+        pcnt = 0
+        for i, it in enumerate(nr_plots_i):
+            ps = list(tmp2.columns.values)[pcnt: pcnt + it]
+            pcnt += it
+            if nr_plots > 20:
+                sec_name1 = sec_name + ' -- part ' + str(i + 1)
+                cap_name1 = cap_name + ' -- part ' + str(i + 1)
+            else:
+                sec_name1 = sec_name
+                cap_name1 = cap_name
+            sec_name1 = split_large_titles(sec_name1)
+            exp_value = enl_space_title(exp_value_o, sec_name1, tmp2, ret['grp_names'][-1],
+                                        len(ps), 'smooth')
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': sec_name1,
+                                          # If caption is None, the field name is used
+                                          'caption': cap_name1,
+                                          'fig_type': 'smooth',
+                                          'plots': ps,
+                                          'label_y': label_y,
+                                          'plot_x': str(ret['grp_names'][-1]),
+                                          'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                          'limits': use_limits,
+                                          'legend': [tex_string_coding_style(a) for a in ps],
+                                          'legend_cols': None,
+                                          'use_marks': ret['use_marks'],
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': None,
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': True if not is_numeric else False
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     if 'file_name_err_part' in keywords:
         base_out_name = 'tex_' + keywords['file_name_err_part'] + '_vs_' + ret['dataf_name_main'] + \
                         ret['dataf_name_partition']
     else:
         base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main'] + ret['dataf_name_partition']
-    texf_name = base_out_name + '.tex'
-    if ret['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        ret['res'] = abs(compile_tex(rendered_tex,
-                                     ret['tex_folder'],
-                                     texf_name,
-                                     tex_infos['make_index'],
-                                     os.path.join(ret['pdf_folder'], pdf_name),
-                                     tex_infos['figs_externalize']))
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    st_list = tex_infos['sections']
+    if len(st_list) > max_figs_pdf:
+        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
     else:
-        ret['res'] = abs(compile_tex(rendered_tex, ret['tex_folder'], texf_name))
+        st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+    for it in st_list2:
+        if len(st_list2) == 1:
+            title = tex_infos['title']
+        else:
+            title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+        pdfs_info.append({'title': title,
+                          'texf_name': base_out_name + '_' + str(it['pdf_nr']),
+                          'figs_externalize': tex_infos['figs_externalize'],
+                          'sections': it['figs'],
+                          'make_index': tex_infos['make_index'],
+                          'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                          'fill_bar': tex_infos['fill_bar'],
+                          'abbreviations': tex_infos['abbreviations']})
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if ret['build_pdf'][0] else None}
+    for it in pdfs_info:
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = it['texf_name'] + '.tex'
+        if ret['build_pdf'][0]:
+            pdf_name = it['texf_name'] + '.pdf'
+            pdf_l_info['pdf_name'].append(os.path.join(ret['pdf_folder'], pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    ret['res'] = abs(compile_tex(pdf_l_info['rendered_tex'], ret['tex_folder'], pdf_l_info['texf_name'],
+                                 tex_infos['make_index'], pdf_l_info['pdf_name'], tex_infos['figs_externalize']))
     if ret['res'] != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret

@@ -4010,15 +4010,14 @@ def short_concat_str(str_list, join_char='-'):
                 shorty += matches[0][2][0:3]
             else:
                 shorty += matches[0][2][0:2]
-            if matches[0][0] == 0:
-                shorty += '_'
+            shorty += '_'
             shorty = shorty.upper()
             l2 = min(6, matches[0][1])
             # str_list_tmp[0] = str_list_tmp[0].replace(matches[0][2][l2:], '')
-            start_pos_l.append([(matches[0][0], l2, matches[0][1])])
+            start_pos_l.append([(str_list_tmp[0].find(matches[0][2]), l2, matches[0][1])])
             for i in range(1, len(str_list_tmp)):
+                start_pos_l.append([(str_list_tmp[i].find(matches[0][2]), len(shorty), matches[0][1])])
                 str_list_tmp[i] = str_list_tmp[i].replace(matches[0][2], shorty)
-                start_pos_l.append([])
         else:
             matches2 = []
             start_pos_l = [[] for i in range(0, len(str_list_tmp))]
@@ -5663,6 +5662,9 @@ def getOptionDescription(key):
     elif key == 'jtz':
         return 'Single jump of the ground truth relative stereo translation in z-direction only ' \
                'to a different value after a few frames', True
+    elif key == 'nv':
+        return 'No variation in ground truth relative stereo rotation and translation ' \
+               'over all available stereo frames', True
     else:
         test_glossary = False
         if test_glossary:
@@ -5737,6 +5739,8 @@ def main():
     pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
     pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
+    gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
+                    'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
     pars_kpDistr_opt = ['1corn', 'equ']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_depthDistr_opt = ['NMF', 'NM']
@@ -5802,15 +5806,15 @@ def main():
             # 'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
             'inlratMin': np.array(build_list(inlratMin_opt, inlratMin_mul, num_pts)),
             'useless': [1, 1, 2, 3] * int(num_pts/4),
-            'R_out(0,0)': [0] * 10 + [1] * int(num_pts - 10),
-            'R_out(0,1)': [0] * 10 + [0] * int(num_pts - 10),
-            'R_out(0,2)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
-            'R_out(1,0)': [0] * 10 + [1] * int(num_pts - 10),
-            'R_out(1,1)': [0] * 10 + [1] * int(num_pts - 10),
-            'R_out(1,2)': [0] * 10 + [0] * int(num_pts - 10),
-            'R_out(2,0)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
-            'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
-            'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10),
+            # 'R_out(0,0)': [0] * 10 + [1] * int(num_pts - 10),
+            # 'R_out(0,1)': [0] * 10 + [0] * int(num_pts - 10),
+            # 'R_out(0,2)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
+            # 'R_out(1,0)': [0] * 10 + [1] * int(num_pts - 10),
+            # 'R_out(1,1)': [0] * 10 + [1] * int(num_pts - 10),
+            # 'R_out(1,2)': [0] * 10 + [0] * int(num_pts - 10),
+            # 'R_out(2,0)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
+            # 'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
+            # 'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10),
             'Nr': list(range(0, nr_imgs)) * int(num_pts / nr_imgs),
             'inlRat_GT': np.tile(np.arange(0.25, 0.72, 0.05), int(num_pts/10))}
 
@@ -5855,11 +5859,220 @@ def main():
     data['bundleAdjust_us'] = t
     data['filtering_us'] = t
     data['stereoRefine_us'] = t
+    nr_scenes = int(num_pts / nr_imgs)
+    data['inlratCRate'] = data['inlratMin']
+    R0s_scene = np.random.randint(0, 5, nr_scenes)
+    R0s = [list(np.random.randint(0, nr_imgs, it)) if it > 0 else [] for it in R0s_scene]
+    data['R_out(0,0)'] = [1] * int(num_pts)
+    data['R_out(0,1)'] = [1] * int(num_pts)
+    data['R_out(0,2)'] = [0.1] * int(num_pts)
+    data['R_out(1,0)'] = [1] * int(num_pts)
+    data['R_out(1,1)'] = [1] * int(num_pts)
+    data['R_out(1,2)'] = [1] * int(num_pts)
+    data['R_out(2,0)'] = [0.1] * int(num_pts)
+    data['R_out(2,1)'] = [1] * int(num_pts)
+    data['R_out(2,2)'] = [1] * int(num_pts)
+    for i, it in enumerate(R0s):
+        if it:
+            for it1 in it:
+                data['R_out(0,0)'][i * nr_imgs + it1] = 0
+                data['R_out(0,1)'][i * nr_imgs + it1] = 0
+                data['R_out(0,2)'][i * nr_imgs + it1] = 0
+                data['R_out(1,0)'][i * nr_imgs + it1] = 0
+                data['R_out(1,1)'][i * nr_imgs + it1] = 0
+                data['R_out(1,2)'][i * nr_imgs + it1] = 0
+                data['R_out(2,0)'][i * nr_imgs + it1] = 0
+                data['R_out(2,1)'][i * nr_imgs + it1] = 0
+                data['R_out(2,2)'][i * nr_imgs + it1] = 0
+    data_type = build_list(gt_type_pars, 1, nr_scenes)
+    data['R_GT_n_diffAll'] = []
+    data['t_GT_n_angDiff'] = []
+    data['R_GT_n_diff_roll_deg'] = []
+    data['R_GT_n_diff_pitch_deg'] = []
+    data['R_GT_n_diff_yaw_deg'] = []
+    data['t_GT_n_elemDiff_tx'] = []
+    data['t_GT_n_elemDiff_ty'] = []
+    data['t_GT_n_elemDiff_tz'] = []
+    jumppos = int(0.3 * nr_imgs)
+    jumpposn1 = jumppos - 1
+    jumpposn2 = int(nr_imgs) - jumppos
+    c_max = 0.01 * nr_imgs
+    sc = 0
+    tl = len(data_type)
+    while sc < nr_scenes:
+        this_type = data_type[sc % tl]
+        if this_type == 'crt':
+            data['R_GT_n_diffAll'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_angDiff'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_roll_deg'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_pitch_deg'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_yaw_deg'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_tx'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_ty'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_tz'] += list(np.arange(0, c_max, 0.01))
+        elif this_type == 'cra':
+            data['R_GT_n_diffAll'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_pitch_deg'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_yaw_deg'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'crx':
+            data['R_GT_n_diffAll'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'cry':
+            data['R_GT_n_diffAll'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'crz':
+            data['R_GT_n_diffAll'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'cta':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_ty'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_tz'] += list(np.arange(0, c_max, 0.01))
+        elif this_type == 'ctx':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'cty':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += list(np.arange(0, c_max, 0.01))
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'ctz':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += list(np.arange(0, c_max, 0.01))
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += list(np.arange(0, c_max, 0.01))
+        elif this_type == 'jrt':
+            data['R_GT_n_diffAll'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_angDiff'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_roll_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_pitch_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_yaw_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_tx'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_ty'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_tz'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+        elif this_type == 'jra':
+            data['R_GT_n_diffAll'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_pitch_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_yaw_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'jrx':
+            data['R_GT_n_diffAll'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'jry':
+            data['R_GT_n_diffAll'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'jrz':
+            data['R_GT_n_diffAll'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'jta':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_ty'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_tz'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+        elif this_type == 'jtx':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'jty':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
+        elif this_type == 'jtz':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+        else:
+            raise ValueError('Invalid change type')
+        sc += 1
+
+
     data = pd.DataFrame(data)
 
-    test_name = 'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 3
-    eval_nr = [15]#list(range(5, 11))
+    test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
+    test_nr = 1
+    eval_nr = [1]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -7101,6 +7314,8 @@ def main():
                                                              figs_externalize=True)
                 else:
                     raise ValueError('Eval nr ' + ev + ' does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
     elif test_name == 'vfc_gms_sof':
         if eval_nr[0] < 0:
             evals = list(range(1, 8))
@@ -7716,6 +7931,8 @@ def main():
                                                              figs_externalize=True)
                 else:
                     raise ValueError('Eval nr ' + ev + ' does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
     elif test_name == 'correspondence_pool':
         if not test_nr:
             raise ValueError('test_nr is required correspondence_pool')
@@ -8345,6 +8562,73 @@ def main():
                                                          figs_externalize=False)
                 else:
                     raise ValueError('Eval nr ' + ev + ' does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
+    elif test_name == 'robustness':
+        if not test_nr:
+            raise ValueError('test_nr is required robustness')
+        from eval_tests_main import get_compare_info
+        if test_nr == 1:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 11))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_relInlRatThLast',
+                                     'stereoParameters_relInlRatThNew',
+                                     'stereoParameters_minInlierRatSkip',
+                                     'stereoParameters_minInlierRatioReInit',
+                                     'stereoParameters_relMinInlierRatSkip']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'stereoParameters_maxPoolCorrespondences']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'robustness_best_comb_scenes_inlc'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                    #                                         'stereoParameters_relInlRatThNew',
+                    #                                         'stereoParameters_minInlierRatSkip',
+                    #                                         'stereoParameters_minInlierRatioReInit',
+                    #                                         'stereoParameters_relMinInlierRatSkip',
+                    #                                         'inlratCRate']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'stereoParameters_maxPoolCorrespondences',
+                                                            'inlratCRate']}
+                    from refinement_eval import get_best_comb_scenes_1
+                    from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True)
 
     return ret
 
