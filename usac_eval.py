@@ -110,6 +110,7 @@ def pars_calc_single_fig_partitions(**keywords):
     ret['grp_names'] = data.index.names
     nr_partitions = len(ret['partitions'])
     ret['it_parameters'] = keywords['it_parameters']#ret['grp_names'][nr_partitions:-1]
+    ret['x_axis_column'] = keywords['x_axis_column']
     nr_it_parameters = len(ret['it_parameters'])
     from statistics_and_plot import tex_string_coding_style, \
         compile_tex, \
@@ -183,10 +184,14 @@ def pars_calc_single_fig_partitions(**keywords):
             continue
         idx_old = p
         tmp2 = ret['b_all_partitions'].loc[p]
-        part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
+        if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+            idx_vals = tmp2.index[0]
+        else:
+            idx_vals = [tmp2.index[0]]
+        part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, idx_vals)])
         part_name_l = [replaceCSVLabels(str(ni), False, False, True) + ' = ' +
-                       tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
-        index_entries = [a for a in tmp2.index[0]]
+                       tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, idx_vals)]
+        index_entries = [a for a in idx_vals]
         part_name_title = ''
         for i, val in enumerate(part_name_l):
             part_name_title += val

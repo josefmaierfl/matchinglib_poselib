@@ -137,6 +137,26 @@ def get_rt_change_type(**keywords):
 def get_best_comb_scenes_1(**keywords):
     from usac_eval import pars_calc_single_fig_partitions
     ret = pars_calc_single_fig_partitions(**keywords)
+    b_min = ret['b'].stack().reset_index()
+    b_min.rename(columns={b_min.columns[-1]: 'b_min'}, inplace=True)
+    b_min = b_min.loc[b_min.groupby(ret['partitions'] + keywords['x_axis_column'])['b_min'].idxmin()]
+    b_min.set_index(ret['it_parameters'], inplace=True)
+    if len(ret['it_parameters']) > 1:
+        b_min.index = ['-'.join(map(str, a)) for a in b_min.index]
+        it_pars_name = '-'.join(map(str, ret['it_parameters']))
+        b_min.index.name = it_pars_name
+    else:
+        it_pars_name = ret['it_parameters'][0]
+    b_min_grp = b_min.reset_index().set_index(keywords['x_axis_column']).groupby(ret['partitions'])
+    grp_keys = b_min_grp.groups.keys()
+    for grp in grp_keys:
+        tmp = b_min_grp.get_group(grp)
+        tmp['options_tex'] = insert_opt_lbreak(tmp[it_pars_name].values)
+        max_txt_rows = 1
+        for idx, val in tmp['options_tex'].iteritems():
+            txt_rows = str(val).count('\\\\') + 1
+            if txt_rows > max_txt_rows:
+                max_txt_rows = txt_rows
     b_mean = ret['b'].mean(axis=1)
     b_mean.rename('b_min', inplace=True)
     tmp1 = b_mean.reset_index()

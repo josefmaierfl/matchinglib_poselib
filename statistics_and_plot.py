@@ -681,6 +681,8 @@ def calcSatisticAndPlot_2D_partitions(data,
         needed_columns = eval_columns + it_parameters + x_axis_column + partitions
         df = data[needed_columns]
 
+    roundNumericProps(df, it_parameters, x_axis_column, None, partitions)
+
     if len(partitions) > 1:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
                                                   '_vs_' + '-'.join(map(str, x_axis_column)) + '_for_' +
@@ -840,10 +842,14 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 idx_old = p
                 tmp2 = tmp1.loc[p]
-                part_props = deepcopy(tmp2.index[0])
-                part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, tmp2.index[0])])
+                if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+                    idx_vals = tmp2.index[0]
+                else:
+                    idx_vals = [tmp2.index[0]]
+                part_props = deepcopy(idx_vals)
+                part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, idx_vals)])
                 part_name_l = [replaceCSVLabels(str(ni), False, False, True) + ' = ' +
-                               tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, tmp2.index[0])]
+                               tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, idx_vals)]
                 part_name_title = ''
                 for i, val in enumerate(part_name_l):
                     part_name_title += val
@@ -3990,14 +3996,14 @@ def short_concat_str(str_list, join_char='-'):
         return join_char.join(map(str, str_list))
 
     #Get longest string sequence first which can be found in every element
-    str_list_tmp = list(map(str, str_list))
+    str_list_tmp = list(map(lambda x: str(x).lower(), str_list))
     l1 = len(str_list_tmp[0])
     matches = []
     for i in range(1, len(str_list_tmp)):
         seqMatch = SequenceMatcher(None, str_list_tmp[0], str_list_tmp[i])
         match = seqMatch.find_longest_match(0, l1, 0, len(str_list_tmp[i]))
         if (match.size > 3):
-            matches.append((match.a, match.size, str_list_tmp[i][match.a: match.a + match.size]))
+            matches.append((match.b, match.size, str_list_tmp[i][match.b: match.b + match.size]))
     if matches:
         start_pos_l = []
         same_matches = [True] * len(matches)
@@ -4007,16 +4013,24 @@ def short_concat_str(str_list, join_char='-'):
         if all(same_matches):
             shorty = ''
             if '_' == matches[0][2][0]:
+                upv = 3
                 shorty += matches[0][2][0:3]
             else:
+                upv = 2
                 shorty += matches[0][2][0:2]
             shorty += '_'
             shorty = shorty.upper()
             l2 = min(6, matches[0][1])
             # str_list_tmp[0] = str_list_tmp[0].replace(matches[0][2][l2:], '')
             start_pos_l.append([(str_list_tmp[0].find(matches[0][2]), l2, matches[0][1])])
+            if start_pos_l[-1][0][0] == 0:
+                str_list_tmp[0] = str_list_tmp[0][:2].upper() + str_list_tmp[0][2:]
+            else:
+                str_list_tmp[0] = str_list_tmp[0][: start_pos_l[-1][0][0]] + \
+                                  str_list_tmp[0][start_pos_l[-1][0][0]: start_pos_l[-1][0][0] + upv].upper() + \
+                                  str_list_tmp[0][start_pos_l[-1][0][0] + upv:]
             for i in range(1, len(str_list_tmp)):
-                start_pos_l.append([(str_list_tmp[i].find(matches[0][2]), len(shorty), matches[0][1])])
+                start_pos_l.append([(str_list_tmp[i].find(matches[0][2]), len(shorty), len(shorty))])
                 str_list_tmp[i] = str_list_tmp[i].replace(matches[0][2], shorty)
         else:
             matches2 = []
@@ -4125,10 +4139,24 @@ def short_concat_str(str_list, join_char='-'):
                 shorty += '_'
                 shorty = shorty.upper()
                 for j in found_matches['hit_poses'][i]:
+                    start_pos_l[j].append((str_list_tmp[j].find(it), len(shorty), len(shorty)))
                     str_list_tmp[j] = str_list_tmp[j].replace(it, shorty)
             for i, it in enumerate(found_matches['keys']):
                 l2 = min(6, len(it))
-                start_pos_l[found_matches['first_elem'][i]].append((str_list_tmp[found_matches['first_elem'][i]].find(it), l2, len(it)))
+                p1 = found_matches['first_elem'][i]
+                start_pos_l[p1].append((str_list_tmp[found_matches['first_elem'][i]].find(it),
+                                        l2, len(it)))
+                if start_pos_l[p1][-1][0] == 0:
+                    str_list_tmp[p1] = str_list_tmp[p1][:2].upper() + str_list_tmp[p1][2:]
+                else:
+                    if it[0] == '_':
+                        upv = 3
+                    else:
+                        upv = 2
+                    str_list_tmp[p1] = str_list_tmp[p1][: start_pos_l[p1][-1][0]] + \
+                                       str_list_tmp[p1][start_pos_l[p1][-1][0]: start_pos_l[p1][-1][0] +
+                                                                                upv].upper() + \
+                                       str_list_tmp[p1][start_pos_l[p1][-1][0] + upv:]
                 # str_list_tmp[found_matches['first_elem'][i]].replace(it[l2:], '')
         elems_new = []
         for i, it in enumerate(str_list_tmp):
@@ -4136,18 +4164,50 @@ def short_concat_str(str_list, join_char='-'):
                 #For later: if this whole procedure should be called in an iterated fashion, the last list index must
                 #be iterated instaed of taking pos 0 (but track must be taken of the positions and lengths of found
                 #matches in the original strings
-                if start_pos_l[i][0][0] > 0:
-                    tmp = it[:start_pos_l[i][0][0]]
-                    tmp = tmp[:min(8, len(tmp))] + ('_' if tmp[-1] == '_' else '')
-                    tmp += it[start_pos_l[i][0][0]: start_pos_l[i][0][0] + start_pos_l[i][0][1]].capitalize()
+                if len(start_pos_l[i]) > 1:
+                    start_pos_l[i] = sorted(start_pos_l[i], key=lambda val: val[0])
+                    tmp3 = ''
+                    for j in range(0, len(start_pos_l[i]) - 1):
+                        if start_pos_l[i][j][0] > 0:
+                            if j == 0:
+                                tmp = it[:start_pos_l[i][j][0]]
+                                hlp = len(tmp) > 8
+                                tmp = tmp[:min(8, len(tmp))] + ('_' if tmp[-1] == '_' and hlp else '')
+                            else:
+                                tmp = ''
+                            tmp += it[start_pos_l[i][j][0]: start_pos_l[i][j][0] + start_pos_l[i][j][1]]
+                        else:
+                            hlp = start_pos_l[i][j][2] > start_pos_l[i][j][1]
+                            tmp = it[:start_pos_l[i][j][1]] + \
+                                  ('_' if it[start_pos_l[i][j][2] - 1] == '_' and hlp else '')
+                        tmp2 = it[start_pos_l[i][j][0] + start_pos_l[i][j][2]:start_pos_l[i][j + 1][0]]
+                        if tmp2 and not tmp2[0].isupper() and tmp2[0] != '_':
+                            tmp2 = tmp2.capitalize()
+                        tmp2 = tmp2[:min(8, len(tmp2))]
+                        tmp3 += tmp + tmp2
+                    tmp = it[start_pos_l[i][-1][0]: start_pos_l[i][-1][0] + start_pos_l[i][-1][1]]
+                    tmp2 = it[start_pos_l[i][-1][0] + start_pos_l[i][-1][2]:]
+                    if tmp2 and not tmp2[0].isupper() and tmp2[0] != '_':
+                        tmp2 = tmp2.capitalize()
+                    tmp2 = tmp2[:min(8, len(tmp2))]
+                    tmp3 += tmp + tmp2
+                    elems_new.append(tmp3)
                 else:
-                    tmp = it[:start_pos_l[i][0][1]] + ('_' if it[start_pos_l[i][0][2] - 1] == '_' else '')
-                tmp2 = it[start_pos_l[i][0][0] + start_pos_l[i][0][2]:].capitalize()
-                tmp2 = tmp2[:min(8, len(tmp2))]
-                elems_new.append(tmp + tmp2)
+                    if start_pos_l[i][0][0] > 0:
+                        tmp = it[:start_pos_l[i][0][0]]
+                        hlp = len(tmp) > 8
+                        tmp = tmp[:min(8, len(tmp))] + ('_' if tmp[-1] == '_' and hlp else '')
+                        tmp += it[start_pos_l[i][0][0]: start_pos_l[i][0][0] + start_pos_l[i][0][1]]
+                    else:
+                        hlp = start_pos_l[i][0][2] > start_pos_l[i][0][1]
+                        tmp = it[:start_pos_l[i][0][1]] + ('_' if it[start_pos_l[i][0][2] - 1] == '_' and hlp else '')
+                    tmp2 = it[start_pos_l[i][0][0] + start_pos_l[i][0][2]:].capitalize()
+                    tmp2 = tmp2[:min(8, len(tmp2))]
+                    elems_new.append(tmp + tmp2)
             else:
                 elems_new.append(it[:min(8, len(it))])
-        return join_char.join(elems_new)
+        elems_new_all = join_char.join(elems_new).replace('__', '_').replace('_-','-').replace('-_', '_')
+        return elems_new_all
     return join_char.join([a[:min(8, len(a))] for a in str_list_tmp])
 
 
@@ -4372,6 +4432,25 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
         if max_val > (mean_val + std_val * mult):
             use_limits['maxy'] = round(mean_val + std_val * mult, 6)
     return False, stats_all, use_limits
+
+
+def roundNumericProps(data, it_parameters=None, x_axis_column=None, xy_axis_columns=None, partitions=None):
+    if it_parameters is not None:
+        roundNumeric_df(it_parameters, data)
+    if x_axis_column is not None:
+        roundNumeric_df(x_axis_column, data)
+    if xy_axis_columns is not None:
+        roundNumeric_df(xy_axis_columns, data)
+    if partitions is not None:
+        roundNumeric_df(partitions, data)
+
+
+def roundNumeric_df(col_names, df):
+    is_number = np.vectorize(lambda x: np.issubdtype(x, np.number) and not np.issubdtype(x, np.integer))
+    hlp = is_number(df[col_names].dtypes)
+    for i, it in enumerate(hlp):
+        if it:
+            df[col_names[i]] = df[col_names[i]].round(6)
 
 
 def get_limits_log_exp(df,
@@ -5737,10 +5816,12 @@ def main():
     num_pts = int(10000)
     nr_imgs = 150
     pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
+    pars1_opt = list(np.arange(0.1, 0.3, 0.1))
     pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
-    gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
-                    'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
+    # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
+    #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
+    gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
     pars_kpDistr_opt = ['1corn', 'equ']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_depthDistr_opt = ['NMF', 'NM']
