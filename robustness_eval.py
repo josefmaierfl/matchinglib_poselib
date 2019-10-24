@@ -206,7 +206,7 @@ def get_best_comb_scenes_1(**keywords):
         with open(fb_mean_name, 'a') as f:
             f.write('# Minimum combined R & t errors (b_min) and corresponding option vs ' +
                     keywords['x_axis_column'][0] +
-                    ' for partition ' + '-'.join(map(str, ret['partitions'][:-1])) + ' = ' +
+                    ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
                     (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
             f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -279,5 +279,16 @@ def get_best_comb_scenes_1(**keywords):
     if res1 != 0:
         ret['res'] += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    par_stat = b_min.drop(keywords['x_axis_column'][0], axis=1).groupby(ret['partitions']).describe()
+    base_name = 'mean_min_RTerrors_vs_' + keywords['x_axis_column'][0] + '_and_corresp_mean_opts_' + \
+                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    b_mean_name = 'data_' + base_name  + '.csv'
+    fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean minimum combined R & t errors (b_min) and corresponding mean options ' +
+                ' for different ' + '-'.join(map(str, ret['partitions'])) + '\n')
+        f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+        par_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     return ret['res']
