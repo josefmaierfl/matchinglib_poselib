@@ -120,7 +120,8 @@ def pars_calc_single_fig_partitions(**keywords):
         split_large_titles, \
         get_limits_log_exp, \
         enl_space_title, \
-        short_concat_str
+        short_concat_str, \
+        check_if_series
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
@@ -184,6 +185,8 @@ def pars_calc_single_fig_partitions(**keywords):
             continue
         idx_old = p
         tmp2 = ret['b_all_partitions'].loc[p]
+        if check_if_series(tmp2):
+            continue
         if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
             idx_vals = tmp2.index[0]
         else:

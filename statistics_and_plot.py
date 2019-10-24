@@ -344,6 +344,8 @@ def calcSatisticAndPlot_2D(data,
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
 
+    roundNumericProps(df, it_parameters, x_axis_column, None)
+
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)))
     cnt = 1
@@ -1078,6 +1080,8 @@ def calcFromFuncAndPlot_2D(data,
     else:
         raise ValueError('No function for calculating results provided')
 
+    roundNumericProps(df, it_parameters, x_axis_column, None)
+
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)))
     cnt = 1
@@ -1490,6 +1494,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
             evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
+
+    roundNumericProps(df, it_parameters, x_axis_column, None, partitions)
 
     if len(partitions) > 1:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' +
@@ -1995,6 +2001,8 @@ def calcSatisticAndPlot_3D(data,
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
 
+    roundNumericProps(df, it_parameters, None, xy_axis_columns)
+
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)))
     cnt = 1
@@ -2303,6 +2311,8 @@ def calcFromFuncAndPlot_3D(data,
             evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
+
+    roundNumericProps(df, it_parameters, None, xy_axis_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)))
@@ -2652,6 +2662,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
             evals_for_gloss = ret['evals_for_gloss']
     else:
         raise ValueError('No function for calculating results provided')
+
+    roundNumericProps(df, it_parameters, None, xy_axis_columns, partitions)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)) + '_for_' +
@@ -3062,6 +3074,8 @@ def calcFromFuncAndPlot_aggregate(data,
     else:
         raise ValueError('No function for calculating results provided')
 
+    roundNumericProps(df, it_parameters)
+
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters))
     cnt = 1
     store_path_init = store_path_sub
@@ -3407,6 +3421,8 @@ def calcSatisticAndPlot_aggregate(data,
     else:
         needed_columns = eval_columns + it_parameters
         df = data[needed_columns]
+
+    roundNumericProps(df, it_parameters)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters))
     cnt = 1
@@ -4448,9 +4464,21 @@ def roundNumericProps(data, it_parameters=None, x_axis_column=None, xy_axis_colu
 def roundNumeric_df(col_names, df):
     is_number = np.vectorize(lambda x: np.issubdtype(x, np.number) and not np.issubdtype(x, np.integer))
     hlp = is_number(df[col_names].dtypes)
-    for i, it in enumerate(hlp):
+    hlp1 = df[col_names].applymap(type).eq(str).all()
+    pd.options.mode.chained_assignment = None
+    # with warnings.catch_warnings():
+    #     warnings.simplefilter("ignore", category=pd. SettingWithCopyWarning)
+    for i, (it, it1) in enumerate(zip(hlp, hlp1)):
         if it:
-            df[col_names[i]] = df[col_names[i]].round(6)
+            df.loc[:, col_names[i]] = df[col_names[i]].round(6)
+        elif it1 and str_is_number(df, col_names[i]):
+            df.loc[:, col_names[i]] = pd.to_numeric(df.loc[:, col_names[i]], errors='coerce').to_numpy()
+            df.loc[:, col_names[i]] = df.loc[:, col_names[i]].round(6).to_numpy()
+    pd.options.mode.chained_assignment = 'warn'
+
+
+def str_is_number(df, col):
+    return pd.to_numeric(df[col], errors='coerce').notnull().all()
 
 
 def get_limits_log_exp(df,
@@ -4489,6 +4517,41 @@ def get_limits_log_exp(df,
                                                       use_limits['miny'],
                                                       use_limits['maxy'])
     return False, use_limits, use_log, exp_value
+
+
+def insert_str_option_values(options_list, vals):
+    nr_partitions = len(options_list)
+    if nr_partitions > 1:
+        if nr_partitions != len(vals):
+            raise ValueError('Number of parameters and their corresponding values must match.')
+        partition_part = ''
+        for i, (val_name, val) in enumerate(zip(options_list, vals)):
+            partition_part += replaceCSVLabels(val_name, False, False, True)
+            partition_part = add_val_to_opt_str(partition_part, val)
+            if nr_partitions <= 2:
+                if i < nr_partitions - 1:
+                    partition_part += ' and '
+            else:
+                if i < nr_partitions - 2:
+                    partition_part += ', '
+                elif i < nr_partitions - 1:
+                    partition_part += ', and '
+    else:
+        partition_part = replaceCSVLabels(options_list[0], False, False, True)
+        partition_part = add_val_to_opt_str(partition_part, vals)
+    return partition_part
+
+
+def add_val_to_opt_str(opt_str, val):
+    if not opt_str or not isinstance(opt_str, str):
+        raise ValueError('Povided option must be a string and not empty')
+    if '$' == opt_str[-1]:
+        opt_str = opt_str[:-1] + '=' + str(val) + '$'
+    elif '}' == opt_str[-1]:
+        opt_str += '=' + str(val)
+    else:
+        opt_str += ' equal to ' + str(val)
+    return opt_str
 
 
 def split_large_titles(title_str):
