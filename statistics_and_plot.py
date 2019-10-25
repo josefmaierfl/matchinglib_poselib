@@ -804,7 +804,7 @@ def calcSatisticAndPlot_2D_partitions(data,
         base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + \
                          '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
     else:
-        base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + str(partitions)
+        base_out_name += '_combs_vs_' + grp_names[-1] + '_for_' + str(partitions[0])
     title_name += ' Compared to ' + replaceCSVLabels(grp_names[-1], False, True, True) + ' Values Separately for '
     for i in range(0, nr_partitions):
         title_name += replaceCSVLabels(grp_names[i], True, True, True)
@@ -2117,6 +2117,8 @@ def calcSatisticAndPlot_3D(data,
                 tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
             nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
+            is_numericx, colname_x = gen_3D_number_rep_for_string(tmp, grp_names[-2], True)
+            is_numericy, colname_y = gen_3D_number_rep_for_string(tmp, grp_names[-1], False)
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                        str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
@@ -2129,8 +2131,13 @@ def calcSatisticAndPlot_3D(data,
             if no_tex:
                 continue
 
+            plot_cols = get_usable_3D_cols(tmp, list(tmp.columns.values)[2:])
+            if not plot_cols:
+                continue
+
             #Construct tex-file information
-            stats_all = tmp.drop(tmp.columns.values[0:2], axis=1).stack().reset_index()
+            st_drops = list(dict.fromkeys(list(tmp.columns.values[0:2]) + [colname_x, colname_y]))
+            stats_all = tmp.drop(st_drops, axis=1).stack().reset_index()
             stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
             if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
                 np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
@@ -2157,7 +2164,7 @@ def calcSatisticAndPlot_3D(data,
                                                   ' and ' + replaceCSVLabels(str(grp_names[-1]), True, False, True),
                                           'fig_type': fig_type,
                                           'stat_name': it[-1],
-                                          'plots_z': list(tmp.columns.values)[2:],
+                                          'plots_z': plot_cols,
                                           'diff_z_labels': False,
                                           'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
                                           'plot_x': str(tmp.columns.values[1]),
@@ -2170,7 +2177,11 @@ def calcSatisticAndPlot_3D(data,
                                           'use_marks': use_marks,
                                           'mesh_cols': nr_equal_ss,
                                           'use_log_z_axis': False,
-                                          'limits': use_limits
+                                          'limits': use_limits,
+                                          'use_string_labels_x': True if not is_numericx else False,
+                                          'use_string_labels_y': True if not is_numericy else False,
+                                          'iterate_x': colname_x,
+                                          'iterate_y': colname_y
                                           })
 
     if no_tex:
@@ -2460,6 +2471,8 @@ def calcFromFuncAndPlot_3D(data,
         tmp = tmp.drop(it_parameters, axis=1)
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
         nr_equal_ss = get_block_length_3D(tmp, xy_axis_columns)
+        is_numericx, colname_x = gen_3D_number_rep_for_string(tmp, xy_axis_columns[0], True)
+        is_numericy, colname_y = gen_3D_number_rep_for_string(tmp, xy_axis_columns[1], False)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2478,6 +2491,10 @@ def calcFromFuncAndPlot_3D(data,
             continue
 
         for i, it in enumerate(eval_columns):
+            plot_cols = get_usable_3D_cols(tmp, [it])
+            if not plot_cols:
+                continue
+
             #Construct tex-file information
             stats_all = {'min': tmp[it].min(), 'max': tmp[it].max()}
             if (np.isclose(stats_all['min'], 0, atol=1e-06) and
@@ -2532,7 +2549,11 @@ def calcFromFuncAndPlot_3D(data,
                                           'use_marks': use_marks,
                                           'mesh_cols': nr_equal_ss,
                                           'use_log_z_axis': eval_cols_log_scaling[i],
-                                          'limits': use_limits
+                                          'limits': use_limits,
+                                          'use_string_labels_x': True if not is_numericx else False,
+                                          'use_string_labels_y': True if not is_numericy else False,
+                                          'iterate_x': colname_x,
+                                          'iterate_y': colname_y
                                           })
 
     if no_tex:
@@ -2565,6 +2586,379 @@ def calcFromFuncAndPlot_3D(data,
                               'ctrl_fig_size': tex_infos['ctrl_fig_size'],
                               'abbreviations': tex_infos['abbreviations']})
 
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       use_fixed_caption=it['use_fixed_caption'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                      pdf_l_info['pdf_name'], figs_externalize)
+
+    return res
+
+
+def calcSatisticAndPlot_3D_partitions(data,
+                                      store_path,
+                                      tex_file_pre_str,
+                                      fig_title_pre_str,
+                                      eval_description_path,
+                                      eval_columns,
+                                      units,
+                                      it_parameters,
+                                      partitions,# Data properties to calculate statistics seperately
+                                      xy_axis_columns,
+                                      filter_func=None,
+                                      filter_func_args=None,
+                                      special_calcs_func = None,
+                                      special_calcs_args = None,
+                                      calc_func = None,
+                                      calc_func_args = None,
+                                      fig_type='surface',
+                                      use_marks=True,
+                                      ctrl_fig_size=True,
+                                      make_fig_index=True,
+                                      build_pdf=False,
+                                      figs_externalize=True,
+                                      no_tex=False):
+    if len(xy_axis_columns) != 2:
+        raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
+    fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
+                 'surface', 'contour', 'surface-contour']
+    if not fig_type in fig_types:
+        raise ValueError('Unknown figure type.')
+    # if type(data) is not pd.dataframe.DataFrame:
+    #     data = pd.utils.from_pandas(data)
+    # startt = time.time()
+    #Filter rows by excluding not successful estimations
+    data = data.loc[~((data['R_out(0,0)'] == 0) &
+                      (data['R_out(0,1)'] == 0) &
+                      (data['R_out(0,2)'] == 0) &
+                      (data['R_out(1,0)'] == 0) &
+                      (data['R_out(1,1)'] == 0) &
+                      (data['R_out(1,2)'] == 0) &
+                      (data['R_out(2,0)'] == 0) &
+                      (data['R_out(2,1)'] == 0) &
+                      (data['R_out(2,2)'] == 0))]
+    if filter_func is not None:
+        if filter_func_args is None:
+            filter_func_args = {'data': data}
+        else:
+            filter_func_args['data'] = data
+        data = filter_func(**filter_func_args)
+    if data.empty:
+        raise ValueError('No data left after filtering')
+
+    # Select columns we need
+    if calc_func is not None:
+        if calc_func_args is None:
+            calc_func_args = {'data': data}
+        else:
+            calc_func_args['data'] = data
+        calc_func_args['eval_columns'] = eval_columns
+        calc_func_args['it_parameters'] = it_parameters
+        calc_func_args['xy_axis_columns'] = xy_axis_columns
+        calc_func_args['partitions'] = partitions
+        ret = calc_func(**calc_func_args)
+        df = ret['data']
+        eval_columns = ret['eval_columns']
+        it_parameters = ret['it_parameters']
+        xy_axis_columns = ret['xy_axis_columns']
+        partitions = ret['partitions']
+    else:
+        needed_columns = eval_columns + it_parameters + xy_axis_columns + partitions
+        df = data[needed_columns]
+
+    roundNumericProps(df, it_parameters, None, xy_axis_columns, partitions)
+
+    if len(partitions) > 1:
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
+                                                  '_vs_' + '-'.join(map(str, xy_axis_columns)) + '_for_' +
+                                                  '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]))
+    else:
+        store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
+                                                  '_vs_' +'-'.join(map(str, xy_axis_columns)) + '_for_' +
+                                                  str(partitions[0]))
+    cnt = 1
+    store_path_init = store_path_sub
+    while os.path.exists(store_path_sub):
+        store_path_sub = store_path_init + '_' + str(int(cnt))
+        cnt += 1
+    try:
+        os.mkdir(store_path_sub)
+    except FileExistsError:
+        print('Folder', store_path_sub, 'for storing statistics data already exists')
+    except:
+        print("Unexpected error (Unable to create directory for storing statistics data):", sys.exc_info()[0])
+        raise
+    if build_pdf:
+        pdf_folder = os.path.join(store_path_sub, 'pdf')
+        try:
+            os.mkdir(pdf_folder)
+        except FileExistsError:
+            print('Folder', pdf_folder, 'for storing pdf files already exists')
+    tex_folder = os.path.join(store_path_sub, 'tex')
+    try:
+        os.mkdir(tex_folder)
+    except FileExistsError:
+        print('Folder', tex_folder, 'for storing tex files already exists')
+    tdata_folder = os.path.join(tex_folder, 'data')
+    try:
+        os.mkdir(tdata_folder)
+    except FileExistsError:
+        print('Folder', tdata_folder, 'for storing data files already exists')
+
+    #Group by USAC parameters 5&6 and calculate the statistic
+    stats = df.groupby(partitions + it_parameters + xy_axis_columns).describe()
+    if special_calcs_func is not None and special_calcs_args is not None:
+        if 'func_name' in special_calcs_args:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_args['func_name'])
+        else:
+            special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_func.__name__)
+        cnt = 1
+        calc_vals = True
+        special_path_init = special_path_sub
+        while os.path.exists(special_path_sub):
+            special_path_sub = special_path_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(special_path_sub)
+        except FileExistsError:
+            print('Folder', special_path_sub, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            special_calcs_args['data'] = stats
+            special_calcs_args['it_parameters'] = it_parameters
+            special_calcs_args['eval_columns'] = eval_columns
+            special_calcs_args['xy_axis_columns'] = xy_axis_columns
+            special_calcs_args['partitions'] = partitions
+            special_calcs_args['res_folder'] = special_path_sub
+            res = special_calcs_func(**special_calcs_args)
+            if res != 0:
+                warnings.warn('Calculation of specific results failed!', UserWarning)
+
+    errvalnames = stats.columns.values  # Includes statistic name and error value names
+    grp_names = stats.index.names  # As used when generating the groups
+    rel_data_path = os.path.relpath(tdata_folder, tex_folder)
+    nr_it_parameters = len(it_parameters)
+    nr_partitions = len(partitions)
+    base_out_name = tex_file_pre_str
+    title_name = fig_title_pre_str
+    base_out_name += concat_combs(grp_names, nr_it_parameters, nr_partitions)
+    for i in range(0, nr_it_parameters):
+        title_name += replaceCSVLabels(grp_names[nr_partitions + i], True, True, True)
+        if (nr_it_parameters <= 2):
+            if i < nr_it_parameters - 1:
+                title_name += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                title_name += ', '
+            elif i < nr_it_parameters - 1:
+                title_name += ', and '
+    if len(partitions) > 1:
+        base_out_name += '_combs_vs_' + grp_names[-2] + '_and_' + grp_names[-1] + '_for_' + \
+                         '-'.join([a[:min(3, len(a))] for a in map(str, partitions)])
+    else:
+        base_out_name += '_combs_vs_' + grp_names[-2] + '_and_' + grp_names[-1] + '_for_' + str(partitions[0])
+    title_name += ' Compared to ' + replaceCSVLabels(grp_names[-2], False, True, True) + ' and ' + \
+                  replaceCSVLabels(grp_names[-1], False, True, True) + \
+                  ' Values Separately for '
+    for i in range(0, nr_partitions):
+        title_name += replaceCSVLabels(grp_names[i], True, True, True)
+        if (nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                title_name += ' and '
+        else:
+            if i < nr_partitions - 2:
+                title_name += ', '
+            elif i < nr_partitions - 1:
+                title_name += ', and '
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 'use_fixed_caption': False,
+                 'make_index': make_fig_index,  # Builds an index with hyperrefs on the beginning of the pdf
+                 'ctrl_fig_size': ctrl_fig_size,
+                 # If True, the figures are adapted to the page height if they are too big
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None}
+
+    stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
+    gloss_calced = False
+    for it in errvalnames:
+        if it[-1] != 'count':
+            it_tmp = list(it)
+            tmp = stats[it[0]].unstack()
+            tmp = tmp[it[1]]
+            tmp = tmp.unstack()
+            tmp1 = tmp.reset_index().set_index(partitions)
+            idx_old = None
+            for p in tmp1.index:
+                if idx_old is not None and idx_old == p:
+                    continue
+                idx_old = p
+                tmp2 = tmp1.loc[p]
+                if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+                    idx_vals = tmp2.index[0]
+                else:
+                    idx_vals = [tmp2.index[0]]
+                part_props = deepcopy(idx_vals)
+                part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, idx_vals)])
+                part_name_l = [replaceCSVLabels(str(ni), False, False, True) + ' = ' +
+                               tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, idx_vals)]
+                part_name_title = ''
+                for i, val in enumerate(part_name_l):
+                    part_name_title += val
+                    if (len(part_name_l) <= 2):
+                        if i < len(part_name_l) - 1:
+                            part_name_title += ' and '
+                    else:
+                        if i < len(part_name_l) - 2:
+                            part_name_title += ', '
+                        elif i < len(part_name_l) - 1:
+                            part_name_title += ', and '
+                tmp2 = tmp2.reset_index().drop(partitions, axis=1, level=0)
+                tmp2 = tmp2.set_index(it_parameters).T
+                if not gloss_calced:
+                    if len(it_parameters) > 1:
+                        gloss = glossary_from_list([str(b) for a in tmp2.columns for b in a])
+                    else:
+                        gloss = glossary_from_list([str(a) for a in tmp2.columns])
+                    gloss_calced = True
+                    if gloss:
+                        gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions, gloss)
+                        tex_infos['abbreviations'] = gloss
+                    else:
+                        gloss = add_to_glossary_eval(eval_columns + xy_axis_columns + partitions)
+                        if gloss:
+                            tex_infos['abbreviations'] = gloss
+                tex_infos['abbreviations'] = add_to_glossary(part_props, tex_infos['abbreviations'])
+                if len(it_parameters) > 1:
+                    tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
+                    tmp2.columns.name = '-'.join(it_parameters)
+                tmp2.reset_index(inplace=True)
+                nr_equal_ss = get_block_length_3D(tmp2, xy_axis_columns)
+                is_numericx, colname_x = gen_3D_number_rep_for_string(tmp2, grp_names[-2], True)
+                is_numericy, colname_y = gen_3D_number_rep_for_string(tmp2, grp_names[-1], False)
+                dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
+                             str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + \
+                             '_for_' + part_name.replace('.', 'd') + '.csv'
+                dataf_name = dataf_name.replace('%', 'perc')
+                fdataf_name = os.path.join(tdata_folder, dataf_name)
+                with open(fdataf_name, 'a') as f:
+                    f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
+                            ' and properties ' + part_name + '\n')
+                    f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
+                    tmp2.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+                if no_tex:
+                    continue
+
+                plot_cols = get_usable_3D_cols(tmp2, list(tmp2.columns.values)[2:])
+                if not plot_cols:
+                    continue
+
+                # Construct tex-file information
+                st_drops = list(dict.fromkeys(list(tmp2.columns.values[0:2]) + [colname_x, colname_y]))
+                stats_all = tmp2.drop(st_drops, axis=1).stack().reset_index()
+                stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+                if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
+                    np.isclose(stats_all['max'][0], 0, atol=1e-06)) or \
+                        np.isclose(stats_all['min'][0], stats_all['max'][0]):
+                    continue
+                use_limits = {'minz': None, 'maxz': None}
+                if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 100):
+                    if stats_all['min'][0] < 0:
+                        use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
+                    else:
+                        use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
+                    if stats_all['max'][0] < 0:
+                        use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
+                    else:
+                        use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
+
+                section_name = replace_stat_names(it_tmp[-1]) + ' values for ' + \
+                               replaceCSVLabels(str(it_tmp[0]), True, False, True) + \
+                               ' compared to ' + replaceCSVLabels(str(grp_names[-2]), True, False, True) + \
+                               ' and ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) + \
+                               ' for properties ' + part_name.replace('_', '\\_')
+                reltex_name = os.path.join(rel_data_path, dataf_name)
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': section_name,
+                                              'fig_type': fig_type,
+                                              'stat_name': it_tmp[-1],
+                                              'plots_z': plot_cols,
+                                              'diff_z_labels': False,
+                                              'label_z': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
+                                              'plot_x': str(tmp2.columns.values[1]),
+                                              'label_x': replaceCSVLabels(str(tmp2.columns.values[1])) +
+                                                         findUnit(str(tmp2.columns.values[1]), units),
+                                              'plot_y': str(tmp2.columns.values[0]),
+                                              'label_y': replaceCSVLabels(str(tmp2.columns.values[0])) +
+                                                         findUnit(str(tmp2.columns.values[0]), units),
+                                              'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)[2:]],
+                                              'use_marks': use_marks,
+                                              'mesh_cols': nr_equal_ss,
+                                              'use_log_z_axis': False,
+                                              'limits': use_limits,
+                                              'use_string_labels_x': True if not is_numericx else False,
+                                              'use_string_labels_y': True if not is_numericy else False,
+                                              'iterate_x': colname_x,
+                                              'iterate_y': colname_y
+                                              })
+
+    if no_tex:
+        return 0
+
+    pdfs_info = []
+    max_figs_pdf = 40
+    if tex_infos['ctrl_fig_size']:# and not figs_externalize:
+        max_figs_pdf = 30
+    # elif figs_externalize:
+    #     max_figs_pdf = 40
+    for st in stat_names:
+        #Get list of results using the same statistic
+        st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+        act_figs = 0
+        cnt = 1
+        i_old = 0
+        i_new = 0
+        st_list2 = []
+        for i_new, a in enumerate(st_list):
+            act_figs += len(a['plots_z'])
+            if act_figs > max_figs_pdf:
+                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+                cnt += 1
+                i_old = i_new + 1
+                act_figs = 0
+        if (i_new + 1) != i_old:
+            st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = replace_stat_names(st) + ' ' + tex_infos['title']
+            else:
+                title = replace_stat_names(st) + ' ' + tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+            pdfs_info.append({'title': title,
+                              'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                           '_' + base_out_name + '_' + str(it['pdf_nr']),
+                              'figs_externalize': figs_externalize,
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'use_fixed_caption': tex_infos['use_fixed_caption'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'abbreviations': tex_infos['abbreviations']})
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
     for it in pdfs_info:
@@ -2877,6 +3271,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
             # nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
             nr_equal_ss = get_block_length_3D(tmp1, xy_axis_columns)
+            is_numericx, colname_x = gen_3D_number_rep_for_string(tmp1, xy_axis_columns[0], True)
+            is_numericy, colname_y = gen_3D_number_rep_for_string(tmp1, xy_axis_columns[1], False)
 
             if eval_init_input:
                 dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + short_concat_str(grp_it.split('-')) + \
@@ -2904,6 +3300,9 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 continue
 
             for i, it in enumerate(eval_columns):
+                plot_cols = get_usable_3D_cols(tmp1, [it])
+                if not plot_cols:
+                    continue
                 # Construct tex-file information
                 stats_all = {'min': tmp1[it].min(), 'max': tmp1[it].max()}
                 if (np.isclose(stats_all['min'], 0, atol=1e-06) and
@@ -2949,7 +3348,11 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                               'use_marks': use_marks,
                                               'mesh_cols': nr_equal_ss,
                                               'use_log_z_axis': eval_cols_log_scaling[i],
-                                              'limits': use_limits
+                                              'limits': use_limits,
+                                              'use_string_labels_x': True if not is_numericx else False,
+                                              'use_string_labels_y': True if not is_numericy else False,
+                                              'iterate_x': colname_x,
+                                              'iterate_y': colname_y
                                               })
 
     if no_tex:
@@ -4001,6 +4404,59 @@ def get_replace_eval(compare_source, act_eval, is_not_eval=False):
     return True, dest_eval, compare_source['replace_evals']['new'][i_f]
 
 
+def gen_3D_number_rep_for_string(df, col_name, is_x):
+    is_numeric = pd.to_numeric(df.reset_index()[col_name], errors='coerce').notnull().all()
+    col_name_new = 'nr_rep_for_pgf'
+    if is_numeric:
+        return True, col_name
+    if is_x:
+        col_name_new += '_x'
+    else:
+        col_name_new += '_y'
+    tmp = df[col_name]
+    tmp_it = tmp.iteritems()
+    _, val_prev = next(tmp_it)
+    cnt = 0
+    cnt_l = [0]
+    for _, val in tmp_it:
+        if val_prev != val:
+            cnt += 1
+        cnt_l.append(cnt)
+        val_prev = val
+    df[col_name_new] = cnt_l
+    return False, col_name_new
+
+
+def too_many_nan(df, col_name):
+    nr_nans = df[col_name].isnull().sum()
+    portion = float(nr_nans) / float(df[col_name].shape[0])
+    if portion > 0.5:
+        return True
+    return False
+
+
+def get_usable_3D_cols(df, col_names):
+    mult_cols = True
+    if isinstance(col_names, str):
+        mult_cols = False
+    else:
+        try:
+            oit = iter(col_names)
+        except TypeError as te:
+            mult_cols = False
+    if mult_cols:
+        good_cols = []
+        for it in col_names:
+            if not too_many_nan(df, it):
+                good_cols.append(it)
+    elif too_many_nan(df, col_names):
+        good_cols = None
+    else:
+        good_cols = col_names
+
+    return good_cols
+
+
 def concat_combs(str_list, nr_elems, start=0, join_char='-'):
     return short_concat_str(str_list[start: start + nr_elems], join_char)
 
@@ -4228,8 +4684,22 @@ def short_concat_str(str_list, join_char='-'):
 
 
 def get_block_length_3D(df, xy_axis_columns):
-    x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
-    y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
+    is_number = np.vectorize(lambda x: np.issubdtype(x, np.number))
+    hlp = is_number(df[xy_axis_columns].dtypes)
+    if hlp[0]:
+        x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
+    else:
+        if df[xy_axis_columns[0]].iloc[0] == df[xy_axis_columns[0]].iloc[1]:
+            x_diff = 0
+        else:
+            x_diff = 1
+    if hlp[1]:
+        y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
+    else:
+        if df[xy_axis_columns[1]].iloc[0] == df[xy_axis_columns[1]].iloc[1]:
+            y_diff = 0
+        else:
+            y_diff = 1
     if np.isclose(x_diff, 0, atol=1e-06) and not np.isclose(y_diff, 0, atol=1e-06):
         nr_equal_ss = int(df.groupby(xy_axis_columns[0]).size().array[0])
     elif not np.isclose(x_diff, 0, atol=1e-06) and np.isclose(y_diff, 0, atol=1e-06):
@@ -5896,16 +6366,16 @@ def main():
     pars_depthDistr_opt = ['NMF', 'NM']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(map(str, list(np.arange(0.35, 0.85, 0.1))))
+    inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-              nr_imgs * len(poolSize) * len(pars1_opt)
+              nr_imgs * len(poolSize) * len(pars1_opt) * len(gt_type_pars)
     if min_pts < num_pts:
         while min_pts < num_pts:
             pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
             min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-                      nr_imgs * len(poolSize) * len(pars1_opt)
+                      nr_imgs * len(poolSize) * len(pars1_opt) * len(gt_type_pars)
         num_pts = min_pts
     else:
         num_pts = int(min_pts)
@@ -5913,6 +6383,7 @@ def main():
     inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
     USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
     poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
+    gt_type_pars_mul = int(poolSize_mul * len(poolSize))
 
     data = {#'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
@@ -5967,10 +6438,6 @@ def main():
             # 'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10),
             'Nr': list(range(0, nr_imgs)) * int(num_pts / nr_imgs),
             'inlRat_GT': np.tile(np.arange(0.25, 0.72, 0.05), int(num_pts/10))}
-
-    eval_columns = ['K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm', 'K2_cxyDiffNorm',
-                    'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff', 'K2_fxDiff', 'K1_fyDiff',
-                    'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff', 'K1_cyDiff', 'K2_cyDiff']
 
     data['poolSize'] = data['inlratMin'].astype(np.float) * 500 - \
                        data['inlratMin'].astype(np.float) * np.random.randint(0, 50, num_pts)
@@ -6034,7 +6501,7 @@ def main():
                 data['R_out(2,0)'][i * nr_imgs + it1] = 0
                 data['R_out(2,1)'][i * nr_imgs + it1] = 0
                 data['R_out(2,2)'][i * nr_imgs + it1] = 0
-    data_type = build_list(gt_type_pars, 1, nr_scenes)
+    # data_type = build_list(gt_type_pars, 1, nr_scenes)
     data['R_GT_n_diffAll'] = []
     data['t_GT_n_angDiff'] = []
     data['R_GT_n_diff_roll_deg'] = []
@@ -6048,9 +6515,9 @@ def main():
     jumpposn2 = int(nr_imgs) - jumppos
     c_max = 0.01 * nr_imgs
     sc = 0
-    tl = len(data_type)
+    tl = len(gt_type_pars)
     while sc < nr_scenes:
-        this_type = data_type[sc % tl]
+        this_type = gt_type_pars[sc % tl]
         if this_type == 'crt':
             data['R_GT_n_diffAll'] += list(np.arange(0, c_max, 0.01))
             data['t_GT_n_angDiff'] += list(np.arange(0, c_max, 0.01))
@@ -6222,7 +6689,7 @@ def main():
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [1]#list(range(5, 11))
+    eval_nr = [2]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -8732,11 +9199,11 @@ def main():
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    it_parameters = ['stereoParameters_relInlRatThLast',
-                                     'stereoParameters_relInlRatThNew',
-                                     'stereoParameters_minInlierRatSkip',
-                                     'stereoParameters_minInlierRatioReInit',
-                                     'stereoParameters_relMinInlierRatSkip']
+                    # it_parameters = ['stereoParameters_relInlRatThLast',
+                    #                  'stereoParameters_relInlRatThNew',
+                    #                  'stereoParameters_minInlierRatSkip',
+                    #                  'stereoParameters_minInlierRatioReInit',
+                    #                  'stereoParameters_relMinInlierRatSkip']
                     it_parameters = ['USAC_parameters_estimator',
                                      'stereoParameters_maxPoolCorrespondences']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
@@ -8753,7 +9220,6 @@ def main():
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'stereoParameters_maxPoolCorrespondences',
                                                             'inlratCRate']}
-                    from refinement_eval import get_best_comb_scenes_1
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
@@ -8779,6 +9245,60 @@ def main():
                                                              build_pdf=False,
                                                              figs_externalize=True,
                                                              no_tex=True)
+                elif ev == 2:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_relInlRatThLast',
+                    #                  'stereoParameters_relInlRatThNew',
+                    #                  'stereoParameters_minInlierRatSkip',
+                    #                  'stereoParameters_minInlierRatioReInit',
+                    #                  'stereoParameters_relMinInlierRatSkip']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'stereoParameters_maxPoolCorrespondences']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'robustness_best_comb_scenes_inlc_depth'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                    #                                         'stereoParameters_relInlRatThNew',
+                    #                                         'stereoParameters_minInlierRatSkip',
+                    #                                         'stereoParameters_minInlierRatioReInit',
+                    #                                         'stereoParameters_relMinInlierRatSkip',
+                    #                                         'inlratCRate',
+                    #                                         'depthDistr']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'stereoParameters_maxPoolCorrespondences',
+                                                            'inlratCRate',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=None,
+                                                             special_calcs_args=None,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True)
 
     return ret
 
