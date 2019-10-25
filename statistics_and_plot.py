@@ -4550,7 +4550,11 @@ def add_val_to_opt_str(opt_str, val):
     elif '}' == opt_str[-1]:
         opt_str += '=' + str(val)
     else:
-        opt_str += ' equal to ' + str(val)
+        opt_str += ' equal to '
+        if isinstance(val, str):
+            opt_str += tex_string_coding_style(val)
+        else:
+            opt_str += str(val)
     return opt_str
 
 
@@ -4607,11 +4611,13 @@ def tex_string_coding_style(text):
     text = text.replace('_', '\\_')
     return '\\texttt{' + text + '}'
 
+
 def findUnit(key, units):
     for i in units:
         if key in i:
             return i[1]
     return ''
+
 
 def calcNrLegendCols(tex_infos_section):
     nr_plots = len(tex_infos_section['plots'])
@@ -5623,7 +5629,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
         return tex_string_coding_style(label)
     if in_heading:
         str_val = replace_bm_in_headings(str_val)
-    ex = ['and', 'of', 'for', 'to', 'with', 'on', 'in', 'within']
+    ex = ['and', 'of', 'for', 'to', 'with', 'on', 'in', 'within', 'a', 'an']
     if str_capitalize:
         return ' '.join([b.capitalize() if not b.isupper() and
                                            not '$' in b and
@@ -5634,7 +5640,7 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
 
 
 def capitalizeStr(str_val):
-    ex = ['and', 'of', 'for', 'to', 'with', 'on', 'in', 'within']
+    ex = ['and', 'of', 'for', 'to', 'with', 'on', 'in', 'within', 'a', 'an']
     return ' '.join([b.capitalize() if not b.isupper() and
                                        not '$' in b and
                                        not '\\' in b and
