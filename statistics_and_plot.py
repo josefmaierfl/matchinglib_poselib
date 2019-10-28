@@ -2130,7 +2130,9 @@ def calcSatisticAndPlot_3D(data,
             if no_tex:
                 continue
 
-            plot_cols = get_usable_3D_cols(tmp, list(tmp.columns.values)[2:])
+            plot_cols0 = [a for a in list(tmp.columns.values)[2:]
+                          if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a]
+            plot_cols = get_usable_3D_cols(tmp, plot_cols0)
             if not plot_cols:
                 continue
 
@@ -2173,7 +2175,7 @@ def calcSatisticAndPlot_3D(data,
                                           'plot_y': str(tmp.columns.values[0]),
                                           'label_y': replaceCSVLabels(str(tmp.columns.values[0])) +
                                                      findUnit(str(tmp.columns.values[0]), units),
-                                          'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
+                                          'legend': [tex_string_coding_style(a) for a in plot_cols],
                                           'use_marks': use_marks,
                                           'mesh_cols': env_3d_info['nr_equal_ss'],
                                           'use_log_z_axis': False,
@@ -2830,6 +2832,8 @@ def calcSatisticAndPlot_3D_partitions(data,
                         elif i < len(part_name_l) - 1:
                             part_name_title += ', and '
                 tmp2 = tmp2.reset_index()
+                if check_if_series(tmp2):
+                    continue
                 if tmp2.columns.names and not isinstance(tmp2.columns.names, str) and len(tmp2.columns.names) > 1:
                     tmp2.drop(partitions, axis=1, level=0, inplace=True)
                 else:
@@ -2868,7 +2872,9 @@ def calcSatisticAndPlot_3D_partitions(data,
                 if no_tex:
                     continue
 
-                plot_cols = get_usable_3D_cols(tmp2, list(tmp2.columns.values)[2:])
+                plot_cols0 = [a for a in list(tmp2.columns.values)[2:]
+                              if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a]
+                plot_cols = get_usable_3D_cols(tmp2, plot_cols0)
                 if not plot_cols:
                     continue
 
@@ -2904,14 +2910,16 @@ def calcSatisticAndPlot_3D_partitions(data,
                                               'stat_name': it_tmp[-1],
                                               'plots_z': plot_cols,
                                               'diff_z_labels': False,
-                                              'label_z': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
+                                              'label_z': replace_stat_names(it_tmp[-1]) +
+                                                         findUnit(str(it_tmp[0]), units),
                                               'plot_x': str(tmp2.columns.values[1]),
                                               'label_x': replaceCSVLabels(str(tmp2.columns.values[1])) +
                                                          findUnit(str(tmp2.columns.values[1]), units),
                                               'plot_y': str(tmp2.columns.values[0]),
                                               'label_y': replaceCSVLabels(str(tmp2.columns.values[0])) +
                                                          findUnit(str(tmp2.columns.values[0]), units),
-                                              'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)[2:]],
+                                              'legend': [tex_string_coding_style(a)
+                                                         for a in plot_cols],
                                               'use_marks': use_marks,
                                               'mesh_cols': env_3d_info['nr_equal_ss'],
                                               'use_log_z_axis': False,
@@ -6389,11 +6397,11 @@ def main():
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
     gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
     pars_kpDistr_opt = ['1corn', 'equ']
-    # pars_depthDistr_opt = ['NMF', 'NM', 'F']
-    pars_depthDistr_opt = ['NMF', 'NM']
+    pars_depthDistr_opt = ['NMF', 'NM', 'F']
+    # pars_depthDistr_opt = ['NMF', 'NM']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
+    inlratMin_opt = list(map(str, list(np.arange(0.45, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \

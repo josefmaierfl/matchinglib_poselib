@@ -715,6 +715,320 @@ def pars_calc_multiple_fig(**keywords):
     return ret
 
 
+def pars_calc_multiple_fig_partitions(**keywords):
+    if len(keywords) < 4:
+        raise ValueError('Wrong number of arguments for function pars_calc_multiple_fig_partitions')
+    if 'data' not in keywords:
+        raise ValueError('Missing data argument of function pars_calc_multiple_fig_partitions')
+    data = keywords['data']
+    ret = {}
+    if 'res_folder' not in keywords:
+        raise ValueError('Missing res_folder argument of function pars_calc_multiple_fig_partitions')
+    ret['res_folder'] = keywords['res_folder']
+    ret['fig_type'] = 'surface'
+    if 'fig_type' not in keywords:
+        print('No information provided about the figure type: Using \'surface\'')
+    else:
+        ret['fig_type'] = keywords['fig_type']
+    ret['use_marks'] = False
+    if 'use_marks' not in keywords:
+        print('No information provided if marks should be used: Disabling marks')
+    else:
+        ret['use_marks'] = keywords['use_marks']
+    ret['build_pdf'] = (False, True,)
+    if 'build_pdf' in keywords:
+        ret['build_pdf'] = keywords['build_pdf']
+    if len(ret['build_pdf']) < 2:
+        raise ValueError('Wrong number of arguments for build_pdf')
+    ret['pdf_folder'] = None
+    if any(ret['build_pdf']):
+        ret['pdf_folder'] = os.path.join(ret['res_folder'], 'pdf')
+        try:
+            os.mkdir(ret['pdf_folder'])
+        except FileExistsError:
+            # print('Folder', ret['pdf_folder'], 'for storing pdf files already exists')
+            pass
+    ret['tex_folder'] = os.path.join(ret['res_folder'], 'tex')
+    try:
+        os.mkdir(ret['tex_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tex_folder'], 'for storing tex files already exists')
+        pass
+    ret['tdata_folder'] = os.path.join(ret['tex_folder'], 'data')
+    try:
+        os.mkdir(ret['tdata_folder'])
+    except FileExistsError:
+        # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
+        pass
+    from statistics_and_plot import glossary_from_list, \
+        add_to_glossary_eval, \
+        get_3d_tex_info, \
+        get_usable_3D_cols, \
+        short_concat_str, \
+        tex_string_coding_style, \
+        compile_tex, \
+        replaceCSVLabels, \
+        check_if_series, \
+        add_to_glossary
+    ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
+    ret['grp_names'] = data.index.names
+    ret['it_parameters'] = keywords['it_parameters']
+    ret['xy_axis_columns'] = keywords['xy_axis_columns']
+    nr_it_parameters = len(ret['it_parameters'])
+    nr_partitions = len(ret['partitions'])
+    ret['sub_title_it_pars'] = ''
+    for i, val in enumerate(ret['it_parameters']):
+        ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
+        if nr_it_parameters <= 2:
+            if i < nr_it_parameters - 1:
+                ret['sub_title_it_pars'] += ' and '
+        else:
+            if i < nr_it_parameters - 2:
+                ret['sub_title_it_pars'] += ', '
+            elif i < nr_it_parameters - 1:
+                ret['sub_title_it_pars'] += ', and '
+    ret['sub_title_partitions'] = ''
+    for i, val in enumerate(ret['partitions']):
+        ret['sub_title_partitions'] += replaceCSVLabels(val, True, True, True)
+        if (nr_partitions <= 2):
+            if i < nr_partitions - 1:
+                ret['sub_title_partitions'] += ' and '
+        else:
+            if i < nr_partitions - 2:
+                ret['sub_title_partitions'] += ', '
+            elif i < nr_partitions - 1:
+                ret['sub_title_partitions'] += ', and '
+    ret['dataf_name_main'] = ret['grp_names'][-2] + '_and_' + ret['grp_names'][-1] + '_for_options_' + \
+                             short_concat_str(ret['it_parameters']) + \
+                             '_and_properties_'
+    ret['dataf_name_partition'] = '-'.join([a[:min(3, len(a))] for a in map(str, ret['partitions'])])
+    # ret['dataf_name'] = ret['dataf_name_main'] + ret['dataf_name_partition'] + '.csv'
+    ret['b'] = combineRt(data)
+    ret['b_all_partitions'] = ret['b'].unstack().reset_index().set_index(ret['partitions'])
+    title_text = 'Combined R \\& t Errors vs ' + replaceCSVLabels(ret['grp_names'][-2], True, True, True) + \
+                 ' and ' + replaceCSVLabels(ret['grp_names'][-1], True, True, True) + \
+                 ' for Parameter Variations of ' + ret['sub_title_it_pars'] + ' separately for ' + \
+                 ret['sub_title_partitions']
+    tex_infos = {'title': title_text,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': None
+                 }
+    ret['b_single_partitions'] = []
+    idx_old = None
+    gloss_calced = False
+    for p in ret['b_all_partitions'].index:
+        if idx_old is not None and idx_old == p:
+            continue
+        idx_old = p
+        tmp2 = ret['b_all_partitions'].loc[p]
+        if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+            idx_vals = tmp2.index[0]
+        else:
+            idx_vals = [tmp2.index[0]]
+        part_name = '_'.join([str(ni) + '-' + str(vi) for ni, vi in zip(tmp2.index.names, idx_vals)])
+        part_name_l = [replaceCSVLabels(str(ni), False, False, True) + ' = ' +
+                       tex_string_coding_style(str(vi)) for ni, vi in zip(tmp2.index.names, idx_vals)]
+        index_entries = [a for a in idx_vals]
+        part_name_title = ''
+        for i, val in enumerate(part_name_l):
+            part_name_title += val
+            if (len(part_name_l) <= 2):
+                if i < len(part_name_l) - 1:
+                    part_name_title += ' and '
+            else:
+                if i < len(part_name_l) - 2:
+                    part_name_title += ', '
+                elif i < len(part_name_l) - 1:
+                    part_name_title += ', and '
+        tmp2 = tmp2.reset_index()
+        if check_if_series(tmp2):
+            continue
+        if tmp2.columns.names and not isinstance(tmp2.columns.names, str) and len(tmp2.columns.names) > 1:
+            tmp2.drop(ret['partitions'], axis=1, level=0, inplace=True)
+        else:
+            tmp2.drop(ret['partitions'], axis=1, inplace=True)
+        tmp2 = tmp2.set_index(ret['it_parameters']).T
+        if not gloss_calced:
+            from statistics_and_plot import glossary_from_list, add_to_glossary_eval
+            if len(ret['it_parameters']) > 1:
+                ret['gloss'] = glossary_from_list([str(b) for a in tmp2.columns for b in a])
+            else:
+                ret['gloss'] = glossary_from_list([str(a) for a in tmp2.columns])
+            gloss_calced = True
+            if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
+                ret['gloss'] = add_to_glossary_eval('Rt_diff', ret['gloss'])
+            elif 'R_diffAll' not in data.columns and 'R_mostLikely_diffAll' in data.columns:
+                ret['gloss'] = add_to_glossary_eval('Rt_mostLikely_diff', ret['gloss'])
+            elif 'K1_cxyfxfyNorm' in data.columns:
+                ret['gloss'] = add_to_glossary_eval('K12_cxyfxfyNorm', ret['gloss'])
+            else:
+                raise ValueError('Combined Rt error column is missing.')
+            ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
+                                                keywords['partitions'] +
+                                                keywords['xy_axis_columns'], ret['gloss'])
+            tex_infos['abbreviations'] = ret['gloss']
+        tex_infos['abbreviations'] = add_to_glossary(index_entries, tex_infos['abbreviations'])
+        if len(ret['it_parameters']) > 1:
+            tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
+            tmp2.columns.name = '-'.join(ret['it_parameters'])
+
+        tmp2.reset_index(inplace=True)
+        env_3d_info = get_3d_tex_info(tmp2, keywords['xy_axis_columns'])
+        dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
+        dataf_name = dataf_name_main_property + '.csv'
+        b_name = 'data_RTerrors_vs_' + dataf_name
+        fb_name = os.path.join(ret['tdata_folder'], b_name)
+        ret['b_single_partitions'].append({'data': tmp2,
+                                           'part_name': part_name,
+                                           'part_name_title': part_name_title,
+                                           'dataf_name_main_property': dataf_name_main_property,
+                                           'dataf_name': dataf_name})
+        with open(fb_name, 'a') as f:
+            f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] +
+                    ' for properties ' + part_name + '\n')
+            f.write('# Column parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+            tmp2.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        plot_cols0 = [a for a in list(tmp2.columns.values)[2:]
+                      if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a]
+        plot_cols = get_usable_3D_cols(tmp2, plot_cols0)
+        if not plot_cols:
+            continue
+
+        # Construct tex-file information
+        st_drops = list(dict.fromkeys(list(tmp2.columns.values[0:2]) +
+                                      [env_3d_info['colname_x'], env_3d_info['colname_y']]))
+        stats_all = tmp2.drop(st_drops, axis=1).stack().reset_index()
+        stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+        use_limits = {'minz': None, 'maxz': None}
+        if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+            if stats_all['min'][0] < 0:
+                use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
+            else:
+                use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
+            if stats_all['max'][0] < 0:
+                use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
+            else:
+                use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
+
+
+
+
+        reltex_name = os.path.join(ret['rel_data_path'], b_name)
+        sec_name = 'Combined R \\& t errors $e_{R\\vect{t}}$ vs ' + \
+                   replaceCSVLabels(str(ret['grp_names'][-2]), True, False, True) + ' and ' + \
+                   replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) + \
+                   ' for parameter variations of ' + ret['sub_title_it_pars'] + \
+                   ' based on properties ' + part_name.replace('_', '\\_')
+
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': sec_name,
+                                      'fig_type': ret['fig_type'],
+                                      'plots_z': plot_cols,
+                                      'diff_z_labels': False,
+                                      'label_z': 'Combined R \\& t error $e_{R\\bm{t}}$',
+                                      'plot_x': str(ret['grp_names'][-2]),
+                                      'label_x': replaceCSVLabels(str(ret['grp_names'][-2])),
+                                      'plot_y': str(ret['grp_names'][-1]),
+                                      'label_y': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                      'legend': [tex_string_coding_style(a) for a in
+                                                 plot_cols],
+                                      'use_marks': ret['use_marks'],
+                                      'mesh_cols': env_3d_info['nr_equal_ss'],
+                                      'use_log_z_axis': False,
+                                      'limits': use_limits,
+                                      'use_string_labels_x': env_3d_info['is_stringx'],
+                                      'use_string_labels_y': env_3d_info['is_stringy'],
+                                      'iterate_x': env_3d_info['colname_x'],
+                                      'iterate_y': env_3d_info['colname_y'],
+                                      'tick_dist': env_3d_info['tick_dist']
+                                      })
+
+    base_out_name = 'tex_RTerrors_vs_' + ret['dataf_name_main'] + ret['dataf_name_partition']
+    pdfs_info = []
+    max_figs_pdf = 40
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    st_list = tex_infos['sections']
+    act_figs = 0
+    cnt = 1
+    i_old = 0
+    i_new = 0
+    st_list2 = []
+    for i_new, a in enumerate(st_list):
+        act_figs += len(a['plots_z'])
+        if act_figs > max_figs_pdf:
+            st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+            cnt += 1
+            i_old = i_new + 1
+            act_figs = 0
+    if (i_new + 1) != i_old:
+        st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+    if len(st_list) > max_figs_pdf:
+        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+    else:
+        st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+    for it in st_list2:
+        if len(st_list2) == 1:
+            title = tex_infos['title']
+        else:
+            title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+        pdfs_info.append({'title': title,
+                          'texf_name': base_out_name + '_' + str(it['pdf_nr']),
+                          'figs_externalize': tex_infos['figs_externalize'],
+                          'sections': it['figs'],
+                          'make_index': tex_infos['make_index'],
+                          'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                          'fill_bar': tex_infos['fill_bar'],
+                          'abbreviations': tex_infos['abbreviations']})
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if ret['build_pdf'][0] else None}
+    for it in pdfs_info:
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = it['texf_name'] + '.tex'
+        if ret['build_pdf'][0]:
+            pdf_name = it['texf_name'] + '.pdf'
+            pdf_l_info['pdf_name'].append(os.path.join(ret['pdf_folder'], pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    ret['res'] = abs(compile_tex(pdf_l_info['rendered_tex'], ret['tex_folder'], pdf_l_info['texf_name'],
+                                 tex_infos['make_index'], pdf_l_info['pdf_name'], tex_infos['figs_externalize']))
+    if ret['res'] != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return ret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def combineRt(data):
     #Get R and t mean and standard deviation values
     if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
