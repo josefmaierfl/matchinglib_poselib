@@ -590,7 +590,7 @@ def pars_calc_multiple_fig(**keywords):
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].unstack()
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list, add_to_glossary_eval
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, get_3d_tex_info, get_usable_3D_cols
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
@@ -606,19 +606,8 @@ def pars_calc_multiple_fig(**keywords):
     else:
         raise ValueError('Combined Rt error column is missing.')
     ret['b'] = ret['b'].reset_index()
-    nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
-    stats_all = ret['b'][ret['b'].columns.values[2:]].stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
-    use_limits = {'minz': None, 'maxz': None}
-    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
-        if stats_all['min'][0] < 0:
-            use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
-        else:
-            use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
-        if stats_all['max'][0] < 0:
-            use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
-        else:
-            use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
+    # nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
+    env_3d_info = get_3d_tex_info(ret['b'], [ret['b'].columns.values[1], ret['b'].columns.values[0]])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     with open(fb_name, 'a') as f:
@@ -638,6 +627,31 @@ def pars_calc_multiple_fig(**keywords):
                 ret['sub_title'] += ', '
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
+    plot_cols = get_usable_3D_cols(ret['b'], list(ret['b'].columns.values)[2:])
+    if not plot_cols:
+        ret['res'] = 1
+        return ret
+    if len(plot_cols) != len(list(ret['b'].columns.values)[2:]):
+        drop_cols = []
+        for it in list(ret['b'].columns.values)[2:]:
+            if it not in plot_cols:
+                drop_cols.append(it)
+        if drop_cols:
+            ret['b'].drop(drop_cols, axis=1, inplace=True)
+    st_drops = list(dict.fromkeys(list(ret['b'].columns.values[0:2]) +
+                                  [env_3d_info['colname_x'], env_3d_info['colname_y']]))
+    stats_all = ret['b'].drop(st_drops, axis=1).stack().reset_index()
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
+    use_limits = {'minz': None, 'maxz': None}
+    if np.abs(stats_all['max'][0] - stats_all['min'][0]) < np.abs(stats_all['max'][0] / 200):
+        if stats_all['min'][0] < 0:
+            use_limits['minz'] = round(1.01 * stats_all['min'][0], 6)
+        else:
+            use_limits['minz'] = round(0.99 * stats_all['min'][0], 6)
+        if stats_all['max'][0] < 0:
+            use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
+        else:
+            use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
     tex_infos = {'title': 'Combined R \\& t Errors vs ' + replaceCSVLabels(ret['grp_names'][-2], True, True, True) +
                           ' and ' + replaceCSVLabels(ret['grp_names'][-1], True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
@@ -667,9 +681,14 @@ def pars_calc_multiple_fig(**keywords):
                                   'label_y': replaceCSVLabels(str(ret['b'].columns.values[0])),
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)[2:]],
                                   'use_marks': ret['use_marks'],
-                                  'mesh_cols': nr_equal_ss,
+                                  'mesh_cols': env_3d_info['nr_equal_ss'],
                                   'use_log_z_axis': False,
-                                  'limits': use_limits
+                                  'limits': use_limits,
+                                  'use_string_labels_x': env_3d_info['is_stringx'],
+                                  'use_string_labels_y': env_3d_info['is_stringy'],
+                                  'iterate_x': env_3d_info['colname_x'],
+                                  'iterate_y': env_3d_info['colname_y'],
+                                  'tick_dist': env_3d_info['tick_dist']
                                   })
     template = ji_env.get_template('usac-testing_3D_plots.tex')
     rendered_tex = template.render(title=tex_infos['title'],
@@ -2721,7 +2740,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         split_large_titles, \
         is_exp_used, \
         use_log_axis, \
-        enl_space_title
+        enl_space_title, \
+        get_3d_tex_info
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
@@ -2810,7 +2830,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    replaceCSVLabels(str(first_grp2[1]), True, False, True) + \
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
+    # nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
+    env_3d_info1 = get_3d_tex_info(tmp1mean, first_grp2)
     stats_all = tmp1mean[index_new11].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits = {'minz': None, 'maxz': None}
@@ -2835,9 +2856,14 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'label_y': replaceCSVLabels(str(first_grp2[1])),
                                   'legend': legend1,
                                   'use_marks': vars['use_marks'][0],
-                                  'mesh_cols': nr_equal_ss1,
+                                  'mesh_cols': env_3d_info1['nr_equal_ss'],
                                   'use_log_z_axis': use_log1,
-                                  'limits': use_limits
+                                  'limits': use_limits,
+                                  'use_string_labels_x': env_3d_info1['is_stringx'],
+                                  'use_string_labels_y': env_3d_info1['is_stringy'],
+                                  'iterate_x': env_3d_info1['colname_x'],
+                                  'iterate_y': env_3d_info1['colname_y'],
+                                  'tick_dist': env_3d_info1['tick_dist']
                                   })
 
     section_name = 'Mean execution times over all ' + \
@@ -2847,6 +2873,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
+    env_3d_info2 = get_3d_tex_info(tmp2mean, second_grp2)
     stats_all = tmp2mean[index_new21].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits1 = {'minz': None, 'maxz': None}
@@ -2871,9 +2898,14 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'label_y': replaceCSVLabels(str(second_grp2[1])),
                                   'legend': legend2,
                                   'use_marks': vars['use_marks'][0],
-                                  'mesh_cols': nr_equal_ss2,
+                                  'mesh_cols': env_3d_info2['nr_equal_ss'],
                                   'use_log_z_axis': use_log2,
-                                  'limits': use_limits1
+                                  'limits': use_limits1,
+                                  'use_string_labels_x': env_3d_info2['is_stringx'],
+                                  'use_string_labels_y': env_3d_info2['is_stringy'],
+                                  'iterate_x': env_3d_info2['colname_x'],
+                                  'iterate_y': env_3d_info2['colname_y'],
+                                  'tick_dist': env_3d_info2['tick_dist']
                                   })
 
     template = ji_env.get_template('usac-testing_3D_plots.tex')

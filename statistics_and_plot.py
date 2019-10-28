@@ -2116,9 +2116,8 @@ def calcSatisticAndPlot_3D(data,
                 tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
                 tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
-            nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
-            is_numericx, colname_x = gen_3D_number_rep_for_string(tmp, grp_names[-2], True)
-            is_numericy, colname_y = gen_3D_number_rep_for_string(tmp, grp_names[-1], False)
+            # nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
+            env_3d_info = get_3d_tex_info(tmp, xy_axis_columns)
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                        str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
@@ -2136,7 +2135,8 @@ def calcSatisticAndPlot_3D(data,
                 continue
 
             #Construct tex-file information
-            st_drops = list(dict.fromkeys(list(tmp.columns.values[0:2]) + [colname_x, colname_y]))
+            st_drops = list(dict.fromkeys(list(tmp.columns.values[0:2]) +
+                                          [env_3d_info['colname_x'], env_3d_info['colname_y']]))
             stats_all = tmp.drop(st_drops, axis=1).stack().reset_index()
             stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
             if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
@@ -2175,13 +2175,14 @@ def calcSatisticAndPlot_3D(data,
                                                      findUnit(str(tmp.columns.values[0]), units),
                                           'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)[2:]],
                                           'use_marks': use_marks,
-                                          'mesh_cols': nr_equal_ss,
+                                          'mesh_cols': env_3d_info['nr_equal_ss'],
                                           'use_log_z_axis': False,
                                           'limits': use_limits,
-                                          'use_string_labels_x': True if not is_numericx else False,
-                                          'use_string_labels_y': True if not is_numericy else False,
-                                          'iterate_x': colname_x,
-                                          'iterate_y': colname_y
+                                          'use_string_labels_x': env_3d_info['is_stringx'],
+                                          'use_string_labels_y': env_3d_info['is_stringy'],
+                                          'iterate_x': env_3d_info['colname_x'],
+                                          'iterate_y': env_3d_info['colname_y'],
+                                          'tick_dist': env_3d_info['tick_dist']
                                           })
 
     if no_tex:
@@ -2470,9 +2471,7 @@ def calcFromFuncAndPlot_3D(data,
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
-        nr_equal_ss = get_block_length_3D(tmp, xy_axis_columns)
-        is_numericx, colname_x = gen_3D_number_rep_for_string(tmp, xy_axis_columns[0], True)
-        is_numericy, colname_y = gen_3D_number_rep_for_string(tmp, xy_axis_columns[1], False)
+        env_3d_info = get_3d_tex_info(tmp, xy_axis_columns)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2547,13 +2546,14 @@ def calcFromFuncAndPlot_3D(data,
                                                      findUnit(str(xy_axis_columns[1]), units),
                                           'legend': legends,
                                           'use_marks': use_marks,
-                                          'mesh_cols': nr_equal_ss,
+                                          'mesh_cols': env_3d_info['nr_equal_ss'],
                                           'use_log_z_axis': eval_cols_log_scaling[i],
                                           'limits': use_limits,
-                                          'use_string_labels_x': True if not is_numericx else False,
-                                          'use_string_labels_y': True if not is_numericy else False,
-                                          'iterate_x': colname_x,
-                                          'iterate_y': colname_y
+                                          'use_string_labels_x': env_3d_info['is_stringx'],
+                                          'use_string_labels_y': env_3d_info['is_stringy'],
+                                          'iterate_x': env_3d_info['colname_x'],
+                                          'iterate_y': env_3d_info['colname_y'],
+                                          'tick_dist': env_3d_info['tick_dist']
                                           })
 
     if no_tex:
@@ -2829,7 +2829,11 @@ def calcSatisticAndPlot_3D_partitions(data,
                             part_name_title += ', '
                         elif i < len(part_name_l) - 1:
                             part_name_title += ', and '
-                tmp2 = tmp2.reset_index().drop(partitions, axis=1, level=0)
+                tmp2 = tmp2.reset_index()
+                if tmp2.columns.names and not isinstance(tmp2.columns.names, str) and len(tmp2.columns.names) > 1:
+                    tmp2.drop(partitions, axis=1, level=0, inplace=True)
+                else:
+                    tmp2.drop(partitions, axis=1, inplace=True)
                 tmp2 = tmp2.set_index(it_parameters).T
                 if not gloss_calced:
                     if len(it_parameters) > 1:
@@ -2849,9 +2853,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                     tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
                     tmp2.columns.name = '-'.join(it_parameters)
                 tmp2.reset_index(inplace=True)
-                nr_equal_ss = get_block_length_3D(tmp2, xy_axis_columns)
-                is_numericx, colname_x = gen_3D_number_rep_for_string(tmp2, grp_names[-2], True)
-                is_numericy, colname_y = gen_3D_number_rep_for_string(tmp2, grp_names[-1], False)
+                env_3d_info = get_3d_tex_info(tmp2, xy_axis_columns)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                              str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + \
                              '_for_' + part_name.replace('.', 'd') + '.csv'
@@ -2871,7 +2873,8 @@ def calcSatisticAndPlot_3D_partitions(data,
                     continue
 
                 # Construct tex-file information
-                st_drops = list(dict.fromkeys(list(tmp2.columns.values[0:2]) + [colname_x, colname_y]))
+                st_drops = list(dict.fromkeys(list(tmp2.columns.values[0:2]) +
+                                              [env_3d_info['colname_x'], env_3d_info['colname_y']]))
                 stats_all = tmp2.drop(st_drops, axis=1).stack().reset_index()
                 stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
                 if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
@@ -2910,13 +2913,14 @@ def calcSatisticAndPlot_3D_partitions(data,
                                                          findUnit(str(tmp2.columns.values[0]), units),
                                               'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)[2:]],
                                               'use_marks': use_marks,
-                                              'mesh_cols': nr_equal_ss,
+                                              'mesh_cols': env_3d_info['nr_equal_ss'],
                                               'use_log_z_axis': False,
                                               'limits': use_limits,
-                                              'use_string_labels_x': True if not is_numericx else False,
-                                              'use_string_labels_y': True if not is_numericy else False,
-                                              'iterate_x': colname_x,
-                                              'iterate_y': colname_y
+                                              'use_string_labels_x': env_3d_info['is_stringx'],
+                                              'use_string_labels_y': env_3d_info['is_stringy'],
+                                              'iterate_x': env_3d_info['colname_x'],
+                                              'iterate_y': env_3d_info['colname_y'],
+                                              'tick_dist': env_3d_info['tick_dist']
                                               })
 
     if no_tex:
@@ -3270,9 +3274,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tmp1 = tmp.get_group(grp_it)
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
             # nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
-            nr_equal_ss = get_block_length_3D(tmp1, xy_axis_columns)
-            is_numericx, colname_x = gen_3D_number_rep_for_string(tmp1, xy_axis_columns[0], True)
-            is_numericy, colname_y = gen_3D_number_rep_for_string(tmp1, xy_axis_columns[1], False)
+            env_3d_info = get_3d_tex_info(tmp1, xy_axis_columns)
 
             if eval_init_input:
                 dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + short_concat_str(grp_it.split('-')) + \
@@ -3346,13 +3348,14 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                               'legend': [eval_cols_lname[i] + ' for ' +
                                                          tex_string_coding_style(grp_it)],
                                               'use_marks': use_marks,
-                                              'mesh_cols': nr_equal_ss,
+                                              'mesh_cols': env_3d_info['nr_equal_ss'],
                                               'use_log_z_axis': eval_cols_log_scaling[i],
                                               'limits': use_limits,
-                                              'use_string_labels_x': True if not is_numericx else False,
-                                              'use_string_labels_y': True if not is_numericy else False,
-                                              'iterate_x': colname_x,
-                                              'iterate_y': colname_y
+                                              'use_string_labels_x': env_3d_info['is_stringx'],
+                                              'use_string_labels_y': env_3d_info['is_stringy'],
+                                              'iterate_x': env_3d_info['colname_x'],
+                                              'iterate_y': env_3d_info['colname_y'],
+                                              'tick_dist': env_3d_info['tick_dist']
                                               })
 
     if no_tex:
@@ -4683,7 +4686,7 @@ def short_concat_str(str_list, join_char='-'):
     return join_char.join([a[:min(8, len(a))] for a in str_list_tmp])
 
 
-def get_block_length_3D(df, xy_axis_columns):
+def get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy):
     is_number = np.vectorize(lambda x: np.issubdtype(x, np.number))
     hlp = is_number(df[xy_axis_columns].dtypes)
     if hlp[0]:
@@ -4702,13 +4705,37 @@ def get_block_length_3D(df, xy_axis_columns):
             y_diff = 1
     if np.isclose(x_diff, 0, atol=1e-06) and not np.isclose(y_diff, 0, atol=1e-06):
         nr_equal_ss = int(df.groupby(xy_axis_columns[0]).size().array[0])
+        an = 0
     elif not np.isclose(x_diff, 0, atol=1e-06) and np.isclose(y_diff, 0, atol=1e-06):
         nr_equal_ss = int(df.groupby(xy_axis_columns[1]).size().array[0])
+        an = 1
     else:
         nr_equal_ss1 = int(df.groupby(xy_axis_columns[0]).size().array[0])
         nr_equal_ss2 = int(df.groupby(xy_axis_columns[1]).size().array[0])
         nr_equal_ss = max(nr_equal_ss1, nr_equal_ss2)
-    return nr_equal_ss
+        if nr_equal_ss == nr_equal_ss1:
+            an = 0
+        else:
+            an = 1
+    if (not is_numericx and an == 0) or (not is_numericy and an == 1):
+        tickdist = round(1.0 / float(nr_equal_ss), 6)
+    else:
+        tickdist = None
+    return nr_equal_ss, tickdist
+
+
+def get_3d_tex_info(df, xy_axis_columns):
+    is_numericx, colname_x = gen_3D_number_rep_for_string(df, xy_axis_columns[0], True)
+    is_numericy, colname_y = gen_3D_number_rep_for_string(df, xy_axis_columns[1], False)
+    nr_equal_ss, tick_dist = get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy)
+    info = {'is_stringx': not is_numericx,
+            'is_stringy': not is_numericy,
+            'colname_x': colname_x,
+            'colname_y': colname_y,
+            'nr_equal_ss': nr_equal_ss,
+            'tick_dist': tick_dist}
+    return info
+
 
 
 def is_exp_used(min_val, max_val, use_log=False):

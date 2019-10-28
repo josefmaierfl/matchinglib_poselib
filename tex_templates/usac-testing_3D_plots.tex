@@ -81,14 +81,22 @@ zlabel=\VAR{sec['label_z'][loop.index0]},
 zlabel=\VAR{sec['label_z']},
 \BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels_x'] }
+\BLOCK{ if sec['tick_dist'] }
+xtick distance=\VAR{ sec['tick_dist'] },%
+\BLOCK{ else }
 xtick=data,%
+\BLOCK{ endif }
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ else }
 xticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels_y'] }
+\BLOCK{ if sec['tick_dist'] }
+ytick distance=\VAR{ sec['tick_dist'] },%
+\BLOCK{ else }
 ytick=data,%
+\BLOCK{ endif }
 yticklabels from table={\datatable}{\VAR{ sec['plot_y'] }},%
 y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ else }
