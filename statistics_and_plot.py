@@ -2067,6 +2067,7 @@ def calcSatisticAndPlot_3D(data,
             special_calcs_args['eval_columns'] = eval_columns
             special_calcs_args['xy_axis_columns'] = xy_axis_columns
             special_calcs_args['res_folder'] = special_path_sub
+            special_calcs_args['cat_sort'] = cat_sort
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -2411,6 +2412,7 @@ def calcFromFuncAndPlot_3D(data,
             special_calcs_args['xy_axis_columns'] = xy_axis_columns
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            special_calcs_args['cat_sort'] = cat_sort
             if evals_for_gloss:
                 special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
@@ -2775,6 +2777,7 @@ def calcSatisticAndPlot_3D_partitions(data,
             special_calcs_args['xy_axis_columns'] = xy_axis_columns
             special_calcs_args['partitions'] = partitions
             special_calcs_args['res_folder'] = special_path_sub
+            special_calcs_args['cat_sort'] = cat_sort
             res = special_calcs_func(**special_calcs_args)
             if res != 0:
                 warnings.warn('Calculation of specific results failed!', UserWarning)
@@ -3199,6 +3202,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             special_calcs_args['partitions'] = partitions
             special_calcs_args['it_parameters'] = it_parameters
             special_calcs_args['res_folder'] = special_path_sub
+            special_calcs_args['cat_sort'] = cat_sort
             if evals_for_gloss:
                 special_calcs_args['evals_for_gloss'] = evals_for_gloss
             res = special_calcs_func(**special_calcs_args)
@@ -6528,11 +6532,11 @@ def main():
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
     gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
     pars_kpDistr_opt = ['1corn', 'equ']
-    pars_depthDistr_opt = ['NMF', 'NM', 'F']
-    # pars_depthDistr_opt = ['NMF', 'NM']
+    # pars_depthDistr_opt = ['NMF', 'NM', 'F']
+    pars_depthDistr_opt = ['NMF', 'NM']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
-    inlratMin_opt = list(map(str, list(np.arange(0.45, 0.85, 0.1))))
+    inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
@@ -8211,7 +8215,9 @@ def main():
                                               ctrl_fig_size=True,
                                               make_fig_index=True,
                                               build_pdf=True,
-                                              figs_externalize=False)
+                                              figs_externalize=False,
+                                              no_tex=False,
+                                              cat_sort=True)
             elif ev == 6:
                 fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
                 eval_columns = ['inlRat_estimated', 'inlRat_GT']
@@ -8244,7 +8250,9 @@ def main():
                                               ctrl_fig_size=True,
                                               make_fig_index=True,
                                               build_pdf=True,
-                                              figs_externalize=False)
+                                              figs_externalize=False,
+                                              no_tex=False,
+                                              cat_sort=True)
             elif ev == 7:
                 fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
                 eval_columns = ['inlRat_estimated', 'inlRat_GT']
@@ -9442,7 +9450,7 @@ def main():
                                                             'stereoParameters_maxPoolCorrespondences',
                                                             'inlratCRate',
                                                             'depthDistr']}
-                    from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
@@ -9455,8 +9463,8 @@ def main():
                                                              xy_axis_columns=['inlratCRate', 'depthDistr'],
                                                              filter_func=get_rt_change_type,
                                                              filter_func_args=filter_func_args,
-                                                             special_calcs_func=None,
-                                                             special_calcs_args=None,
+                                                             special_calcs_func=get_best_comb_3d_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
                                                              calc_func=None,
                                                              calc_func_args=None,
                                                              fig_type='surface',

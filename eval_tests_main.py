@@ -1431,7 +1431,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                               ctrl_fig_size=True,
                                               make_fig_index=True,
                                               build_pdf=True,
-                                              figs_externalize=False)
+                                              figs_externalize=False,
+                                              no_tex=False,
+                                              cat_sort=True)
             elif ev == 6:
                 fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
                 eval_columns = ['inlRat_estimated', 'inlRat_GT']
@@ -1462,7 +1464,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                               ctrl_fig_size=True,
                                               make_fig_index=True,
                                               build_pdf=True,
-                                              figs_externalize=False)
+                                              figs_externalize=False,
+                                              no_tex=False,
+                                              cat_sort=True)
             elif ev == 7:
                 fig_title_pre_str = 'Statistics on Inlier Ratio Differences for Comparison of '
                 eval_columns = ['inlRat_estimated', 'inlRat_GT']

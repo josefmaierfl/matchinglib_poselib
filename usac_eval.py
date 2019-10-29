@@ -601,7 +601,8 @@ def pars_calc_multiple_fig(**keywords):
         raise ValueError('Combined Rt error column is missing.')
     ret['b'] = ret['b'].reset_index()
     # nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
-    env_3d_info = get_3d_tex_info(ret['b'], [ret['b'].columns.values[1], ret['b'].columns.values[0]])
+    env_3d_info = get_3d_tex_info(ret['b'], [ret['b'].columns.values[1], ret['b'].columns.values[0]],
+                                  keywords['cat_sort'])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     with open(fb_name, 'a') as f:
@@ -771,6 +772,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
     ret['grp_names'] = data.index.names
     ret['it_parameters'] = keywords['it_parameters']
     ret['xy_axis_columns'] = keywords['xy_axis_columns']
+    ret['partitions'] = keywords['partitions']
     nr_it_parameters = len(ret['it_parameters'])
     nr_partitions = len(ret['partitions'])
     ret['sub_title_it_pars'] = ''
@@ -847,10 +849,32 @@ def pars_calc_multiple_fig_partitions(**keywords):
         tmp2 = tmp2.reset_index()
         if check_if_series(tmp2):
             continue
+        drop_par = True
         if tmp2.columns.names and not isinstance(tmp2.columns.names, str) and len(tmp2.columns.names) > 1:
-            tmp2.drop(ret['partitions'], axis=1, level=0, inplace=True)
+            for pts in ret['partitions']:
+                fnd = []
+                for l2 in tmp2.columns:
+                    if pts not in l2:
+                        fnd.append(False)
+                    else:
+                        fnd.append(True)
+                        break
+                if not any(fnd):
+                    drop_par = False
+                    break
+            if drop_par:
+                tmp2.drop(ret['partitions'], axis=1, level=0, inplace=True)
+            else:
+                continue
         else:
-            tmp2.drop(ret['partitions'], axis=1, inplace=True)
+            for pts in ret['partitions']:
+                if pts not in tmp2.columns:
+                    drop_par = False
+                    break
+            if drop_par:
+                tmp2.drop(ret['partitions'], axis=1, inplace=True)
+            else:
+                continue
         tmp2 = tmp2.set_index(ret['it_parameters']).T
         if not gloss_calced:
             from statistics_and_plot import glossary_from_list, add_to_glossary_eval
@@ -877,7 +901,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
             tmp2.columns.name = '-'.join(ret['it_parameters'])
 
         tmp2.reset_index(inplace=True)
-        env_3d_info = get_3d_tex_info(tmp2, keywords['xy_axis_columns'])
+        env_3d_info = get_3d_tex_info(tmp2, keywords['xy_axis_columns'], keywords['cat_sort'])
         dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
         dataf_name = dataf_name_main_property + '.csv'
         b_name = 'data_RTerrors_vs_' + dataf_name
@@ -998,17 +1022,15 @@ def pars_calc_multiple_fig_partitions(**keywords):
                           'sections': it['figs'],
                           'make_index': tex_infos['make_index'],
                           'ctrl_fig_size': tex_infos['ctrl_fig_size'],
-                          'fill_bar': tex_infos['fill_bar'],
                           'abbreviations': tex_infos['abbreviations']})
 
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    template = ji_env.get_template('usac-testing_3D_plots.tex')
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if ret['build_pdf'][0] else None}
     for it in pdfs_info:
         rendered_tex = template.render(title=tex_infos['title'],
                                        make_index=tex_infos['make_index'],
                                        ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                        figs_externalize=tex_infos['figs_externalize'],
-                                       fill_bar=tex_infos['fill_bar'],
                                        sections=tex_infos['sections'],
                                        abbreviations=tex_infos['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
@@ -3141,7 +3163,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     # nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
-    env_3d_info1 = get_3d_tex_info(tmp1mean, first_grp2)
+    env_3d_info1 = get_3d_tex_info(tmp1mean, first_grp2, None)
     stats_all = tmp1mean[index_new11].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits = {'minz': None, 'maxz': None}
@@ -3183,7 +3205,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     # nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
-    env_3d_info2 = get_3d_tex_info(tmp2mean, second_grp2)
+    env_3d_info2 = get_3d_tex_info(tmp2mean, second_grp2, None)
     stats_all = tmp2mean[index_new21].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits1 = {'minz': None, 'maxz': None}
