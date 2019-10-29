@@ -2,10 +2,9 @@
 Calculates the best performin parameter values with given testing data as specified in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
+import sys, re, os, warnings, numpy as np, math
 # import modin.pandas as pd
 import pandas as pd
-#from jinja2 import Template as ji
 import jinja2 as ji
 import ruamel.yaml as yaml
 from sklearn.linear_model import LinearRegression
@@ -13,13 +12,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import KFold
 from scipy import stats
-# import tempfile
-# import shutil
-#from copy import deepcopy
-#import shutil
-# import time
+from copy import deepcopy
 
-# warnings.simplefilter('ignore', category=UserWarning)
 
 ji_env = ji.Environment(
     block_start_string='\BLOCK{',
@@ -627,7 +621,9 @@ def pars_calc_multiple_fig(**keywords):
                 ret['sub_title'] += ', '
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
-    plot_cols = get_usable_3D_cols(ret['b'], list(ret['b'].columns.values)[2:])
+    plot_cols0 = [a for a in list(ret['b'].columns.values)[2:]
+                  if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
+    plot_cols = get_usable_3D_cols(ret['b'], plot_cols0)
     if not plot_cols:
         ret['res'] = 1
         return ret
@@ -639,7 +635,8 @@ def pars_calc_multiple_fig(**keywords):
         if drop_cols:
             ret['b'].drop(drop_cols, axis=1, inplace=True)
     st_drops = list(dict.fromkeys(list(ret['b'].columns.values[0:2]) +
-                                  [env_3d_info['colname_x'], env_3d_info['colname_y']]))
+                                  [env_3d_info['colname_x'], env_3d_info['colname_y']] +
+                                  env_3d_info['lbl_xy']))
     stats_all = ret['b'].drop(st_drops, axis=1).stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits = {'minz': None, 'maxz': None}
@@ -675,9 +672,9 @@ def pars_calc_multiple_fig(**keywords):
                                   'plots_z': list(ret['b'].columns.values)[2:],
                                   'diff_z_labels': False,
                                   'label_z': 'Combined R \\& t error $e_{R\\bm{t}}$',
-                                  'plot_x': str(ret['b'].columns.values[1]),
+                                  'plot_x': env_3d_info['lbl_xy'][0],
                                   'label_x': replaceCSVLabels(str(ret['b'].columns.values[1])),
-                                  'plot_y': str(ret['b'].columns.values[0]),
+                                  'plot_y': env_3d_info['lbl_xy'][1],
                                   'label_y': replaceCSVLabels(str(ret['b'].columns.values[0])),
                                   'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)[2:]],
                                   'use_marks': ret['use_marks'],
@@ -897,14 +894,15 @@ def pars_calc_multiple_fig_partitions(**keywords):
             tmp2.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         plot_cols0 = [a for a in list(tmp2.columns.values)[2:]
-                      if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a]
+                      if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
         plot_cols = get_usable_3D_cols(tmp2, plot_cols0)
         if not plot_cols:
             continue
 
         # Construct tex-file information
         st_drops = list(dict.fromkeys(list(tmp2.columns.values[0:2]) +
-                                      [env_3d_info['colname_x'], env_3d_info['colname_y']]))
+                                      [env_3d_info['colname_x'], env_3d_info['colname_y']] +
+                                      env_3d_info['lbl_xy']))
         stats_all = tmp2.drop(st_drops, axis=1).stack().reset_index()
         stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
         use_limits = {'minz': None, 'maxz': None}
@@ -917,10 +915,6 @@ def pars_calc_multiple_fig_partitions(**keywords):
                 use_limits['maxz'] = round(0.99 * stats_all['max'][0], 6)
             else:
                 use_limits['maxz'] = round(1.01 * stats_all['max'][0], 6)
-
-
-
-
         reltex_name = os.path.join(ret['rel_data_path'], b_name)
         sec_name = 'Combined R \\& t errors $e_{R\\vect{t}}$ vs ' + \
                    replaceCSVLabels(str(ret['grp_names'][-2]), True, False, True) + ' and ' + \
@@ -934,9 +928,9 @@ def pars_calc_multiple_fig_partitions(**keywords):
                                       'plots_z': plot_cols,
                                       'diff_z_labels': False,
                                       'label_z': 'Combined R \\& t error $e_{R\\bm{t}}$',
-                                      'plot_x': str(ret['grp_names'][-2]),
+                                      'plot_x': env_3d_info['lbl_xy'][0],
                                       'label_x': replaceCSVLabels(str(ret['grp_names'][-2])),
-                                      'plot_y': str(ret['grp_names'][-1]),
+                                      'plot_y': env_3d_info['lbl_xy'][1],
                                       'label_y': replaceCSVLabels(str(ret['grp_names'][-1])),
                                       'legend': [tex_string_coding_style(a) for a in
                                                  plot_cols],
@@ -963,12 +957,29 @@ def pars_calc_multiple_fig_partitions(**keywords):
     i_new = 0
     st_list2 = []
     for i_new, a in enumerate(st_list):
-        act_figs += len(a['plots_z'])
-        if act_figs > max_figs_pdf:
-            st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+        lz = len(a['plots_z'])
+        if lz > int(math.floor(0.5 * float(max_figs_pdf))):
+            if i_old - i_new > 0:
+                st_list2.append({'figs': st_list[i_old:i_new], 'pdf_nr': cnt})
+                cnt += 1
+            split_nr = int(math.ceil(float(lz) / float(max_figs_pdf)))
+            parts = int(math.floor(float(lz) / float(split_nr)))
+            for i in range(0, split_nr - 1):
+                st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
+                st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][(i * parts):((i + 1) * parts)]
+                cnt += 1
+            st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
+            st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][((split_nr - 1) * parts):]
             cnt += 1
             i_old = i_new + 1
             act_figs = 0
+        else:
+            act_figs += lz
+            if act_figs > max_figs_pdf:
+                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+                cnt += 1
+                i_old = i_new + 1
+                act_figs = 0
     if (i_new + 1) != i_old:
         st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
     if len(st_list) > max_figs_pdf:
@@ -1012,21 +1023,6 @@ def pars_calc_multiple_fig_partitions(**keywords):
     if ret['res'] != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def combineRt(data):
@@ -3164,9 +3160,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'plots_z': index_new11,
                                   'diff_z_labels': False,
                                   'label_z': 'Mean time/$\\mu s$',
-                                  'plot_x': str(first_grp2[0]),
+                                  'plot_x': env_3d_info1['lbl_xy'][0],
                                   'label_x': replaceCSVLabels(str(first_grp2[0])),
-                                  'plot_y': str(first_grp2[1]),
+                                  'plot_y': env_3d_info1['lbl_xy'][1],
                                   'label_y': replaceCSVLabels(str(first_grp2[1])),
                                   'legend': legend1,
                                   'use_marks': vars['use_marks'][0],
@@ -3186,7 +3182,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    replaceCSVLabels(str(second_grp2[1]), True, False, True) + \
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
-    nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
+    # nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
     env_3d_info2 = get_3d_tex_info(tmp2mean, second_grp2)
     stats_all = tmp2mean[index_new21].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
@@ -3206,9 +3202,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                   'plots_z': index_new21,
                                   'diff_z_labels': False,
                                   'label_z': 'Mean time/$\\mu s$',
-                                  'plot_x': str(second_grp2[0]),
+                                  'plot_x': env_3d_info2['lbl_xy'][0],
                                   'label_x': replaceCSVLabels(str(second_grp2[0])),
-                                  'plot_y': str(second_grp2[1]),
+                                  'plot_y': env_3d_info2['lbl_xy'][1],
                                   'label_y': replaceCSVLabels(str(second_grp2[1])),
                                   'legend': legend2,
                                   'use_marks': vars['use_marks'][0],

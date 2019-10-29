@@ -2,21 +2,15 @@
 Evaluates results from the autocalibration present in a pandas DataFrame as specified in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
-import ruamel.yaml as yaml
+import sys, os, subprocess as sp, warnings, numpy as np, math
 # import modin.pandas as pd
 import pandas as pd
-#from jinja2 import Template as ji
 import jinja2 as ji
-# import tempfile
-# import shutil
 from copy import deepcopy
 import shutil
-# import time
 import multiprocessing
 from difflib import SequenceMatcher
 
-# warnings.simplefilter('ignore', category=UserWarning)
 
 ji_env = ji.Environment(
     block_start_string='\BLOCK{',
@@ -299,7 +293,8 @@ def calcSatisticAndPlot_2D(data,
                            make_fig_index=True,
                            build_pdf=False,
                            figs_externalize=True,
-                           no_tex=False):
+                           no_tex=False,
+                           cat_sort=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -508,6 +503,8 @@ def calcSatisticAndPlot_2D(data,
                 else:
                     datafc_name = dataf_name
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp)
+            if cat_sort:
+                categorical_sort(tmp, str(grp_names[-1]))
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
@@ -636,7 +633,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                                       make_fig_index=True,
                                       build_pdf=False,
                                       figs_externalize=True,
-                                      no_tex=False):
+                                      no_tex=False,
+                                      cat_sort=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -903,6 +901,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                     else:
                         datafc_name = dataf_name
                     tmp2, succ = add_comparison_column(compare_source, datafc_name, tmp2)
+                if cat_sort:
+                    categorical_sort(tmp2, str(grp_names[-1]))
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 with open(fdataf_name, 'a') as f:
                     f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
@@ -1028,7 +1028,8 @@ def calcFromFuncAndPlot_2D(data,
                            make_fig_index=True,
                            build_pdf=False,
                            figs_externalize=True,
-                           no_tex=False):
+                           no_tex=False,
+                           cat_sort=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -1293,6 +1294,8 @@ def calcFromFuncAndPlot_2D(data,
         if succ:
             par_cols1 += mult_cols
 
+    if cat_sort:
+        categorical_sort(tmp, x_axis_column[0])
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     with open(fdataf_name, 'a') as f:
         if eval_init_input:
@@ -1441,7 +1444,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                       make_fig_index=True,
                                       build_pdf=False,
                                       figs_externalize=True,
-                                      no_tex=False):
+                                      no_tex=False,
+                                      cat_sort=False):
     if len(x_axis_column) != 1:
         raise ValueError('Only 1 column is allowed to be selected for the x axis')
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
@@ -1801,6 +1805,8 @@ def calcFromFuncAndPlot_2D_partitions(data,
             if succ:
                 par_cols1 += mult_cols
 
+        if cat_sort:
+            categorical_sort(tmp, x_axis_column[0])
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
@@ -1954,7 +1960,8 @@ def calcSatisticAndPlot_3D(data,
                            make_fig_index=True,
                            build_pdf=False,
                            figs_externalize=True,
-                           no_tex=False):
+                           no_tex=False,
+                           cat_sort=None):
     if len(xy_axis_columns) != 2:
         raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
@@ -2117,7 +2124,7 @@ def calcSatisticAndPlot_3D(data,
                 tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
             # nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
-            env_3d_info = get_3d_tex_info(tmp, xy_axis_columns)
+            env_3d_info = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                        str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
@@ -2131,14 +2138,15 @@ def calcSatisticAndPlot_3D(data,
                 continue
 
             plot_cols0 = [a for a in list(tmp.columns.values)[2:]
-                          if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a]
+                          if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
             plot_cols = get_usable_3D_cols(tmp, plot_cols0)
             if not plot_cols:
                 continue
 
             #Construct tex-file information
             st_drops = list(dict.fromkeys(list(tmp.columns.values[0:2]) +
-                                          [env_3d_info['colname_x'], env_3d_info['colname_y']]))
+                                          [env_3d_info['colname_x'], env_3d_info['colname_y']] +
+                                          env_3d_info['lbl_xy']))
             stats_all = tmp.drop(st_drops, axis=1).stack().reset_index()
             stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
             if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
@@ -2205,12 +2213,29 @@ def calcSatisticAndPlot_3D(data,
         i_new = 0
         st_list2 = []
         for i_new, a in enumerate(st_list):
-            act_figs += len(a['plots_z'])
-            if act_figs > max_figs_pdf:
-                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+            lz = len(a['plots_z'])
+            if lz > int(math.floor(0.5 * float(max_figs_pdf))):
+                if i_old - i_new > 0:
+                    st_list2.append({'figs': st_list[i_old:i_new], 'pdf_nr': cnt})
+                    cnt += 1
+                split_nr = int(math.ceil(float(lz) / float(max_figs_pdf)))
+                parts = int(math.floor(float(lz) / float(split_nr)))
+                for i in range(0, split_nr - 1):
+                    st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
+                    st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][(i * parts):((i + 1) * parts)]
+                    cnt += 1
+                st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
+                st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][((split_nr - 1) * parts):]
                 cnt += 1
                 i_old = i_new + 1
                 act_figs = 0
+            else:
+                act_figs += lz
+                if act_figs > max_figs_pdf:
+                    st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+                    cnt += 1
+                    i_old = i_new + 1
+                    act_figs = 0
         if (i_new + 1) != i_old:
             st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
         for it in st_list2:
@@ -2275,7 +2300,8 @@ def calcFromFuncAndPlot_3D(data,
                            make_fig_index=True,
                            build_pdf=False,
                            figs_externalize=True,
-                           no_tex=False):
+                           no_tex=False,
+                           cat_sort=None):
     # if len(xy_axis_columns) != 2:
     #     raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
@@ -2473,7 +2499,7 @@ def calcFromFuncAndPlot_3D(data,
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
-        env_3d_info = get_3d_tex_info(tmp, xy_axis_columns)
+        env_3d_info = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2633,7 +2659,8 @@ def calcSatisticAndPlot_3D_partitions(data,
                                       make_fig_index=True,
                                       build_pdf=False,
                                       figs_externalize=True,
-                                      no_tex=False):
+                                      no_tex=False,
+                                      cat_sort=None):
     if len(xy_axis_columns) != 2:
         raise ValueError('Only 2 columns are allowed to be selected for the x and y axis')
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
@@ -2834,10 +2861,32 @@ def calcSatisticAndPlot_3D_partitions(data,
                 tmp2 = tmp2.reset_index()
                 if check_if_series(tmp2):
                     continue
+                drop_par = True
                 if tmp2.columns.names and not isinstance(tmp2.columns.names, str) and len(tmp2.columns.names) > 1:
-                    tmp2.drop(partitions, axis=1, level=0, inplace=True)
+                    for pts in partitions:
+                        fnd = []
+                        for l2 in tmp2.columns:
+                            if pts not in l2:
+                                fnd.append(False)
+                            else:
+                                fnd.append(True)
+                                break
+                        if not any(fnd):
+                            drop_par = False
+                            break
+                    if drop_par:
+                        tmp2.drop(partitions, axis=1, level=0, inplace=True)
+                    else:
+                        continue
                 else:
-                    tmp2.drop(partitions, axis=1, inplace=True)
+                    for pts in partitions:
+                        if pts not in tmp2.columns:
+                            drop_par = False
+                            break
+                    if drop_par:
+                        tmp2.drop(partitions, axis=1, inplace=True)
+                    else:
+                        continue
                 tmp2 = tmp2.set_index(it_parameters).T
                 if not gloss_calced:
                     if len(it_parameters) > 1:
@@ -2857,7 +2906,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                     tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
                     tmp2.columns.name = '-'.join(it_parameters)
                 tmp2.reset_index(inplace=True)
-                env_3d_info = get_3d_tex_info(tmp2, xy_axis_columns)
+                env_3d_info = get_3d_tex_info(tmp2, xy_axis_columns, cat_sort)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                              str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + \
                              '_for_' + part_name.replace('.', 'd') + '.csv'
@@ -2873,14 +2922,15 @@ def calcSatisticAndPlot_3D_partitions(data,
                     continue
 
                 plot_cols0 = [a for a in list(tmp2.columns.values)[2:]
-                              if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a]
+                              if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
                 plot_cols = get_usable_3D_cols(tmp2, plot_cols0)
                 if not plot_cols:
                     continue
 
                 # Construct tex-file information
                 st_drops = list(dict.fromkeys(list(tmp2.columns.values[0:2]) +
-                                              [env_3d_info['colname_x'], env_3d_info['colname_y']]))
+                                              [env_3d_info['colname_x'], env_3d_info['colname_y']] +
+                                              env_3d_info['lbl_xy']))
                 stats_all = tmp2.drop(st_drops, axis=1).stack().reset_index()
                 stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
                 if (np.isclose(stats_all['min'][0], 0, atol=1e-06) and
@@ -2912,10 +2962,10 @@ def calcSatisticAndPlot_3D_partitions(data,
                                               'diff_z_labels': False,
                                               'label_z': replace_stat_names(it_tmp[-1]) +
                                                          findUnit(str(it_tmp[0]), units),
-                                              'plot_x': str(tmp2.columns.values[1]),
+                                              'plot_x': env_3d_info['lbl_xy'][0],
                                               'label_x': replaceCSVLabels(str(tmp2.columns.values[1])) +
                                                          findUnit(str(tmp2.columns.values[1]), units),
-                                              'plot_y': str(tmp2.columns.values[0]),
+                                              'plot_y': env_3d_info['lbl_xy'][1],
                                               'label_y': replaceCSVLabels(str(tmp2.columns.values[0])) +
                                                          findUnit(str(tmp2.columns.values[0]), units),
                                               'legend': [tex_string_coding_style(a)
@@ -2949,12 +2999,29 @@ def calcSatisticAndPlot_3D_partitions(data,
         i_new = 0
         st_list2 = []
         for i_new, a in enumerate(st_list):
-            act_figs += len(a['plots_z'])
-            if act_figs > max_figs_pdf:
-                st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+            lz = len(a['plots_z'])
+            if lz > int(math.floor(0.5 * float(max_figs_pdf))):
+                if i_old - i_new > 0:
+                    st_list2.append({'figs': st_list[i_old:i_new], 'pdf_nr': cnt})
+                    cnt += 1
+                split_nr = int(math.ceil(float(lz) / float(max_figs_pdf)))
+                parts = int(math.floor(float(lz) / float(split_nr)))
+                for i in range(0, split_nr - 1):
+                    st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
+                    st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][(i * parts):((i + 1) * parts)]
+                    cnt += 1
+                st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
+                st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][((split_nr - 1) * parts):]
                 cnt += 1
                 i_old = i_new + 1
                 act_figs = 0
+            else:
+                act_figs += lz
+                if act_figs > max_figs_pdf:
+                    st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
+                    cnt += 1
+                    i_old = i_new + 1
+                    act_figs = 0
         if (i_new + 1) != i_old:
             st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
         for it in st_list2:
@@ -3016,7 +3083,8 @@ def calcFromFuncAndPlot_3D_partitions(data,
                                       make_fig_index=True,
                                       build_pdf=False,
                                       figs_externalize=True,
-                                      no_tex=False):
+                                      no_tex=False,
+                                      cat_sort=None):
     fig_types = ['scatter', 'mesh', 'mesh-scatter', 'mesh', 'surf', 'surf-scatter', 'surf-interior',
                  'surface', 'contour', 'surface-contour']
     if not fig_type in fig_types:
@@ -3282,8 +3350,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tmp1 = tmp.get_group(grp_it)
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
             # nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
-            env_3d_info = get_3d_tex_info(tmp1, xy_axis_columns)
-
+            env_3d_info = get_3d_tex_info(tmp1, xy_axis_columns, cat_sort)
             if eval_init_input:
                 dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + short_concat_str(grp_it.split('-')) + \
                              '_on_partition_'
@@ -4415,11 +4482,10 @@ def get_replace_eval(compare_source, act_eval, is_not_eval=False):
     return True, dest_eval, compare_source['replace_evals']['new'][i_f]
 
 
-def gen_3D_number_rep_for_string(df, col_name, is_x):
-    is_numeric = pd.to_numeric(df.reset_index()[col_name], errors='coerce').notnull().all()
+def gen_3D_number_rep_for_string(df, col_name, is_x, is_numeric):
     col_name_new = 'nr_rep_for_pgf'
     if is_numeric:
-        return True, col_name
+        return col_name
     if is_x:
         col_name_new += '_x'
     else:
@@ -4435,7 +4501,11 @@ def gen_3D_number_rep_for_string(df, col_name, is_x):
         cnt_l.append(cnt)
         val_prev = val
     df[col_name_new] = cnt_l
-    return False, col_name_new
+    return col_name_new
+
+
+def check_if_numeric(df, col_name):
+    return pd.to_numeric(df.reset_index()[col_name], errors='coerce').notnull().all()
 
 
 def too_many_nan(df, col_name):
@@ -4727,23 +4797,84 @@ def get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy):
             an = 1
     if (not is_numericx and an == 0) or (not is_numericy and an == 1):
         tickdist = round(1.0 / float(nr_equal_ss), 6)
+        if an == 0:
+            lbl_xy = [gen_lbl_col_string_3d(df, xy_axis_columns[0], nr_equal_ss), xy_axis_columns[1]]
+        else:
+            lbl_xy = [xy_axis_columns[0], gen_lbl_col_string_3d(df, xy_axis_columns[1], nr_equal_ss)]
     else:
         tickdist = None
-    return nr_equal_ss, tickdist
+        lbl_xy = xy_axis_columns
+    return nr_equal_ss, tickdist, lbl_xy
 
 
-def get_3d_tex_info(df, xy_axis_columns):
-    is_numericx, colname_x = gen_3D_number_rep_for_string(df, xy_axis_columns[0], True)
-    is_numericy, colname_y = gen_3D_number_rep_for_string(df, xy_axis_columns[1], False)
-    nr_equal_ss, tick_dist = get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy)
+def get_3d_tex_info(df, xy_axis_columns, cat_sort):
+    is_numericx = check_if_numeric(df, xy_axis_columns[0])
+    is_numericy = check_if_numeric(df, xy_axis_columns[1])
+    if cat_sort:
+        categorical_sort_3d(df, cat_sort, not is_numericx, not is_numericy, xy_axis_columns)
+    colname_x = gen_3D_number_rep_for_string(df, xy_axis_columns[0], True, is_numericx)
+    colname_y = gen_3D_number_rep_for_string(df, xy_axis_columns[1], False, is_numericy)
+    nr_equal_ss, tick_dist, lbl_xy = get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy)
+    lbl_col_nr = -1
+    for i, (it, it1) in enumerate(zip(lbl_xy, xy_axis_columns)):
+        if it != it1:
+            lbl_col_nr = i
+            break
     info = {'is_stringx': not is_numericx,
             'is_stringy': not is_numericy,
             'colname_x': colname_x,
             'colname_y': colname_y,
             'nr_equal_ss': nr_equal_ss,
-            'tick_dist': tick_dist}
+            'tick_dist': tick_dist,
+            'lbl_xy': lbl_xy,
+            'lbl_nr': lbl_col_nr}
     return info
 
+
+def gen_lbl_col_string_3d(df, col_name, nr_equal_ss):
+    col_new = []
+    col_name_new = col_name + '_lbl'
+    cnt = 0
+    set_lbl  = int(math.floor(nr_equal_ss + 1) / 2) - 1
+    for idx, val in df[col_name].iteritems():
+        if cnt == set_lbl:
+            col_new.append(val)
+        else:
+            col_new.append('')
+        cnt += 1
+        if cnt >= nr_equal_ss:
+            cnt = 0
+    df[col_name_new] = col_new
+    return col_name_new
+
+
+def categorical_sort_3d(df, col_name, is_stringx, is_stringy, xy_axis_columns):
+    if col_name:
+        if col_name in xy_axis_columns:
+            if (is_stringx and col_name == xy_axis_columns[0]) or (is_stringy and col_name == xy_axis_columns[1]):
+                categorical_sort(df, col_name)
+
+
+def categorical_sort(df, col_name):
+    order_list = get_categorical_list(col_name)
+    if order_list:
+        av_opts = list(dict.fromkeys(df[col_name].tolist()))
+        order_list1 = [a for a in order_list if a in av_opts]
+        if order_list1:
+            df[col_name] = pd.Categorical(df[col_name], order_list1)
+            df.sort_values(col_name, inplace=True)
+            df[col_name] = df[col_name].astype(str)
+
+
+def get_categorical_list(col_name):
+    if col_name == 'kpDistr':
+        return ['1corn', 'half-img', 'equ']
+    elif col_name == 'depthDistr':
+        return ['N', 'NM', 'M', 'NF', 'NMF', 'MF', 'F']
+    elif col_name == 'rt_change_type':
+        return ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
+                'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
+    return None
 
 
 def is_exp_used(min_val, max_val, use_log=False):
@@ -9333,7 +9464,9 @@ def main():
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
                                                              build_pdf=True,
-                                                             figs_externalize=True)
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
 
     return ret
 
