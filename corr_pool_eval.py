@@ -83,7 +83,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
             if len(vars['data_separators']) != (len(vars['partitions']) + 1):
                 raise ValueError('Wrong number of data separators.')
     if 'eval_on' not in vars:
-        raise ValueError('Information (column name) for which evaluation this is performed must be provided.')
+        raise ValueError('Information (column name) for which evaluation is performed must be provided.')
     if 'diff_by' not in vars:
         raise ValueError('No information provided on which consecutive data basis the diff should be performed')
 
@@ -93,7 +93,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
                 raise ValueError('Label ' + i + ' not found in \'eval_columns\'')
 
     from statistics_and_plot import use_log_axis
-    needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']
+    needed_cols = list(dict.fromkeys(vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']))
     df = vars['data'][needed_cols]
     grpd_cols = [a for a in vars['data_separators'] if a != vars['diff_by']] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)

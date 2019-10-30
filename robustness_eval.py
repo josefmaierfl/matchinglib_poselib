@@ -102,6 +102,7 @@ def get_rt_change_type(**keywords):
                     tmp1['rt_change_type'] = ['ctz'] * int(tmp1.shape[0])
                 else:
                     tmp1['rt_change_type'] = ['nv'] * int(tmp1.shape[0])# no variation
+                tmp1['rt_change_pos'] = [0] * int(tmp1.shape[0])
             else:
                 rxc = tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs().sum() > 1e-3
                 ryc = tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs().sum() > 1e-3
@@ -109,33 +110,70 @@ def get_rt_change_type(**keywords):
                 txc = tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs().sum() > 1e-4
                 tyc = tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs().sum() > 1e-4
                 tzc = tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs().sum() > 1e-4
+                change_positions = []
                 if rxc and ryc and rzc and txc and tyc and tzc:
                     tmp1['rt_change_type'] = ['jrt'] * int(tmp1.shape[0])
                     change_j_occ['jrt'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                 elif rxc and ryc and rzc:
                     tmp1['rt_change_type'] = ['jra'] * int(tmp1.shape[0])
                     change_j_occ['jra'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
                 elif txc and tyc and tzc:
                     tmp1['rt_change_type'] = ['jta'] * int(tmp1.shape[0])
                     change_j_occ['jta'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                 elif rxc:
                     tmp1['rt_change_type'] = ['jrx'] * int(tmp1.shape[0])
                     change_j_occ['jrx'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
                 elif ryc:
                     tmp1['rt_change_type'] = ['jry'] * int(tmp1.shape[0])
                     change_j_occ['jry'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
                 elif rzc:
                     tmp1['rt_change_type'] = ['jrz'] * int(tmp1.shape[0])
                     change_j_occ['jrz'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
                 elif txc:
                     tmp1['rt_change_type'] = ['jtx'] * int(tmp1.shape[0])
                     change_j_occ['jtx'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                 elif tyc:
                     tmp1['rt_change_type'] = ['jty'] * int(tmp1.shape[0])
                     change_j_occ['jty'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                 elif tzc:
                     tmp1['rt_change_type'] = ['jtz'] * int(tmp1.shape[0])
                     change_j_occ['jtz'] += 1
+                    change_positions.append(
+                        int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                 else:
                     max_val = change_j_occ[max(change_j_occ, key=(lambda key: change_j_occ[key]))]
                     min_val = max_val
@@ -149,7 +187,14 @@ def get_rt_change_type(**keywords):
             df_list.append(tmp1)
     df_new = pd.concat(df_list, axis=0, ignore_index=False)
     if 'filter_scene' in keywords:
-        df_new = df_new.loc[df_new['rt_change_type'].str.contains(keywords['filter_scene'], regex=False)]
+        if isinstance(keywords['filter_scene'], str):
+            df_new = df_new.loc[df_new['rt_change_type'].str.contains(keywords['filter_scene'], regex=False)]
+        else:
+            if len(keywords['filter_scene']) > 1:
+                df_new = df_new.loc[df_new['rt_change_type'].str.contains('|'.join(keywords['filter_scene']),
+                                                                          regex=True)]
+            else:
+                df_new = df_new.loc[df_new['rt_change_type'].str.contains(keywords['filter_scene'][0], regex=False)]
     return df_new
 
 
@@ -819,3 +864,27 @@ def get_best_comb_3d_scenes_1(**keywords):
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return ret['res']
+
+
+def calc_calib_delay(**keywords):
+    if 'data_separators' not in keywords:
+        raise ValueError('data_separators are necessary.')
+    if 'eval_on' not in keywords:
+        raise ValueError('Information (column name/s) for which evaluation is performed must be provided.')
+    if 'change_Nr' not in keywords:
+        raise ValueError('Frame number when the extrinsics change must be provided (index starts at 0)')
+    if 'comb_rt' in keywords and keywords['comb_rt']:
+        from corr_pool_eval import combine_rt_diff2
+        data, keywords = combine_rt_diff2(keywords['data'], keywords)
+    else:
+        data = keywords['data']
+    needed_cols = list(dict.fromkeys(keywords['data_separators'] + keywords['it_parameters'] + keywords['eval_on']))
+    df = data[needed_cols]
+    grpd_cols = keywords['data_separators'] + keywords['it_parameters']
+    df_grp = df.groupby(grpd_cols)
+    grp_keys = df_grp.groups.keys()
+    for grp in grp_keys:
+        tmp = df_grp.get_group(grp)
+        #Check for the correctness of the change number
+
+        tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
