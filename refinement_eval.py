@@ -60,7 +60,8 @@ def get_best_comb_scenes_1(**keywords):
         compile_tex, \
         split_large_titles, \
         get_limits_log_exp, \
-        enl_space_title
+        enl_space_title, \
+        check_if_neg_values
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
                      ' for Parameter Variations of ' + ret['sub_title_it_pars']
@@ -134,6 +135,7 @@ def get_best_comb_scenes_1(**keywords):
                     part_name_title[-1] += ', and '
 
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp)
+        is_neg = check_if_neg_values(tmp, data_it_b_columns[-1], use_log, use_limits)
         reltex_name = os.path.join(ret['rel_data_path'], b_mean_name[-1])
         if 'error_type_text' in keywords:
             fig_name = 'Mean ' + strToLower(keywords['error_type_text']) + \
@@ -177,6 +179,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
+                                      'is_neg': is_neg,
                                       'caption': fig_name.replace('\\\\', ' ')
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -267,6 +270,7 @@ def get_best_comb_scenes_1(**keywords):
 
         _, use_limits, use_log, exp_value = get_limits_log_exp(data_parts_min[-1], True, True, False,
                                                                [it_pars_name, 'tex_it_pars'])
+        is_neg = check_if_neg_values(data_parts_min[-1], err_name, use_log, use_limits)
         reltex_name = os.path.join(ret['rel_data_path'], data_f_name)
         if 'error_type_text' in keywords:
             fig_name = 'Minimum mean ' + strToLower(keywords['error_type_text']) + \
@@ -320,6 +324,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
+                                      'is_neg': is_neg,
                                       'caption': caption
                                       })
     rendered_tex = template.render(title=tex_infos['title'],
@@ -480,6 +485,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': fig_name.replace('\\\\', ' ')
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -722,7 +728,8 @@ def get_best_comb_inlrat_k(**keywords):
         fig_type = 'xbar'
     else:
         fig_type = 'ybar'
-    from statistics_and_plot import replaceCSVLabels
+    from statistics_and_plot import replaceCSVLabels, check_if_neg_values
+    is_neg = check_if_neg_values(b_mean, 'ke_mean', False, None)
     tex_infos = {'title': 'Mean Combined Camera Matrix Errors over all ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
@@ -768,6 +775,7 @@ def get_best_comb_inlrat_k(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': is_neg,
                                   'caption': 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })

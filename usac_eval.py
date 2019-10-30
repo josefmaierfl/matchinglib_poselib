@@ -1175,6 +1175,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
@@ -1209,6 +1210,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': 'Biggest combined R \\& t errors  $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
@@ -1316,6 +1318,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })
@@ -1606,6 +1609,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ and their ' +
                                              'corresponding parameter set and ' +
                                              replaceCSVLabels(str(ret['grp_names'][-2]), False, True) +
@@ -1895,6 +1899,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': caption
                                   })
     base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \
@@ -2272,7 +2277,8 @@ def estimate_alg_time_fixed_kp(**vars):
         split_large_titles, \
         get_limits_log_exp, \
         use_log_axis, \
-        enl_space_title
+        enl_space_title, \
+        check_if_neg_values
     tmp, col_name = get_time_fixed_kp(**vars)
     tmp1 = tmp.loc[tmp.groupby(vars['t_data_separators'])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
@@ -2437,6 +2443,7 @@ def estimate_alg_time_fixed_kp(**vars):
     enlarge_lbl_dist = check_legend_enlarge(tmp1, vars['xy_axis_columns'][0], 1, fig_type)
     exp_value1 = enl_space_title(exp_value1, section_name, tmp1, vars['xy_axis_columns'][0],
                                  1, fig_type)
+    is_neg1 = check_if_neg_values(tmp1, col_name, use_log1, None)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -2466,6 +2473,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': exp_value1,
                                   'large_meta_space_needed': True,
+                                  'is_neg': is_neg1,
                                   'caption': caption
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -2757,6 +2765,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': caption
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -2801,6 +2810,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': caption
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -2948,6 +2958,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': caption
                                   })
     section_name = 'Maximum execution times over all ' + \
@@ -2992,6 +3003,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': False,
                                   'caption': caption
                                   })
     rendered_tex = template.render(title=tex_infos['title'],
@@ -3073,7 +3085,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         is_exp_used, \
         use_log_axis, \
         enl_space_title, \
-        get_3d_tex_info
+        get_3d_tex_info, \
+        check_if_neg_values
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
@@ -3274,6 +3287,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4 = []
     exp_value4 = []
     enlarge_lbl_dist4 = []
+    is_neg4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
@@ -3297,6 +3311,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp1mean_min, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
+    is_neg4.append(check_if_neg_values(tmp1mean_min, index_y4[-1], use_log4[-1], None))
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3320,6 +3335,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp1mean_max, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
+    is_neg4.append(check_if_neg_values(tmp1mean_max, index_y4[-1], use_log4[-1], None))
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3344,6 +3360,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp2mean_min, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
+    is_neg4.append(check_if_neg_values(tmp2mean_min, index_y4[-1], use_log4[-1], None))
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3367,6 +3384,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     exp_value4.append(is_exp_used(min_val[0], max_val[0], use_log4[-1]))
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp2mean_max, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
+    is_neg4.append(check_if_neg_values(tmp2mean_max, index_y4[-1], use_log4[-1], None))
 
     t_main_name1 = 'time_on_' + time_on1 +\
                    '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
@@ -3505,6 +3523,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'enlarge_lbl_dist': enlarge_lbl_dist4[i],
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
+                                      'is_neg': is_neg4[i],
                                       'caption': caption[i]
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -3540,6 +3559,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     meta_col4 = []
     use_log4 = []
     exp_value4 = []
+    is_neg4 = []
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new13 = ['-'.join(a) for a in tmp12_min.index]
@@ -3563,6 +3583,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = np.abs(tmp12_min[col_name].max())
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
+    is_neg4.append(check_if_neg_values(tmp12_min, col_name, use_log4[-1], None))
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3585,6 +3606,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = np.abs(tmp12_max[col_name].max())
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
+    is_neg4.append(check_if_neg_values(tmp12_max, col_name, use_log4[-1], None))
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3609,6 +3631,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = np.abs(tmp22_min[col_name].max())
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
+    is_neg4.append(check_if_neg_values(tmp22_min, col_name, use_log4[-1], None))
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3631,6 +3654,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     max_val = np.abs(tmp22_max[col_name].max())
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
+    is_neg4.append(check_if_neg_values(tmp22_max, col_name, use_log4[-1], None))
 
     t_main_name1 = 'time_on_' + meta_col4[0] + \
                    '_over_accumul_' + str(vars['accum_step_props'][0]) + \
@@ -3776,6 +3800,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
+                                      'is_neg': is_neg4[i],
                                       'caption': caption[i]
                                       })
 
@@ -3901,7 +3926,7 @@ def get_min_inlrat_diff(**keywords):
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import get_limits_log_exp, enl_space_title
+    from statistics_and_plot import get_limits_log_exp, enl_space_title, check_if_neg_values
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -4033,6 +4058,7 @@ def get_min_inlrat_diff(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
+    is_neg = check_if_neg_values(min_mean_diff, 'inlRat_diff', False, None)
     section_name = 'Minimum absolute mean inlier ratio difference\\\\and its corresponding ' + \
                    replaceCSVLabels(str(grp_names[-1]), False, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(keywords['sub_title_it_pars'])
@@ -4069,6 +4095,7 @@ def get_min_inlrat_diff(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
+                                  'is_neg': is_neg,
                                   'caption': caption
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')

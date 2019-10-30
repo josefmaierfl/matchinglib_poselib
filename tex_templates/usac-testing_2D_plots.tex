@@ -136,8 +136,12 @@ title style={align=center,yshift=2.1ex},%
 \BLOCK{ endif }
 \BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
 xmode=log,%
+log origin=infty,%
 \BLOCK{ elif sec['use_log_y_axis'] }
 ymode=log,%
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+log origin=infty,%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%

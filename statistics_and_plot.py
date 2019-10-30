@@ -3770,6 +3770,7 @@ def calcFromFuncAndPlot_aggregate(data,
         useless, stats_all, use_limits = calc_limits(df, True, False, None, it, 3.291)
         if useless:
             continue
+        is_neg = check_if_neg_values(df, it, eval_cols_log_scaling[i], use_limits)
         if use_limits['miny'] and use_limits['maxy']:
             exp_value = is_exp_used(use_limits['miny'], use_limits['maxy'], eval_cols_log_scaling[i])
         elif use_limits['miny']:
@@ -3817,6 +3818,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
+                                      'is_neg': is_neg,
                                       'caption': fig_name.replace('\\\\', ' ')
                                       })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -4099,6 +4101,7 @@ def calcSatisticAndPlot_aggregate(data,
             useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, True, 'tex_it_pars')
             if useless:
                 continue
+            is_neg = check_if_neg_values(tmp, col_name, use_log, use_limits)
 
             fig_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
                        replaceCSVLabels(str(it_tmp[0]), True, False, True) + ' comparing parameter variations of\\\\' + \
@@ -4136,6 +4139,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           'enlarge_lbl_dist': None,
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
+                                          'is_neg': is_neg,
                                           'caption': fig_name.replace('\\\\', ' '),
                                           'pdf_nr': pdf_nr
                                           })
@@ -5119,6 +5123,42 @@ def roundNumeric_df(col_names, df):
 
 def str_is_number(df, col):
     return pd.to_numeric(df[col], errors='coerce').notnull().all()
+
+
+def check_if_neg_values(df, cols, use_log, use_limits):
+    if use_log:
+        return False
+    calc_mm = True
+    if use_limits and use_limits['miny'] and use_limits['maxy']:
+        calc_mm = False
+    if calc_mm:
+        is_list = True
+        if isinstance(cols, str):
+            is_list = False
+        else:
+            try:
+                oit = iter(cols)
+            except TypeError as te:
+                is_list = False
+        if is_list:
+            all_vals = df[cols].stack()
+        else:
+            all_vals = df[cols]
+    if use_limits:
+        if use_limits['miny']:
+            min_val = use_limits['miny']
+        else:
+            min_val = float(all_vals.min())
+        if use_limits['maxy']:
+            max_val = use_limits['maxy']
+        else:
+            max_val = float(all_vals.max())
+    else:
+        min_val = float(all_vals.min())
+        max_val = float(all_vals.max())
+    if min_val < 0 and max_val < 0:
+        return True
+    return False
 
 
 def get_limits_log_exp(df,
@@ -9436,8 +9476,9 @@ def main():
                                      'stereoParameters_maxPoolCorrespondences']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['rt_change_type']
-                    special_calcs_args = {'build_pdf': (True, True, True),
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
                                           'use_marks': True,
+                                          'fig_type': 'surface',
                                           'res_par_name': 'robustness_best_comb_scenes_inlc_depth'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
                     #                                         'stereoParameters_relInlRatThNew',

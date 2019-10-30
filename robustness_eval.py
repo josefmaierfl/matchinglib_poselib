@@ -164,12 +164,12 @@ def get_best_comb_scenes_1(**keywords):
         get_limits_log_exp, \
         split_large_titles, \
         enl_space_title, \
-        check_if_series, \
-        strToLower
+        strToLower, \
+        check_if_neg_values
     ret = pars_calc_single_fig_partitions(**keywords)
     b_min = ret['b'].stack().reset_index()
-    b_min.rename(columns={b_min.columns[-1]: 'b_min'}, inplace=True)
-    b_min = b_min.loc[b_min.groupby(ret['partitions'] + keywords['x_axis_column'])['b_min'].idxmin()]
+    b_min.rename(columns={b_min.columns[-1]: 'Rt_diff'}, inplace=True)
+    b_min = b_min.loc[b_min.groupby(ret['partitions'] + keywords['x_axis_column'])['Rt_diff'].idxmin()]
     b_min1 = b_min.set_index(ret['it_parameters'])
     if len(ret['it_parameters']) > 1:
         b_min1.index = ['-'.join(map(str, a)) for a in b_min1.index]
@@ -182,7 +182,7 @@ def get_best_comb_scenes_1(**keywords):
     base_name = 'min_RTerrors_vs_' + keywords['x_axis_column'][0] + '_and_corresp_opts_' + \
                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          ' Parameters ' + ret['sub_title_it_pars'] + \
+                          'Parameters ' + ret['sub_title_it_pars'] + \
                           ' vs ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
                           ' for Different ' + ret['sub_title_partitions'],
                  'sections': [],
@@ -207,7 +207,7 @@ def get_best_comb_scenes_1(**keywords):
                       (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Minimum combined R & t errors (b_min) and corresponding option vs ' +
+            f.write('# Minimum combined R & t errors (Rt_diff) and corresponding option vs ' +
                     keywords['x_axis_column'][0] +
                     ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
                     (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
@@ -215,15 +215,16 @@ def get_best_comb_scenes_1(**keywords):
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
-                       ' corresponding options vs ' + \
+                       'corresponding options vs ' + \
                        replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
                        ' for property ' + insert_str_option_values(ret['partitions'], grp)
         caption = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
-                  ' corresponding options on top of each bar separated by a comma in the order ' + \
+                  'corresponding options on top of each bar separated by a comma in the order ' + \
                   strToLower(ret['sub_title_it_pars']) + ' vs ' + \
                   replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
                   ' for the ' + insert_str_option_values(ret['partitions'], grp)
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, ['options_tex', it_pars_name])
+        is_neg = check_if_neg_values(tmp, 'Rt_diff', use_log, use_limits)
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['x_axis_column'][0]], errors='coerce').notnull().all()
         section_name = split_large_titles(section_name)
         exp_value = enl_space_title(exp_value, section_name, tmp, keywords['x_axis_column'],
@@ -233,7 +234,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'title': section_name,
                                       'title_rows': section_name.count('\\\\'),
                                       'fig_type': 'ybar',
-                                      'plots': ['b_min'],
+                                      'plots': ['Rt_diff'],
                                       'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
                                       'label_x': replaceCSVLabels(keywords['x_axis_column'][0]),
@@ -256,6 +257,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
+                                      'is_neg': is_neg,
                                       'caption': caption
                                       })
 
@@ -270,7 +272,7 @@ def get_best_comb_scenes_1(**keywords):
                                    abbreviations=tex_infos['abbreviations'])
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
-    if ret['build_pdf'][0]:
+    if ret['build_pdf'][1]:
         res1 = compile_tex(rendered_tex,
                            ret['tex_folder'],
                            texf_name,
@@ -289,7 +291,7 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name  + '.csv'
     fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Statistic over minimum combined R & t errors (b_min) and statistic of corresponding parameters ' +
+        f.write('# Statistic over minimum combined R & t errors (Rt_diff) and statistic of corresponding parameters ' +
                 ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
                 '-'.join(map(str, ret['partitions'])) + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
@@ -302,8 +304,8 @@ def get_best_comb_scenes_1(**keywords):
     base_name = 'mean_min_RTerrors_and_mean_corresp_opts_' + \
                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
     tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          ' Mean Parameters ' + ret['sub_title_it_pars'] + \
-                          ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
+                          'Mean Parameters ' + ret['sub_title_it_pars'] + \
+                          ' Over All ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
                           ' for Different ' + ret['sub_title_partitions'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
@@ -320,22 +322,23 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
+        f.write('# Mean values over minimum combined R & t errors (Rt_diff) and corresponding mean parameters ' +
                 ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
                 '-'.join(map(str, ret['partitions'])) + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
         b_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
-                   ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                   'mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
                    ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, False, True) + \
                    ' for different ' + strToLower(ret['sub_title_partitions'])
     caption = 'Mean values of smallest combined R \\& t errors and their ' + \
-              ' corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+              'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
               strToLower(ret['sub_title_it_pars']) + ' over all ' + \
               replaceCSVLabels(keywords['x_axis_column'][0], True, False, True)
     _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean, True, True, False, ['options_tex'] +
                                                            ret['it_parameters'])
+    is_neg = check_if_neg_values(b_mean, 'Rt_diff', use_log, use_limits)
     is_numeric = pd.to_numeric(b_mean.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
     section_name = split_large_titles(section_name)
     exp_value = enl_space_title(exp_value, section_name, b_mean, ret['partitions'][0],
@@ -345,7 +348,7 @@ def get_best_comb_scenes_1(**keywords):
                                   'title': section_name,
                                   'title_rows': section_name.count('\\\\'),
                                   'fig_type': 'ybar',
-                                  'plots': ['b_min'],
+                                  'plots': ['Rt_diff'],
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
                                   'label_x': replaceCSVLabels(ret['partitions'][0]),
@@ -368,11 +371,11 @@ def get_best_comb_scenes_1(**keywords):
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': True,
+                                  'is_neg': is_neg,
                                   'caption': caption
                                   })
 
     base_out_name = 'tex_' + base_name
-    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
                                    ctrl_fig_size=tex_infos['ctrl_fig_size'],
@@ -382,7 +385,7 @@ def get_best_comb_scenes_1(**keywords):
                                    abbreviations=tex_infos['abbreviations'])
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
-    if ret['build_pdf'][1]:
+    if ret['build_pdf'][2]:
         res1 = compile_tex(rendered_tex,
                            ret['tex_folder'],
                            texf_name,
@@ -410,7 +413,7 @@ def get_best_comb_scenes_1(**keywords):
         for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = float(alg_comb_bestl[i])
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
-                                         'mean_Rt_error': float(b_mmean['b_min'])}},
+                                         'mean_Rt_error': float(b_mmean['Rt_diff'])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return ret['res']
@@ -430,11 +433,12 @@ def get_best_comb_3d_scenes_1(**keywords):
         check_if_series, \
         strToLower, \
         check_legend_enlarge, \
-        calcNrLegendCols
+        calcNrLegendCols, \
+        check_if_neg_values
     ret = pars_calc_multiple_fig_partitions(**keywords)
     b_min = ret['b'].stack().reset_index()
-    b_min.rename(columns={b_min.columns[-1]: 'b_min'}, inplace=True)
-    b_min = b_min.loc[b_min.groupby(ret['partitions'] + keywords['xy_axis_columns'])['b_min'].idxmin()]
+    b_min.rename(columns={b_min.columns[-1]: 'Rt_diff'}, inplace=True)
+    b_min = b_min.loc[b_min.groupby(ret['partitions'] + keywords['xy_axis_columns'])['Rt_diff'].idxmin()]
     b_min1 = b_min.set_index(ret['it_parameters'])
     if len(ret['it_parameters']) > 1:
         b_min1.index = ['-'.join(map(str, a)) for a in b_min1.index]
@@ -448,7 +452,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                 keywords['xy_axis_columns'][1] + '_with_corresp_opts_' + \
                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          ' Parameters ' + ret['sub_title_it_pars'] + \
+                          'Parameters ' + ret['sub_title_it_pars'] + \
                           ' vs ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + \
                           ' and ' + replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True) + \
                           ' for Different ' + ret['sub_title_partitions'],
@@ -474,14 +478,14 @@ def get_best_comb_3d_scenes_1(**keywords):
         tmp = tmp.unstack()
         tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
         # tmp = tmp.reset_index().set_index(keywords['xy_axis_columns'][0])
-        plots = [a for a in tmp.columns if 'b_min' in a]
+        plots = [a for a in tmp.columns if 'Rt_diff' in a]
         meta_cols = [a for a in tmp.columns if 'options_tex' in a]
         it_pars_names = [a for a in tmp.columns if it_pars_name in a]
         b_mean_name = 'data_' + base_name + \
                       (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Minimum combined R & t errors (b_min) and corresponding option vs ' +
+            f.write('# Minimum combined R & t errors (Rt_diff) and corresponding option vs ' +
                     keywords['xy_axis_columns'][0] + ' and ' + keywords['xy_axis_columns'][1] +
                     ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
                     (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
@@ -500,6 +504,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                   replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
                   ' for the ' + insert_str_option_values(ret['partitions'], grp)
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, it_pars_names + meta_cols)
+        is_neg = check_if_neg_values(tmp, plots, use_log, use_limits)
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
         section_name = split_large_titles(section_name)
         enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar')
@@ -520,7 +525,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                       'print_meta': True,
                                       'plot_meta': meta_cols,
                                       # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                      'rotate_meta': 90,
+                                      'rotate_meta': 0,
                                       'limits': None,
                                       # If None, no legend is used, otherwise use a list
                                       'legend': [' -- '.join([replaceCSVLabels(b)
@@ -534,121 +539,10 @@ def get_best_comb_3d_scenes_1(**keywords):
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
+                                      'is_neg': is_neg,
                                       'caption': caption
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-
-    base_out_name = 'tex_' + base_name
-    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
-    texf_name = base_out_name + '.tex'
-    pdf_name = base_out_name + '.pdf'
-    if ret['build_pdf'][0]:
-        res1 = compile_tex(rendered_tex,
-                           ret['tex_folder'],
-                           texf_name,
-                           tex_infos['make_index'],
-                           os.path.join(ret['pdf_folder'], pdf_name),
-                           tex_infos['figs_externalize'])
-    else:
-        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
-    if res1 != 0:
-        ret['res'] += abs(res1)
-        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
-
-    par_stat = b_min.drop(keywords['x_axis_column'][0], axis=1).groupby(ret['partitions']).describe()
-    base_name = 'stats_min_RTerrors_and_stats_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
-    b_mean_name = 'data_' + base_name  + '.csv'
-    fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
-    with open(fb_mean_name, 'a') as f:
-        f.write('# Statistic over minimum combined R & t errors (b_min) and statistic of corresponding parameters ' +
-                ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
-                '-'.join(map(str, ret['partitions'])) + '\n')
-        f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
-        par_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-
-    b_mean = par_stat.xs('mean', axis=1, level=1, drop_level=True).copy(deep=True)
-    b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                             for _, row in b_mean[ret['it_parameters']].iterrows()]
-
-    base_name = 'mean_min_RTerrors_and_mean_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
-    tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          ' Mean Parameters ' + ret['sub_title_it_pars'] + \
-                          ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
-                          ' for Different ' + ret['sub_title_partitions'],
-                 'sections': [],
-                 # Builds an index with hyperrefs on the beginning of the pdf
-                 'make_index': True,
-                 # If True, the figures are adapted to the page height if they are too big
-                 'ctrl_fig_size': True,
-                 # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
-                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
-                 'fill_bar': True,
-                 # Builds a list of abbrevations from a list of dicts
-                 'abbreviations': ret['gloss']
-                 }
-    b_mean_name = 'data_' + base_name + '.csv'
-    fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
-    with open(fb_mean_name, 'a') as f:
-        f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
-                ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
-                '-'.join(map(str, ret['partitions'])) + '\n')
-        f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
-        b_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-
-    section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
-                   ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
-                   ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, False, True) + \
-                   ' for different ' + strToLower(ret['sub_title_partitions'])
-    caption = 'Mean values of smallest combined R \\& t errors and their ' + \
-              ' corresponding mean parameters on top of each bar separated by a comma in the order ' + \
-              strToLower(ret['sub_title_it_pars']) + ' over all ' + \
-              replaceCSVLabels(keywords['x_axis_column'][0], True, False, True)
-    _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean, True, True, False, ['options_tex'] +
-                                                           ret['it_parameters'])
-    is_numeric = pd.to_numeric(b_mean.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
-    section_name = split_large_titles(section_name)
-    exp_value = enl_space_title(exp_value, section_name, b_mean, ret['partitions'][0],
-                                1, 'ybar')
-    tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
-                                  'name': section_name.replace('\\\\', ' '),
-                                  'title': section_name,
-                                  'title_rows': section_name.count('\\\\'),
-                                  'fig_type': 'ybar',
-                                  'plots': ['b_min'],
-                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
-                                  # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': replaceCSVLabels(ret['partitions'][0]),
-                                  # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': ret['partitions'][0],
-                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                  'print_meta': True,
-                                  'plot_meta': ['options_tex'],
-                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                  'rotate_meta': 45,
-                                  'limits': None,
-                                  # If None, no legend is used, otherwise use a list
-                                  'legend': None,
-                                  'legend_cols': 1,
-                                  'use_marks': False,
-                                  # The x/y-axis values are given as strings if True
-                                  'use_string_labels': True if not is_numeric else False,
-                                  'use_log_y_axis': use_log,
-                                  'xaxis_txt_rows': 1,
-                                  'enlarge_lbl_dist': None,
-                                  'enlarge_title_space': exp_value,
-                                  'large_meta_space_needed': True,
-                                  'caption': caption
-                                  })
 
     base_out_name = 'tex_' + base_name
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -674,7 +568,239 @@ def get_best_comb_3d_scenes_1(**keywords):
         ret['res'] += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
-    b_mmean = b_mean.drop('options_tex', axis=1).mean()
+    par_stat = b_min.drop(keywords['xy_axis_columns'][0], axis=1).groupby(ret['partitions'] +
+                                                                          [keywords['xy_axis_columns'][1]]).describe()
+    base_name = 'stats_min_RTerrors_and_stats_corresp_opts_' + \
+                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    b_mean_name = 'data_' + base_name  + '.csv'
+    fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Statistic over minimum combined R & t errors (Rt_diff) and statistic of corresponding parameters ' +
+                ' over all ' + keywords['xy_axis_columns'][0] + ' for different ' +
+                '-'.join(map(str, ret['partitions'])) + '\n')
+        f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+        par_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    b_mean = par_stat.xs('mean', axis=1, level=1, drop_level=True).copy(deep=True)
+    b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                             for _, row in b_mean[ret['it_parameters']].iterrows()]
+    b_mean1 = b_mean.unstack()
+    b_mean1.columns = ['-'.join(map(str, a)) for a in b_mean1.columns]
+    plots = [a for a in b_mean1.columns if 'Rt_diff' in a]
+    meta_cols = [a for a in b_mean1.columns if 'options_tex' in a]
+    it_pars_names = [a for a in b_mean1.columns for b in ret['it_parameters'] if b in a]
+
+    base_name = 'mean_min_RTerrors_and_mean_corresp_opts_' + \
+                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
+                          'Mean Parameters ' + ret['sub_title_it_pars'] + \
+                          ' Over All ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + ' vs ' + \
+                          replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True) + \
+                          ' for Different ' + ret['sub_title_partitions'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
+    b_mean_name = 'data_' + base_name + '.csv'
+    fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
+                ' over all ' + keywords['xy_axis_columns'][0] + ' vs ' +
+                keywords['xy_axis_columns'][1] + ' for different ' +
+                '-'.join(map(str, ret['partitions'])) + '\n')
+        f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+        b_mean1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
+                   ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                   ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' vs ' + \
+                   replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True) + \
+                   ' for different ' + strToLower(ret['sub_title_partitions'])
+    caption = 'Mean values of smallest combined R \\& t errors and their ' + \
+              'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+              strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+              replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True)
+    _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean1, True, True, False, it_pars_names + meta_cols)
+    is_neg = check_if_neg_values(b_mean1, plots, use_log, use_limits)
+    is_numeric = pd.to_numeric(b_mean1.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
+    section_name = split_large_titles(section_name)
+    enlarge_lbl_dist = check_legend_enlarge(b_mean1, ret['partitions'][0], len(plots), 'xbar')
+    exp_value = enl_space_title(exp_value, section_name, b_mean1, ret['partitions'][0],
+                                len(plots), 'xbar')
+
+    tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+                                  'name': section_name.replace('\\\\', ' '),
+                                  'title': section_name,
+                                  'title_rows': section_name.count('\\\\'),
+                                  'fig_type': 'xbar',
+                                  'plots': plots,
+                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': replaceCSVLabels(ret['partitions'][0]),
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': ret['partitions'][0],
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': True,
+                                  'plot_meta': meta_cols,
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 0,
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': [' -- '.join([replaceCSVLabels(b) for b in a.split('-')]) for a in plots],
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': not is_numeric,
+                                  'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
+                                  'enlarge_title_space': exp_value,
+                                  'large_meta_space_needed': True,
+                                  'is_neg': is_neg,
+                                  'caption': caption
+                                  })
+    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+    base_out_name = 'tex_' + base_name
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    if ret['build_pdf'][2]:
+        res1 = compile_tex(rendered_tex,
+                           ret['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(ret['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+    if res1 != 0:
+        ret['res'] += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    b_mmean = b_mean.reset_index().drop(['options_tex'] +
+                                        ret['partitions'], axis=1).groupby(keywords['xy_axis_columns'][1]).mean()
+    b_mmean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                              for _, row in b_mmean[ret['it_parameters']].iterrows()]
+
+    base_name = 'double_mean_min_RTerrors_and_mean_corresp_opts_' + \
+                short_concat_str(ret['it_parameters'])
+    tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
+                          'Mean Parameters ' + ret['sub_title_it_pars'] + \
+                          ' Over All ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) +
+                          ' and ' + ret['sub_title_partitions'] + ' vs ' + \
+                          replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True),
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
+    b_mean_name = 'data_' + base_name + '.csv'
+    fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
+                ' over all ' + keywords['xy_axis_columns'][0] + ' and partitions ' +
+                '-'.join(map(str, ret['partitions'])) + ' vs ' +
+                keywords['xy_axis_columns'][1] + ' for different ' + '\n')
+        f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+        b_mmean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
+                   ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                   ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
+                   strToLower(ret['sub_title_partitions']) + ' vs ' + \
+                   replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True)
+    caption = 'Mean values of smallest combined R \\& t errors and their ' + \
+              ' corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+              strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+              replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
+              strToLower(ret['sub_title_partitions'])
+    _, use_limits, use_log, exp_value = get_limits_log_exp(b_mmean, True, True, False, ['options_tex'] +
+                                                           ret['it_parameters'])
+    is_neg = check_if_neg_values(b_mmean, 'Rt_diff', use_log, use_limits)
+    is_numeric = pd.to_numeric(b_mmean.reset_index()[keywords['xy_axis_columns'][1]], errors='coerce').notnull().all()
+    section_name = split_large_titles(section_name)
+    enlarge_lbl_dist = check_legend_enlarge(b_mmean, keywords['xy_axis_columns'][1], 1, 'ybar')
+    exp_value = enl_space_title(exp_value, section_name, b_mmean, keywords['xy_axis_columns'][1],
+                                1, 'ybar')
+
+    tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+                                  'name': section_name.replace('\\\\', ' '),
+                                  'title': section_name,
+                                  'title_rows': section_name.count('\\\\'),
+                                  'fig_type': 'ybar',
+                                  'plots': ['Rt_diff'],
+                                  'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                  # Label/column name of axis with bars. For xbar it labels the y-axis
+                                  'label_x': replaceCSVLabels(keywords['xy_axis_columns'][1]),
+                                  # Column name of axis with bars. For xbar it is the column for the y-axis
+                                  'print_x': keywords['xy_axis_columns'][1],
+                                  # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                  'print_meta': True,
+                                  'plot_meta': ['options_tex'],
+                                  # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                  'rotate_meta': 45,
+                                  'limits': None,
+                                  # If None, no legend is used, otherwise use a list
+                                  'legend': None,
+                                  'legend_cols': 1,
+                                  'use_marks': False,
+                                  # The x/y-axis values are given as strings if True
+                                  'use_string_labels': not is_numeric,
+                                  'use_log_y_axis': use_log,
+                                  'xaxis_txt_rows': 1,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
+                                  'enlarge_title_space': exp_value,
+                                  'large_meta_space_needed': True,
+                                  'is_neg': is_neg,
+                                  'caption': caption
+                                  })
+
+    base_out_name = 'tex_' + base_name
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    texf_name = base_out_name + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    if ret['build_pdf'][3]:
+        res1 = compile_tex(rendered_tex,
+                           ret['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(ret['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+    if res1 != 0:
+        ret['res'] += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    b_mmmean = b_mmean.drop('options_tex', axis=1).mean()
 
     main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
     # Check if file and parameters exist
@@ -682,14 +808,14 @@ def get_best_comb_3d_scenes_1(**keywords):
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, keywords['res_folder'], ret['res'])
     with open(ppar_file, 'a') as fo:
         # Write parameters
-        alg_comb_bestl = b_mmean[ret['it_parameters']].to_numpy()
+        alg_comb_bestl = b_mmmean[ret['it_parameters']].to_numpy()
         if len(keywords['it_parameters']) != len(alg_comb_bestl):
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = float(alg_comb_bestl[i])
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
-                                         'mean_Rt_error': float(b_mmean['b_min'])}},
+                                         'mean_Rt_error': float(b_mmmean['Rt_diff'])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return ret['res']

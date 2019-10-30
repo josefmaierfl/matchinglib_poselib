@@ -133,8 +133,12 @@ align=center,%
 max space between ticks={50},%
 \BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
 xmode=log,%
+log origin=infty,%
 \BLOCK{ elif sec['use_log_y_axis'] }
 ymode=log,%
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+log origin=infty,%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['limits'] is not none }
 \BLOCK{ if sec['limits']['miny'] is not none }
@@ -161,9 +165,17 @@ y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
 \BLOCK{ if sec['large_meta_space_needed'] }
+\BLOCK{ if sec['is_neg'] }
+enlarge x limits={lower, value=0.45},%
+\BLOCK{ else }
 enlarge x limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg'] }
+enlarge x limits={lower, value=0.15},%
 \BLOCK{ else }
 enlarge x limits={upper, value=0.15},%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ endif }
 xmajorgrids=true,%
@@ -180,9 +192,17 @@ x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta'] }
 \BLOCK{ if sec['large_meta_space_needed'] }
+\BLOCK{ if sec['is_neg'] }
+enlarge y limits={lower, value=0.45},%
+\BLOCK{ else }
 enlarge y limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg'] }
+enlarge y limits={lower, value=0.15},%
 \BLOCK{ else }
 enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ endif }
 ymajorgrids=true,%
@@ -191,9 +211,17 @@ xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y']},%
 \BLOCK{ if sec['print_meta'] }
 \BLOCK{ if sec['large_meta_space_needed'] }
+\BLOCK{ if sec['is_neg'] }
+enlarge y limits={lower, value=0.45},%
+\BLOCK{ else }
 enlarge y limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg'] }
+enlarge y limits={lower, value=0.15},%
 \BLOCK{ else }
 enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ endif }
 ymajorgrids=true,%
@@ -221,10 +249,20 @@ cycle list name=big variety,%
 \BLOCK{ if sec['print_meta'] }
 nodes near coords=\pgfplotspointmeta,%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
-nodes near coords align={right},
+\BLOCK{ if sec['is_neg'] }
+nodes near coords align={left},%
+\BLOCK{ else }
+nodes near coords align={right},%
+\BLOCK{ endif }
+\BLOCK{ elif sec['is_neg'] }
+nodes near coords align={anchor=north},%
 \BLOCK{ endif }
 point meta=explicit symbolic,%
+\BLOCK{ if sec['is_neg'] }
+every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta'] != 0 },\BLOCK{ if sec['rotate_meta'] == 45 }anchor=north west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=-\VAR{ sec['rotate_meta'] }\BLOCK{ endif }},%
+\BLOCK{ else }
 every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta'] != 0 },\BLOCK{ if sec['rotate_meta'] == 45 }anchor=south west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=\VAR{ sec['rotate_meta'] }\BLOCK{ endif }},%
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar')) }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
