@@ -5199,6 +5199,24 @@ def get_limits_log_exp(df,
     return False, use_limits, use_log, exp_value
 
 
+def combine_str_for_title(str_list):
+    if isinstance(str_list, str):
+        return str_list
+    comb = ''
+    nr_pars = len(str_list)
+    for i, val in enumerate(str_list):
+        comb += replaceCSVLabels(val, True, True, True)
+        if nr_pars <= 2:
+            if i < nr_pars - 1:
+                comb += ' and '
+        else:
+            if i < nr_pars - 2:
+                comb += ', '
+            elif i < nr_pars - 1:
+                comb += ', and '
+    return comb
+
+
 def insert_str_option_values(options_list, vals):
     nr_partitions = len(options_list)
     if nr_partitions > 1:
@@ -6305,6 +6323,11 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
             str_val = 'minimum correspondence distances $d_{p}$'
         else:
             str_val = 'minimum correspondence distance $d_{p}$'
+    elif label == 'fd':
+        if use_plural:
+            str_val = 'delays of correct calibration'
+        else:
+            str_val = 'delay of correct calibration'
     else:
         return tex_string_coding_style(label)
     if in_heading:
@@ -6341,13 +6364,64 @@ def capitalizeFirstChar(str_val):
 
 
 def strToLower(str_val):
-    return ' '.join([b.lower() if not sum(1 for c in b if c.isupper()) > 1 and
+    return ' '.join([b.lower() if b and not sum(1 for c in b if c.isupper()) > 1 and
                                   not '$' in b and
                                   not len(b) == 1 and
                                   not '{' in b and
                                   not '}' in b and
                                   not '_' in b and
                                   not '\\' in b else b for b in str_val.split(' ')])
+
+def strToUpper(str_val):
+    return ' '.join([b.upper() if b and not sum(1 for c in b if c.isupper()) > 1 and
+                                  not '$' in b and
+                                  not len(b) == 1 and
+                                  not '{' in b and
+                                  not '}' in b and
+                                  not '_' in b and
+                                  not '\\' in b else b for b in str_val.split(' ')])
+
+
+def get_short_scene_description(str_val):
+    if str_val == 'crt':
+        return 'continuous change on every rotational axis and in all translation vector elements'
+    elif str_val == 'cra':
+        return 'continuous change on every rotational axis'
+    elif str_val == 'crx':
+        return 'continuous change of $R_{x}$'
+    elif str_val == 'cry':
+        return 'continuous change of $R_{y}$'
+    elif str_val == 'crz':
+        return 'continuous change of $R_{z}$'
+    elif str_val == 'cta':
+        return 'continuous change in all translation vector elements'
+    elif str_val == 'ctx':
+        return 'continuous change of $t_{x}$'
+    elif str_val == 'cty':
+        return 'continuous change of $t_{y}$'
+    elif str_val == 'ctz':
+        return 'continuous change of $t_{z}$'
+    elif str_val == 'jrt':
+        return 'jump on every rotational axis and in all translation vector elements'
+    elif str_val == 'jra':
+        return 'jump on every rotational axis'
+    elif str_val == 'jrx':
+        return 'jump of $R_{x}$'
+    elif str_val == 'jry':
+        return 'jump of $R_{y}$'
+    elif str_val == 'jrz':
+        return 'jump of $R_{z}$'
+    elif str_val == 'jta':
+        return 'jump in all translation vector elements'
+    elif str_val == 'jtx':
+        return 'jump of $t_{x}$'
+    elif str_val == 'jty':
+        return 'jump of $t_{y}$'
+    elif str_val == 'jtz':
+        return 'jump of $t_{z}$'
+    else:
+        return tex_string_coding_style(str_val)
+
 
 def getOptionDescription(key):
     if key == 'GMS':
@@ -9608,8 +9682,14 @@ def main():
                                       'diff_by': 'Nr'}
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
-                                          'partition_x_axis': 'kpAccSd',
-                                          'res_par_name': 'corrpool_size_converge'}
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr'],
+                                          'eval_on': ['R_diffAll'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                          'scene': 'jra',
+                                          'res_par_name': 'robustness_delay_jra'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type
                     ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),

@@ -19,6 +19,7 @@ def get_rt_change_type(**keywords):
     grp_keys = df_grp.groups.keys()
     df_list = []
     change_j_occ = {'jrt': 0, 'jra': 0, 'jta': 0, 'jrx': 0, 'jry': 0, 'jrz': 0, 'jtx': 0, 'jty': 0, 'jtz': 0}
+    change_pos = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
         nr_min = tmp['Nr'].min()
@@ -126,6 +127,7 @@ def get_rt_change_type(**keywords):
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                     change_positions.append(
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif rxc and ryc and rzc:
                     tmp1['rt_change_type'] = ['jra'] * int(tmp1.shape[0])
                     change_j_occ['jra'] += 1
@@ -135,6 +137,7 @@ def get_rt_change_type(**keywords):
                         int(tmp1.loc[tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
                     change_positions.append(
                         int(tmp1.loc[tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif txc and tyc and tzc:
                     tmp1['rt_change_type'] = ['jta'] * int(tmp1.shape[0])
                     change_j_occ['jta'] += 1
@@ -144,36 +147,43 @@ def get_rt_change_type(**keywords):
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                     change_positions.append(
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif rxc:
                     tmp1['rt_change_type'] = ['jrx'] * int(tmp1.shape[0])
                     change_j_occ['jrx'] += 1
                     change_positions.append(
                         int(tmp1.loc[tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif ryc:
                     tmp1['rt_change_type'] = ['jry'] * int(tmp1.shape[0])
                     change_j_occ['jry'] += 1
                     change_positions.append(
                         int(tmp1.loc[tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif rzc:
                     tmp1['rt_change_type'] = ['jrz'] * int(tmp1.shape[0])
                     change_j_occ['jrz'] += 1
                     change_positions.append(
                         int(tmp1.loc[tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs() > 1e-3, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif txc:
                     tmp1['rt_change_type'] = ['jtx'] * int(tmp1.shape[0])
                     change_j_occ['jtx'] += 1
                     change_positions.append(
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif tyc:
                     tmp1['rt_change_type'] = ['jty'] * int(tmp1.shape[0])
                     change_j_occ['jty'] += 1
                     change_positions.append(
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 elif tzc:
                     tmp1['rt_change_type'] = ['jtz'] * int(tmp1.shape[0])
                     change_j_occ['jtz'] += 1
                     change_positions.append(
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
+                    change_pos.append(change_positions[-1])
                 else:
                     max_val = change_j_occ[max(change_j_occ, key=(lambda key: change_j_occ[key]))]
                     min_val = max_val
@@ -184,6 +194,26 @@ def get_rt_change_type(**keywords):
                         elif value > 0 and value == min_val:
                             min_key = 'nv'
                     tmp1['rt_change_type'] = [min_key] * int(tmp1.shape[0])# no variation
+                    if len(change_pos) == 0:
+                        change_positions.append(0)
+                    elif len(change_pos) < 3:
+                        change_positions.append(change_pos[0])
+                    else:
+                        change_pos.sort()
+                        cl = len(change_pos)
+                        if cl % 2 == 0:
+                            change_positions.append(change_pos[cl / 2])
+                        else:
+                            change_positions.append(change_pos[(cl - 1) / 2])
+                if len(change_positions) < 3:
+                    tmp1['rt_change_pos'] = [change_positions[0]] * int(tmp1.shape[0])
+                else:
+                    change_positions.sort()
+                    cl = len(change_positions)
+                    if cl % 2 == 0:
+                        tmp1['rt_change_pos'] = [change_positions[cl / 2]] * int(tmp1.shape[0])
+                    else:
+                        tmp1['rt_change_pos'] = [change_positions[(cl - 1) / 2]] * int(tmp1.shape[0])
             df_list.append(tmp1)
     df_new = pd.concat(df_list, axis=0, ignore_index=False)
     if 'filter_scene' in keywords:
@@ -475,7 +505,6 @@ def get_best_comb_3d_scenes_1(**keywords):
         get_limits_log_exp, \
         split_large_titles, \
         enl_space_title, \
-        check_if_series, \
         strToLower, \
         check_legend_enlarge, \
         calcNrLegendCols, \
@@ -873,18 +902,398 @@ def calc_calib_delay(**keywords):
         raise ValueError('Information (column name/s) for which evaluation is performed must be provided.')
     if 'change_Nr' not in keywords:
         raise ValueError('Frame number when the extrinsics change must be provided (index starts at 0)')
+    if 'additional_data' not in keywords:
+        raise ValueError('additional_data must be specified and should include column names like rt_change_pos.')
+    if 'scene' not in keywords:
+        raise ValueError('scene must be specified')
+    if not isinstance(keywords['scene'], str):
+        raise ValueError('Currently, only an evaluation on a single scene is supported')
     if 'comb_rt' in keywords and keywords['comb_rt']:
         from corr_pool_eval import combine_rt_diff2
         data, keywords = combine_rt_diff2(keywords['data'], keywords)
     else:
         data = keywords['data']
-    needed_cols = list(dict.fromkeys(keywords['data_separators'] + keywords['it_parameters'] + keywords['eval_on']))
+    keywords = prepare_io(**keywords)
+    from statistics_and_plot import check_if_series, \
+        short_concat_str, \
+        get_short_scene_description, \
+        replaceCSVLabels, \
+        combine_str_for_title, \
+        add_to_glossary_eval, \
+        strToLower, \
+        capitalizeFirstChar, \
+        calcNrLegendCols, \
+        get_limits_log_exp, \
+        split_large_titles, \
+        check_legend_enlarge, \
+        enl_space_title, \
+        findUnit, \
+        add_val_to_opt_str, \
+        replace_stat_names
+    needed_cols = list(dict.fromkeys(keywords['data_separators'] +
+                                     keywords['it_parameters'] +
+                                     keywords['eval_on'] +
+                                     keywords['additional_data']))
     df = data[needed_cols]
     grpd_cols = keywords['data_separators'] + keywords['it_parameters']
     df_grp = df.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
+    df_list = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
+        tmp[keywords['eval_on'][0]] = tmp[keywords['eval_on'][0]].abs()
         #Check for the correctness of the change number
-
+        if int(tmp['rt_change_pos'].iloc[0]) != keywords['change_Nr']:
+            warnings.warn('Given frame number when extrinsics change doesnt match the estimated number. '
+                          'Taking estimated number.', UserWarning)
+            keywords['change_Nr'] = int(tmp['rt_change_pos'].iloc[0])
         tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
+        min_val = tmp1[keywords['eval_on'][0]].min()
+        max_val = tmp1[keywords['eval_on'][0]].max()
+        rng80 = 0.8 * (max_val - min_val) + min_val
+        p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
+        th = p1_stats[keywords['eval_on'][0]]['mean'] + 2 * p1_stats[keywords['eval_on'][0]]['std']
+        test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
+                            (tmp['Nr'] >= keywords['change_Nr']) &
+                            (tmp['Nr'] < (keywords['change_Nr'] + 2)))]
+        if test_rise.empty:
+            fd = 0
+            fpos = keywords['change_Nr']
+        else:
+            tmp2 = tmp.loc[((tmp[keywords['eval_on'][0]] <= th) &
+                            (tmp['Nr'] >= keywords['change_Nr']))]
+            if check_if_series(tmp2):
+                fpos = tmp2['Nr']
+                fd = fpos - keywords['change_Nr']
+            elif tmp2.shape[0] == 1:
+                fpos = tmp2['Nr'].iloc[0]
+                fd = fpos - keywords['change_Nr']
+            else:
+                tmp2.set_index('Nr', inplace=True)
+                tmp_iter = tmp2.iterrows()
+                idx_old, _ = next(tmp_iter)
+                fpos = 0
+                for idx, _ in tmp_iter:
+                    if idx == idx_old + 1:
+                        fpos = idx_old
+                        break
+                if fpos > 0:
+                    fd = fpos - keywords['change_Nr']
+                else:
+                    fpos = tmp2.index[0]
+                    fd = fpos - keywords['change_Nr']
+        tmp['fd'] = [np.NaN] * int(tmp.shape[0])
+        tmp.loc[(tmp['Nr'] == fpos), 'fd'] = fd
+        df_list.append(tmp)
+    df_new = pd.concat(df_list, axis=0, ignore_index=False)
+
+    gloss = add_to_glossary_eval(keywords['eval_on'])
+    n_gloss_calced = True
+    res = 0
+    for i, it in enumerate(keywords['data_separators']):
+        av_pars = [a for a in keywords['data_separators'] if a != it]
+        df1 = df_new.groupby(it)
+        grp_keys = df_grp.groups.keys()
+        hist_list = []
+        par_stats_list = []
+        if n_gloss_calced:
+            gloss = add_to_glossary_eval(grp_keys, gloss)
+            for it1 in av_pars:
+                gloss = add_to_glossary_eval(df_new[it1].unique().tolist(), gloss)
+            n_gloss_calced = False
+        for grp in grp_keys:
+            tmp = df1.get_group(grp)
+            nr_max = tmp['Nr'].max()
+            possis = 1
+            for p in keywords['it_parameters']:
+                possis *= tmp[p].nunique()
+            possis1 = max(3, int(round(0.01 * float(possis))))
+            hist, bin_edges = np.histogram(tmp['fd'].dropna().values,
+                                           bins=list(range(0, nr_max - keywords['change_Nr'] + 2)), density=False)
+            fd_good = int(bin_edges[np.nonzero(hist >= possis1)[0]])
+            possis2 = max(1, int(round(0.005 * float(possis))))
+            hist1 = hist[hist >= possis2]
+            edges1 = bin_edges[np.nonzero(hist >= possis1)]
+            hist_list.append(pd.DataFrame(data={'fd': edges1, 'count': hist1}, columns=['fd', 'count']).set_index('fd'))
+            par_stats_list.append(tmp.loc[tmp['fd'] == fd_good, keywords['it_parameters'] + ['fd']].describe())
+
+        df_hist = pd.concat(hist_list, axis=1, keys=grp_keys, ignore_index=False)
+        keywords['units'] += ('fd', '/\\# of frames')
+
+        # Plot histogram
+        df_hist.columns = ['-'.join(map(str, a)) for a in df_hist.columns]
+        base_name = 'histogram_frame_delay_vs_' + it + '_opts_' + \
+                    short_concat_str(keywords['it_parameters'])
+        hist_title_p01 = 'Histogram on Frame Delays for Reaching a Correct Calibration After an Abrupt ' + \
+                         'Change in Extrinsics (' + \
+                         get_short_scene_description(keywords['scene']) + ') vs '
+        hist_title_p02 = replaceCSVLabels(it, True, True, True)
+        hist_title_p03 = ' Over Data Partitions ' + combine_str_for_title(av_pars)
+        hist_title_p1 = hist_title_p01 + hist_title_p02 + hist_title_p03
+        hist_title_p2 = ' for Parameter Variations of ' + \
+                        keywords['sub_title_it_pars'] + ' Based on ' + \
+                        replaceCSVLabels(keywords['eval_on'][0], True, True, True)
+        hist_title = hist_title_p1 + hist_title_p2
+        tex_infos = {'title': hist_title,
+                     'sections': [],
+                     # Builds an index with hyperrefs on the beginning of the pdf
+                     'make_index': True,
+                     # If True, the figures are adapted to the page height if they are too big
+                     'ctrl_fig_size': True,
+                     # If true, a pdf is generated for every figure and inserted as image in a second run
+                     'figs_externalize': False,
+                     # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                     'fill_bar': True,
+                     # Builds a list of abbrevations from a list of dicts
+                     'abbreviations': gloss
+                     }
+        b_mean_name = 'data_' + base_name + '.csv'
+        fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# Histogram on Frame Delays for Reaching a Correct Calibration After an Abrupt '
+                    'Change in Extrinsics (' + keywords['scene'] + ')  vs ' + it + ' over data partitions '
+                    '-'.join(av_pars) + ' based on ' + keywords['eval_on'][0] + '\n')
+            f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+            df_hist.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        nr_bins = df_hist.shape[0] * df_hist.shape[1]
+        if nr_bins < 31:
+            section_name = capitalizeFirstChar(strToLower(hist_title_p1))
+            caption = capitalizeFirstChar(strToLower(hist_title))
+            _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False)
+            section_name = split_large_titles(section_name)
+            enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', len(df_hist.columns.values), 'xbar')
+            exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
+                                        len(df_hist.columns.values), 'xbar')
+
+            tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                          'name': section_name.replace('\\\\', ' '),
+                                          'title': section_name,
+                                          'title_rows': section_name.count('\\\\'),
+                                          'fig_type': 'xbar',
+                                          'plots': df_hist.columns.values,
+                                          'label_y': 'count',  # Label of the value axis. For xbar it labels the x-axis
+                                          # Label/column name of axis with bars. For xbar it labels the y-axis
+                                          'label_x': replaceCSVLabels('fd') + findUnit('fd', keywords['units']),
+                                          # Column name of axis with bars. For xbar it is the column for the y-axis
+                                          'print_x': 'fd',
+                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                          'print_meta': False,
+                                          'plot_meta': None,
+                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                          'rotate_meta': 0,
+                                          'limits': None,
+                                          # If None, no legend is used, otherwise use a list
+                                          'legend': [' -- '.join([replaceCSVLabels(b) for b in a.split('-')]) for a in
+                                                     df_hist.columns.values],
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          # The x/y-axis values are given as strings if True
+                                          'use_string_labels': False,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist,
+                                          'enlarge_title_space': exp_value,
+                                          'large_meta_space_needed': False,
+                                          'is_neg': False,
+                                          'caption': caption
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+        else:
+            for col in df_hist.columns.values:
+                part = [a for a in col.split('-') if a != 'count'][0]
+                section_name = capitalizeFirstChar(strToLower(hist_title_p01)) + \
+                               strToLower(add_val_to_opt_str(hist_title_p02, part)) + strToLower(hist_title_p03)
+                caption = section_name + strToLower(hist_title_p2)
+                _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False, None, col)
+                section_name = split_large_titles(section_name)
+                enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', 1, 'xbar')
+                exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
+                                            1, 'xbar')
+
+                tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                              'name': section_name.replace('\\\\', ' '),
+                                              'title': section_name,
+                                              'title_rows': section_name.count('\\\\'),
+                                              'fig_type': 'xbar',
+                                              'plots': [col],
+                                              'label_y': 'count',  # Label of the value axis. For xbar it labels the x-axis
+                                              # Label/column name of axis with bars. For xbar it labels the y-axis
+                                              'label_x': replaceCSVLabels('fd') + findUnit('fd', keywords['units']),
+                                              # Column name of axis with bars. For xbar it is the column for the y-axis
+                                              'print_x': 'fd',
+                                              # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                              'print_meta': False,
+                                              'plot_meta': None,
+                                              # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                              'rotate_meta': 0,
+                                              'limits': None,
+                                              # If None, no legend is used, otherwise use a list
+                                              'legend': None,
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              # The x/y-axis values are given as strings if True
+                                              'use_string_labels': False,
+                                              'use_log_y_axis': use_log,
+                                              'xaxis_txt_rows': 1,
+                                              'enlarge_lbl_dist': enlarge_lbl_dist,
+                                              'enlarge_title_space': exp_value,
+                                              'large_meta_space_needed': True,
+                                              'is_neg': False,
+                                              'caption': caption
+                                              })
+
+        base_out_name = 'tex_' + base_name
+        template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = base_out_name + '.tex'
+        pdf_name = base_out_name + '.pdf'
+        if keywords['build_pdf'][0]:
+            res1 = compile_tex(rendered_tex,
+                               keywords['tex_folder'],
+                               texf_name,
+                               tex_infos['make_index'],
+                               os.path.join(keywords['pdf_folder'], pdf_name),
+                               tex_infos['figs_externalize'])
+        else:
+            res1 = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+        if res1 != 0:
+            res += abs(res1)
+            warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+        # Plot parameter statistics
+        par_stats = pd.concat(par_stats_list, axis=0, keys=grp_keys)
+        base_name = '_opts_' + short_concat_str(keywords['it_parameters']) + '_calib_frame_delays_vs_' + it
+        title_p01 = 'Parameters ' + keywords['sub_title_it_pars'] + \
+                    ' for Smallest Frame Delays of Reaching a Correct Calibration After an Abrupt ' + \
+                    'Change in Extrinsics (' + \
+                    get_short_scene_description(keywords['scene']) + ') vs '
+        title_p1 = 'Statistics on ' + title_p01 + hist_title_p02 + hist_title_p03
+        title_p2 = ' Based on ' + replaceCSVLabels(keywords['eval_on'][0], True, True, True)
+        title = title_p1 + title_p2
+        tex_infos = {'title': title,
+                     'sections': [],
+                     # Builds an index with hyperrefs on the beginning of the pdf
+                     'make_index': True,
+                     # If True, the figures are adapted to the page height if they are too big
+                     'ctrl_fig_size': True,
+                     # If true, a pdf is generated for every figure and inserted as image in a second run
+                     'figs_externalize': False,
+                     # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                     'fill_bar': True,
+                     # Builds a list of abbrevations from a list of dicts
+                     'abbreviations': gloss
+                     }
+        stats = par_stats.columns.get_level_values(2)
+        fds = par_stats.xs('fd', axis=1, level=1, drop_level=True)
+        fds = fds.xs('mean', axis=1, level=1, drop_level=True).copy(deep=True).tolist()
+        for st in stats:
+            section_name = replace_stat_names(st) + ' Values of ' + title_p01 + hist_title_p02 + hist_title_p03
+            section_name = capitalizeFirstChar(strToLower(section_name))
+            caption = section_name + strToLower(title_p2)
+            p_mean = par_stats.xs(st, axis=1, level=2, drop_level=True).copy(deep=True)
+            keywords['it_parameters']
+            p_mean.columns = ['-'.join(a) for a in p_mean.columns]
+            fd_cols = [a for a in p_mean.columns if 'fd' in a]
+            p_mean = p_mean.drop(fd_cols, axis=1)
+            p_mean
+
+        b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                 for _, row in b_mean[ret['it_parameters']].iterrows()]
+        b_mean1 = b_mean.unstack()
+        b_mean1.columns = ['-'.join(map(str, a)) for a in b_mean1.columns]
+        plots = [a for a in b_mean1.columns if 'Rt_diff' in a]
+        meta_cols = [a for a in b_mean1.columns if 'options_tex' in a]
+        it_pars_names = [a for a in b_mean1.columns for b in ret['it_parameters'] if b in a]
+
+
+        b_mean_name = 'data_' + base_name + '.csv'
+        fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' vs ' +
+                    keywords['xy_axis_columns'][1] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
+            f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
+            b_mean1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
+                       ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' vs ' + \
+                       replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True) + \
+                       ' for different ' + strToLower(ret['sub_title_partitions'])
+        caption = 'Mean values of smallest combined R \\& t errors and their ' + \
+                  'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True)
+        _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean1, True, True, False, it_pars_names + meta_cols)
+        is_neg = check_if_neg_values(b_mean1, plots, use_log, use_limits)
+        is_numeric = pd.to_numeric(b_mean1.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
+        section_name = split_large_titles(section_name)
+        enlarge_lbl_dist = check_legend_enlarge(b_mean1, ret['partitions'][0], len(plots), 'xbar')
+        exp_value = enl_space_title(exp_value, section_name, b_mean1, ret['partitions'][0],
+                                    len(plots), 'xbar')
+
+        tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+                                      'name': section_name.replace('\\\\', ' '),
+                                      'title': section_name,
+                                      'title_rows': section_name.count('\\\\'),
+                                      'fig_type': 'xbar',
+                                      'plots': plots,
+                                      'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                      # Label/column name of axis with bars. For xbar it labels the y-axis
+                                      'label_x': replaceCSVLabels(ret['partitions'][0]),
+                                      # Column name of axis with bars. For xbar it is the column for the y-axis
+                                      'print_x': ret['partitions'][0],
+                                      # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                      'print_meta': True,
+                                      'plot_meta': meta_cols,
+                                      # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                      'rotate_meta': 0,
+                                      'limits': None,
+                                      # If None, no legend is used, otherwise use a list
+                                      'legend': [' -- '.join([replaceCSVLabels(b) for b in a.split('-')]) for a in
+                                                 plots],
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      # The x/y-axis values are given as strings if True
+                                      'use_string_labels': not is_numeric,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': exp_value,
+                                      'large_meta_space_needed': True,
+                                      'is_neg': is_neg,
+                                      'caption': caption
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+        base_out_name = 'tex_' + base_name
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = base_out_name + '.tex'
+        pdf_name = base_out_name + '.pdf'
+        if ret['build_pdf'][1]:
+            res1 = compile_tex(rendered_tex,
+                               ret['tex_folder'],
+                               texf_name,
+                               tex_infos['make_index'],
+                               os.path.join(ret['pdf_folder'], pdf_name),
+                               tex_infos['figs_externalize'])
+        else:
+            res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+        if res1 != 0:
+            ret['res'] += abs(res1)
+            warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
