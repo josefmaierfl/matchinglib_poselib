@@ -929,7 +929,9 @@ def calc_calib_delay(**keywords):
         enl_space_title, \
         findUnit, \
         add_val_to_opt_str, \
-        replace_stat_names
+        replace_stat_names, \
+        split_large_str, \
+        replace_stat_names_col_tex
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['it_parameters'] +
                                      keywords['eval_on'] +
@@ -952,7 +954,7 @@ def calc_calib_delay(**keywords):
         max_val = tmp1[keywords['eval_on'][0]].max()
         rng80 = 0.8 * (max_val - min_val) + min_val
         p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
-        th = p1_stats[keywords['eval_on'][0]]['mean'] + 2 * p1_stats[keywords['eval_on'][0]]['std']
+        th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
         test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
                             (tmp['Nr'] >= keywords['change_Nr']) &
                             (tmp['Nr'] < (keywords['change_Nr'] + 2)))]
@@ -990,6 +992,7 @@ def calc_calib_delay(**keywords):
     gloss = add_to_glossary_eval(keywords['eval_on'])
     n_gloss_calced = True
     res = 0
+    all_mean = []
     for i, it in enumerate(keywords['data_separators']):
         av_pars = [a for a in keywords['data_separators'] if a != it]
         df1 = df_new.groupby(it)
@@ -1168,7 +1171,7 @@ def calc_calib_delay(**keywords):
             warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
         # Plot parameter statistics
-        par_stats = pd.concat(par_stats_list, axis=0, keys=grp_keys)
+        par_stats = pd.concat(par_stats_list, axis=0, keys=grp_keys, ignore_index=True, names=[it])
         base_name = '_opts_' + short_concat_str(keywords['it_parameters']) + '_calib_frame_delays_vs_' + it
         title_p01 = 'Parameters ' + keywords['sub_title_it_pars'] + \
                     ' for Smallest Frame Delays of Reaching a Correct Calibration After an Abrupt ' + \
@@ -1191,90 +1194,80 @@ def calc_calib_delay(**keywords):
                      'abbreviations': gloss
                      }
         stats = par_stats.columns.get_level_values(2)
-        fds = par_stats.xs('fd', axis=1, level=1, drop_level=True)
-        fds = fds.xs('mean', axis=1, level=1, drop_level=True).copy(deep=True).tolist()
+        # fds = par_stats.xs('fd', axis=1, level=1, drop_level=True)
+        fds = par_stats['fd']['mean'].tolist()
+        all_mean.append(par_stats.xs('mean', axis=1, level=2, drop_level=True).drop('fd', axis=1))
         for st in stats:
             section_name = replace_stat_names(st) + ' Values of ' + title_p01 + hist_title_p02 + hist_title_p03
             section_name = capitalizeFirstChar(strToLower(section_name))
             caption = section_name + strToLower(title_p2)
             p_mean = par_stats.xs(st, axis=1, level=2, drop_level=True).copy(deep=True)
-            keywords['it_parameters']
-            p_mean.columns = ['-'.join(a) for a in p_mean.columns]
-            fd_cols = [a for a in p_mean.columns if 'fd' in a]
-            p_mean = p_mean.drop(fd_cols, axis=1)
-            p_mean
+            p_mean.drop('fd', axis=1, inplace=True)
+            p_mean['fd'] = fds
+            p_mean = p_mean.T
+            p_mean['options_tex'] = split_large_str([replaceCSVLabels(a) if a != 'fd' else 'delay/frames'
+                                                     for a in p_mean.index], 20)
+            max_txt_rows = 1
+            for idx, val in p_mean['options_tex'].iteritems():
+                txt_rows = str(val).count('\\\\') + 1
+                if txt_rows > max_txt_rows:
+                    max_txt_rows = txt_rows
+            legend_main = replaceCSVLabels(it)
+            legend = [add_val_to_opt_str(legend_main, a) for a in p_mean.columns]
+            plots = [a for a in p_mean.columns if a != 'options_tex']
+            base_name1 = replace_stat_names_col_tex(st) + base_name
+            b_mean_name = 'data_' + base_name1 + '.csv'
+            fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+            with open(fb_mean_name, 'a') as f:
+                f.write('# ' + replace_stat_names(st, False) + ' values of parameters ' +
+                        '-'.join(keywords['it_parameters']) +
+                        ' for smallest frame delays (fd) of reaching a correct calibration after an abrupt ' +
+                        'change in extrinsics (' + keywords['scene'] + ') vs ' +
+                        it + ' over data partitions ' + '-'.join(map(str, av_pars)) +
+                        ' based on ' + keywords['eval_on'][0] + '\n')
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+                p_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                                 for _, row in b_mean[ret['it_parameters']].iterrows()]
-        b_mean1 = b_mean.unstack()
-        b_mean1.columns = ['-'.join(map(str, a)) for a in b_mean1.columns]
-        plots = [a for a in b_mean1.columns if 'Rt_diff' in a]
-        meta_cols = [a for a in b_mean1.columns if 'options_tex' in a]
-        it_pars_names = [a for a in b_mean1.columns for b in ret['it_parameters'] if b in a]
+            _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False, 'options_tex')
+            section_name = split_large_titles(section_name)
+            enlarge_lbl_dist = check_legend_enlarge(p_mean, 'options_tex', len(plots), 'xbar')
+            exp_value = enl_space_title(exp_value, section_name, p_mean, 'options_tex',
+                                        len(plots), 'xbar')
 
+            tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                          'name': section_name.replace('\\\\', ' '),
+                                          'title': section_name,
+                                          'title_rows': section_name.count('\\\\'),
+                                          'fig_type': 'xbar',
+                                          'plots': plots,
+                                          'label_y': 'Option value',  # Label of the value axis. For xbar it labels the x-axis
+                                          # Label/column name of axis with bars. For xbar it labels the y-axis
+                                          'label_x': 'Option',
+                                          # Column name of axis with bars. For xbar it is the column for the y-axis
+                                          'print_x': 'options_tex',
+                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                          'print_meta': False,
+                                          'plot_meta': None,
+                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                          'rotate_meta': 0,
+                                          'limits': None,
+                                          # If None, no legend is used, otherwise use a list
+                                          'legend': legend,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          # The x/y-axis values are given as strings if True
+                                          'use_string_labels': True,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': max_txt_rows,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist,
+                                          'enlarge_title_space': exp_value,
+                                          'large_meta_space_needed': False,
+                                          'is_neg': False,
+                                          'caption': caption
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
-        b_mean_name = 'data_' + base_name + '.csv'
-        fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
-        with open(fb_mean_name, 'a') as f:
-            f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
-                    ' over all ' + keywords['xy_axis_columns'][0] + ' vs ' +
-                    keywords['xy_axis_columns'][1] + ' for different ' +
-                    '-'.join(map(str, ret['partitions'])) + '\n')
-            f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
-            b_mean1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-
-        section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
-                       ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
-                       ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' vs ' + \
-                       replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True) + \
-                       ' for different ' + strToLower(ret['sub_title_partitions'])
-        caption = 'Mean values of smallest combined R \\& t errors and their ' + \
-                  'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
-                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
-                  replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True)
-        _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean1, True, True, False, it_pars_names + meta_cols)
-        is_neg = check_if_neg_values(b_mean1, plots, use_log, use_limits)
-        is_numeric = pd.to_numeric(b_mean1.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
-        section_name = split_large_titles(section_name)
-        enlarge_lbl_dist = check_legend_enlarge(b_mean1, ret['partitions'][0], len(plots), 'xbar')
-        exp_value = enl_space_title(exp_value, section_name, b_mean1, ret['partitions'][0],
-                                    len(plots), 'xbar')
-
-        tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
-                                      'name': section_name.replace('\\\\', ' '),
-                                      'title': section_name,
-                                      'title_rows': section_name.count('\\\\'),
-                                      'fig_type': 'xbar',
-                                      'plots': plots,
-                                      'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
-                                      # Label/column name of axis with bars. For xbar it labels the y-axis
-                                      'label_x': replaceCSVLabels(ret['partitions'][0]),
-                                      # Column name of axis with bars. For xbar it is the column for the y-axis
-                                      'print_x': ret['partitions'][0],
-                                      # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                      'print_meta': True,
-                                      'plot_meta': meta_cols,
-                                      # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                      'rotate_meta': 0,
-                                      'limits': None,
-                                      # If None, no legend is used, otherwise use a list
-                                      'legend': [' -- '.join([replaceCSVLabels(b) for b in a.split('-')]) for a in
-                                                 plots],
-                                      'legend_cols': 1,
-                                      'use_marks': False,
-                                      # The x/y-axis values are given as strings if True
-                                      'use_string_labels': not is_numeric,
-                                      'use_log_y_axis': use_log,
-                                      'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': enlarge_lbl_dist,
-                                      'enlarge_title_space': exp_value,
-                                      'large_meta_space_needed': True,
-                                      'is_neg': is_neg,
-                                      'caption': caption
-                                      })
-        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-
-        base_out_name = 'tex_' + base_name
+        base_out_name = 'tex_stats' + base_name
         rendered_tex = template.render(title=tex_infos['title'],
                                        make_index=tex_infos['make_index'],
                                        ctrl_fig_size=tex_infos['ctrl_fig_size'],
@@ -1284,16 +1277,47 @@ def calc_calib_delay(**keywords):
                                        abbreviations=tex_infos['abbreviations'])
         texf_name = base_out_name + '.tex'
         pdf_name = base_out_name + '.pdf'
-        if ret['build_pdf'][1]:
+        if keywords['build_pdf'][1]:
             res1 = compile_tex(rendered_tex,
-                               ret['tex_folder'],
+                               keywords['tex_folder'],
                                texf_name,
                                tex_infos['make_index'],
-                               os.path.join(ret['pdf_folder'], pdf_name),
+                               os.path.join(keywords['pdf_folder'], pdf_name),
                                tex_infos['figs_externalize'])
         else:
-            res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+            res1 = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
         if res1 != 0:
-            ret['res'] += abs(res1)
+            res += abs(res1)
             warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
+    df_list = []
+    for df_it in all_mean:
+        df_list.append(df_it.mean())
+    df_means = pd.concat(df_list, axis=0, keys=keywords['data_separators'], names=['partition'], ignore_index=True)
+    base_name = 'mean_opts_' + short_concat_str(keywords['it_parameters']) + '_for_partitions_' + \
+                short_concat_str(keywords['data_separators'])
+    b_mean_name = 'data_' + base_name + '.csv'
+    fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean parameter values for mean values of partitions ' +
+                '-'.join(map(str, keywords['data_separators'])) + '\n')
+        f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+        df_means.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    df_mmean = df_means.mean()
+    main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
+    # Check if file and parameters exist
+    from usac_eval import check_par_file_exists, NoAliasDumper
+    ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = df_mmean.to_numpy()
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(keywords['it_parameters']):
+            alg_w[val] = float(alg_comb_bestl[i])
+        yaml.dump({main_parameter_name: alg_w},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+
+    return res

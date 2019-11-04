@@ -5267,12 +5267,12 @@ def split_large_titles(title_str):
         return split_large_str(title_str)
 
 
-def split_large_str(large_str):
+def split_large_str(large_str, nr_chars=100):
     ls = len(large_str)
-    if ls <= 100:
+    if ls <= nr_chars:
         return large_str
     else:
-        nr_splits = int(ls / 100)
+        nr_splits = int(ls / nr_chars)
         ls_part = round(ls / float(nr_splits + 1), 0)
         ls_sum = ls_part
         it_nr = 0
@@ -9680,7 +9680,7 @@ def main():
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'eval_on': None,
                                       'diff_by': 'Nr'}
-                    special_calcs_args = {'build_pdf': (True, True, True),
+                    special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
                                                               'kpAccSd',
@@ -9691,7 +9691,7 @@ def main():
                                           'scene': 'jra',
                                           'res_par_name': 'robustness_delay_jra'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
-                    from robustness_eval import get_rt_change_type
+                    from robustness_eval import get_rt_change_type, calc_calib_delay
                     ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
@@ -9702,10 +9702,10 @@ def main():
                                                              it_parameters=it_parameters,  # Algorithm parameters to evaluate
                                                              partitions=['depthDistr', 'kpAccSd', 'inlratCRate'],  # Data properties to calculate results separately
                                                              x_axis_column=[],  # x-axis column name
-                                                             filter_func=None,
-                                                             filter_func_args=None,
-                                                             special_calcs_func=None,
-                                                             special_calcs_args=None,
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay,
+                                                             special_calcs_args=special_calcs_args,
                                                              calc_func=calc_rt_diff2_frame_to_frame,
                                                              calc_func_args=calc_func_args,
                                                              compare_source=None,
