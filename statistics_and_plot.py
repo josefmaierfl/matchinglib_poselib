@@ -6638,13 +6638,15 @@ def check_legend_enlarge(df, x_axis_column, nr_plots, fig_type):
 def main():
     num_pts = int(10000)
     nr_imgs = 150
-    pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
+    # pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
     pars1_opt = list(np.arange(0.1, 0.3, 0.1))
-    pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
+    # pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
+    pars2_opt = list(np.arange(0.2, 0.4, 0.1))
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
     # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
-    gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
+    # gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
+    gt_type_pars = ['jrt', 'jra', 'jta']
     pars_kpDistr_opt = ['1corn', 'equ']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_depthDistr_opt = ['NMF', 'NM']
@@ -6654,12 +6656,12 @@ def main():
     lin_time_pars = np.array([500, 3, 0.003])
     poolSize = [10000, 40000]
     min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-              nr_imgs * len(poolSize) * len(pars1_opt) * len(gt_type_pars)
+              nr_imgs * len(poolSize) * len(pars1_opt) * len(pars2_opt) * len(gt_type_pars)
     if min_pts < num_pts:
         while min_pts < num_pts:
             pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
             min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-                      nr_imgs * len(poolSize) * len(pars1_opt) * len(gt_type_pars)
+                      nr_imgs * len(poolSize) * len(pars1_opt) * len(pars2_opt) * len(gt_type_pars)
         num_pts = min_pts
     else:
         num_pts = int(min_pts)
@@ -6667,17 +6669,18 @@ def main():
     inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
     USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
     poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
-    gt_type_pars_mul = int(poolSize_mul * len(poolSize))
+    USAC_parameters_refinealg_mul = int(poolSize_mul * len(pars2_opt))
+    gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(poolSize))
 
     data = {#'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
-            'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
-            'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
-            'R_diff_yaw_deg': -1000 + np.abs(np.random.randn(num_pts)),
+            # 'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
+            # 'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
+            # 'R_diff_yaw_deg': -1000 + np.abs(np.random.randn(num_pts)),
             # 't_angDiff_deg': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             't_distDiff': np.abs(np.random.randn(num_pts) * 100),
-            't_diff_tx': -10000 + np.random.randn(num_pts) * 100,
-            't_diff_ty': 20000 + np.random.randn(num_pts),
-            't_diff_tz': -450 + np.random.randn(num_pts),
+            # 't_diff_tx': -10000 + np.random.randn(num_pts) * 100,
+            # 't_diff_ty': 20000 + np.random.randn(num_pts),
+            # 't_diff_tz': -450 + np.random.randn(num_pts),
             'K1_cxyfxfyNorm': 13 + np.random.randn(num_pts) * 5,
             'K2_cxyfxfyNorm': 14 + np.random.randn(num_pts) * 6,
             'K1_cxyDiffNorm': 15 + np.random.randn(num_pts) * 7,
@@ -6698,7 +6701,8 @@ def main():
             'stereoParameters_maxPoolCorrespondences': build_list(poolSize, poolSize_mul, num_pts),
             # 'USAC_parameters_estimator': [pars1_opt[i] for i in np.random.randint(0, len(pars1_opt), num_pts)],
             'USAC_parameters_estimator': build_list(pars1_opt, USAC_parameters_estimator_mul, num_pts),
-            'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
+            # 'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
+            'USAC_parameters_refinealg': build_list(pars2_opt, USAC_parameters_refinealg_mul, num_pts),
             'kpDistr': [pars_kpDistr_opt[i] for i in np.random.randint(0, len(pars_kpDistr_opt), num_pts)],
             # 'kpDistr': [[i] * (num_pts / len(pars_kpDistr_opt)) for i in pars_kpDistr_opt],
             # 'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
@@ -6740,6 +6744,14 @@ def main():
     exp_sum = 0.34 * exp1 + 0.9 * exp2
     data['R_diffAll'] = 0.5 + exp_sum + 0.15 * np.random.randn(num_pts)
     data['t_angDiff_deg'] = 0.3 + exp_sum + 0.08 * np.random.randn(num_pts)
+    rda_min = min(data['R_diffAll'])
+    rda_max = max(data['R_diffAll'])
+    rda_min += 0.7 * (rda_max - rda_min)
+    rda_max *= 1.25
+    tad_min = min(data['t_angDiff_deg'])
+    tad_max = max(data['t_angDiff_deg'])
+    tad_min += 0.7 * (tad_max - tad_min)
+    tad_max *= 1.25
 
 
     data['inlRat_estimated'] = data['inlRat_GT'] + 0.5 * np.random.random_sample(num_pts) - 0.25
@@ -6968,12 +6980,392 @@ def main():
             raise ValueError('Invalid change type')
         sc += 1
 
+    delay = np.absolute(np.round(np.random.random_sample(nr_scenes) * 3, 0)).astype(int)
+    tad = []
+    rda = []
+    rdx = []
+    rdy = []
+    rdz = []
+    tdx = []
+    tdy = []
+    tdz = []
+    for sc, dl in enumerate(delay):
+        this_type = gt_type_pars[sc % tl]
+        if this_type == 'crt':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            tmpr3 = list(0.33 * tmpr)
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'cra':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tmpr3 = list(0.33 * tmpr)
+            tmpr = list(tmpr)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt
+            tdy += tmpt
+            tdz += tmpt
+        elif this_type == 'crx':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdz += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdx += tmpt
+            tdy += tmpt
+            tdz += tmpt
+        elif this_type == 'crx':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdz += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdx += tmpt
+            tdy += tmpt
+            tdz += tmpt
+        elif this_type == 'cry':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdy += tmpr
+            rdz += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdx += tmpt
+            tdy += tmpt
+            tdz += tmpt
+        elif this_type == 'crz':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdz += tmpr
+            tdx += tmpt
+            tdy += tmpt
+            tdz += tmpt
+        elif this_type == 'cta':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = data['t_angDiff_deg'][start:end]
+            tmpt3 = list(0.33 * tmpt)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += tmpr
+            rdz += tmpr
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'ctx':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += tmpr
+            rdz += tmpr
+            tdx += tmpt
+            tdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdz += list(np.random.random_sample(nr_imgs) * 0.02)
+        elif this_type == 'cty':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += tmpr
+            rdz += tmpr
+            tdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdy += tmpt
+            tdz += list(np.random.random_sample(nr_imgs) * 0.02)
+        elif this_type == 'ctz':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = list(data['R_diffAll'][start:end])
+            tmpt = list(data['t_angDiff_deg'][start:end])
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += tmpr
+            rdz += tmpr
+            tdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdz += tmpt
+        elif this_type == 'jrt':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            rda_step = (rda_max - rda_min) / float(max(1, dl))
+            tad_step = (tad_max - tad_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpr[i] = rda_max - float(cnt) * rda_step
+                    tmpt[i] = tad_max - float(cnt) * tad_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpr3 = list(0.33 * tmpr)
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'jra':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            rda_step = (rda_max - rda_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpr[i] = rda_max - float(cnt) * rda_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpr3 = list(0.33 * tmpr)
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'jrx':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            rda_step = (rda_max - rda_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpr[i] = rda_max - float(cnt) * rda_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr
+            rdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdz += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'jry':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            rda_step = (rda_max - rda_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpr[i] = rda_max - float(cnt) * rda_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdy += tmpr
+            rdz += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'jrz':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            rda_step = (rda_max - rda_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpr[i] = rda_max - float(cnt) * rda_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            rdz += tmpr
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'jta':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            tad_step = (tad_max - tad_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpt[i] = tad_max - float(cnt) * tad_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpr3 = list(0.33 * tmpr)
+            tmpt3 = list(0.33 * tmpt)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
+        elif this_type == 'jtx':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            tad_step = (tad_max - tad_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpt[i] = tad_max - float(cnt) * tad_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpr3 = list(0.33 * tmpr)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt
+            tdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdz += list(np.random.random_sample(nr_imgs) * 0.02)
+        elif this_type == 'jty':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            tad_step = (tad_max - tad_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpt[i] = tad_max - float(cnt) * tad_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpr3 = list(0.33 * tmpr)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdy += tmpt
+            tdz += list(np.random.random_sample(nr_imgs) * 0.02)
+        elif this_type == 'jty':
+            cnt = 0
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            tad_step = (tad_max - tad_min) / float(max(1, dl))
+            for i in range(0, nr_imgs):
+                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                    tmpt[i] = tad_max - float(cnt) * tad_step
+                    cnt += 1
+                elif cnt > 0:
+                    break
+            tmpr3 = list(0.33 * tmpr)
+            tmpr = list(tmpr)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdy += list(np.random.random_sample(nr_imgs) * 0.02)
+            tdz += tmpt
+        else:
+            raise ValueError('Invalid change type')
+    data['R_diffAll'] = rda
+    data['R_diff_roll_deg'] = rdx
+    data['R_diff_pitch_deg'] = rdy
+    data['R_diff_yaw_deg'] = rdz
+    data['t_angDiff_deg'] = tad
+    data['t_diff_tx'] = tdx
+    data['t_diff_ty'] = tdy
+    data['t_diff_tz'] = tdz
 
     data = pd.DataFrame(data)
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [3]#list(range(5, 11))
+    eval_nr = [4]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -9661,7 +10053,8 @@ def main():
                     #                  'stereoParameters_minInlierRatioReInit',
                     #                  'stereoParameters_relMinInlierRatSkip']
                     it_parameters = ['USAC_parameters_estimator',
-                                     'stereoParameters_maxPoolCorrespondences']
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
                     # filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
                     #                                         'stereoParameters_relInlRatThNew',
                     #                                         'stereoParameters_minInlierRatSkip',
@@ -9672,12 +10065,14 @@ def main():
                     #                                         'depthDistr']}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_scene': 'jra'}
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos', 'rt_change_type'],
                                       'eval_on': None,
                                       'diff_by': 'Nr'}
                     special_calcs_args = {'build_pdf': (True, True),
@@ -9701,7 +10096,7 @@ def main():
                                                              units=units,  # Units in string format for every entry of eval_columns
                                                              it_parameters=it_parameters,  # Algorithm parameters to evaluate
                                                              partitions=['depthDistr', 'kpAccSd', 'inlratCRate'],  # Data properties to calculate results separately
-                                                             x_axis_column=[],  # x-axis column name
+                                                             x_axis_column=['Nr'],  # x-axis column name
                                                              filter_func=get_rt_change_type,
                                                              filter_func_args=filter_func_args,
                                                              special_calcs_func=calc_calib_delay,

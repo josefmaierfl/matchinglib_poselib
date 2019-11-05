@@ -202,18 +202,18 @@ def get_rt_change_type(**keywords):
                         change_pos.sort()
                         cl = len(change_pos)
                         if cl % 2 == 0:
-                            change_positions.append(change_pos[cl / 2])
+                            change_positions.append(change_pos[int(round(cl / 2))])
                         else:
-                            change_positions.append(change_pos[(cl - 1) / 2])
+                            change_positions.append(change_pos[int(round((cl - 1) / 2))])
                 if len(change_positions) < 3:
                     tmp1['rt_change_pos'] = [change_positions[0]] * int(tmp1.shape[0])
                 else:
                     change_positions.sort()
                     cl = len(change_positions)
                     if cl % 2 == 0:
-                        tmp1['rt_change_pos'] = [change_positions[cl / 2]] * int(tmp1.shape[0])
+                        tmp1['rt_change_pos'] = [change_positions[int(round(cl / 2))]] * int(tmp1.shape[0])
                     else:
-                        tmp1['rt_change_pos'] = [change_positions[(cl - 1) / 2]] * int(tmp1.shape[0])
+                        tmp1['rt_change_pos'] = [change_positions[int(round((cl - 1) / 2))]] * int(tmp1.shape[0])
             df_list.append(tmp1)
     df_new = pd.concat(df_list, axis=0, ignore_index=False)
     if 'filter_scene' in keywords:
@@ -935,7 +935,8 @@ def calc_calib_delay(**keywords):
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['it_parameters'] +
                                      keywords['eval_on'] +
-                                     keywords['additional_data']))
+                                     keywords['additional_data'] +
+                                     keywords['x_axis_column']))
     df = data[needed_cols]
     grpd_cols = keywords['data_separators'] + keywords['it_parameters']
     df_grp = df.groupby(grpd_cols)
@@ -943,7 +944,7 @@ def calc_calib_delay(**keywords):
     df_list = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
-        tmp[keywords['eval_on'][0]] = tmp[keywords['eval_on'][0]].abs()
+        tmp.loc[:, keywords['eval_on'][0]] = tmp[keywords['eval_on'][0]].abs()
         #Check for the correctness of the change number
         if int(tmp['rt_change_pos'].iloc[0]) != keywords['change_Nr']:
             warnings.warn('Given frame number when extrinsics change doesnt match the estimated number. '
@@ -1203,8 +1204,10 @@ def calc_calib_delay(**keywords):
             caption = section_name + strToLower(title_p2)
             p_mean = par_stats.xs(st, axis=1, level=2, drop_level=True).copy(deep=True)
             p_mean.drop('fd', axis=1, inplace=True)
-            p_mean['fd'] = fds
             p_mean = p_mean.T
+            fd_cols = ['fd-' + str(a) for a in p_mean.columns]
+            for i_fd, fdc in enumerate(fd_cols):
+                p_mean[fdc] = ['delay=' + fds[i_fd] + ' frames'] * int(p_mean.shape[0])
             p_mean['options_tex'] = split_large_str([replaceCSVLabels(a) if a != 'fd' else 'delay/frames'
                                                      for a in p_mean.index], 20)
             max_txt_rows = 1
@@ -1246,8 +1249,8 @@ def calc_calib_delay(**keywords):
                                           # Column name of axis with bars. For xbar it is the column for the y-axis
                                           'print_x': 'options_tex',
                                           # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                          'print_meta': False,
-                                          'plot_meta': None,
+                                          'print_meta': True,
+                                          'plot_meta': fd_cols,
                                           # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
                                           'rotate_meta': 0,
                                           'limits': None,
@@ -1261,7 +1264,7 @@ def calc_calib_delay(**keywords):
                                           'xaxis_txt_rows': max_txt_rows,
                                           'enlarge_lbl_dist': enlarge_lbl_dist,
                                           'enlarge_title_space': exp_value,
-                                          'large_meta_space_needed': False,
+                                          'large_meta_space_needed': True,
                                           'is_neg': False,
                                           'caption': caption
                                           })

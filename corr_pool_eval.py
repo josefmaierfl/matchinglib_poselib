@@ -93,7 +93,16 @@ def calc_rt_diff2_frame_to_frame(**vars):
                 raise ValueError('Label ' + i + ' not found in \'eval_columns\'')
 
     from statistics_and_plot import use_log_axis
-    needed_cols = list(dict.fromkeys(vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']))
+    if 'additional_data' in vars and vars['additional_data']:
+        needed_cols = list(dict.fromkeys(vars['eval_columns'] +
+                                         vars['it_parameters'] +
+                                         vars['data_separators'] +
+                                         vars['additional_data']))
+        # additional_data_types = vars['data'][vars['additional_data']].dtypes
+    else:
+        needed_cols = list(dict.fromkeys(vars['eval_columns'] +
+                                         vars['it_parameters'] +
+                                         vars['data_separators']))
     df = vars['data'][needed_cols]
     grpd_cols = [a for a in vars['data_separators'] if a != vars['diff_by']] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)
@@ -119,6 +128,20 @@ def calc_rt_diff2_frame_to_frame(**vars):
         eval_log_glob[evalv] = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
+        data_types = {vars['diff_by']: tmp[vars['diff_by']].dtype}
+        data_types.update([(a, tmp[vars['eval_columns'][i]].dtype) for i, a in enumerate(eval_columns_diff)])
+        if 'keepEval' in vars and vars['keepEval']:
+            for i1 in vars['keepEval']:
+                if 'eval_pre' in vars:
+                    data_types[vars['eval_pre'] + i1] = tmp[i1].dtype
+                else:
+                    data_types[i1] = tmp[i1].dtype
+        if 'additional_data' in vars and vars['additional_data']:
+            for i1 in vars['additional_data']:
+                data_types[i1] = tmp[i1].dtype
+        data_types[vars['diff_by']] = tmp[vars['diff_by']].dtype
+        add_cols = [a for a in grpd_cols if a != vars['diff_by']]
+        data_types.update([(a, tmp[a].dtype) for a in add_cols])
         tmp.set_index(vars['diff_by'], inplace=True)
         row_iterator = tmp.iterrows()
         _, last = next(row_iterator)
@@ -132,10 +155,14 @@ def calc_rt_diff2_frame_to_frame(**vars):
                         tmp1[-1][vars['eval_pre'] + i1] = row[i1]
                     else:
                         tmp1[-1][i1] = row[i1]
+            if 'additional_data' in vars and vars['additional_data']:
+                for i1 in vars['additional_data']:
+                    tmp1[-1][i1] = row[i1]
             tmp1[-1][vars['diff_by']] = i
-            tmp1[-1] = tmp1[-1].append(row[[a for a in grpd_cols if a != vars['diff_by']]])
+            tmp1[-1] = tmp1[-1].append(row[add_cols])
             last = row
         data_list.append(pd.concat(tmp1, axis=1).T)
+        data_list[-1] = data_list[-1].astype(data_types, copy=False)
 
         for evalv in eval_columns_diff1:
             ev_min = data_list[-1][evalv].min()
