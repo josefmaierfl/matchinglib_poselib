@@ -10,6 +10,7 @@ import jinja2 as ji
 import ruamel.yaml as yaml
 from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 from statistics_and_plot import compile_tex
+from copy import deepcopy
 
 def get_rt_change_type(**keywords):
     if 'data_seperators' not in keywords:
@@ -185,14 +186,30 @@ def get_rt_change_type(**keywords):
                         int(tmp1.loc[tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs() > 1e-4, 'Nr'].iloc[0]))
                     change_pos.append(change_positions[-1])
                 else:
-                    max_val = change_j_occ[max(change_j_occ, key=(lambda key: change_j_occ[key]))]
-                    min_val = max_val
+                    change_j_occ1 = deepcopy(change_j_occ)
                     min_key = 'nv'
-                    for key, value in change_j_occ.items():
-                        if value > 0 and value < min_val:
-                            min_key = key
-                        elif value > 0 and value == min_val:
-                            min_key = 'nv'
+                    del_list = []
+                    for k, v in change_j_occ1.items():
+                        if v == 0:
+                            del_list.append(k)
+                    for k in del_list:
+                        del change_j_occ1[k]
+                    if change_j_occ1 and len(change_j_occ1.keys()) > 1:
+                        max_val = change_j_occ1[max(change_j_occ1, key=(lambda key: change_j_occ1[key]))]
+                        min_val = change_j_occ1[min(change_j_occ1, key=(lambda key: change_j_occ1[key]))]
+                        if max_val - min_val == 1:
+                            change_j_occ1_sort = sorted(change_j_occ1.items(), key=lambda kv: kv[1])
+                            if change_j_occ1_sort[0][1] != change_j_occ1_sort[1][1]:
+                                min_key = change_j_occ1_sort[0][0]
+                                change_j_occ[min_key] += 1
+                    # max_val = change_j_occ[max(change_j_occ, key=(lambda key: change_j_occ[key]))]
+                    # min_val = max_val
+                    # min_key = 'nv'
+                    # for key, value in change_j_occ.items():
+                    #     if value > 0 and value < min_val:
+                    #         min_key = key
+                    #     elif value > 0 and value == min_val:
+                    #         min_key = 'nv'
                     tmp1['rt_change_type'] = [min_key] * int(tmp1.shape[0])# no variation
                     if len(change_pos) == 0:
                         change_positions.append(0)
@@ -943,8 +960,8 @@ def calc_calib_delay(**keywords):
     grp_keys = df_grp.groups.keys()
     df_list = []
     for grp in grp_keys:
-        tmp = df_grp.get_group(grp)
-        tmp.loc[:, keywords['eval_on'][0]] = tmp[keywords['eval_on'][0]].abs()
+        tmp = df_grp.get_group(grp).copy(deep=True)
+        tmp.loc[:, keywords['eval_on'][0]] = tmp.loc[:, keywords['eval_on'][0]].abs()
         #Check for the correctness of the change number
         if int(tmp['rt_change_pos'].iloc[0]) != keywords['change_Nr']:
             warnings.warn('Given frame number when extrinsics change doesnt match the estimated number. '
@@ -997,7 +1014,7 @@ def calc_calib_delay(**keywords):
     for i, it in enumerate(keywords['data_separators']):
         av_pars = [a for a in keywords['data_separators'] if a != it]
         df1 = df_new.groupby(it)
-        grp_keys = df_grp.groups.keys()
+        grp_keys = df1.groups.keys()
         hist_list = []
         par_stats_list = []
         if n_gloss_calced:
@@ -1014,15 +1031,15 @@ def calc_calib_delay(**keywords):
             possis1 = max(3, int(round(0.01 * float(possis))))
             hist, bin_edges = np.histogram(tmp['fd'].dropna().values,
                                            bins=list(range(0, nr_max - keywords['change_Nr'] + 2)), density=False)
-            fd_good = int(bin_edges[np.nonzero(hist >= possis1)[0]])
+            fd_good = int(bin_edges[np.nonzero(hist >= possis1)[0][0]])
             possis2 = max(1, int(round(0.005 * float(possis))))
             hist1 = hist[hist >= possis2]
-            edges1 = bin_edges[np.nonzero(hist >= possis1)]
+            edges1 = bin_edges[np.nonzero(hist >= possis2)]
             hist_list.append(pd.DataFrame(data={'fd': edges1, 'count': hist1}, columns=['fd', 'count']).set_index('fd'))
             par_stats_list.append(tmp.loc[tmp['fd'] == fd_good, keywords['it_parameters'] + ['fd']].describe())
 
         df_hist = pd.concat(hist_list, axis=1, keys=grp_keys, ignore_index=False)
-        keywords['units'] += ('fd', '/\\# of frames')
+        keywords['units'].append(('fd', '/\\# of frames',))
 
         # Plot histogram
         df_hist.columns = ['-'.join(map(str, a)) for a in df_hist.columns]
@@ -1065,7 +1082,7 @@ def calc_calib_delay(**keywords):
             section_name = capitalizeFirstChar(strToLower(hist_title_p1))
             caption = capitalizeFirstChar(strToLower(hist_title))
             _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False)
-            section_name = split_large_titles(section_name)
+            section_name = split_large_titles(section_name, 80)
             enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', len(df_hist.columns.values), 'xbar')
             exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
                                         len(df_hist.columns.values), 'xbar')
@@ -1110,7 +1127,7 @@ def calc_calib_delay(**keywords):
                                strToLower(add_val_to_opt_str(hist_title_p02, part)) + strToLower(hist_title_p03)
                 caption = section_name + strToLower(hist_title_p2)
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False, None, col)
-                section_name = split_large_titles(section_name)
+                section_name = split_large_titles(section_name, 80)
                 enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', 1, 'xbar')
                 exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
                                             1, 'xbar')
@@ -1172,7 +1189,7 @@ def calc_calib_delay(**keywords):
             warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
         # Plot parameter statistics
-        par_stats = pd.concat(par_stats_list, axis=0, keys=grp_keys, ignore_index=True, names=[it])
+        par_stats = pd.concat(par_stats_list, axis=0, keys=grp_keys, ignore_index=False, names=[it])
         base_name = '_opts_' + short_concat_str(keywords['it_parameters']) + '_calib_frame_delays_vs_' + it
         title_p01 = 'Parameters ' + keywords['sub_title_it_pars'] + \
                     ' for Smallest Frame Delays of Reaching a Correct Calibration After an Abrupt ' + \
@@ -1194,30 +1211,30 @@ def calc_calib_delay(**keywords):
                      # Builds a list of abbrevations from a list of dicts
                      'abbreviations': gloss
                      }
-        stats = par_stats.columns.get_level_values(2)
+        stats = [a for a in list(dict.fromkeys(par_stats.index.get_level_values(1))) if a != 'count']
         # fds = par_stats.xs('fd', axis=1, level=1, drop_level=True)
-        fds = par_stats['fd']['mean'].tolist()
-        all_mean.append(par_stats.xs('mean', axis=1, level=2, drop_level=True).drop('fd', axis=1))
+        fds = par_stats['fd'].xs('mean', axis=0, level=1, drop_level=True).tolist()
+        all_mean.append(par_stats.xs('mean', axis=0, level=1, drop_level=True).drop('fd', axis=1))
         for st in stats:
             section_name = replace_stat_names(st) + ' Values of ' + title_p01 + hist_title_p02 + hist_title_p03
             section_name = capitalizeFirstChar(strToLower(section_name))
             caption = section_name + strToLower(title_p2)
-            p_mean = par_stats.xs(st, axis=1, level=2, drop_level=True).copy(deep=True)
+            p_mean = par_stats.xs(st, axis=0, level=1, drop_level=True).copy(deep=True)
             p_mean.drop('fd', axis=1, inplace=True)
             p_mean = p_mean.T
             fd_cols = ['fd-' + str(a) for a in p_mean.columns]
             for i_fd, fdc in enumerate(fd_cols):
-                p_mean[fdc] = ['delay=' + fds[i_fd] + ' frames'] * int(p_mean.shape[0])
-            p_mean['options_tex'] = split_large_str([replaceCSVLabels(a) if a != 'fd' else 'delay/frames'
-                                                     for a in p_mean.index], 20)
+                p_mean[fdc] = ['delay=' + str(int(fds[i_fd])) + ' frames'] * int(p_mean.shape[0])
+            p_mean['options_tex'] = [split_large_str(replaceCSVLabels(a), 20) for a in p_mean.index]
             max_txt_rows = 1
             for idx, val in p_mean['options_tex'].iteritems():
                 txt_rows = str(val).count('\\\\') + 1
                 if txt_rows > max_txt_rows:
                     max_txt_rows = txt_rows
             legend_main = replaceCSVLabels(it)
-            legend = [add_val_to_opt_str(legend_main, a) for a in p_mean.columns]
-            plots = [a for a in p_mean.columns if a != 'options_tex']
+            legend = [add_val_to_opt_str(legend_main, a) for a in p_mean.columns
+                      if 'fd-' not in str(a) and 'options_tex' != str(a)]
+            plots = [a for a in p_mean.columns if str(a) != 'options_tex' and 'fd-' not in str(a)]
             base_name1 = replace_stat_names_col_tex(st) + base_name
             b_mean_name = 'data_' + base_name1 + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
@@ -1231,8 +1248,8 @@ def calc_calib_delay(**keywords):
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
                 p_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-            _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False, 'options_tex')
-            section_name = split_large_titles(section_name)
+            _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False, ['options_tex'] + fd_cols)
+            section_name = split_large_titles(section_name, 80)
             enlarge_lbl_dist = check_legend_enlarge(p_mean, 'options_tex', len(plots), 'xbar')
             exp_value = enl_space_title(exp_value, section_name, p_mean, 'options_tex',
                                         len(plots), 'xbar')
@@ -1295,8 +1312,9 @@ def calc_calib_delay(**keywords):
 
     df_list = []
     for df_it in all_mean:
-        df_list.append(df_it.mean())
-    df_means = pd.concat(df_list, axis=0, keys=keywords['data_separators'], names=['partition'], ignore_index=True)
+        df_list.append(df_it.mean(axis=0).to_frame().T)
+    df_means = pd.concat(df_list, axis=0, keys=keywords['data_separators'], names=['partition'], ignore_index=False)
+    df_means.index = [a[0] for a in df_means.index]
     base_name = 'mean_opts_' + short_concat_str(keywords['it_parameters']) + '_for_partitions_' + \
                 short_concat_str(keywords['data_separators'])
     b_mean_name = 'data_' + base_name + '.csv'
@@ -1307,7 +1325,7 @@ def calc_calib_delay(**keywords):
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         df_means.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    df_mmean = df_means.mean()
+    df_mmean = df_means.mean(axis=0)
     main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper

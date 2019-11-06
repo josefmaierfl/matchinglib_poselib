@@ -339,7 +339,7 @@ def calcSatisticAndPlot_2D(data,
         needed_columns = eval_columns + it_parameters + x_axis_column
         df = data[needed_columns]
 
-    roundNumericProps(df, it_parameters, x_axis_column, None)
+    roundNumericProps(df, it_parameters, x_axis_column, None, None, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)))
@@ -681,7 +681,7 @@ def calcSatisticAndPlot_2D_partitions(data,
         needed_columns = eval_columns + it_parameters + x_axis_column + partitions
         df = data[needed_columns]
 
-    roundNumericProps(df, it_parameters, x_axis_column, None, partitions)
+    roundNumericProps(df, it_parameters, x_axis_column, None, partitions, eval_columns)
 
     if len(partitions) > 1:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
@@ -1081,7 +1081,7 @@ def calcFromFuncAndPlot_2D(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    roundNumericProps(df, it_parameters, x_axis_column, None)
+    roundNumericProps(df, it_parameters, x_axis_column, None, None, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, x_axis_column)))
@@ -1499,7 +1499,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    roundNumericProps(df, it_parameters, x_axis_column, None, partitions)
+    roundNumericProps(df, it_parameters, x_axis_column, None, partitions, eval_columns)
 
     if len(partitions) > 1:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' +
@@ -1748,7 +1748,9 @@ def calcFromFuncAndPlot_2D_partitions(data,
         else:
             par_cols = [str(a) for a in df1.columns]
             it_pars_cols_name = it_parameters[0]
-        tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name]).unstack()
+        tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name])
+        print(tmp.index.values)
+        tmp = tmp.unstack()
         par_cols1 = ['-'.join(map(str, a)) for a in tmp.columns]
         tmp.columns = par_cols1
         tmp.columns.name = 'eval-' + it_pars_cols_name
@@ -2008,7 +2010,7 @@ def calcSatisticAndPlot_3D(data,
         needed_columns = eval_columns + it_parameters + xy_axis_columns
         df = data[needed_columns]
 
-    roundNumericProps(df, it_parameters, None, xy_axis_columns)
+    roundNumericProps(df, it_parameters, None, xy_axis_columns, None, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)))
@@ -2353,7 +2355,7 @@ def calcFromFuncAndPlot_3D(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    roundNumericProps(df, it_parameters, None, xy_axis_columns)
+    roundNumericProps(df, it_parameters, None, xy_axis_columns, None, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)))
@@ -2711,7 +2713,7 @@ def calcSatisticAndPlot_3D_partitions(data,
         needed_columns = eval_columns + it_parameters + xy_axis_columns + partitions
         df = data[needed_columns]
 
-    roundNumericProps(df, it_parameters, None, xy_axis_columns, partitions)
+    roundNumericProps(df, it_parameters, None, xy_axis_columns, partitions, eval_columns)
 
     if len(partitions) > 1:
         store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) +
@@ -3140,7 +3142,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    roundNumericProps(df, it_parameters, None, xy_axis_columns, partitions)
+    roundNumericProps(df, it_parameters, None, xy_axis_columns, partitions, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters) + '_vs_' +
                                               '-'.join(map(str, xy_axis_columns)) + '_for_' +
@@ -3559,7 +3561,7 @@ def calcFromFuncAndPlot_aggregate(data,
     else:
         raise ValueError('No function for calculating results provided')
 
-    roundNumericProps(df, it_parameters)
+    roundNumericProps(df, it_parameters, None, None, None, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters))
     cnt = 1
@@ -3909,7 +3911,7 @@ def calcSatisticAndPlot_aggregate(data,
         needed_columns = eval_columns + it_parameters
         df = data[needed_columns]
 
-    roundNumericProps(df, it_parameters)
+    roundNumericProps(df, it_parameters, None, None, None, eval_columns)
 
     store_path_sub = os.path.join(store_path, eval_description_path + '_' + short_concat_str(it_parameters))
     cnt = 1
@@ -5094,7 +5096,12 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
     return False, stats_all, use_limits
 
 
-def roundNumericProps(data, it_parameters=None, x_axis_column=None, xy_axis_columns=None, partitions=None):
+def roundNumericProps(data,
+                      it_parameters=None,
+                      x_axis_column=None,
+                      xy_axis_columns=None,
+                      partitions=None,
+                      eval_columns=None):
     if it_parameters is not None:
         roundNumeric_df(it_parameters, data)
     if x_axis_column is not None:
@@ -5103,9 +5110,11 @@ def roundNumericProps(data, it_parameters=None, x_axis_column=None, xy_axis_colu
         roundNumeric_df(xy_axis_columns, data)
     if partitions is not None:
         roundNumeric_df(partitions, data)
+    if eval_columns is not None:
+        roundNumeric_df(eval_columns, data, 9)
 
 
-def roundNumeric_df(col_names, df):
+def roundNumeric_df(col_names, df, round_acc=6):
     is_number = np.vectorize(lambda x: np.issubdtype(x, np.number) and not np.issubdtype(x, np.integer))
     hlp = is_number(df[col_names].dtypes)
     hlp1 = df[col_names].applymap(type).eq(str).all()
@@ -5114,10 +5123,10 @@ def roundNumeric_df(col_names, df):
     #     warnings.simplefilter("ignore", category=pd. SettingWithCopyWarning)
     for i, (it, it1) in enumerate(zip(hlp, hlp1)):
         if it:
-            df.loc[:, col_names[i]] = df[col_names[i]].round(6)
+            df.loc[:, col_names[i]] = df[col_names[i]].round(round_acc)
         elif it1 and str_is_number(df, col_names[i]):
             df.loc[:, col_names[i]] = pd.to_numeric(df.loc[:, col_names[i]], errors='coerce').to_numpy()
-            df.loc[:, col_names[i]] = df.loc[:, col_names[i]].round(6).to_numpy()
+            df.loc[:, col_names[i]] = df.loc[:, col_names[i]].round(round_acc).to_numpy()
     pd.options.mode.chained_assignment = 'warn'
 
 
@@ -5256,15 +5265,15 @@ def add_val_to_opt_str(opt_str, val):
     return opt_str
 
 
-def split_large_titles(title_str):
+def split_large_titles(title_str, nr_chars=100):
     if '\\\\' in title_str:
         substr = title_str.split('\\\\')
         substr1 = []
         for s in substr:
-            substr1.append(split_large_str(s))
+            substr1.append(split_large_str(s, nr_chars))
         return '\\\\'.join(substr1)
     else:
-        return split_large_str(title_str)
+        return split_large_str(title_str, nr_chars)
 
 
 def split_large_str(large_str, nr_chars=100):
@@ -5318,8 +5327,12 @@ def findUnit(key, units):
 
 
 def calcNrLegendCols(tex_infos_section):
-    nr_plots = len(tex_infos_section['plots'])
-    max_cols = int(235 / (len(max(tex_infos_section['plots'], key=len)) * 3 + 16))
+    if 'legend' in tex_infos_section and tex_infos_section['legend']:
+        ld = tex_infos_section['legend']
+    else:
+        ld = tex_infos_section['plots']
+    nr_plots = len(ld)
+    max_cols = int(235 / (len(max(map(str, ld), key=len)) * 3 + 16))
     if max_cols < 1:
         max_cols = 1
     if max_cols > 10:
@@ -6639,9 +6652,9 @@ def main():
     num_pts = int(10000)
     nr_imgs = 150
     # pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
-    pars1_opt = list(np.arange(0.1, 0.3, 0.1))
+    pars1_opt = list(np.arange(0.1, 0.45, 0.1))
     # pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
-    pars2_opt = list(np.arange(0.2, 0.4, 0.1))
+    pars2_opt = list(np.arange(0.2, 0.75, 0.1))
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
     # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
@@ -6670,7 +6683,7 @@ def main():
     USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
     poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
     USAC_parameters_refinealg_mul = int(poolSize_mul * len(pars2_opt))
-    gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(poolSize))
+    gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(gt_type_pars))
 
     data = {#'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             # 'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
@@ -7135,15 +7148,16 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            rda_step = (rda_max - rda_min) / float(max(1, dl))
-            tad_step = (tad_max - tad_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpr[i] = rda_max - float(cnt) * rda_step
-                    tmpt[i] = tad_max - float(cnt) * tad_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                rda_step = (rda_max - rda_min) / float(max(1, dl))
+                tad_step = (tad_max - tad_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpr[i] = rda_max - float(cnt) * rda_step
+                        tmpt[i] = tad_max - float(cnt) * tad_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpr3 = list(0.33 * tmpr)
             tmpt3 = list(0.33 * tmpt)
             tmpr = list(tmpr)
@@ -7162,13 +7176,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            rda_step = (rda_max - rda_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpr[i] = rda_max - float(cnt) * rda_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                rda_step = (rda_max - rda_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpr[i] = rda_max - float(cnt) * rda_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpr3 = list(0.33 * tmpr)
             tmpt3 = list(0.33 * tmpt)
             tmpr = list(tmpr)
@@ -7187,13 +7202,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            rda_step = (rda_max - rda_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpr[i] = rda_max - float(cnt) * rda_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                rda_step = (rda_max - rda_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpr[i] = rda_max - float(cnt) * rda_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpt3 = list(0.33 * tmpt)
             tmpr = list(tmpr)
             tmpt = list(tmpt)
@@ -7211,13 +7227,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            rda_step = (rda_max - rda_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpr[i] = rda_max - float(cnt) * rda_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                rda_step = (rda_max - rda_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpr[i] = rda_max - float(cnt) * rda_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpt3 = list(0.33 * tmpt)
             tmpr = list(tmpr)
             tmpt = list(tmpt)
@@ -7235,13 +7252,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            rda_step = (rda_max - rda_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpr[i] = rda_max - float(cnt) * rda_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                rda_step = (rda_max - rda_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['R_GT_n_diffAll'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpr[i] = rda_max - float(cnt) * rda_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpt3 = list(0.33 * tmpt)
             tmpr = list(tmpr)
             tmpt = list(tmpt)
@@ -7259,13 +7277,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            tad_step = (tad_max - tad_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpt[i] = tad_max - float(cnt) * tad_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                tad_step = (tad_max - tad_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpt[i] = tad_max - float(cnt) * tad_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpr3 = list(0.33 * tmpr)
             tmpt3 = list(0.33 * tmpt)
             tmpr = list(tmpr)
@@ -7284,13 +7303,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            tad_step = (tad_max - tad_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpt[i] = tad_max - float(cnt) * tad_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                tad_step = (tad_max - tad_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpt[i] = tad_max - float(cnt) * tad_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpr3 = list(0.33 * tmpr)
             tmpr = list(tmpr)
             tmpt = list(tmpt)
@@ -7308,13 +7328,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            tad_step = (tad_max - tad_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpt[i] = tad_max - float(cnt) * tad_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                tad_step = (tad_max - tad_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpt[i] = tad_max - float(cnt) * tad_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpr3 = list(0.33 * tmpr)
             tmpr = list(tmpr)
             tmpt = list(tmpt)
@@ -7332,13 +7353,14 @@ def main():
             end = start + nr_imgs
             tmpr = data['R_diffAll'][start:end]
             tmpt = data['t_angDiff_deg'][start:end]
-            tad_step = (tad_max - tad_min) / float(max(1, dl))
-            for i in range(0, nr_imgs):
-                if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
-                    tmpt[i] = tad_max - float(cnt) * tad_step
-                    cnt += 1
-                elif cnt > 0:
-                    break
+            if dl > 0:
+                tad_step = (tad_max - tad_min) / float(max(1, dl))
+                for i in range(0, nr_imgs):
+                    if data['t_GT_n_angDiff'][start + i] != 0 or (cnt > 0 and cnt < dl):
+                        tmpt[i] = tad_max - float(cnt) * tad_step
+                        cnt += 1
+                    elif cnt > 0:
+                        break
             tmpr3 = list(0.33 * tmpr)
             tmpr = list(tmpr)
             tmpt = list(tmpt)
@@ -10099,7 +10121,7 @@ def main():
                                                              x_axis_column=['Nr'],  # x-axis column name
                                                              filter_func=get_rt_change_type,
                                                              filter_func_args=filter_func_args,
-                                                             special_calcs_func=calc_calib_delay,
+                                                             special_calcs_func=None,#calc_calib_delay,
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_rt_diff2_frame_to_frame,
                                                              calc_func_args=calc_func_args,
