@@ -937,6 +937,7 @@ def calc_calib_delay(**keywords):
         replaceCSVLabels, \
         combine_str_for_title, \
         add_to_glossary_eval, \
+        add_to_glossary, \
         strToLower, \
         capitalizeFirstChar, \
         calcNrLegendCols, \
@@ -948,7 +949,8 @@ def calc_calib_delay(**keywords):
         add_val_to_opt_str, \
         replace_stat_names, \
         split_large_str, \
-        replace_stat_names_col_tex
+        replace_stat_names_col_tex, \
+        read_yaml_pars
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['it_parameters'] +
                                      keywords['eval_on'] +
@@ -1018,9 +1020,9 @@ def calc_calib_delay(**keywords):
         hist_list = []
         par_stats_list = []
         if n_gloss_calced:
-            gloss = add_to_glossary_eval(grp_keys, gloss)
+            gloss = add_to_glossary(grp_keys, gloss)
             for it1 in av_pars:
-                gloss = add_to_glossary_eval(df_new[it1].unique().tolist(), gloss)
+                gloss = add_to_glossary(df_new[it1].unique().tolist(), gloss)
             n_gloss_calced = False
         for grp in grp_keys:
             tmp = df1.get_group(grp)
@@ -1338,7 +1340,31 @@ def calc_calib_delay(**keywords):
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
             alg_w[val] = float(alg_comb_bestl[i])
-        yaml.dump({main_parameter_name: alg_w},
+        yaml.dump({main_parameter_name: {'Algorithm': alg_w}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
+    if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
+        pars_list = dict.fromkeys(keywords['it_parameters'])
+        for k in pars_list.keys():
+            pars_list[k] = []
+        for it in keywords['comp_res']:
+            pars = read_yaml_pars(it, keywords['res_folder'])
+            if pars and 'Algorithm' in pars:
+                for k, v in pars['Algorithm'].items():
+                    for k1 in pars_list.keys():
+                        if k == k1:
+                            pars_list[k].append(v)
+                            break
+        if len(pars_list[keywords['it_parameters'][0]]) > 1:
+            df_pars = pd.DataFrame(pars_list).describe()
+            b_mean_name = 'data_mult_evals_stats_opts_' + short_concat_str(keywords['it_parameters']) + '.csv'
+            fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
+            with open(fb_mean_name, 'a') as f:
+                f.write(
+                    '# Statistic over parameters from multiple evaluations\n')
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+                df_pars.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        else:
+            warnings.warn('Too less parameters for calculating statistics found in yaml file', UserWarning)
+            res += 1
     return res

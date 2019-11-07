@@ -1748,9 +1748,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
         else:
             par_cols = [str(a) for a in df1.columns]
             it_pars_cols_name = it_parameters[0]
-        tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name])
-        print(tmp.index.values)
-        tmp = tmp.unstack()
+        tmp = df1.T.drop(partitions, axis=1).reset_index().set_index(x_axis_column + [it_pars_cols_name]).unstack()
         par_cols1 = ['-'.join(map(str, a)) for a in tmp.columns]
         tmp.columns = par_cols1
         tmp.columns.name = 'eval-' + it_pars_cols_name
@@ -4430,6 +4428,28 @@ def add_comparison_column(compare_source, comp_fname, data_new, mult_cols=None, 
     return data_new, succ
 
 
+def read_yaml_pars(main_parameter_name, res_folder):
+    par_file_main = 'resulting_best_parameters'
+    par_file = par_file_main + '.yaml'
+    res_folder_parent = os.path.abspath(os.path.join(res_folder, os.pardir))  # Get parent directory
+    ppar_file = os.path.join(res_folder_parent, par_file)
+    from usac_eval import readYaml
+    # Check if file and parameters exist
+    if os.path.exists(ppar_file):
+        try:
+            ydata = readYaml(ppar_file)
+            try:
+                stored_pars = ydata[main_parameter_name]
+            except:
+                return None
+        except BaseException:
+            warnings.warn('Unable to read parameter file', UserWarning)
+            return None
+    else:
+        return None
+    return stored_pars
+
+
 def replace_stat_names_col_tex(name):
     if name == r'25%':
         return '25percentile'
@@ -6652,9 +6672,9 @@ def main():
     num_pts = int(10000)
     nr_imgs = 150
     # pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
-    pars1_opt = list(np.arange(0.1, 0.45, 0.1))
+    pars1_opt = list(np.arange(0.1, 0.35, 0.1))
     # pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
-    pars2_opt = list(np.arange(0.2, 0.75, 0.1))
+    pars2_opt = list(np.arange(0.2, 0.45, 0.1))
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
     # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
@@ -6663,6 +6683,7 @@ def main():
     pars_kpDistr_opt = ['1corn', 'equ']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_depthDistr_opt = ['NMF', 'NM']
+    # pars_depthDistr_opt = ['NMF', 'NM', 'F', 'NM', 'M']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
     inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
@@ -6682,8 +6703,8 @@ def main():
     inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
     USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
     poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
-    USAC_parameters_refinealg_mul = int(poolSize_mul * len(pars2_opt))
-    gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(gt_type_pars))
+    USAC_parameters_refinealg_mul = int(poolSize_mul * len(poolSize))
+    gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(pars2_opt))
 
     data = {#'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             # 'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
@@ -7387,7 +7408,7 @@ def main():
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 1
-    eval_nr = [4]#list(range(5, 11))
+    eval_nr = [-1]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -9889,7 +9910,7 @@ def main():
         from eval_tests_main import get_compare_info
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 11))
+                evals = list(range(1, 6))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -9907,7 +9928,8 @@ def main():
                     #                  'stereoParameters_minInlierRatioReInit',
                     #                  'stereoParameters_relMinInlierRatSkip']
                     it_parameters = ['USAC_parameters_estimator',
-                                     'stereoParameters_maxPoolCorrespondences']
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['rt_change_type']
                     special_calcs_args = {'build_pdf': (True, True, True),
@@ -9961,7 +9983,8 @@ def main():
                     #                  'stereoParameters_minInlierRatioReInit',
                     #                  'stereoParameters_relMinInlierRatSkip']
                     it_parameters = ['USAC_parameters_estimator',
-                                     'stereoParameters_maxPoolCorrespondences']
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['rt_change_type']
                     special_calcs_args = {'build_pdf': (True, True, True, True),
@@ -10018,7 +10041,8 @@ def main():
                     #                  'stereoParameters_minInlierRatioReInit',
                     #                  'stereoParameters_relMinInlierRatSkip']
                     it_parameters = ['USAC_parameters_estimator',
-                                     'stereoParameters_maxPoolCorrespondences']
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['rt_change_type']
                     special_calcs_args = {'build_pdf': (True, True, True, True),
@@ -10057,9 +10081,9 @@ def main():
                                                              use_marks=True,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=True,
+                                                             build_pdf=False,
                                                              figs_externalize=True,
-                                                             no_tex=False,
+                                                             no_tex=True,
                                                              cat_sort=None)
                 elif ev == 4:
                     fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
@@ -10121,7 +10145,7 @@ def main():
                                                              x_axis_column=['Nr'],  # x-axis column name
                                                              filter_func=get_rt_change_type,
                                                              filter_func_args=filter_func_args,
-                                                             special_calcs_func=None,#calc_calib_delay,
+                                                             special_calcs_func=calc_calib_delay,
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_rt_diff2_frame_to_frame,
                                                              calc_func_args=calc_func_args,
@@ -10130,9 +10154,87 @@ def main():
                                                              use_marks=False,
                                                              ctrl_fig_size=True,
                                                              make_fig_index=True,
-                                                             build_pdf=True,
+                                                             build_pdf=False,
                                                              figs_externalize=True,
-                                                             no_tex=False,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 5:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_relInlRatThLast',
+                    #                  'stereoParameters_relInlRatThNew',
+                    #                  'stereoParameters_minInlierRatSkip',
+                    #                  'stereoParameters_minInlierRatioReInit',
+                    #                  'stereoParameters_relMinInlierRatSkip']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
+                    # filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                    #                                         'stereoParameters_relInlRatThNew',
+                    #                                         'stereoParameters_minInlierRatSkip',
+                    #                                         'stereoParameters_minInlierRatioReInit',
+                    #                                         'stereoParameters_relMinInlierRatSkip',
+                    #                                         'inlratCRate',
+                    #                                         'kpAccSd',
+                    #                                         'depthDistr']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_scene': 'jta'}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr'],
+                                          'eval_on': ['t_angDiff_deg'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                          'scene': 'jta',
+                                          'comp_res': ['robustness_best_comb_scenes_inlc',
+                                                       'robustness_best_comb_scenes_inlc_depth',
+                                                       'robustness_best_comb_scenes_inlc_kpAccSd',
+                                                       'robustness_delay_jra',
+                                                       'robustness_delay_jta'],
+                                          'res_par_name': 'robustness_delay_jta'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd', 'inlratCRate'],  # Data properties to calculate results separately
+                                                             x_axis_column=['Nr'],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
                                                              cat_sort=False)
 
     return ret

@@ -144,9 +144,13 @@ def calc_rt_diff2_frame_to_frame(**vars):
         data_types.update([(a, tmp[a].dtype) for a in add_cols])
         tmp.set_index(vars['diff_by'], inplace=True)
         row_iterator = tmp.iterrows()
-        _, last = next(row_iterator)
+        i_last, last = next(row_iterator)
         tmp1 = []
         for i, row in row_iterator:
+            if i < i_last:
+                warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
+                              'Skipping data.', UserWarning)
+                break
             tmp1.append(row[vars['eval_columns']] - last[vars['eval_columns']])
             tmp1[-1].index = eval_columns_diff
             if 'keepEval' in vars and vars['keepEval']:
@@ -161,6 +165,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
             tmp1[-1][vars['diff_by']] = i
             tmp1[-1] = tmp1[-1].append(row[add_cols])
             last = row
+            i_last = i
         data_list.append(pd.concat(tmp1, axis=1).T)
         data_list[-1] = data_list[-1].astype(data_types, copy=False)
 
