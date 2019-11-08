@@ -990,10 +990,10 @@ def pars_calc_multiple_fig_partitions(**keywords):
             parts = int(math.floor(float(lz) / float(split_nr)))
             for i in range(0, split_nr - 1):
                 st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
-                st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][(i * parts):((i + 1) * parts)]
+                st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][(i * parts):((i + 1) * parts)]
                 cnt += 1
             st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
-            st_list2[-1]['plots_z'] = st_list2[-1]['plots_z'][((split_nr - 1) * parts):]
+            st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][((split_nr - 1) * parts):]
             cnt += 1
             i_old = i_new + 1
             act_figs = 0
