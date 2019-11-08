@@ -317,6 +317,9 @@ def calcSatisticAndPlot_2D(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['x_axis_column'] = x_axis_column
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -657,6 +660,10 @@ def calcSatisticAndPlot_2D_partitions(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['x_axis_column'] = x_axis_column
+        filter_func_args['partitions'] = partitions
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -1052,6 +1059,9 @@ def calcFromFuncAndPlot_2D(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['x_axis_column'] = x_axis_column
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -1468,6 +1478,10 @@ def calcFromFuncAndPlot_2D_partitions(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['x_axis_column'] = x_axis_column
+        filter_func_args['partitions'] = partitions
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -1986,6 +2000,9 @@ def calcSatisticAndPlot_3D(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['xy_axis_columns'] = xy_axis_columns
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -2324,6 +2341,9 @@ def calcFromFuncAndPlot_3D(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['xy_axis_columns'] = xy_axis_columns
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -2687,6 +2707,10 @@ def calcSatisticAndPlot_3D_partitions(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['xy_axis_columns'] = xy_axis_columns
+        filter_func_args['partitions'] = partitions
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -3109,6 +3133,10 @@ def calcFromFuncAndPlot_3D_partitions(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['xy_axis_columns'] = xy_axis_columns
+        filter_func_args['partitions'] = partitions
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -3531,6 +3559,9 @@ def calcFromFuncAndPlot_aggregate(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
+        filter_func_args['x_axis_column'] = x_axis_column
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -3887,6 +3918,8 @@ def calcSatisticAndPlot_aggregate(data,
             filter_func_args = {'data': data}
         else:
             filter_func_args['data'] = data
+        filter_func_args['eval_columns'] = eval_columns
+        filter_func_args['it_parameters'] = it_parameters
         data = filter_func(**filter_func_args)
     if data.empty:
         raise ValueError('No data left after filtering')
@@ -5335,6 +5368,8 @@ def split_large_str(large_str, nr_chars=100):
 
 
 def tex_string_coding_style(text):
+    if not isinstance(text, str):
+        text = str(text)
     text = text.replace('_', '\\_')
     return '\\texttt{' + text + '}'
 
@@ -6712,6 +6747,7 @@ def main():
             # 'R_diff_yaw_deg': -1000 + np.abs(np.random.randn(num_pts)),
             # 't_angDiff_deg': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
             't_distDiff': np.abs(np.random.randn(num_pts) * 100),
+            't_mostLikely_distDiff': np.abs(np.random.randn(num_pts) * 100),
             # 't_diff_tx': -10000 + np.random.randn(num_pts) * 100,
             # 't_diff_ty': 20000 + np.random.randn(num_pts),
             # 't_diff_tz': -450 + np.random.randn(num_pts),
@@ -6831,6 +6867,29 @@ def main():
                 data['R_out(2,0)'][i * nr_imgs + it1] = 0
                 data['R_out(2,1)'][i * nr_imgs + it1] = 0
                 data['R_out(2,2)'][i * nr_imgs + it1] = 0
+    data['R_mostLikely(0,0)'] = deepcopy(data['R_out(0,0)'])
+    data['R_mostLikely(0,1)'] = deepcopy(data['R_out(0,1)'])
+    data['R_mostLikely(0,2)'] = deepcopy(data['R_out(0,2)'])
+    data['R_mostLikely(1,0)'] = deepcopy(data['R_out(1,0)'])
+    data['R_mostLikely(1,1)'] = deepcopy(data['R_out(1,1)'])
+    data['R_mostLikely(1,2)'] = deepcopy(data['R_out(1,2)'])
+    data['R_mostLikely(2,0)'] = deepcopy(data['R_out(2,0)'])
+    data['R_mostLikely(2,1)'] = deepcopy(data['R_out(2,1)'])
+    data['R_mostLikely(2,2)'] = deepcopy(data['R_out(2,2)'])
+    R0s_scene1 = np.random.randint(0, 3, nr_scenes)
+    R0s1 = [list(np.random.randint(0, nr_imgs, it)) if it > 0 else [] for it in R0s_scene]
+    for i, it in enumerate(R0s):
+        if it:
+            for it1 in it:
+                data['R_mostLikely(0,0)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(0,1)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(0,2)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(1,0)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(1,1)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(1,2)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(2,0)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(2,1)'][i * nr_imgs + it1] = 0
+                data['R_mostLikely(2,2)'][i * nr_imgs + it1] = 0
     # data_type = build_list(gt_type_pars, 1, nr_scenes)
     data['R_GT_n_diffAll'] = []
     data['t_GT_n_angDiff'] = []
@@ -7404,11 +7463,20 @@ def main():
     data['t_diff_ty'] = tdy
     data['t_diff_tz'] = tdz
 
+    data['R_mostLikely_diffAll'] = deepcopy(rda)
+    data['R_mostLikely_diff_roll_deg'] = deepcopy(rdx)
+    data['R_mostLikely_diff_pitch_deg'] = deepcopy(rdy)
+    data['R_mostLikely_diff_yaw_deg'] = deepcopy(rdz)
+    data['t_mostLikely_angDiff_deg'] = deepcopy(tad)
+    data['t_mostLikely_diff_tx'] = deepcopy(tdx)
+    data['t_mostLikely_diff_ty'] = deepcopy(tdy)
+    data['t_mostLikely_diff_tz'] = deepcopy(tdz)
+
     data = pd.DataFrame(data)
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 1
-    eval_nr = [-1]#list(range(5, 11))
+    test_nr = 2
+    eval_nr = [1]#list(range(5, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -9943,6 +10011,7 @@ def main():
                     #                                         'inlratCRate']}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
                                                             'inlratCRate']}
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
@@ -10000,6 +10069,7 @@ def main():
                     #                                         'depthDistr']}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
                                                             'inlratCRate',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
@@ -10058,6 +10128,7 @@ def main():
                     #                                         'kpAccSd']}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
                                                             'inlratCRate',
                                                             'kpAccSd']}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
@@ -10236,6 +10307,248 @@ def main():
                                                              figs_externalize=True,
                                                              no_tex=True,
                                                              cat_sort=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 2:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 6))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    it_parameters = ['USAC_parameters_estimator']
+                    # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'func_name': 'get_best_comb_scenes',
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_inlc'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                    #                                         'inlratCRate']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'inlratCRate'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_scenes_ml_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False)
+                elif ev == 2:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    it_parameters = ['USAC_parameters_estimator']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_inlc_depth'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                    #                                         'inlratCRate',
+                    #                                         'depthDistr']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'inlratCRate',
+                                                            'depthDistr'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 3:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    it_parameters = ['USAC_parameters_estimator']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_inlc_kpAccSd'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                    #                                         'inlratCRate',
+                    #                                         'kpAccSd']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'inlratCRate',
+                                                            'kpAccSd'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=None)
+                elif ev == 4:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    it_parameters = ['USAC_parameters_estimator']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'comp_res': ['robustness_best_comb_scenes_poolr_inlc_depth',
+                                                       'robustness_best_comb_scenes_poolr_inlc_kpAccSd',
+                                                       'robustness_best_comb_scenes_poolr_depth_kpAccSd'],
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_depth_kpAccSd'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                    #                                         'depthDistr',
+                    #                                         'kpAccSd']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'depthDistr',
+                                                            'kpAccSd'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['depthDistr', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
 
     return ret
 

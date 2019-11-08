@@ -242,7 +242,59 @@ def get_rt_change_type(**keywords):
                                                                           regex=True)]
             else:
                 df_new = df_new.loc[df_new['rt_change_type'].str.contains(keywords['filter_scene'][0], regex=False)]
+    if 'check_mostLikely' in keywords and keywords['check_mostLikely']:
+        ml_evals = [a for a in keywords['eval_columns'] if 'mostLikely' in a]
+        df_new.loc[((df_new['R_mostLikely(0,0)'] == 0) &
+                   (df_new['R_mostLikely(0,1)'] == 0) &
+                   (df_new['R_mostLikely(0,2)'] == 0) &
+                   (df_new['R_mostLikely(1,0)'] == 0) &
+                   (df_new['R_mostLikely(1,1)'] == 0) &
+                   (df_new['R_mostLikely(1,2)'] == 0) &
+                   (df_new['R_mostLikely(2,0)'] == 0) &
+                   (df_new['R_mostLikely(2,1)'] == 0) &
+                   (df_new['R_mostLikely(2,2)'] == 0)), ml_evals] = np.NaN
     return df_new
+
+
+def get_best_comb_scenes_ml_1(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
+    eval_columns_init = deepcopy(keywords['eval_columns'])
+    eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
+    eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
+    data1 = keywords['data'].drop(eval_cols2, axis=1)
+    data2 = keywords['data'].drop(eval_cols1, axis=1)
+    res = 0
+    if eval_cols1:
+        keywords['eval_columns'] = eval_cols1
+        keywords['data'] = data1
+        res += get_best_comb_scenes_1(**keywords)
+
+    if eval_cols2:
+        keywords['eval_columns'] = eval_cols2
+        keywords['data'] = data2
+        keywords['is_mostLikely'] = True
+        res_folder_parent = os.path.abspath(os.path.join(keywords['res_folder'], os.pardir))  # Get parent directory
+        last_folder = os.path.basename(os.path.normpath(keywords['res_folder']))
+        ml_folder = os.path.join(res_folder_parent, last_folder + '_ml')
+        cnt = 1
+        calc_vals = True
+        ml_folder_init = ml_folder
+        while os.path.exists(ml_folder):
+            ml_folder = ml_folder_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(ml_folder)
+        except FileExistsError:
+            print('Folder', ml_folder, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            keywords['res_folder'] = ml_folder
+            keywords['res_par_name'] += '_ml'
+            res += get_best_comb_scenes_1(**keywords)
+    return res
 
 
 def get_best_comb_scenes_1(**keywords):
@@ -271,12 +323,20 @@ def get_best_comb_scenes_1(**keywords):
         it_pars_name = ret['it_parameters'][0]
     b_min_grp = b_min1.reset_index().set_index(keywords['x_axis_column']).groupby(ret['partitions'])
     grp_keys = b_min_grp.groups.keys()
-    base_name = 'min_RTerrors_vs_' + keywords['x_axis_column'][0] + '_and_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
-    tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          'Parameters ' + ret['sub_title_it_pars'] + \
-                          ' vs ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
-                          ' for Different ' + ret['sub_title_partitions'],
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        base_name = 'min_ml_'
+    else:
+        base_name = 'min_'
+    base_name += 'RTerrors_vs_' + keywords['x_axis_column'][0] + '_and_corresp_opts_' + \
+                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    title = 'Smallest Combined R \\& t Errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        title += 'of Most Likely Extrinsics '
+    title += 'and Their Corresponding ' + \
+            'Parameters ' + ret['sub_title_it_pars'] + \
+            ' vs ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
+            ' for Different ' + ret['sub_title_partitions']
+    tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -293,28 +353,50 @@ def get_best_comb_scenes_1(**keywords):
         if grp == 'nv':
             continue
         tmp = b_min_grp.get_group(grp).drop(ret['partitions'], axis=1)
-        tmp['options_tex'] = [', '.join(['{:.3f}'.format(float(b)) for b in a.split('-')])
-                              for a in tmp[it_pars_name].values]
+        if len(ret['it_parameters']) > 1:
+            tmp['options_tex'] = [', '.join(['{:.3f}'.format(float(b)) for b in a.split('-')])
+                                  for a in tmp[it_pars_name].values]
+        else:
+            tmp['options_tex'] = ['{:.3f}'.format(float(a)) for a in tmp[it_pars_name].values]
         b_mean_name = 'data_' + base_name + \
                       (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Minimum combined R & t errors (Rt_diff) and corresponding option vs ' +
-                    keywords['x_axis_column'][0] +
-                    ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
-                    (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
+            if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+                f.write('# Minimum combined R & t errors (Rt_diff) of most likely extrinsics '
+                        'and corresponding option vs ' +
+                        keywords['x_axis_column'][0] +
+                        ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
+                        (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
+            else:
+                f.write('# Minimum combined R & t errors (Rt_diff) and corresponding option vs ' +
+                        keywords['x_axis_column'][0] +
+                        ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
+                        (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
             f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
-                       'corresponding options vs ' + \
-                       replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
-                       ' for property ' + insert_str_option_values(ret['partitions'], grp)
-        caption = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
-                  'corresponding options on top of each bar separated by a comma in the order ' + \
-                  strToLower(ret['sub_title_it_pars']) + ' vs ' + \
-                  replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
-                  ' for the ' + insert_str_option_values(ret['partitions'], grp)
+        sc_beginning = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ '
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            section_name = sc_beginning + 'of most likely extrinsics and their ' + \
+                           'corresponding options vs ' + \
+                           replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
+                           ' for property ' + insert_str_option_values(ret['partitions'], grp)
+            caption = sc_beginning + 'of most likely extrinsics and their ' + \
+                      'corresponding options on top of each bar separated by a comma in the order ' + \
+                      strToLower(ret['sub_title_it_pars']) + ' vs ' + \
+                      replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
+                      ' for the ' + insert_str_option_values(ret['partitions'], grp)
+        else:
+            section_name = sc_beginning + 'and their ' + \
+                           'corresponding options vs ' + \
+                           replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
+                           ' for property ' + insert_str_option_values(ret['partitions'], grp)
+            caption = sc_beginning + 'and their ' + \
+                      'corresponding options on top of each bar separated by a comma in the order ' + \
+                      strToLower(ret['sub_title_it_pars']) + ' vs ' + \
+                      replaceCSVLabels(keywords['x_axis_column'][0], False, False, True) + \
+                      ' for the ' + insert_str_option_values(ret['partitions'], grp)
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, ['options_tex', it_pars_name])
         is_neg = check_if_neg_values(tmp, 'Rt_diff', use_log, use_limits)
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['x_axis_column'][0]], errors='coerce').notnull().all()
@@ -383,22 +465,38 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name  + '.csv'
     fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Statistic over minimum combined R & t errors (Rt_diff) and statistic of corresponding parameters ' +
-                ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
-                '-'.join(map(str, ret['partitions'])) + '\n')
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            f.write('# Statistic over minimum combined R & t errors of most likely extrinsics (Rt_diff) and statistic '
+                    'of corresponding parameters ' +
+                    ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
+        else:
+            f.write('# Statistic over minimum combined R & t errors (Rt_diff) and statistic of '
+                    'corresponding parameters ' +
+                    ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
         par_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     b_mean = par_stat.xs('mean', axis=1, level=1, drop_level=True).copy(deep=True)
-    b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                             for _, row in b_mean[ret['it_parameters']].iterrows()]
+    if len(ret['it_parameters']) > 1:
+        b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                 for _, row in b_mean[ret['it_parameters']].iterrows()]
+    else:
+        b_mean['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in b_mean[ret['it_parameters'][0]].iteritems()]
 
-    base_name = 'mean_min_RTerrors_and_mean_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
-    tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          'Mean Parameters ' + ret['sub_title_it_pars'] + \
-                          ' Over All ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
-                          ' for Different ' + ret['sub_title_partitions'],
+    base_name = 'mean_min_'
+    title = 'Mean Values of Smallest Combined R \\& t Errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        base_name += 'ml_'
+        title += 'of Most Likely Extrinsics '
+    base_name += 'RTerrors_and_mean_corresp_opts_' + \
+                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    title += 'and Their Corresponding ' + \
+             'Mean Parameters ' + ret['sub_title_it_pars'] + \
+             ' Over All ' + replaceCSVLabels(keywords['x_axis_column'][0], True, True, True) + \
+             ' for Different ' + ret['sub_title_partitions']
+    tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -414,20 +512,37 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Mean values over minimum combined R & t errors (Rt_diff) and corresponding mean parameters ' +
-                ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
-                '-'.join(map(str, ret['partitions'])) + '\n')
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            f.write('# Mean values over minimum combined R & t errors of most likely extrinsics (Rt_diff) '
+                    'and corresponding mean parameters ' +
+                    ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
+        else:
+            f.write('# Mean values over minimum combined R & t errors (Rt_diff) and corresponding mean parameters ' +
+                    ' over all ' + keywords['x_axis_column'][0] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
         b_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
-                   'mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
-                   ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, False, True) + \
-                   ' for different ' + strToLower(ret['sub_title_partitions'])
-    caption = 'Mean values of smallest combined R \\& t errors and their ' + \
-              'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
-              strToLower(ret['sub_title_it_pars']) + ' over all ' + \
-              replaceCSVLabels(keywords['x_axis_column'][0], True, False, True)
+    sc_beginning = 'Mean values of smallest combined R \\& t errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        section_name = sc_beginning + 'of most likely extrinsics and their corresponding\\\\' + \
+                       'mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, False, True) + \
+                       ' for different ' + strToLower(ret['sub_title_partitions'])
+        caption = sc_beginning + 'of most likely extrinsics and their ' + \
+                  'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['x_axis_column'][0], True, False, True)
+    else:
+        section_name = sc_beginning + 'and their corresponding\\\\' + \
+                       'mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['x_axis_column'][0], True, False, True) + \
+                       ' for different ' + strToLower(ret['sub_title_partitions'])
+        caption = sc_beginning + 'and their ' + \
+                  'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['x_axis_column'][0], True, False, True)
     _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean, True, True, False, ['options_tex'] +
                                                            ret['it_parameters'])
     is_neg = check_if_neg_values(b_mean, 'Rt_diff', use_log, use_limits)
@@ -511,6 +626,47 @@ def get_best_comb_scenes_1(**keywords):
     return ret['res']
 
 
+def get_best_comb_3d_scenes_ml_1(**keywords):
+    if 'res_par_name' not in keywords:
+        raise ValueError('Missing parameter res_par_name')
+    eval_columns_init = deepcopy(keywords['eval_columns'])
+    eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
+    eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
+    data1 = keywords['data'].drop(eval_cols2, axis=1)
+    data2 = keywords['data'].drop(eval_cols1, axis=1)
+    res = 0
+    if eval_cols1:
+        keywords['eval_columns'] = eval_cols1
+        keywords['data'] = data1
+        res += get_best_comb_3d_scenes_1(**keywords)
+
+    if eval_cols2:
+        keywords['eval_columns'] = eval_cols2
+        keywords['data'] = data2
+        keywords['is_mostLikely'] = True
+        res_folder_parent = os.path.abspath(os.path.join(keywords['res_folder'], os.pardir))  # Get parent directory
+        last_folder = os.path.basename(os.path.normpath(keywords['res_folder']))
+        ml_folder = os.path.join(res_folder_parent, last_folder + '_ml')
+        cnt = 1
+        calc_vals = True
+        ml_folder_init = ml_folder
+        while os.path.exists(ml_folder):
+            ml_folder = ml_folder_init + '_' + str(int(cnt))
+            cnt += 1
+        try:
+            os.mkdir(ml_folder)
+        except FileExistsError:
+            print('Folder', ml_folder, 'for storing statistics data already exists')
+        except:
+            print("Unexpected error (Unable to create directory for storing special function data):", sys.exc_info()[0])
+            calc_vals = False
+        if calc_vals:
+            keywords['res_folder'] = ml_folder
+            keywords['res_par_name'] += '_ml'
+            res += get_best_comb_3d_scenes_1(**keywords)
+    return res
+
+
 def get_best_comb_3d_scenes_1(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
@@ -539,14 +695,20 @@ def get_best_comb_3d_scenes_1(**keywords):
         it_pars_name = ret['it_parameters'][0]
     b_min_grp = b_min1.reset_index().set_index(keywords['xy_axis_columns']).groupby(ret['partitions'])
     grp_keys = b_min_grp.groups.keys()
-    base_name = 'min_RTerrors_vs_' + keywords['xy_axis_columns'][0] + '_and_' + \
-                keywords['xy_axis_columns'][1] + '_with_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
-    tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          'Parameters ' + ret['sub_title_it_pars'] + \
-                          ' vs ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + \
-                          ' and ' + replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True) + \
-                          ' for Different ' + ret['sub_title_partitions'],
+    base_name = 'min_'
+    title = 'Smallest Combined R \\& t Errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        base_name += 'ml_'
+        title += 'of Most Likely Extrinsics '
+    base_name += 'RTerrors_vs_' + keywords['xy_axis_columns'][0] + '_and_' + \
+                 keywords['xy_axis_columns'][1] + '_with_corresp_opts_' + \
+                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    title += 'and Their Corresponding ' + \
+             'Parameters ' + ret['sub_title_it_pars'] + \
+             ' vs ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + \
+             ' and ' + replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True) + \
+             ' for Different ' + ret['sub_title_partitions']
+    tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -563,8 +725,11 @@ def get_best_comb_3d_scenes_1(**keywords):
         if grp == 'nv':
             continue
         tmp = b_min_grp.get_group(grp).drop(ret['partitions'], axis=1)
-        tmp['options_tex'] = [', '.join(['{:.3f}'.format(float(b)) for b in a.split('-')])
-                              for a in tmp[it_pars_name].values]
+        if len(ret['it_parameters']) > 1:
+            tmp['options_tex'] = [', '.join(['{:.3f}'.format(float(b)) for b in a.split('-')])
+                                  for a in tmp[it_pars_name].values]
+        else:
+            tmp['options_tex'] = ['{:.3f}'.format(float(a)) for a in tmp[it_pars_name].values]
         # tmp = tmp.reset_index().set_index([it_pars_name] + keywords['xy_axis_columns'])
         tmp = tmp.unstack()
         tmp.columns = ['-'.join(map(str, a)) for a in tmp.columns]
@@ -576,24 +741,45 @@ def get_best_comb_3d_scenes_1(**keywords):
                       (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Minimum combined R & t errors (Rt_diff) and corresponding option vs ' +
-                    keywords['xy_axis_columns'][0] + ' and ' + keywords['xy_axis_columns'][1] +
-                    ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
-                    (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
+            if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+                f.write('# Minimum combined R & t errors of most likely extrinsics (Rt_diff) '
+                        'and corresponding option vs ' +
+                        keywords['xy_axis_columns'][0] + ' and ' + keywords['xy_axis_columns'][1] +
+                        ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
+                        (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
+            else:
+                f.write('# Minimum combined R & t errors (Rt_diff) and corresponding option vs ' +
+                        keywords['xy_axis_columns'][0] + ' and ' + keywords['xy_axis_columns'][1] +
+                        ' for partition ' + '-'.join(map(str, ret['partitions'])) + ' = ' +
+                        (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '\n')
             f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
             tmp.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-        section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
-                       'corresponding options vs ' + \
-                       replaceCSVLabels(keywords['xy_axis_columns'][0], False, False, True) + ' and ' + \
-                       replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
-                       ' for property ' + insert_str_option_values(ret['partitions'], grp)
-        caption = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
-                  'corresponding options on top of each bar separated by a comma in the order ' + \
-                  strToLower(ret['sub_title_it_pars']) + ' vs ' + \
-                  replaceCSVLabels(keywords['xy_axis_columns'][0], False, False, True) + ' and ' + \
-                  replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
-                  ' for the ' + insert_str_option_values(ret['partitions'], grp)
+        sc_begin = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ '
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            section_name = sc_begin + 'of most likely extrinsics and their ' + \
+                           'corresponding options vs ' + \
+                           replaceCSVLabels(keywords['xy_axis_columns'][0], False, False, True) + ' and ' + \
+                           replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
+                           ' for property ' + insert_str_option_values(ret['partitions'], grp)
+            caption = sc_begin + 'of most likely extrinsics and their ' + \
+                      'corresponding options on top of each bar separated by a comma in the order ' + \
+                      strToLower(ret['sub_title_it_pars']) + ' vs ' + \
+                      replaceCSVLabels(keywords['xy_axis_columns'][0], False, False, True) + ' and ' + \
+                      replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
+                      ' for the ' + insert_str_option_values(ret['partitions'], grp)
+        else:
+            section_name = sc_begin + 'and their ' + \
+                           'corresponding options vs ' + \
+                           replaceCSVLabels(keywords['xy_axis_columns'][0], False, False, True) + ' and ' + \
+                           replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
+                           ' for property ' + insert_str_option_values(ret['partitions'], grp)
+            caption = sc_begin + 'and their ' + \
+                      'corresponding options on top of each bar separated by a comma in the order ' + \
+                      strToLower(ret['sub_title_it_pars']) + ' vs ' + \
+                      replaceCSVLabels(keywords['xy_axis_columns'][0], False, False, True) + ' and ' + \
+                      replaceCSVLabels(keywords['xy_axis_columns'][1], False, False, True) + \
+                      ' for the ' + insert_str_option_values(ret['partitions'], grp)
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, it_pars_names + meta_cols)
         is_neg = check_if_neg_values(tmp, plots, use_log, use_limits)
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
@@ -661,33 +847,52 @@ def get_best_comb_3d_scenes_1(**keywords):
 
     par_stat = b_min.drop(keywords['xy_axis_columns'][0], axis=1).groupby(ret['partitions'] +
                                                                           [keywords['xy_axis_columns'][1]]).describe()
-    base_name = 'stats_min_RTerrors_and_stats_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    base_name = 'stats_min_'
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        base_name += 'ml_'
+    base_name += 'RTerrors_and_stats_corresp_opts_' + \
+                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
     b_mean_name = 'data_' + base_name  + '.csv'
     fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Statistic over minimum combined R & t errors (Rt_diff) and statistic of corresponding parameters ' +
-                ' over all ' + keywords['xy_axis_columns'][0] + ' for different ' +
-                '-'.join(map(str, ret['partitions'])) + '\n')
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            f.write('# Statistic over minimum combined R & t errors of most likely extrinsics (Rt_diff) '
+                    'and statistic of corresponding parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
+        else:
+            f.write('# Statistic over minimum combined R & t errors (Rt_diff) and statistic of '
+                    'corresponding parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
         par_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
     b_mean = par_stat.xs('mean', axis=1, level=1, drop_level=True).copy(deep=True)
-    b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                             for _, row in b_mean[ret['it_parameters']].iterrows()]
+    if len(ret['it_parameters']) > 1:
+        b_mean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                 for _, row in b_mean[ret['it_parameters']].iterrows()]
+    else:
+        b_mean['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in b_mean[ret['it_parameters'][0]].iteritems()]
     b_mean1 = b_mean.unstack()
     b_mean1.columns = ['-'.join(map(str, a)) for a in b_mean1.columns]
     plots = [a for a in b_mean1.columns if 'Rt_diff' in a]
     meta_cols = [a for a in b_mean1.columns if 'options_tex' in a]
     it_pars_names = [a for a in b_mean1.columns for b in ret['it_parameters'] if b in a]
 
-    base_name = 'mean_min_RTerrors_and_mean_corresp_opts_' + \
-                short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
-    tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          'Mean Parameters ' + ret['sub_title_it_pars'] + \
-                          ' Over All ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + ' vs ' + \
-                          replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True) + \
-                          ' for Different ' + ret['sub_title_partitions'],
+    base_name = 'mean_min_'
+    title = 'Mean Values of Smallest Combined R \\& t Errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        base_name += 'ml_'
+        title += 'of Most Likely Extrinsics '
+    title += 'and Their Corresponding ' + \
+             'Mean Parameters ' + ret['sub_title_it_pars'] + \
+             ' Over All ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + ' vs ' + \
+             replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True) + \
+             ' for Different ' + ret['sub_title_partitions']
+    base_name += 'RTerrors_and_mean_corresp_opts_' + \
+                 short_concat_str(ret['it_parameters']) + '_for_part_' + ret['dataf_name_partition']
+    tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -703,22 +908,42 @@ def get_best_comb_3d_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
-                ' over all ' + keywords['xy_axis_columns'][0] + ' vs ' +
-                keywords['xy_axis_columns'][1] + ' for different ' +
-                '-'.join(map(str, ret['partitions'])) + '\n')
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            f.write('# Mean values over minimum combined R & t errors of most likely extrinsics (b_min) '
+                    'and corresponding mean parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' vs ' +
+                    keywords['xy_axis_columns'][1] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
+        else:
+            f.write('# Mean values over minimum combined R & t errors (b_min) '
+                    'and corresponding mean parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' vs ' +
+                    keywords['xy_axis_columns'][1] + ' for different ' +
+                    '-'.join(map(str, ret['partitions'])) + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
         b_mean1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
-                   ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
-                   ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' vs ' + \
-                   replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True) + \
-                   ' for different ' + strToLower(ret['sub_title_partitions'])
-    caption = 'Mean values of smallest combined R \\& t errors and their ' + \
-              'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
-              strToLower(ret['sub_title_it_pars']) + ' over all ' + \
-              replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True)
+    sc_begin = 'Mean values of smallest combined R \\& t errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        section_name = sc_begin + 'of most likely extrinsics and their corresponding\\\\' + \
+                       ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' vs ' + \
+                       replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True) + \
+                       ' for different ' + strToLower(ret['sub_title_partitions'])
+        caption = sc_begin + 'of most likely extrinsics and their ' + \
+                  'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True)
+    else:
+        section_name = sc_begin + 'and their corresponding\\\\' + \
+                       ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' vs ' + \
+                       replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True) + \
+                       ' for different ' + strToLower(ret['sub_title_partitions'])
+        caption = sc_begin + 'and their ' + \
+                  'corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True)
     _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean1, True, True, False, it_pars_names + meta_cols)
     is_neg = check_if_neg_values(b_mean1, plots, use_log, use_limits)
     is_numeric = pd.to_numeric(b_mean1.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
@@ -785,16 +1010,26 @@ def get_best_comb_3d_scenes_1(**keywords):
 
     b_mmean = b_mean.reset_index().drop(['options_tex'] +
                                         ret['partitions'], axis=1).groupby(keywords['xy_axis_columns'][1]).mean()
-    b_mmean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                              for _, row in b_mmean[ret['it_parameters']].iterrows()]
+    if len(ret['it_parameters']) > 1:
+        b_mmean['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                  for _, row in b_mmean[ret['it_parameters']].iterrows()]
+    else:
+        b_mmean['options_tex'] = ['{:.3f}'.format(float(val))
+                                  for _, val in b_mmean[ret['it_parameters'][0]].iteritems()]
 
-    base_name = 'double_mean_min_RTerrors_and_mean_corresp_opts_' + \
+    base_name = 'double_mean_min_'
+    title = 'Mean Values of Smallest Combined R \\& t Errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        base_name += 'ml_'
+        title += 'of Most Likely Extrinsics '
+    base_name += 'RTerrors_and_mean_corresp_opts_' + \
                 short_concat_str(ret['it_parameters'])
-    tex_infos = {'title': 'Mean Values of Smallest Combined R \\& t Errors and Their Corresponding ' + \
-                          'Mean Parameters ' + ret['sub_title_it_pars'] + \
-                          ' Over All ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) +
-                          ' and ' + ret['sub_title_partitions'] + ' vs ' + \
-                          replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True),
+    title += 'and Their Corresponding ' + \
+             'Mean Parameters ' + ret['sub_title_it_pars'] + \
+             ' Over All ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, True, True) + \
+             ' and ' + ret['sub_title_partitions'] + ' vs ' + \
+             replaceCSVLabels(keywords['xy_axis_columns'][1], True, True, True)
+    tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -810,23 +1045,43 @@ def get_best_comb_3d_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
-        f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
-                ' over all ' + keywords['xy_axis_columns'][0] + ' and partitions ' +
-                '-'.join(map(str, ret['partitions'])) + ' vs ' +
-                keywords['xy_axis_columns'][1] + ' for different ' + '\n')
+        if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+            f.write('# Mean values over minimum combined R & t errors of most likely extrinsics (b_min) '
+                    'and corresponding mean parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' and partitions ' +
+                    '-'.join(map(str, ret['partitions'])) + ' vs ' +
+                    keywords['xy_axis_columns'][1] + ' for different ' + '\n')
+        else:
+            f.write('# Mean values over minimum combined R & t errors (b_min) and corresponding mean parameters ' +
+                    ' over all ' + keywords['xy_axis_columns'][0] + ' and partitions ' +
+                    '-'.join(map(str, ret['partitions'])) + ' vs ' +
+                    keywords['xy_axis_columns'][1] + ' for different ' + '\n')
         f.write('# Parameters: ' + '-'.join(ret['it_parameters']) + '\n')
         b_mmean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
-    section_name = 'Mean values of smallest combined R \\& t errors and their corresponding\\\\' + \
-                   ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
-                   ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
-                   strToLower(ret['sub_title_partitions']) + ' vs ' + \
-                   replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True)
-    caption = 'Mean values of smallest combined R \\& t errors and their ' + \
-              ' corresponding mean parameters on top of each bar separated by a comma in the order ' + \
-              strToLower(ret['sub_title_it_pars']) + ' over all ' + \
-              replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
-              strToLower(ret['sub_title_partitions'])
+    sc_begin = 'Mean values of smallest combined R \\& t errors '
+    if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
+        section_name = sc_begin + 'of most likely extrinsics and their corresponding\\\\' + \
+                       ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
+                       strToLower(ret['sub_title_partitions']) + ' vs ' + \
+                       replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True)
+        caption = sc_begin + 'of most likely extrinsics and their ' + \
+                  ' corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
+                  strToLower(ret['sub_title_partitions'])
+    else:
+        section_name = sc_begin + 'and their corresponding\\\\' + \
+                       ' mean parameters ' + strToLower(ret['sub_title_it_pars']) + \
+                       ' over all ' + replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
+                       strToLower(ret['sub_title_partitions']) + ' vs ' + \
+                       replaceCSVLabels(keywords['xy_axis_columns'][1], True, False, True)
+        caption = sc_begin + 'and their ' + \
+                  ' corresponding mean parameters on top of each bar separated by a comma in the order ' + \
+                  strToLower(ret['sub_title_it_pars']) + ' over all ' + \
+                  replaceCSVLabels(keywords['xy_axis_columns'][0], True, False, True) + ' and ' + \
+                  strToLower(ret['sub_title_partitions'])
     _, use_limits, use_log, exp_value = get_limits_log_exp(b_mmean, True, True, False, ['options_tex'] +
                                                            ret['it_parameters'])
     is_neg = check_if_neg_values(b_mmean, 'Rt_diff', use_log, use_limits)
@@ -909,6 +1164,9 @@ def get_best_comb_3d_scenes_1(**keywords):
                                          'mean_Rt_error': float(b_mmmean['Rt_diff'])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
+    if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
+        ret['res'] = compare_evaluations(**ret)
+
     return ret['res']
 
 
@@ -949,8 +1207,7 @@ def calc_calib_delay(**keywords):
         add_val_to_opt_str, \
         replace_stat_names, \
         split_large_str, \
-        replace_stat_names_col_tex, \
-        read_yaml_pars
+        replace_stat_names_col_tex
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['it_parameters'] +
                                      keywords['eval_on'] +
@@ -1344,6 +1601,13 @@ def calc_calib_delay(**keywords):
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
+        keywords['res'] = res
+        res = compare_evaluations(**keywords)
+    return res
+
+def compare_evaluations(**keywords):
+    if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
+        from statistics_and_plot import read_yaml_pars, short_concat_str
         pars_list = dict.fromkeys(keywords['it_parameters'])
         for k in pars_list.keys():
             pars_list[k] = []
@@ -1366,5 +1630,5 @@ def calc_calib_delay(**keywords):
                 df_pars.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
         else:
             warnings.warn('Too less parameters for calculating statistics found in yaml file', UserWarning)
-            res += 1
-    return res
+            keywords['res'] += 1
+    return keywords['res']
