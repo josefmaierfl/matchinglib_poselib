@@ -2,7 +2,7 @@
 Evaluates results from the autocalibration present in a pandas DataFrame as specified in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, os, subprocess as sp, warnings, numpy as np, math
+import sys, os, subprocess as sp, warnings, numpy as np, math, re, regex
 # import modin.pandas as pd
 import pandas as pd
 import jinja2 as ji
@@ -2156,7 +2156,7 @@ def calcSatisticAndPlot_3D(data,
                 continue
 
             plot_cols0 = [a for a in list(tmp.columns.values)[2:]
-                          if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
+                          if 'nr_rep_for_pgf_x' != str(a) and 'nr_rep_for_pgf_y' != str(a) and '_lbl' not in str(a)]
             plot_cols = get_usable_3D_cols(tmp, plot_cols0)
             if not plot_cols:
                 continue
@@ -2949,7 +2949,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                     continue
 
                 plot_cols0 = [a for a in list(tmp2.columns.values)[2:]
-                              if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
+                              if 'nr_rep_for_pgf_x' != str(a) and 'nr_rep_for_pgf_y' != str(a) and '_lbl' not in str(a)]
                 plot_cols = get_usable_3D_cols(tmp2, plot_cols0)
                 if not plot_cols:
                     continue
@@ -5402,6 +5402,103 @@ def calcNrLegendCols(tex_infos_section):
     return use_cols
 
 
+def get_tex_string_length(in_str):
+    if '$' in in_str:
+        tmp_str = rem_tex_brackets(in_str)
+        if '\\' in tmp_str:
+            fnObj = re.search(r'\\\w+({(?:[^{}]++|(?1))*})', in_str, re.I)
+
+
+def get_enclosing_brackets_tex_pos(in_str, opcl):
+    if opcl['closing'] and opcl['opening'] and len(opcl['closing']) == len(opcl['opening']):
+        return 0
+    opening = in_str.find('{')
+    closing = in_str.find('}')
+    if opening < 0 and closing < 0:
+        return -1
+    if opening >= 0 and closing > opening:
+        opcl['opening'].append(opening + opcl['last_end'])
+        opcl['last_end'] = opening + opcl['last_end'] + 1
+        str_new = in_str[(opening + 1):]
+    elif closing >= 0:
+        opcl['closing'].append(closing + opcl['last_end'])
+        opcl['last_end'] = closing + opcl['last_end'] + 1
+        str_new = in_str[(closing + 1):]
+    else:
+        return -1
+    ret = get_enclosing_brackets_tex_pos(str_new, opcl)
+    return ret
+
+
+def get_enclosing_brackets_tex(in_str):
+    opcl = {'opening': [], 'closing': [], 'last_end': 0}
+    ret = get_enclosing_brackets_tex_pos(in_str, opcl)
+    if ret < 0:
+        return None
+    return in_str[opcl['opening'][0]:(opcl['closing'][-1] + 1)]
+
+
+def find_all_nested_brackets(in_str):
+    br = get_enclosing_brackets_tex(in_str)
+    ret = []
+    if br is not None:
+        str_new = in_str
+        start_pos = str_new.find(br)
+        end_pos = start_pos + len(br)
+        ret.append([br, start_pos, end_pos])
+        while(br is not None):
+            if end_pos >= len(str_new):
+                return ret
+            str_new = str_new[end_pos:]
+            br = get_enclosing_brackets_tex(str_new)
+            if br is not None:
+                start_pos = str_new.find(br)
+                end_pos = start_pos + len(br)
+                ret.append([br, ret[-1][2] + start_pos, ret[-1][2] + end_pos])
+    return ret
+
+
+def rem_tex_brackets(in_str):
+    br = find_all_nested_brackets(in_str)
+    if not br:
+        fnObj = re.finditer(r'(?:\\(?P<sym>\w+))|_|\^', in_str, re.I)
+    else:
+        rx1 = '|'.join(['(?:' + re.escape(a[0]) + ')' for a in br])
+        rx = r'(?:(?:\\\w+)|_|\^)({})'.format(rx1)
+        fnObj = re.finditer(rx, in_str, re.I)
+    if fnObj:
+        tmp_str = ''
+        tmp2 = ''
+        first = True
+        for i in fnObj:
+            if first:
+                tmp_str = in_str[0:i.start(0)]
+                idx1 = i.end(0)
+                first = False
+            else:
+                idx2 = i.start(0)
+                if idx2 > idx1:
+                    tmp_str += in_str[idx1:idx2]
+                idx1 = i.end(0)
+            if br:
+                str_new = i.group(1)[1:-1]
+                br1 = rem_tex_brackets(str_new)
+                if not br1:
+                    tmp_str += str_new
+                else:
+                    tmp_str += br1
+            elif i.lastgroup:
+                tmp_str += i.group(i.lastgroup)[0]
+            if i.end(0) < len(in_str):
+                tmp2 = in_str[i.end(0):]
+            else:
+                tmp2 = ''
+        tmp_str += tmp2
+        return tmp_str
+    else:
+        return in_str
+
+
 def add_to_glossary_eval(entry_ies, gloss=None):
     entries = None
     if isinstance(entry_ies, str):
@@ -6704,6 +6801,9 @@ def check_legend_enlarge(df, x_axis_column, nr_plots, fig_type):
 
 #Only for testing
 def main():
+    in_str = 'ajjjkkll blub $\\Vect{t_{a^{23}_{c}}^{32}} + \\bm{\\epsilon}+a_{erA}^{drf}+\\eps$'
+    ab = rem_tex_brackets(in_str)
+
     num_pts = int(10000)
     nr_imgs = 150
     # pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
@@ -7476,7 +7576,7 @@ def main():
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 2
-    eval_nr = [1]#list(range(5, 11))
+    eval_nr = list(range(7, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -10311,11 +10411,11 @@ def main():
                     raise ValueError('Eval nr ' + ev + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
-                evals = list(range(1, 6))
+                evals = list(range(6, 11))
             else:
                 evals = eval_nr
             for ev in evals:
-                if ev == 1:
+                if ev == 6:
                     fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
@@ -10343,9 +10443,14 @@ def main():
                                           'func_name': 'get_best_comb_scenes',
                                           'res_par_name': 'robustness_best_comb_scenes_poolr_inlc'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
-                    #                                         'inlratCRate']}
+                    #                                         'inlratCRate',
+                    #                                         'kpAccSd',
+                    #                                         'depthDistr'],
+                    #                     'check_mostLikely': True}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
-                                                            'inlratCRate'],
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_ml_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
@@ -10372,7 +10477,7 @@ def main():
                                                              build_pdf=True,
                                                              figs_externalize=True,
                                                              no_tex=False)
-                elif ev == 2:
+                elif ev == 7:
                     fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
@@ -10400,10 +10505,13 @@ def main():
                                           'res_par_name': 'robustness_best_comb_scenes_poolr_inlc_depth'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
                     #                                         'inlratCRate',
-                    #                                         'depthDistr']}
+                    #                                         'depthDistr',
+                    #                                         'kpAccSd'],
+                    #                     'check_mostLikely': True}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'inlratCRate',
-                                                            'depthDistr'],
+                                                            'depthDistr',
+                                                            'kpAccSd'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
@@ -10430,7 +10538,7 @@ def main():
                                                              figs_externalize=True,
                                                              no_tex=False,
                                                              cat_sort='depthDistr')
-                elif ev == 3:
+                elif ev == 8:
                     fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
@@ -10458,10 +10566,13 @@ def main():
                                           'res_par_name': 'robustness_best_comb_scenes_poolr_inlc_kpAccSd'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
                     #                                         'inlratCRate',
-                    #                                         'kpAccSd']}
+                    #                                         'kpAccSd',
+                    #                                         'depthDistr'],
+                    #                     'check_mostLikely': True}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'inlratCRate',
-                                                            'kpAccSd'],
+                                                            'kpAccSd',
+                                                            'depthDistr'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
@@ -10488,7 +10599,7 @@ def main():
                                                              figs_externalize=True,
                                                              no_tex=False,
                                                              cat_sort=None)
-                elif ev == 4:
+                elif ev == 9:
                     fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
@@ -10519,10 +10630,13 @@ def main():
                                           'res_par_name': 'robustness_best_comb_scenes_poolr_depth_kpAccSd'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
                     #                                         'depthDistr',
-                    #                                         'kpAccSd']}
+                    #                                         'kpAccSd',
+                    #                                         'inlratCRate'],
+                    #                     'check_mostLikely': True}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'depthDistr',
-                                                            'kpAccSd'],
+                                                            'kpAccSd',
+                                                            'inlratCRate'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
@@ -10549,6 +10663,45 @@ def main():
                                                              figs_externalize=True,
                                                              no_tex=False,
                                                              cat_sort='depthDistr')
+                elif ev == 10:
+                    fig_title_pre_str = 'Statistics on Execution Times for Specific Combinations of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    # it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    it_parameters = ['USAC_parameters_estimator']
+                    # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                    #                                         'depthDistr',
+                    #                                         'kpAccSd']}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'depthDistr',
+                                                            'kpAccSd',
+                                                            'inlratCRate']}
+                    from robustness_eval import get_rt_change_type
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='time',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['rt_change_type'],
+                                                  pdfsplitentry=None,
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='ybar',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=False,
+                                                  no_tex=False,
+                                                  cat_sort=True)
 
     return ret
 

@@ -1165,7 +1165,8 @@ def get_best_comb_3d_scenes_1(**keywords):
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
-        ret['res'] = compare_evaluations(**ret)
+        keywords['res'] = ret['res']
+        ret['res'] = compare_evaluations(**keywords)
 
     return ret['res']
 

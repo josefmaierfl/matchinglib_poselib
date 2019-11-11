@@ -918,7 +918,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
             tmp2.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         plot_cols0 = [a for a in list(tmp2.columns.values)[2:]
-                      if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
+                      if 'nr_rep_for_pgf_x' != str(a) and 'nr_rep_for_pgf_y' != str(a) and '_lbl' not in str(a)]
         plot_cols = get_usable_3D_cols(tmp2, plot_cols0)
         if not plot_cols:
             continue
