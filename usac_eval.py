@@ -1047,7 +1047,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
     return ret
 
 
-def combineRt(data):
+def combineRt(data, normalize=True):
     #Get R and t mean and standard deviation values
     if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
         stat_R = data['R_diffAll'].unstack()
@@ -1074,13 +1074,16 @@ def combineRt(data):
     # b = (comb_stat_r + comb_stat_t) / 2
 
     tmp = comb_stat_r + comb_stat_t
-    ma = tmp.select_dtypes(include=[np.number]).dropna().values.max()
-    mi = tmp.select_dtypes(include=[np.number]).dropna().values.min()
-    r_rt = ma - mi
-    if np.isclose(r_rt, 0, atol=1e-06):
-        b = tmp - mi
+    if normalize:
+        ma = tmp.select_dtypes(include=[np.number]).dropna().values.max()
+        mi = tmp.select_dtypes(include=[np.number]).dropna().values.min()
+        r_rt = ma - mi
+        if np.isclose(r_rt, 0, atol=1e-06):
+            b = tmp - mi
+        else:
+            b = (tmp - mi) / r_rt
     else:
-        b = (tmp - mi) / r_rt
+        b = tmp
     return b
 
 

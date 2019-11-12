@@ -253,6 +253,16 @@ def get_rt_change_type(**keywords):
                    (df_new['R_mostLikely(2,0)'] == 0) &
                    (df_new['R_mostLikely(2,1)'] == 0) &
                    (df_new['R_mostLikely(2,2)'] == 0)), ml_evals] = np.NaN
+    elif 'filter_mostLikely' in keywords and keywords['filter_mostLikely']:
+        df_new = df_new.loc[~((df_new['R_mostLikely(0,0)'] == 0) &
+                              (df_new['R_mostLikely(0,1)'] == 0) &
+                              (df_new['R_mostLikely(0,2)'] == 0) &
+                              (df_new['R_mostLikely(1,0)'] == 0) &
+                              (df_new['R_mostLikely(1,1)'] == 0) &
+                              (df_new['R_mostLikely(1,2)'] == 0) &
+                              (df_new['R_mostLikely(2,0)'] == 0) &
+                              (df_new['R_mostLikely(2,1)'] == 0) &
+                              (df_new['R_mostLikely(2,2)'] == 0))]
     return df_new
 
 
@@ -1633,3 +1643,187 @@ def compare_evaluations(**keywords):
             warnings.warn('Too less parameters for calculating statistics found in yaml file', UserWarning)
             keywords['res'] += 1
     return keywords['res']
+
+
+def get_ml_acc(**keywords):
+    if 'partitions' in keywords:
+        if 'x_axis_column' in keywords:
+            individual_grps = keywords['it_parameters'] + keywords['partitions'] + keywords['x_axis_column']
+        elif 'xy_axis_columns' in keywords:
+            individual_grps = keywords['it_parameters'] + keywords['partitions'] + keywords['xy_axis_columns']
+        else:
+            raise ValueError('Either x_axis_column or xy_axis_columns must be provided')
+    elif 'x_axis_column' in keywords:
+        individual_grps = keywords['it_parameters'] + keywords['x_axis_column']
+    elif 'xy_axis_columns' in keywords:
+        individual_grps = keywords['it_parameters'] + keywords['xy_axis_columns']
+    elif 'it_parameters' in keywords:
+        individual_grps = keywords['it_parameters']
+    else:
+        raise ValueError('Either x_axis_column or xy_axis_columns and it_parameters must be provided')
+    if 'data_partitions' not in keywords:
+        raise ValueError('data_partitions must be provided')
+    for it in keywords['data_partitions']:
+            if it not in individual_grps:
+                raise ValueError(it + ' provided in data_partitions not found in dataframe')
+    needed_cols = individual_grps + keywords['eval_columns']
+    from statistics_and_plot import short_concat_str, \
+        replaceCSVLabels, add_to_glossary, add_to_glossary_eval, get_limits_log_exp, combine_str_for_title, enl_space_title
+    eval_columns_init = deepcopy(keywords['eval_columns'])
+    eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
+    eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
+    data1 = keywords['data'].drop(eval_cols2, axis=1)
+    data_ml = keywords['data'].drop(eval_cols1, axis=1)
+    keywords = prepare_io(**keywords)
+    res = 0
+    if not eval_cols1 or not eval_cols2:
+        raise ValueError('Some evaluation columns are missing')
+    from usac_eval import combineRt
+    b1 = combineRt(data1, False)
+    b_ml = combineRt(data_ml, False)
+    b_diff = b_ml - b1
+    b_diff = b_diff.stack().reset_index()
+    b_diff.rename(columns={b_diff.columns[-1]: 'Rt_diff2_ml'}, inplace=True)
+    b_diff = b_diff.loc[b_diff['Rt_diff2_ml'].abs() > 1e-6]
+    if b_diff.empty:
+        f_name = os.path.join(keywords['res_folder'], 'out_compare_is_equal.txt')
+        with open(f_name, 'w') as f:
+            f.write('Error differences of most likely extrinsics and normal output are equal.' + '\n')
+        return 0
+    gloss = add_to_glossary_eval(keywords['eval_columns'] + ['Rt_diff', 'Rt_mostLikely_diff'])
+    title_name = 'Mean Differences Between ' + \
+                 replaceCSVLabels('Rt_diff', True, True, True) + ' and ' + \
+                 replaceCSVLabels('Rt_mostLikely_diff', True, True, True) + ' vs ' + \
+                 combine_str_for_title(keywords['data_partitions'])
+    base_out_name0 = 'mean_diff_default-ml_rt_error_vs_'
+    base_out_name = base_out_name0 + short_concat_str(keywords['data_partitions'])
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations of a list of dicts
+                 'abbreviations': None}
+    for it in keywords['data_partitions']:
+        drop_cols = [a for a in individual_grps if a != it]
+        df = b_diff.drop(drop_cols, axis=1)
+        df['negative'] = df['Rt_diff2_ml'].apply(lambda x: 1 if x < 0 else 0)
+        df['positive'] = df['Rt_diff2_ml'].apply(lambda x: 1 if x > 0 else 0)
+        df = df.groupby(it).describe()
+        base_name = 'stats_rt_default-rt_ml_for_' + it
+        b_mean_name = 'data_' + base_name + '.csv'
+        fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# Statistics on differences between most likely and default R&t errors vs ' + it + '\n')
+            df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        df1 = df.xs('mean', axis=1, level=1, drop_level=True).drop(['negative', 'positive'], axis=1)
+        gloss = add_to_glossary(df1.index.values, gloss)
+        base_name = base_out_name0 + str(it)
+        b_mean_name = 'data_' + base_name + '.csv'
+        fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# Mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' + str(it) + '\n')
+            df1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False)
+        is_numeric = pd.to_numeric(df1.reset_index()[it], errors='coerce').notnull().all()
+        section_name = 'Mean Differences Between ' + \
+                       replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
+                       replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' Values vs ' + \
+                       replaceCSVLabels(it, False, False, True)
+        exp_value = enl_space_title(exp_value, section_name, df1, it,
+                                    1, 'ybar')
+        reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': section_name,
+                                      # If caption is None, the field name is used
+                                      'caption': None,
+                                      'fig_type': 'ybar',
+                                      'plots': ['Rt_diff2_ml'],
+                                      'label_y': replaceCSVLabels('Rt_mostLikely_diff') + '-' +
+                                                 replaceCSVLabels('Rt_diff'),
+                                      'plot_x': str(it),
+                                      'label_x': replaceCSVLabels(str(it)),
+                                      'limits': use_limits,
+                                      'legend': None,
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True if not is_numeric else False,
+                                      'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None
+                                      })
+
+        df2_mean = df.xs('mean', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
+        df2_cnt = df.xs('count', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
+        df2_neg = df2_mean['negative'] * df2_cnt['negative']
+        df2_pos = df2_mean['positive'] * df2_cnt['positive']
+        df2 = df2_neg / (df2_neg + df2_pos)
+        df2.rename('rat_defa_high')
+        df2 = df2.to_frame()
+        base_name = 'default_err_bigger_as_ml_ratio_vs_' + str(it)
+        b_mean_name = 'data_' + base_name + '.csv'
+        fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# Ratio (rat_defa_high) of higher default R&t errors compared to most likely R&t errors vs ' +
+                    str(it) + '\n')
+            df2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False)
+        is_numeric = pd.to_numeric(df2.reset_index()[it], errors='coerce').notnull().all()
+        section_name = 'Ratio of higher errors ' + \
+                       replaceCSVLabels('Rt_diff', False, False, True) + ' compared to ' + \
+                       replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' vs ' + \
+                       replaceCSVLabels(it, False, False, True)
+        exp_value = enl_space_title(exp_value, section_name, df2, it,
+                                    1, 'ybar')
+        reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': section_name,
+                                      # If caption is None, the field name is used
+                                      'caption': None,
+                                      'fig_type': 'ybar',
+                                      'plots': ['rat_defa_high'],
+                                      'label_y': 'Ratio',
+                                      'plot_x': str(it),
+                                      'label_x': replaceCSVLabels(str(it)),
+                                      'limits': use_limits,
+                                      'legend': None,
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True if not is_numeric else False,
+                                      'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None
+                                      })
+
+    tex_infos['abbreviations'] = gloss
+    base_out_name1 = 'tex_' + base_out_name
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    texf_name = base_out_name1 + '.tex'
+    pdf_name = base_out_name1 + '.pdf'
+    res = 0
+    if keywords['build_pdf'][0]:
+        res1 = compile_tex(rendered_tex,
+                           keywords['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(keywords['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+    if res1 != 0:
+        res += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)

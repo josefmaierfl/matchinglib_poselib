@@ -4921,12 +4921,20 @@ def categorical_sort_3d(df, col_name, is_stringx, is_stringy, xy_axis_columns):
 def categorical_sort(df, col_name):
     order_list = get_categorical_list(col_name)
     if order_list:
+        set_it = False
+        if col_name not in df.columns and col_name == df.index.name:
+            df.reset_index(inplace=True)
+            set_it = True
         av_opts = list(dict.fromkeys(df[col_name].tolist()))
         order_list1 = [a for a in order_list if a in av_opts]
         if order_list1:
             df[col_name] = pd.Categorical(df[col_name], order_list1)
             df.sort_values(col_name, inplace=True)
             df[col_name] = df[col_name].astype(str)
+            if set_it:
+                df.set_index(col_name, inplace=True)
+        elif set_it:
+            df.set_index(col_name, inplace=True)
 
 
 def get_categorical_list(col_name):
@@ -4936,7 +4944,7 @@ def get_categorical_list(col_name):
         return ['N', 'NM', 'M', 'NF', 'NMF', 'MF', 'F']
     elif col_name == 'rt_change_type':
         return ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
-                'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
+                'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz', 'nv']
     return None
 
 
@@ -5387,7 +5395,7 @@ def calcNrLegendCols(tex_infos_section):
     else:
         ld = tex_infos_section['plots']
     nr_plots = len(ld)
-    max_cols = int(235 / (len(max(map(str, ld), key=len)) * 3 + 16))
+    max_cols = int(235 / (get_tex_string_length(max(map(str, ld), key=len)) * 3 + 16))
     if max_cols < 1:
         max_cols = 1
     if max_cols > 10:
@@ -5403,10 +5411,13 @@ def calcNrLegendCols(tex_infos_section):
 
 
 def get_tex_string_length(in_str):
+    tmp_str = in_str
     if '$' in in_str:
-        tmp_str = rem_tex_brackets(in_str)
-        if '\\' in tmp_str:
-            fnObj = re.search(r'\\\w+({(?:[^{}]++|(?1))*})', in_str, re.I)
+        tmp_str = rem_tex_brackets(tmp_str)
+        tmp_str = tmp_str.replace('$', '')
+    if '--' in tmp_str:
+        tmp_str = tmp_str.replace('--', '-')
+    return len(tmp_str)
 
 
 def get_enclosing_brackets_tex_pos(in_str, opcl):
@@ -5493,7 +5504,12 @@ def rem_tex_brackets(in_str):
                 tmp2 = in_str[i.end(0):]
             else:
                 tmp2 = ''
-        tmp_str += tmp2
+        if tmp2:
+            br1 = rem_tex_brackets(tmp2)
+            if not br1:
+                tmp_str += tmp2
+            else:
+                tmp_str += br1
         return tmp_str
     else:
         return in_str
@@ -6801,9 +6817,6 @@ def check_legend_enlarge(df, x_axis_column, nr_plots, fig_type):
 
 #Only for testing
 def main():
-    in_str = 'ajjjkkll blub $\\Vect{t_{a^{23}_{c}}^{32}} + \\bm{\\epsilon}+a_{erA}^{drf}+\\eps$'
-    ab = rem_tex_brackets(in_str)
-
     num_pts = int(10000)
     nr_imgs = 150
     # pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
@@ -7563,20 +7576,20 @@ def main():
     data['t_diff_ty'] = tdy
     data['t_diff_tz'] = tdz
 
-    data['R_mostLikely_diffAll'] = deepcopy(rda)
-    data['R_mostLikely_diff_roll_deg'] = deepcopy(rdx)
-    data['R_mostLikely_diff_pitch_deg'] = deepcopy(rdy)
-    data['R_mostLikely_diff_yaw_deg'] = deepcopy(rdz)
-    data['t_mostLikely_angDiff_deg'] = deepcopy(tad)
-    data['t_mostLikely_diff_tx'] = deepcopy(tdx)
-    data['t_mostLikely_diff_ty'] = deepcopy(tdy)
-    data['t_mostLikely_diff_tz'] = deepcopy(tdz)
+    data['R_mostLikely_diffAll'] = np.array(rda) + 0.06 * np.random.randn(num_pts) - 0.025
+    data['R_mostLikely_diff_roll_deg'] = np.array(rdx) + 0.02 * np.random.randn(num_pts) - 0.01
+    data['R_mostLikely_diff_pitch_deg'] = np.array(rdy) + 0.02 * np.random.randn(num_pts) - 0.01
+    data['R_mostLikely_diff_yaw_deg'] = np.array(rdz) + 0.02 * np.random.randn(num_pts) - 0.01
+    data['t_mostLikely_angDiff_deg'] = np.array(tad) + 0.06 * np.random.randn(num_pts) - 0.025
+    data['t_mostLikely_diff_tx'] = np.array(tdx) + 0.02 * np.random.randn(num_pts) - 0.01
+    data['t_mostLikely_diff_ty'] = np.array(tdy) + 0.02 * np.random.randn(num_pts) - 0.01
+    data['t_mostLikely_diff_tz'] = np.array(tdz) + 0.02 * np.random.randn(num_pts) - 0.01
 
     data = pd.DataFrame(data)
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 2
-    eval_nr = list(range(7, 11))
+    test_nr = 3
+    eval_nr = [11]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -10671,7 +10684,8 @@ def main():
                     it_parameters = ['USAC_parameters_estimator']
                     # filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
                     #                                         'depthDistr',
-                    #                                         'kpAccSd']}
+                    #                                         'kpAccSd',
+                    #                                         'inlratCRate']}
                     filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
                                                             'depthDistr',
                                                             'kpAccSd',
@@ -10695,6 +10709,68 @@ def main():
                                                   calc_func_args=None,
                                                   compare_source=None,
                                                   fig_type='ybar',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=False,
+                                                  no_tex=False,
+                                                  cat_sort=True)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 3:
+            if eval_nr[0] < 0:
+                evals = list(range(6, 11))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 11:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    pdfsplitentry = ['t_distDiff', 'R_mostLikely_diffAll', 't_mostLikely_distDiff']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['rt_change_type', 'inlratCRate']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratCRate'],
+                                                  pdfsplitentry=pdfsplitentry,
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_ml_acc,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
                                                   use_marks=True,
                                                   ctrl_fig_size=True,
                                                   make_fig_index=True,
