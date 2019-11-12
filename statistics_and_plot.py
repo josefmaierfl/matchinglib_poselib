@@ -7576,14 +7576,14 @@ def main():
     data['t_diff_ty'] = tdy
     data['t_diff_tz'] = tdz
 
-    data['R_mostLikely_diffAll'] = np.array(rda) + 0.06 * np.random.randn(num_pts) - 0.025
-    data['R_mostLikely_diff_roll_deg'] = np.array(rdx) + 0.02 * np.random.randn(num_pts) - 0.01
-    data['R_mostLikely_diff_pitch_deg'] = np.array(rdy) + 0.02 * np.random.randn(num_pts) - 0.01
-    data['R_mostLikely_diff_yaw_deg'] = np.array(rdz) + 0.02 * np.random.randn(num_pts) - 0.01
-    data['t_mostLikely_angDiff_deg'] = np.array(tad) + 0.06 * np.random.randn(num_pts) - 0.025
-    data['t_mostLikely_diff_tx'] = np.array(tdx) + 0.02 * np.random.randn(num_pts) - 0.01
-    data['t_mostLikely_diff_ty'] = np.array(tdy) + 0.02 * np.random.randn(num_pts) - 0.01
-    data['t_mostLikely_diff_tz'] = np.array(tdz) + 0.02 * np.random.randn(num_pts) - 0.01
+    data['R_mostLikely_diffAll'] = np.array(rda) + 0.06 * np.random.randn(num_pts) - 0.005
+    data['R_mostLikely_diff_roll_deg'] = np.array(rdx) + 0.02 * np.random.randn(num_pts) - 0.0025
+    data['R_mostLikely_diff_pitch_deg'] = np.array(rdy) + 0.02 * np.random.randn(num_pts) - 0.0025
+    data['R_mostLikely_diff_yaw_deg'] = np.array(rdz) + 0.02 * np.random.randn(num_pts) - 0.0025
+    data['t_mostLikely_angDiff_deg'] = np.array(tad) + 0.06 * np.random.randn(num_pts) - 0.005
+    data['t_mostLikely_diff_tx'] = np.array(tdx) + 0.02 * np.random.randn(num_pts) - 0.005
+    data['t_mostLikely_diff_ty'] = np.array(tdy) + 0.02 * np.random.randn(num_pts) - 0.005
+    data['t_mostLikely_diff_tz'] = np.array(tdz) + 0.02 * np.random.randn(num_pts) - 0.005
 
     data = pd.DataFrame(data)
 

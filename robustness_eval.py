@@ -1764,7 +1764,7 @@ def get_ml_acc(**keywords):
         df2_neg = df2_mean['negative'] * df2_cnt['negative']
         df2_pos = df2_mean['positive'] * df2_cnt['positive']
         df2 = df2_neg / (df2_neg + df2_pos)
-        df2.rename('rat_defa_high')
+        df2.rename('rat_defa_high', inplace=True)
         df2 = df2.to_frame()
         base_name = 'default_err_bigger_as_ml_ratio_vs_' + str(it)
         b_mean_name = 'data_' + base_name + '.csv'
@@ -1816,14 +1816,14 @@ def get_ml_acc(**keywords):
     pdf_name = base_out_name1 + '.pdf'
     res = 0
     if keywords['build_pdf'][0]:
-        res1 = compile_tex(rendered_tex,
-                           keywords['tex_folder'],
-                           texf_name,
-                           tex_infos['make_index'],
-                           os.path.join(keywords['pdf_folder'], pdf_name),
-                           tex_infos['figs_externalize'])
+        res = compile_tex(rendered_tex,
+                          keywords['tex_folder'],
+                          texf_name,
+                          tex_infos['make_index'],
+                          os.path.join(keywords['pdf_folder'], pdf_name),
+                          tex_infos['figs_externalize'])
     else:
-        res1 = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
-    if res1 != 0:
-        res += abs(res1)
+        res = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+    if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return res
