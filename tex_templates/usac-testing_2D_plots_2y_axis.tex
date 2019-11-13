@@ -298,6 +298,21 @@ bar width=0.3cm,%
 y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ endif }
+\BLOCK{ if sec['print_meta_l'] }
+\BLOCK{ if sec['large_meta_space_needed_l'] }
+\BLOCK{ if sec['is_neg_l'] }
+enlarge x limits={lower, value=0.45},%
+\BLOCK{ else }
+enlarge x limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg_l'] }
+enlarge x limits={lower, value=0.15},%
+\BLOCK{ else }
+enlarge x limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
 xlabel=\VAR{sec['label_x']},%
@@ -315,9 +330,39 @@ bar width=0.3cm,%
 x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ endif }
+\BLOCK{ if sec['print_meta_l'] }
+\BLOCK{ if sec['large_meta_space_needed_l'] }
+\BLOCK{ if sec['is_neg_l'] }
+enlarge y limits={lower, value=0.45},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg_l'] }
+enlarge y limits={lower, value=0.15},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ else }
 xlabel=\VAR{sec['label_x']},%
 ylabel=\VAR{sec['label_y_l']},%
+\BLOCK{ if sec['print_meta_l'] }
+\BLOCK{ if sec['large_meta_space_needed_l'] }
+\BLOCK{ if sec['is_neg_l'] }
+enlarge y limits={lower, value=0.45},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg_l'] }
+enlarge y limits={lower, value=0.15},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
@@ -342,6 +387,24 @@ cycle list name=big variety1,%
 \BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
 every axis plot/.append style={fill,draw=none,no markers},%
 \BLOCK{ endif }
+\BLOCK{ if sec['print_meta_l'] }
+nodes near coords=\pgfplotspointmeta,%
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+\BLOCK{ if sec['is_neg_l'] }
+nodes near coords align={left},%
+\BLOCK{ else }
+nodes near coords align={right},%
+\BLOCK{ endif }
+\BLOCK{ elif sec['is_neg_l'] }
+nodes near coords align={anchor=north},%
+\BLOCK{ endif }
+point meta=explicit symbolic,%
+\BLOCK{ if sec['is_neg_l'] }
+every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta_l'] != 0 },\BLOCK{ if sec['rotate_meta_l'] == 45 }anchor=north west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=-\VAR{ sec['rotate_meta_l'] }\BLOCK{ endif }},%
+\BLOCK{ else }
+every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta_l'] != 0 },\BLOCK{ if sec['rotate_meta_l'] == 45 }anchor=south west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=\VAR{ sec['rotate_meta_l'] }\BLOCK{ endif }},%
+\BLOCK{ endif }
+\BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots_l'] }
 \addplot+ [%
@@ -354,6 +417,9 @@ no markers,%
 \BLOCK{ endif }
 unbounded coords=discard] table [%
 col sep=semicolon,%
+\BLOCK{ if sec['print_meta_l'] }
+meta=\VAR{ sec['plot_meta_l'][loop.index0] },%
+\BLOCK{ endif }
 \BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 y expr=\coordindex,%
@@ -403,6 +469,21 @@ bar width=0.3cm,%
 /pgf/bar shift=6pt,%
 \BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ if sec['print_meta_r'] }
+\BLOCK{ if sec['large_meta_space_needed_r'] }
+\BLOCK{ if sec['is_neg_r'] }
+enlarge x limits={lower, value=0.45},%
+\BLOCK{ else }
+enlarge x limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg_r'] }
+enlarge x limits={lower, value=0.15},%
+\BLOCK{ else }
+enlarge x limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
 ylabel=\VAR{sec['label_y_r']},%
@@ -417,9 +498,39 @@ bar width=0.3cm,%
 /pgf/bar shift=6pt,%
 \BLOCK{ endif }
 yticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ if sec['print_meta_r'] }
+\BLOCK{ if sec['large_meta_space_needed_r'] }
+\BLOCK{ if sec['is_neg_r'] }
+enlarge y limits={lower, value=0.45},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg_r'] }
+enlarge y limits={lower, value=0.15},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ else }
 ylabel=\VAR{sec['label_y_r']},%
 yticklabel style={/pgf/number format/precision=4},%
+\BLOCK{ if sec['print_meta_r'] }
+\BLOCK{ if sec['large_meta_space_needed_r'] }
+\BLOCK{ if sec['is_neg_r'] }
+enlarge y limits={lower, value=0.45},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.45},%
+\BLOCK{ endif }
+\BLOCK{ else }
+\BLOCK{ if sec['is_neg_r'] }
+enlarge y limits={lower, value=0.15},%
+\BLOCK{ else }
+enlarge y limits={upper, value=0.15},%
+\BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['limits_r'] is not none }
 \BLOCK{ if sec['limits_r']['miny'] is not none }
@@ -444,6 +555,24 @@ cycle list name=big variety2,
 \BLOCK{ if fill_bar and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar') }
 every axis plot/.append style={fill,draw=none,no markers},%
 \BLOCK{ endif }
+\BLOCK{ if sec['print_meta_r'] }
+nodes near coords=\pgfplotspointmeta,%
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+\BLOCK{ if sec['is_neg_r'] }
+nodes near coords align={left},%
+\BLOCK{ else }
+nodes near coords align={right},%
+\BLOCK{ endif }
+\BLOCK{ elif sec['is_neg_r'] }
+nodes near coords align={anchor=north},%
+\BLOCK{ endif }
+point meta=explicit symbolic,%
+\BLOCK{ if sec['is_neg_r'] }
+every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta_r'] != 0 },\BLOCK{ if sec['rotate_meta_r'] == 45 }anchor=north west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=-\VAR{ sec['rotate_meta_r'] }\BLOCK{ endif }},%
+\BLOCK{ else }
+every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if sec['rotate_meta_r'] != 0 },\BLOCK{ if sec['rotate_meta_r'] == 45 }anchor=south west\BLOCK{ else }anchor=west\BLOCK{ endif },rotate=\VAR{ sec['rotate_meta_r'] }\BLOCK{ endif }},%
+\BLOCK{ endif }
+\BLOCK{ endif }
 ]
 \BLOCK{ for it in sec['plots_l'] }
 \addlegendimage{/pgfplots/refstyle=axis_l_\VAR{ it }}\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
@@ -460,6 +589,9 @@ no markers,%
 \BLOCK{ endif }
 unbounded coords=discard] table [%
 col sep=semicolon,%
+\BLOCK{ if sec['print_meta_r'] }
+meta=\VAR{ sec['plot_meta_r'][loop.index0] },%
+\BLOCK{ endif }
 \BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 y expr=\coordindex,%

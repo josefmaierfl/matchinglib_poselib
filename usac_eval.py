@@ -1530,6 +1530,30 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                       'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
                                       # Column name of the x-axis.
                                       'plot_x': ret['grp_names'][-1],
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_l': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_l': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_l': False,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_l': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_l': 0,
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_r': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_r': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_r': False,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_r': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_r': 0,
                                       # Maximum and/or minimum y value/s on the left y-axis
                                       'limits_l': None,
                                       # Legend entries for the charts belonging to the left y-axis
@@ -1762,6 +1786,30 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'label_x': partitions_legend,
                                   # Column name of the x-axis.
                                   'plot_x': partitions_ov,
+                                  # Enables/disables printing meta information at each data point
+                                  'print_meta_l': False,
+                                  # Meta information printed at each data point. Must contain same number of
+                                  # column names as plots_l
+                                  'plot_meta_l': None,
+                                  # Are most values of plots at left axis negative?
+                                  'is_neg_l': False,
+                                  # Is more space needed for plotting the meta information?
+                                  'large_meta_space_needed_l': False,
+                                  # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                  # are supported)
+                                  'rotate_meta_l': 0,
+                                  # Enables/disables printing meta information at each data point
+                                  'print_meta_r': False,
+                                  # Meta information printed at each data point. Must contain same number of
+                                  # column names as plots_l
+                                  'plot_meta_r': None,
+                                  # Are most values of plots at left axis negative?
+                                  'is_neg_r': False,
+                                  # Is more space needed for plotting the meta information?
+                                  'large_meta_space_needed_r': False,
+                                  # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                  # are supported)
+                                  'rotate_meta_r': 0,
                                   # Maximum and/or minimum y value/s on the left y-axis
                                   'limits_l': None,
                                   # Legend entries for the charts belonging to the left y-axis
@@ -1808,6 +1856,30 @@ def get_best_comb_th_scenes_1(**keywords):
                                       'label_x': partitions_legend,
                                       # Column name of the x-axis.
                                       'plot_x': partitions_ov,
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_l': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_l': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_l': False,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_l': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_l': 0,
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_r': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_r': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_r': False,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_r': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_r': 0,
                                       # Maximum and/or minimum y value/s on the left y-axis
                                       'limits_l': None,
                                       # Legend entries for the charts belonging to the left y-axis

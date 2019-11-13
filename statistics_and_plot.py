@@ -6281,6 +6281,16 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
             str_val = 'execution times $t_{c}$'
         else:
             str_val = 'execution time $t_{c}$'
+    elif label == 'poseIsStable':
+        if use_plural:
+            str_val = 'stable pose indications'
+        else:
+            str_val = 'stable pose indication'
+    elif label == 'tr':
+        if use_plural:
+            str_val = 'stable pose ratios $r_{s}=n_{s}/\\left( n_{s}+n_{us}\\right)$'
+        else:
+            str_val = 'stable pose ratio $r_{s}=n_{s}/\\left( n_{s}+n_{us}\\right)$'
     elif label == 'poolSize':
         if use_plural:
             str_val = 'numbers of matches $n_{pool}$ within the correspondence pool'
@@ -6901,6 +6911,7 @@ def main():
             # 'kpDistr': [[i] * (num_pts / len(pars_kpDistr_opt)) for i in pars_kpDistr_opt],
             # 'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
             'depthDistr': build_list(pars_depthDistr_opt, 1, num_pts),
+            'poseIsStable': np.random.randint(2, size=num_pts),
             'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
             # 'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
             'kpAccSd': np.array(build_list(pars_kpAccSd_opt, kpAccSd_mul, num_pts)),
@@ -7599,8 +7610,8 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 3
-    eval_nr = [-1]#list(range(10, 11))
+    test_nr = 4
+    eval_nr = [15]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -10939,6 +10950,91 @@ def main():
                                                   figs_externalize=True,
                                                   no_tex=False,
                                                   cat_sort='depthDistr')
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 4:
+            if eval_nr[0] < 0:
+                evals = list(range(15, 25))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 15:
+                    fig_title_pre_str = 'Statistics on the Relative Ratio of Stable Pose Detections ' \
+                                        'for Different '
+                    eval_columns = ['R_diffAll', 't_angDiff_deg', 'R_mostLikely_diffAll', 't_mostLikely_angDiff_deg']
+                    units = [('R_diffAll', '/\\textdegree'), ('t_angDiff_deg', '/\\textdegree'),
+                             ('R_mostLikely_diffAll', '/\\textdegree'), ('t_mostLikely_angDiff_deg', '/\\textdegree')]
+                    # it_parameters = ['stereoParameters_minContStablePoses',
+                    #                  'stereoParameters_minNormDistStable',
+                    #                  'stereoParameters_absThRankingStable']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
+                    partitions = ['rt_change_type']
+                    # calc_func_args = {'data_separators': ['stereoParameters_minContStablePoses',
+                    #                                       'stereoParameters_minNormDistStable',
+                    #                                       'stereoParameters_absThRankingStable',
+                    #                                       'rt_change_type',
+                    #                                       'depthDistr',
+                    #                                       'kpAccSd',
+                    #                                       'inlratCRate']}
+                    calc_func_args = {'data_separators': ['USAC_parameters_estimator',
+                                                          'stereoParameters_maxPoolCorrespondences',
+                                                          'USAC_parameters_refinealg',
+                                                          'rt_change_type',
+                                                          'depthDistr',
+                                                          'kpAccSd',
+                                                          'inlratCRate'],
+                                      'remove_partitions': ['depthDistr', 'kpAccSd']}
+                    # special_calcs_args = {'build_pdf': (True, True),
+                    #                       'use_marks': False,
+                    #                       'data_separators': ['rt_change_type', 'inlratCRate'],
+                    #                       'to_int_cols': ['stereoParameters_minContStablePoses']}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_separators': ['rt_change_type', 'inlratCRate'],
+                                          'to_int_cols': ['stereoParameters_maxPoolCorrespondences'],
+                                          'on_2nd_axis': 'stereoParameters_maxPoolCorrespondences'}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                    #                                         'stereoParameters_minNormDistStable',
+                    #                                         'stereoParameters_absThRankingStable',
+                    #                                         'inlratCRate',
+                    #                                         'kpAccSd',
+                    #                                         'depthDistr'],
+                    #                     'filter_mostLikely': True}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabi',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_stability_pars,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_pose_stable_ratio,
+                                                             calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
 
     return ret
 

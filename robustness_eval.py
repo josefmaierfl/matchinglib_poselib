@@ -14,7 +14,7 @@ from copy import deepcopy
 
 def get_rt_change_type(**keywords):
     if 'data_seperators' not in keywords:
-        raise ValueError('it_parameters missing!')
+        raise ValueError('data_seperators missing!')
 
     df_grp = keywords['data'].groupby(keywords['data_seperators'])
     grp_keys = df_grp.groups.keys()
@@ -1839,3 +1839,92 @@ def get_ml_acc(**keywords):
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return res
+
+
+def calc_pose_stable_ratio(**keywords):
+    if 'data_separators' not in keywords:
+        raise ValueError('data_separators missing!')
+    needed_columns = list(dict.fromkeys(keywords['eval_columns'] +
+                                        keywords['it_parameters'] +
+                                        keywords['x_axis_column'] +
+                                        keywords['partitions'] +
+                                        ['poseIsStable', 'Nr'] +
+                                        keywords['data_separators']))
+    df_grp = keywords['data'][needed_columns].groupby(keywords['data_separators'])
+    grp_keys = df_grp.groups.keys()
+    df_list = []
+    for grp in grp_keys:
+        tmp = df_grp.get_group(grp).copy(deep=True)
+        max_nr = int(tmp['Nr'].max()) + 1
+        nr_rows = tmp.shape[0]
+        if max_nr < nr_rows:
+            warnings.warn('Data is not completely seperated. '
+                          'Ratios for stability will be calculated on multiple datasets!', UserWarning)
+        nr_stable = float(tmp.loc[(tmp['poseIsStable'] != 0), 'poseIsStable'].shape[0])
+        rat = nr_stable / float(nr_rows)
+        tmp['tr'] = [rat] * int(nr_rows)
+        if 'remove_partitions' in keywords and keywords['remove_partitions']:
+            tmp.drop(['poseIsStable', 'Nr'] + keywords['remove_partitions'], axis=1, inplace=True)
+        else:
+            tmp.drop(['poseIsStable', 'Nr'], axis=1, inplace=True)
+        df_list.append(tmp)
+    keywords['data'] = pd.concat(df_list, ignore_index=False, axis=0)
+    keywords['eval_columns'] += ['tr']
+    return keywords
+
+
+def get_best_stability_pars(**keywords):
+    if 'data_separators' not in keywords:
+        raise ValueError('data_separators missing!')
+    from statistics_and_plot import replaceCSVLabels
+    df_grp = keywords['data'].reset_index().groupby(keywords['data_separators'])
+    grp_keys = df_grp.groups.keys()
+    df_list = []
+    for grp in grp_keys:
+        tmp = df_grp.get_group(grp)
+        tmp_mm = tmp.loc[[tmp.loc[:, ('tr', 'mean')].idxmin(), tmp.loc[:, ('tr', 'mean')].idxmax()], :]
+        tmp_med = tmp_mm.xs('50%', axis=1, level=1, drop_level=True).copy(deep=True)
+        for k, v in zip(keywords['data_separators'], grp):
+            tmp_med[k] = [v] * int(tmp_med.shape[0])
+        for it in keywords['it_parameters']:
+            tmp_med[it] = tmp_mm.loc[:, (it, '')].to_list()
+        tmp_med['R_diff2_ml'] = (tmp_med['R_mostLikely_diffAll'] - tmp_med['R_diffAll']).abs().to_list()
+        tmp_med['t_diff2_ml'] = (tmp_med['t_mostLikely_angDiff_deg'] - tmp_med['t_angDiff_deg']).abs().to_list()
+        tmp_med['Rt_diff2_ml'] = (tmp_med['R_diff2_ml'] + tmp_med['t_diff2_ml']).to_list()
+        df_list.append(tmp_med)
+    tmp2 = pd.concat(df_list, ignore_index=True, axis=0)
+    tmp3 = tmp2.loc[tmp2.groupby(keywords['data_separators'])['Rt_diff2_ml'].idxmin()].copy(deep=True)
+    if 'to_int_cols' in keywords and keywords['to_int_cols']:
+        for it in keywords['to_int_cols']:
+            tmp3.loc[:, it] = tmp3.loc[:, it].round(decimals=0).astype(int)
+    it_pars_meta = [a for a in keywords['it_parameters'] if a != keywords['on_2nd_axis']]
+    if len(it_pars_meta) > 1:
+        tmp3['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                               for _, row in tmp3[keywords['it_parameters']].iterrows()]
+    else:
+        tmp3['options_tex'] = ['{:.3f}'.format(float(val))
+                               for _, val in tmp3[keywords['it_parameters'][0]].iteritems()]
+
+    tex_infos = {'title': 'Smallest Combined Median R \\& t Errors Based on Lowest and Highest Mean ' + \
+                          replaceCSVLabels('tr'), True, True, True) + \
+                          'Values and Their ' + \
+                          replaceCSVLabels(str(ret['partitions'][-1]), True, True, True) + \
+                          ' for Parameters ' + ret['sub_title_it_pars'] + \
+                          ' and Properties ' + ret['sub_title_partitions'],
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true, non-numeric entries can be provided for the x-axis
+                 'nonnumeric_x': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
+
+
+
+
+    mean_pars = tmp3[keywords['it_parameters']].mean(axis=0)
