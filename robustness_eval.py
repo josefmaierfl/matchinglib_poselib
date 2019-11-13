@@ -1668,7 +1668,13 @@ def get_ml_acc(**keywords):
                 raise ValueError(it + ' provided in data_partitions not found in dataframe')
     needed_cols = individual_grps + keywords['eval_columns']
     from statistics_and_plot import short_concat_str, \
-        replaceCSVLabels, add_to_glossary, add_to_glossary_eval, get_limits_log_exp, combine_str_for_title, enl_space_title
+        replaceCSVLabels, \
+        add_to_glossary, \
+        add_to_glossary_eval, \
+        get_limits_log_exp, \
+        combine_str_for_title, \
+        enl_space_title, \
+        categorical_sort
     eval_columns_init = deepcopy(keywords['eval_columns'])
     eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
     eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
@@ -1722,6 +1728,9 @@ def get_ml_acc(**keywords):
             f.write('# Statistics on differences between most likely and default R&t errors vs ' + it + '\n')
             df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
         df1 = df.xs('mean', axis=1, level=1, drop_level=True).drop(['negative', 'positive'], axis=1)
+        if 'cat_sort' in keywords and keywords['cat_sort'] and \
+                isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
+            categorical_sort(df1, it)
         gloss = add_to_glossary(df1.index.values, gloss)
         base_name = base_out_name0 + str(it)
         b_mean_name = 'data_' + base_name + '.csv'
@@ -1766,6 +1775,9 @@ def get_ml_acc(**keywords):
         df2 = df2_neg / (df2_neg + df2_pos)
         df2.rename('rat_defa_high', inplace=True)
         df2 = df2.to_frame()
+        if 'cat_sort' in keywords and keywords['cat_sort'] and \
+                isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
+            categorical_sort(df2, it)
         base_name = 'default_err_bigger_as_ml_ratio_vs_' + str(it)
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)

@@ -2195,10 +2195,10 @@ def calcSatisticAndPlot_3D(data,
                                           'plots_z': plot_cols,
                                           'diff_z_labels': False,
                                           'label_z': replace_stat_names(it[-1]) + findUnit(str(it[0]), units),
-                                          'plot_x': str(tmp.columns.values[1]),
+                                          'plot_x': env_3d_info['lbl_xy'][0],
                                           'label_x': replaceCSVLabels(str(tmp.columns.values[1])) +
                                                      findUnit(str(tmp.columns.values[1]), units),
-                                          'plot_y': str(tmp.columns.values[0]),
+                                          'plot_y': env_3d_info['lbl_xy'][1],
                                           'label_y': replaceCSVLabels(str(tmp.columns.values[0])) +
                                                      findUnit(str(tmp.columns.values[0]), units),
                                           'legend': [tex_string_coding_style(a) for a in plot_cols],
@@ -4579,6 +4579,14 @@ def too_many_nan(df, col_name):
     return False
 
 
+def too_similar(df, col_name):
+    df_min = df[col_name].min()
+    df_max = df[col_name].max()
+    if np.isclose(df_max, df_min):
+        return True
+    return False
+
+
 def get_usable_3D_cols(df, col_names):
     mult_cols = True
     if isinstance(col_names, str):
@@ -4591,9 +4599,9 @@ def get_usable_3D_cols(df, col_names):
     if mult_cols:
         good_cols = []
         for it in col_names:
-            if not too_many_nan(df, it):
+            if not too_many_nan(df, it) and not too_similar(df, it):
                 good_cols.append(it)
-    elif too_many_nan(df, col_names):
+    elif too_many_nan(df, col_names) or too_similar(df, col_names):
         good_cols = None
     else:
         good_cols = col_names
@@ -4922,9 +4930,12 @@ def categorical_sort(df, col_name):
     order_list = get_categorical_list(col_name)
     if order_list:
         set_it = False
-        if col_name not in df.columns and col_name == df.index.name:
-            df.reset_index(inplace=True)
-            set_it = True
+        if col_name not in df.columns:
+            if col_name == df.index.name:
+                df.reset_index(inplace=True)
+                set_it = True
+            else:
+                return
         av_opts = list(dict.fromkeys(df[col_name].tolist()))
         order_list1 = [a for a in order_list if a in av_opts]
         if order_list1:
@@ -7589,7 +7600,7 @@ def main():
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 3
-    eval_nr = [11]#list(range(10, 11))
+    eval_nr = [-1]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -10720,7 +10731,7 @@ def main():
                     raise ValueError('Eval nr ' + ev + ' does not exist')
         elif test_nr == 3:
             if eval_nr[0] < 0:
-                evals = list(range(6, 11))
+                evals = list(range(11, 15))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -10778,6 +10789,156 @@ def main():
                                                   figs_externalize=False,
                                                   no_tex=False,
                                                   cat_sort=True)
+                elif ev == 12:
+                    fig_title_pre_str = 'Values on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['depthDistr']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_ml_acc,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort='depthDistr')
+                elif ev == 13:
+                    fig_title_pre_str = 'Values on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['kpAccSd']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_ml_acc,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort=None)
+                elif ev == 14:
+                    fig_title_pre_str = 'Values on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['depthDistr', 'kpAccSd'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort='depthDistr')
 
     return ret
 
