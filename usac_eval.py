@@ -1569,7 +1569,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                  'and their ' +
                                                  replaceCSVLabels(str(ret['grp_names'][-2])) +
                                                  ' (right axis) vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +
-                                                 ' for parameters ' + tex_string_coding_style(str(grp)) + '.'
+                                                 ' for parameters ' + tex_string_coding_style(str(grp)) + '.',
+                                      'enlarge_lbl_dist': None
                                       })
     ret['res'] = compile_2D_2y_axis('tex_min_RT-errors_and_corresponding_' + ret['grp_names'][-2] +
                                     '_vs_' + ret['grp_names'][-1] + '_for_', tex_infos, ret)
@@ -1823,7 +1824,8 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'legend_cols': 1,
                                   'use_marks': True,
                                   'xaxis_txt_rows': 1,
-                                  'caption': caption
+                                  'caption': caption,
+                                  'enlarge_lbl_dist': None
                                   })
 
     for rc, lc, rl, ll in zip(right_cols, left_cols, right_legend, left_legend):
@@ -1891,7 +1893,8 @@ def get_best_comb_th_scenes_1(**keywords):
                                       'legend_cols': 1,
                                       'use_marks': True,
                                       'xaxis_txt_rows': 1,
-                                      'caption': caption
+                                      'caption': caption,
+                                      'enlarge_lbl_dist': None
                                       })
 
     base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \

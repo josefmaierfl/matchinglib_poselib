@@ -283,8 +283,8 @@ x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
-ylabel=\VAR{sec['label_x']},%
-xlabel=\VAR{sec['label_y_l']},%
+ylabel={\VAR{sec['label_x']}},%
+xlabel={\VAR{sec['label_y_l']}},%
 enlarge y limits={true, abs value=0.5},%
 \BLOCK{ if sec['plots_l']|length > 1 }
 y=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_l']|length))|round(2) }cm,%
@@ -315,8 +315,8 @@ enlarge x limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
-xlabel=\VAR{sec['label_x']},%
-ylabel=\VAR{sec['label_y_l']},%
+xlabel={\VAR{sec['label_x']}},%
+ylabel={\VAR{sec['label_y_l']}},%
 enlarge x limits={true, abs value=0.5},%
 \BLOCK{ if sec['plots_l']|length > 1 }
 x=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_l']|length))|round(2) }cm,%
@@ -346,8 +346,8 @@ enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ else }
-xlabel=\VAR{sec['label_x']},%
-ylabel=\VAR{sec['label_y_l']},%
+xlabel={\VAR{sec['label_x']}},%
+ylabel={\VAR{sec['label_y_l']}},%
 \BLOCK{ if sec['print_meta_l'] }
 \BLOCK{ if sec['large_meta_space_needed_l'] }
 \BLOCK{ if sec['is_neg_l'] }
@@ -368,16 +368,26 @@ xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['limits_l'] is not none }
 \BLOCK{ if sec['limits_l']['miny'] is not none }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xmin=\VAR{sec['limits_l']['miny']},%
+\BLOCK{ else }
 ymin=\VAR{sec['limits_l']['miny']},%
 \BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ if sec['limits_l']['maxy'] is not none }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xmax=\VAR{sec['limits_l']['maxy']},%
+\BLOCK{ else }
 ymax=\VAR{sec['limits_l']['maxy']},%
 \BLOCK{ endif }
 \BLOCK{ endif }
+\BLOCK{ endif }
+\BLOCK{ if sec['title'] }
 \BLOCK{ if sec['fig_type'] == 'xbar' and sec['title_rows'] > 0 }
 title style={align=center,yshift=\VAR{ 1.5 * (sec['title_rows'] + 1) }ex},%
 \BLOCK{ endif }
 title={\VAR{ sec['title'] }},%
+\BLOCK{ endif }
 %legend style={
 %	at={(0.5,-0.12)},
 %	anchor=north,
@@ -457,7 +467,7 @@ xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
-xlabel=\VAR{sec['label_y_r']},%
+xlabel={\VAR{sec['label_y_r']}},%
 enlarge y limits={true, abs value=0.5},%
 \BLOCK{ if sec['plots_r']|length > 1 }
 y=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_r']|length))|round(2) }cm,%
@@ -486,7 +496,7 @@ enlarge x limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
-ylabel=\VAR{sec['label_y_r']},%
+ylabel={\VAR{sec['label_y_r']}},%
 enlarge x limits={true, abs value=0.5},%
 \BLOCK{ if sec['plots_r']|length > 1 }
 x=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_r']|length))|round(2) }cm,%
@@ -514,7 +524,7 @@ enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ else }
-ylabel=\VAR{sec['label_y_r']},%
+ylabel={\VAR{sec['label_y_r']}},%
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['print_meta_r'] }
 \BLOCK{ if sec['large_meta_space_needed_r'] }
@@ -534,17 +544,31 @@ enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ if sec['limits_r'] is not none }
 \BLOCK{ if sec['limits_r']['miny'] is not none }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xmin=\VAR{sec['limits_r']['miny']},
+\BLOCK{ else }
 ymin=\VAR{sec['limits_r']['miny']},
 \BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ if sec['limits_r']['maxy'] is not none }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+xmax=\VAR{sec['limits_r']['maxy']},
+\BLOCK{ else }
 ymax=\VAR{sec['limits_r']['maxy']},
+\BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ endif }
 legend style={
 \BLOCK{ if sec['fig_type'] == 'xbar' }
-	at={(0.5,-\VAR{ [(0.12 - 0.1 * sec['plots_r']|length)|round(2), 0.015]|max })},
-\BLOCK{ elif nonnumeric_x or (sec['plots_r']|length > 1 and sec['fig_type'] == 'ybar') }
+\BLOCK{ if sec['enlarge_lbl_dist'] }
+    at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
+\BLOCK{ else }
+	at={(0.5,-\VAR{ [(0.12 - 0.1 * [sec['plots_r']|length, sec['plots_l']|length]|max)|round(2), 0.015]|max })},
+\BLOCK{ endif }
+\BLOCK{ elif nonnumeric_x or ([sec['plots_r']|length, sec['plots_l']|length]|max|length > 1 and sec['fig_type'] == 'ybar') }
 	at={(0.5,-0.25)},
+\BLOCK{ elif sec['enlarge_lbl_dist'] }
+    at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
 \BLOCK{ else }
 	at={(0.5,-0.15)},
 \BLOCK{ endif }

@@ -1876,7 +1876,20 @@ def calc_pose_stable_ratio(**keywords):
 def get_best_stability_pars(**keywords):
     if 'data_separators' not in keywords:
         raise ValueError('data_separators missing!')
-    from statistics_and_plot import replaceCSVLabels
+    from statistics_and_plot import replaceCSVLabels, \
+        glossary_from_list, \
+        add_to_glossary, \
+        add_to_glossary_eval, \
+        strToLower, \
+        capitalizeFirstChar, \
+        add_val_to_opt_str, \
+        combine_str_for_title, \
+        calc_limits, \
+        split_large_titles, \
+        check_if_neg_values, \
+        calcNrLegendCols, \
+        check_legend_enlarge
+    keywords = prepare_io(**keywords)
     df_grp = keywords['data'].reset_index().groupby(keywords['data_separators'])
     grp_keys = df_grp.groups.keys()
     df_list = []
@@ -1900,17 +1913,23 @@ def get_best_stability_pars(**keywords):
     it_pars_meta = [a for a in keywords['it_parameters'] if a != keywords['on_2nd_axis']]
     if len(it_pars_meta) > 1:
         tmp3['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                               for _, row in tmp3[keywords['it_parameters']].iterrows()]
+                               for _, row in tmp3[it_pars_meta].iterrows()]
     else:
         tmp3['options_tex'] = ['{:.3f}'.format(float(val))
-                               for _, val in tmp3[keywords['it_parameters'][0]].iteritems()]
+                               for _, val in tmp3[it_pars_meta[0]].iteritems()]
+    is_numeric = pd.to_numeric(tmp3[keywords['data_separators'][1]], errors='coerce').notnull().all()
+    gloss = glossary_from_list(tmp3[keywords['data_separators'][0]].to_list())
+    gloss = add_to_glossary(tmp3[keywords['data_separators'][1]], gloss)
+    gloss = add_to_glossary_eval(keywords['eval_columns'], gloss)
 
-    tex_infos = {'title': 'Smallest Combined Median R \\& t Errors Based on Lowest and Highest Mean ' + \
-                          replaceCSVLabels('tr'), True, True, True) + \
-                          'Values and Their ' + \
-                          replaceCSVLabels(str(ret['partitions'][-1]), True, True, True) + \
-                          ' for Parameters ' + ret['sub_title_it_pars'] + \
-                          ' and Properties ' + ret['sub_title_partitions'],
+    sub_title_rest_it = combine_str_for_title(it_pars_meta)
+    title1 = replaceCSVLabels('tr', True, True, True)
+    title2 = ' Corresponding to Smallest Combined Median R \\& t Error Differences Between Default ' \
+             'and Most Likely Pose Errors Based on Lowest and Highest Mean ' + \
+             replaceCSVLabels('tr', False, True, True) + ' Values and Resulting Parameter '
+    title3 = replaceCSVLabels(keywords['on_2nd_axis'], False, True, True)
+    title = title1 + title2 + title3
+    tex_infos = {'title': title,
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': True,
@@ -1919,12 +1938,272 @@ def get_best_stability_pars(**keywords):
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true, non-numeric entries can be provided for the x-axis
-                 'nonnumeric_x': True,
+                 'nonnumeric_x': not is_numeric,
                  # Builds a list of abbrevations from a list of dicts
-                 'abbreviations': ret['gloss']
+                 'abbreviations': gloss
                  }
-
-
-
+    base_name = 'stable_pose_ratio_and_' + keywords['on_2nd_axis'] + '_vs_' + keywords['data_separators'][1]
+    tmp3['dont_care'] = [0] * int(tmp3.shape[0])
+    tmp3_grp = tmp3.groupby(keywords['data_separators'][0])
+    grp_keys = tmp3_grp.groups.keys()
+    for grp in grp_keys:
+        tmp4 = tmp3_grp.get_group(grp)
+        base_name1 = base_name + '_prop_' + keywords['data_separators'][0] + '-' + str(grp).replace('.', 'd')
+        b_mean_name = 'data_' + base_name1 + '.csv'
+        fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+        section_name = capitalizeFirstChar(strToLower(title)) + ' for property ' + \
+                       add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# ' + section_name + '\n')
+            f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+            tmp4.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+        caption = capitalizeFirstChar(strToLower(title1)) + ' (bottom axis) ' + strToLower(title2) + ' (top axis) ' + \
+                  strToLower(title3) + ' for property ' + \
+                  add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp) + \
+                  '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
+        _, _, use_limits_l = calc_limits(tmp4, False, True, None, 'tr')
+        is_neg_l = check_if_neg_values(tmp4, 'tr', False, use_limits_l)
+        _, _, use_limits_r = calc_limits(tmp4, False, True, None, keywords['on_2nd_axis'])
+        is_neg_r = check_if_neg_values(tmp4, keywords['on_2nd_axis'], False, use_limits_r)
+        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar')
+        section_name = split_large_titles(section_name, 80)
+        tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                      # Name of the whole section
+                                      'name': section_name.replace('\\\\', ' '),
+                                      # Title of the figure
+                                      'title': None,
+                                      'title_rows': section_name.count('\\\\'),
+                                      'fig_type': 'xbar',
+                                      # Column name for charts based on the left y-axis
+                                      'plots_l': ['tr'],
+                                      # Label of the left y-axis.
+                                      'label_y_l': replaceCSVLabels('tr'),
+                                      # Column name for charts based on the right y-axis
+                                      'plots_r': [keywords['on_2nd_axis']],
+                                      # Label of the right y-axis.
+                                      'label_y_r': replaceCSVLabels(keywords['on_2nd_axis']),
+                                      # Label of the x-axis.
+                                      'label_x': replaceCSVLabels(keywords['data_separators'][1]),
+                                      # Column name of the x-axis.
+                                      'plot_x': keywords['data_separators'][1],
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_l': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_l': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_l': is_neg_l,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_l': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_l': 0,
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_r': True,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_r': ['options_tex'],
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_r': is_neg_r,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_r': True,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_r': 0,
+                                      # Maximum and/or minimum y value/s on the left y-axis
+                                      'limits_l': use_limits_l,
+                                      # Legend entries for the charts belonging to the left y-axis
+                                      'legend_l': [replaceCSVLabels('tr')],
+                                      # Maximum and/or minimum y value/s on the right y-axis
+                                      'limits_r': use_limits_r,
+                                      # Legend entries for the charts belonging to the right y-axis
+                                      'legend_r': [replaceCSVLabels(keywords['on_2nd_axis'])],
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'xaxis_txt_rows': 1,
+                                      'caption': caption,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist
+                                      })
+        section_name = 'Smallest median R \\& t error differences between default and ' \
+                       'most likely pose errors based on lowest and highest mean ' + \
+                       replaceCSVLabels('tr', True, True, True) + ' Values and Resulting Parameter ' + \
+                       strToLower(title3) + ' for property ' + \
+                       add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp)
+        caption = 'Smallest median R \\& t error differences between default and most ' \
+                  'likely pose errors (bottom axis) ' + strToLower(title2) + ' (top axis) ' + \
+                  strToLower(title3) + ' for property ' + \
+                  add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp) + \
+                  '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
+        _, _, use_limits_l = calc_limits(tmp4, False, True, None, ['R_diff2_ml', 't_diff2_ml'])
+        is_neg_l = check_if_neg_values(tmp4, ['R_diff2_ml', 't_diff2_ml'], False, use_limits_l)
+        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 4, 'xbar')
+        section_name = split_large_titles(section_name, 80)
+        tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                      # Name of the whole section
+                                      'name': section_name.replace('\\\\', ' '),
+                                      # Title of the figure
+                                      'title': None,
+                                      'title_rows': section_name.count('\\\\'),
+                                      'fig_type': 'xbar',
+                                      # Column name for charts based on the left y-axis
+                                      'plots_l': ['R_diff2_ml', 't_diff2_ml'],
+                                      # Label of the left y-axis.
+                                      'label_y_l': 'error difference',
+                                      # Column name for charts based on the right y-axis
+                                      'plots_r': [keywords['on_2nd_axis'], 'dont_care'],
+                                      # Label of the right y-axis.
+                                      'label_y_r': replaceCSVLabels(keywords['on_2nd_axis']),
+                                      # Label of the x-axis.
+                                      'label_x': replaceCSVLabels(keywords['data_separators'][1]),
+                                      # Column name of the x-axis.
+                                      'plot_x': keywords['data_separators'][1],
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_l': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_l': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_l': is_neg_l,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_l': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_l': 0,
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_r': True,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_r': ['options_tex'],
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_r': is_neg_r,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_r': True,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_r': 0,
+                                      # Maximum and/or minimum y value/s on the left y-axis
+                                      'limits_l': use_limits_l,
+                                      # Legend entries for the charts belonging to the left y-axis
+                                      'legend_l': ['R error difference', '$\\bm{t}$ error difference'],
+                                      # Maximum and/or minimum y value/s on the right y-axis
+                                      'limits_r': use_limits_r,
+                                      # Legend entries for the charts belonging to the right y-axis
+                                      'legend_r': [replaceCSVLabels(keywords['on_2nd_axis'])],
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'xaxis_txt_rows': 1,
+                                      'caption': caption,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+        section_name = 'Smallest combined median R \\& t error differences between default and ' \
+                       'most likely pose errors based on lowest and highest mean ' + \
+                       replaceCSVLabels('tr', True, True, True) + ' Values and Resulting Parameter ' + \
+                       strToLower(title3) + ' for property ' + \
+                       add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp)
+        caption = 'Smallest combined median R \\& t error differences between default and most ' \
+                  'likely pose errors (bottom axis) ' + strToLower(title2) + ' (top axis) ' + \
+                  strToLower(title3) + ' for property ' + \
+                  add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp) + \
+                  '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
+        _, _, use_limits_l = calc_limits(tmp4, False, True, None, 'Rt_diff2_ml')
+        is_neg_l = check_if_neg_values(tmp4, 'Rt_diff2_ml', False, use_limits_l)
+        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar')
+        section_name = split_large_titles(section_name, 80)
+        tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                      # Name of the whole section
+                                      'name': section_name.replace('\\\\', ' '),
+                                      # Title of the figure
+                                      'title': None,
+                                      'title_rows': section_name.count('\\\\'),
+                                      'fig_type': 'xbar',
+                                      # Column name for charts based on the left y-axis
+                                      'plots_l': ['Rt_diff2_ml'],
+                                      # Label of the left y-axis.
+                                      'label_y_l': 'error difference',
+                                      # Column name for charts based on the right y-axis
+                                      'plots_r': [keywords['on_2nd_axis']],
+                                      # Label of the right y-axis.
+                                      'label_y_r': replaceCSVLabels(keywords['on_2nd_axis']),
+                                      # Label of the x-axis.
+                                      'label_x': replaceCSVLabels(keywords['data_separators'][1]),
+                                      # Column name of the x-axis.
+                                      'plot_x': keywords['data_separators'][1],
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_l': False,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_l': None,
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_l': is_neg_l,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_l': False,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_l': 0,
+                                      # Enables/disables printing meta information at each data point
+                                      'print_meta_r': True,
+                                      # Meta information printed at each data point. Must contain same number of
+                                      # column names as plots_l
+                                      'plot_meta_r': ['options_tex'],
+                                      # Are most values of plots at left axis negative?
+                                      'is_neg_r': is_neg_r,
+                                      # Is more space needed for plotting the meta information?
+                                      'large_meta_space_needed_r': True,
+                                      # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                      # are supported)
+                                      'rotate_meta_r': 0,
+                                      # Maximum and/or minimum y value/s on the left y-axis
+                                      'limits_l': use_limits_l,
+                                      # Legend entries for the charts belonging to the left y-axis
+                                      'legend_l': ['error difference'],
+                                      # Maximum and/or minimum y value/s on the right y-axis
+                                      'limits_r': use_limits_r,
+                                      # Legend entries for the charts belonging to the right y-axis
+                                      'legend_r': [replaceCSVLabels(keywords['on_2nd_axis'])],
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'xaxis_txt_rows': 1,
+                                      'caption': caption,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist
+                                      })
+    template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   nonnumeric_x=tex_infos['nonnumeric_x'],
+                                   sections=tex_infos['sections'],
+                                   fill_bar=True,
+                                   abbreviations=tex_infos['abbreviations'])
+    texf_name = base_name + '.tex'
+    pdf_name = base_name + '.pdf'
+    from statistics_and_plot import compile_tex
+    if keywords['build_pdf'][0]:
+        res = compile_tex(rendered_tex,
+                          keywords['tex_folder'],
+                          texf_name,
+                          tex_infos['make_index'],
+                          os.path.join(keywords['pdf_folder'], pdf_name),
+                          tex_infos['figs_externalize'])
+    else:
+        res = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     mean_pars = tmp3[keywords['it_parameters']].mean(axis=0)
+    main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
+    # Check if file and parameters exist
+    from usac_eval import check_par_file_exists, NoAliasDumper
+    ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    with open(ppar_file, 'a') as fo:
+        # Write parameters
+        alg_comb_bestl = mean_pars.to_numpy()
+        if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            raise ValueError('Nr of refine algorithms does not match')
+        alg_w = {}
+        for i, val in enumerate(keywords['it_parameters']):
+            alg_w[val] = float(alg_comb_bestl[i])
+        yaml.dump({main_parameter_name: {'Algorithm': alg_w}},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return res

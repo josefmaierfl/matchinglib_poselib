@@ -134,8 +134,8 @@ title style={align=center,yshift=2.1ex},%
 \BLOCK{ if sec['use_log_y_axis'] }
 ymode=log,%
 \BLOCK{ endif }
-xlabel=\VAR{sec['label_x']},%
-ylabel=\VAR{sec['label_y']},%
+xlabel={\VAR{sec['label_x']}},%
+ylabel={\VAR{sec['label_y']}},%
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['limits']['miny'] is not none }

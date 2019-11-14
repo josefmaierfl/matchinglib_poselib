@@ -145,8 +145,8 @@ log origin=infty,%
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
-ylabel=\VAR{sec['label_x']},%
-xlabel=\VAR{sec['label_y']},%
+ylabel={\VAR{sec['label_x']}},%
+xlabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['plots']|length > 1 }
 y=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
@@ -161,8 +161,8 @@ y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
-xlabel=\VAR{sec['label_x']},%
-ylabel=\VAR{sec['label_y']},%
+xlabel={\VAR{sec['label_x']}},%
+ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['plots']|length > 1 }
 x=\VAR{ (0.4 + 0.35 * sec['plots']|length)|round(2) }cm,%
 bar width=0.3cm,%
@@ -179,11 +179,11 @@ x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
-xlabel=\VAR{sec['label_x']},%
-ylabel=\VAR{sec['label_y']},%
+xlabel={\VAR{sec['label_x']}},%
+ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ else }
-xlabel=\VAR{sec['label_x']},%
-ylabel=\VAR{sec['label_y']},%
+xlabel={\VAR{sec['label_x']}},%
+ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
 yticklabel style={/pgf/number format/precision=4},%

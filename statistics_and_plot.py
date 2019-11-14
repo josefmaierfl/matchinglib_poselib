@@ -5403,6 +5403,14 @@ def findUnit(key, units):
 def calcNrLegendCols(tex_infos_section):
     if 'legend' in tex_infos_section and tex_infos_section['legend']:
         ld = tex_infos_section['legend']
+    elif 'legend_l' in tex_infos_section and 'legend_r' in tex_infos_section and \
+         (tex_infos_section['legend_l'] or tex_infos_section['legend_r']):
+        if tex_infos_section['legend_l'] and tex_infos_section['legend_r']:
+            ld = tex_infos_section['legend_l'] + tex_infos_section['legend_r']
+        elif tex_infos_section['legend_l']:
+            ld = tex_infos_section['legend_l']
+        else:
+            ld = tex_infos_section['legend_r']
     else:
         ld = tex_infos_section['plots']
     nr_plots = len(ld)
@@ -5538,7 +5546,7 @@ def add_to_glossary_eval(entry_ies, gloss=None):
             entries = [entry_ies]
     mylist = list(dict.fromkeys(entries))
     for elem in mylist:
-        elem_tex = replaceCSVLabels(str(elem))
+        elem_tex = get_only_math_tex(elem)
         if gloss:
             found = False
             for entry in gloss:
@@ -5553,6 +5561,15 @@ def add_to_glossary_eval(entry_ies, gloss=None):
         if ret[2]:
             gloss.append({'key': ret[0], 'description': ret[1]})
     return gloss
+
+
+def get_only_math_tex(label):
+    elem_tex = replaceCSVLabels(str(label))
+    if '$' in elem_tex and '=' in elem_tex:
+        obj = re.search(r'.+\$(.+)=.+\$', elem_tex)
+        if obj:
+            elem_tex = '$' + obj.group(1) + '$'
+    return elem_tex
 
 
 def getSymbolDescription(label):
@@ -6013,6 +6030,12 @@ def getSymbolDescription(label):
                 'between normalized z-components of ground truth relative stereo camera translation '
                 'vectors $\\bm{t}^{GT}_{i}=\\left[t^{GT}_{x,i},\\;t^{GT}_{y,i},\\;t^{GT}_{z,i}\\right]^{T}$ '
                 'for frame numbers $i$', True)
+    elif label == 'tr':
+        return (get_only_math_tex(label),
+                capitalizeFirstChar(replaceCSVLabels(label)) + ' with number $n_{s}$ of stable pose detections '
+                                                               'and number $n_{us}$ of detecting no stability. '
+                                                               '$n_{s}+n_{us}$ equals the number of successful '
+                                                               'pose estimations within one sequence.', True)
     else:
         return (replaceCSVLabels(label), replaceCSVLabels(label), False)
 
@@ -10989,12 +11012,15 @@ def main():
                     # special_calcs_args = {'build_pdf': (True, True),
                     #                       'use_marks': False,
                     #                       'data_separators': ['rt_change_type', 'inlratCRate'],
-                    #                       'to_int_cols': ['stereoParameters_minContStablePoses']}
+                    #                       'to_int_cols': ['stereoParameters_minNormDistStable'],
+                    #                       'on_2nd_axis': 'stereoParameters_maxPoolCorrespondences',
+                    #                       'res_par_name': 'robustness_best_pose_stable_pars'}
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': False,
                                           'data_separators': ['rt_change_type', 'inlratCRate'],
                                           'to_int_cols': ['stereoParameters_maxPoolCorrespondences'],
-                                          'on_2nd_axis': 'stereoParameters_maxPoolCorrespondences'}
+                                          'on_2nd_axis': 'stereoParameters_maxPoolCorrespondences',
+                                          'res_par_name': 'robustness_best_pose_stable_pars'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
                     #                                         'stereoParameters_minNormDistStable',
                     #                                         'stereoParameters_absThRankingStable',
