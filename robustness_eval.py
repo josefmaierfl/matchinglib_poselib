@@ -263,6 +263,8 @@ def get_rt_change_type(**keywords):
                               (df_new['R_mostLikely(2,0)'] == 0) &
                               (df_new['R_mostLikely(2,1)'] == 0) &
                               (df_new['R_mostLikely(2,2)'] == 0))]
+    if 'filter_poseIsStable' in keywords and keywords['filter_poseIsStable']:
+        df_new = df_new.loc[(df_new['poseIsStable'] != 0)]
     return df_new
 
 
@@ -1666,7 +1668,6 @@ def get_ml_acc(**keywords):
     for it in keywords['data_partitions']:
             if it not in individual_grps:
                 raise ValueError(it + ' provided in data_partitions not found in dataframe')
-    needed_cols = individual_grps + keywords['eval_columns']
     from statistics_and_plot import short_concat_str, \
         replaceCSVLabels, \
         add_to_glossary, \
@@ -1716,7 +1717,10 @@ def get_ml_acc(**keywords):
                  # Builds a list of abbrevations of a list of dicts
                  'abbreviations': None}
     for it in keywords['data_partitions']:
-        drop_cols = [a for a in individual_grps if a != it]
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            drop_cols = [a for a in individual_grps if a != it and a not in keywords['it_parameters']]
+        else:
+            drop_cols = [a for a in individual_grps if a != it]
         df = b_diff.drop(drop_cols, axis=1)
         df['negative'] = df['Rt_diff2_ml'].apply(lambda x: 1 if x < 0 else 0)
         df['positive'] = df['Rt_diff2_ml'].apply(lambda x: 1 if x > 0 else 0)
@@ -1732,13 +1736,24 @@ def get_ml_acc(**keywords):
                 isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
             categorical_sort(df1, it)
         gloss = add_to_glossary(df1.index.values, gloss)
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            if len(keywords['meta_it_pars']) > 1:
+                df1['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                      for _, row in df1[keywords['meta_it_pars']].iterrows()]
+            else:
+                df1['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in
+                                      df1[keywords['meta_it_pars'][0]].iteritems()]
         base_name = base_out_name0 + str(it)
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' + str(it) + '\n')
             df1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-        _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False)
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False,
+                                                                   keywords['it_parameters'] + ['options_tex'])
+        else:
+            _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False)
         is_numeric = pd.to_numeric(df1.reset_index()[it], errors='coerce').notnull().all()
         section_name = 'Mean Differences Between ' + \
                        replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
@@ -1909,7 +1924,8 @@ def get_best_stability_pars(**keywords):
     tmp3 = tmp2.loc[tmp2.groupby(keywords['data_separators'])['Rt_diff2_ml'].idxmin()].copy(deep=True)
     if 'to_int_cols' in keywords and keywords['to_int_cols']:
         for it in keywords['to_int_cols']:
-            tmp3.loc[:, it] = tmp3.loc[:, it].round(decimals=0).astype(int)
+            tmp3.loc[:, it] = tmp3.loc[:, it].round(decimals=0)
+            tmp3[it].astype(int, copy=False)
     it_pars_meta = [a for a in keywords['it_parameters'] if a != keywords['on_2nd_axis']]
     if len(it_pars_meta) > 1:
         tmp3['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])

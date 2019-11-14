@@ -10982,7 +10982,7 @@ def main():
                 evals = eval_nr
             for ev in evals:
                 if ev == 15:
-                    fig_title_pre_str = 'Statistics on the Relative Ratio of Stable Pose Detections ' \
+                    fig_title_pre_str = 'Values on the Relative Ratio of Stable Pose Detections ' \
                                         'for Different '
                     eval_columns = ['R_diffAll', 't_angDiff_deg', 'R_mostLikely_diffAll', 't_mostLikely_angDiff_deg']
                     units = [('R_diffAll', '/\\textdegree'), ('t_angDiff_deg', '/\\textdegree'),
@@ -11012,8 +11012,8 @@ def main():
                     # special_calcs_args = {'build_pdf': (True, True),
                     #                       'use_marks': False,
                     #                       'data_separators': ['rt_change_type', 'inlratCRate'],
-                    #                       'to_int_cols': ['stereoParameters_minNormDistStable'],
-                    #                       'on_2nd_axis': 'stereoParameters_maxPoolCorrespondences',
+                    #                       'to_int_cols': ['stereoParameters_minContStablePoses'],
+                    #                       'on_2nd_axis': 'stereoParameters_minNormDistStable',
                     #                       'res_par_name': 'robustness_best_pose_stable_pars'}
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': False,
@@ -11052,6 +11052,85 @@ def main():
                                                              special_calcs_args=special_calcs_args,
                                                              calc_func=calc_pose_stable_ratio,
                                                              calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
+                elif ev == 16:
+                    fig_title_pre_str = 'Values on the Relative Ratio of Stable Pose Detections ' \
+                                        'for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    # it_parameters = ['stereoParameters_minContStablePoses',
+                    #                  'stereoParameters_minNormDistStable',
+                    #                  'stereoParameters_absThRankingStable']
+                    it_parameters = ['USAC_parameters_estimator',
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'USAC_parameters_refinealg']
+                    partitions = ['rt_change_type']
+                    # special_calcs_args = {'build_pdf': (True, True),
+                    #                       'use_marks': False,
+                    #                       'data_partitions': ['rt_change_type', 'inlratCRate'],
+                    #                       'eval_it_pars': True,
+                    #                       'meta_it_pars': ['stereoParameters_minContStablePoses']}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['rt_change_type', 'inlratCRate'],
+                                          'eval_it_pars': True,
+                                          'meta_it_pars': ['stereoParameters_maxPoolCorrespondences']}
+                    # filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                    #                                         'stereoParameters_minNormDistStable',
+                    #                                         'stereoParameters_absThRankingStable',
+                    #                                         'inlratCRate',
+                    #                                         'kpAccSd',
+                    #                                         'depthDistr'],
+                    #                     'filter_mostLikely': True,
+                    #                     'filter_poseIsStable': True}
+                    filter_func_args = {'data_seperators': ['USAC_parameters_estimator',
+                                                            'stereoParameters_maxPoolCorrespondences',
+                                                            'USAC_parameters_refinealg',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_poseIsStable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabi',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
                                                              compare_source=None,
                                                              fig_type='smooth',
                                                              use_marks=True,
