@@ -95,7 +95,7 @@
 \BLOCK{ for sec in sections}
 \BLOCK{ if sec['caption'] is not none }
 %\section{\VAR{ sec['caption'] }}
-\BLOCK{ else }
+\BLOCK{ elif sec['name'] is not none }
 %\caption{\VAR{ sec['name'] }}
 \BLOCK{ endif }
 
@@ -131,7 +131,7 @@
 \begin{tikzpicture}
 \begin{axis}[
 align=center,%
-\BLOCK{ if sec['enlarge_title_space'] }
+\BLOCK{ if sec['enlarge_title_space'] and sec['name'] }
 title style={align=center,yshift=2.1ex},%
 \BLOCK{ endif }
 \BLOCK{ if sec['use_log_y_axis'] and sec['fig_type'] == 'xbar' }
@@ -145,6 +145,12 @@ log origin=infty,%
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
+\BLOCK{ if '\\' in sec['label_x'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
 ylabel={\VAR{sec['label_x']}},%
 xlabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['plots']|length > 1 }
@@ -161,6 +167,12 @@ y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['plots']|length > 1 }
@@ -179,9 +191,21 @@ x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 xtick=data,%
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ else }
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ endif }
@@ -201,7 +225,9 @@ xmax=\VAR{sec['limits']['maxy']},
 ymax=\VAR{sec['limits']['maxy']},
 \BLOCK{ endif }
 \BLOCK{ endif }
+\BLOCK{ if sec['name'] }
 title={\VAR{ sec['name'] }},
+\BLOCK{ endif }
 \BLOCK{ if sec['legend'] }
 legend style={
 \BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and sec['fig_type'] == 'ybar') }
@@ -255,7 +281,7 @@ y=\VAR{ it }
 \BLOCK{ if make_index }
 \BLOCK{ if sec['caption'] is not none }
 \caption{\VAR{ sec['caption'] }}
-\BLOCK{ else }
+\BLOCK{ elif sec['name'] is not none }
 \caption{\VAR{ sec['name'] }}
 \BLOCK{ endif }
 \end{figure}

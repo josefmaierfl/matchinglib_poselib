@@ -283,6 +283,12 @@ x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
+\BLOCK{ if '\\' in sec['label_x'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y_l'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
 ylabel={\VAR{sec['label_x']}},%
 xlabel={\VAR{sec['label_y_l']}},%
 enlarge y limits={true, abs value=0.5},%
@@ -315,6 +321,12 @@ enlarge x limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y_l'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y_l']}},%
 enlarge x limits={true, abs value=0.5},%
@@ -346,6 +358,12 @@ enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ else }
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y_l'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y_l']}},%
 \BLOCK{ if sec['print_meta_l'] }
@@ -467,6 +485,9 @@ xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
+\BLOCK{ if '\\' in sec['label_y_r'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_y_r']}},%
 enlarge y limits={true, abs value=0.5},%
 \BLOCK{ if sec['plots_r']|length > 1 }
@@ -496,6 +517,9 @@ enlarge x limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
+\BLOCK{ if '\\' in sec['label_y_r'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 ylabel={\VAR{sec['label_y_r']}},%
 enlarge x limits={true, abs value=0.5},%
 \BLOCK{ if sec['plots_r']|length > 1 }
@@ -524,6 +548,9 @@ enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ else }
+\BLOCK{ if '\\' in sec['label_y_r'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 ylabel={\VAR{sec['label_y_r']}},%
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['print_meta_r'] }

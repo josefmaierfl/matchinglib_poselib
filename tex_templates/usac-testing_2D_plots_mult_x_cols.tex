@@ -134,6 +134,12 @@ title style={align=center,yshift=2.1ex},%
 \BLOCK{ if sec['use_log_y_axis'] }
 ymode=log,%
 \BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y']}},%
 xticklabel style={/pgf/number format/precision=4},%

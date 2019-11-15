@@ -5349,7 +5349,7 @@ def split_large_titles(title_str, nr_chars=100):
 
 
 def split_large_str(large_str, nr_chars=100):
-    ls = len(large_str)
+    ls = get_tex_string_length(large_str)
     if ls <= nr_chars:
         return large_str
     else:
@@ -5361,7 +5361,7 @@ def split_large_str(large_str, nr_chars=100):
         s1_tmp = []
         l1 = 0
         for s2 in s1:
-            l1 += len(s2)
+            l1 += get_tex_string_length(s2)
             if l1 < ls_sum:
                 s1_tmp.append(s2)
             elif l1 >= ls_sum and it_nr < nr_splits:
@@ -6849,14 +6849,57 @@ def get_fig_x_size(df, x_axis_column, nr_plots, fig_type):
     return data_points
 
 
-def check_legend_enlarge(df, x_axis_column, nr_plots, fig_type):
+def check_legend_enlarge(df, x_axis_column, nr_plots, fig_type, nr_x_label_rows=1, is_string_x=False):
     data_points = get_fig_x_size(df, x_axis_column, nr_plots, fig_type)
     if fig_type == 'xbar' and data_points < 20:
-        dist = -0.04 * float(data_points) + 0.73
+        dist = -0.04 * float(data_points) + 0.73 + float(nr_x_label_rows - 1) * 0.04
         if dist < 0.15:
             dist = 0.15
         return dist
+    elif nr_x_label_rows > 1:
+        if is_string_x:
+            dist = 0.25 + float(nr_x_label_rows - 1) * 0.06
+        else:
+            dist = 0.12 + float(nr_x_label_rows - 1) * 0.06
+        return dist
     return None
+
+
+def split_large_labels(df, x_axis_column, nr_plots, fig_type, has_2_y_axis=False, labeltext_x=None, labeltext_y=None):
+    if labeltext_x is None and labeltext_y is None:
+        return None, None
+    elif labeltext_x is not None and labeltext_y is not None:
+        if fig_type == 'xbar':
+            data_points = get_fig_x_size(df, x_axis_column, nr_plots, fig_type)
+            labeltext_y_new = split_large_titles(labeltext_y, 48)
+            if has_2_y_axis and data_points < 18:
+                labeltext_x_new = split_large_titles(labeltext_x, 40)
+            elif has_2_y_axis:
+                labeltext_x_new = split_large_titles(labeltext_x, 40 + (data_points - 18) * 3)
+            else:
+                labeltext_x_new = split_large_titles(labeltext_x, 12 + data_points * 3)
+        else:
+            labeltext_x_new = split_large_titles(labeltext_x, 48)
+            labeltext_y_new = split_large_titles(labeltext_y, 40)
+        return labeltext_x_new, labeltext_y_new
+    elif labeltext_x is not None:
+        if fig_type == 'xbar':
+            data_points = get_fig_x_size(df, x_axis_column, nr_plots, fig_type)
+            if has_2_y_axis and data_points < 18:
+                labeltext_x_new = split_large_titles(labeltext_x, 40)
+            elif has_2_y_axis:
+                labeltext_x_new = split_large_titles(labeltext_x, 40 + (data_points - 18) * 3)
+            else:
+                labeltext_x_new = split_large_titles(labeltext_x, 12 + data_points * 3)
+        else:
+            labeltext_x_new = split_large_titles(labeltext_x, 48)
+        return labeltext_x_new, None
+    else:
+        if fig_type == 'xbar':
+            labeltext_y_new = split_large_titles(labeltext_y, 48)
+        else:
+            labeltext_y_new = split_large_titles(labeltext_y, 40)
+        return None, labeltext_y_new
 
 
 #Only for testing

@@ -321,7 +321,9 @@ def get_best_comb_scenes_1(**keywords):
         split_large_titles, \
         enl_space_title, \
         strToLower, \
-        check_if_neg_values
+        check_if_neg_values, \
+        split_large_labels, \
+        check_legend_enlarge
     ret = pars_calc_single_fig_partitions(**keywords)
     b_min = ret['b'].stack().reset_index()
     b_min.rename(columns={b_min.columns[-1]: 'Rt_diff'}, inplace=True)
@@ -412,6 +414,10 @@ def get_best_comb_scenes_1(**keywords):
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, ['options_tex', it_pars_name])
         is_neg = check_if_neg_values(tmp, 'Rt_diff', use_log, use_limits)
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['x_axis_column'][0]], errors='coerce').notnull().all()
+        label_x = replaceCSVLabels(keywords['x_axis_column'][0])
+        label_x, _ = split_large_labels(tmp, keywords['x_axis_column'][0], 1, 'ybar', False, label_x)
+        enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['x_axis_column'][0],
+                                                1, 'ybar', label_x.count('\\') + 1, not is_numeric)
         section_name = split_large_titles(section_name)
         exp_value = enl_space_title(exp_value, section_name, tmp, keywords['x_axis_column'],
                                     1, 'ybar')
@@ -423,7 +429,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'plots': ['Rt_diff'],
                                       'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
-                                      'label_x': replaceCSVLabels(keywords['x_axis_column'][0]),
+                                      'label_x': label_x,
                                       # Column name of axis with bars. For xbar it is the column for the y-axis
                                       'print_x': keywords['x_axis_column'][0],
                                       # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -440,7 +446,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'use_string_labels': True if not is_numeric else False,
                                       'use_log_y_axis': use_log,
                                       'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': None,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'is_neg': is_neg,
@@ -559,6 +565,10 @@ def get_best_comb_scenes_1(**keywords):
                                                            ret['it_parameters'])
     is_neg = check_if_neg_values(b_mean, 'Rt_diff', use_log, use_limits)
     is_numeric = pd.to_numeric(b_mean.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
+    label_x = replaceCSVLabels(ret['partitions'][0])
+    label_x, _ = split_large_labels(b_mean, ret['partitions'][0], 1, 'ybar', False, label_x)
+    enlarge_lbl_dist = check_legend_enlarge(b_mean, ret['partitions'][0],
+                                            1, 'ybar', label_x.count('\\') + 1, not is_numeric)
     section_name = split_large_titles(section_name)
     exp_value = enl_space_title(exp_value, section_name, b_mean, ret['partitions'][0],
                                 1, 'ybar')
@@ -570,7 +580,7 @@ def get_best_comb_scenes_1(**keywords):
                                   'plots': ['Rt_diff'],
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': replaceCSVLabels(ret['partitions'][0]),
+                                  'label_x': label_x,
                                   # Column name of axis with bars. For xbar it is the column for the y-axis
                                   'print_x': ret['partitions'][0],
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -587,7 +597,7 @@ def get_best_comb_scenes_1(**keywords):
                                   'use_string_labels': True if not is_numeric else False,
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
-                                  'enlarge_lbl_dist': None,
+                                  'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': True,
                                   'is_neg': is_neg,
@@ -693,7 +703,8 @@ def get_best_comb_3d_scenes_1(**keywords):
         strToLower, \
         check_legend_enlarge, \
         calcNrLegendCols, \
-        check_if_neg_values
+        check_if_neg_values, \
+        split_large_labels
     ret = pars_calc_multiple_fig_partitions(**keywords)
     b_min = ret['b'].stack().reset_index()
     b_min.rename(columns={b_min.columns[-1]: 'Rt_diff'}, inplace=True)
@@ -795,10 +806,13 @@ def get_best_comb_3d_scenes_1(**keywords):
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, False, it_pars_names + meta_cols)
         is_neg = check_if_neg_values(tmp, plots, use_log, use_limits)
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
+        label_x = replaceCSVLabels(keywords['xy_axis_columns'][0])
+        label_x, _ = split_large_labels(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar', False, label_x)
         section_name = split_large_titles(section_name)
-        enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar')
+        enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar',
+                                                label_x.count('\\') + 1, not is_numeric)
         exp_value = enl_space_title(exp_value, section_name, tmp, keywords['xy_axis_columns'][0],
-                                    len(plots), 'xbar')
+                                    len(plots), 'xbar', label_x.count('\\') + 1, not is_numeric)
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                       'name': section_name.replace('\\\\', ' '),
                                       'title': section_name,
@@ -807,7 +821,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                       'plots': plots,
                                       'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
-                                      'label_x': replaceCSVLabels(keywords['xy_axis_columns'][0]),
+                                      'label_x': label_x,
                                       # Column name of axis with bars. For xbar it is the column for the y-axis
                                       'print_x': keywords['xy_axis_columns'][0],
                                       # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -959,8 +973,11 @@ def get_best_comb_3d_scenes_1(**keywords):
     _, use_limits, use_log, exp_value = get_limits_log_exp(b_mean1, True, True, False, it_pars_names + meta_cols)
     is_neg = check_if_neg_values(b_mean1, plots, use_log, use_limits)
     is_numeric = pd.to_numeric(b_mean1.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
+    label_x = replaceCSVLabels(ret['partitions'][0])
+    label_x, _ = split_large_labels(b_mean1, ret['partitions'][0], len(plots), 'xbar', False, label_x)
     section_name = split_large_titles(section_name)
-    enlarge_lbl_dist = check_legend_enlarge(b_mean1, ret['partitions'][0], len(plots), 'xbar')
+    enlarge_lbl_dist = check_legend_enlarge(b_mean1, ret['partitions'][0], len(plots), 'xbar',
+                                            label_x.count('\\') + 1, not is_numeric)
     exp_value = enl_space_title(exp_value, section_name, b_mean1, ret['partitions'][0],
                                 len(plots), 'xbar')
 
@@ -972,7 +989,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                   'plots': plots,
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': replaceCSVLabels(ret['partitions'][0]),
+                                  'label_x': label_x,
                                   # Column name of axis with bars. For xbar it is the column for the y-axis
                                   'print_x': ret['partitions'][0],
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -1098,8 +1115,11 @@ def get_best_comb_3d_scenes_1(**keywords):
                                                            ret['it_parameters'])
     is_neg = check_if_neg_values(b_mmean, 'Rt_diff', use_log, use_limits)
     is_numeric = pd.to_numeric(b_mmean.reset_index()[keywords['xy_axis_columns'][1]], errors='coerce').notnull().all()
+    label_x = replaceCSVLabels(keywords['xy_axis_columns'][1])
+    label_x, _ = split_large_labels(b_mmean, keywords['xy_axis_columns'][1], 1, 'ybar', False, label_x)
     section_name = split_large_titles(section_name)
-    enlarge_lbl_dist = check_legend_enlarge(b_mmean, keywords['xy_axis_columns'][1], 1, 'ybar')
+    enlarge_lbl_dist = check_legend_enlarge(b_mmean, keywords['xy_axis_columns'][1], 1, 'ybar',
+                                            label_x.count('\\') + 1, not is_numeric)
     exp_value = enl_space_title(exp_value, section_name, b_mmean, keywords['xy_axis_columns'][1],
                                 1, 'ybar')
 
@@ -1111,7 +1131,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                   'plots': ['Rt_diff'],
                                   'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
-                                  'label_x': replaceCSVLabels(keywords['xy_axis_columns'][1]),
+                                  'label_x': label_x,
                                   # Column name of axis with bars. For xbar it is the column for the y-axis
                                   'print_x': keywords['xy_axis_columns'][1],
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -1220,7 +1240,8 @@ def calc_calib_delay(**keywords):
         add_val_to_opt_str, \
         replace_stat_names, \
         split_large_str, \
-        replace_stat_names_col_tex
+        replace_stat_names_col_tex, \
+        split_large_labels
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['it_parameters'] +
                                      keywords['eval_on'] +
@@ -1354,8 +1375,11 @@ def calc_calib_delay(**keywords):
             section_name = capitalizeFirstChar(strToLower(hist_title_p1))
             caption = capitalizeFirstChar(strToLower(hist_title))
             _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False)
+            label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
+            label_x, _ = split_large_labels(df_hist, 'fd', len(df_hist.columns.values), 'xbar', False, label_x)
             section_name = split_large_titles(section_name, 80)
-            enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', len(df_hist.columns.values), 'xbar')
+            enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', len(df_hist.columns.values), 'xbar',
+                                                    label_x.count('\\') + 1, False)
             exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
                                         len(df_hist.columns.values), 'xbar')
 
@@ -1367,7 +1391,7 @@ def calc_calib_delay(**keywords):
                                           'plots': df_hist.columns.values,
                                           'label_y': 'count',  # Label of the value axis. For xbar it labels the x-axis
                                           # Label/column name of axis with bars. For xbar it labels the y-axis
-                                          'label_x': replaceCSVLabels('fd') + findUnit('fd', keywords['units']),
+                                          'label_x': label_x,
                                           # Column name of axis with bars. For xbar it is the column for the y-axis
                                           'print_x': 'fd',
                                           # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -1399,8 +1423,10 @@ def calc_calib_delay(**keywords):
                                strToLower(add_val_to_opt_str(hist_title_p02, part)) + strToLower(hist_title_p03)
                 caption = section_name + strToLower(hist_title_p2)
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False, None, col)
+                label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
+                label_x, _ = split_large_labels(df_hist, 'fd', 1, 'xbar', False, label_x)
                 section_name = split_large_titles(section_name, 80)
-                enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', 1, 'xbar')
+                enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', 1, 'xbar', label_x.count('\\') + 1, False)
                 exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
                                             1, 'xbar')
 
@@ -1412,7 +1438,7 @@ def calc_calib_delay(**keywords):
                                               'plots': [col],
                                               'label_y': 'count',  # Label of the value axis. For xbar it labels the x-axis
                                               # Label/column name of axis with bars. For xbar it labels the y-axis
-                                              'label_x': replaceCSVLabels('fd') + findUnit('fd', keywords['units']),
+                                              'label_x': label_x,
                                               # Column name of axis with bars. For xbar it is the column for the y-axis
                                               'print_x': 'fd',
                                               # Set print_meta to True if values from column plot_meta should be printed next to each bar
@@ -1675,7 +1701,10 @@ def get_ml_acc(**keywords):
         get_limits_log_exp, \
         combine_str_for_title, \
         enl_space_title, \
-        categorical_sort
+        categorical_sort, \
+        insert_str_option_values, \
+        split_large_labels, \
+        check_legend_enlarge
     eval_columns_init = deepcopy(keywords['eval_columns'])
     eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
     eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
@@ -1702,7 +1731,24 @@ def get_ml_acc(**keywords):
                  replaceCSVLabels('Rt_diff', True, True, True) + ' and ' + \
                  replaceCSVLabels('Rt_mostLikely_diff', True, True, True) + ' vs ' + \
                  combine_str_for_title(keywords['data_partitions'])
-    base_out_name0 = 'mean_diff_default-ml_rt_error_vs_'
+    if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+        title_name += ' for Parameter Combinations of ' + combine_str_for_title(keywords['it_parameters'])
+        base_out_name0 = 'mean_diff_default-ml_rt_error_pars_' + short_concat_str(keywords['it_parameters']) + '_vs_'
+        tex_infos1 = {'title': 'Minimum ' + title_name,
+                      'sections': [],
+                      # Builds an index with hyperrefs on the beginning of the pdf
+                      'make_index': True,
+                      # If True, the figures are adapted to the page height if they are too big
+                      'ctrl_fig_size': True,
+                      # If true, a pdf is generated for every figure and inserted as image in a second run
+                      'figs_externalize': False,
+                      # If true, non-numeric entries can be provided for the x-axis
+                      'nonnumeric_x': False,
+                      # Builds a list of abbrevations from a list of dicts
+                      'abbreviations': None
+                      }
+    else:
+        base_out_name0 = 'mean_diff_default-ml_rt_error_vs_'
     base_out_name = base_out_name0 + short_concat_str(keywords['data_partitions'])
     tex_infos = {'title': title_name,
                  'sections': [],
@@ -1724,64 +1770,111 @@ def get_ml_acc(**keywords):
         df = b_diff.drop(drop_cols, axis=1)
         df['negative'] = df['Rt_diff2_ml'].apply(lambda x: 1 if x < 0 else 0)
         df['positive'] = df['Rt_diff2_ml'].apply(lambda x: 1 if x > 0 else 0)
-        df = df.groupby(it).describe()
-        base_name = 'stats_rt_default-rt_ml_for_' + it
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            df3 = df.groupby([it] + keywords['it_parameters']).describe()
+            df = df3.reset_index().set_index(keywords['it_parameters'])
+            if len(keywords['it_parameters']) > 1:
+                it_index = ['-'.join(map(str, a)) for a in df.index]
+                df.index = it_index
+                it_pars_name = '-'.join(keywords['it_parameters'])
+                df.index.name = it_pars_name
+            else:
+                it_pars_name = keywords['it_parameters'][0]
+            df = df.reset_index().set_index([it, it_pars_name])
+            base_name = 'stats_rt_default-rt_ml_vs_' + it + '_pars_' + short_concat_str(keywords['it_parameters'])
+        else:
+            df = df.groupby(it).describe()
+            base_name = 'stats_rt_default-rt_ml_for_' + it
+            it_pars_name = it
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Statistics on differences between most likely and default R&t errors vs ' + it + '\n')
+            if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
         df1 = df.xs('mean', axis=1, level=1, drop_level=True).drop(['negative', 'positive'], axis=1)
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            df1 = df1.unstack()
+            fig_cols = ['-'.join(a) for a in df1.columns]
+            df1.columns = fig_cols
+        else:
+            fig_cols = ['Rt_diff2_ml']
         if 'cat_sort' in keywords and keywords['cat_sort'] and \
                 isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
             categorical_sort(df1, it)
         gloss = add_to_glossary(df1.index.values, gloss)
-        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
-            if len(keywords['meta_it_pars']) > 1:
-                df1['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
-                                      for _, row in df1[keywords['meta_it_pars']].iterrows()]
-            else:
-                df1['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in
-                                      df1[keywords['meta_it_pars'][0]].iteritems()]
         base_name = base_out_name0 + str(it)
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' + str(it) + '\n')
+            if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
-            _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False,
-                                                                   keywords['it_parameters'] + ['options_tex'])
-        else:
-            _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False)
         is_numeric = pd.to_numeric(df1.reset_index()[it], errors='coerce').notnull().all()
-        section_name = 'Mean Differences Between ' + \
-                       replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
-                       replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' Values vs ' + \
-                       replaceCSVLabels(it, False, False, True)
-        exp_value = enl_space_title(exp_value, section_name, df1, it,
-                                    1, 'ybar')
+        label_x = replaceCSVLabels(str(it))
+        label_x, _ = split_large_labels(df1, str(it), 1, 'ybar', False, label_x)
+        enlarge_lbl_dist = check_legend_enlarge(df1, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
         reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': section_name,
-                                      # If caption is None, the field name is used
-                                      'caption': None,
-                                      'fig_type': 'ybar',
-                                      'plots': ['Rt_diff2_ml'],
-                                      'label_y': replaceCSVLabels('Rt_mostLikely_diff') + '-' +
-                                                 replaceCSVLabels('Rt_diff'),
-                                      'plot_x': str(it),
-                                      'label_x': replaceCSVLabels(str(it)),
-                                      'limits': use_limits,
-                                      'legend': None,
-                                      'legend_cols': 1,
-                                      'use_marks': False,
-                                      'use_log_y_axis': use_log,
-                                      'enlarge_title_space': exp_value,
-                                      'use_string_labels': True if not is_numeric else False,
-                                      'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': None
-                                      })
+        for use_col in fig_cols:
+            caption_name = 'Mean differences between ' + \
+                           replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
+                           replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' Values vs ' + \
+                           replaceCSVLabels(it, False, False, True)
+            if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+                par_vals = [float(a) for a in use_col.split('-') if a != 'Rt_diff2_ml']
+                option_vals_str = insert_str_option_values(keywords['it_parameters'], par_vals)
+                caption_name += ' for parameters ' + option_vals_str
+                _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False, None, use_col)
+            else:
+                _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False)
+
+            # exp_value = enl_space_title(exp_value, section_name, df1, it,
+            #                             1, 'ybar')
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': None,
+                                          # If caption is None, the field name is used
+                                          'caption': caption_name,
+                                          'fig_type': 'ybar',
+                                          'plots': use_col,
+                                          'label_y': replaceCSVLabels('Rt_mostLikely_diff') + '-' +
+                                                     replaceCSVLabels('Rt_diff'),
+                                          'plot_x': str(it),
+                                          'label_x': label_x,
+                                          'limits': use_limits,
+                                          'legend': None,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          'use_log_y_axis': use_log,
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': True if not is_numeric else False,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist
+                                          })
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            tex_infos1['nonnumeric_x'] = not is_numeric
+            df4 = df3.xs('mean', axis=1, level=1, drop_level=True).drop(['negative', 'positive'], axis=1)
+            df4 = df4.reset_index().set_index(keywords['it_parameters'])
+            df4 = df4.loc[df4.groupby(it)['Rt_diff2_ml'].idxmin()].reset_index()
+            if len(keywords['meta_it_pars']) > 1:
+                df4['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                      for _, row in df4[keywords['meta_it_pars']].iterrows()]
+            else:
+                df4['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in
+                                      df4[keywords['meta_it_pars'][0]].iteritems()]
+            b_mean_name = 'data_min_' + base_name + '.csv'
+            fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+            with open(fb_mean_name, 'a') as f:
+                f.write(
+                    '# Minimum mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' +
+                    str(it) + '\n')
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+                df4.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            label_x = replaceCSVLabels(str(it))
+            label_x, _ = split_large_labels(df1, str(it), 1, 'ybar', False, label_x)
+            enlarge_lbl_dist = check_legend_enlarge(df1, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
+            reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
 
         df2_mean = df.xs('mean', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
         df2_cnt = df.xs('count', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
@@ -1802,6 +1895,9 @@ def get_ml_acc(**keywords):
             df2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
         _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False)
         is_numeric = pd.to_numeric(df2.reset_index()[it], errors='coerce').notnull().all()
+        label_x = replaceCSVLabels(str(it))
+        label_x, _ = split_large_labels(df2, str(it), 1, 'ybar', False, label_x)
+        enlarge_lbl_dist = check_legend_enlarge(df2, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
         section_name = 'Ratio of higher errors ' + \
                        replaceCSVLabels('Rt_diff', False, False, True) + ' compared to ' + \
                        replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' vs ' + \
@@ -1817,7 +1913,7 @@ def get_ml_acc(**keywords):
                                       'plots': ['rat_defa_high'],
                                       'label_y': 'Ratio',
                                       'plot_x': str(it),
-                                      'label_x': replaceCSVLabels(str(it)),
+                                      'label_x': label_x,
                                       'limits': use_limits,
                                       'legend': None,
                                       'legend_cols': 1,
@@ -1826,10 +1922,13 @@ def get_ml_acc(**keywords):
                                       'enlarge_title_space': exp_value,
                                       'use_string_labels': True if not is_numeric else False,
                                       'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': None
+                                      'enlarge_lbl_dist': enlarge_lbl_dist
                                       })
 
     tex_infos['abbreviations'] = gloss
+    if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+        tex_infos1['abbreviations'] = gloss
+        tex_infos['figs_externalize'] = True
     base_out_name1 = 'tex_' + base_out_name
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     rendered_tex = template.render(title=tex_infos['title'],
@@ -1903,7 +2002,8 @@ def get_best_stability_pars(**keywords):
         split_large_titles, \
         check_if_neg_values, \
         calcNrLegendCols, \
-        check_legend_enlarge
+        check_legend_enlarge, \
+        split_large_labels
     keywords = prepare_io(**keywords)
     df_grp = keywords['data'].reset_index().groupby(keywords['data_separators'])
     grp_keys = df_grp.groups.keys()
@@ -1981,7 +2081,14 @@ def get_best_stability_pars(**keywords):
         is_neg_l = check_if_neg_values(tmp4, 'tr', False, use_limits_l)
         _, _, use_limits_r = calc_limits(tmp4, False, True, None, keywords['on_2nd_axis'])
         is_neg_r = check_if_neg_values(tmp4, keywords['on_2nd_axis'], False, use_limits_r)
-        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar')
+        label_x = replaceCSVLabels(keywords['data_separators'][1])
+        label_y_l = replaceCSVLabels('tr')
+        label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
+        label_x, label_y_l = split_large_labels(tmp4, keywords['data_separators'][1], 1, 'xbar', True,
+                                                label_x, label_y_l)
+        _, label_y_r = split_large_labels(tmp4, keywords['data_separators'][1], 1, 'xbar', True, None, label_y_r)
+        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar',
+                                                label_x.count('\\') + 1, not is_numeric)
         section_name = split_large_titles(section_name, 80)
         tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
                                       # Name of the whole section
@@ -1993,13 +2100,13 @@ def get_best_stability_pars(**keywords):
                                       # Column name for charts based on the left y-axis
                                       'plots_l': ['tr'],
                                       # Label of the left y-axis.
-                                      'label_y_l': replaceCSVLabels('tr'),
+                                      'label_y_l': label_y_l,
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [keywords['on_2nd_axis']],
                                       # Label of the right y-axis.
-                                      'label_y_r': replaceCSVLabels(keywords['on_2nd_axis']),
+                                      'label_y_r': label_y_r,
                                       # Label of the x-axis.
-                                      'label_x': replaceCSVLabels(keywords['data_separators'][1]),
+                                      'label_x': label_x,
                                       # Column name of the x-axis.
                                       'plot_x': keywords['data_separators'][1],
                                       # Enables/disables printing meta information at each data point
@@ -2052,7 +2159,12 @@ def get_best_stability_pars(**keywords):
                   '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
         _, _, use_limits_l = calc_limits(tmp4, False, True, None, ['R_diff2_ml', 't_diff2_ml'])
         is_neg_l = check_if_neg_values(tmp4, ['R_diff2_ml', 't_diff2_ml'], False, use_limits_l)
-        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 4, 'xbar')
+        label_x = replaceCSVLabels(keywords['data_separators'][1])
+        label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
+        label_x, label_y_r = split_large_labels(tmp4, keywords['data_separators'][1], 2, 'xbar', True,
+                                                label_x, label_y_r)
+        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 4, 'xbar',
+                                                label_x.count('\\') + 1, not is_numeric)
         section_name = split_large_titles(section_name, 80)
         tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
                                       # Name of the whole section
@@ -2068,9 +2180,9 @@ def get_best_stability_pars(**keywords):
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [keywords['on_2nd_axis'], 'dont_care'],
                                       # Label of the right y-axis.
-                                      'label_y_r': replaceCSVLabels(keywords['on_2nd_axis']),
+                                      'label_y_r': label_y_r,
                                       # Label of the x-axis.
-                                      'label_x': replaceCSVLabels(keywords['data_separators'][1]),
+                                      'label_x': label_x,
                                       # Column name of the x-axis.
                                       'plot_x': keywords['data_separators'][1],
                                       # Enables/disables printing meta information at each data point
@@ -2124,7 +2236,12 @@ def get_best_stability_pars(**keywords):
                   '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
         _, _, use_limits_l = calc_limits(tmp4, False, True, None, 'Rt_diff2_ml')
         is_neg_l = check_if_neg_values(tmp4, 'Rt_diff2_ml', False, use_limits_l)
-        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar')
+        label_x = replaceCSVLabels(keywords['data_separators'][1])
+        label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
+        label_x, label_y_r = split_large_labels(tmp4, keywords['data_separators'][1], 1, 'xbar', True,
+                                                label_x, label_y_r)
+        enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar',
+                                                label_x.count('\\') + 1, not is_numeric)
         section_name = split_large_titles(section_name, 80)
         tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
                                       # Name of the whole section
@@ -2140,9 +2257,9 @@ def get_best_stability_pars(**keywords):
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [keywords['on_2nd_axis']],
                                       # Label of the right y-axis.
-                                      'label_y_r': replaceCSVLabels(keywords['on_2nd_axis']),
+                                      'label_y_r': label_y_r,
                                       # Label of the x-axis.
-                                      'label_x': replaceCSVLabels(keywords['data_separators'][1]),
+                                      'label_x': label_x,
                                       # Column name of the x-axis.
                                       'plot_x': keywords['data_separators'][1],
                                       # Enables/disables printing meta information at each data point

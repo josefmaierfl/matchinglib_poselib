@@ -162,6 +162,12 @@ title style={align=center,yshift=2.1ex},%
 title={\VAR{ sec['title'] }},%
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 xbar,%
+\BLOCK{ if '\\' in sec['label_x'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
 ylabel={\VAR{sec['label_x']}},%
 xlabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['plots']|length > 1 }
@@ -189,6 +195,12 @@ enlarge x limits={upper, value=0.15},%
 xmajorgrids=true,%
 \BLOCK{ elif sec['fig_type'] == 'ybar' }
 ybar,%
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['plots']|length > 1 }
@@ -215,6 +227,12 @@ enlarge y limits={upper, value=0.15},%
 \BLOCK{ endif }
 ymajorgrids=true,%
 \BLOCK{ else }
+\BLOCK{ if '\\' in sec['label_x'] }
+xlabel style={align=center},%
+\BLOCK{ endif }
+\BLOCK{ if '\\' in sec['label_y'] }
+ylabel style={align=center},%
+\BLOCK{ endif }
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y']}},%
 \BLOCK{ if sec['print_meta'] }
