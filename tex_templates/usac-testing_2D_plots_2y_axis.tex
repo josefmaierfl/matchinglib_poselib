@@ -263,6 +263,15 @@
 \BLOCK{ endif }
 \begin{tikzpicture}
 \begin{axis}[
+\BLOCK{ if sec['use_log_y_axis_l'] and sec['fig_type'] == 'xbar' }
+xmode=log,%
+log origin=infty,%
+\BLOCK{ elif sec['use_log_y_axis_l'] }
+ymode=log,%
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+log origin=infty,%
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 axis x line*=bottom,%
 \BLOCK{ else }
@@ -401,8 +410,16 @@ ymax=\VAR{sec['limits_l']['maxy']},%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['title'] }
-\BLOCK{ if sec['fig_type'] == 'xbar' and sec['title_rows'] > 0 }
+\BLOCK{ if sec['fig_type'] == 'xbar' }
+\BLOCK{ if sec['title_rows'] > 0 and sec['enlarge_title_space'] }
+title style={align=center,yshift=\VAR{ 1.5 * (sec['title_rows'] + 1) + 2.1 }ex},%
+\BLOCK{ elif sec['title_rows'] > 0 }
 title style={align=center,yshift=\VAR{ 1.5 * (sec['title_rows'] + 1) }ex},%
+\BLOCK{ elif sec['enlarge_title_space'] }
+title style={align=center,yshift=2.1ex},%
+\BLOCK{ endif }
+\BLOCK{ elif sec['enlarge_title_space'] }
+title style={align=center,yshift=2.1ex},%
 \BLOCK{ endif }
 title={\VAR{ sec['title'] }},%
 \BLOCK{ endif }
@@ -461,11 +478,22 @@ x=\VAR{ sec['plot_x'] },%
 y=\VAR{ it }
 \BLOCK{ endif }
 ] {\VAR{ sec['file'] }};\label{axis_l_\VAR{ it }}
+\BLOCK{ if sec['legend_l'] }
 %\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
+\BLOCK{ endif }
 \BLOCK{ endfor }
 \end{axis}
 
 \begin{axis}[
+\BLOCK{ if sec['use_log_y_axis_r'] and sec['fig_type'] == 'xbar' }
+xmode=log,%
+log origin=infty,%
+\BLOCK{ elif sec['use_log_y_axis_r'] }
+ymode=log,%
+\BLOCK{ if sec['fig_type'] == 'ybar' }
+log origin=infty,%
+\BLOCK{ endif }
+\BLOCK{ endif }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 axis x line*=top,%
 axis y line=none,%
@@ -592,7 +620,7 @@ legend style={
 \BLOCK{ else }
 	at={(0.5,-\VAR{ [(0.12 - 0.1 * [sec['plots_r']|length, sec['plots_l']|length]|max)|round(2), 0.015]|max })},
 \BLOCK{ endif }
-\BLOCK{ elif nonnumeric_x or ([sec['plots_r']|length, sec['plots_l']|length]|max|length > 1 and sec['fig_type'] == 'ybar') }
+\BLOCK{ elif nonnumeric_x or ([sec['plots_r']|length, sec['plots_l']|length]|max > 1 and sec['fig_type'] == 'ybar') }
 	at={(0.5,-0.25)},
 \BLOCK{ elif sec['enlarge_lbl_dist'] }
     at={(0.5,-\VAR{ sec['enlarge_lbl_dist'] })},
@@ -625,10 +653,12 @@ every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if s
 \BLOCK{ endif }
 \BLOCK{ endif }
 ]
+\BLOCK{ if sec['legend_l'] }
 \BLOCK{ for it in sec['plots_l'] }
 \addlegendimage{/pgfplots/refstyle=axis_l_\VAR{ it }}\addlegendentry{\VAR{ sec['legend_l'][loop.index0] }}
 \BLOCK{ endfor }
 %\pgfplotsset{cycle list set=\VAR{sec['plots_l']|length}}
+\BLOCK{ endif }
 \BLOCK{ for it in sec['plots_r'] }
 \addplot+ [%
 \BLOCK{ if sec['fig_type'] != 'xbar' and sec['fig_type'] != 'ybar' }
@@ -656,7 +686,9 @@ x=\VAR{ sec['plot_x'] },%
 y=\VAR{ it }
 \BLOCK{ endif }
 ] {\VAR{ sec['file'] }};
+\BLOCK{ if sec['legend_r'] }
 \addlegendentry{\VAR{ sec['legend_r'][loop.index0] }}
+\BLOCK{ endif }
 \BLOCK{ endfor }
 \end{axis}
 \end{tikzpicture}

@@ -1704,7 +1704,11 @@ def get_ml_acc(**keywords):
         categorical_sort, \
         insert_str_option_values, \
         split_large_labels, \
-        check_legend_enlarge
+        check_legend_enlarge, \
+        strToLower, \
+        check_if_neg_values, \
+        split_large_titles, \
+        calcNrLegendCols
     eval_columns_init = deepcopy(keywords['eval_columns'])
     eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
     eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
@@ -1727,9 +1731,10 @@ def get_ml_acc(**keywords):
             f.write('Error differences of most likely extrinsics and normal output are equal.' + '\n')
         return 0
     gloss = add_to_glossary_eval(keywords['eval_columns'] + ['Rt_diff', 'Rt_mostLikely_diff'])
-    title_name = 'Mean Differences Between ' + \
-                 replaceCSVLabels('Rt_diff', True, True, True) + ' and ' + \
-                 replaceCSVLabels('Rt_mostLikely_diff', True, True, True) + ' vs ' + \
+    title_name0 = 'Mean Differences Between ' + \
+                  replaceCSVLabels('Rt_diff', True, True, True) + ' and ' + \
+                  replaceCSVLabels('Rt_mostLikely_diff', True, True, True) + ' vs '
+    title_name = title_name0 + \
                  combine_str_for_title(keywords['data_partitions'])
     if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
         title_name += ' for Parameter Combinations of ' + combine_str_for_title(keywords['it_parameters'])
@@ -1762,6 +1767,7 @@ def get_ml_acc(**keywords):
                  'fill_bar': True,
                  # Builds a list of abbrevations of a list of dicts
                  'abbreviations': None}
+    df5_list = []
     for it in keywords['data_partitions']:
         if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
             drop_cols = [a for a in individual_grps if a != it and a not in keywords['it_parameters']]
@@ -1820,8 +1826,8 @@ def get_ml_acc(**keywords):
         for use_col in fig_cols:
             caption_name = 'Mean differences between ' + \
                            replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
-                           replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' Values vs ' + \
-                           replaceCSVLabels(it, False, False, True)
+                           replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' values vs ' + \
+                           replaceCSVLabels(it, True, False, True)
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 par_vals = [float(a) for a in use_col.split('-') if a != 'Rt_diff2_ml']
                 option_vals_str = insert_str_option_values(keywords['it_parameters'], par_vals)
@@ -1837,7 +1843,7 @@ def get_ml_acc(**keywords):
                                           # If caption is None, the field name is used
                                           'caption': caption_name,
                                           'fig_type': 'ybar',
-                                          'plots': use_col,
+                                          'plots': [use_col],
                                           'label_y': replaceCSVLabels('Rt_mostLikely_diff') + '-' +
                                                      replaceCSVLabels('Rt_diff'),
                                           'plot_x': str(it),
@@ -1855,34 +1861,139 @@ def get_ml_acc(**keywords):
         if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
             tex_infos1['nonnumeric_x'] = not is_numeric
             df4 = df3.xs('mean', axis=1, level=1, drop_level=True).drop(['negative', 'positive'], axis=1)
-            df4 = df4.reset_index().set_index(keywords['it_parameters'])
-            df4 = df4.loc[df4.groupby(it)['Rt_diff2_ml'].idxmin()].reset_index()
+            df4.reset_index(inplace=True)
+            # df4 = df4.reset_index().set_index(keywords['it_parameters'])
+            df4 = df4.loc[df4.groupby(it)['Rt_diff2_ml'].idxmin()]#.reset_index()
             if len(keywords['meta_it_pars']) > 1:
                 df4['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
                                       for _, row in df4[keywords['meta_it_pars']].iterrows()]
             else:
                 df4['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in
                                       df4[keywords['meta_it_pars'][0]].iteritems()]
+            if 'cat_sort' in keywords and keywords['cat_sort'] and \
+                    isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
+                categorical_sort(df4, it)
+            non_meta_it_pars = [a for a in keywords['it_parameters'] if a not in keywords['meta_it_pars']]
+            fig_err_cols = ['Rt_diff2_ml']
+            meta_cols = ['options_tex'] * len(non_meta_it_pars)
+            if len(non_meta_it_pars) > 1:
+                for i in range(1, len(non_meta_it_pars)):
+                    fig_err_cols.append('dont_care' + str(i))
+                    df4[fig_err_cols[-1]] = [0] * int(df4.shape[0])
             b_mean_name = 'data_min_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             with open(fb_mean_name, 'a') as f:
-                f.write(
-                    '# Minimum mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' +
-                    str(it) + '\n')
+                f.write('# Minimum mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' +
+                        str(it) + '\n')
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
-                df4.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+                df4.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            _, use_limits_l, use_log_l, exp_value_l = get_limits_log_exp(df4, True, True, False, None, ['Rt_diff2_ml'])
+            _, use_limits_r, use_log_r, exp_value_r = get_limits_log_exp(df4, True, True, False, None, non_meta_it_pars)
             label_x = replaceCSVLabels(str(it))
-            label_x, _ = split_large_labels(df1, str(it), 1, 'ybar', False, label_x)
-            enlarge_lbl_dist = check_legend_enlarge(df1, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
+            label_y_r = ' / '.join([replaceCSVLabels(a) for a in non_meta_it_pars])
+            label_x, label_y_r = split_large_labels(df4, str(it), len(fig_err_cols), 'ybar', True, label_x, label_y_r)
+            enlarge_lbl_dist = check_legend_enlarge(df4, str(it), 4, 'ybar', label_x.count('\\') + 1, not is_numeric)
+            is_neg_r = check_if_neg_values(df4, non_meta_it_pars, use_log_r, use_limits_r)
             reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
+            section_name = 'Minimum ' + strToLower(title_name0) + replaceCSVLabels(it, True, False, True)
+            section_name = split_large_titles(section_name, 85)
+            caption = 'Minimum mean differences between ' + \
+                      replaceCSVLabels('Rt_diff', False, False, True) + ' and ' + \
+                      replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
+                      ' (left axis) and corresponding parameters ' + \
+                      strToLower(combine_str_for_title(non_meta_it_pars)) + ' (right axis) vs ' + \
+                      replaceCSVLabels(it, True, False, True) + '. Values on top of bars are: ' + \
+                      strToLower(combine_str_for_title(keywords['meta_it_pars'])) + '.'
+            exp_value = enl_space_title(exp_value_l or exp_value_r, section_name, df4, it,
+                                        4, 'ybar')
+            tex_infos1['sections'].append({'file': reltex_name,
+                                           # Name of the whole section
+                                           'name': section_name.replace('\\\\', ' '),
+                                           # Title of the figure
+                                           'title': section_name,
+                                           'title_rows': section_name.count('\\\\'),
+                                           'fig_type': 'ybar',
+                                           # Column name for charts based on the left y-axis
+                                           'plots_l': fig_err_cols,
+                                           # Label of the left y-axis.
+                                           'label_y_l': 'error difference',
+                                           # Use logarithmic scaling on left y-axis
+                                           'use_log_y_axis_l': use_log_l,
+                                           # Column name for charts based on the right y-axis
+                                           'plots_r': non_meta_it_pars,
+                                           # Label of the right y-axis.
+                                           'label_y_r': label_y_r,
+                                           # Use logarithmic scaling on right y-axis
+                                           'use_log_y_axis_r': use_log_r,
+                                           # Label of the x-axis.
+                                           'label_x': label_x,
+                                           # Column name of the x-axis.
+                                           'plot_x': it,
+                                           # Enables/disables printing meta information at each data point
+                                           'print_meta_l': False,
+                                           # Meta information printed at each data point. Must contain same number of
+                                           # column names as plots_l
+                                           'plot_meta_l': None,
+                                           # Are most values of plots at left axis negative?
+                                           'is_neg_l': False,
+                                           # Is more space needed for plotting the meta information?
+                                           'large_meta_space_needed_l': False,
+                                           # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                           # are supported)
+                                           'rotate_meta_l': 0,
+                                           # Enables/disables printing meta information at each data point
+                                           'print_meta_r': True,
+                                           # Meta information printed at each data point. Must contain same number of
+                                           # column names as plots_l
+                                           'plot_meta_r': meta_cols,
+                                           # Are most values of plots at left axis negative?
+                                           'is_neg_r': is_neg_r,
+                                           # Is more space needed for plotting the meta information?
+                                           'large_meta_space_needed_r': True,
+                                           # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                           # are supported)
+                                           'rotate_meta_r': 90,
+                                           # Maximum and/or minimum y value/s on the left y-axis
+                                           'limits_l': use_limits_l,
+                                           # Legend entries for the charts belonging to the left y-axis
+                                           'legend_l': None,
+                                           # Maximum and/or minimum y value/s on the right y-axis
+                                           'limits_r': use_limits_r,
+                                           # Legend entries for the charts belonging to the right y-axis
+                                           'legend_r': [replaceCSVLabels(a) for a in non_meta_it_pars],
+                                           'legend_cols': 1,
+                                           'use_marks': False,
+                                           'xaxis_txt_rows': 1,
+                                           'caption': caption,
+                                           'enlarge_lbl_dist': enlarge_lbl_dist,
+                                           'enlarge_title_space': exp_value
+                                           })
+            tex_infos1['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
-        df2_mean = df.xs('mean', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
-        df2_cnt = df.xs('count', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
+        df2_mean = df3.xs('mean', axis=1, level=1, drop_level=True)
+        df2_cnt = df3.xs('count', axis=1, level=1, drop_level=True).drop('Rt_diff2_ml', axis=1)
         df2_neg = df2_mean['negative'] * df2_cnt['negative']
         df2_pos = df2_mean['positive'] * df2_cnt['positive']
         df2 = df2_neg / (df2_neg + df2_pos)
         df2.rename('rat_defa_high', inplace=True)
         df2 = df2.to_frame()
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            df5 = df2.copy(deep=True)
+            df5['Rt_diff2_ml'] = df2_mean['Rt_diff2_ml'].to_list()
+            df2 = df2.reset_index().set_index(keywords['it_parameters'])
+            if len(keywords['it_parameters']) > 1:
+                it_index = ['-'.join(map(str, a)) for a in df2.index]
+                df2.index = it_index
+                it_pars_name = '-'.join(keywords['it_parameters'])
+                df2.index.name = it_pars_name
+            else:
+                it_pars_name = keywords['it_parameters'][0]
+            df2 = df2.reset_index().set_index([it, it_pars_name])
+            df2 = df2.unstack()
+            fig_cols = ['-'.join(a) for a in df2.columns]
+            df2.columns = fig_cols
+        else:
+            fig_cols = ['rat_defa_high']
         if 'cat_sort' in keywords and keywords['cat_sort'] and \
                 isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
             categorical_sort(df2, it)
@@ -1892,66 +2003,270 @@ def get_ml_acc(**keywords):
         with open(fb_mean_name, 'a') as f:
             f.write('# Ratio (rat_defa_high) of higher default R&t errors compared to most likely R&t errors vs ' +
                     str(it) + '\n')
+            if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
-        _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False)
         is_numeric = pd.to_numeric(df2.reset_index()[it], errors='coerce').notnull().all()
         label_x = replaceCSVLabels(str(it))
         label_x, _ = split_large_labels(df2, str(it), 1, 'ybar', False, label_x)
         enlarge_lbl_dist = check_legend_enlarge(df2, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
-        section_name = 'Ratio of higher errors ' + \
-                       replaceCSVLabels('Rt_diff', False, False, True) + ' compared to ' + \
-                       replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' vs ' + \
-                       replaceCSVLabels(it, False, False, True)
-        exp_value = enl_space_title(exp_value, section_name, df2, it,
-                                    1, 'ybar')
         reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': section_name,
-                                      # If caption is None, the field name is used
-                                      'caption': None,
-                                      'fig_type': 'ybar',
-                                      'plots': ['rat_defa_high'],
-                                      'label_y': 'Ratio',
-                                      'plot_x': str(it),
-                                      'label_x': label_x,
-                                      'limits': use_limits,
-                                      'legend': None,
-                                      'legend_cols': 1,
-                                      'use_marks': False,
-                                      'use_log_y_axis': use_log,
-                                      'enlarge_title_space': exp_value,
-                                      'use_string_labels': True if not is_numeric else False,
-                                      'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': enlarge_lbl_dist
-                                      })
+        for use_col in fig_cols:
+            caption_name = 'Ratio of higher errors ' + \
+                           replaceCSVLabels('Rt_diff', False, False, True) + ' compared to ' + \
+                           replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' vs ' + \
+                           replaceCSVLabels(it, True, False, True)
+            if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+                par_vals = [float(a) for a in use_col.split('-') if a != 'rat_defa_high']
+                option_vals_str = insert_str_option_values(keywords['it_parameters'], par_vals)
+                caption_name += ' for parameters ' + option_vals_str
+                _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False, None, use_col)
+            else:
+                _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False)
+
+            # exp_value = enl_space_title(exp_value, section_name, df2, it,
+            #                             1, 'ybar')
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': None,
+                                          # If caption is None, the field name is used
+                                          'caption': caption_name,
+                                          'fig_type': 'ybar',
+                                          'plots': [use_col],
+                                          'label_y': 'Ratio',
+                                          'plot_x': str(it),
+                                          'label_x': label_x,
+                                          'limits': use_limits,
+                                          'legend': None,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          'use_log_y_axis': use_log,
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': not is_numeric,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist
+                                          })
+        if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
+            df5 = df5.loc[(df5['rat_defa_high'] > 0)]
+            if df5.empty:
+                f_name = os.path.join(keywords['res_folder'], 'most_likely_pose_not_better_for_' + str(it) + '.txt')
+                with open(f_name, 'w') as f:
+                    f.write('Errors of most likely extrinsics are bigger than normal pose outputs for all ' +
+                            str(it) + ' properties.' + '\n')
+                continue
+            # df5 = df5.reset_index().set_index(keywords['it_parameters'])
+            df5.reset_index(inplace=True)
+            df5 = df5.loc[df5.groupby(it)['Rt_diff2_ml'].idxmin()]#.reset_index()
+            df5_list.append(df5.drop(it, axis=1))
+            if len(keywords['meta_it_pars']) > 1:
+                df5['options_tex'] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                      for _, row in df5[keywords['meta_it_pars']].iterrows()]
+            else:
+                df5['options_tex'] = ['{:.3f}'.format(float(val)) for _, val in
+                                      df5[keywords['meta_it_pars'][0]].iteritems()]
+            if 'cat_sort' in keywords and keywords['cat_sort'] and \
+                    isinstance(keywords['cat_sort'], str) and keywords['cat_sort'] == it:
+                categorical_sort(df5, it)
+            non_meta_it_pars = [a for a in keywords['it_parameters'] if a not in keywords['meta_it_pars']]
+            fig_err_cols = ['Rt_diff2_ml']
+            meta_cols = ['options_tex'] * len(non_meta_it_pars)
+            if len(non_meta_it_pars) > 1:
+                for i in range(1, len(non_meta_it_pars)):
+                    fig_err_cols.append('dont_care' + str(i))
+                    df5[fig_err_cols[-1]] = [0] * int(df5.shape[0])
+            b_mean_name = 'data_min_only_larger0_' + base_name + '.csv'
+            fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+            with open(fb_mean_name, 'a') as f:
+                f.write('# Minimum mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' +
+                        str(it) + '\n')
+                f.write('# for ratios (rat_defa_high) of higher default R&t errors compared to most likely R&t '
+                        'errors higher 0 (Only results with a smaller mean error of most likely poses compared '
+                        'to default output)\n')
+                f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+                df5.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            _, use_limits_l, use_log_l, exp_value_l = get_limits_log_exp(df5, True, True, False, None, ['Rt_diff2_ml'])
+            _, use_limits_r, use_log_r, exp_value_r = get_limits_log_exp(df5, True, True, False, None, non_meta_it_pars)
+            label_x = replaceCSVLabels(str(it))
+            label_y_r = ' / '.join([replaceCSVLabels(a) for a in non_meta_it_pars])
+            label_x, label_y_r = split_large_labels(df5, str(it), len(fig_err_cols), 'ybar', True, label_x, label_y_r)
+            enlarge_lbl_dist = check_legend_enlarge(df5, str(it), 4, 'ybar', label_x.count('\\') + 1, not is_numeric)
+            is_neg_r = check_if_neg_values(df5, non_meta_it_pars, use_log_r, use_limits_r)
+            reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
+            section_name = 'Minimum ' + strToLower(title_name0) + replaceCSVLabels(it, True, False, True) + \
+                           ' only for higher ' + replaceCSVLabels('Rt_diff', True, False, True) + ' compared to ' + \
+                           replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' values'
+            section_name = split_large_titles(section_name, 85)
+            caption = 'Minimum mean differences between ' + \
+                      replaceCSVLabels('Rt_diff', False, False, True) + ' and ' + \
+                      replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
+                      ' (left axis) and corresponding parameters ' + \
+                      strToLower(combine_str_for_title(non_meta_it_pars)) + ' (right axis) vs ' + \
+                      replaceCSVLabels(it, True, False, True) + \
+                      ' only for higher ' + replaceCSVLabels('Rt_diff', True, False, True) + ' compared to ' + \
+                      replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
+                      ' values. Values on top of bars are: ' + \
+                      strToLower(combine_str_for_title(keywords['meta_it_pars'])) + '.'
+            exp_value = enl_space_title(exp_value_l or exp_value_r, section_name, df5, it,
+                                        4, 'ybar')
+            tex_infos1['sections'].append({'file': reltex_name,
+                                           # Name of the whole section
+                                           'name': section_name.replace('\\\\', ' '),
+                                           # Title of the figure
+                                           'title': section_name,
+                                           'title_rows': section_name.count('\\\\'),
+                                           'fig_type': 'ybar',
+                                           # Column name for charts based on the left y-axis
+                                           'plots_l': fig_err_cols,
+                                           # Label of the left y-axis.
+                                           'label_y_l': 'error difference',
+                                           # Use logarithmic scaling on left y-axis
+                                           'use_log_y_axis_l': use_log_l,
+                                           # Column name for charts based on the right y-axis
+                                           'plots_r': non_meta_it_pars,
+                                           # Label of the right y-axis.
+                                           'label_y_r': label_y_r,
+                                           # Use logarithmic scaling on right y-axis
+                                           'use_log_y_axis_r': use_log_r,
+                                           # Label of the x-axis.
+                                           'label_x': label_x,
+                                           # Column name of the x-axis.
+                                           'plot_x': it,
+                                           # Enables/disables printing meta information at each data point
+                                           'print_meta_l': False,
+                                           # Meta information printed at each data point. Must contain same number of
+                                           # column names as plots_l
+                                           'plot_meta_l': None,
+                                           # Are most values of plots at left axis negative?
+                                           'is_neg_l': False,
+                                           # Is more space needed for plotting the meta information?
+                                           'large_meta_space_needed_l': False,
+                                           # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                           # are supported)
+                                           'rotate_meta_l': 0,
+                                           # Enables/disables printing meta information at each data point
+                                           'print_meta_r': True,
+                                           # Meta information printed at each data point. Must contain same number of
+                                           # column names as plots_l
+                                           'plot_meta_r': meta_cols,
+                                           # Are most values of plots at left axis negative?
+                                           'is_neg_r': is_neg_r,
+                                           # Is more space needed for plotting the meta information?
+                                           'large_meta_space_needed_r': True,
+                                           # Rotation angle for printed meta information (only 0, 45, and 90 degrees
+                                           # are supported)
+                                           'rotate_meta_r': 90,
+                                           # Maximum and/or minimum y value/s on the left y-axis
+                                           'limits_l': use_limits_l,
+                                           # Legend entries for the charts belonging to the left y-axis
+                                           'legend_l': None,
+                                           # Maximum and/or minimum y value/s on the right y-axis
+                                           'limits_r': use_limits_r,
+                                           # Legend entries for the charts belonging to the right y-axis
+                                           'legend_r': [replaceCSVLabels(a) for a in non_meta_it_pars],
+                                           'legend_cols': 1,
+                                           'use_marks': False,
+                                           'xaxis_txt_rows': 1,
+                                           'caption': caption,
+                                           'enlarge_lbl_dist': enlarge_lbl_dist,
+                                           'enlarge_title_space': exp_value
+                                           })
+            tex_infos1['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
+    res = 0
     if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
         tex_infos1['abbreviations'] = gloss
         tex_infos['figs_externalize'] = True
+        template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
+        rendered_tex = template.render(title=tex_infos1['title'],
+                                       make_index=tex_infos1['make_index'],
+                                       ctrl_fig_size=tex_infos1['ctrl_fig_size'],
+                                       figs_externalize=tex_infos1['figs_externalize'],
+                                       nonnumeric_x=tex_infos1['nonnumeric_x'],
+                                       sections=tex_infos1['sections'],
+                                       fill_bar=True,
+                                       abbreviations=tex_infos1['abbreviations'])
+        texf_name = 'tex_min_' + base_out_name + '.tex'
+        pdf_name = 'min_' + base_out_name + '.pdf'
+        if keywords['build_pdf'][1]:
+            res = compile_tex(rendered_tex,
+                              keywords['tex_folder'],
+                              texf_name,
+                              tex_infos1['make_index'],
+                              os.path.join(keywords['pdf_folder'], pdf_name),
+                              tex_infos1['figs_externalize'])
+        else:
+            res = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+        if res != 0:
+            warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+        if 'res_par_name' in keywords and keywords['res_par_name'] and df5_list:
+            df6 = pd.concat(df5_list, axis=0, ignore_index=True)
+            df6 = df6.loc[df6['Rt_diff2_ml'].idxmin()]
+            main_parameter_name = keywords['res_par_name']  # 'USAC_opt_refine_min_time'
+            # Check if file and parameters exist
+            from usac_eval import check_par_file_exists, NoAliasDumper
+            ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+            with open(ppar_file, 'a') as fo:
+                # Write parameters
+                alg_comb_bestl = df6[keywords['it_parameters']].to_numpy()
+                if len(keywords['it_parameters']) != len(alg_comb_bestl):
+                    raise ValueError('Nr of refine algorithms does not match')
+                alg_w = {}
+                for i, val in enumerate(keywords['it_parameters']):
+                    alg_w[val] = float(alg_comb_bestl[i])
+                yaml.dump({main_parameter_name: {'Algorithm': alg_w,
+                                                 'mean_error_difference': float(df6['Rt_diff2_ml']),
+                                                 'error_ratio': float(df6['rat_defa_high'])}},
+                          stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+
+    pdfs_info = []
+    max_figs_pdf = 50
     base_out_name1 = 'tex_' + base_out_name
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
-    texf_name = base_out_name1 + '.tex'
-    pdf_name = base_out_name1 + '.pdf'
-    res = 0
-    if keywords['build_pdf'][0]:
-        res = compile_tex(rendered_tex,
-                          keywords['tex_folder'],
-                          texf_name,
-                          tex_infos['make_index'],
-                          os.path.join(keywords['pdf_folder'], pdf_name),
-                          tex_infos['figs_externalize'])
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    st_list = tex_infos['sections']
+    if len(st_list) > max_figs_pdf:
+        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
     else:
-        res = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
-    if res != 0:
+        st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+    for it in st_list2:
+        if len(st_list2) == 1:
+            title = tex_infos['title']
+        else:
+            title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+        pdfs_info.append({'title': title,
+                          'texf_name': base_out_name1 + '_' + str(it['pdf_nr']),
+                          'figs_externalize': tex_infos['figs_externalize'],
+                          'sections': it['figs'],
+                          'make_index': tex_infos['make_index'],
+                          'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                          'fill_bar': tex_infos['fill_bar'],
+                          'abbreviations': tex_infos['abbreviations']})
+
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if keywords['build_pdf'][0] else None}
+    for it in pdfs_info:
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       fill_bar=it['fill_bar'],
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
+        texf_name = it['texf_name'] + '.tex'
+        if keywords['build_pdf'][0]:
+            pdf_name = it['texf_name'] + '.pdf'
+            pdf_l_info['pdf_name'].append(os.path.join(keywords['pdf_folder'], pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res1 = abs(compile_tex(pdf_l_info['rendered_tex'], keywords['tex_folder'], pdf_l_info['texf_name'],
+                           tex_infos['make_index'], pdf_l_info['pdf_name'], tex_infos['figs_externalize']))
+    if res1 != 0:
+        res += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
     return res
 
 
@@ -2101,10 +2416,14 @@ def get_best_stability_pars(**keywords):
                                       'plots_l': ['tr'],
                                       # Label of the left y-axis.
                                       'label_y_l': label_y_l,
+                                      # Use logarithmic scaling on left y-axis
+                                      'use_log_y_axis_l': False,
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [keywords['on_2nd_axis']],
                                       # Label of the right y-axis.
                                       'label_y_r': label_y_r,
+                                      # Use logarithmic scaling on right y-axis
+                                      'use_log_y_axis_r': False,
                                       # Label of the x-axis.
                                       'label_x': label_x,
                                       # Column name of the x-axis.
@@ -2145,7 +2464,8 @@ def get_best_stability_pars(**keywords):
                                       'use_marks': False,
                                       'xaxis_txt_rows': 1,
                                       'caption': caption,
-                                      'enlarge_lbl_dist': enlarge_lbl_dist
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': False
                                       })
         section_name = 'Smallest median R \\& t error differences between default and ' \
                        'most likely pose errors based on lowest and highest mean ' + \
@@ -2177,10 +2497,14 @@ def get_best_stability_pars(**keywords):
                                       'plots_l': ['R_diff2_ml', 't_diff2_ml'],
                                       # Label of the left y-axis.
                                       'label_y_l': 'error difference',
+                                      # Use logarithmic scaling on left y-axis
+                                      'use_log_y_axis_l': False,
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [keywords['on_2nd_axis'], 'dont_care'],
                                       # Label of the right y-axis.
                                       'label_y_r': label_y_r,
+                                      # Use logarithmic scaling on right y-axis
+                                      'use_log_y_axis_r': False,
                                       # Label of the x-axis.
                                       'label_x': label_x,
                                       # Column name of the x-axis.
@@ -2221,7 +2545,8 @@ def get_best_stability_pars(**keywords):
                                       'use_marks': False,
                                       'xaxis_txt_rows': 1,
                                       'caption': caption,
-                                      'enlarge_lbl_dist': enlarge_lbl_dist
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': False
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
         section_name = 'Smallest combined median R \\& t error differences between default and ' \
@@ -2254,10 +2579,14 @@ def get_best_stability_pars(**keywords):
                                       'plots_l': ['Rt_diff2_ml'],
                                       # Label of the left y-axis.
                                       'label_y_l': 'error difference',
+                                      # Use logarithmic scaling on left y-axis
+                                      'use_log_y_axis_l': False,
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [keywords['on_2nd_axis']],
                                       # Label of the right y-axis.
                                       'label_y_r': label_y_r,
+                                      # Use logarithmic scaling on right y-axis
+                                      'use_log_y_axis_r': False,
                                       # Label of the x-axis.
                                       'label_x': label_x,
                                       # Column name of the x-axis.
@@ -2298,7 +2627,8 @@ def get_best_stability_pars(**keywords):
                                       'use_marks': False,
                                       'xaxis_txt_rows': 1,
                                       'caption': caption,
-                                      'enlarge_lbl_dist': enlarge_lbl_dist
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': False
                                       })
     template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
     rendered_tex = template.render(title=tex_infos['title'],

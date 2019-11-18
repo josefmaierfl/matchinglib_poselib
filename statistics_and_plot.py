@@ -6909,7 +6909,7 @@ def main():
     # pars1_opt = ['first_long_long_opt' + str(i) for i in range(0, 2)]
     pars1_opt = list(np.arange(0.1, 0.35, 0.1))
     # pars2_opt = ['second_long_opt' + str(i) for i in range(0, 3)]
-    pars2_opt = list(np.arange(0.2, 0.45, 0.1))
+    pars2_opt = list(np.arange(0.4, 0.65, 0.1))
     pars3_opt = ['third_long_long_opt' + str(i) for i in range(0, 2)]
     # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
@@ -7677,7 +7677,7 @@ def main():
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 4
-    eval_nr = [15]#list(range(10, 11))
+    eval_nr = [16]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -11135,12 +11135,15 @@ def main():
                     #                       'use_marks': False,
                     #                       'data_partitions': ['rt_change_type', 'inlratCRate'],
                     #                       'eval_it_pars': True,
-                    #                       'meta_it_pars': ['stereoParameters_minContStablePoses']}
+                    #                       'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                    #                       'res_par_name': 'robustness_best_stable_pars'}
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': False,
                                           'data_partitions': ['rt_change_type', 'inlratCRate'],
                                           'eval_it_pars': True,
-                                          'meta_it_pars': ['stereoParameters_maxPoolCorrespondences']}
+                                          'cat_sort': 'rt_change_type',
+                                          'meta_it_pars': ['stereoParameters_maxPoolCorrespondences'],
+                                          'res_par_name': 'robustness_best_stable_pars'}
                     # filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
                     #                                         'stereoParameters_minNormDistStable',
                     #                                         'stereoParameters_absThRankingStable',

@@ -350,13 +350,13 @@ def pars_calc_single_fig_partitions(**keywords):
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if ret['build_pdf'][0] else None}
     for it in pdfs_info:
-        rendered_tex = template.render(title=tex_infos['title'],
-                                       make_index=tex_infos['make_index'],
-                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                       figs_externalize=tex_infos['figs_externalize'],
-                                       fill_bar=tex_infos['fill_bar'],
-                                       sections=tex_infos['sections'],
-                                       abbreviations=tex_infos['abbreviations'])
+        rendered_tex = template.render(title=it['title'],
+                                       make_index=it['make_index'],
+                                       ctrl_fig_size=it['ctrl_fig_size'],
+                                       figs_externalize=it['figs_externalize'],
+                                       fill_bar=it['fill_bar'],
+                                       sections=it['sections'],
+                                       abbreviations=it['abbreviations'])
         texf_name = it['texf_name'] + '.tex'
         if ret['build_pdf'][0]:
             pdf_name = it['texf_name'] + '.pdf'
@@ -1522,10 +1522,14 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                       'plots_l': ['b_min'],
                                       # Label of the left y-axis.
                                       'label_y_l': 'error',
+                                      # Use logarithmic scaling on left y-axis
+                                      'use_log_y_axis_l': False,
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [ret['grp_names'][-2]],
                                       # Label of the right y-axis.
                                       'label_y_r': replaceCSVLabels(str(ret['grp_names'][-2])),
+                                      # Use logarithmic scaling on right y-axis
+                                      'use_log_y_axis_r': False,
                                       # Label of the x-axis.
                                       'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
                                       # Column name of the x-axis.
@@ -1570,7 +1574,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                  replaceCSVLabels(str(ret['grp_names'][-2])) +
                                                  ' (right axis) vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +
                                                  ' for parameters ' + tex_string_coding_style(str(grp)) + '.',
-                                      'enlarge_lbl_dist': None
+                                      'enlarge_lbl_dist': None,
+                                      'enlarge_title_space': False
                                       })
     ret['res'] = compile_2D_2y_axis('tex_min_RT-errors_and_corresponding_' + ret['grp_names'][-2] +
                                     '_vs_' + ret['grp_names'][-1] + '_for_', tex_infos, ret)
@@ -1779,10 +1784,14 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'plots_l': left_cols,
                                   # Label of the left y-axis.
                                   'label_y_l': 'error',
+                                  # Use logarithmic scaling on left y-axis
+                                  'use_log_y_axis_l': False,
                                   # Column name for charts based on the right y-axis
                                   'plots_r': right_cols,
                                   # Label of the right y-axis.
                                   'label_y_r': replaceCSVLabels(str(ret['partitions'][-1])),
+                                  # Use logarithmic scaling on right y-axis
+                                  'use_log_y_axis_r': False,
                                   # Label of the x-axis.
                                   'label_x': partitions_legend,
                                   # Column name of the x-axis.
@@ -1825,7 +1834,8 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'use_marks': True,
                                   'xaxis_txt_rows': 1,
                                   'caption': caption,
-                                  'enlarge_lbl_dist': None
+                                  'enlarge_lbl_dist': None,
+                                  'enlarge_title_space': False
                                   })
 
     for rc, lc, rl, ll in zip(right_cols, left_cols, right_legend, left_legend):
@@ -1850,10 +1860,14 @@ def get_best_comb_th_scenes_1(**keywords):
                                       'plots_l': [lc],
                                       # Label of the left y-axis.
                                       'label_y_l': 'error',
+                                      # Use logarithmic scaling on left y-axis
+                                      'use_log_y_axis_l': False,
                                       # Column name for charts based on the right y-axis
                                       'plots_r': [rc],
                                       # Label of the right y-axis.
                                       'label_y_r': replaceCSVLabels(str(ret['partitions'][-1])),
+                                      # Use logarithmic scaling on right y-axis
+                                      'use_log_y_axis_r': False,
                                       # Label of the x-axis.
                                       'label_x': partitions_legend,
                                       # Column name of the x-axis.
@@ -1894,7 +1908,8 @@ def get_best_comb_th_scenes_1(**keywords):
                                       'use_marks': True,
                                       'xaxis_txt_rows': 1,
                                       'caption': caption,
-                                      'enlarge_lbl_dist': None
+                                      'enlarge_lbl_dist': None,
+                                      'enlarge_title_space': False
                                       })
 
     base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \
