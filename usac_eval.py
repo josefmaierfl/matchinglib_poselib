@@ -231,7 +231,6 @@ def pars_calc_single_fig_partitions(**keywords):
             b_name = 'data_' + keywords['file_name_err_part'] + '_vs_' + dataf_name
         else:
             b_name = 'data_RTerrors_vs_' + dataf_name
-        b_name = 'data_RTerrors_vs_' + dataf_name
         fb_name = os.path.join(ret['tdata_folder'], b_name)
         ret['b_single_partitions'].append({'data': tmp2,
                                            'part_name': part_name,

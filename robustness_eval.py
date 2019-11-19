@@ -265,6 +265,8 @@ def get_rt_change_type(**keywords):
                               (df_new['R_mostLikely(2,2)'] == 0))]
     if 'filter_poseIsStable' in keywords and keywords['filter_poseIsStable']:
         df_new = df_new.loc[(df_new['poseIsStable'] != 0)]
+    if 'filter_mostLikelyPose_stable' in keywords and keywords['filter_mostLikelyPose_stable']:
+        df_new = df_new.loc[(df_new['mostLikelyPose_stable'] != 0)]
     return df_new
 
 
@@ -1694,6 +1696,14 @@ def get_ml_acc(**keywords):
     for it in keywords['data_partitions']:
             if it not in individual_grps:
                 raise ValueError(it + ' provided in data_partitions not found in dataframe')
+    if 'stable_type' not in keywords:
+        raise ValueError('stable_type missing!')
+    if keywords['stable_type'] == 'poseIsStable':
+        stable_des = 'stable'
+    elif keywords['stable_type'] == 'mostLikelyPose_stable':
+        stable_des = 'stable most likely'
+    else:
+        raise ValueError('Given stable_type not supported!')
     from statistics_and_plot import short_concat_str, \
         replaceCSVLabels, \
         add_to_glossary, \
@@ -1708,7 +1718,8 @@ def get_ml_acc(**keywords):
         strToLower, \
         check_if_neg_values, \
         split_large_titles, \
-        calcNrLegendCols
+        calcNrLegendCols, \
+        capitalizeStr
     eval_columns_init = deepcopy(keywords['eval_columns'])
     eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
     eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
@@ -1728,10 +1739,11 @@ def get_ml_acc(**keywords):
     if b_diff.empty:
         f_name = os.path.join(keywords['res_folder'], 'out_compare_is_equal.txt')
         with open(f_name, 'w') as f:
-            f.write('Error differences of most likely extrinsics and normal output are equal.' + '\n')
+            f.write('Error differences of most likely extrinsics and normal output for ' + stable_des +
+                    ' poses are equal.' + '\n')
         return 0
     gloss = add_to_glossary_eval(keywords['eval_columns'] + ['Rt_diff', 'Rt_mostLikely_diff'])
-    title_name0 = 'Mean Differences Between ' + \
+    title_name0 = 'Mean Differences Between ' + capitalizeStr(stable_des) + ' ' +\
                   replaceCSVLabels('Rt_diff', True, True, True) + ' and ' + \
                   replaceCSVLabels('Rt_mostLikely_diff', True, True, True) + ' vs '
     title_name = title_name0 + \
@@ -1795,7 +1807,8 @@ def get_ml_acc(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Statistics on differences between most likely and default R&t errors vs ' + it + '\n')
+            f.write('# Statistics on ' + stable_des + ' differences between most likely and default R&t errors vs ' +
+                    it + '\n')
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -1814,7 +1827,8 @@ def get_ml_acc(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' + str(it) + '\n')
+            f.write('# Mean ' + stable_des + ' differences (Rt_diff2_ml) between most likely and default '
+                                             'R&t errors vs ' + str(it) + '\n')
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -1824,7 +1838,7 @@ def get_ml_acc(**keywords):
         enlarge_lbl_dist = check_legend_enlarge(df1, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
         reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
         for use_col in fig_cols:
-            caption_name = 'Mean differences between ' + \
+            caption_name = 'Mean ' + stable_des + ' differences between ' + \
                            replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
                            replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' values vs ' + \
                            replaceCSVLabels(it, True, False, True)
@@ -1883,8 +1897,8 @@ def get_ml_acc(**keywords):
             b_mean_name = 'data_min_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             with open(fb_mean_name, 'a') as f:
-                f.write('# Minimum mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' +
-                        str(it) + '\n')
+                f.write('# Minimum mean ' + stable_des + ' differences (Rt_diff2_ml) between most likely and '
+                                                         'default R&t errors vs ' + str(it) + '\n')
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
                 df4.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
             _, use_limits_l, use_log_l, exp_value_l = get_limits_log_exp(df4, True, True, False, None, ['Rt_diff2_ml'])
@@ -1897,7 +1911,7 @@ def get_ml_acc(**keywords):
             reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
             section_name = 'Minimum ' + strToLower(title_name0) + replaceCSVLabels(it, True, False, True)
             section_name = split_large_titles(section_name, 85)
-            caption = 'Minimum mean differences between ' + \
+            caption = 'Minimum mean ' + stable_des + ' differences between ' + \
                       replaceCSVLabels('Rt_diff', False, False, True) + ' and ' + \
                       replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
                       ' (left axis) and corresponding parameters ' + \
@@ -2002,7 +2016,7 @@ def get_ml_acc(**keywords):
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Ratio (rat_defa_high) of higher default R&t errors compared to most likely R&t errors vs ' +
-                    str(it) + '\n')
+                    str(it) + ' for ' + stable_des + ' poses\n')
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -2051,8 +2065,9 @@ def get_ml_acc(**keywords):
                 f_name = os.path.join(keywords['res_folder'], 'most_likely_pose_not_better_for_' + str(it) + '.txt')
                 with open(f_name, 'w') as f:
                     f.write('Errors of most likely extrinsics are bigger than normal pose outputs for all ' +
-                            str(it) + ' properties.' + '\n')
+                            str(it) + ' properties on ' + stable_des + ' poses.\n')
                 continue
+            df5['Rt_diff2_ml'] = df5['Rt_diff2_ml'].abs()
             # df5 = df5.reset_index().set_index(keywords['it_parameters'])
             df5.reset_index(inplace=True)
             df5 = df5.loc[df5.groupby(it)['Rt_diff2_ml'].idxmin()]#.reset_index()
@@ -2076,8 +2091,8 @@ def get_ml_acc(**keywords):
             b_mean_name = 'data_min_only_larger0_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             with open(fb_mean_name, 'a') as f:
-                f.write('# Minimum mean differences (Rt_diff2_ml) between most likely and default R&t errors vs ' +
-                        str(it) + '\n')
+                f.write('# Absolute minimum mean ' + stable_des + ' differences (Rt_diff2_ml) between most '
+                                                                  'likely and default R&t errors vs ' + str(it) + '\n')
                 f.write('# for ratios (rat_defa_high) of higher default R&t errors compared to most likely R&t '
                         'errors higher 0 (Only results with a smaller mean error of most likely poses compared '
                         'to default output)\n')
@@ -2091,11 +2106,11 @@ def get_ml_acc(**keywords):
             enlarge_lbl_dist = check_legend_enlarge(df5, str(it), 4, 'ybar', label_x.count('\\') + 1, not is_numeric)
             is_neg_r = check_if_neg_values(df5, non_meta_it_pars, use_log_r, use_limits_r)
             reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
-            section_name = 'Minimum ' + strToLower(title_name0) + replaceCSVLabels(it, True, False, True) + \
+            section_name = 'Absolute minimum ' + strToLower(title_name0) + replaceCSVLabels(it, True, False, True) + \
                            ' only for higher ' + replaceCSVLabels('Rt_diff', True, False, True) + ' compared to ' + \
                            replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' values'
             section_name = split_large_titles(section_name, 85)
-            caption = 'Minimum mean differences between ' + \
+            caption = 'Absolute minimum mean ' + stable_des + ' differences between ' + \
                       replaceCSVLabels('Rt_diff', False, False, True) + ' and ' + \
                       replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
                       ' (left axis) and corresponding parameters ' + \
@@ -2273,11 +2288,19 @@ def get_ml_acc(**keywords):
 def calc_pose_stable_ratio(**keywords):
     if 'data_separators' not in keywords:
         raise ValueError('data_separators missing!')
+    if 'stable_type' not in keywords:
+        raise ValueError('stable_type missing!')
+    if keywords['stable_type'] == 'poseIsStable':
+        stable_col = 'tr'
+    elif keywords['stable_type'] == 'mostLikelyPose_stable':
+        stable_col = 'trm'
+    else:
+        raise ValueError('Given stable_type not supported!')
     needed_columns = list(dict.fromkeys(keywords['eval_columns'] +
                                         keywords['it_parameters'] +
                                         keywords['x_axis_column'] +
                                         keywords['partitions'] +
-                                        ['poseIsStable', 'Nr'] +
+                                        [keywords['stable_type'], 'Nr'] +
                                         keywords['data_separators']))
     df_grp = keywords['data'][needed_columns].groupby(keywords['data_separators'])
     grp_keys = df_grp.groups.keys()
@@ -2289,22 +2312,24 @@ def calc_pose_stable_ratio(**keywords):
         if max_nr < nr_rows:
             warnings.warn('Data is not completely seperated. '
                           'Ratios for stability will be calculated on multiple datasets!', UserWarning)
-        nr_stable = float(tmp.loc[(tmp['poseIsStable'] != 0), 'poseIsStable'].shape[0])
+        nr_stable = float(tmp.loc[(tmp[keywords['stable_type']] != 0), keywords['stable_type']].shape[0])
         rat = nr_stable / float(nr_rows)
-        tmp['tr'] = [rat] * int(nr_rows)
+        tmp[stable_col] = [rat] * int(nr_rows)
         if 'remove_partitions' in keywords and keywords['remove_partitions']:
-            tmp.drop(['poseIsStable', 'Nr'] + keywords['remove_partitions'], axis=1, inplace=True)
+            tmp.drop([keywords['stable_type'], 'Nr'] + keywords['remove_partitions'], axis=1, inplace=True)
         else:
-            tmp.drop(['poseIsStable', 'Nr'], axis=1, inplace=True)
+            tmp.drop([keywords['stable_type'], 'Nr'], axis=1, inplace=True)
         df_list.append(tmp)
     keywords['data'] = pd.concat(df_list, ignore_index=False, axis=0)
-    keywords['eval_columns'] += ['tr']
+    keywords['eval_columns'] += [stable_col]
     return keywords
 
 
 def get_best_stability_pars(**keywords):
     if 'data_separators' not in keywords:
         raise ValueError('data_separators missing!')
+    if 'stable_type' not in keywords:
+        raise ValueError('stable_type missing!')
     from statistics_and_plot import replaceCSVLabels, \
         glossary_from_list, \
         add_to_glossary, \
@@ -2320,12 +2345,18 @@ def get_best_stability_pars(**keywords):
         check_legend_enlarge, \
         split_large_labels
     keywords = prepare_io(**keywords)
+    if keywords['stable_type'] == 'poseIsStable':
+        stable_col = 'tr'
+    elif keywords['stable_type'] == 'mostLikelyPose_stable':
+        stable_col = 'trm'
+    else:
+        raise ValueError('Given stable_type not supported!')
     df_grp = keywords['data'].reset_index().groupby(keywords['data_separators'])
     grp_keys = df_grp.groups.keys()
     df_list = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
-        tmp_mm = tmp.loc[[tmp.loc[:, ('tr', 'mean')].idxmin(), tmp.loc[:, ('tr', 'mean')].idxmax()], :]
+        tmp_mm = tmp.loc[[tmp.loc[:, (stable_col, 'mean')].idxmin(), tmp.loc[:, (stable_col, 'mean')].idxmax()], :]
         tmp_med = tmp_mm.xs('50%', axis=1, level=1, drop_level=True).copy(deep=True)
         for k, v in zip(keywords['data_separators'], grp):
             tmp_med[k] = [v] * int(tmp_med.shape[0])
@@ -2354,10 +2385,10 @@ def get_best_stability_pars(**keywords):
     gloss = add_to_glossary_eval(keywords['eval_columns'], gloss)
 
     sub_title_rest_it = combine_str_for_title(it_pars_meta)
-    title1 = replaceCSVLabels('tr', True, True, True)
+    title1 = replaceCSVLabels(stable_col, True, True, True)
     title2 = ' Corresponding to Smallest Combined Median R \\& t Error Differences Between Default ' \
              'and Most Likely Pose Errors Based on Lowest and Highest Mean ' + \
-             replaceCSVLabels('tr', False, True, True) + ' Values and Resulting Parameter '
+             replaceCSVLabels(stable_col, False, True, True) + ' Values and Resulting Parameter '
     title3 = replaceCSVLabels(keywords['on_2nd_axis'], False, True, True)
     title = title1 + title2 + title3
     tex_infos = {'title': title,
@@ -2392,12 +2423,12 @@ def get_best_stability_pars(**keywords):
                   strToLower(title3) + ' for property ' + \
                   add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp) + \
                   '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
-        _, _, use_limits_l = calc_limits(tmp4, False, True, None, 'tr')
-        is_neg_l = check_if_neg_values(tmp4, 'tr', False, use_limits_l)
+        _, _, use_limits_l = calc_limits(tmp4, False, True, None, stable_col)
+        is_neg_l = check_if_neg_values(tmp4, stable_col, False, use_limits_l)
         _, _, use_limits_r = calc_limits(tmp4, False, True, None, keywords['on_2nd_axis'])
         is_neg_r = check_if_neg_values(tmp4, keywords['on_2nd_axis'], False, use_limits_r)
         label_x = replaceCSVLabels(keywords['data_separators'][1])
-        label_y_l = replaceCSVLabels('tr')
+        label_y_l = replaceCSVLabels(stable_col)
         label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
         label_x, label_y_l = split_large_labels(tmp4, keywords['data_separators'][1], 1, 'xbar', True,
                                                 label_x, label_y_l)
@@ -2413,7 +2444,7 @@ def get_best_stability_pars(**keywords):
                                       'title_rows': section_name.count('\\\\'),
                                       'fig_type': 'xbar',
                                       # Column name for charts based on the left y-axis
-                                      'plots_l': ['tr'],
+                                      'plots_l': [stable_col],
                                       # Label of the left y-axis.
                                       'label_y_l': label_y_l,
                                       # Use logarithmic scaling on left y-axis
@@ -2455,7 +2486,7 @@ def get_best_stability_pars(**keywords):
                                       # Maximum and/or minimum y value/s on the left y-axis
                                       'limits_l': use_limits_l,
                                       # Legend entries for the charts belonging to the left y-axis
-                                      'legend_l': [replaceCSVLabels('tr')],
+                                      'legend_l': [replaceCSVLabels(stable_col)],
                                       # Maximum and/or minimum y value/s on the right y-axis
                                       'limits_r': use_limits_r,
                                       # Legend entries for the charts belonging to the right y-axis
@@ -2469,7 +2500,7 @@ def get_best_stability_pars(**keywords):
                                       })
         section_name = 'Smallest median R \\& t error differences between default and ' \
                        'most likely pose errors based on lowest and highest mean ' + \
-                       replaceCSVLabels('tr', True, True, True) + ' Values and Resulting Parameter ' + \
+                       replaceCSVLabels(stable_col, True, True, True) + ' Values and Resulting Parameter ' + \
                        strToLower(title3) + ' for property ' + \
                        add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp)
         caption = 'Smallest median R \\& t error differences between default and most ' \
@@ -2551,7 +2582,7 @@ def get_best_stability_pars(**keywords):
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
         section_name = 'Smallest combined median R \\& t error differences between default and ' \
                        'most likely pose errors based on lowest and highest mean ' + \
-                       replaceCSVLabels('tr', True, True, True) + ' Values and Resulting Parameter ' + \
+                       replaceCSVLabels(stable_col, True, True, True) + ' Values and Resulting Parameter ' + \
                        strToLower(title3) + ' for property ' + \
                        add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp)
         caption = 'Smallest combined median R \\& t error differences between default and most ' \
@@ -2670,3 +2701,202 @@ def get_best_stability_pars(**keywords):
         yaml.dump({main_parameter_name: {'Algorithm': alg_w}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
     return res
+
+
+def get_best_robust_pool_pars(**keywords):
+    if 'data_separators' not in keywords:
+        raise ValueError('data_separators missing!')
+    if 'partitions' in keywords:
+        if 'x_axis_column' in keywords:
+            individual_grps = keywords['it_parameters'] + keywords['partitions'] + keywords['x_axis_column']
+            in_type = 2
+        elif 'xy_axis_columns' in keywords:
+            individual_grps = keywords['it_parameters'] + keywords['partitions'] + keywords['xy_axis_columns']
+            in_type = 3
+        else:
+            raise ValueError('Either x_axis_column or xy_axis_columns must be provided')
+    elif 'x_axis_column' in keywords:
+        individual_grps = keywords['it_parameters'] + keywords['x_axis_column']
+        in_type = 0
+    elif 'xy_axis_columns' in keywords:
+        individual_grps = keywords['it_parameters'] + keywords['xy_axis_columns']
+        in_type = 1
+    else:
+        raise ValueError('Either x_axis_column or xy_axis_columns and it_parameters must be provided')
+    for it in keywords['data_separators']:
+            if it not in individual_grps:
+                raise ValueError(it + ' provided in data_separators not found in dataframe')
+    if 'split_fig_data' not in keywords and len(keywords['data_separators']) > 1:
+        raise ValueError('split_fig_data missing!')
+    elif len(keywords['data_separators']) > 2:
+        raise ValueError('Too many data_separators!')
+    from statistics_and_plot import replaceCSVLabels, \
+        glossary_from_list, \
+        add_to_glossary, \
+        add_to_glossary_eval, \
+        strToLower, \
+        capitalizeFirstChar, \
+        add_val_to_opt_str, \
+        combine_str_for_title, \
+        calc_limits, \
+        split_large_titles, \
+        check_if_neg_values, \
+        calcNrLegendCols, \
+        check_legend_enlarge, \
+        split_large_labels, \
+        short_concat_str, \
+        get_limits_log_exp, \
+        enl_space_title
+    if in_type == 0:
+        from usac_eval import pars_calc_single_fig
+        ret = pars_calc_single_fig(**keywords)
+    elif in_type == 1:
+        from usac_eval import pars_calc_multiple_fig
+        ret = pars_calc_multiple_fig(**keywords)
+    elif in_type == 2:
+        from usac_eval import pars_calc_single_fig_partitions
+        ret = pars_calc_single_fig_partitions(**keywords)
+    elif in_type == 3:
+        from usac_eval import pars_calc_multiple_fig_partitions
+        ret = pars_calc_multiple_fig_partitions(**keywords)
+    b = ret['b'].stack().reset_index()
+    b.rename(columns={b.columns[-1]: 'Rt_diff'}, inplace=True)
+    df = b.loc[b.groupby(keywords['data_separators'])['Rt_diff'].idxmin()]
+    # gloss = add_to_glossary_eval(keywords['eval_columns'] + ['Rt_diff'])
+    title_name0 = 'Minimum ' + replaceCSVLabels('Rt_diff', True, True, True) + ' and Corresponding Parameters ' + \
+                  combine_str_for_title(keywords['it_parameters']) + ' vs '
+    title_name = title_name0 + combine_str_for_title(keywords['data_separators'])
+    if 'split_fig_data' in keywords and keywords['split_fig_data']:
+        x_axis = [a for a in keywords['data_separators'] if a != keywords['split_fig_data']][0]
+        df = df.set_index([x_axis, keywords['split_fig_data']]).unstack()
+        split_figs = list(dict.fromkeys(map(str, df.columns.get_level_values(1))))
+        # gloss = add_to_glossary(split_figs, gloss)
+        # gloss = add_to_glossary(df.index.values, gloss)
+        df_cols = ['-'.join(map(str, a)) for a in df.columns]
+        ev_cols = [c for a in split_figs for c in df_cols if a in c and 'Rt_diff' in c]
+        it_cols = [[c for d in keywords['it_parameters'] for c in df_cols if d in c and a in c] for a in split_figs]
+        options_tex = []
+        for i, it in enumerate(it_cols):
+            options_tex.append('options_tex' + str(i))
+            if len(it) > 1:
+                df[options_tex[-1]] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                       for _, row in df[it].iterrows()]
+            else:
+                df[options_tex[-1]] = ['{:.3f}'.format(float(val))
+                                       for _, val in df[it[0]].iteritems()]
+    else:
+        x_axis = keywords['data_separators'][0]
+        df.set_index(x_axis, inplace=True)
+        # gloss = add_to_glossary(df.index.values, gloss)
+        split_figs = [' ']
+        ev_cols = ['Rt_diff']
+        it_cols = [keywords['it_parameters']]
+        options_tex = ['options_tex']
+        if len(it_cols[0]) > 1:
+            df[options_tex[-1]] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                                   for _, row in df[it_cols[0]].iterrows()]
+        else:
+            df[options_tex[-1]] = ['{:.3f}'.format(float(val))
+                                   for _, val in df[it_cols[0][0]].iteritems()]
+    base_out_name = 'min_rt_error_vs_' + short_concat_str(keywords['data_separators']) + 'for_pars_' + \
+                    short_concat_str(keywords['it_parameters'])
+    tex_infos = {'title': title_name,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': True,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': True,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': ret['gloss']
+                 }
+    b_mean_name = 'data_' + base_out_name + '.csv'
+    fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Minimum combined R & t errors (Rt_diff) vs ' + '-'.join(keywords['data_separators']) +
+                ' and corresponding parameters\n')
+        f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+        df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    for ev, it, val in zip(ev_cols, options_tex, split_figs):
+        section_name = capitalizeFirstChar(strToLower(title_name0)) + replaceCSVLabels(x_axis, True, False, True)
+        if 'split_fig_data' in keywords and keywords['split_fig_data']:
+            section_name += ' for partition ' + \
+                            add_val_to_opt_str(replaceCSVLabels(keywords['split_fig_data'], False, False, True), val)
+        caption = section_name + '. Values on top of each bar represent parameters in the following order: ' + \
+                  combine_str_for_title(keywords['it_parameters'])
+        _, use_limits, use_log, exp_value = get_limits_log_exp(df, True, True, False, None, ev)
+        is_neg = check_if_neg_values(df, ev, use_log, use_limits)
+        is_numeric = pd.to_numeric(df.reset_index()[x_axis], errors='coerce').notnull().all()
+        label_x = replaceCSVLabels(x_axis)
+        label_x, _ = split_large_labels(df, x_axis, 1, 'ybar', False, label_x)
+        section_name = split_large_titles(section_name, 80)
+        # enlarge_lbl_dist = check_legend_enlarge(df, x_axis, 1, 'ybar', label_x.count('\\') + 1, False)
+        exp_value = enl_space_title(exp_value, section_name, df, x_axis, 1, 'ybar')
+
+        tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
+                                      'name': section_name.replace('\\\\', ' '),
+                                      'title': section_name,
+                                      'title_rows': section_name.count('\\\\'),
+                                      'fig_type': 'ybar',
+                                      'plots': [ev],
+                                      'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
+                                      # Label/column name of axis with bars. For xbar it labels the y-axis
+                                      'label_x': label_x,
+                                      # Column name of axis with bars. For xbar it is the column for the y-axis
+                                      'print_x': x_axis,
+                                      # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                      'print_meta': True,
+                                      'plot_meta': [it],
+                                      # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                      'rotate_meta': 90,
+                                      'limits': use_limits,
+                                      # If None, no legend is used, otherwise use a list
+                                      'legend': None,
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      # The x/y-axis values are given as strings if True
+                                      'use_string_labels': not is_numeric,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
+                                      'enlarge_lbl_dist': None,
+                                      'enlarge_title_space': exp_value,
+                                      'large_meta_space_needed': True,
+                                      'is_neg': is_neg,
+                                      'caption': caption})
+    base_out_name1 = 'tex_' + base_out_name
+    template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    texf_name = base_out_name1 + '.tex'
+    pdf_name = base_out_name + '.pdf'
+    if keywords['build_pdf'][0]:
+        res1 = compile_tex(rendered_tex,
+                           ret['tex_folder'],
+                           texf_name,
+                           tex_infos['make_index'],
+                           os.path.join(ret['pdf_folder'], pdf_name),
+                           tex_infos['figs_externalize'])
+    else:
+        res1 = compile_tex(rendered_tex, ret['tex_folder'], texf_name)
+    if res1 != 0:
+        ret['res'] += abs(res1)
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    if len(keywords['it_parameters']) == 1:
+        if 'split_fig_data' in keywords and keywords['split_fig_data']:
+            all_its = []
+            for it in it_cols:
+                all_its += it
+            df_cnt = df[all_its].stack().value_counts(sort=True)
+        else:
+            df_cnt = df[keywords['it_parameters'][0]].value_counts(sort=True)
+        val_max = df_cnt.index[0]
+        cnt_max = df_cnt.iloc[0]
