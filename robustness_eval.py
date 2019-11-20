@@ -2948,3 +2948,455 @@ def get_best_robust_pool_pars(**keywords):
                 warnings.warn('No matching parameters were found in yaml file.', UserWarning)
                 keywords['res'] += 1
     return ret['res']
+
+
+def get_cRT_stats(**keywords):
+    if 'partitions' in keywords:
+        if 'x_axis_column' in keywords:
+            individual_grps = keywords['it_parameters'] + keywords['partitions'] + keywords['x_axis_column']
+            in_type = 2
+        elif 'xy_axis_columns' in keywords:
+            individual_grps = keywords['it_parameters'] + keywords['partitions'] + keywords['xy_axis_columns']
+            in_type = 3
+        else:
+            raise ValueError('Either x_axis_column or xy_axis_columns must be provided')
+    elif 'x_axis_column' in keywords:
+        individual_grps = keywords['it_parameters'] + keywords['x_axis_column']
+        in_type = 0
+    elif 'xy_axis_columns' in keywords:
+        individual_grps = keywords['it_parameters'] + keywords['xy_axis_columns']
+        in_type = 1
+    else:
+        raise ValueError('Either x_axis_column or xy_axis_columns and it_parameters must be provided')
+    for it in keywords['data_separators']:
+            if it not in individual_grps:
+                raise ValueError(it + ' provided in data_separators not found in dataframe')
+    from statistics_and_plot import short_concat_str
+    if in_type == 0:
+        from usac_eval import pars_calc_single_fig
+        ret = pars_calc_single_fig(**keywords)
+    elif in_type == 1:
+        from usac_eval import pars_calc_multiple_fig
+        ret = pars_calc_multiple_fig(**keywords)
+    elif in_type == 2:
+        from usac_eval import pars_calc_single_fig_partitions
+        ret = pars_calc_single_fig_partitions(**keywords)
+    elif in_type == 3:
+        from usac_eval import pars_calc_multiple_fig_partitions
+        ret = pars_calc_multiple_fig_partitions(**keywords)
+    b = ret['b'].stack().reset_index()
+    b.rename(columns={b.columns[-1]: 'Rt_diff'}, inplace=True)
+    drop_cols = [a for a in individual_grps if a not in keywords['data_separators']]
+    df_stat = b.drop(drop_cols, axis=1).groupby(keywords['data_separators']).describe()
+    b_mean_name = 'data_stats_combRT_vs_' + short_concat_str(keywords['data_separators']) + '.csv'
+    fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Statistics on combined R&t errors vs ' + '-'.join(keywords['data_separators']) + '\n')
+        df_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+    return ret['res']
+
+
+def calc_calib_delay_noPar(**keywords):
+    if 'data_separators' not in keywords:
+        raise ValueError('data_separators are necessary.')
+    if 'eval_on' not in keywords:
+        raise ValueError('Information (column name/s) for which evaluation is performed must be provided.')
+    if 'change_Nr' not in keywords:
+        raise ValueError('Frame number when the extrinsics change must be provided (index starts at 0)')
+    if 'additional_data' not in keywords:
+        raise ValueError('additional_data must be specified and should include column names like rt_change_pos.')
+    if 'comb_rt' in keywords and keywords['comb_rt']:
+        from corr_pool_eval import combine_rt_diff2
+        data, keywords = combine_rt_diff2(keywords['data'], keywords)
+    else:
+        data = keywords['data']
+    keywords = prepare_io(**keywords)
+    from statistics_and_plot import check_if_series, \
+        short_concat_str, \
+        replaceCSVLabels, \
+        combine_str_for_title, \
+        add_to_glossary_eval, \
+        add_to_glossary, \
+        strToLower, \
+        capitalizeFirstChar, \
+        calcNrLegendCols, \
+        get_limits_log_exp, \
+        split_large_titles, \
+        check_legend_enlarge, \
+        enl_space_title, \
+        findUnit, \
+        add_val_to_opt_str, \
+        replace_stat_names, \
+        replace_stat_names_col_tex, \
+        split_large_labels
+    needed_cols = list(dict.fromkeys(keywords['data_separators'] +
+                                     keywords['eval_on'] +
+                                     keywords['additional_data'] +
+                                     keywords['xy_axis_columns']))
+    df = data[needed_cols]
+    grpd_cols = keywords['data_separators']
+    df_grp = df.groupby(grpd_cols)
+    grp_keys = df_grp.groups.keys()
+    df_list = []
+    for grp in grp_keys:
+        tmp = df_grp.get_group(grp).copy(deep=True)
+        tmp.loc[:, keywords['eval_on'][0]] = tmp.loc[:, keywords['eval_on'][0]].abs()
+        #Check for the correctness of the change number
+        if int(tmp['rt_change_pos'].iloc[0]) != keywords['change_Nr']:
+            warnings.warn('Given frame number when extrinsics change doesnt match the estimated number. '
+                          'Taking estimated number.', UserWarning)
+            keywords['change_Nr'] = int(tmp['rt_change_pos'].iloc[0])
+        tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
+        min_val = tmp1[keywords['eval_on'][0]].min()
+        max_val = tmp1[keywords['eval_on'][0]].max()
+        rng80 = 0.8 * (max_val - min_val) + min_val
+        p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
+        th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
+        test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
+                            (tmp['Nr'] >= keywords['change_Nr']) &
+                            (tmp['Nr'] < (keywords['change_Nr'] + 2)))]
+        if test_rise.empty:
+            fd = 0
+            fpos = keywords['change_Nr']
+        else:
+            tmp2 = tmp.loc[((tmp[keywords['eval_on'][0]] <= th) &
+                            (tmp['Nr'] >= keywords['change_Nr']))]
+            if check_if_series(tmp2):
+                fpos = tmp2['Nr']
+                fd = fpos - keywords['change_Nr']
+            elif tmp2.shape[0] == 1:
+                fpos = tmp2['Nr'].iloc[0]
+                fd = fpos - keywords['change_Nr']
+            else:
+                tmp2.set_index('Nr', inplace=True)
+                tmp_iter = tmp2.iterrows()
+                idx_old, _ = next(tmp_iter)
+                fpos = 0
+                for idx, _ in tmp_iter:
+                    if idx == idx_old + 1:
+                        fpos = idx_old
+                        break
+                if fpos > 0:
+                    fd = fpos - keywords['change_Nr']
+                else:
+                    fpos = tmp2.index[0]
+                    fd = fpos - keywords['change_Nr']
+        tmp['fd'] = [np.NaN] * int(tmp.shape[0])
+        tmp.loc[(tmp['Nr'] == fpos), 'fd'] = fd
+        df_list.append(tmp)
+    df_new = pd.concat(df_list, axis=0, ignore_index=False)
+
+    gloss = add_to_glossary_eval(keywords['eval_on'])
+    n_gloss_calced = True
+    res = 0
+    all_mean = []
+    for i, it in enumerate(keywords['data_separators']):
+        av_pars = [a for a in keywords['data_separators'] if a != it]
+        df1 = df_new.groupby(it)
+        grp_keys = df1.groups.keys()
+        hist_list = []
+        par_stats_list = []
+        if n_gloss_calced:
+            gloss = add_to_glossary(grp_keys, gloss)
+            for it1 in av_pars:
+                gloss = add_to_glossary(df_new[it1].unique().tolist(), gloss)
+            n_gloss_calced = False
+        for grp in grp_keys:
+            tmp = df1.get_group(grp)
+            nr_max = tmp['Nr'].max()
+            fd_max = nr_max - keywords['change_Nr'] + 2
+            hist, bin_edges = np.histogram(tmp['fd'].dropna().values,
+                                           bins=list(range(0, fd_max)), density=False)
+            hist1 = hist[hist >= 1]
+            edges1 = bin_edges[np.nonzero(hist >= 1)]
+            hist_list.append(pd.DataFrame(data={'fd': edges1, 'count': hist1}, columns=['fd', 'count']).set_index('fd'))
+            par_stats_list.append(tmp.loc[((tmp['fd'] >= 0) & (tmp['fd'] <= fd_max)), ['fd']].describe())
+
+        df_hist = pd.concat(hist_list, axis=1, keys=grp_keys, ignore_index=False)
+        keywords['units'].append(('fd', '/\\# of frames',))
+
+        # Plot histogram
+        df_hist.columns = ['-'.join(map(str, a)) for a in df_hist.columns]
+        base_name = 'histogram_frame_delay_vs_' + it
+        hist_title_p01 = 'Histogram on Frame Delays for Reaching a Correct Calibration After an Abrupt ' + \
+                         'Change in Extrinsics '
+        if 'is_jrt' in keywords and keywords['is_jrt']:
+            hist_title_p01 += '( on every rotational axis and translation vector element) vs '
+        else:
+            hist_title_p01 += 'vs '
+        hist_title_p02 = replaceCSVLabels(it, True, True, True)
+        hist_title_p03 = ' Over Data Partitions ' + combine_str_for_title(av_pars)
+        hist_title_p1 = hist_title_p01 + hist_title_p02 + hist_title_p03
+        hist_title_p2 = ' Based on ' + replaceCSVLabels(keywords['eval_on'][0], True, True, True)
+        hist_title = hist_title_p1 + hist_title_p2
+        tex_infos = {'title': hist_title,
+                     'sections': [],
+                     # Builds an index with hyperrefs on the beginning of the pdf
+                     'make_index': True,
+                     # If True, the figures are adapted to the page height if they are too big
+                     'ctrl_fig_size': True,
+                     # If true, a pdf is generated for every figure and inserted as image in a second run
+                     'figs_externalize': False,
+                     # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                     'fill_bar': True,
+                     # Builds a list of abbrevations from a list of dicts
+                     'abbreviations': gloss
+                     }
+        b_mean_name = 'data_' + base_name + '.csv'
+        fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+        with open(fb_mean_name, 'a') as f:
+            f.write('# Histogram on Frame Delays for Reaching a Correct Calibration After an Abrupt '
+                    'Change in Extrinsics vs ' + it + ' over data partitions '
+                    '-'.join(av_pars) + ' based on ' + keywords['eval_on'][0] + '\n')
+            if 'is_jrt' in keywords and keywords['is_jrt']:
+                f.write('# Change on every rotational axis and translation vector element\n')
+            df_hist.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        nr_bins = df_hist.shape[0] * df_hist.shape[1]
+        if nr_bins < 31:
+            section_name = capitalizeFirstChar(strToLower(hist_title_p1))
+            caption = capitalizeFirstChar(strToLower(hist_title))
+            _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False)
+            label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
+            label_x, _ = split_large_labels(df_hist, 'fd', len(df_hist.columns.values), 'xbar', False, label_x)
+            section_name = split_large_titles(section_name, 80)
+            enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', len(df_hist.columns.values), 'xbar',
+                                                    label_x.count('\\') + 1, False)
+            exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
+                                        len(df_hist.columns.values), 'xbar')
+
+            tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                          'name': section_name.replace('\\\\', ' '),
+                                          'title': section_name,
+                                          'title_rows': section_name.count('\\\\'),
+                                          'fig_type': 'xbar',
+                                          'plots': df_hist.columns.values,
+                                          'label_y': 'count',  # Label of the value axis. For xbar it labels the x-axis
+                                          # Label/column name of axis with bars. For xbar it labels the y-axis
+                                          'label_x': label_x,
+                                          # Column name of axis with bars. For xbar it is the column for the y-axis
+                                          'print_x': 'fd',
+                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                          'print_meta': False,
+                                          'plot_meta': None,
+                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                          'rotate_meta': 0,
+                                          'limits': None,
+                                          # If None, no legend is used, otherwise use a list
+                                          'legend': [' -- '.join([replaceCSVLabels(b) for b in a.split('-')]) for a in
+                                                     df_hist.columns.values],
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          # The x/y-axis values are given as strings if True
+                                          'use_string_labels': False,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist,
+                                          'enlarge_title_space': exp_value,
+                                          'large_meta_space_needed': False,
+                                          'is_neg': False,
+                                          'caption': caption
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+        else:
+            for col in df_hist.columns.values:
+                part = [a for a in col.split('-') if a != 'count'][0]
+                section_name = capitalizeFirstChar(strToLower(hist_title_p01)) + \
+                               strToLower(add_val_to_opt_str(hist_title_p02, part)) + strToLower(hist_title_p03)
+                caption = section_name + strToLower(hist_title_p2)
+                _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False, None, col)
+                label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
+                label_x, _ = split_large_labels(df_hist, 'fd', 1, 'xbar', False, label_x)
+                section_name = split_large_titles(section_name, 80)
+                enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', 1, 'xbar', label_x.count('\\') + 1, False)
+                exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
+                                            1, 'xbar')
+
+                tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                              'name': section_name.replace('\\\\', ' '),
+                                              'title': section_name,
+                                              'title_rows': section_name.count('\\\\'),
+                                              'fig_type': 'xbar',
+                                              'plots': [col],
+                                              'label_y': 'count',  # Label of the value axis. For xbar it labels the x-axis
+                                              # Label/column name of axis with bars. For xbar it labels the y-axis
+                                              'label_x': label_x,
+                                              # Column name of axis with bars. For xbar it is the column for the y-axis
+                                              'print_x': 'fd',
+                                              # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                              'print_meta': False,
+                                              'plot_meta': None,
+                                              # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                              'rotate_meta': 0,
+                                              'limits': None,
+                                              # If None, no legend is used, otherwise use a list
+                                              'legend': None,
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              # The x/y-axis values are given as strings if True
+                                              'use_string_labels': False,
+                                              'use_log_y_axis': use_log,
+                                              'xaxis_txt_rows': 1,
+                                              'enlarge_lbl_dist': enlarge_lbl_dist,
+                                              'enlarge_title_space': exp_value,
+                                              'large_meta_space_needed': True,
+                                              'is_neg': False,
+                                              'caption': caption
+                                              })
+
+        base_out_name = 'tex_' + base_name
+        template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = base_out_name + '.tex'
+        pdf_name = base_out_name + '.pdf'
+        if keywords['build_pdf'][0]:
+            res1 = compile_tex(rendered_tex,
+                               keywords['tex_folder'],
+                               texf_name,
+                               tex_infos['make_index'],
+                               os.path.join(keywords['pdf_folder'], pdf_name),
+                               tex_infos['figs_externalize'])
+        else:
+            res1 = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+        if res1 != 0:
+            res += abs(res1)
+            warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+        # Plot frame delay statistics
+        par_stats = pd.concat(par_stats_list, axis=0, keys=grp_keys, ignore_index=False, names=[it])
+        base_name = '_calib_frame_delays_vs_' + it
+        title_p01 = 'Frame Delays of Reaching a Correct Calibration After an Abrupt ' + \
+                    'Change in Extrinsics '
+        if 'is_jrt' in keywords and keywords['is_jrt']:
+            title_p01 += '( on every rotational axis and translation vector element) vs '
+        else:
+            title_p01 += 'vs '
+        title_p1 = 'Statistics on ' + title_p01 + hist_title_p02 + hist_title_p03
+        title_p2 = ' Based on ' + replaceCSVLabels(keywords['eval_on'][0], True, True, True)
+        title = title_p1 + title_p2
+        tex_infos = {'title': title,
+                     'sections': [],
+                     # Builds an index with hyperrefs on the beginning of the pdf
+                     'make_index': True,
+                     # If True, the figures are adapted to the page height if they are too big
+                     'ctrl_fig_size': True,
+                     # If true, a pdf is generated for every figure and inserted as image in a second run
+                     'figs_externalize': False,
+                     # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                     'fill_bar': True,
+                     # Builds a list of abbrevations from a list of dicts
+                     'abbreviations': gloss
+                     }
+        stats = [a for a in list(dict.fromkeys(par_stats.index.get_level_values(1))) if a != 'count']
+        all_mean.append(par_stats.xs('mean', axis=0, level=1, drop_level=True))
+        for st in stats:
+            section_name = replace_stat_names(st) + ' Values of ' + title_p01 + hist_title_p02 + hist_title_p03
+            section_name = capitalizeFirstChar(strToLower(section_name))
+            caption = section_name + strToLower(title_p2)
+            p_mean = par_stats.xs(st, axis=0, level=1, drop_level=True)
+            base_name1 = replace_stat_names_col_tex(st) + base_name
+            b_mean_name = 'data_' + base_name1 + '.csv'
+            fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
+            with open(fb_mean_name, 'a') as f:
+                f.write('# ' + replace_stat_names(st, False) +
+                        ' values of frame delays (fd) of reaching a correct calibration after an abrupt ' +
+                        'change in extrinsics vs ' +
+                        it + ' over data partitions ' + '-'.join(map(str, av_pars)) +
+                        ' based on ' + keywords['eval_on'][0] + '\n')
+                if 'is_jrt' in keywords and keywords['is_jrt']:
+                    f.write('# Change on every rotational axis and translation vector element\n')
+                p_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+            _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False)
+            is_numeric = pd.to_numeric(p_mean.reset_index()[it], errors='coerce').notnull().all()
+            label_x = replaceCSVLabels(it)
+            label_x, _ = split_large_labels(p_mean, it, 1, 'ybar', False, label_x)
+            section_name = split_large_titles(section_name, 80)
+            # enlarge_lbl_dist = check_legend_enlarge(p_mean, 'options_tex', len(plots), 'xbar')
+            exp_value = enl_space_title(exp_value, section_name, p_mean, it, 1, 'ybar')
+
+            tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                          'name': section_name.replace('\\\\', ' '),
+                                          'title': section_name,
+                                          'title_rows': section_name.count('\\\\'),
+                                          'fig_type': 'ybar',
+                                          'plots': ['fd'],
+                                          'label_y': 'frame delay' + findUnit('fd', keywords['units']),  # Label of the value axis. For xbar it labels the x-axis
+                                          # Label/column name of axis with bars. For xbar it labels the y-axis
+                                          'label_x': label_x,
+                                          # Column name of axis with bars. For xbar it is the column for the y-axis
+                                          'print_x': it,
+                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                          'print_meta': False,
+                                          'plot_meta': None,
+                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                          'rotate_meta': 0,
+                                          'limits': use_limits,
+                                          # If None, no legend is used, otherwise use a list
+                                          'legend': None,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          # The x/y-axis values are given as strings if True
+                                          'use_string_labels': not is_numeric,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': None,
+                                          'enlarge_title_space': exp_value,
+                                          'large_meta_space_needed': False,
+                                          'is_neg': False,
+                                          'caption': caption
+                                          })
+
+        base_out_name = 'tex_stats' + base_name
+        rendered_tex = template.render(title=tex_infos['title'],
+                                       make_index=tex_infos['make_index'],
+                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                       figs_externalize=tex_infos['figs_externalize'],
+                                       fill_bar=tex_infos['fill_bar'],
+                                       sections=tex_infos['sections'],
+                                       abbreviations=tex_infos['abbreviations'])
+        texf_name = base_out_name + '.tex'
+        pdf_name = base_out_name + '.pdf'
+        if keywords['build_pdf'][1]:
+            res1 = compile_tex(rendered_tex,
+                               keywords['tex_folder'],
+                               texf_name,
+                               tex_infos['make_index'],
+                               os.path.join(keywords['pdf_folder'], pdf_name),
+                               tex_infos['figs_externalize'])
+        else:
+            res1 = compile_tex(rendered_tex, keywords['tex_folder'], texf_name)
+        if res1 != 0:
+            res += abs(res1)
+            warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+
+    df_list = []
+    for df_it in all_mean:
+        df_list.append(df_it.mean(axis=0).to_frame().T)
+    df_means = pd.concat(df_list, axis=0, keys=keywords['data_separators'], names=['partition'], ignore_index=False)
+    df_means.index = [a[0] for a in df_means.index]
+    base_name = 'mean_fds_for_partitions_' + short_concat_str(keywords['data_separators'])
+    b_mean_name = 'data_' + base_name + '.csv'
+    fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
+    with open(fb_mean_name, 'a') as f:
+        f.write('# Mean frame delays for mean values of partitions ' +
+                '-'.join(map(str, keywords['data_separators'])) + '\n')
+        if 'is_jrt' in keywords and keywords['is_jrt']:
+            f.write('# Change on every rotational axis and translation vector element\n')
+        df_means.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+    df_mmean = float(df_means.mean(axis=0))
+    main_parameter_name = keywords['res_par_name']
+    # Check if file and parameters exist
+    from usac_eval import check_par_file_exists, NoAliasDumper
+    ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    with open(ppar_file, 'a') as fo:
+        yaml.dump({main_parameter_name: df_mmean},
+                  stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return res
