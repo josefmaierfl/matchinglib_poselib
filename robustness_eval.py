@@ -2704,6 +2704,8 @@ def get_best_stability_pars(**keywords):
 
 
 def get_best_robust_pool_pars(**keywords):
+    if 'res_par_name' not in keywords and len(keywords['it_parameters']) == 1:
+        raise ValueError('res_par_name missing!')
     if 'data_separators' not in keywords:
         raise ValueError('data_separators missing!')
     if 'partitions' in keywords:
@@ -2731,18 +2733,12 @@ def get_best_robust_pool_pars(**keywords):
     elif len(keywords['data_separators']) > 2:
         raise ValueError('Too many data_separators!')
     from statistics_and_plot import replaceCSVLabels, \
-        glossary_from_list, \
-        add_to_glossary, \
-        add_to_glossary_eval, \
         strToLower, \
         capitalizeFirstChar, \
         add_val_to_opt_str, \
         combine_str_for_title, \
-        calc_limits, \
         split_large_titles, \
         check_if_neg_values, \
-        calcNrLegendCols, \
-        check_legend_enlarge, \
         split_large_labels, \
         short_concat_str, \
         get_limits_log_exp, \
@@ -2773,8 +2769,9 @@ def get_best_robust_pool_pars(**keywords):
         # gloss = add_to_glossary(split_figs, gloss)
         # gloss = add_to_glossary(df.index.values, gloss)
         df_cols = ['-'.join(map(str, a)) for a in df.columns]
-        ev_cols = [c for a in split_figs for c in df_cols if a in c and 'Rt_diff' in c]
-        it_cols = [[c for d in keywords['it_parameters'] for c in df_cols if d in c and a in c] for a in split_figs]
+        ev_cols = [c for a in split_figs for c in df_cols if c == ('Rt_diff-' + a)]
+        it_cols = [[c for d in keywords['it_parameters'] for c in df_cols if c == (d + '-' + a)] for a in split_figs]
+        df.columns = df_cols
         options_tex = []
         for i, it in enumerate(it_cols):
             options_tex.append('options_tex' + str(i))
@@ -2877,7 +2874,7 @@ def get_best_robust_pool_pars(**keywords):
                                    abbreviations=tex_infos['abbreviations'])
     texf_name = base_out_name1 + '.tex'
     pdf_name = base_out_name + '.pdf'
-    if keywords['build_pdf'][0]:
+    if keywords['build_pdf'][1]:
         res1 = compile_tex(rendered_tex,
                            ret['tex_folder'],
                            texf_name,
@@ -2899,4 +2896,55 @@ def get_best_robust_pool_pars(**keywords):
         else:
             df_cnt = df[keywords['it_parameters'][0]].value_counts(sort=True)
         val_max = df_cnt.index[0]
-        cnt_max = df_cnt.iloc[0]
+
+        main_parameter_name = keywords['res_par_name']
+        # Check if file and parameters exist
+        from usac_eval import check_par_file_exists, NoAliasDumper
+        ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, keywords['res_folder'], ret['res'])
+        with open(ppar_file, 'a') as fo:
+            # Write parameters
+            alg_comb_bestl = [val_max]
+            if len(keywords['it_parameters']) != len(alg_comb_bestl):
+                raise ValueError('Nr of refine algorithms does not match')
+            alg_w = {}
+            for i, val in enumerate(keywords['it_parameters']):
+                alg_w[val] = int(alg_comb_bestl[i])
+            alg_counts = {}
+            for idx, val in df_cnt.iteritems():
+                alg_counts[int(idx)] = int(val)
+            yaml.dump({main_parameter_name: {'Algorithm': alg_w,
+                                             'value_count': alg_counts}},
+                      stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+
+        if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
+            from statistics_and_plot import read_yaml_pars
+            for k in alg_counts.keys():
+                alg_counts[k] = 0
+            found = False
+            for it in keywords['comp_res']:
+                pars = read_yaml_pars(it, keywords['res_folder'])
+                if pars and 'value_count' in pars:
+                    for k, v in pars['value_count'].items():
+                        for k1 in alg_counts.keys():
+                            if k == k1:
+                                alg_counts[k] += v
+                                found = True
+                                break
+            if found:
+                alg_counts_sort = sorted(alg_counts.items(), key=lambda kv: kv[1], reverse=True)
+                main_parameter_name += '_final'
+                with open(ppar_file, 'a') as fo:
+                    # Write parameters
+                    alg_comb_bestl = [alg_counts_sort[0][0]]
+                    if len(keywords['it_parameters']) != len(alg_comb_bestl):
+                        raise ValueError('Nr of refine algorithms does not match')
+                    alg_w = {}
+                    for i, val in enumerate(keywords['it_parameters']):
+                        alg_w[val] = int(alg_comb_bestl[i])
+                    yaml.dump({main_parameter_name: {'Algorithm': alg_w,
+                                                     'value_count': alg_counts}},
+                              stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+            else:
+                warnings.warn('No matching parameters were found in yaml file.', UserWarning)
+                keywords['res'] += 1
+    return ret['res']
