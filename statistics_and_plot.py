@@ -4593,7 +4593,7 @@ def contains_nan(df, col_names):
         except TypeError as te:
             mult_cols = False
     if mult_cols:
-        nr_nans = df[col_names].stack().isnull().sum()
+        nr_nans = df[col_names].isnull().stack().sum()
     else:
         nr_nans = df[col_names].isnull().sum()
     return nr_nans > 0
@@ -4604,7 +4604,7 @@ def handle_nans(df, col_names, is_string_x, fig_type):
         return None
     if not contains_nan(df, col_names):
         return None
-    return int(df.shape[0])
+    return int(df.shape[0]) - 1
 
 
 def too_many_nan(df, col_name):
@@ -7728,7 +7728,7 @@ def main():
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 6
-    eval_nr = [-1]#list(range(10, 11))
+    eval_nr = [33]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'

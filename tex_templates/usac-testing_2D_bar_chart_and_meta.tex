@@ -293,8 +293,8 @@ every node near coord/.append style={font=\scriptsize, inner sep=1pt\BLOCK{ if s
 \BLOCK{ if sec['use_string_labels'] or (sec['plots']|length > 1 and (sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar')) }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 \BLOCK{ if sec['nr_x_if_nan'] }
-ytick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-ymin=1,%
+ytick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+ymin=0,%
 ymax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 ytick=data,%
@@ -306,8 +306,8 @@ y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 x tick label style={/pgf/number format/precision=4},%
 \BLOCK{ else }
 \BLOCK{ if sec['nr_x_if_nan'] }
-xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-xmin=1,%
+xtick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=0,%
 xmax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 xtick=data,%

@@ -161,8 +161,8 @@ enlarge y limits={true, abs value=0.75},%
 y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ if sec['nr_x_if_nan'] }
-ytick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-ymin=1,%
+ytick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+ymin=0,%
 ymax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 ytick=data,%
@@ -189,8 +189,8 @@ enlarge x limits={true, abs value=0.75},%
 x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
 \BLOCK{ if sec['nr_x_if_nan'] }
-xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-xmin=1,%
+xtick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=0,%
 xmax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 xtick=data,%
@@ -201,8 +201,8 @@ x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/numb
 \BLOCK{ endif }
 \BLOCK{ elif sec['use_string_labels'] }
 \BLOCK{ if sec['nr_x_if_nan'] }
-xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-xmin=1,%
+xtick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=0,%
 xmax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 xtick=data,%

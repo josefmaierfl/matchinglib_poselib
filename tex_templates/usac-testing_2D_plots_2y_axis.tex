@@ -282,8 +282,8 @@ max space between ticks={50},%
 \BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 \BLOCK{ if sec['nr_x_if_nan'] }
-ytick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-ymin=1,%
+ytick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+ymin=0,%
 ymax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 ytick=data,%
@@ -292,8 +292,8 @@ yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ else }
 \BLOCK{ if sec['nr_x_if_nan'] }
-xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-xmin=1,%
+xtick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=0,%
 xmax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 xtick=data,%
@@ -517,8 +517,8 @@ align=center,%
 \BLOCK{ if nonnumeric_x or sec['fig_type'] == 'xbar' or sec['fig_type'] == 'ybar' }
 \BLOCK{ if sec['fig_type'] == 'xbar' }
 \BLOCK{ if sec['nr_x_if_nan'] }
-ytick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-ymin=1,%
+ytick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+ymin=0,%
 ymax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 ytick=data,%
@@ -526,8 +526,8 @@ ytick=data,%
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ else }
 \BLOCK{ if sec['nr_x_if_nan'] }
-xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
-xmin=1,%
+xtick={0,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=0,%
 xmax=\VAR{ sec['nr_x_if_nan'] },%
 \BLOCK{ else }
 xtick=data,%
