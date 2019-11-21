@@ -2749,6 +2749,11 @@ def get_best_robust_pool_pars(**keywords):
     elif in_type == 1:
         from usac_eval import pars_calc_multiple_fig
         ret = pars_calc_multiple_fig(**keywords)
+        ret['b'] = ret['b'].set_index(list(ret['b'].columns.values)[0:2])
+        drop_cols = [a for a in list(ret['b'].columns.values)
+                     if 'nr_rep_for_pgf_x' == a or 'nr_rep_for_pgf_y' == a or '_lbl' in a]
+        if drop_cols:
+            ret['b'].drop(drop_cols, axis=1, inplace=True)
     elif in_type == 2:
         from usac_eval import pars_calc_single_fig_partitions
         ret = pars_calc_single_fig_partitions(**keywords)
@@ -2978,6 +2983,11 @@ def get_cRT_stats(**keywords):
     elif in_type == 1:
         from usac_eval import pars_calc_multiple_fig
         ret = pars_calc_multiple_fig(**keywords)
+        ret['b'] = ret['b'].set_index(list(ret['b'].columns.values)[0:2])
+        drop_cols = [a for a in list(ret['b'].columns.values)
+                     if 'nr_rep_for_pgf_x' == a or 'nr_rep_for_pgf_y' == a or '_lbl' in a]
+        if drop_cols:
+            ret['b'].drop(drop_cols, axis=1, inplace=True)
     elif in_type == 2:
         from usac_eval import pars_calc_single_fig_partitions
         ret = pars_calc_single_fig_partitions(**keywords)

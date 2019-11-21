@@ -630,7 +630,7 @@ def pars_calc_multiple_fig(**keywords):
     if len(plot_cols) != len(list(ret['b'].columns.values)[2:]):
         drop_cols = []
         for it in list(ret['b'].columns.values)[2:]:
-            if it not in plot_cols:
+            if it not in plot_cols and 'nr_rep_for_pgf_x' != it and 'nr_rep_for_pgf_y' != it and '_lbl' not in it:
                 drop_cols.append(it)
         if drop_cols:
             ret['b'].drop(drop_cols, axis=1, inplace=True)
@@ -669,14 +669,14 @@ def pars_calc_multiple_fig(**keywords):
                                           ' and ' + replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +
                                           ' for parameter variations of ' + ret['sub_title'],
                                   'fig_type': ret['fig_type'],
-                                  'plots_z': list(ret['b'].columns.values)[2:],
+                                  'plots_z': plot_cols,
                                   'diff_z_labels': False,
                                   'label_z': 'Combined R \\& t error $e_{R\\bm{t}}$',
                                   'plot_x': env_3d_info['lbl_xy'][0],
                                   'label_x': replaceCSVLabels(str(ret['b'].columns.values[1])),
                                   'plot_y': env_3d_info['lbl_xy'][1],
                                   'label_y': replaceCSVLabels(str(ret['b'].columns.values[0])),
-                                  'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)[2:]],
+                                  'legend': [tex_string_coding_style(a) for a in plot_cols],
                                   'use_marks': ret['use_marks'],
                                   'mesh_cols': env_3d_info['nr_equal_ss'],
                                   'use_log_z_axis': False,
