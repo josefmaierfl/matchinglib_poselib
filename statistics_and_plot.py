@@ -533,6 +533,7 @@ def calcSatisticAndPlot_2D(data,
                            ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
             exp_value = enl_space_title(exp_value, section_name, tmp, grp_names[-1],
                                         len(list(tmp.columns.values)), fig_type)
+            x_rows = handle_nans(tmp, list(tmp.columns.values), not is_numeric, fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': section_name,
@@ -551,6 +552,7 @@ def calcSatisticAndPlot_2D(data,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': enlarge_lbl_dist,
                                           'pdf_nr': pdf_nr
                                           })
@@ -926,6 +928,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
                 enlarge_lbl_dist = check_legend_enlarge(tmp2, grp_names[-1], len(list(tmp2.columns.values)), fig_type)
+                x_rows = handle_nans(tmp2, list(tmp2.columns.values), not is_numeric, fig_type)
                 section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
                                replaceCSVLabels(str(it_tmp[0]), True, False, True) +\
                                ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
@@ -955,6 +958,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                               'enlarge_title_space': exp_value,
                                               'use_string_labels': True if not is_numeric else False,
                                               'xaxis_txt_rows': 1,
+                                              'nr_x_if_nan': x_rows,
                                               'enlarge_lbl_dist': enlarge_lbl_dist,
                                               'stat_name': it_tmp[-1],
                                               })
@@ -1362,6 +1366,7 @@ def calcFromFuncAndPlot_2D(data,
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, tmp, x_axis_column[0],
                                     len(sel_cols), fig_type)
+        x_rows = handle_nans(tmp, sel_cols, not is_numeric, fig_type)
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name,
                                       # If caption is None, the field name is used
@@ -1379,6 +1384,7 @@ def calcFromFuncAndPlot_2D(data,
                                       'enlarge_title_space': exp_value,
                                       'use_string_labels': True if not is_numeric else False,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
                                       'stat_name': ev,
                                       })
@@ -1878,6 +1884,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
             fig_name = split_large_titles(fig_name)
             exp_value = enl_space_title(exp_value, fig_name, tmp, x_axis_column[0],
                                         len(sel_cols), fig_type)
+            x_rows = handle_nans(tmp, sel_cols, not is_numeric, fig_type)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
@@ -1895,6 +1902,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': enlarge_lbl_dist,
                                           'stat_name': ev,
                                           })
@@ -3820,6 +3828,7 @@ def calcFromFuncAndPlot_aggregate(data,
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, df, 'tex_it_pars',
                                     1, fig_type)
+        x_rows = handle_nans(df, it, True, fig_type)
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -3850,6 +3859,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'is_neg': is_neg,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': fig_name.replace('\\\\', ' ')
                                       })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -4143,6 +4153,7 @@ def calcSatisticAndPlot_aggregate(data,
             exp_value = enl_space_title(exp_value, fig_name, tmp, 'tex_it_pars',
                                         1, fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
+            x_rows = handle_nans(tmp, col_name, True, fig_type)
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name.replace('\\\\', ' '),
                                           'title': fig_name,
@@ -4173,6 +4184,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'is_neg': is_neg,
+                                          'nr_x_if_nan': x_rows,
                                           'caption': fig_name.replace('\\\\', ' '),
                                           'pdf_nr': pdf_nr
                                           })
@@ -4569,6 +4581,30 @@ def gen_3D_number_rep_for_string(df, col_name, is_x, is_numeric):
 
 def check_if_numeric(df, col_name):
     return pd.to_numeric(df.reset_index()[col_name], errors='coerce').notnull().all()
+
+
+def contains_nan(df, col_names):
+    mult_cols = True
+    if isinstance(col_names, str):
+        mult_cols = False
+    else:
+        try:
+            oit = iter(col_names)
+        except TypeError as te:
+            mult_cols = False
+    if mult_cols:
+        nr_nans = df[col_names].stack().isnull().sum()
+    else:
+        nr_nans = df[col_names].isnull().sum()
+    return nr_nans > 0
+
+
+def handle_nans(df, col_names, is_string_x, fig_type):
+    if fig_type != 'xbar' and fig_type != 'ybar' and not is_string_x:
+        return None
+    if not contains_nan(df, col_names):
+        return None
+    return int(df.shape[0])
 
 
 def too_many_nan(df, col_name):

@@ -61,7 +61,8 @@ def get_best_comb_scenes_1(**keywords):
         split_large_titles, \
         get_limits_log_exp, \
         enl_space_title, \
-        check_if_neg_values
+        check_if_neg_values, \
+        handle_nans
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
                      ' for Parameter Variations of ' + ret['sub_title_it_pars']
@@ -151,6 +152,7 @@ def get_best_comb_scenes_1(**keywords):
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, tmp, dp,
                                     len(data_it_b_columns[-1]), 'smooth')
+        x_rows = handle_nans(tmp, data_it_b_columns[-1], not is_numeric[-1], 'smooth')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -180,6 +182,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': False,
                                       'is_neg': is_neg,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': fig_name.replace('\\\\', ' ')
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -295,6 +298,7 @@ def get_best_comb_scenes_1(**keywords):
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, data_parts_min[-1], dp,
                                     1, 'ybar')
+        x_rows = handle_nans(data_parts_min[-1], err_name, not isn, 'ybar')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name.replace('\\\\', ' '),
                                       'title': fig_name,
@@ -325,6 +329,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'is_neg': is_neg,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption
                                       })
     rendered_tex = template.render(title=tex_infos['title'],
@@ -422,7 +427,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     tmp_min = tmp.loc[[tmp[col_name].idxmin(axis=0)]].reset_index()
 
     vars = prepare_io(**vars)
-    from statistics_and_plot import compile_tex, strToLower, split_large_titles
+    from statistics_and_plot import compile_tex, strToLower, split_large_titles, handle_nans
     t_main_name = 'mean_time_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
                   '-'.join(map(str, vars['it_parameters']))
@@ -456,6 +461,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     fig_name = split_large_titles(fig_name)
     exp_value = enl_space_title(exp_value, fig_name, tmp, 'pars_tex',
                                 1, 'ybar')
+    x_rows = handle_nans(tmp, col_name, True, 'ybar')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name.replace('\\\\', ' '),
                                   'title': fig_name,
@@ -486,6 +492,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': fig_name.replace('\\\\', ' ')
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -617,7 +624,8 @@ def pars_calc_single_fig_K(**keywords):
         calcNrLegendCols, \
         replaceCSVLabels, \
         split_large_titles, \
-        get_limits_log_exp
+        get_limits_log_exp, \
+        handle_nans
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
@@ -645,6 +653,7 @@ def pars_calc_single_fig_K(**keywords):
                  }
     _, use_limits, use_log, exp_value = get_limits_log_exp(ret['b'])
     is_numeric = pd.to_numeric(ret['b'].reset_index()[ret['grp_names'][-1]], errors='coerce').notnull().all()
+    x_rows = handle_nans(ret['b'], list(ret['b'].columns.values), not is_numeric, 'smooth')
     section_name = 'Combined camera matrix errors $e_{\\mli{K1,2}}$ vs ' +\
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
@@ -669,6 +678,7 @@ def pars_calc_single_fig_K(**keywords):
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
@@ -728,8 +738,9 @@ def get_best_comb_inlrat_k(**keywords):
         fig_type = 'xbar'
     else:
         fig_type = 'ybar'
-    from statistics_and_plot import replaceCSVLabels, check_if_neg_values
+    from statistics_and_plot import replaceCSVLabels, check_if_neg_values, handle_nans
     is_neg = check_if_neg_values(b_mean, 'ke_mean', False, None)
+    x_rows = handle_nans(b_mean, 'ke_mean', True, fig_type)
     tex_infos = {'title': 'Mean Combined Camera Matrix Errors over all ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
@@ -776,6 +787,7 @@ def get_best_comb_inlrat_k(**keywords):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': is_neg,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': 'Mean combined camera matrix errors $e_{\\mli{K1,2}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })

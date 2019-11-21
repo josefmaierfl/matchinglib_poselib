@@ -376,7 +376,8 @@ def eval_corr_pool_converge(**keywords):
         compile_tex, \
         get_limits_log_exp, \
         check_legend_enlarge, \
-        enl_space_title
+        enl_space_title, \
+        handle_nans
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -554,6 +555,7 @@ def eval_corr_pool_converge(**keywords):
                     elif i1 < nr_partitions - 1:
                         fig_name += ', and '
             fig_name = split_large_titles(fig_name)
+            x_rows = handle_nans(tmp1, use_cols, True, 'ybar')
             exp_value = enl_space_title(exp_value, fig_name, tmp1, 'tex_it_pars',
                                         len(use_cols), 'ybar')
             tex_infos['sections'].append({'file': reltex_name,
@@ -571,6 +573,7 @@ def eval_corr_pool_converge(**keywords):
                                           'use_marks': False,
                                           'use_log_y_axis': use_log,
                                           'xaxis_txt_rows': max_txt_rows,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': None,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True,
@@ -684,6 +687,7 @@ def eval_corr_pool_converge(**keywords):
     fig_name = split_large_titles(fig_name)
     exp_value = enl_space_title(exp_value, fig_name, data_new3, keywords['partition_x_axis'],
                                 len(use_plots), 'xbar')
+    x_rows = handle_nans(data_new3, use_plots, not is_numeric, 'xbar')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
@@ -699,6 +703,7 @@ def eval_corr_pool_converge(**keywords):
                                   'use_marks': False,
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': enlarge_lbl_dist,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
@@ -1289,7 +1294,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         findUnit, \
         compile_tex, \
         get_limits_log_exp, \
-        enl_space_title
+        enl_space_title, \
+        handle_nans
 
     base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg', 'poolSize']
 
@@ -1417,6 +1423,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, tmp1, 'stat_type',
                                     len(ev), 'ybar')
+        x_rows = handle_nans(tmp1, ev, True, 'ybar')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name,
                                       # If caption is None, the field name is used
@@ -1433,6 +1440,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
                                       'use_marks': False,
                                       'use_log_y_axis': use_log,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'use_string_labels': True,
@@ -1514,7 +1522,8 @@ def eval_mean_time_poolcorrs(**keywords):
         findUnit, \
         compile_tex, \
         get_limits_log_exp, \
-        enl_space_title
+        enl_space_title, \
+        handle_nans
 
     df_grp = keywords['data'].xs('mean', axis=1, level=1,
                                  drop_level=True).reset_index().drop([a for a in keywords['it_parameters']
@@ -1565,6 +1574,7 @@ def eval_mean_time_poolcorrs(**keywords):
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, df_grp, 'tex_it_pars',
                                     1, 'ybar')
+        x_rows = handle_nans(df_grp, ev, True, 'ybar')
         tex_infos['sections'].append({'file': reltex_name,
                                       'name': fig_name,
                                       # If caption is None, the field name is used
@@ -1581,6 +1591,7 @@ def eval_mean_time_poolcorrs(**keywords):
                                       'use_marks': False,
                                       'use_log_y_axis': use_log,
                                       'xaxis_txt_rows': max_txt_rows,
+                                      'nr_x_if_nan': x_rows,
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': exp_value,
                                       'use_string_labels': True,
@@ -1628,7 +1639,8 @@ def eval_mean_time_pool_3D_dist(**keywords):
         compile_tex, \
         get_limits_log_exp, \
         enl_space_title, \
-        add_to_glossary
+        add_to_glossary, \
+        handle_nans
 
     title = 'Mean Execution Times over the Last 30 Stereo Frames out of 150 Frames for Comparison of Different ' + \
             keywords['sub_title_it_pars']
@@ -1689,6 +1701,7 @@ def eval_mean_time_pool_3D_dist(**keywords):
             fig_name = split_large_titles(fig_name)
             exp_value = enl_space_title(exp_value, fig_name, df_grp, 'tex_it_pars',
                                         1, 'ybar')
+            x_rows = handle_nans(df_grp, ev, True, 'ybar')
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': fig_name,
                                           # If caption is None, the field name is used
@@ -1705,6 +1718,7 @@ def eval_mean_time_pool_3D_dist(**keywords):
                                           'use_marks': False,
                                           'use_log_y_axis': use_log,
                                           'xaxis_txt_rows': max_txt_rows,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': None,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True,

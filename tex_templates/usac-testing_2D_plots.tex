@@ -160,7 +160,13 @@ enlarge y limits={true, abs value=0.75},%
 \BLOCK{ elif sec['xaxis_txt_rows'] > 1 }
 y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
+\BLOCK{ if sec['nr_x_if_nan'] }
+ytick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
+ymin=1,%
+ymax=\VAR{ sec['nr_x_if_nan'] },%
+\BLOCK{ else }
 ytick=data,%
+\BLOCK{ endif }
 yticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ if sec['use_string_labels'] }
 y tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
@@ -182,13 +188,25 @@ enlarge x limits={true, abs value=0.75},%
 \BLOCK{ elif sec['xaxis_txt_rows'] > 1 }
 x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
 \BLOCK{ endif }
+\BLOCK{ if sec['nr_x_if_nan'] }
+xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=1,%
+xmax=\VAR{ sec['nr_x_if_nan'] },%
+\BLOCK{ else }
 xtick=data,%
+\BLOCK{ endif }
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 \BLOCK{ if sec['use_string_labels'] }
 x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ endif }
 \BLOCK{ elif sec['use_string_labels'] }
+\BLOCK{ if sec['nr_x_if_nan'] }
+xtick={1,...,\VAR{ sec['nr_x_if_nan'] }},%
+xmin=1,%
+xmax=\VAR{ sec['nr_x_if_nan'] },%
+\BLOCK{ else }
 xtick=data,%
+\BLOCK{ endif }
 xticklabels from table={\datatable}{\VAR{ sec['plot_x'] }},%
 x tick label style={rotate=45,anchor=east,align=right,font=\scriptsize,/pgf/number format/precision=4},%
 \BLOCK{ if '\\' in sec['label_x'] }

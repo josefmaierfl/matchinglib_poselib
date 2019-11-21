@@ -325,7 +325,8 @@ def get_best_comb_scenes_1(**keywords):
         strToLower, \
         check_if_neg_values, \
         split_large_labels, \
-        check_legend_enlarge
+        check_legend_enlarge, \
+        handle_nans
     ret = pars_calc_single_fig_partitions(**keywords)
     b_min = ret['b'].stack().reset_index()
     b_min.rename(columns={b_min.columns[-1]: 'Rt_diff'}, inplace=True)
@@ -418,6 +419,7 @@ def get_best_comb_scenes_1(**keywords):
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['x_axis_column'][0]], errors='coerce').notnull().all()
         label_x = replaceCSVLabels(keywords['x_axis_column'][0])
         label_x, _ = split_large_labels(tmp, keywords['x_axis_column'][0], 1, 'ybar', False, label_x)
+        x_rows = handle_nans(tmp, 'Rt_diff', not is_numeric, 'ybar')
         enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['x_axis_column'][0],
                                                 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
         section_name = split_large_titles(section_name)
@@ -452,6 +454,7 @@ def get_best_comb_scenes_1(**keywords):
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'is_neg': is_neg,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption
                                       })
 
@@ -569,6 +572,7 @@ def get_best_comb_scenes_1(**keywords):
     is_numeric = pd.to_numeric(b_mean.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
     label_x = replaceCSVLabels(ret['partitions'][0])
     label_x, _ = split_large_labels(b_mean, ret['partitions'][0], 1, 'ybar', False, label_x)
+    x_rows = handle_nans(b_mean, 'Rt_diff', not is_numeric, 'ybar')
     enlarge_lbl_dist = check_legend_enlarge(b_mean, ret['partitions'][0],
                                             1, 'ybar', label_x.count('\\') + 1, not is_numeric)
     section_name = split_large_titles(section_name)
@@ -603,6 +607,7 @@ def get_best_comb_scenes_1(**keywords):
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': True,
                                   'is_neg': is_neg,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': caption
                                   })
 
@@ -706,7 +711,8 @@ def get_best_comb_3d_scenes_1(**keywords):
         check_legend_enlarge, \
         calcNrLegendCols, \
         check_if_neg_values, \
-        split_large_labels
+        split_large_labels, \
+        handle_nans
     ret = pars_calc_multiple_fig_partitions(**keywords)
     b_min = ret['b'].stack().reset_index()
     b_min.rename(columns={b_min.columns[-1]: 'Rt_diff'}, inplace=True)
@@ -810,6 +816,7 @@ def get_best_comb_3d_scenes_1(**keywords):
         is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
         label_x = replaceCSVLabels(keywords['xy_axis_columns'][0])
         label_x, _ = split_large_labels(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar', False, label_x)
+        x_rows = handle_nans(tmp, plots, not is_numeric, 'xbar')
         section_name = split_large_titles(section_name)
         enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar',
                                                 label_x.count('\\') + 1, not is_numeric)
@@ -845,6 +852,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'is_neg': is_neg,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -977,6 +985,7 @@ def get_best_comb_3d_scenes_1(**keywords):
     is_numeric = pd.to_numeric(b_mean1.reset_index()[ret['partitions'][0]], errors='coerce').notnull().all()
     label_x = replaceCSVLabels(ret['partitions'][0])
     label_x, _ = split_large_labels(b_mean1, ret['partitions'][0], len(plots), 'xbar', False, label_x)
+    x_rows = handle_nans(b_mean1, plots, not is_numeric, 'xbar')
     section_name = split_large_titles(section_name)
     enlarge_lbl_dist = check_legend_enlarge(b_mean1, ret['partitions'][0], len(plots), 'xbar',
                                             label_x.count('\\') + 1, not is_numeric)
@@ -1012,6 +1021,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': True,
                                   'is_neg': is_neg,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': caption
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1119,6 +1129,7 @@ def get_best_comb_3d_scenes_1(**keywords):
     is_numeric = pd.to_numeric(b_mmean.reset_index()[keywords['xy_axis_columns'][1]], errors='coerce').notnull().all()
     label_x = replaceCSVLabels(keywords['xy_axis_columns'][1])
     label_x, _ = split_large_labels(b_mmean, keywords['xy_axis_columns'][1], 1, 'ybar', False, label_x)
+    x_rows = handle_nans(b_mmean, 'Rt_diff', not is_numeric, 'ybar')
     section_name = split_large_titles(section_name)
     enlarge_lbl_dist = check_legend_enlarge(b_mmean, keywords['xy_axis_columns'][1], 1, 'ybar',
                                             label_x.count('\\') + 1, not is_numeric)
@@ -1154,6 +1165,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                                   'enlarge_title_space': exp_value,
                                   'large_meta_space_needed': True,
                                   'is_neg': is_neg,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': caption
                                   })
 
@@ -1243,7 +1255,8 @@ def calc_calib_delay(**keywords):
         replace_stat_names, \
         split_large_str, \
         replace_stat_names_col_tex, \
-        split_large_labels
+        split_large_labels, \
+        handle_nans
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['it_parameters'] +
                                      keywords['eval_on'] +
@@ -1379,6 +1392,7 @@ def calc_calib_delay(**keywords):
             _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False)
             label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
             label_x, _ = split_large_labels(df_hist, 'fd', len(df_hist.columns.values), 'xbar', False, label_x)
+            x_rows = handle_nans(df_hist, list(df_hist.columns.values), False, 'xbar')
             section_name = split_large_titles(section_name, 80)
             enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', len(df_hist.columns.values), 'xbar',
                                                     label_x.count('\\') + 1, False)
@@ -1415,6 +1429,7 @@ def calc_calib_delay(**keywords):
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'is_neg': False,
+                                          'nr_x_if_nan': x_rows,
                                           'caption': caption
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1427,6 +1442,7 @@ def calc_calib_delay(**keywords):
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False, None, col)
                 label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
                 label_x, _ = split_large_labels(df_hist, 'fd', 1, 'xbar', False, label_x)
+                x_rows = handle_nans(df_hist, col, False, 'xbar')
                 section_name = split_large_titles(section_name, 80)
                 enlarge_lbl_dist = check_legend_enlarge(df_hist, 'fd', 1, 'xbar', label_x.count('\\') + 1, False)
                 exp_value = enl_space_title(exp_value, section_name, df_hist, 'fd',
@@ -1461,6 +1477,7 @@ def calc_calib_delay(**keywords):
                                               'enlarge_title_space': exp_value,
                                               'large_meta_space_needed': True,
                                               'is_neg': False,
+                                              'nr_x_if_nan': x_rows,
                                               'caption': caption
                                               })
 
@@ -1549,6 +1566,7 @@ def calc_calib_delay(**keywords):
                 p_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False, ['options_tex'] + fd_cols)
+            x_rows = handle_nans(p_mean, plots, True, 'xbar')
             section_name = split_large_titles(section_name, 80)
             enlarge_lbl_dist = check_legend_enlarge(p_mean, 'options_tex', len(plots), 'xbar')
             exp_value = enl_space_title(exp_value, section_name, p_mean, 'options_tex',
@@ -1583,6 +1601,7 @@ def calc_calib_delay(**keywords):
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': True,
                                           'is_neg': False,
+                                          'nr_x_if_nan': x_rows,
                                           'caption': caption
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -1719,7 +1738,8 @@ def get_ml_acc(**keywords):
         check_if_neg_values, \
         split_large_titles, \
         calcNrLegendCols, \
-        capitalizeStr
+        capitalizeStr, \
+        handle_nans
     eval_columns_init = deepcopy(keywords['eval_columns'])
     eval_cols1 = [a for a in eval_columns_init if 'mostLikely' not in a]
     eval_cols2 = [a for a in eval_columns_init if 'mostLikely' in a]
@@ -1849,6 +1869,7 @@ def get_ml_acc(**keywords):
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False, None, use_col)
             else:
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df1, True, True, False)
+            x_rows = handle_nans(df1, use_col, not is_numeric, 'ybar')
 
             # exp_value = enl_space_title(exp_value, section_name, df1, it,
             #                             1, 'ybar')
@@ -1870,6 +1891,7 @@ def get_ml_acc(**keywords):
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False,
                                           'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': enlarge_lbl_dist
                                           })
         if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
@@ -1906,6 +1928,7 @@ def get_ml_acc(**keywords):
             label_x = replaceCSVLabels(str(it))
             label_y_r = ' / '.join([replaceCSVLabels(a) for a in non_meta_it_pars])
             label_x, label_y_r = split_large_labels(df4, str(it), len(fig_err_cols), 'ybar', True, label_x, label_y_r)
+            x_rows = handle_nans(df4, fig_err_cols + non_meta_it_pars, not is_numeric, 'ybar')
             enlarge_lbl_dist = check_legend_enlarge(df4, str(it), 4, 'ybar', label_x.count('\\') + 1, not is_numeric)
             is_neg_r = check_if_neg_values(df4, non_meta_it_pars, use_log_r, use_limits_r)
             reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
@@ -1978,6 +2001,7 @@ def get_ml_acc(**keywords):
                                            'legend_cols': 1,
                                            'use_marks': False,
                                            'xaxis_txt_rows': 1,
+                                           'nr_x_if_nan': x_rows,
                                            'caption': caption,
                                            'enlarge_lbl_dist': enlarge_lbl_dist,
                                            'enlarge_title_space': exp_value
@@ -2037,6 +2061,7 @@ def get_ml_acc(**keywords):
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False, None, use_col)
             else:
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df2, True, True, False)
+            x_rows = handle_nans(df2, use_col, not is_numeric, 'ybar')
 
             # exp_value = enl_space_title(exp_value, section_name, df2, it,
             #                             1, 'ybar')
@@ -2057,6 +2082,7 @@ def get_ml_acc(**keywords):
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': not is_numeric,
                                           'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': enlarge_lbl_dist
                                           })
         if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
@@ -2103,6 +2129,7 @@ def get_ml_acc(**keywords):
             label_x = replaceCSVLabels(str(it))
             label_y_r = ' / '.join([replaceCSVLabels(a) for a in non_meta_it_pars])
             label_x, label_y_r = split_large_labels(df5, str(it), len(fig_err_cols), 'ybar', True, label_x, label_y_r)
+            x_rows = handle_nans(df5, fig_err_cols + non_meta_it_pars, not is_numeric, 'ybar')
             enlarge_lbl_dist = check_legend_enlarge(df5, str(it), 4, 'ybar', label_x.count('\\') + 1, not is_numeric)
             is_neg_r = check_if_neg_values(df5, non_meta_it_pars, use_log_r, use_limits_r)
             reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
@@ -2180,6 +2207,7 @@ def get_ml_acc(**keywords):
                                            'legend_cols': 1,
                                            'use_marks': False,
                                            'xaxis_txt_rows': 1,
+                                           'nr_x_if_nan': x_rows,
                                            'caption': caption,
                                            'enlarge_lbl_dist': enlarge_lbl_dist,
                                            'enlarge_title_space': exp_value
@@ -2343,7 +2371,8 @@ def get_best_stability_pars(**keywords):
         check_if_neg_values, \
         calcNrLegendCols, \
         check_legend_enlarge, \
-        split_large_labels
+        split_large_labels, \
+        handle_nans
     keywords = prepare_io(**keywords)
     if keywords['stable_type'] == 'poseIsStable':
         stable_col = 'tr'
@@ -2427,6 +2456,7 @@ def get_best_stability_pars(**keywords):
         is_neg_l = check_if_neg_values(tmp4, stable_col, False, use_limits_l)
         _, _, use_limits_r = calc_limits(tmp4, False, True, None, keywords['on_2nd_axis'])
         is_neg_r = check_if_neg_values(tmp4, keywords['on_2nd_axis'], False, use_limits_r)
+        x_rows = handle_nans(tmp4, [stable_col, keywords['on_2nd_axis']], not is_numeric, 'xbar')
         label_x = replaceCSVLabels(keywords['data_separators'][1])
         label_y_l = replaceCSVLabels(stable_col)
         label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
@@ -2494,6 +2524,7 @@ def get_best_stability_pars(**keywords):
                                       'legend_cols': 1,
                                       'use_marks': False,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
                                       'enlarge_title_space': False
@@ -2510,6 +2541,8 @@ def get_best_stability_pars(**keywords):
                   '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
         _, _, use_limits_l = calc_limits(tmp4, False, True, None, ['R_diff2_ml', 't_diff2_ml'])
         is_neg_l = check_if_neg_values(tmp4, ['R_diff2_ml', 't_diff2_ml'], False, use_limits_l)
+        x_rows = handle_nans(tmp4, ['R_diff2_ml', 't_diff2_ml', keywords['on_2nd_axis'], 'dont_care'],
+                             not is_numeric, 'xbar')
         label_x = replaceCSVLabels(keywords['data_separators'][1])
         label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
         label_x, label_y_r = split_large_labels(tmp4, keywords['data_separators'][1], 2, 'xbar', True,
@@ -2575,6 +2608,7 @@ def get_best_stability_pars(**keywords):
                                       'legend_cols': 1,
                                       'use_marks': False,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
                                       'enlarge_title_space': False
@@ -2592,6 +2626,7 @@ def get_best_stability_pars(**keywords):
                   '. Values on top of bars correspond to parameters ' + sub_title_rest_it + '.'
         _, _, use_limits_l = calc_limits(tmp4, False, True, None, 'Rt_diff2_ml')
         is_neg_l = check_if_neg_values(tmp4, 'Rt_diff2_ml', False, use_limits_l)
+        x_rows = handle_nans(tmp4, ['Rt_diff2_ml', keywords['on_2nd_axis']], not is_numeric, 'xbar')
         label_x = replaceCSVLabels(keywords['data_separators'][1])
         label_y_r = replaceCSVLabels(keywords['on_2nd_axis'])
         label_x, label_y_r = split_large_labels(tmp4, keywords['data_separators'][1], 1, 'xbar', True,
@@ -2657,6 +2692,7 @@ def get_best_stability_pars(**keywords):
                                       'legend_cols': 1,
                                       'use_marks': False,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
                                       'enlarge_title_space': False
@@ -2742,7 +2778,8 @@ def get_best_robust_pool_pars(**keywords):
         split_large_labels, \
         short_concat_str, \
         get_limits_log_exp, \
-        enl_space_title
+        enl_space_title, \
+        handle_nans
     if in_type == 0:
         from usac_eval import pars_calc_single_fig
         ret = pars_calc_single_fig(**keywords)
@@ -2832,6 +2869,7 @@ def get_best_robust_pool_pars(**keywords):
         _, use_limits, use_log, exp_value = get_limits_log_exp(df, True, True, False, None, ev)
         is_neg = check_if_neg_values(df, ev, use_log, use_limits)
         is_numeric = pd.to_numeric(df.reset_index()[x_axis], errors='coerce').notnull().all()
+        x_rows = handle_nans(df, ev, not is_numeric, 'ybar')
         label_x = replaceCSVLabels(x_axis)
         label_x, _ = split_large_labels(df, x_axis, 1, 'ybar', False, label_x)
         section_name = split_large_titles(section_name, 80)
@@ -2867,6 +2905,7 @@ def get_best_robust_pool_pars(**keywords):
                                       'enlarge_title_space': exp_value,
                                       'large_meta_space_needed': True,
                                       'is_neg': is_neg,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption})
     base_out_name1 = 'tex_' + base_out_name
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -3038,7 +3077,8 @@ def calc_calib_delay_noPar(**keywords):
         add_val_to_opt_str, \
         replace_stat_names, \
         replace_stat_names_col_tex, \
-        split_large_labels
+        split_large_labels, \
+        handle_nans
     needed_cols = list(dict.fromkeys(keywords['data_separators'] +
                                      keywords['eval_on'] +
                                      keywords['additional_data'] +
@@ -3167,6 +3207,7 @@ def calc_calib_delay_noPar(**keywords):
             section_name = capitalizeFirstChar(strToLower(hist_title_p1))
             caption = capitalizeFirstChar(strToLower(hist_title))
             _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False)
+            x_rows = handle_nans(df_hist, list(df_hist.columns.values), False, 'xbar')
             label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
             label_x, _ = split_large_labels(df_hist, 'fd', len(df_hist.columns.values), 'xbar', False, label_x)
             section_name = split_large_titles(section_name, 80)
@@ -3205,6 +3246,7 @@ def calc_calib_delay_noPar(**keywords):
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'is_neg': False,
+                                          'nr_x_if_nan': x_rows,
                                           'caption': caption
                                           })
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -3215,6 +3257,7 @@ def calc_calib_delay_noPar(**keywords):
                                strToLower(add_val_to_opt_str(hist_title_p02, part)) + strToLower(hist_title_p03)
                 caption = section_name + strToLower(hist_title_p2)
                 _, use_limits, use_log, exp_value = get_limits_log_exp(df_hist, True, True, False, None, col)
+                x_rows = handle_nans(df_hist, col, False, 'xbar')
                 label_x = replaceCSVLabels('fd') + findUnit('fd', keywords['units'])
                 label_x, _ = split_large_labels(df_hist, 'fd', 1, 'xbar', False, label_x)
                 section_name = split_large_titles(section_name, 80)
@@ -3251,6 +3294,7 @@ def calc_calib_delay_noPar(**keywords):
                                               'enlarge_title_space': exp_value,
                                               'large_meta_space_needed': True,
                                               'is_neg': False,
+                                              'nr_x_if_nan': x_rows,
                                               'caption': caption
                                               })
 
@@ -3325,6 +3369,7 @@ def calc_calib_delay_noPar(**keywords):
 
             _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False)
             is_numeric = pd.to_numeric(p_mean.reset_index()[it], errors='coerce').notnull().all()
+            x_rows = handle_nans(p_mean, 'fd', not is_numeric, 'ybar')
             label_x = replaceCSVLabels(it)
             label_x, _ = split_large_labels(p_mean, it, 1, 'ybar', False, label_x)
             section_name = split_large_titles(section_name, 80)
@@ -3360,6 +3405,7 @@ def calc_calib_delay_noPar(**keywords):
                                           'enlarge_title_space': exp_value,
                                           'large_meta_space_needed': False,
                                           'is_neg': False,
+                                          'nr_x_if_nan': x_rows,
                                           'caption': caption
                                           })
 

@@ -115,7 +115,8 @@ def pars_calc_single_fig_partitions(**keywords):
         get_limits_log_exp, \
         enl_space_title, \
         short_concat_str, \
-        check_if_series
+        check_if_series, \
+        handle_nans
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
@@ -294,6 +295,7 @@ def pars_calc_single_fig_partitions(**keywords):
                 sec_name1 = sec_name
                 cap_name1 = cap_name
             sec_name1 = split_large_titles(sec_name1)
+            x_rows = handle_nans(tmp2, ps, not is_numeric, 'smooth')
             exp_value = enl_space_title(exp_value_o, sec_name1, tmp2, ret['grp_names'][-1],
                                         len(ps), 'smooth')
             tex_infos['sections'].append({'file': reltex_name,
@@ -311,6 +313,7 @@ def pars_calc_single_fig_partitions(**keywords):
                                           'use_marks': ret['use_marks'],
                                           'use_log_y_axis': use_log,
                                           'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
                                           'enlarge_lbl_dist': None,
                                           'enlarge_title_space': exp_value,
                                           'use_string_labels': True if not is_numeric else False
@@ -447,7 +450,8 @@ def pars_calc_single_fig(**keywords):
         replaceCSVLabels, \
         split_large_titles, \
         get_limits_log_exp, \
-        enl_space_title
+        enl_space_title, \
+        handle_nans
     for i, val in enumerate(keywords['it_parameters']):
         ret['sub_title'] += replaceCSVLabels(val, True, True, True)
         if (nr_it_parameters <= 2):
@@ -479,6 +483,7 @@ def pars_calc_single_fig(**keywords):
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
     section_name = split_large_titles(section_name)
+    x_rows = handle_nans(ret['b'], list(ret['b'].columns.values), not is_numeric, 'smooth')
     exp_value = enl_space_title(exp_value, section_name, ret['b'], ret['grp_names'][-1],
                                 len(list(ret['b'].columns.values)), 'smooth')
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
@@ -499,6 +504,7 @@ def pars_calc_single_fig(**keywords):
                                   'use_marks': ret['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
@@ -1129,7 +1135,7 @@ def get_best_comb_and_th_1(**keywords):
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         b_worst.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     #Get data for tex file generation
-    from statistics_and_plot import replaceCSVLabels, add_to_glossary
+    from statistics_and_plot import replaceCSVLabels, add_to_glossary, handle_nans
     ret['gloss'] = add_to_glossary(b_best[ret['grp_names'][-1]].tolist(), ret['gloss'])
     ret['gloss'] = add_to_glossary(b_worst[ret['grp_names'][-1]].tolist(), ret['gloss'])
     tex_infos = {'title': 'Best and Worst Combined R \\& t Errors and Their ' +
@@ -1149,6 +1155,7 @@ def get_best_comb_and_th_1(**keywords):
                  }
     section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True)
+    x_rows = handle_nans(b_best, 'b_best', True, fig_type)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_best_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -1178,12 +1185,14 @@ def get_best_comb_and_th_1(**keywords):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
                                   })
     section_name = 'Worst combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True)
+    x_rows = handle_nans(b_worst, 'b_worst', True, fig_type)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_worst_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -1213,6 +1222,7 @@ def get_best_comb_and_th_1(**keywords):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': 'Biggest combined R \\& t errors  $e_{R\\bm{t}}$ (error bars) and their ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1])) +
                                              ' which appears on top of each bar.'
@@ -1274,7 +1284,7 @@ def get_best_comb_inlrat_1(**keywords):
         fig_type = 'xbar'
     else:
         fig_type = 'ybar'
-    from statistics_and_plot import replaceCSVLabels
+    from statistics_and_plot import replaceCSVLabels, handle_nans
     tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +
                           ' for Parameter Variations of ' + ret['sub_title'],
@@ -1292,6 +1302,7 @@ def get_best_comb_inlrat_1(**keywords):
                  }
     section_name = 'Mean combined R \\& t errors $e_{R\\vect{t}}$ over all ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True)
+    x_rows = handle_nans(b_mean, 'b_mean', True, fig_type)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
                                   'title': section_name,
@@ -1321,6 +1332,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
                                              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
                                   })
@@ -1475,7 +1487,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                            ret['grp_names'][-2],
                                                            'b_min',
                                                            ret['b'].columns.name])
-    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, add_to_glossary
+    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, add_to_glossary, handle_nans
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
                           replaceCSVLabels(str(ret['grp_names'][-2]), False, True, True) + ' for every ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), False, True, True) +
@@ -1510,6 +1522,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                        replaceCSVLabels(str(ret['grp_names'][-2]), False, False, True) +\
                        '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True) +\
                        ' for parameters ' + tex_string_coding_style(str(grp))
+        x_rows = handle_nans(data_a, ['b_min', ret['grp_names'][-2]], False, 'smooth')
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
                                       # Name of the whole section
                                       'name': section_name.replace('\\\\', ' '),
@@ -1568,6 +1581,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                       'legend_cols': 1,
                                       'use_marks': True,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) '
                                                  'and their ' +
                                                  replaceCSVLabels(str(ret['grp_names'][-2])) +
@@ -1613,6 +1627,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': ret['gloss']
                  }
+    x_rows = handle_nans(data_min1, 'b_min', False, 'ybar')
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
                                   'name': 'Smallest Combined R \\& t Errors $e_{R\\vect{t}}$',
                                   'title': 'Smallest Combined R \\& t Errors $e_{R\\bm{t}}$',
@@ -1638,6 +1653,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                   'use_string_labels': False,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
@@ -1712,7 +1728,7 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
     tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
     partitions_ov = '-'.join(ret['partitions'][:-1])
-    from statistics_and_plot import replaceCSVLabels, split_large_titles
+    from statistics_and_plot import replaceCSVLabels, split_large_titles, handle_nans
     partitions_legend = ' -- '.join([replaceCSVLabels(i) for i in ret['partitions'][:-1]])
     tmp2.index.name = partitions_ov
     tmp2 = tmp2.reset_index().set_index([it_pars_ov, partitions_ov]).unstack(level=0)
@@ -1772,6 +1788,7 @@ def get_best_comb_th_scenes_1(**keywords):
                   replaceCSVLabels(str(ret['partitions'][-1]), True) + \
                   ' (right axis) for parameters ' + ret['sub_title_it_pars'] + \
                   ' and properties ' + ret['sub_title_partitions'] + '.'
+    x_rows = handle_nans(tmp2, left_cols + right_cols, True, fig_type)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   # Name of the whole section
                                   'name': section_name.replace('\\\\', ' '),
@@ -1832,6 +1849,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'legend_cols': 1,
                                   'use_marks': True,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': caption,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False
@@ -1848,6 +1866,7 @@ def get_best_comb_th_scenes_1(**keywords):
                   replaceCSVLabels(str(ret['partitions'][-1]), True) + \
                   ' (right axis) for parameters ' + par_str + \
                   ' and properties ' + ret['sub_title_partitions'] + '.'
+        x_rows = handle_nans(tmp2, [lc, rc], True, 'ybar')
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                       # Name of the whole section
                                       'name': section_name.replace('\\\\', ' '),
@@ -1906,6 +1925,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                       'legend_cols': 1,
                                       'use_marks': True,
                                       'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': None,
                                       'enlarge_title_space': False
@@ -1963,6 +1983,7 @@ def get_best_comb_th_scenes_1(**keywords):
               ' (on top of each bar) for parameters ' + ret['sub_title_it_pars'] + \
               ' and properties ' + ret['sub_title_partitions'] + '.'
     section_name = split_large_titles(section_name)
+    x_rows = handle_nans(tmp2, left_cols, True, 'ybar')
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name.replace('\\\\', ' '),
                                   'title': section_name,
@@ -1988,6 +2009,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'use_string_labels': True,
                                   'use_log_y_axis': False,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
@@ -2395,7 +2417,7 @@ def estimate_alg_time_fixed_kp(**vars):
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
-    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, handle_nans
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
@@ -2447,6 +2469,7 @@ def estimate_alg_time_fixed_kp(**vars):
     fig_name = split_large_titles(fig_name)
     exp_value = enl_space_title(exp_value, fig_name, tmp, vars['xy_axis_columns'][0],
                                 len(list(tmp.columns.values)), 'smooth')
+    x_rows = handle_nans(tmp, list(tmp.columns.values), not is_numeric, 'smooth')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name,
                                   # If caption is None, the field name is used
@@ -2462,6 +2485,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'use_marks': vars['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False,
@@ -2535,6 +2559,7 @@ def estimate_alg_time_fixed_kp(**vars):
     enlarge_lbl_dist = check_legend_enlarge(tmp1, vars['xy_axis_columns'][0], 1, fig_type)
     exp_value1 = enl_space_title(exp_value1, section_name, tmp1, vars['xy_axis_columns'][0],
                                  1, fig_type)
+    x_rows = handle_nans(tmp1, col_name, False, fig_type)
     is_neg1 = check_if_neg_values(tmp1, col_name, use_log1, None)
     tex_infos['sections'].append({'file': os.path.join(vars['rel_data_path'], t_min_name),
                                   'name': section_name.replace('\\\\', ' '),
@@ -2566,6 +2591,7 @@ def estimate_alg_time_fixed_kp(**vars):
                                   'enlarge_title_space': exp_value1,
                                   'large_meta_space_needed': True,
                                   'is_neg': is_neg1,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': caption
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
@@ -2738,7 +2764,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import check_legend_enlarge
+    from statistics_and_plot import check_legend_enlarge, handle_nans
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new1 = ['-'.join(a) for a in tmp1min.index]
@@ -2759,6 +2785,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     meta_cols1 = [a for a in comb_cols1 if vars['t_data_separators'][0] in a]
     gloss = add_to_glossary(tmp1min[meta_cols1].stack().tolist(), gloss)
     gloss = add_to_glossary_eval(vars['t_data_separators'], gloss)
+    x_rows1 = handle_nans(tmp1min, val_axis_cols1, False, 'xbar')
 
     tmp1max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2775,6 +2802,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     val_axis_cols2 = [a for a in comb_cols2 if col_name in a]
     meta_cols2 = [a for a in comb_cols2 if vars['t_data_separators'][0] in a]
     gloss = add_to_glossary(tmp1min[meta_cols1].stack().tolist(), gloss)
+    x_rows2 = handle_nans(tmp1max, val_axis_cols2, False, 'xbar')
 
     vars = prepare_io(**vars)
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_vs_' + str(vars['t_data_separators'][1]) + \
@@ -2858,6 +2886,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows1,
                                   'caption': caption
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -2903,6 +2932,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows2,
                                   'caption': caption
                                   })
     tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -2948,6 +2978,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                          tmp2min.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp2min[vars['t_data_separators']].stack().tolist(), gloss)
     tmp2min.drop(vars['t_data_separators'], axis=1, inplace=True)
+    x_rows1 = handle_nans(tmp2min, col_name, True, 'xbar')
 
     tmp2max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -2967,6 +2998,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                          tmp2max.loc[:, vars['t_data_separators'][1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp2max[vars['t_data_separators']].stack().tolist(), gloss)
     tmp2max.drop(vars['t_data_separators'], axis=1, inplace=True)
+    x_rows2 = handle_nans(tmp2max, col_name, True, 'xbar')
 
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_and_' + str(vars['t_data_separators'][1]) + \
                   '_for_' + str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
@@ -3051,6 +3083,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows1,
                                   'caption': caption
                                   })
     section_name = 'Maximum execution times over all ' + \
@@ -3096,6 +3129,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
+                                  'nr_x_if_nan': x_rows2,
                                   'caption': caption
                                   })
     rendered_tex = template.render(title=tex_infos['title'],
@@ -3178,7 +3212,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         use_log_axis, \
         enl_space_title, \
         get_3d_tex_info, \
-        check_if_neg_values
+        check_if_neg_values, \
+        handle_nans
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
@@ -3380,6 +3415,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     exp_value4 = []
     enlarge_lbl_dist4 = []
     is_neg4 = []
+    x_rows4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
@@ -3404,6 +3440,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp1mean_min, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
     is_neg4.append(check_if_neg_values(tmp1mean_min, index_y4[-1], use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp1mean_min, index_y4[-1], False, vars['fig_type'][1]))
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3428,6 +3465,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp1mean_max, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
     is_neg4.append(check_if_neg_values(tmp1mean_max, index_y4[-1], use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp1mean_max, index_y4[-1], False, vars['fig_type'][1]))
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3453,6 +3491,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp2mean_min, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
     is_neg4.append(check_if_neg_values(tmp2mean_min, index_y4[-1], use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp2mean_min, index_y4[-1], False, vars['fig_type'][1]))
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3477,6 +3516,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     enlarge_lbl_dist4.append(check_legend_enlarge(tmp2mean_max, vars['eval_minmax_for'],
                                                   len(index_y4[-1]), vars['fig_type'][1]))
     is_neg4.append(check_if_neg_values(tmp2mean_max, index_y4[-1], use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp2mean_max, index_y4[-1], False, vars['fig_type'][1]))
 
     t_main_name1 = 'time_on_' + time_on1 +\
                    '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
@@ -3616,6 +3656,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'is_neg': is_neg4[i],
+                                      'nr_x_if_nan': x_rows4[i],
                                       'caption': caption[i]
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
@@ -3652,6 +3693,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4 = []
     exp_value4 = []
     is_neg4 = []
+    x_rows4 = []
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new13 = ['-'.join(a) for a in tmp12_min.index]
@@ -3676,6 +3718,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
     is_neg4.append(check_if_neg_values(tmp12_min, col_name, use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp12_min, col_name, True, 'xbar'))
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3699,6 +3742,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
     is_neg4.append(check_if_neg_values(tmp12_max, col_name, use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp12_max, col_name, True, 'xbar'))
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3724,6 +3768,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
     is_neg4.append(check_if_neg_values(tmp22_min, col_name, use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp22_min, col_name, True, 'xbar'))
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
@@ -3747,6 +3792,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     use_log4.append(use_log_axis(min_val, max_val))
     exp_value4.append(is_exp_used(min_val, max_val, use_log4[-1]))
     is_neg4.append(check_if_neg_values(tmp22_max, col_name, use_log4[-1], None))
+    x_rows4.append(handle_nans(tmp22_max, col_name, True, 'xbar'))
 
     t_main_name1 = 'time_on_' + meta_col4[0] + \
                    '_over_accumul_' + str(vars['accum_step_props'][0]) + \
@@ -3893,6 +3939,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                       'enlarge_title_space': exp_value4[i],
                                       'large_meta_space_needed': False,
                                       'is_neg': is_neg4[i],
+                                      'nr_x_if_nan': x_rows4[i],
                                       'caption': caption[i]
                                       })
 
@@ -4018,7 +4065,7 @@ def get_min_inlrat_diff(**keywords):
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import get_limits_log_exp, enl_space_title, check_if_neg_values
+    from statistics_and_plot import get_limits_log_exp, enl_space_title, check_if_neg_values, handle_nans
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -4070,6 +4117,7 @@ def get_min_inlrat_diff(**keywords):
                replaceCSVLabels(str(grp_names[-1]), True, False, True) + \
                ' for parameter variations of \\\\' + keywords['sub_title_it_pars']
     fig_name = split_large_titles(fig_name)
+    x_rows = handle_nans(diff_mean, list(diff_mean.columns.values), not is_numeric, 'smooth')
     exp_value = enl_space_title(exp_value, fig_name, diff_mean, grp_names[-1],
                                 len(list(diff_mean.columns.values)), 'smooth')
     tex_infos['sections'].append({'file': reltex_name,
@@ -4087,6 +4135,7 @@ def get_min_inlrat_diff(**keywords):
                                   'use_marks': keywords['use_marks'],
                                   'use_log_y_axis': use_log,
                                   'xaxis_txt_rows': 1,
+                                  'nr_x_if_nan': x_rows,
                                   'enlarge_lbl_dist': None,
                                   'enlarge_title_space': exp_value,
                                   'use_string_labels': True if not is_numeric else False
@@ -4151,6 +4200,7 @@ def get_min_inlrat_diff(**keywords):
                  'abbreviations': gloss
                  }
     is_neg = check_if_neg_values(min_mean_diff, 'inlRat_diff', False, None)
+    x_rows = handle_nans(min_mean_diff, 'inlRat_diff', True, fig_type)
     section_name = 'Minimum absolute mean inlier ratio difference\\\\and its corresponding ' + \
                    replaceCSVLabels(str(grp_names[-1]), False, False, True) + \
                    ' for parameter variations of\\\\' + strToLower(keywords['sub_title_it_pars'])
@@ -4188,6 +4238,7 @@ def get_min_inlrat_diff(**keywords):
                                   'enlarge_title_space': False,
                                   'large_meta_space_needed': False,
                                   'is_neg': is_neg,
+                                  'nr_x_if_nan': x_rows,
                                   'caption': caption
                                   })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
