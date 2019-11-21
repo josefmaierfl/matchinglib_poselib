@@ -7727,8 +7727,8 @@ def main():
     data = pd.DataFrame(data)
 
     test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
-    test_nr = 6
-    eval_nr = [33]#list(range(10, 11))
+    test_nr = 5
+    eval_nr = [-1]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -12596,6 +12596,10 @@ def main():
                                                              figs_externalize=True,
                                                              no_tex=True,
                                                              cat_sort=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
 
     return ret
 

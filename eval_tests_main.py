@@ -2413,6 +2413,2192 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          figs_externalize=False)
                 else:
                     raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 3:
+            if eval_nr[0] < 0:
+                evals = list(range(14, 16))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 14:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Specific Combinations of '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                                     'stereoParameters_maxDist3DPtsZ',
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'stereoParameters_minPtsDistance']
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_corrPool_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['kpAccSd'],
+                                                  pdfsplitentry=['t_distDiff'],
+                                                  filter_func=None,
+                                                  filter_func_args=None,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=compare_source,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True)
+                elif ev == 15:
+                    fig_title_pre_str = 'Statistics on Execution Times for Specific Combinations of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    it_parameters = ['stereoParameters_maxRat3DPtsFar',
+                                     'stereoParameters_maxDist3DPtsZ',
+                                     'stereoParameters_maxPoolCorrespondences',
+                                     'stereoParameters_minPtsDistance']
+                    descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
+                            'multiple stereo frames'
+                    repl_eval = {'actual': ['stereoRefine_us'], 'old': ['linRef_BA_sac_us'], 'new': ['comp_time']}
+                    compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'time-agg', descr,
+                                                      repl_eval)
+                    from usac_eval import filter_nr_kps_stat
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_corrPool_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=filter_nr_kps_stat,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=compare_source,
+                                                         fig_type='xbar',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
+    elif test_name == 'robustness':
+        if not test_nr:
+            raise ValueError('test_nr is required robustness')
+        from statistics_and_plot import calcSatisticAndPlot_2D, \
+            calcSatisticAndPlot_3D, \
+            calcSatisticAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_3D, \
+            calcFromFuncAndPlot_2D_partitions, \
+            calcFromFuncAndPlot_3D_partitions, \
+            calcSatisticAndPlot_3D_partitions, \
+            calcSatisticAndPlot_aggregate
+        if test_nr == 1:
+            if eval_nr[0] < 0:
+                evals = list(range(1, 6))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 1:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_relInlRatThLast',
+                                     'stereoParameters_relInlRatThNew',
+                                     'stereoParameters_minInlierRatSkip',
+                                     'stereoParameters_minInlierRatioReInit',
+                                     'stereoParameters_relMinInlierRatSkip']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'res_par_name': 'robustness_best_comb_scenes_inlc'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                                                            'stereoParameters_relInlRatThNew',
+                                                            'stereoParameters_minInlierRatSkip',
+                                                            'stereoParameters_minInlierRatioReInit',
+                                                            'stereoParameters_relMinInlierRatSkip',
+                                                            'inlratCRate']}
+                    from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True)
+                elif ev == 2:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_relInlRatThLast',
+                                     'stereoParameters_relInlRatThNew',
+                                     'stereoParameters_minInlierRatSkip',
+                                     'stereoParameters_minInlierRatioReInit',
+                                     'stereoParameters_relMinInlierRatSkip']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'robustness_best_comb_scenes_inlc_depth'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                                                            'stereoParameters_relInlRatThNew',
+                                                            'stereoParameters_minInlierRatSkip',
+                                                            'stereoParameters_minInlierRatioReInit',
+                                                            'stereoParameters_relMinInlierRatSkip',
+                                                            'inlratCRate',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort='depthDistr')
+                elif ev == 3:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_relInlRatThLast',
+                                     'stereoParameters_relInlRatThNew',
+                                     'stereoParameters_minInlierRatSkip',
+                                     'stereoParameters_minInlierRatioReInit',
+                                     'stereoParameters_relMinInlierRatSkip']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'robustness_best_comb_scenes_inlc_kpAccSd'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                                                            'stereoParameters_relInlRatThNew',
+                                                            'stereoParameters_minInlierRatSkip',
+                                                            'stereoParameters_minInlierRatioReInit',
+                                                            'stereoParameters_relMinInlierRatSkip',
+                                                            'inlratCRate',
+                                                            'kpAccSd']}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=None)
+                elif ev == 4:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_relInlRatThLast',
+                                     'stereoParameters_relInlRatThNew',
+                                     'stereoParameters_minInlierRatSkip',
+                                     'stereoParameters_minInlierRatioReInit',
+                                     'stereoParameters_relMinInlierRatSkip']
+                    filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                                                            'stereoParameters_relInlRatThNew',
+                                                            'stereoParameters_minInlierRatSkip',
+                                                            'stereoParameters_minInlierRatioReInit',
+                                                            'stereoParameters_relMinInlierRatSkip',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_scene': 'jra'}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr'],
+                                          'eval_on': ['R_diffAll'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                          'scene': 'jra',
+                                          'res_par_name': 'robustness_delay_jra'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd', 'inlratCRate'],  # Data properties to calculate results separately
+                                                             x_axis_column=['Nr'],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 5:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_relInlRatThLast',
+                                     'stereoParameters_relInlRatThNew',
+                                     'stereoParameters_minInlierRatSkip',
+                                     'stereoParameters_minInlierRatioReInit',
+                                     'stereoParameters_relMinInlierRatSkip']
+                    filter_func_args = {'data_seperators': ['stereoParameters_relInlRatThLast',
+                                                            'stereoParameters_relInlRatThNew',
+                                                            'stereoParameters_minInlierRatSkip',
+                                                            'stereoParameters_minInlierRatioReInit',
+                                                            'stereoParameters_relMinInlierRatSkip',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_scene': 'jta'}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr'],
+                                          'eval_on': ['t_angDiff_deg'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos', 'rt_change_type'],
+                                          'scene': 'jta',
+                                          'comp_res': ['robustness_best_comb_scenes_inlc',
+                                                       'robustness_best_comb_scenes_inlc_depth',
+                                                       'robustness_best_comb_scenes_inlc_kpAccSd',
+                                                       'robustness_delay_jra',
+                                                       'robustness_delay_jta'],
+                                          'res_par_name': 'robustness_delay_jta'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd', 'inlratCRate'],  # Data properties to calculate results separately
+                                                             x_axis_column=['Nr'],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 2:
+            if eval_nr[0] < 0:
+                evals = list(range(6, 11))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 6:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'func_name': 'get_best_comb_scenes',
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_inlc'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_scenes_ml_1
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False)
+                elif ev == 7:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_inlc_depth'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                                                            'inlratCRate',
+                                                            'depthDistr',
+                                                            'kpAccSd'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 8:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_inlc_kpAccSd'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=None)
+                elif ev == 9:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'comp_res': ['robustness_best_comb_scenes_poolr_inlc_depth',
+                                                       'robustness_best_comb_scenes_poolr_inlc_kpAccSd',
+                                                       'robustness_best_comb_scenes_poolr_depth_kpAccSd'],
+                                          'res_par_name': 'robustness_best_comb_scenes_poolr_depth_kpAccSd'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                                                            'depthDistr',
+                                                            'kpAccSd',
+                                                            'inlratCRate'],
+                                        'check_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['depthDistr', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_comb_3d_scenes_ml_1,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 10:
+                    fig_title_pre_str = 'Statistics on Execution Times for Specific Combinations of '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    it_parameters = ['stereoParameters_checkPoolPoseRobust']
+                    filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
+                                                            'depthDistr',
+                                                            'kpAccSd',
+                                                            'inlratCRate']}
+                    from robustness_eval import get_rt_change_type
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='time',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['rt_change_type'],
+                                                  pdfsplitentry=None,
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='ybar',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=False,
+                                                  no_tex=False,
+                                                  cat_sort=True)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 3:
+            if eval_nr[0] < 0:
+                evals = list(range(11, 15))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 11:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    pdfsplitentry = ['t_distDiff', 'R_mostLikely_diffAll', 't_mostLikely_distDiff']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['rt_change_type', 'inlratCRate']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratCRate'],
+                                                  pdfsplitentry=pdfsplitentry,
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_ml_acc,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=False,
+                                                  no_tex=False,
+                                                  cat_sort=True)
+                elif ev == 12:
+                    fig_title_pre_str = 'Values on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['depthDistr']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_ml_acc,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort='depthDistr')
+                elif ev == 13:
+                    fig_title_pre_str = 'Values on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['kpAccSd']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_ml_acc,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort=None)
+                elif ev == 14:
+                    fig_title_pre_str = 'Values on R\\&t Differences for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['depthDistr', 'kpAccSd'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=None,
+                                                  special_calcs_args=None,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort='depthDistr')
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 4:
+            if eval_nr[0] < 0:
+                evals = list(range(15, 25))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 15:
+                    fig_title_pre_str = 'Values on the Relative Ratio of Stable Pose Detections ' \
+                                        'for Different '
+                    eval_columns = ['R_diffAll', 't_angDiff_deg', 'R_mostLikely_diffAll', 't_mostLikely_angDiff_deg']
+                    units = [('R_diffAll', '/\\textdegree'), ('t_angDiff_deg', '/\\textdegree'),
+                             ('R_mostLikely_diffAll', '/\\textdegree'), ('t_mostLikely_angDiff_deg', '/\\textdegree')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    calc_func_args = {'data_separators': ['stereoParameters_minContStablePoses',
+                                                          'stereoParameters_minNormDistStable',
+                                                          'stereoParameters_absThRankingStable',
+                                                          'rt_change_type',
+                                                          'depthDistr',
+                                                          'kpAccSd',
+                                                          'inlratCRate'],
+                                      'stable_type': 'poseIsStable',
+                                      'remove_partitions': ['depthDistr', 'kpAccSd']}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_separators': ['rt_change_type', 'inlratCRate'],
+                                          'to_int_cols': ['stereoParameters_minContStablePoses'],
+                                          'on_2nd_axis': 'stereoParameters_minNormDistStable',
+                                          'stable_type': 'poseIsStable',
+                                          'res_par_name': 'robustness_best_pose_stable_pars'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabiRat',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_stability_pars,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_pose_stable_ratio,
+                                                             calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
+                elif ev == 16:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['rt_change_type', 'inlratCRate'],
+                                          'eval_it_pars': True,
+                                          'cat_sort': 'rt_change_type',
+                                          'func_name': 'get_ml_acc_inlc_rt',
+                                          'stable_type': 'poseIsStable',
+                                          'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                                          'res_par_name': 'robustness_best_stable_pars_inlc_rt'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_poseIsStable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabi',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
+                elif ev == 17:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['depthDistr'],
+                                          'eval_it_pars': True,
+                                          'func_name': 'get_ml_acc_depthDistr',
+                                          'stable_type': 'poseIsStable',
+                                          'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                                          'res_par_name': 'robustness_best_stable_pars_depthDistr'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_poseIsStable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabi',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 18:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['kpAccSd'],
+                                          'eval_it_pars': True,
+                                          'func_name': 'get_ml_acc_kpAccSd',
+                                          'stable_type': 'poseIsStable',
+                                          'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                                          'res_par_name': 'robustness_best_stable_pars_kpAccSd'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_poseIsStable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabi',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=None)
+                elif ev == 19:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_poseIsStable': True}
+                    from robustness_eval import get_rt_change_type
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabi',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['depthDistr', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=None,
+                                                             special_calcs_args=None,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 20:
+                    fig_title_pre_str = 'Values on the Relative Ratio of Stable Most Likely Pose Detections ' \
+                                        'for Different '
+                    eval_columns = ['R_diffAll', 't_angDiff_deg', 'R_mostLikely_diffAll', 't_mostLikely_angDiff_deg']
+                    units = [('R_diffAll', '/\\textdegree'), ('t_angDiff_deg', '/\\textdegree'),
+                             ('R_mostLikely_diffAll', '/\\textdegree'), ('t_mostLikely_angDiff_deg', '/\\textdegree')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    calc_func_args = {'data_separators': ['stereoParameters_minContStablePoses',
+                                                          'stereoParameters_minNormDistStable',
+                                                          'stereoParameters_absThRankingStable',
+                                                          'rt_change_type',
+                                                          'depthDistr',
+                                                          'kpAccSd',
+                                                          'inlratCRate'],
+                                      'stable_type': 'mostLikelyPose_stable',
+                                      'remove_partitions': ['depthDistr', 'kpAccSd']}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_separators': ['rt_change_type', 'inlratCRate'],
+                                          'to_int_cols': ['stereoParameters_minContStablePoses'],
+                                          'on_2nd_axis': 'stereoParameters_minNormDistStable',
+                                          'stable_type': 'mostLikelyPose_stable',
+                                          'func_name': 'get_best_stability_pars_stMl',
+                                          'res_par_name': 'robustness_best_pose_stable_pars_stMl'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True}
+                    from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabiRatMl',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_stability_pars,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_pose_stable_ratio,
+                                                             calc_func_args=calc_func_args,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
+                elif ev == 21:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Most Likely Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['rt_change_type', 'inlratCRate'],
+                                          'eval_it_pars': True,
+                                          'cat_sort': 'rt_change_type',
+                                          'func_name': 'get_ml_acc_inlc_rt_stMl',
+                                          'stable_type': 'mostLikelyPose_stable',
+                                          'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                                          'res_par_name': 'robustness_best_stable_pars_inlc_rt_stMl'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_mostLikelyPose_stable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabiMl',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
+                elif ev == 22:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Most Likely Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['depthDistr'],
+                                          'eval_it_pars': True,
+                                          'func_name': 'get_ml_acc_depthDistr_stMl',
+                                          'stable_type': 'mostLikelyPose_stable',
+                                          'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                                          'res_par_name': 'robustness_best_stable_pars_depthDistr_stMl'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_mostLikelyPose_stable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabiMl',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 23:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Most Likely Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': False,
+                                          'data_partitions': ['kpAccSd'],
+                                          'eval_it_pars': True,
+                                          'func_name': 'get_ml_acc_kpAccSd_stMl',
+                                          'stable_type': 'mostLikelyPose_stable',
+                                          'meta_it_pars': ['stereoParameters_minContStablePoses'],
+                                          'res_par_name': 'robustness_best_stable_pars_kpAccSd_stMl'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_mostLikelyPose_stable': True}
+                    from robustness_eval import get_rt_change_type, get_ml_acc
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabiMl',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_ml_acc,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=None)
+                elif ev == 24:
+                    fig_title_pre_str = 'Values of R\\&t Differences on Stable Most Likely Pose Detections and ' \
+                                        'Standard Pose Estimations for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''),
+                             ('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['stereoParameters_minContStablePoses',
+                                     'stereoParameters_minNormDistStable',
+                                     'stereoParameters_absThRankingStable']
+                    partitions = ['rt_change_type']
+                    filter_func_args = {'data_seperators': ['stereoParameters_minContStablePoses',
+                                                            'stereoParameters_minNormDistStable',
+                                                            'stereoParameters_absThRankingStable',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_mostLikelyPose_stable': True}
+                    from robustness_eval import get_rt_change_type
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stabiMl',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['depthDistr', 'kpAccSd'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=None,
+                                                             special_calcs_args=None,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 5:
+            if eval_nr[0] < 0:
+                evals = list(range(25, 29))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 25:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_useRANSAC_fewMatches']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'smooth',
+                                          'data_separators': ['inlratCRate'],
+                                          'res_par_name': 'robustness_ransac_fewMatch_inlc'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_useRANSAC_fewMatches',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
+                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             x_axis_column=['inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_robust_pool_pars,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             compare_source=None,
+                                                             fig_type='smooth',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=False)
+                elif ev == 26:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_useRANSAC_fewMatches']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'data_separators': ['inlratCRate', 'depthDistr'],
+                                          'split_fig_data': 'depthDistr',
+                                          'res_par_name': 'robustness_ransac_fewMatch_inlc_depth'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_useRANSAC_fewMatches',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['depthDistr', 'inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_robust_pool_pars,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort='depthDistr')
+                elif ev == 27:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['stereoParameters_useRANSAC_fewMatches']
+                    partitions = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'data_separators': ['inlratCRate', 'kpAccSd'],
+                                          'split_fig_data': 'kpAccSd',
+                                          'comp_res': ['robustness_ransac_fewMatch_inlc',
+                                                       'robustness_ransac_fewMatch_inlc_depth',
+                                                       'robustness_ransac_fewMatch_inlc_kpAcc'],
+                                          'res_par_name': 'robustness_ransac_fewMatch_inlc_kpAcc'}
+                    filter_func_args = {'data_seperators': ['stereoParameters_useRANSAC_fewMatches',
+                                                            'inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
+                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-stats',
+                                                             eval_columns=eval_columns,
+                                                             units=units,
+                                                             it_parameters=it_parameters,
+                                                             partitions=partitions,
+                                                             xy_axis_columns=['kpAccSd', 'inlratCRate'],
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=get_best_robust_pool_pars,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=None,
+                                                             calc_func_args=None,
+                                                             fig_type='surface',
+                                                             use_marks=True,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=True,
+                                                             figs_externalize=True,
+                                                             no_tex=False,
+                                                             cat_sort=None)
+                elif ev == 28:
+                    fig_title_pre_str = 'Statistics on Execution Times for Different '
+                    eval_columns = ['stereoRefine_us']
+                    units = [('stereoRefine_us', '/$\\mu s$')]
+                    it_parameters = ['stereoParameters_useRANSAC_fewMatches']
+                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_robustness_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='time',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         pdfsplitentry=None,
+                                                         filter_func=None,
+                                                         filter_func_args=None,
+                                                         special_calcs_func=None,
+                                                         special_calcs_args=None,
+                                                         calc_func=None,
+                                                         calc_func_args=None,
+                                                         compare_source=None,
+                                                         fig_type='ybar',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        elif test_nr == 6:
+            if eval_nr[0] < 0:
+                evals = list(range(29, 38))
+            else:
+                evals = eval_nr
+            for ev in evals:
+                if ev == 29:
+                    fig_title_pre_str = 'Statistics on R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    pdfsplitentry = ['t_distDiff']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'smooth',
+                                          'data_separators': ['rt_change_type']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_cRT_stats
+                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  x_axis_column=['inlratCRate'],
+                                                  pdfsplitentry=pdfsplitentry,
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_cRT_stats,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  compare_source=None,
+                                                  fig_type='smooth',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=True,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=False,
+                                                  no_tex=False,
+                                                  cat_sort=False)
+                elif ev == 30:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'data_separators': ['rt_change_type', 'depthDistr']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_cRT_stats
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['inlratCRate', 'depthDistr'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_cRT_stats,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort='depthDistr')
+                elif ev == 31:
+                    fig_title_pre_str = 'Values of R\\&t Differences for Combinations of Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'fig_type': 'surface',
+                                          'data_separators': ['rt_change_type', 'kpAccSd']}
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr']}
+                    from robustness_eval import get_rt_change_type, get_cRT_stats
+                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                                  store_path=output_path,
+                                                  tex_file_pre_str='plots_robustness_',
+                                                  fig_title_pre_str=fig_title_pre_str,
+                                                  eval_description_path='RT-stats',
+                                                  eval_columns=eval_columns,
+                                                  units=units,
+                                                  it_parameters=it_parameters,
+                                                  xy_axis_columns=['inlratCRate', 'kpAccSd'],
+                                                  filter_func=get_rt_change_type,
+                                                  filter_func_args=filter_func_args,
+                                                  special_calcs_func=get_cRT_stats,
+                                                  special_calcs_args=special_calcs_args,
+                                                  calc_func=None,
+                                                  calc_func_args=None,
+                                                  fig_type='surface',
+                                                  use_marks=True,
+                                                  ctrl_fig_size=False,
+                                                  make_fig_index=True,
+                                                  build_pdf=True,
+                                                  figs_externalize=True,
+                                                  no_tex=False,
+                                                  cat_sort=None)
+                elif ev == 32:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_scene': ['jra', 'jrx', 'jry', 'jrz']}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr',
+                                                              'rt_change_type'],
+                                          'eval_on': ['R_diffAll'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos'],
+                                          'func_name': 'calc_calib_delay_noPar_rot',
+                                          'res_par_name': 'robustness_mean_frame_delay_rot'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diffR',
+                                                             eval_columns=eval_columns,
+                                                             # Column names for which statistics are calculated (y-axis)
+                                                             units=units,
+                                                             # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,
+                                                             # Algorithm parameters to evaluate
+                                                             partitions=partitions,
+                                                             # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay_noPar,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 33:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_scene': ['jta', 'jtx', 'jty', 'jtz']}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr',
+                                                              'rt_change_type'],
+                                          'eval_on': ['t_angDiff_deg'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos'],
+                                          'func_name': 'calc_calib_delay_noPar_trans',
+                                          'res_par_name': 'robustness_mean_frame_delay_trans'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diffT',
+                                                             eval_columns=eval_columns,
+                                                             # Column names for which statistics are calculated (y-axis)
+                                                             units=units,
+                                                             # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,
+                                                             # Algorithm parameters to evaluate
+                                                             partitions=partitions,
+                                                             # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay_noPar,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 34:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_scene': 'jrt'}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_diffAll', 't_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr'],
+                                          'eval_on': ['R_diffAll'],#['Rt_diff2']
+                                          'is_jrt': True,
+                                          # 'comb_rt': True,
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos'],
+                                          'func_name': 'calc_calib_delay_noPar_rt',
+                                          'res_par_name': 'robustness_mean_frame_delay_rt'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diffRT',
+                                                             eval_columns=eval_columns,
+                                                             # Column names for which statistics are calculated (y-axis)
+                                                             units=units,
+                                                             # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,
+                                                             # Algorithm parameters to evaluate
+                                                             partitions=partitions,
+                                                             # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay_noPar,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 35:
+                    fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
+                                        'from Frame to Frame for Different '
+                    eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_scene': ['jra', 'jrx', 'jry', 'jrz']}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr',
+                                                              'rt_change_type'],
+                                          'eval_on': ['R_mostLikely_diffAll'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos'],
+                                          'func_name': 'calc_calib_delay_noPar_rotMl',
+                                          'res_par_name': 'robustness_mean_frame_delay_rotMl'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diffRMl',
+                                                             eval_columns=eval_columns,
+                                                             # Column names for which statistics are calculated (y-axis)
+                                                             units=units,
+                                                             # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,
+                                                             # Algorithm parameters to evaluate
+                                                             partitions=partitions,
+                                                             # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay_noPar,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 36:
+                    fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
+                                        'from Frame to Frame for Different '
+                    eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_scene': ['jta', 'jtx', 'jty', 'jtz']}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr',
+                                                              'rt_change_type'],
+                                          'eval_on': ['t_mostLikely_angDiff_deg'],
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos'],
+                                          'func_name': 'calc_calib_delay_noPar_transMl',
+                                          'res_par_name': 'robustness_mean_frame_delay_transMl'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diffTMl',
+                                                             eval_columns=eval_columns,
+                                                             # Column names for which statistics are calculated (y-axis)
+                                                             units=units,
+                                                             # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,
+                                                             # Algorithm parameters to evaluate
+                                                             partitions=partitions,
+                                                             # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay_noPar,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                elif ev == 37:
+                    fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
+                                        'from Frame to Frame for Different '
+                    eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
+                                    'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
+                                    't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
+                                    't_mostLikely_diff_tx', 't_mostLikely_diff_ty', 't_mostLikely_diff_tz']
+                    units = [('R_mostLikely_diffAll', '/\\textdegree'),
+                             ('R_mostLikely_diff_roll_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_pitch_deg', '/\\textdegree'),
+                             ('R_mostLikely_diff_yaw_deg', '/\\textdegree'),
+                             ('t_mostLikely_angDiff_deg', '/\\textdegree'),
+                             ('t_mostLikely_distDiff', ''), ('t_mostLikely_diff_tx', ''),
+                             ('t_mostLikely_diff_ty', ''), ('t_mostLikely_diff_tz', '')]
+                    it_parameters = ['rt_change_type']
+                    partitions = ['depthDistr', 'kpAccSd']
+                    filter_func_args = {'data_seperators': ['inlratCRate',
+                                                            'kpAccSd',
+                                                            'depthDistr'],
+                                        'filter_mostLikely': True,
+                                        'filter_scene': 'jrt'}
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
+                                      'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
+                                      'additional_data': ['rt_change_pos'],
+                                      'eval_on': None,
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True),
+                                          'use_marks': True,
+                                          'data_separators': ['inlratCRate',
+                                                              'kpAccSd',
+                                                              'depthDistr'],
+                                          'eval_on': ['R_mostLikely_diffAll'],#['Rt_diff2']
+                                          'is_jrt': True,
+                                          # 'comb_rt': True,
+                                          'change_Nr': 25,
+                                          'additional_data': ['rt_change_pos'],
+                                          'func_name': 'calc_calib_delay_noPar_rtMl',
+                                          'res_par_name': 'robustness_mean_frame_delay_rtMl'}
+                    from corr_pool_eval import calc_rt_diff2_frame_to_frame
+                    from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_robustness_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diffRTMl',
+                                                             eval_columns=eval_columns,
+                                                             # Column names for which statistics are calculated (y-axis)
+                                                             units=units,
+                                                             # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,
+                                                             # Algorithm parameters to evaluate
+                                                             partitions=partitions,
+                                                             # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=get_rt_change_type,
+                                                             filter_func_args=filter_func_args,
+                                                             special_calcs_func=calc_calib_delay_noPar,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True,
+                                                             cat_sort=False)
+                else:
+                    raise ValueError('Eval nr ' + ev + ' does not exist')
+        else:
+            raise ValueError('Test nr does not exist')
 
     return ret
 
