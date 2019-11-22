@@ -370,7 +370,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             if absThRankingStable is None:
                 raise ValueError('Enter best test results for absThRankingStable of robustness')
             args += ['--absThRankingStable', str(absThRankingStable)]
-            args += ['--useRANSAC_fewMatches']
+            args += ['--useRANSAC_fewMatches', str(2)]
         elif test_nr == 5:
             warnings.warn("Warning: Are you sure you have selected the LARGE dataset for testing?")
             time.sleep(5.0)
@@ -407,6 +407,77 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
                 args += ['--useRANSAC_fewMatches']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for robustness')
+    elif test_name == 'usac_vs_autocalib':
+        args += ['--RobMethod', 'USAC']
+        if not usac56 or not usac123:
+            raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
+        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
+        if USACInlratFilt is None:
+            raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
+        args += ['--USACInlratFilt', str(USACInlratFilt)]
+        if th is None:
+            raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
+        args += ['--th', str(th)]
+        if not refineRT:
+            raise ValueError('Enter best test results for refineRT of refinement_ba')
+        args += ['--refineRT'] + list(map(str, refineRT))
+        if bart is None:
+            raise ValueError('Enter best test results for BART of refinement_ba')
+        args += ['--BART', str(bart)]
+        args += ['--stereoRef']
+        args += ['--useGTCamMat']
+        if not refineRT_stereo:
+            raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
+        args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
+        if bart_stereo is None:
+            raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
+        args += ['--BART_stereo', str(bart_stereo)]
+        if minPtsDistance is None:
+            raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
+        args += ['--minPtsDistance', str(minPtsDistance)]
+        if maxPoolCorrespondences is None:
+            raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
+        args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
+        if maxRat3DPtsFar is None:
+            raise ValueError('Enter best test results for maxRat3DPtsFar of correspondence_pool')
+        args += ['--maxRat3DPtsFar', str(maxRat3DPtsFar)]
+        if maxDist3DPtsZ is None:
+            raise ValueError('Enter best test results for maxDist3DPtsZ of correspondence_pool')
+        args += ['--maxDist3DPtsZ', str(maxDist3DPtsZ)]
+        args += ['--minStartAggInlRat', '0.07']
+        if relInlRatThLast is None:
+            raise ValueError('Enter best test results for relInlRatThLast of robustness')
+        args += ['--relInlRatThLast', str(relInlRatThLast)]
+        if relInlRatThNew is None:
+            raise ValueError('Enter best test results for relInlRatThNew of robustness')
+        args += ['--relInlRatThNew', str(relInlRatThNew)]
+        if minInlierRatSkip is None:
+            raise ValueError('Enter best test results for minInlierRatSkip of robustness')
+        args += ['--minInlierRatSkip', str(minInlierRatSkip)]
+        if relMinInlierRatSkip is None:
+            raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
+        args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
+        if minInlierRatioReInit is None:
+            raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
+        args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+        if checkPoolPoseRobust is None:
+            raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
+        args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+        if minContStablePoses is None:
+            raise ValueError('Enter best test results for minContStablePoses of robustness')
+        args += ['--minContStablePoses', str(minContStablePoses)]
+        if minNormDistStable is None:
+            raise ValueError('Enter best test results for minNormDistStable of robustness')
+        args += ['--minNormDistStable', str(minNormDistStable)]
+        if absThRankingStable is None:
+            raise ValueError('Enter best test results for absThRankingStable of robustness')
+        args += ['--absThRankingStable', str(absThRankingStable)]
+        if useRANSAC_fewMatches is None:
+            raise ValueError('Enter best test result for useRANSAC_fewMatches of robustness')
+        if useRANSAC_fewMatches:
+            args += ['--useRANSAC_fewMatches']
+        args += ['--accumCorrs', '1', '5', '1', '10', '20', '5']
+        args += ['--accumCorrsCompare']
     elif test_name == 'testing_tests' and testing_test:#Only for testing the script exec_autocalib.py
         if not test_nr:
             raise ValueError('test_nr is required for testing the test interface')
@@ -662,7 +733,36 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--minContStablePoses', '5']
             args += ['--minNormDistStable', '0.5']
             args += ['--absThRankingStable', '0.25']
+            args += ['--useRANSAC_fewMatches', '2']
+        elif test_nr == 16:
+            args += ['--RobMethod', 'USAC']
+            args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5']
+            args += ['--USACInlratFilt', '0']
+            args += ['--th', '0.85']
+            args += ['--refineRT', '4', '2']
+            args += ['--BART', '0']
+            args += ['--stereoRef']
+            args += ['--useGTCamMat']
+            args += ['--refineRT_stereo', '4', '2']
+            args += ['--BART_stereo', '1']
+            args += ['--minPtsDistance', '3.0']
+            args += ['--maxPoolCorrespondences', '5000']
+            args += ['--maxRat3DPtsFar', '0.5']
+            args += ['--maxDist3DPtsZ', '50.0']
+            args += ['--minStartAggInlRat', '0.2']
+            # args += ['--nr_keypoints', '20to160']
+            args += ['--relInlRatThLast', '0.35']
+            args += ['--relInlRatThNew', '0.2']
+            args += ['--minInlierRatSkip', '0.3']
+            args += ['--relMinInlierRatSkip', '0.7']
+            args += ['--minInlierRatioReInit', '0.65']
+            args += ['--checkPoolPoseRobust', '3']
+            args += ['--minContStablePoses', '5']
+            args += ['--minNormDistStable', '0.5']
+            args += ['--absThRankingStable', '0.25']
             args += ['--useRANSAC_fewMatches']
+            args += ['--accumCorrs', '1', '5', '1', '10', '20', '5']
+            args += ['--accumCorrsCompare']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for testing_tests')
     else:

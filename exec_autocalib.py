@@ -571,9 +571,10 @@ def main():
     parser.add_argument('--absThRankingStable', type=float, nargs='+', required=False,
                         help='If only 1 value is provided, this specific value is used. If 3 values '
                              'are provided, a range can be specified: Format: min max step_size')
-    parser.add_argument('--useRANSAC_fewMatches', type=bool, nargs='?', required=False, default=False, const=True,
-                        help='For stereo refinement: If provided, RANSAC for robust estimation '
-                             'if less than 100 matches are available is used.')
+    parser.add_argument('--useRANSAC_fewMatches', type=int, nargs='?', required=False, default=0, const=1,
+                        help='For stereo refinement: If provided and optionally set to 1, RANSAC for robust estimation '
+                             'if less than 100 matches are available is used. If a value larger 1 is provided, '
+                             'the autocalibration is executed 2 times - once without and once with this option.')
     parser.add_argument('--checkPoolPoseRobust', type=int, nargs='+', required=False,
                         help='If only 1 value is provided, this specific value is used. If 3 values '
                              'are provided, a range can be specified: Format: min max step_size')
@@ -590,6 +591,13 @@ def main():
                              'are provided, a range can be specified: Format: min max step_size')
     parser.add_argument('--useGTCamMat', type=bool, required=False, nargs='?', default=False, const=True,
                         help='If provided, the GT camera matrices are always used and the distorted ones are ignored.')
+    parser.add_argument('--accumCorrs', type=int, nargs='+', required=False,
+                        help='If only 1 value is provided, this specific value is used. If 3 * n values '
+                             'are provided, ranges can be specified: '
+                             'Format: min1 max1 step_size1 min2 max2 step_size2 ... minn maxn step_sizen')
+    parser.add_argument('--accumCorrsCompare', type=bool, required=False, nargs='?', default=False, const=True,
+                        help='If provided, Autocalibration and USAC with correspondence aggregation are both'
+                             'executed on the same scenes.')
     args = parser.parse_args()
     if not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' does not exist')
@@ -812,6 +820,15 @@ def main():
 
     cmds = appRange(cmds, args.th, 'th')
 
+    if not args.accumCorrsCompare and args.stereoRef and args.accumCorrs:
+        raise ValueError('Stereo refinement and USAC correspondence aggregation cannot be enabled at the same time if '
+                         'the option accumCorrsCompare is not provided.')
+    elif not args.accumCorrsCompare and args.accumCorrs:
+        cmds = appMultRanges(cmds, args.accumCorrs, 'accumCorrs')
+    elif args.accumCorrsCompare and args.accumCorrs:
+        cmds2 = deepcopy(cmds)
+        cmds2 = appMultRanges(cmds2, args.accumCorrs, 'accumCorrs')
+
     if args.stereoRef:
         for it in cmds:
             it.append('--stereoRef')
@@ -992,8 +1009,14 @@ def main():
         cmds = appRange(cmds, args.absThRankingStable, 'absThRankingStable')
 
     if args.useRANSAC_fewMatches:
-        for it in cmds:
-            it.append('--useRANSAC_fewMatches')
+        if args.useRANSAC_fewMatches == 1:
+            for it in cmds:
+                it.append('--useRANSAC_fewMatches')
+        elif args.useRANSAC_fewMatches > 1:
+            cmds_wFM = deepcopy(cmds)
+            for it in cmds_wFM:
+                it.append('--useRANSAC_fewMatches')
+            cmds += cmds_wFM
 
     if args.checkPoolPoseRobust:
         cmds = appRange(cmds, args.checkPoolPoseRobust, 'checkPoolPoseRobust')
@@ -1013,6 +1036,9 @@ def main():
 
     if args.maxDist3DPtsZ:
         cmds = appRange(cmds, args.maxDist3DPtsZ, 'maxDist3DPtsZ')
+
+    if args.accumCorrsCompare and args.stereoRef and args.accumCorrs:
+        cmds += cmds2
 
     if args.useGTCamMat:
         for it in cmds:
