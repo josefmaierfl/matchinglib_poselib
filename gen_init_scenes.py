@@ -2,7 +2,7 @@
 Loads initial configuration files and creates scenes which can be further used to extract information
 that is needed for the final configuration files
 """
-import sys, re, numpy as np, argparse, os, pandas as pd, subprocess as sp
+import re, argparse, os, subprocess as sp
 from copy import deepcopy
 
 def gen_scenes(test_app, input_path, img_path, store_path, message_path):
