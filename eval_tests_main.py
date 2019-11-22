@@ -4213,7 +4213,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   no_tex=False,
                                                   cat_sort=None)
                 elif ev == 32:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame ' \
+                                        'of Scenes with Abrupt Changes of R for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -4273,7 +4274,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              no_tex=True,
                                                              cat_sort=False)
                 elif ev == 33:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame ' \
+                                        'of Scenes with Abrupt Changes of t for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -4333,7 +4335,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              no_tex=True,
                                                              cat_sort=False)
                 elif ev == 34:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame of Scenes ' \
+                                        'with Abrupt Changes of R\\&t for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -4395,7 +4398,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              cat_sort=False)
                 elif ev == 35:
                     fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
-                                        'from Frame to Frame for Different '
+                                        'from Frame to Frame of Scenes with Abrupt Changes of R for Different '
                     eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
                                     'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
                                     't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
@@ -4462,7 +4465,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              cat_sort=False)
                 elif ev == 36:
                     fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
-                                        'from Frame to Frame for Different '
+                                        'from Frame to Frame of Scenes with Abrupt Changes of t for Different '
                     eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
                                     'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
                                     't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
@@ -4529,7 +4532,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              cat_sort=False)
                 elif ev == 37:
                     fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
-                                        'from Frame to Frame for Different '
+                                        'from Frame to Frame of Scenes with Abrupt Changes of R\\&t for Different '
                     eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
                                     'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
                                     't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',

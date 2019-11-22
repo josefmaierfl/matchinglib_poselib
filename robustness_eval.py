@@ -3126,6 +3126,7 @@ def calc_calib_delay_noPar(**keywords):
                     if idx == idx_old + 1:
                         fpos = idx_old
                         break
+                    idx_old = idx
                 if fpos > 0:
                     fd = fpos - keywords['change_Nr']
                 else:

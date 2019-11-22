@@ -12214,7 +12214,8 @@ def main():
                                                   no_tex=False,
                                                   cat_sort=None)
                 elif ev == 32:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame ' \
+                                        'of Scenes with Abrupt Changes of R for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -12274,7 +12275,8 @@ def main():
                                                              no_tex=True,
                                                              cat_sort=False)
                 elif ev == 33:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame ' \
+                                        'of Scenes with Abrupt Changes of t for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -12334,7 +12336,8 @@ def main():
                                                              no_tex=True,
                                                              cat_sort=False)
                 elif ev == 34:
-                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame ' \
+                                        'of Scenes with Abrupt Changes of R\\&t for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -12395,8 +12398,9 @@ def main():
                                                              no_tex=True,
                                                              cat_sort=False)
                 elif ev == 35:
-                    fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
-                                        'from Frame to Frame for Different '
+                    fig_title_pre_str = 'Differences of Most Likely R\\&t Differences' \
+                                        'from Frame to Frame of Scenes with Abrupt Changes of R ' \
+                                        'for Different '
                     eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
                                     'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
                                     't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
@@ -12463,7 +12467,7 @@ def main():
                                                              cat_sort=False)
                 elif ev == 36:
                     fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
-                                        'from Frame to Frame for Different '
+                                        'from Frame to Frame of Scenes with Abrupt Changes of t for Different '
                     eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
                                     'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
                                     't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
@@ -12530,7 +12534,7 @@ def main():
                                                              cat_sort=False)
                 elif ev == 37:
                     fig_title_pre_str = 'Differences of Most Likely R\\&t Differences ' \
-                                        'from Frame to Frame for Different '
+                                        'from Frame to Frame of Scenes with Abrupt Changes of R\\&t for Different '
                     eval_columns = ['R_mostLikely_diffAll', 'R_mostLikely_diff_roll_deg',
                                     'R_mostLikely_diff_pitch_deg', 'R_mostLikely_diff_yaw_deg',
                                     't_mostLikely_angDiff_deg', 't_mostLikely_distDiff',
@@ -12600,6 +12604,55 @@ def main():
                     raise ValueError('Eval nr ' + ev + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
+    elif test_name == 'usac_vs_autocalib':
+        if eval_nr[0] < 0:
+            evals = list(range(1, 8))
+        else:
+            evals = eval_nr
+        for ev in evals:
+            if ev == 1:
+                fig_title_pre_str = 'Statistics on R\\&t Differences of Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                # it_parameters = ['stereoRef']
+                it_parameters = ['USAC_parameters_estimator']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'res_par_name': 'usac_vs_autoc_stabRT_inlrat'}
+                from usac_eval import get_best_comb_inlrat_1
+                from robustness_eval import get_rt_change_type
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_usacVsAuto_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['inlratMin'],
+                                              pdfsplitentry=['t_distDiff'],
+                                              filter_func=get_rt_change_type,
+                                              filter_func_args=filter_func_args,
+                                              special_calcs_func=get_best_comb_inlrat_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              compare_source=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
 
     return ret
 
