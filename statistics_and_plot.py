@@ -531,6 +531,8 @@ def calcSatisticAndPlot_2D(data,
             section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
                            replaceCSVLabels(str(it_tmp[0]), True, False, True) +\
                            ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
+            caption = section_name + '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
+            section_name = split_large_titles(section_name)
             exp_value = enl_space_title(exp_value, section_name, tmp, grp_names[-1],
                                         len(list(tmp.columns.values)), fig_type)
             x_rows = handle_nans(tmp, list(tmp.columns.values), not is_numeric, fig_type)
@@ -538,7 +540,7 @@ def calcSatisticAndPlot_2D(data,
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': section_name,
                                           # If caption is None, the field name is used
-                                          'caption': None,
+                                          'caption': caption,
                                           'fig_type': fig_type,
                                           'plots': list(tmp.columns.values),
                                           'label_y': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
@@ -934,16 +936,17 @@ def calcSatisticAndPlot_2D_partitions(data,
                                ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
                                '\\\\for properties ' + part_name.replace('_', '\\_')
                 section_name = split_large_titles(section_name)
+                caption = replace_stat_names(it_tmp[-1]) + ' values for ' + replaceCSVLabels(str(it_tmp[0]), True) + \
+                          ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) + \
+                          ' for properties ' + part_name_title + \
+                          '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
                 exp_value = enl_space_title(exp_value, section_name, tmp2, grp_names[-1],
                                             len(list(tmp2.columns.values)), fig_type)
                 reltex_name = os.path.join(rel_data_path, dataf_name)
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': section_name,
                                               # If caption is None, the field name is used
-                                              'caption': replace_stat_names(it_tmp[-1]) + ' values for ' +
-                                                      replaceCSVLabels(str(it_tmp[0]), True) +
-                                                      ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) +
-                                                      ' for properties ' + part_name_title,
+                                              'caption': caption,
                                               'fig_type': fig_type,
                                               'plots': list(tmp2.columns.values),
                                               'label_y': replace_stat_names(it_tmp[-1]) +
@@ -6459,6 +6462,16 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
         str_val = 'VFC correspondence filter'
     elif label == 'matchesFilter_refineSOF':
         str_val = 'SOF correspondence filter'
+    elif label == 'accumCorrs' or label == 'accumCorrs_max':
+        if use_plural:
+            str_val = 'USAC with correspondence aggregation over user specified numbers of frames'
+        else:
+            str_val = 'USAC with correspondence aggregation over a user specified number of frames'
+    elif label == 'stereoRef':
+        if use_plural:
+            str_val = 'stereo pose estimations with refinement over multiple frames'
+        else:
+            str_val = 'stereo pose estimation with refinement over multiple frames'
     elif label == 'stereoParameters_th_pix_user':
         if use_plural:
             str_val = 'stereo refinement thresholds $\\texttt{th}_{s}$'
@@ -6964,43 +6977,40 @@ def main():
     # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
     # gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
-    gt_type_pars = ['jrt', 'jra', 'jrx', 'jta', 'jty']
+    gt_type_pars = ['jrt', 'jra', 'nv', 'jta', 'jty']
     pars_kpDistr_opt = ['1corn', 'equ']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_depthDistr_opt = ['NMF', 'NM']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F', 'NM', 'M']
     pars_nrTP_opt = ['500', '100to1000']
     pars_kpAccSd_opt = ['0.5', '1.0', '1.5']
+    pars_stereoRef = ['disabled', 'enabled']
+    pars_accumCorrs = list(range(1, 3))
     inlratMin_opt = list(map(str, list(np.arange(0.55, 0.85, 0.1))))
     lin_time_pars = np.array([500, 3, 0.003])
-    poolSize = [10000, 40000]
-    min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-              nr_imgs * len(poolSize) * len(pars1_opt) * len(pars2_opt) * len(gt_type_pars)
-    if min_pts < num_pts:
-        while min_pts < num_pts:
-            pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
-            min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
-                      nr_imgs * len(poolSize) * len(pars1_opt) * len(pars2_opt) * len(gt_type_pars)
-        num_pts = min_pts
+    test_accum_usac = True
+    if test_accum_usac:
+        poolSize = [10000]
+        nr_pts_stereoRef = int(len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+                               len(gt_type_pars) * nr_imgs)
+        nr_rest = int(len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * len(gt_type_pars) * \
+                      len(pars_accumCorrs) * nr_imgs)
+        num_pts = nr_pts_stereoRef + nr_rest
     else:
-        num_pts = int(min_pts)
-    kpAccSd_mul = int(len(pars_depthDistr_opt))
-    inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
-    USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
-    poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
-    USAC_parameters_refinealg_mul = int(poolSize_mul * len(poolSize))
-    gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(pars2_opt))
+        poolSize = [10000, 40000]
+        min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+                  nr_imgs * len(poolSize) * len(pars1_opt) * len(pars2_opt) * len(gt_type_pars)
+        if min_pts < num_pts:
+            while min_pts < num_pts:
+                pars_kpAccSd_opt += [str(float(pars_kpAccSd_opt[-1]) + 0.5)]
+                min_pts = len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
+                          nr_imgs * len(poolSize) * len(pars1_opt) * len(pars2_opt) * len(gt_type_pars)
+            num_pts = min_pts
+        else:
+            num_pts = int(min_pts)
 
-    data = {#'R_diffAll': 1000 + np.abs(np.random.randn(num_pts) * 10),#[0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
-            # 'R_diff_roll_deg': 1000 + np.abs(np.random.randn(num_pts) * 10),
-            # 'R_diff_pitch_deg': 10 + np.random.randn(num_pts) * 5,
-            # 'R_diff_yaw_deg': -1000 + np.abs(np.random.randn(num_pts)),
-            # 't_angDiff_deg': [0.3, 0.5, 0.7, 0.4, 0.6] * int(num_pts/5),
-            't_distDiff': np.abs(np.random.randn(num_pts) * 100),
+    data = {'t_distDiff': np.abs(np.random.randn(num_pts) * 100),
             't_mostLikely_distDiff': np.abs(np.random.randn(num_pts) * 100),
-            # 't_diff_tx': -10000 + np.random.randn(num_pts) * 100,
-            # 't_diff_ty': 20000 + np.random.randn(num_pts),
-            # 't_diff_tz': -450 + np.random.randn(num_pts),
             'K1_cxyfxfyNorm': 13 + np.random.randn(num_pts) * 5,
             'K2_cxyfxfyNorm': 14 + np.random.randn(num_pts) * 6,
             'K1_cxyDiffNorm': 15 + np.random.randn(num_pts) * 7,
@@ -7015,39 +7025,50 @@ def main():
             'K2_cxDiff': 24 + np.random.randn(num_pts) * 6,
             'K1_cyDiff': 25 + np.random.randn(num_pts) * 7,
             'K2_cyDiff': 26 + np.random.randn(num_pts) * 8,
-            # 'USAC_parameters_estimator': np.random.randint(0, 3, num_pts),
-            # 'USAC_parameters_refinealg': np.random.randint(0, 7, num_pts),
-            # 'USAC_parameters_USACInlratFilt': np.random.randint(8, 10, num_pts),
-            'stereoParameters_maxPoolCorrespondences': build_list(poolSize, poolSize_mul, num_pts),
-            # 'USAC_parameters_estimator': [pars1_opt[i] for i in np.random.randint(0, len(pars1_opt), num_pts)],
-            'USAC_parameters_estimator': build_list(pars1_opt, USAC_parameters_estimator_mul, num_pts),
-            # 'USAC_parameters_refinealg': [pars2_opt[i] for i in np.random.randint(0, len(pars2_opt), num_pts)],
-            'USAC_parameters_refinealg': build_list(pars2_opt, USAC_parameters_refinealg_mul, num_pts),
             'kpDistr': [pars_kpDistr_opt[i] for i in np.random.randint(0, len(pars_kpDistr_opt), num_pts)],
-            # 'kpDistr': [[i] * (num_pts / len(pars_kpDistr_opt)) for i in pars_kpDistr_opt],
-            # 'depthDistr': [pars_depthDistr_opt[i] for i in np.random.randint(0, len(pars_depthDistr_opt), num_pts)],
-            'depthDistr': build_list(pars_depthDistr_opt, 1, num_pts),
             'poseIsStable': np.random.randint(2, size=num_pts),
             'mostLikelyPose_stable': np.random.randint(2, size=num_pts),
             'nrTP': [pars_nrTP_opt[i] for i in np.random.randint(0, len(pars_nrTP_opt), num_pts)],
-            # 'kpAccSd': [pars_kpAccSd_opt[i] for i in np.random.randint(0, len(pars_kpAccSd_opt), num_pts)],
-            'kpAccSd': np.array(build_list(pars_kpAccSd_opt, kpAccSd_mul, num_pts)),
             'USAC_parameters_USACInlratFilt': [pars3_opt[i] for i in np.random.randint(0, len(pars3_opt), num_pts)],
             'th': np.tile(np.arange(0.4, 0.9, 0.1), int(num_pts/5)),
-            # 'inlratMin': np.tile(np.arange(0.05, 0.45, 0.1), int(num_pts/4)),
-            'inlratMin': np.array(build_list(inlratMin_opt, inlratMin_mul, num_pts)),
             'useless': [1, 1, 2, 3] * int(num_pts/4),
-            # 'R_out(0,0)': [0] * 10 + [1] * int(num_pts - 10),
-            # 'R_out(0,1)': [0] * 10 + [0] * int(num_pts - 10),
-            # 'R_out(0,2)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
-            # 'R_out(1,0)': [0] * 10 + [1] * int(num_pts - 10),
-            # 'R_out(1,1)': [0] * 10 + [1] * int(num_pts - 10),
-            # 'R_out(1,2)': [0] * 10 + [0] * int(num_pts - 10),
-            # 'R_out(2,0)': [float(0)] * 10 + [0.1] * int(num_pts - 10),
-            # 'R_out(2,1)': [0] * 10 + [0] * int(num_pts - 10),
-            # 'R_out(2,2)': [0] * 10 + [0] * int(num_pts - 10),
             'Nr': list(range(0, nr_imgs)) * int(num_pts / nr_imgs),
             'inlRat_GT': np.tile(np.arange(0.25, 0.72, 0.05), int(num_pts/10))}
+
+    if test_accum_usac:
+        kpAccSd_mul = int(len(pars_depthDistr_opt))
+        inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
+        accumCorrs_mul = int(inlratMin_mul * len(inlratMin_opt))
+        poolSize_mul = int(accumCorrs_mul * len(pars_accumCorrs))
+        gt_type_pars_mul = int(poolSize_mul)
+
+        data['depthDistr'] = build_list(pars_depthDistr_opt, 1, nr_pts_stereoRef)
+        data['kpAccSd'] = build_list(pars_kpAccSd_opt, kpAccSd_mul, nr_pts_stereoRef)
+        data['inlratMin'] = build_list(inlratMin_opt, inlratMin_mul, nr_pts_stereoRef)
+        data['stereoRef'] = [pars_stereoRef[1]] * nr_pts_stereoRef
+        data['accumCorrs'] = [1] * nr_pts_stereoRef
+
+        data['depthDistr'] += build_list(pars_depthDistr_opt, 1, nr_rest)
+        data['kpAccSd'] += build_list(pars_kpAccSd_opt, kpAccSd_mul, nr_rest)
+        data['inlratMin'] += build_list(inlratMin_opt, inlratMin_mul, nr_rest)
+        data['stereoRef'] += [pars_stereoRef[0]] * nr_rest
+        data['accumCorrs'] += build_list(pars_accumCorrs, accumCorrs_mul, nr_rest)
+
+        data['kpAccSd'] = np.array(data['kpAccSd'])
+        data['inlratMin'] = np.array(data['inlratMin'])
+    else:
+        kpAccSd_mul = int(len(pars_depthDistr_opt))
+        inlratMin_mul = int(kpAccSd_mul * len(pars_kpAccSd_opt))
+        USAC_parameters_estimator_mul = int(inlratMin_mul * len(inlratMin_opt))
+        poolSize_mul = int(USAC_parameters_estimator_mul * len(pars1_opt))
+        USAC_parameters_refinealg_mul = int(poolSize_mul * len(poolSize))
+        gt_type_pars_mul = int(USAC_parameters_refinealg_mul * len(pars2_opt))
+        data['depthDistr'] = build_list(pars_depthDistr_opt, 1, num_pts)
+        data['kpAccSd'] = np.array(build_list(pars_kpAccSd_opt, kpAccSd_mul, num_pts))
+        data['inlratMin'] = np.array(build_list(inlratMin_opt, inlratMin_mul, num_pts))
+        data['USAC_parameters_estimator'] = build_list(pars1_opt, USAC_parameters_estimator_mul, num_pts)
+        data['USAC_parameters_refinealg'] = build_list(pars2_opt, USAC_parameters_refinealg_mul, num_pts)
+        data['stereoParameters_maxPoolCorrespondences'] = build_list(poolSize, poolSize_mul, num_pts)
 
     data['poolSize'] = data['inlratMin'].astype(np.float) * 500 - \
                        data['inlratMin'].astype(np.float) * np.random.randint(0, 50, num_pts)
@@ -7321,6 +7342,15 @@ def main():
             data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
             data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
             data['t_GT_n_elemDiff_tz'] += [0] * jumpposn1 + [1] + [0] * jumpposn2
+        elif this_type == 'nv':
+            data['R_GT_n_diffAll'] += [0] * int(nr_imgs)
+            data['t_GT_n_angDiff'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_roll_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_pitch_deg'] += [0] * int(nr_imgs)
+            data['R_GT_n_diff_yaw_deg'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tx'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_ty'] += [0] * int(nr_imgs)
+            data['t_GT_n_elemDiff_tz'] += [0] * int(nr_imgs)
         else:
             raise ValueError('Invalid change type')
         sc += 1
@@ -7679,7 +7709,7 @@ def main():
             tdx += list(np.random.random_sample(nr_imgs) * 0.02)
             tdy += tmpt
             tdz += list(np.random.random_sample(nr_imgs) * 0.02)
-        elif this_type == 'jty':
+        elif this_type == 'jtz':
             cnt = 0
             start = sc * nr_imgs
             end = start + nr_imgs
@@ -7704,6 +7734,23 @@ def main():
             tdx += list(np.random.random_sample(nr_imgs) * 0.02)
             tdy += list(np.random.random_sample(nr_imgs) * 0.02)
             tdz += tmpt
+        elif this_type == 'nv':
+            start = sc * nr_imgs
+            end = start + nr_imgs
+            tmpr = data['R_diffAll'][start:end]
+            tmpt = data['t_angDiff_deg'][start:end]
+            tmpr3 = list(0.33 * tmpr)
+            tmpr = list(tmpr)
+            tmpt3 = list(0.33 * tmpt)
+            tmpt = list(tmpt)
+            tad += tmpt
+            rda += tmpr
+            rdx += tmpr3
+            rdy += tmpr3
+            rdz += tmpr3
+            tdx += tmpt3
+            tdy += tmpt3
+            tdz += tmpt3
         else:
             raise ValueError('Invalid change type')
     data['R_diffAll'] = rda
@@ -7726,9 +7773,9 @@ def main():
 
     data = pd.DataFrame(data)
 
-    test_name = 'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
+    test_name = 'usac_vs_autocalib'#'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 5
-    eval_nr = [-1]#list(range(10, 11))
+    eval_nr = [2]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -12619,17 +12666,20 @@ def main():
                          ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                          ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                          ('t_diff_ty', ''), ('t_diff_tz', '')]
-                # it_parameters = ['stereoRef']
-                it_parameters = ['USAC_parameters_estimator']
+                it_parameters = ['stereoRef']
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
                                     'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': True,
+                                      'fig_type': 'smooth',
+                                      'func_name': 'comp_pars_vs_inlRats',
                                       'res_par_name': 'usac_vs_autoc_stabRT_inlrat'}
                 from usac_eval import get_best_comb_inlrat_1
                 from robustness_eval import get_rt_change_type
+                from usac_vs_autocalib_eval import get_accum_corrs_sequs
                 ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                               store_path=output_path,
                                               tex_file_pre_str='plots_usacVsAuto_',
@@ -12644,8 +12694,8 @@ def main():
                                               filter_func_args=filter_func_args,
                                               special_calcs_func=get_best_comb_inlrat_1,
                                               special_calcs_args=special_calcs_args,
-                                              calc_func=None,
-                                              calc_func_args=None,
+                                              calc_func=get_accum_corrs_sequs,
+                                              calc_func_args=calc_func_args,
                                               compare_source=None,
                                               fig_type='smooth',
                                               use_marks=True,
@@ -12653,6 +12703,146 @@ def main():
                                               make_fig_index=True,
                                               build_pdf=True,
                                               figs_externalize=True)
+            elif ev == 2:
+                fig_title_pre_str = 'Values of R\\&t Differences of Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                it_parameters = ['stereoRef']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'fig_type': 'surface',
+                                      'used_x_axis': 'kpAccSd',
+                                      'cols_for_mean': ['inlratMin'],
+                                      'func_name': 'comp_pars_vs_kpAccSd'}
+                from robustness_eval import get_rt_change_type
+                from usac_vs_autocalib_eval import get_mean_y_vs_x_it, get_accum_corrs_sequs
+                ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_usacVsAuto_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              xy_axis_columns=['kpAccSd', 'inlratMin'],
+                                              filter_func=get_rt_change_type,
+                                              filter_func_args=filter_func_args,
+                                              special_calcs_func=get_mean_y_vs_x_it,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=get_accum_corrs_sequs,
+                                              calc_func_args=calc_func_args,
+                                              fig_type='surface',
+                                              use_marks=True,
+                                              ctrl_fig_size=False,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True,
+                                              no_tex=False,
+                                              cat_sort=None)
+            elif ev == 3:
+                fig_title_pre_str = 'Statistics on R\\&t Differences of Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                it_parameters = ['stereoRef']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'fig_type': 'smooth',
+                                      'func_name': 'comp_pars_vs_depthDistr',
+                                      'res_par_name': 'usac_vs_autoc_stabRT_depth'}
+                from usac_eval import get_best_comb_inlrat_1
+                from robustness_eval import get_rt_change_type
+                from usac_vs_autocalib_eval import get_accum_corrs_sequs
+                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_usacVsAuto_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='RT-stats',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['depthDistr'],
+                                              pdfsplitentry=['t_distDiff'],
+                                              filter_func=get_rt_change_type,
+                                              filter_func_args=filter_func_args,
+                                              special_calcs_func=get_best_comb_inlrat_1,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=get_accum_corrs_sequs,
+                                              calc_func_args=calc_func_args,
+                                              compare_source=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True,
+                                              no_tex=False,
+                                              cat_sort=True)
+            elif ev == 4:
+                fig_title_pre_str = 'Values of R\\&t Differences of Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                it_parameters = ['stereoRef']
+                partitions = ['inlratMin']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': True,
+                                      'fig_type': 'smooth',
+                                      'func_name': 'comp_pars_vs_depthDistr'}
+                from usac_eval import get_best_comb_inlrat_1
+                from robustness_eval import get_rt_change_type
+                from usac_vs_autocalib_eval import get_accum_corrs_sequs
+                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_usacVsAuto_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='RT-frameErr',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         partitions=partitions,
+                                                         x_axis_column=['Nr'],
+                                                         filter_func=get_rt_change_type,
+                                                         filter_func_args=filter_func_args,
+                                                         special_calcs_func=get_best_comb_th_scenes_1,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=get_accum_corrs_sequs,
+                                                         calc_func_args=calc_func_args,
+                                                         compare_source=None,
+                                                         fig_type='smooth',
+                                                         use_marks=True,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=True)
 
     return ret
 

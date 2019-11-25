@@ -221,6 +221,7 @@ def pars_calc_single_fig_partitions(**keywords):
             ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
                                                 keywords['partitions'] +
                                                 keywords['x_axis_column'], ret['gloss'])
+            ret['gloss'] = add_to_glossary(tmp2.index.values, ret['gloss'])
             tex_infos['abbreviations'] = ret['gloss']
         tex_infos['abbreviations'] = add_to_glossary(index_entries, tex_infos['abbreviations'])
         if len(ret['it_parameters']) > 1:
@@ -420,7 +421,7 @@ def pars_calc_single_fig(**keywords):
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, is_exp_used
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, add_to_glossary
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
@@ -435,6 +436,7 @@ def pars_calc_single_fig(**keywords):
         ret['gloss'] = add_to_glossary_eval('Rt_mostLikely_diff', ret['gloss'])
     else:
         raise ValueError('Combined Rt error column is missing.')
+    ret['gloss'] = add_to_glossary(ret['b'].index.values, ret['gloss'])
 
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
@@ -482,6 +484,8 @@ def pars_calc_single_fig(**keywords):
     section_name = 'Combined R \\& t errors $e_{R\\vect{t}}$ vs ' +\
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True) +\
                    ' for parameter variations of\\\\' + ret['sub_title']
+    caption = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
+              ' for parameter variations of ' + ret['sub_title']
     section_name = split_large_titles(section_name)
     x_rows = handle_nans(ret['b'], list(ret['b'].columns.values), not is_numeric, 'smooth')
     exp_value = enl_space_title(exp_value, section_name, ret['b'], ret['grp_names'][-1],
@@ -490,9 +494,7 @@ def pars_calc_single_fig(**keywords):
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': section_name,
                                   # If caption is None, the field name is used
-                                  'caption': 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' +
-                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) +
-                                             ' for parameter variations of ' + ret['sub_title'],
+                                  'caption': caption,
                                   'fig_type': 'smooth',
                                   'plots': list(ret['b'].columns.values),
                                   'label_y': 'Combined R \\& t error $e_{R\\bm{t}}$',
@@ -589,7 +591,8 @@ def pars_calc_multiple_fig(**keywords):
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].unstack()
     ret['b'] = ret['b'].T
-    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, get_3d_tex_info, get_usable_3D_cols
+    from statistics_and_plot import glossary_from_list, add_to_glossary_eval, get_3d_tex_info, get_usable_3D_cols, \
+        add_to_glossary
     if len(keywords['it_parameters']) > 1:
         ret['gloss'] = glossary_from_list([str(b) for a in ret['b'].columns for b in a])
         ret['b'].columns = ['-'.join(map(str, a)) for a in ret['b'].columns]
@@ -604,6 +607,8 @@ def pars_calc_multiple_fig(**keywords):
         ret['gloss'] = add_to_glossary_eval('Rt_mostLikely_diff', ret['gloss'])
     else:
         raise ValueError('Combined Rt error column is missing.')
+    ret['gloss'] = add_to_glossary(ret['b'].index.get_level_values(0), ret['gloss'])
+    ret['gloss'] = add_to_glossary(ret['b'].index.get_level_values(1), ret['gloss'])
     ret['b'] = ret['b'].reset_index()
     # nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
     env_3d_info = get_3d_tex_info(ret['b'], [ret['b'].columns.values[1], ret['b'].columns.values[0]],
@@ -899,6 +904,8 @@ def pars_calc_multiple_fig_partitions(**keywords):
             ret['gloss'] = add_to_glossary_eval(keywords['eval_columns'] +
                                                 keywords['partitions'] +
                                                 keywords['xy_axis_columns'], ret['gloss'])
+            ret['gloss'] = add_to_glossary(tmp2.index.get_level_values(0), ret['gloss'])
+            ret['gloss'] = add_to_glossary(tmp2.index.get_level_values(1), ret['gloss'])
             tex_infos['abbreviations'] = ret['gloss']
         tex_infos['abbreviations'] = add_to_glossary(index_entries, tex_infos['abbreviations'])
         if len(ret['it_parameters']) > 1:
