@@ -7792,7 +7792,7 @@ def main():
 
     test_name = 'usac_vs_autocalib'#'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 5
-    eval_nr = [7]#list(range(10, 11))
+    eval_nr = [8]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -12995,6 +12995,40 @@ def main():
                                               make_fig_index=True,
                                               build_pdf=True,
                                               figs_externalize=True)
+            elif ev == 8:
+                fig_title_pre_str = 'Statistics on Execution Times for Comparison of '
+                eval_columns = ['exec_time']
+                units = [('exec_time', '/$\\mu s$')]
+                it_parameters = ['stereoRef']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
+                from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
+                    get_accum_corrs_sequs
+                ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_corrPool_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_description_path='time',
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     pdfsplitentry=None,
+                                                     filter_func=filter_calc_t_all_rt_change_type,
+                                                     filter_func_args=filter_func_args,
+                                                     special_calcs_func=None,
+                                                     special_calcs_args=None,
+                                                     calc_func=get_accum_corrs_sequs,
+                                                     calc_func_args=calc_func_args,
+                                                     compare_source=None,
+                                                     fig_type='ybar',
+                                                     use_marks=False,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
 
     return ret
 
