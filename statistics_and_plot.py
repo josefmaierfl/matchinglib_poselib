@@ -853,7 +853,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
                 idx_old = p
                 tmp2 = tmp1.loc[p]
-                if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+                if is_iterable_no_str(tmp2.index.values[0]):
                     idx_vals = tmp2.index[0]
                 else:
                     idx_vals = [tmp2.index[0]]
@@ -2877,7 +2877,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                     continue
                 idx_old = p
                 tmp2 = tmp1.loc[p]
-                if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+                if is_iterable_no_str(tmp2.index.values[0]):
                     idx_vals = tmp2.index[0]
                 else:
                     idx_vals = [tmp2.index[0]]
@@ -5573,6 +5573,17 @@ def rem_tex_brackets(in_str):
         return in_str
 
 
+def is_iterable_no_str(data):
+    if isinstance(data, str):
+        return False
+    else:
+        try:
+            oit = iter(data)
+            return True
+        except TypeError as te:
+            return False
+
+
 def add_to_glossary_eval(entry_ies, gloss=None):
     entries = None
     if isinstance(entry_ies, str):
@@ -6350,6 +6361,11 @@ def replaceCSVLabels(label, use_plural=False, str_capitalize=False, in_heading=F
             str_val = 'execution times $t_{c}$'
         else:
             str_val = 'execution time $t_{c}$'
+    elif label == 'exec_time':
+        if use_plural:
+            str_val = 'overall execution times $t_{o}$'
+        else:
+            str_val = 'overall execution time $t_{o}$'
     elif label == 'poseIsStable':
         if use_plural:
             str_val = 'stable pose indications'
@@ -6977,7 +6993,7 @@ def main():
     # gt_type_pars = ['crt', 'cra', 'cta', 'crx', 'cry', 'crz', 'ctx', 'cty', 'ctz',
     #                 'jrt', 'jra', 'jta', 'jrx', 'jry', 'jrz', 'jtx', 'jty', 'jtz']
     # gt_type_pars = ['crt', 'cra', 'cta', 'jrt', 'jra', 'jta']
-    gt_type_pars = ['jrt', 'jra', 'nv', 'jta', 'jty']
+    gt_type_pars = ['jrt', 'jra', 'jrx', 'jta', 'jty']
     pars_kpDistr_opt = ['1corn', 'equ']
     # pars_depthDistr_opt = ['NMF', 'NM', 'F']
     pars_depthDistr_opt = ['NMF', 'NM']
@@ -6990,6 +7006,7 @@ def main():
     lin_time_pars = np.array([500, 3, 0.003])
     test_accum_usac = True
     if test_accum_usac:
+        gt_type_pars = ['jrt', 'crt', 'nv']
         poolSize = [10000]
         nr_pts_stereoRef = int(len(pars_kpAccSd_opt) * len(pars_depthDistr_opt) * len(inlratMin_opt) * \
                                len(gt_type_pars) * nr_imgs)
@@ -7775,7 +7792,7 @@ def main():
 
     test_name = 'usac_vs_autocalib'#'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 5
-    eval_nr = [2]#list(range(10, 11))
+    eval_nr = [7]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -12814,12 +12831,14 @@ def main():
                                     'filter_scene': 'nv'}
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
-                                      'use_marks': True,
-                                      'fig_type': 'smooth',
-                                      'func_name': 'comp_pars_vs_depthDistr'}
+                                      'use_marks': False,
+                                      'fig_type': 'sharp plot',
+                                      'used_x_axis': 'Nr',
+                                      'cols_for_mean': ['inlratMin'],
+                                      'func_name': 'comp_pars_vs_FNr'}
                 from usac_eval import get_best_comb_inlrat_1
                 from robustness_eval import get_rt_change_type
-                from usac_vs_autocalib_eval import get_accum_corrs_sequs
+                from usac_vs_autocalib_eval import get_accum_corrs_sequs, get_mean_y_vs_x_it
                 ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_usacVsAuto_',
@@ -12832,17 +12851,150 @@ def main():
                                                          x_axis_column=['Nr'],
                                                          filter_func=get_rt_change_type,
                                                          filter_func_args=filter_func_args,
-                                                         special_calcs_func=get_best_comb_th_scenes_1,
+                                                         special_calcs_func=get_mean_y_vs_x_it,
                                                          special_calcs_args=special_calcs_args,
                                                          calc_func=get_accum_corrs_sequs,
                                                          calc_func_args=calc_func_args,
                                                          compare_source=None,
-                                                         fig_type='smooth',
-                                                         use_marks=True,
+                                                         fig_type='sharp plot',
+                                                         use_marks=False,
                                                          ctrl_fig_size=True,
                                                          make_fig_index=True,
                                                          build_pdf=True,
                                                          figs_externalize=True)
+            elif ev == 5:
+                fig_title_pre_str = 'Values of R\\&t Differences of Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
+                units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                         ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                         ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                         ('t_diff_ty', ''), ('t_diff_tz', '')]
+                it_parameters = ['stereoRef']
+                partitions = ['inlratMin', 'rt_change_type']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': ['crt', 'jrt']}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': False,
+                                      'fig_type': 'sharp plot',
+                                      'used_x_axis': 'Nr',
+                                      'cols_for_mean': ['inlratMin'],
+                                      'func_name': 'comp_pars_RT_vs_FNr'}
+                from usac_eval import get_best_comb_inlrat_1
+                from robustness_eval import get_rt_change_type
+                from usac_vs_autocalib_eval import get_accum_corrs_sequs, get_mean_y_vs_x_it
+                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                                                         store_path=output_path,
+                                                         tex_file_pre_str='plots_usacVsAuto_',
+                                                         fig_title_pre_str=fig_title_pre_str,
+                                                         eval_description_path='RT-frameErr',
+                                                         eval_columns=eval_columns,
+                                                         units=units,
+                                                         it_parameters=it_parameters,
+                                                         partitions=partitions,
+                                                         x_axis_column=['Nr'],
+                                                         filter_func=get_rt_change_type,
+                                                         filter_func_args=filter_func_args,
+                                                         special_calcs_func=get_mean_y_vs_x_it,
+                                                         special_calcs_args=special_calcs_args,
+                                                         calc_func=get_accum_corrs_sequs,
+                                                         calc_func_args=calc_func_args,
+                                                         compare_source=None,
+                                                         fig_type='sharp plot',
+                                                         use_marks=False,
+                                                         ctrl_fig_size=True,
+                                                         make_fig_index=True,
+                                                         build_pdf=True,
+                                                         figs_externalize=True)
+            elif ev == 6:
+                fig_title_pre_str = 'Execution Times on Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['exec_time']
+                units = []
+                it_parameters = ['stereoRef']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin'],
+                                  't_data_separators': ['inlratMin'],
+                                  'addit_cols': ['inlratMin']}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': False,
+                                      'nr_target_kps': 1000,
+                                      'func_name': 'comp_pars_min_time_vs_inlrat'}
+                from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
+                    estimate_alg_time_fixed_kp, \
+                    accum_corrs_sequs_time_model
+                ret += calcFromFuncAndPlot_2D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_usacVsAuto_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='time',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['nrCorrs_GT'],
+                                              filter_func=filter_calc_t_all_rt_change_type,
+                                              filter_func_args=filter_func_args,
+                                              special_calcs_func=estimate_alg_time_fixed_kp,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=accum_corrs_sequs_time_model,
+                                              calc_func_args=calc_func_args,
+                                              compare_source=None,
+                                              fig_type='smooth',
+                                              use_marks=True,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False)
+            elif ev == 7:
+                fig_title_pre_str = 'Execution Times on Scenes with Stable Stereo Poses ' \
+                                    'for Comparison of '
+                eval_columns = ['exec_time']
+                units = []
+                it_parameters = ['stereoRef']
+                filter_func_args = {'data_seperators': ['inlratMin',
+                                                        'kpAccSd',
+                                                        'depthDistr'],
+                                    'filter_scene': 'nv'}
+                calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin'],
+                                  't_data_separators': ['inlratMin', 'kpAccSd'],
+                                  'addit_cols': ['inlratMin', 'kpAccSd']}
+                special_calcs_args = {'build_pdf': (True, True),
+                                      'use_marks': False,
+                                      'nr_target_kps': 1000,
+                                      't_data_separators': ['inlratMin', 'kpAccSd'],
+                                      'func_name': 'comp_pars_min_time_vs_inlrat',
+                                      'res_par_name': 'usac_vs_autoc_inlRat_min_time'}
+                from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
+                    estimate_alg_time_fixed_kp, \
+                    accum_corrs_sequs_time_model
+                ret += calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_usacVsAuto_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='time',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              xy_axis_columns=['nrCorrs_GT'],
+                                              filter_func=filter_calc_t_all_rt_change_type,
+                                              filter_func_args=filter_func_args,
+                                              special_calcs_func=estimate_alg_time_fixed_kp,
+                                              special_calcs_args=special_calcs_args,
+                                              calc_func=accum_corrs_sequs_time_model,
+                                              calc_func_args=calc_func_args,
+                                              fig_type='surface',
+                                              use_marks=True,
+                                              ctrl_fig_size=False,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=True)
 
     return ret
 

@@ -32,7 +32,12 @@ def get_accum_corrs_sequs(**keywords):
         raise ValueError('data_separators missing!')
     needed_cols = list(dict.fromkeys(individual_grps + keywords['data_separators'] +
                                      ['Nr', 'accumCorrs'] + keywords['eval_columns']))
-    drop_cols = [a for a in needed_cols if a not in individual_grps and a not in keywords['eval_columns']]
+    if 'addit_cols' in keywords and keywords['addit_cols']:
+        drop_cols = [a for a in needed_cols if a not in individual_grps and
+                     a not in keywords['eval_columns'] and
+                     a not in keywords['addit_cols']]
+    else:
+        drop_cols = [a for a in needed_cols if a not in individual_grps and a not in keywords['eval_columns']]
     # Split in sequences
     df_grp = keywords['data'].loc[:, needed_cols].groupby(keywords['data_separators'])
     grp_keys = df_grp.groups.keys()
@@ -104,6 +109,7 @@ def get_mean_y_vs_x_it(**keywords):
     if in_type == 0:
         from usac_eval import pars_calc_single_fig
         ret = pars_calc_single_fig(**keywords)
+        b = ret['b'].reset_index()
     elif in_type == 1:
         from usac_eval import pars_calc_multiple_fig
         ret = pars_calc_multiple_fig(**keywords)
@@ -112,29 +118,45 @@ def get_mean_y_vs_x_it(**keywords):
                      if 'nr_rep_for_pgf_x' == a or 'nr_rep_for_pgf_y' == a or '_lbl' in a]
         if drop_cols:
             ret['b'].drop(drop_cols, axis=1, inplace=True)
-        ret['b'].reset_index(inplace=True)
+        b = ret['b'].reset_index()
     elif in_type == 2:
         from usac_eval import pars_calc_single_fig_partitions
         ret = pars_calc_single_fig_partitions(**keywords)
+        ret['sub_title'] = ret['sub_title_it_pars']
         ret['b'] = ret['b'].stack().reset_index()
         ret['b'].rename(columns={ret['b'].columns[-1]: 'Rt_diff'}, inplace=True)
         ret['b'].set_index(keywords['it_parameters'], inplace=True)
         if len(keywords['it_parameters']) > 1:
-            ret['b'].index = ['-'.join(a) for a in ret['b'].index]
-            ret['b'].index.name = '-'.join(keywords['it_parameters'])
-        ret['b'] = ret['b'].T.reset_index()
+            cols_idx = ['-'.join(map(str, a)) for a in ret['b'].index]
+            ret['b'].index = cols_idx
+            idx_name = '-'.join(keywords['it_parameters'])
+            ret['b'].index.name = idx_name
+        else:
+            idx_name = keywords['it_parameters'][0]
+            cols_idx = list(ret['b'].index.values)
+        ret['b'] = ret['b'].reset_index().set_index(keywords['partitions'] + keywords['x_axis_column'] + [idx_name])
+        ret['b'] = ret['b'].unstack()
+        ret['b'].columns = ret['b'].columns.get_level_values(1)
+        b = ret['b'].reset_index()
     elif in_type == 3:
         from usac_eval import pars_calc_multiple_fig_partitions
         ret = pars_calc_multiple_fig_partitions(**keywords)
+        ret['sub_title'] = ret['sub_title_it_pars']
         ret['b'] = ret['b'].stack().reset_index()
         ret['b'].rename(columns={ret['b'].columns[-1]: 'Rt_diff'}, inplace=True)
         ret['b'].set_index(keywords['it_parameters'], inplace=True)
         if len(keywords['it_parameters']) > 1:
-            ret['b'].index = ['-'.join(a) for a in ret['b'].index]
-            ret['b'].index.name = '-'.join(keywords['it_parameters'])
-        ret['b'] = ret['b'].T.reset_index()
-    b = ret['b'].stack().reset_index()
-    b.rename(columns={b.columns[-1]: 'Rt_diff'}, inplace=True)
+            cols_idx = ['-'.join(map(str, a)) for a in ret['b'].index]
+            ret['b'].index = cols_idx
+            idx_name = '-'.join(keywords['it_parameters'])
+            ret['b'].index.name = idx_name
+        else:
+            idx_name = keywords['it_parameters'][0]
+            cols_idx = list(ret['b'].index.values)
+        ret['b'] = ret['b'].reset_index().set_index(keywords['partitions'] + keywords['xy_axis_columns'] + [idx_name])
+        ret['b'] = ret['b'].unstack()
+        ret['b'].columns = ret['b'].columns.get_level_values(1)
+        b = ret['b'].reset_index()
 
     title = 'Mean Combined R \\& t Errors vs ' + replaceCSVLabels(keywords['used_x_axis'], True, True, True) + \
             ' for Parameter Variations of ' + ret['sub_title']
@@ -177,7 +199,7 @@ def get_mean_y_vs_x_it(**keywords):
             if grp is not None:
                 f.write('# Data partition: ' + '-'.join([a + str(b) for a, b in zip(partitions, grp)]) + '\n')
             f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
-            df.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
+            df.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
         section_name = capitalizeFirstChar(strToLower(title))
         caption = 'Mean combined R \\& t Errors vs ' + \
@@ -189,20 +211,30 @@ def get_mean_y_vs_x_it(**keywords):
                                                for a in keywords['it_parameters']])
         _, use_limits, use_log, exp_value = get_limits_log_exp(df, True, True, False)
         is_numeric = pd.to_numeric(df.reset_index()[keywords['used_x_axis']], errors='coerce').notnull().all()
-        x_rows = handle_nans(df, list(df.columns.values), not is_numeric, 'ybar')
+        mat_si = df.shape
+        nr_bars = mat_si[0] * mat_si[1]
+        if nr_bars > 100:
+            fig_type = 'sharp plot'
+        elif nr_bars > 60:
+            fig_type = 'smooth'
+        elif nr_bars > 24:
+            fig_type = 'xbar'
+        else:
+            fig_type = 'ybar'
+        x_rows = handle_nans(df, list(df.columns.values), not is_numeric, fig_type)
         label_x = replaceCSVLabels(keywords['used_x_axis'])
-        label_x, _ = split_large_labels(df, keywords['used_x_axis'], len(df.columns.values), 'ybar', False, label_x)
+        label_x, _ = split_large_labels(df, keywords['used_x_axis'], len(df.columns.values), fig_type, False, label_x)
         section_name = split_large_titles(section_name, 80)
-        enlarge_lbl_dist = check_legend_enlarge(df, keywords['used_x_axis'], len(df.columns.values), 'ybar',
+        enlarge_lbl_dist = check_legend_enlarge(df, keywords['used_x_axis'], len(df.columns.values), fig_type,
                                                 label_x.count('\\') + 1, not is_numeric)
         exp_value = enl_space_title(exp_value, section_name, df, keywords['used_x_axis'],
-                                    len(df.columns.values), 'ybar')
+                                    len(df.columns.values), fig_type)
 
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                       'name': section_name.replace('\\\\', ' '),
                                       'title': section_name,
                                       'title_rows': section_name.count('\\\\'),
-                                      'fig_type': 'ybar',
+                                      'fig_type': fig_type,
                                       'plots': df.columns.values,
                                       'label_y': 'error',  # Label of the value axis. For xbar it labels the x-axis
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
@@ -256,3 +288,222 @@ def get_mean_y_vs_x_it(**keywords):
         ret['res'] += abs(res1)
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret['res']
+
+
+def filter_calc_t_all_rt_change_type(**vars):
+    from robustness_eval import get_rt_change_type
+    data = get_rt_change_type(**vars)
+    tmp_usac = data.loc[data['stereoRef'] == 'disabled']
+    tmp_auto = data.loc[data['stereoRef'] == 'enabled']
+    tmp_usac_li = tmp_usac.loc[(tmp_usac['linRefinement_us'] > 0)]
+    if not tmp_usac_li.empty:
+        tmp_usac = tmp_usac_li.copy(deep=True)
+        linref = tmp_usac['linRefinement_us']
+    else:
+        linref = None
+    tmp_usac_ba = tmp_usac.loc[(tmp_usac['bundleAdjust_us'] > 0)]
+    if not tmp_usac_ba.empty:
+        tmp_usac = tmp_usac_ba.copy(deep=True)
+        ba = tmp_usac['bundleAdjust_us']
+    else:
+        ba = None
+    tmp_usac_sac = tmp_usac.loc[(tmp_usac['robEstimationAndRef_us'] > 0)]
+    if not tmp_usac_sac.empty:
+        tmp_usac = tmp_usac_sac.copy(deep=True)
+        sac = tmp_usac['robEstimationAndRef_us']
+    else:
+        sac = None
+    if linref is not None and ba is not None and sac is not None:
+        tmp_usac['exec_time'] = linref + ba + sac
+    elif linref is not None and ba is not None:
+        tmp_usac['exec_time'] = linref + ba
+    elif linref is not None and sac is not None:
+        tmp_usac['exec_time'] = linref + sac
+    elif ba is not None and sac is not None:
+        tmp_usac['exec_time'] = ba + sac
+    elif linref is not None:
+        tmp_usac['exec_time'] = linref
+    elif ba is not None:
+        tmp_usac['exec_time'] = ba
+    elif sac is not None:
+        tmp_usac['exec_time'] = sac
+    else:
+        raise ValueError('No valid timestamps found for execution of USAC')
+
+    tmp_auto = tmp_auto.loc[(tmp_auto['stereoRefine_us'] > 0)]
+    if tmp_auto.empty:
+        raise ValueError('No valid timestamps found for stereo refinement')
+    tmp_auto['exec_time'] = tmp_auto['stereoRefine_us'].to_list()
+    tmp = pd.concat([tmp_usac, tmp_auto], ignore_index=False, axis=0)
+    return tmp
+
+
+def estimate_alg_time_fixed_kp(**keywords):
+    if 'partitions' in keywords:
+        if 'x_axis_column' in keywords:
+            individual_grps = keywords['partitions'] + keywords['x_axis_column']
+        elif 'xy_axis_columns' in keywords:
+            individual_grps = keywords['partitions'] + keywords['xy_axis_columns']
+        else:
+            raise ValueError('Either x_axis_column or xy_axis_columns must be provided')
+    elif 'x_axis_column' in keywords:
+        individual_grps = keywords['x_axis_column']
+    elif 'xy_axis_columns' in keywords:
+        individual_grps = keywords['xy_axis_columns']
+    else:
+        raise ValueError('Either x_axis_column or xy_axis_columns and it_parameters must be provided')
+    if 't_data_separators' not in keywords:
+        no_sep = True
+    else:
+        no_sep = False
+    from statistics_and_plot import tex_string_coding_style, \
+        compile_tex, \
+        calcNrLegendCols, \
+        replaceCSVLabels, \
+        strToLower, \
+        split_large_titles, \
+        get_limits_log_exp, \
+        enl_space_title, \
+        short_concat_str, \
+        split_large_str, \
+        check_legend_enlarge
+    tmp, col_name = get_time_fixed_kp(**keywords)
+
+    keywords = prepare_io(**keywords)
+
+    tmp.set_index(keywords['it_parameters'], inplace=True)
+    tmp = tmp.T
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, handle_nans
+    if len(keywords['it_parameters']) > 1:
+        gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
+        par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
+        tmp.columns = par_cols
+        it_pars_cols_name = '-'.join(map(str, keywords['it_parameters']))
+        tmp.columns.name = it_pars_cols_name
+    else:
+        gloss = glossary_from_list([str(a) for a in tmp.columns])
+        it_pars_cols_name = keywords['it_parameters'][0]
+    gloss = add_to_glossary_eval(individual_grps, gloss)
+    if no_sep:
+        xaxis = ['options_tex']
+    else:
+        xaxis = individual_grps
+
+    title = 'Mean Execution Times for Parameter Variations of ' + keywords['sub_title_it_pars'] + \
+            ' Extrapolated for ' + str(int(keywords['nr_target_kps'])) + ' Keypoints'
+    tex_infos = {'title': title,
+                 'sections': [],
+                 # Builds an index with hyperrefs on the beginning of the pdf
+                 'make_index': False,
+                 # If True, the figures are adapted to the page height if they are too big
+                 'ctrl_fig_size': False,
+                 # If true, a pdf is generated for every figure and inserted as image in a second run
+                 'figs_externalize': False,
+                 # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
+                 'fill_bar': True,
+                 # Builds a list of abbrevations from a list of dicts
+                 'abbreviations': gloss
+                 }
+    for col in xaxis:
+        if no_sep:
+            tmp1 = tmp.T.reset_index()
+            tmp1[col] = [split_large_str(tex_string_coding_style(val))
+                         for _, val in tmp1[it_pars_cols_name].iteritems()]
+            max_txt_rows = 1
+            for idx, val in tmp1[col].iteritems():
+                txt_rows = str(val).count('\\\\') + 1
+                if txt_rows > max_txt_rows:
+                    max_txt_rows = txt_rows
+            tmp1.set_index(col, inplace=True)
+            tmp1.drop(it_pars_cols_name, axis=1, inplace=True)
+            label_x = 'options'
+            legend = None
+        else:
+            if len(xaxis) > 1:
+                drop_cols = [a for a in xaxis if a != col]
+                tmp1 = tmp.T.reset_index().drop(drop_cols, axis=1).groupby([col, it_pars_cols_name]).mean().unstack()
+            else:
+                tmp1 = tmp.T.reset_index().set_index([col, it_pars_cols_name]).unstack()
+            tmp1.columns = [h for g in tmp1.columns for h in g if h != col_name]
+            label_x = replaceCSVLabels(str(col))
+            legend = [tex_string_coding_style(a) for a in list(tmp1.columns.values)]
+            max_txt_rows = 1
+        t_main_name = 'mean_time_for_' + \
+                      str(int(keywords['nr_target_kps'])) + 'kpts_vs_' + str(col) + '_for_opts_' + \
+                      short_concat_str(keywords['it_parameters'])
+        t_mean_name = 'data_' + t_main_name + '.csv'
+        ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        with open(ft_mean_name, 'a') as f:
+            f.write('# Mean execution times extrapolated for ' +
+                    str(int(keywords['nr_target_kps'])) + ' keypoints vs ' + str(col) + '\n')
+            f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
+            tmp1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
+
+        _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1)
+        is_numeric = pd.to_numeric(tmp1.reset_index()[col], errors='coerce').notnull().all()
+        reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
+        fig_name = 'Mean execution times vs ' + replaceCSVLabels(col, False, False, True) + \
+                   ' for parameter variations of\\\\' + \
+                   strToLower(keywords['sub_title_it_pars']) + \
+                   '\\\\extrapolated for ' + str(int(keywords['nr_target_kps'])) + ' keypoints'
+        fig_name = split_large_titles(fig_name)
+        exp_value = enl_space_title(exp_value, fig_name, tmp1, col,
+                                    len(list(tmp1.columns.values)), 'ybar')
+        enlarge_lbl_dist = check_legend_enlarge(tmp1, col, len(list(tmp1.columns.values)), 'ybar')
+        x_rows = handle_nans(tmp1, list(tmp1.columns.values), not is_numeric, 'ybar')
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': fig_name,
+                                      # If caption is None, the field name is used
+                                      'caption': fig_name.replace('\\\\', ' '),
+                                      'fig_type': 'ybar',
+                                      'plots': list(tmp1.columns.values),
+                                      'label_y': 'mean execution times/$\\mu s$',
+                                      'plot_x': str(col),
+                                      'label_x': label_x,
+                                      'limits': use_limits,
+                                      'legend': legend,
+                                      'legend_cols': None,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': max_txt_rows,
+                                      'nr_x_if_nan': x_rows,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': not is_numeric,
+                                      })
+        if not no_sep:
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+    template = ji_env.get_template('usac-testing_2D_plots.tex')
+    rendered_tex = template.render(title=tex_infos['title'],
+                                   make_index=tex_infos['make_index'],
+                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                   figs_externalize=tex_infos['figs_externalize'],
+                                   fill_bar=tex_infos['fill_bar'],
+                                   sections=tex_infos['sections'],
+                                   abbreviations=tex_infos['abbreviations'])
+    t_main_name = 'mean_time_for_' + \
+                  str(int(keywords['nr_target_kps'])) + 'kpts_vs_' + short_concat_str(xaxis) + '_for_opts_' + \
+                  short_concat_str(keywords['it_parameters'])
+    base_out_name = 'tex_' + t_main_name
+    texf_name = base_out_name + '.tex'
+    if keywords['build_pdf'][0]:
+        pdf_name = base_out_name + '.pdf'
+        res = abs(compile_tex(rendered_tex,
+                              keywords['tex_folder'],
+                              texf_name,
+                              False,
+                              os.path.join(keywords['pdf_folder'], pdf_name),
+                              tex_infos['figs_externalize']))
+    else:
+        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+    if res != 0:
+        warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
+    return res
+
+
+def accum_corrs_sequs_time_model(**keywords):
+    keywords = get_accum_corrs_sequs(**keywords)
+    keywords['data_separators'] = keywords['t_data_separators']
+    from usac_eval import calc_Time_Model
+    keywords = calc_Time_Model(**keywords)
+    return keywords

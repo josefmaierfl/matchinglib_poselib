@@ -116,7 +116,8 @@ def pars_calc_single_fig_partitions(**keywords):
         enl_space_title, \
         short_concat_str, \
         check_if_series, \
-        handle_nans
+        handle_nans, \
+        is_iterable_no_str
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
@@ -182,7 +183,7 @@ def pars_calc_single_fig_partitions(**keywords):
         tmp2 = ret['b_all_partitions'].loc[p]
         if check_if_series(tmp2):
             continue
-        if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+        if is_iterable_no_str(tmp2.index.values[0]):
             idx_vals = tmp2.index[0]
         else:
             idx_vals = [tmp2.index[0]]
@@ -769,7 +770,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
         # print('Folder', ret['tdata_folder'], 'for storing data files already exists')
         pass
     from statistics_and_plot import glossary_from_list, \
-        add_to_glossary_eval, \
+        is_iterable_no_str, \
         get_3d_tex_info, \
         get_usable_3D_cols, \
         short_concat_str, \
@@ -837,7 +838,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
             continue
         idx_old = p
         tmp2 = ret['b_all_partitions'].loc[p]
-        if not isinstance(tmp2.index[0], str) and len(tmp2.index[0]) > 1:
+        if is_iterable_no_str(tmp2.index.values[0]):
             idx_vals = tmp2.index[0]
         else:
             idx_vals = [tmp2.index[0]]
@@ -2662,7 +2663,9 @@ def estimate_alg_time_fixed_kp(**vars):
 def get_time_fixed_kp(**vars):
     drop_cols = []
     no_seperators = False
-    if 'partitions' in vars:
+    if 't_data_separators' not in vars:
+        no_seperators = True
+    elif 'partitions' in vars:
         if 't_data_separators' not in vars:
             raise ValueError('No data separators specified for calculating time budget')
         if 'x_axis_column' in vars:
@@ -2690,8 +2693,6 @@ def get_time_fixed_kp(**vars):
             if sep not in vars['xy_axis_columns']:
                 raise ValueError('Data separator ' + str(sep) + ' not found in xy_axis_columns')
         drop_cols = list(set(vars['xy_axis_columns']).difference(vars['t_data_separators']))
-    elif 't_data_separators' not in vars:
-        no_seperators = True
     else:
         raise ValueError('Either x_axis_column or xy_axis_columns and t_data_separators or '
                          'neither of those must be provided')
