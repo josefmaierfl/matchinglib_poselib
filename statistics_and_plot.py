@@ -3394,11 +3394,15 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
             # nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
             env_3d_info = get_3d_tex_info(tmp1, xy_axis_columns, cat_sort)
+            if len(it_parameters) > 1:
+                splitted_grp = grp_it.split('-')
+            else:
+                splitted_grp = grp_it
             if eval_init_input:
-                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + short_concat_str(grp_it.split('-')) + \
+                dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + short_concat_str(splitted_grp) + \
                              '_on_partition_'
             else:
-                dataf_name = 'data_evals_for_pars_' + short_concat_str(grp_it.split('-')) + '_on_partition_'
+                dataf_name = 'data_evals_for_pars_' + short_concat_str(splitted_grp) + '_on_partition_'
             dataf_name += '-'.join([a[:min(3, len(a))] for a in map(str, partitions)]) + '_'
             grp_name = '-'.join([a[:min(4, len(a))] for a in map(str, grp)]) if len(partitions) > 1 else str(grp)
             dataf_name += grp_name.replace('.', 'd')
@@ -3411,7 +3415,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
                 else:
                     f.write('# Evaluations for parameter variations of ' +
                             it_pars_cols_name + '\n')
-                f.write('# Used parameter values: ' + grp_it + '\n')
+                f.write('# Used parameter values: ' + str(grp_it) + '\n')
                 f.write('# Used data part of ' + '-'.join(map(str, partitions)) + ': ' + grp_name + '\n')
                 f.write('# Column parameters: ' + ', '.join(eval_cols_lname) + '\n')
                 tmp1.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -4653,6 +4657,12 @@ def concat_combs(str_list, nr_elems, start=0, join_char='-'):
 
 
 def short_concat_str(str_list, join_char='-'):
+    if is_iterable_no_str(str_list):
+        str_list = list(map(str, list(str_list)))
+    elif isinstance(str_list, str):
+        return str_list
+    else:
+        return str(str_list)
     if len(str_list) == 1 and len(str(str_list[0])) < 30:
         return str(str_list[0])
     elif len(str_list) < 4 and sum([len(str(a)) for a in str_list]) < 40:
@@ -7007,13 +7017,13 @@ def main():
     output_path_main = '/home/maierj/work/Sequence_Test/py_test'
     main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
                        'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
-    sub_test_numbers = [2, 0, 2, 0, 2, 3, 5, 0]
+    sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
     eval_numbers = [[-1], [-1], [-1], [-1], [-1], [-1], [-1], [-1]]
-    specific_ev_nrs = [('usac-testing', 1, [5, 6])]
-    skip_main_tests = []
-    skip_sub_tests = []
+    specific_ev_nrs = [('correspondence_pool', 1, list(range(4, 11)))]
+    skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo']
+    skip_sub_tests = [[1], None, None, None, None, None, None, None]
     tests = []
-    for i, j, k in zip(main_test_names, sub_test_numbers, eval_numbers):
+    for i1, (i, j, k) in enumerate(zip(main_test_names, sub_test_numbers, eval_numbers)):
         if skip_main_tests and i in skip_main_tests:
             continue
         if j == 0:
@@ -7021,7 +7031,7 @@ def main():
         else:
             idx = j + 1
         for j1 in range(1, idx):
-            if skip_sub_tests and j1 in skip_sub_tests:
+            if skip_sub_tests and skip_sub_tests[i1] and j1 in skip_sub_tests[i1]:
                 continue
             if specific_ev_nrs:
                 found = False
@@ -9389,9 +9399,9 @@ def main():
                                               'res_par_name': 'refRT_stereo_BA_opts_inlrat'}
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from usac_eval import get_best_comb_inlrat_1
                         ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                       store_path=output_path,
@@ -9437,9 +9447,9 @@ def main():
                                               'res_par_name': 'ref_stereo_ba_best_comb_scenes'}
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from refinement_eval import get_best_comb_scenes_1
                         ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                                  store_path=output_path,
@@ -9527,9 +9537,9 @@ def main():
                                               'res_par_name': 'refRT_stereo_opts_for_BA2_inlrat'}
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'RT-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 2, 'RT-stats', descr)
                         from usac_eval import get_best_comb_inlrat_1
                         ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                       store_path=output_path,
@@ -9575,9 +9585,9 @@ def main():
                                               'res_par_name': 'ref_stereo_best_comb_for_BA2_scenes'}
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'RT-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 2, 'RT-stats', descr)
                         from refinement_eval import get_best_comb_scenes_1
                         ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                                  store_path=output_path,
@@ -9625,9 +9635,9 @@ def main():
                                               'res_par_name': 'refRT_stereo_opts_for_BA2_K_inlrat'}
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'K-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 2, 'K-stats', descr)
                         from refinement_eval import get_best_comb_inlrat_k
                         ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                       store_path=output_path,
@@ -9683,9 +9693,9 @@ def main():
                                               'res_par_name': 'ref_stereo_best_comb_for_BA2_K_scenes'}
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 2, 'K-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 2, 'K-stats', descr)
                         from refinement_eval import get_best_comb_scenes_1
                         ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                                  store_path=output_path,
@@ -9743,7 +9753,7 @@ def main():
                         #         'multiple stereo frames'
                         # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
                         #              'USAC_parameters_refinealg-second_long_opt0']
-                        # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        # compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from usac_eval import get_best_comb_inlrat_1
                         ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                       store_path=output_path,
@@ -9789,7 +9799,7 @@ def main():
                         #         'multiple stereo frames'
                         # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
                         #              'USAC_parameters_refinealg-second_long_opt0']
-                        # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        # compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from refinement_eval import get_best_comb_scenes_1
                         ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                                  store_path=output_path,
@@ -9836,7 +9846,7 @@ def main():
                         #         'multiple stereo frames'
                         # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
                         #              'USAC_parameters_refinealg-second_long_opt0']
-                        # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        # compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from refinement_eval import get_best_comb_scenes_1
                         from corr_pool_eval import filter_take_end_frames
                         ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
@@ -10147,7 +10157,7 @@ def main():
                         #         'multiple stereo frames'
                         # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
                         #              'USAC_parameters_refinealg-second_long_opt0']
-                        # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        # compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from usac_eval import get_best_comb_inlrat_1
                         ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                       store_path=output_path,
@@ -10192,7 +10202,7 @@ def main():
                         #         'multiple stereo frames'
                         # comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
                         #              'USAC_parameters_refinealg-second_long_opt0']
-                        # compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        # compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         from refinement_eval import get_best_comb_scenes_1
                         ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
                                                                  store_path=output_path,
@@ -10275,9 +10285,9 @@ def main():
                                          'USAC_parameters_refinealg']
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'RT-stats', descr)
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'RT-stats', descr)
                         ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
                                                       store_path=output_path,
                                                       tex_file_pre_str='plots_corrPool_',
@@ -10313,10 +10323,10 @@ def main():
                                          'USAC_parameters_refinealg']
                         descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                                 'multiple stereo frames'
-                        comp_pars = ['USAC_parameters_estimator-first_long_long_opt1',
-                                     'USAC_parameters_refinealg-second_long_opt0']
+                        comp_pars = ['USAC_parameters_estimator-0.1',
+                                     'USAC_parameters_refinealg-0.4']
                         repl_eval = {'actual': ['stereoRefine_us'], 'old': ['linRef_BA_sac_us'], 'new': ['comp_time']}
-                        compare_source = get_compare_info(comp_pars, output_path, 'refinement_ba', 1, 'time-agg', descr,
+                        compare_source = get_compare_info(comp_pars, output_path_main, 'refinement_ba', 1, 'time-agg', descr,
                                                           repl_eval)
                         from usac_eval import filter_nr_kps_stat
                         ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
@@ -10348,7 +10358,6 @@ def main():
         elif test_name == 'robustness':
             if not test_nr:
                 raise ValueError('test_nr is required robustness')
-            from eval_tests_main import get_compare_info
             if test_nr == 1:
                 if eval_nr[0] < 0:
                     evals = list(range(1, 6))

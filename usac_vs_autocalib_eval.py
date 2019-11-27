@@ -482,7 +482,7 @@ def estimate_alg_time_fixed_kp(**keywords):
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
     t_main_name = 'mean_time_for_' + \
-                  str(int(keywords['nr_target_kps'])) + 'kpts_vs_' + short_concat_str(xaxis) + '_for_opts_' + \
+                  str(int(keywords['nr_target_kps'])) + 'kpts_vs_' + short_concat_str(map(str, xaxis)) + '_for_opts_' + \
                   short_concat_str(keywords['it_parameters'])
     base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'

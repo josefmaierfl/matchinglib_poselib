@@ -336,10 +336,32 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             if checkPoolPoseRobust is None:
                 raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
             args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+        elif test_nr == 4:
+            warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
+            time.sleep(5.0)
+            args += ['--nr_keypoints', '30to500']
+            if relInlRatThLast is None:
+                raise ValueError('Enter best test results for relInlRatThLast of robustness')
+            args += ['--relInlRatThLast', str(relInlRatThLast)]
+            if relInlRatThNew is None:
+                raise ValueError('Enter best test results for relInlRatThNew of robustness')
+            args += ['--relInlRatThNew', str(relInlRatThNew)]
+            if minInlierRatSkip is None:
+                raise ValueError('Enter best test results for minInlierRatSkip of robustness')
+            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
+            if relMinInlierRatSkip is None:
+                raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
+            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
+            if minInlierRatioReInit is None:
+                raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
+            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+            if checkPoolPoseRobust is None:
+                raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
+            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
             args += ['--minContStablePoses', '3', '5', '1']
             args += ['--minNormDistStable', '0.25', '0.75', '0.1']
             args += ['--absThRankingStable', '0.05', '0.5', '0.075']
-        elif test_nr == 4:
+        elif test_nr == 5:
             warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
             time.sleep(5.0)
             args += ['--nr_keypoints', '20to160']
@@ -371,7 +393,7 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
                 raise ValueError('Enter best test results for absThRankingStable of robustness')
             args += ['--absThRankingStable', str(absThRankingStable)]
             args += ['--useRANSAC_fewMatches', str(2)]
-        elif test_nr == 5:
+        elif test_nr == 6:
             warnings.warn("Warning: Are you sure you have selected the LARGE dataset for testing?")
             time.sleep(5.0)
             if relInlRatThLast is None:

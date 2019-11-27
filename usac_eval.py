@@ -634,7 +634,7 @@ def pars_calc_multiple_fig(**keywords):
             elif i < nr_it_parameters - 1:
                 ret['sub_title'] += ', and '
     plot_cols0 = [a for a in list(ret['b'].columns.values)[2:]
-                  if 'nr_rep_for_pgf_x' != a and 'nr_rep_for_pgf_y' != a and '_lbl' not in a]
+                  if 'nr_rep_for_pgf_x' != str(a) and 'nr_rep_for_pgf_y' != str(a) and '_lbl' not in str(a)]
     plot_cols = get_usable_3D_cols(ret['b'], plot_cols0)
     if not plot_cols:
         ret['res'] = 1
@@ -1113,7 +1113,7 @@ def get_best_comb_and_th_1(**keywords):
         fig_type = 'ybar'
     b_best_idx = ret['b'].idxmin(axis=0)
     # Insert a tex line break for long options
-    b_cols_tex = insert_opt_lbreak(ret['b'].columns)
+    b_cols_tex = insert_opt_lbreak(map(str, list(ret['b'].columns.values)))
     b_best_l = [[val, ret['b'].loc[val].iloc[i], ret['b'].columns[i], b_cols_tex[i]] for i, val in enumerate(b_best_idx)]
     b_best = pd.DataFrame.from_records(data=b_best_l, columns=[ret['grp_names'][-1], 'b_best', 'options', 'options_tex'])
     #b_best.set_index('options', inplace=True)
@@ -1275,7 +1275,7 @@ def get_best_comb_inlrat_1(**keywords):
     b_mean = b_mean.reset_index()
     b_mean.columns = ['options', 'b_mean']
     # Insert a tex line break for long options
-    b_mean['options_tex'] = insert_opt_lbreak(ret['b'].columns)
+    b_mean['options_tex'] = insert_opt_lbreak(map(str, list(ret['b'].columns.values)))
     max_txt_rows = 1
     for idx, val in b_mean['options_tex'].iteritems():
         txt_rows = str(val).count('\\\\') + 1
@@ -4059,8 +4059,8 @@ def get_inlrat_diff(**vars):
 def get_min_inlrat_diff(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
-    if len(keywords) < 4 or len(keywords) > 7:
-        raise ValueError('Wrong number of arguments for function pars_calc_single_fig_partitions')
+    # if len(keywords) < 4 or len(keywords) > 7:
+    #     raise ValueError('Wrong number of arguments for function pars_calc_single_fig_partitions')
     if 'data' not in keywords:
         raise ValueError('Missing data argument of function pars_calc_single_fig_partitions')
     if 'partitions' not in keywords:
@@ -4173,7 +4173,7 @@ def get_min_inlrat_diff(**keywords):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
     min_mean_diff = min_mean_diff.loc[min_mean_diff.groupby(it_parameters_name).inlRat_diff.idxmin()]
-    min_mean_diff['options_for_tex'] = insert_opt_lbreak([a for i, a in min_mean_diff[it_parameters_name].iteritems()])
+    min_mean_diff['options_for_tex'] = insert_opt_lbreak([str(a) for i, a in min_mean_diff[it_parameters_name].iteritems()])
     max_txt_rows = 1
     for idx, val in min_mean_diff['options_for_tex'].iteritems():
         txt_rows = str(val).count('\\\\') + 1
