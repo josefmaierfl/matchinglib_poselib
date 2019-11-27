@@ -7792,7 +7792,7 @@ def main():
 
     test_name = 'usac_vs_autocalib'#'robustness'#'correspondence_pool'#'refinement_ba_stereo'#'vfc_gms_sof'#'refinement_ba'#'usac_vs_ransac'#'testing_tests'
     test_nr = 5
-    eval_nr = [8]#list(range(10, 11))
+    eval_nr = [-1]#list(range(10, 11))
     ret = 0
     output_path = '/home/maierj/work/Sequence_Test/py_test'
     # output_path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
@@ -12670,7 +12670,7 @@ def main():
             raise ValueError('Test nr does not exist')
     elif test_name == 'usac_vs_autocalib':
         if eval_nr[0] < 0:
-            evals = list(range(1, 8))
+            evals = list(range(1, 9))
         else:
             evals = eval_nr
         for ev in evals:
@@ -13029,6 +13029,10 @@ def main():
                                                      make_fig_index=True,
                                                      build_pdf=True,
                                                      figs_externalize=False)
+            else:
+                raise ValueError('Eval nr ' + ev + ' does not exist')
+    else:
+        raise ValueError('Test ' + test_name + ' does not exist')
 
     return ret
 
