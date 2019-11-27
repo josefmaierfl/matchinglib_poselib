@@ -2405,13 +2405,13 @@ def estimate_alg_time_fixed_kp(**vars):
     tmp1 = tmp.loc[tmp.groupby(vars['t_data_separators'])[col_name].idxmin(axis=0)]
     tmp1.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new = ['-'.join(a) for a in tmp1.index]
+        index_new = ['-'.join(map(str, a)) for a in tmp1.index]
         meta_data = [str(b) for a in tmp1.index for b in a]
         tmp1.index = index_new
         index_name = '-'.join(vars['it_parameters'])
         tmp1.index.name = index_name
     else:
-        index_new = [a for a in tmp1.index]
+        index_new = [str(a) for a in tmp1.index]
         meta_data = [str(a) for a in tmp1.index]
         index_name = vars['it_parameters'][0]
     tmp1['pars_tex'] = insert_opt_lbreak(index_new)
@@ -2775,19 +2775,19 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     from statistics_and_plot import check_legend_enlarge, handle_nans
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new1 = ['-'.join(a) for a in tmp1min.index]
+        index_new1 = ['-'.join(map(str, a)) for a in tmp1min.index]
         gloss = glossary_from_list([str(b) for a in tmp1min.index for b in a])
         tmp1min.index = index_new1
         index_name = '-'.join(vars['it_parameters'])
         tmp1min.index.name = index_name
     else:
-        index_new1 = [a for a in tmp1min.index]
+        index_new1 = [str(a) for a in tmp1min.index]
         gloss = glossary_from_list([str(a) for a in tmp1min.index])
         index_name = vars['it_parameters'][0]
     # pars_tex1 = insert_opt_lbreak(index_new1)
     pars_tex1 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new1))]
     tmp1min = tmp1min.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)
-    comb_cols1 = ['-'.join(a) for a in tmp1min.columns]
+    comb_cols1 = ['-'.join(map(str, a)) for a in tmp1min.columns]
     tmp1min.columns = comb_cols1
     val_axis_cols1 = [a for a in comb_cols1 if col_name in a]
     meta_cols1 = [a for a in comb_cols1 if vars['t_data_separators'][0] in a]
@@ -2797,15 +2797,15 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     tmp1max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new2 = ['-'.join(a) for a in tmp1max.index]
+        index_new2 = ['-'.join(map(str, a)) for a in tmp1max.index]
         tmp1max.index = index_new2
         tmp1max.index.name = index_name
     else:
-        index_new2 = [a for a in tmp1max.index]
+        index_new2 = [str(a) for a in tmp1max.index]
     # pars_tex2 = insert_opt_lbreak(index_new2)
     pars_tex2 = [tex_string_coding_style(a) for a in list(dict.fromkeys(index_new2))]
     tmp1max = tmp1max.reset_index().set_index([vars['t_data_separators'][1], index_name]).unstack(level=-1)
-    comb_cols2 = ['-'.join(a) for a in tmp1max.columns]
+    comb_cols2 = ['-'.join(map(str, a)) for a in tmp1max.columns]
     tmp1max.columns = comb_cols2
     val_axis_cols2 = [a for a in comb_cols2 if col_name in a]
     meta_cols2 = [a for a in comb_cols2 if vars['t_data_separators'][0] in a]
@@ -2970,11 +2970,11 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     tmp2min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new1 = ['-'.join(a) for a in tmp2min.index]
+        index_new1 = ['-'.join(map(str, a)) for a in tmp2min.index]
         tmp2min.index = index_new1
         tmp2min.index.name = index_name
     else:
-        index_new1 = [a for a in tmp2min.index]
+        index_new1 = [str(a) for a in tmp2min.index]
     tmp2min['pars_tex'] = insert_opt_lbreak(index_new1)
     max_txt_rows2min = 1
     for idx, val in tmp2min['pars_tex'].iteritems():
@@ -2990,11 +2990,11 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     tmp2max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new2 = ['-'.join(a) for a in tmp2max.index]
+        index_new2 = ['-'.join(map(str, a)) for a in tmp2max.index]
         tmp2max.index = index_new2
         tmp2max.index.name = index_name
     else:
-        index_new2 = [a for a in tmp2max.index]
+        index_new2 = [str(a) for a in tmp2max.index]
     tmp2max['pars_tex'] = insert_opt_lbreak(index_new2)
     max_txt_rows2max = 1
     for idx, val in tmp2max['pars_tex'].iteritems():
@@ -3226,17 +3226,17 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp1mean.index for b in a])
-        index_new1 = ['-'.join(a) for a in tmp1mean.index]
+        index_new1 = ['-'.join(map(str, a)) for a in tmp1mean.index]
         tmp1mean.index = index_new1
         index_name = '-'.join(vars['it_parameters'])
         tmp1mean.index.name = index_name
     else:
         gloss = glossary_from_list([str(a) for a in tmp1mean.index])
-        index_new1 = [a for a in tmp1mean.index]
+        index_new1 = [str(a) for a in tmp1mean.index]
         index_name = vars['it_parameters'][0]
     gloss = add_to_glossary_eval(vars['t_data_separators'], gloss)
     tmp1mean = tmp1mean.reset_index().set_index(first_grp2 + [index_name]).unstack(level=-1)
-    index_new11 = ['-'.join(a) for a in tmp1mean.columns]
+    index_new11 = ['-'.join(map(str, a)) for a in tmp1mean.columns]
     legend1 = [tex_string_coding_style(b) for a in tmp1mean.columns for b in a if b in index_new1]
     tmp1mean.columns = index_new11
     tmp1mean.reset_index(inplace=True)
@@ -3247,13 +3247,13 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp2mean.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new2 = ['-'.join(a) for a in tmp2mean.index]
+        index_new2 = ['-'.join(map(str, a)) for a in tmp2mean.index]
         tmp2mean.index = index_new2
         tmp2mean.index.name = index_name
     else:
-        index_new2 = [a for a in tmp2mean.index]
+        index_new2 = [str(a) for a in tmp2mean.index]
     tmp2mean = tmp2mean.reset_index().set_index(second_grp2 + [index_name]).unstack(level=-1)
-    index_new21 = ['-'.join(a) for a in tmp2mean.columns]
+    index_new21 = ['-'.join(map(str, a)) for a in tmp2mean.columns]
     legend2 = [tex_string_coding_style(b) for a in tmp2mean.columns for b in a if b in index_new2]
     tmp2mean.columns = index_new21
     tmp2mean.reset_index(inplace=True)
@@ -3426,16 +3426,16 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     x_rows4 = []
     tmp1mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new12 = ['-'.join(a) for a in tmp1mean_min.index]
+        index_new12 = ['-'.join(map(str, a)) for a in tmp1mean_min.index]
         tmp1mean_min.index = index_new12
         tmp1mean_min.index.name = index_name
     else:
-        index_new12 = [a for a in tmp1mean_min.index]
+        index_new12 = [str(a) for a in tmp1mean_min.index]
     tmp1mean_min = tmp1mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp1mean_min.columns if col_name in a])
+    index_y4.append(['-'.join(map(str, a)) for a in tmp1mean_min.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_min.columns if col_name in a
                       for b in a if b in index_new12])
-    tmp1mean_min.columns = ['-'.join(a) for a in tmp1mean_min.columns]
+    tmp1mean_min.columns = ['-'.join(map(str, a)) for a in tmp1mean_min.columns]
     meta_col4.append([a for a in tmp1mean_min.columns if col_name not in a])
     tmp1mean_min.reset_index(inplace=True)
     gloss = add_to_glossary(tmp1mean_min[meta_col4[-1]].stack().tolist(), gloss)
@@ -3452,16 +3452,16 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp1mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new13 = ['-'.join(a) for a in tmp1mean_max.index]
+        index_new13 = ['-'.join(map(str, a)) for a in tmp1mean_max.index]
         tmp1mean_max.index = index_new13
         tmp1mean_max.index.name = index_name
     else:
-        index_new13 = [a for a in tmp1mean_max.index]
+        index_new13 = [str(a) for a in tmp1mean_max.index]
     tmp1mean_max = tmp1mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp1mean_max.columns if col_name in a])
+    index_y4.append(['-'.join(map(str, a)) for a in tmp1mean_max.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp1mean_max.columns if col_name in a
                       for b in a if b in index_new13])
-    tmp1mean_max.columns = ['-'.join(a) for a in tmp1mean_max.columns]
+    tmp1mean_max.columns = ['-'.join(map(str, a)) for a in tmp1mean_max.columns]
     meta_col4.append([a for a in tmp1mean_max.columns if col_name not in a])
     tmp1mean_max.reset_index(inplace=True)
     gloss = add_to_glossary(tmp1mean_max[meta_col4[-1]].stack().tolist(), gloss)
@@ -3477,16 +3477,16 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp2mean_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new22 = ['-'.join(a) for a in tmp2mean_min.index]
+        index_new22 = ['-'.join(map(str, a)) for a in tmp2mean_min.index]
         tmp2mean_min.index = index_new22
         tmp2mean_min.index.name = index_name
     else:
-        index_new22 = [a for a in tmp2mean_min.index]
+        index_new22 = [str(a) for a in tmp2mean_min.index]
     tmp2mean_min = tmp2mean_min.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp2mean_min.columns if col_name in a])
+    index_y4.append(['-'.join(map(str, a)) for a in tmp2mean_min.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_min.columns if col_name in a
                       for b in a if b in index_new22])
-    tmp2mean_min.columns = ['-'.join(a) for a in tmp2mean_min.columns]
+    tmp2mean_min.columns = ['-'.join(map(str, a)) for a in tmp2mean_min.columns]
     meta_col4.append([a for a in tmp2mean_min.columns if col_name not in a])
     tmp2mean_min.reset_index(inplace=True)
     gloss = add_to_glossary(tmp2mean_min[meta_col4[-1]].stack().tolist(), gloss)
@@ -3503,16 +3503,16 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp2mean_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new23 = ['-'.join(a) for a in tmp2mean_max.index]
+        index_new23 = ['-'.join(map(str, a)) for a in tmp2mean_max.index]
         tmp2mean_max.index = index_new23
         tmp2mean_max.index.name = index_name
     else:
-        index_new23 = [a for a in tmp2mean_max.index]
+        index_new23 = [str(a) for a in tmp2mean_max.index]
     tmp2mean_max = tmp2mean_max.reset_index().set_index([vars['eval_minmax_for']] + [index_name]).unstack(level=-1)
-    index_y4.append(['-'.join(a) for a in tmp2mean_max.columns if col_name in a])
+    index_y4.append(['-'.join(map(str, a)) for a in tmp2mean_max.columns if col_name in a])
     legend_y4.append([tex_string_coding_style(b) for a in tmp2mean_max.columns if col_name in a
                       for b in a if b in index_new23])
-    tmp2mean_max.columns = ['-'.join(a) for a in tmp2mean_max.columns]
+    tmp2mean_max.columns = ['-'.join(map(str, a)) for a in tmp2mean_max.columns]
     meta_col4.append([a for a in tmp2mean_max.columns if col_name not in a])
     tmp2mean_max.reset_index(inplace=True)
     gloss = add_to_glossary(tmp2mean_max[meta_col4[-1]].stack().tolist(), gloss)
@@ -3704,18 +3704,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     x_rows4 = []
     tmp12_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new13 = ['-'.join(a) for a in tmp12_min.index]
+        index_new13 = ['-'.join(map(str, a)) for a in tmp12_min.index]
         tmp12_min.index = index_new13
         tmp12_min.index.name = index_name
     else:
-        index_new13 = [a for a in tmp12_min.index]
+        index_new13 = [str(a) for a in tmp12_min.index]
     tmp12_min['pars_tex'] = insert_opt_lbreak(index_new13)
     max_txt_rows = [1]
     for idx, val in tmp12_min['pars_tex'].iteritems():
         txt_rows = str(val).count('\\\\') + 1
         if txt_rows > max_txt_rows[-1]:
             max_txt_rows[-1] = txt_rows
-    meta_col4.append('-'.join(first_grp2))
+    meta_col4.append('-'.join(map(str, first_grp2)))
     tmp12_min[meta_col4[-1]] = tmp12_min.loc[:, first_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp12_min.loc[:, first_grp2[1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp12_min[first_grp2].stack().tolist(), gloss)
@@ -3730,11 +3730,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp12_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new14 = ['-'.join(a) for a in tmp12_max.index]
+        index_new14 = ['-'.join(map(str, a)) for a in tmp12_max.index]
         tmp12_max.index = index_new14
         tmp12_max.index.name = index_name
     else:
-        index_new14 = [a for a in tmp12_max.index]
+        index_new14 = [str(a) for a in tmp12_max.index]
     tmp12_max['pars_tex'] = insert_opt_lbreak(index_new14)
     max_txt_rows.append(1)
     for idx, val in tmp12_max['pars_tex'].iteritems():
@@ -3754,18 +3754,18 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp22_min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new23 = ['-'.join(a) for a in tmp22_min.index]
+        index_new23 = ['-'.join(map(str, a)) for a in tmp22_min.index]
         tmp22_min.index = index_new23
         tmp22_min.index.name = index_name
     else:
-        index_new23 = [a for a in tmp22_min.index]
+        index_new23 = [str(a) for a in tmp22_min.index]
     tmp22_min['pars_tex'] = insert_opt_lbreak(index_new23)
     max_txt_rows.append(1)
     for idx, val in tmp22_min['pars_tex'].iteritems():
         txt_rows = str(val).count('\\\\') + 1
         if txt_rows > max_txt_rows[-1]:
             max_txt_rows[-1] = txt_rows
-    meta_col4.append('-'.join(second_grp2))
+    meta_col4.append('-'.join(map(str, second_grp2)))
     tmp22_min[meta_col4[-1]] = tmp22_min.loc[:, second_grp2[0]].apply(lambda x: str(x) + ' - ') + \
                                tmp22_min.loc[:, second_grp2[1]].apply(lambda x: str(x))
     gloss = add_to_glossary(tmp22_min[second_grp2].stack().tolist(), gloss)
@@ -3780,11 +3780,11 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     tmp22_max.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
-        index_new24 = ['-'.join(a) for a in tmp22_max.index]
+        index_new24 = ['-'.join(map(str, a)) for a in tmp22_max.index]
         tmp22_max.index = index_new24
         tmp22_max.index.name = index_name
     else:
-        index_new24 = [a for a in tmp22_max.index]
+        index_new24 = [str(a) for a in tmp22_max.index]
     tmp22_max['pars_tex'] = insert_opt_lbreak(index_new24)
     max_txt_rows.append(1)
     for idx, val in tmp22_max['pars_tex'].iteritems():

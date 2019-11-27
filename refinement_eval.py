@@ -85,7 +85,7 @@ def get_best_comb_scenes_1(**keywords):
     for i, (df, dp) in enumerate(zip(b_mean_l, data_parts)):
         tmp = df.reset_index().set_index(ret['it_parameters'])
         if len(ret['it_parameters']) > 1:
-            data_it_indices.append(['-'.join(a) for a in tmp.index])
+            data_it_indices.append(['-'.join(map(str, a)) for a in tmp.index])
             tmp.index = data_it_indices[-1]
             tmp.index.name = it_pars_name
         else:
