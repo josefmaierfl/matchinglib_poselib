@@ -34,17 +34,38 @@ def calc_rt_diff_frame_to_frame(**vars):
     needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']
     df = vars['data'][needed_cols]
     grpd_cols = vars['data_separators'] + vars['it_parameters']
+    if 'Nr' in grpd_cols:
+        grpd_cols = [a for a in grpd_cols if a != 'Nr']
     df_grp = df.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
     eval_log = {}
     eval_cols_log_scaling = []
     for eval in vars['eval_columns']:
         eval_log[eval] = []
+    mean_vals_used = False
+    mean_list = []
     for grp in grp_keys:
         tmp = df_grp.get_group(grp)
+        if 'Nr' in vars['data_separators']:
+            if tmp['Nr'].value_counts().max() > 1:
+                warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
+                              'Calculating mean.', UserWarning)
+                tmp1 = tmp[vars['eval_columns'] + ['Nr']].groupby('Nr').mean().reset_index()
+                add_cols = [a for a in grpd_cols if a != 'Nr']
+                for it in add_cols:
+                    tmp1[it] = tmp.loc[:, [it]].iloc[0, :].to_list() * int(tmp1.shape[0])
+                tmp = tmp1
+                mean_list.append(tmp)
+                mean_vals_used = True
+            elif mean_vals_used:
+                mean_list.append(tmp)
         for eval in vars['eval_columns']:
             eval_log[eval].append(True if np.abs(np.log10(np.abs(tmp[eval].min())) -
                                                  np.log10(np.abs(tmp[eval].max()))) > 1 else False)
+    if mean_vals_used:
+        if len(mean_list) != len(grp_keys):
+            raise ValueError('Data is not consistent!')
+        df = pd.concat(mean_list, axis=0, ignore_index=True)
     for eval in vars['eval_columns']:
         if any(eval_log[eval]):
             eval_cols_log_scaling.append(True)
