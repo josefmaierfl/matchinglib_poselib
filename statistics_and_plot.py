@@ -7019,7 +7019,7 @@ def main():
                        'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
     sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
     eval_numbers = [[-1], [-1], [-1], [-1], [-1], [-1], [-1], [-1]]
-    specific_ev_nrs = [('correspondence_pool', 1, list(range(4, 11)))]
+    specific_ev_nrs = [('correspondence_pool', 1, list(range(5, 11)))]
     skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo']
     skip_sub_tests = [[1], None, None, None, None, None, None, None]
     tests = []
