@@ -273,18 +273,25 @@ def get_mean_data_parts(df, nr_parts, key_name='Rt_diff2'):
     #       img_max, 'ir_part:', ir_part, 'nr_parts:', nr_parts, 'parts:', parts)
     for sl in parts:
         if sl[1] - sl[0] <= 1:
+            if sl[0] not in df['Nr'].values:
+                continue
             tmp = df.set_index('Nr')
             data_parts.append(tmp.loc[[sl[0]],:])
             data_parts[-1].reset_index(inplace=True)
             mean_dd.append(data_parts[-1][key_name].values[0])
         else:
-            data_parts.append(df.loc[(df['Nr'] >= sl[0]) & (df['Nr'] < sl[1])])
+            tmp = df.loc[(df['Nr'] >= sl[0]) & (df['Nr'] < sl[1])]
+            if tmp.empty:
+                continue
+            data_parts.append(tmp)
             # A negative value indicates a decreasing error value and a positive number an increasing error
             # if data_parts[-1].shape[0] < 3:
             #     print('Smaller')
             # elif data_parts[-1].isnull().values.any():
             #     print('nan found')
             mean_dd.append(data_parts[-1][key_name].mean())
+    if not data_parts:
+        return {}, False
     data = {'data_parts': data_parts, 'mean_dd': mean_dd}
     return data, True
 
@@ -655,12 +662,12 @@ def eval_corr_pool_converge(**keywords):
     data_new2.drop(keywords['xy_axis_columns'], axis=1, inplace=True)
     if len(keywords['it_parameters']) > 1:
         data_new2 = data_new2.set_index(keywords['it_parameters']).T
-        itpars_cols = ['-'.join(a) for a in data_new2.columns]
+        itpars_cols = ['-'.join(map(str, a)) for a in data_new2.columns]
         data_new2.columns = itpars_cols
         data_new2.columns.name = itpars_name
         data_new2 = data_new2.T.reset_index()
     else:
-        itpars_cols = data_new2[itpars_name].values
+        itpars_cols = [str(a) for a in data_new2[itpars_name].values]
     itpars_cols = list(dict.fromkeys(itpars_cols))
     dataseps = [a for a in keywords['partitions'] if a != keywords['partition_x_axis']] + [itpars_name]
     l1 = len(dataseps)
@@ -918,18 +925,18 @@ def eval_corr_pool_converge(**keywords):
         tmp1 = pd.concat(grp_list, ignore_index=True, sort=True, axis=0)
         if len(keywords['it_parameters']) > 1:
             tmp1 = tmp1.set_index(keywords['it_parameters']).T
-            itpars_cols = ['-'.join(a) for a in tmp1.columns]
+            itpars_cols = ['-'.join(map(str, a)) for a in tmp1.columns]
             tmp1.columns = itpars_cols
             tmp1.columns.name = itpars_name
             tmp1 = tmp1.T.reset_index()
         else:
-            itpars_cols = tmp1[itpars_name].values
+            itpars_cols = [str(a) for a in tmp1[itpars_name].values]
         itpars_cols = list(dict.fromkeys(itpars_cols))
         tmp1.set_index(keywords['xy_axis_columns'] + [itpars_name], inplace=True)
         tmp1 = tmp1.unstack(level=-1)
         tmp1.reset_index(inplace=True)
         tmp1.drop(keywords['xy_axis_columns'], axis=1, inplace=True, level=0)
-        col_names = ['-'.join(a) for a in tmp1.columns]
+        col_names = ['-'.join(map(str, a)) for a in tmp1.columns]
         tmp1.columns = col_names
         # surpr_ev = [b for a in print_evals1 for b in print_evals1 if a in b and a != b]
         sections = []

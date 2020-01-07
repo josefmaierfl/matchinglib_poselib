@@ -4927,11 +4927,100 @@ def get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy):
     return nr_equal_ss, tickdist, lbl_xy
 
 
+def check_missing_data_block_length_3D(df, xy_axis_columns):
+    is_number = np.vectorize(lambda x: np.issubdtype(x, np.number))
+    hlp = is_number(df[xy_axis_columns].dtypes)
+    if hlp[0]:
+        x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
+    else:
+        if df[xy_axis_columns[0]].iloc[0] == df[xy_axis_columns[0]].iloc[1]:
+            x_diff = 0
+        else:
+            x_diff = 1
+    if hlp[1]:
+        y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
+    else:
+        if df[xy_axis_columns[1]].iloc[0] == df[xy_axis_columns[1]].iloc[1]:
+            y_diff = 0
+        else:
+            y_diff = 1
+    if np.isclose(x_diff, 0, atol=1e-06) and not np.isclose(y_diff, 0, atol=1e-06):
+        an = 0
+    elif not np.isclose(x_diff, 0, atol=1e-06) and np.isclose(y_diff, 0, atol=1e-06):
+        an = 1
+    else:
+        nr_equal_ss1 = int(df.groupby(xy_axis_columns[0]).size().array[0])
+        nr_equal_ss2 = int(df.groupby(xy_axis_columns[1]).size().array[0])
+        nr_equal_ss = max(nr_equal_ss1, nr_equal_ss2)
+        if nr_equal_ss == nr_equal_ss1:
+            an = 0
+        else:
+            an = 1
+
+    an1 = abs(an - 1)
+    grps = df.groupby(xy_axis_columns[an])
+    grp_keys = grps.groups.keys()
+    blocks = grps.size()
+    if blocks.nunique() > 1:
+        all_entries = df[xy_axis_columns[an1]].unique()
+        if all_entries.size != blocks.max():
+            # Get correct order
+            if hlp[an]:
+                or_dir = float(df[xy_axis_columns[an1]].iloc[1]) - float(df[xy_axis_columns[an1]].iloc[0])
+                if or_dir > 0:
+                    all_entries.sort_values(ascending=True, inplace=True)
+                else:
+                    all_entries.sort_values(ascending=False, inplace=True)
+            else:
+                ordered = []
+                iter_objs = [grps.get_group(a)[xy_axis_columns[an1]].iteritems() for a in grp_keys]
+                found = [True] * len(iter_objs)
+                vals_old = [df.loc[xy_axis_columns[an1]].iloc[0]] * len(iter_objs)
+                for j in range(0, all_entries.size):
+                    next_entry = []
+                    for id, i in enumerate(iter_objs):
+                        if found[id]:
+                            try:
+                                _, val = next(i)
+                            except StopIteration:
+                                pass
+                            next_entry.append(val)
+                            vals_old[id] = val
+                        else:
+                            next_entry.append(vals_old[id])
+                    next_entry_val = pd.Series(next_entry).value_counts().idxmax()
+                    found = [a == next_entry_val for a in next_entry]
+                    ordered.append(next_entry_val)
+                    for id, it in enumerate(found):
+                        if not it and vals_old[id] in ordered:
+                            found[id] = True
+                all_entries = pd.Series(ordered)
+        else:
+            all_entries = grps.get_group(blocks.idxmax()).loc[xy_axis_columns[an1]]
+        missing_entries = []
+        for grp_k in grp_keys:
+            grp = grps.get_group(grp_k).loc[xy_axis_columns[an1]]
+            for _, val in all_entries.iteritems():
+                if val not in grp:
+                    missing_entries.append((grp_k, val))
+        idx_save = None
+        if df.index.name:
+            idx_save = df.index.name
+            df.reset_index(inplace=True)
+        df.set_index(xy_axis_columns, inplace=True)
+        for j in missing_entries:
+            df.loc[j, :] = [np.NaN] * int(df.shape[1])
+        df.reset_index(inplace=True)
+        if idx_save:
+            df.set_index(idx_save, inplace=True)
+
+
 def get_3d_tex_info(df, xy_axis_columns, cat_sort):
     is_numericx = check_if_numeric(df, xy_axis_columns[0])
     is_numericy = check_if_numeric(df, xy_axis_columns[1])
     if cat_sort:
         categorical_sort_3d(df, cat_sort, not is_numericx, not is_numericy, xy_axis_columns)
+    check_missing_data_block_length_3D(df, xy_axis_columns)
     colname_x = gen_3D_number_rep_for_string(df, xy_axis_columns[0], True, is_numericx)
     colname_y = gen_3D_number_rep_for_string(df, xy_axis_columns[1], False, is_numericy)
     nr_equal_ss, tick_dist, lbl_xy = get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy)
