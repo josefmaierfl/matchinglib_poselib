@@ -612,7 +612,7 @@ def pars_calc_multiple_fig(**keywords):
     ret['gloss'] = add_to_glossary(ret['b'].index.get_level_values(1), ret['gloss'])
     ret['b'] = ret['b'].reset_index()
     # nr_equal_ss = int(ret['b'].groupby(ret['b'].columns.values[0]).size().array[0])
-    env_3d_info = get_3d_tex_info(ret['b'], [ret['b'].columns.values[1], ret['b'].columns.values[0]],
+    env_3d_info, ret['b'] = get_3d_tex_info(ret['b'], [ret['b'].columns.values[1], ret['b'].columns.values[0]],
                                   keywords['cat_sort'])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
@@ -914,7 +914,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
             tmp2.columns.name = '-'.join(ret['it_parameters'])
 
         tmp2.reset_index(inplace=True)
-        env_3d_info = get_3d_tex_info(tmp2, keywords['xy_axis_columns'], keywords['cat_sort'])
+        env_3d_info, tmp2 = get_3d_tex_info(tmp2, keywords['xy_axis_columns'], keywords['cat_sort'])
         dataf_name_main_property = ret['dataf_name_main'] + part_name.replace('.', 'd')
         dataf_name = dataf_name_main_property + '.csv'
         b_name = 'data_RTerrors_vs_' + dataf_name
@@ -996,17 +996,21 @@ def pars_calc_multiple_fig_partitions(**keywords):
     for i_new, a in enumerate(st_list):
         lz = len(a['plots_z'])
         if lz > int(math.floor(0.5 * float(max_figs_pdf))):
-            if i_old - i_new > 0:
+            if i_old - i_new < 0:
                 st_list2.append({'figs': st_list[i_old:i_new], 'pdf_nr': cnt})
                 cnt += 1
             split_nr = int(math.ceil(float(lz) / float(max_figs_pdf)))
             parts = int(math.floor(float(lz) / float(split_nr)))
             for i in range(0, split_nr - 1):
-                st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
-                st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][(i * parts):((i + 1) * parts)]
+                st_list2.append({'figs': [deepcopy(st_list[i_new])], 'pdf_nr': cnt})
+                st_list2[-1]['figs'][0]['plots_z'] = st_list2[-1]['figs'][0]['plots_z'][
+                                                     (i * parts):((i + 1) * parts)]
+                st_list2[-1]['figs'][0]['legend'] = st_list2[-1]['figs'][0]['legend'][
+                                                    (i * parts):((i + 1) * parts)]
                 cnt += 1
-            st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
-            st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][((split_nr - 1) * parts):]
+            st_list2.append({'figs': [st_list[i_new]], 'pdf_nr': cnt})
+            st_list2[-1]['figs'][0]['plots_z'] = st_list2[-1]['figs'][0]['plots_z'][((split_nr - 1) * parts):]
+            st_list2[-1]['figs'][0]['legend'] = st_list2[-1]['figs'][0]['legend'][((split_nr - 1) * parts):]
             cnt += 1
             i_old = i_new + 1
             act_figs = 0
@@ -3311,7 +3315,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     # nr_equal_ss1 = int(tmp1mean.groupby(first_grp2[0]).size().array[0])
-    env_3d_info1 = get_3d_tex_info(tmp1mean, first_grp2, None)
+    env_3d_info1, tmp1mean = get_3d_tex_info(tmp1mean, first_grp2, None)
     stats_all = tmp1mean[index_new11].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits = {'minz': None, 'maxz': None}
@@ -3353,7 +3357,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    ' for parameter variations of ' + strToLower(vars['sub_title_it_pars']) + \
                    ' extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     # nr_equal_ss2 = int(tmp2mean.groupby(second_grp2[0]).size().array[0])
-    env_3d_info2 = get_3d_tex_info(tmp2mean, second_grp2, None)
+    env_3d_info2, tmp2mean = get_3d_tex_info(tmp2mean, second_grp2, None)
     stats_all = tmp2mean[index_new21].stack().reset_index()
     stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).describe().T
     use_limits1 = {'minz': None, 'maxz': None}

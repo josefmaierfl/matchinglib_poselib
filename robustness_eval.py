@@ -821,7 +821,7 @@ def get_best_comb_3d_scenes_1(**keywords):
         enlarge_lbl_dist = check_legend_enlarge(tmp, keywords['xy_axis_columns'][0], len(plots), 'xbar',
                                                 label_x.count('\\') + 1, not is_numeric)
         exp_value = enl_space_title(exp_value, section_name, tmp, keywords['xy_axis_columns'][0],
-                                    len(plots), 'xbar', label_x.count('\\') + 1, not is_numeric)
+                                    len(plots), 'xbar')
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                       'name': section_name.replace('\\\\', ' '),
                                       'title': section_name,
@@ -1715,14 +1715,16 @@ def get_ml_acc(**keywords):
     for it in keywords['data_partitions']:
             if it not in individual_grps:
                 raise ValueError(it + ' provided in data_partitions not found in dataframe')
-    if 'stable_type' not in keywords:
-        raise ValueError('stable_type missing!')
-    if keywords['stable_type'] == 'poseIsStable':
-        stable_des = 'stable'
-    elif keywords['stable_type'] == 'mostLikelyPose_stable':
-        stable_des = 'stable most likely'
-    else:
-        raise ValueError('Given stable_type not supported!')
+    stable_t_av = False
+    stable_des = ''
+    if 'stable_type' in keywords:
+        stable_t_av = True
+        if keywords['stable_type'] == 'poseIsStable':
+            stable_des = 'stable'
+        elif keywords['stable_type'] == 'mostLikelyPose_stable':
+            stable_des = 'stable most likely'
+        else:
+            raise ValueError('Given stable_type not supported!')
     from statistics_and_plot import short_concat_str, \
         replaceCSVLabels, \
         add_to_glossary, \
@@ -1759,11 +1761,12 @@ def get_ml_acc(**keywords):
     if b_diff.empty:
         f_name = os.path.join(keywords['res_folder'], 'out_compare_is_equal.txt')
         with open(f_name, 'w') as f:
-            f.write('Error differences of most likely extrinsics and normal output for ' + stable_des +
+            f.write('Error differences of most likely extrinsics and normal output' +
+                    ((' for ' + stable_des) if stable_t_av else '') +
                     ' poses are equal.' + '\n')
         return 0
     gloss = add_to_glossary_eval(keywords['eval_columns'] + ['Rt_diff', 'Rt_mostLikely_diff'])
-    title_name0 = 'Mean Differences Between ' + capitalizeStr(stable_des) + ' ' +\
+    title_name0 = 'Mean Differences Between ' + (capitalizeStr(stable_des) if stable_t_av else '') + ' ' +\
                   replaceCSVLabels('Rt_diff', True, True, True) + ' and ' + \
                   replaceCSVLabels('Rt_mostLikely_diff', True, True, True) + ' vs '
     title_name = title_name0 + \
@@ -1822,12 +1825,15 @@ def get_ml_acc(**keywords):
             base_name = 'stats_rt_default-rt_ml_vs_' + it + '_pars_' + short_concat_str(keywords['it_parameters'])
         else:
             df = df.groupby(it).describe()
+            df3 = df
             base_name = 'stats_rt_default-rt_ml_for_' + it
             it_pars_name = it
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Statistics on ' + stable_des + ' differences between most likely and default R&t errors vs ' +
+            f.write('# Statistics on ' +
+                    (stable_des if stable_t_av else '') +
+                    ' differences between most likely and default R&t errors vs ' +
                     it + '\n')
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1847,8 +1853,9 @@ def get_ml_acc(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
-            f.write('# Mean ' + stable_des + ' differences (Rt_diff2_ml) between most likely and default '
-                                             'R&t errors vs ' + str(it) + '\n')
+            f.write('# Mean ' + (stable_des if stable_t_av else '') +
+                    ' differences (Rt_diff2_ml) between most likely and default '
+                    'R&t errors vs ' + str(it) + '\n')
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df1.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -1858,7 +1865,7 @@ def get_ml_acc(**keywords):
         enlarge_lbl_dist = check_legend_enlarge(df1, str(it), 1, 'ybar', label_x.count('\\') + 1, not is_numeric)
         reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
         for use_col in fig_cols:
-            caption_name = 'Mean ' + stable_des + ' differences between ' + \
+            caption_name = 'Mean ' + (stable_des if stable_t_av else '') + ' differences between ' + \
                            replaceCSVLabels('Rt_diff', True, False, True) + ' and ' + \
                            replaceCSVLabels('Rt_mostLikely_diff', True, False, True) + ' values vs ' + \
                            replaceCSVLabels(it, True, False, True)
@@ -1919,8 +1926,9 @@ def get_ml_acc(**keywords):
             b_mean_name = 'data_min_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             with open(fb_mean_name, 'a') as f:
-                f.write('# Minimum mean ' + stable_des + ' differences (Rt_diff2_ml) between most likely and '
-                                                         'default R&t errors vs ' + str(it) + '\n')
+                f.write('# Minimum mean ' + (stable_des if stable_t_av else '') +
+                        ' differences (Rt_diff2_ml) between most likely and '
+                        'default R&t errors vs ' + str(it) + '\n')
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
                 df4.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
             _, use_limits_l, use_log_l, exp_value_l = get_limits_log_exp(df4, True, True, False, None, ['Rt_diff2_ml'])
@@ -1934,7 +1942,7 @@ def get_ml_acc(**keywords):
             reltex_name = os.path.join(keywords['rel_data_path'], b_mean_name)
             section_name = 'Minimum ' + strToLower(title_name0) + replaceCSVLabels(it, True, False, True)
             section_name = split_large_titles(section_name, 85)
-            caption = 'Minimum mean ' + stable_des + ' differences between ' + \
+            caption = 'Minimum mean ' + (stable_des if stable_t_av else '') + ' differences between ' + \
                       replaceCSVLabels('Rt_diff', False, False, True) + ' and ' + \
                       replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
                       ' (left axis) and corresponding parameters ' + \
@@ -2040,7 +2048,7 @@ def get_ml_acc(**keywords):
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Ratio (rat_defa_high) of higher default R&t errors compared to most likely R&t errors vs ' +
-                    str(it) + ' for ' + stable_des + ' poses\n')
+                    str(it) + ((' for ' + stable_des + ' poses') if stable_t_av else '') + '\n')
             if 'eval_it_pars' in keywords and keywords['eval_it_pars']:
                 f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
             df2.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -2091,7 +2099,7 @@ def get_ml_acc(**keywords):
                 f_name = os.path.join(keywords['res_folder'], 'most_likely_pose_not_better_for_' + str(it) + '.txt')
                 with open(f_name, 'w') as f:
                     f.write('Errors of most likely extrinsics are bigger than normal pose outputs for all ' +
-                            str(it) + ' properties on ' + stable_des + ' poses.\n')
+                            str(it) + ' properties' + ((' on ' + stable_des + ' poses.') if stable_t_av else '') + '\n')
                 continue
             df5['Rt_diff2_ml'] = df5['Rt_diff2_ml'].abs()
             # df5 = df5.reset_index().set_index(keywords['it_parameters'])
@@ -2117,8 +2125,8 @@ def get_ml_acc(**keywords):
             b_mean_name = 'data_min_only_larger0_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             with open(fb_mean_name, 'a') as f:
-                f.write('# Absolute minimum mean ' + stable_des + ' differences (Rt_diff2_ml) between most '
-                                                                  'likely and default R&t errors vs ' + str(it) + '\n')
+                f.write('# Absolute minimum mean ' + (stable_des if stable_t_av else '')
+                        + ' differences (Rt_diff2_ml) between most likely and default R&t errors vs ' + str(it) + '\n')
                 f.write('# for ratios (rat_defa_high) of higher default R&t errors compared to most likely R&t '
                         'errors higher 0 (Only results with a smaller mean error of most likely poses compared '
                         'to default output)\n')
@@ -2137,7 +2145,7 @@ def get_ml_acc(**keywords):
                            ' only for higher ' + replaceCSVLabels('Rt_diff', True, False, True) + ' compared to ' + \
                            replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + ' values'
             section_name = split_large_titles(section_name, 85)
-            caption = 'Absolute minimum mean ' + stable_des + ' differences between ' + \
+            caption = 'Absolute minimum mean ' + (stable_des if stable_t_av else '') + ' differences between ' + \
                       replaceCSVLabels('Rt_diff', False, False, True) + ' and ' + \
                       replaceCSVLabels('Rt_mostLikely_diff', False, False, True) + \
                       ' (left axis) and corresponding parameters ' + \

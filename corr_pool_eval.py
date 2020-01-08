@@ -1406,7 +1406,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
         it_idxs = [str(a) for a in tmp1.index]
         gloss = add_to_glossary(it_idxs, gloss)
     tmp1 = tmp1.reset_index().set_index(['stat_type', itpars_name]).unstack(level=-1)
-    comb_cols = ['-'.join(a) for a in tmp1.columns]
+    comb_cols = ['-'.join(map(str, a)) for a in tmp1.columns]
     tmp1.columns = comb_cols
 
     t_main_name1 = t_main_name + '_for_opts_' + itpars_name

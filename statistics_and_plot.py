@@ -2153,7 +2153,7 @@ def calcSatisticAndPlot_3D(data,
                 tmp.columns.name = '-'.join(grp_names[0:-2])
             tmp = tmp.reset_index()
             # nr_equal_ss = int(tmp.groupby(tmp.columns.values[0]).size().array[0])
-            env_3d_info = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
+            env_3d_info, tmp = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
             dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                        str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
@@ -2244,17 +2244,21 @@ def calcSatisticAndPlot_3D(data,
         for i_new, a in enumerate(st_list):
             lz = len(a['plots_z'])
             if lz > int(math.floor(0.5 * float(max_figs_pdf))):
-                if i_old - i_new > 0:
+                if i_old - i_new < 0:
                     st_list2.append({'figs': st_list[i_old:i_new], 'pdf_nr': cnt})
                     cnt += 1
                 split_nr = int(math.ceil(float(lz) / float(max_figs_pdf)))
                 parts = int(math.floor(float(lz) / float(split_nr)))
                 for i in range(0, split_nr - 1):
-                    st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
-                    st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][(i * parts):((i + 1) * parts)]
+                    st_list2.append({'figs': [deepcopy(st_list[i_new])], 'pdf_nr': cnt})
+                    st_list2[-1]['figs'][0]['plots_z'] = st_list2[-1]['figs'][0]['plots_z'][
+                                                         (i * parts):((i + 1) * parts)]
+                    st_list2[-1]['figs'][0]['legend'] = st_list2[-1]['figs'][0]['legend'][
+                                                        (i * parts):((i + 1) * parts)]
                     cnt += 1
-                st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
-                st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][((split_nr - 1) * parts):]
+                st_list2.append({'figs': [st_list[i_new]], 'pdf_nr': cnt})
+                st_list2[-1]['figs'][0]['plots_z'] = st_list2[-1]['figs'][0]['plots_z'][((split_nr - 1) * parts):]
+                st_list2[-1]['figs'][0]['legend'] = st_list2[-1]['figs'][0]['legend'][((split_nr - 1) * parts):]
                 cnt += 1
                 i_old = i_new + 1
                 act_figs = 0
@@ -2532,7 +2536,7 @@ def calcFromFuncAndPlot_3D(data,
         tmp = df.get_group(grp)
         tmp = tmp.drop(it_parameters, axis=1)
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
-        env_3d_info = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
+        env_3d_info, tmp = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2944,7 +2948,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                     tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
                     tmp2.columns.name = '-'.join(it_parameters)
                 tmp2.reset_index(inplace=True)
-                env_3d_info = get_3d_tex_info(tmp2, xy_axis_columns, cat_sort)
+                env_3d_info, tmp2 = get_3d_tex_info(tmp2, xy_axis_columns, cat_sort)
                 dataf_name = 'data_' + '_'.join(map(str, it)) + '_vs_' + \
                              str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + \
                              '_for_' + part_name.replace('.', 'd') + '.csv'
@@ -3039,17 +3043,21 @@ def calcSatisticAndPlot_3D_partitions(data,
         for i_new, a in enumerate(st_list):
             lz = len(a['plots_z'])
             if lz > int(math.floor(0.5 * float(max_figs_pdf))):
-                if i_old - i_new > 0:
+                if i_old - i_new < 0:
                     st_list2.append({'figs': st_list[i_old:i_new], 'pdf_nr': cnt})
                     cnt += 1
                 split_nr = int(math.ceil(float(lz) / float(max_figs_pdf)))
                 parts = int(math.floor(float(lz) / float(split_nr)))
                 for i in range(0, split_nr - 1):
-                    st_list2.append({'figs': deepcopy(st_list[i_new]), 'pdf_nr': cnt})
-                    st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][(i * parts):((i + 1) * parts)]
+                    st_list2.append({'figs': [deepcopy(st_list[i_new])], 'pdf_nr': cnt})
+                    st_list2[-1]['figs'][0]['plots_z'] = st_list2[-1]['figs'][0]['plots_z'][
+                                                         (i * parts):((i + 1) * parts)]
+                    st_list2[-1]['figs'][0]['legend'] = st_list2[-1]['figs'][0]['legend'][
+                                                        (i * parts):((i + 1) * parts)]
                     cnt += 1
-                st_list2.append({'figs': st_list[i_new], 'pdf_nr': cnt})
-                st_list2[-1]['figs']['plots_z'] = st_list2[-1]['figs']['plots_z'][((split_nr - 1) * parts):]
+                st_list2.append({'figs': [st_list[i_new]], 'pdf_nr': cnt})
+                st_list2[-1]['figs'][0]['plots_z'] = st_list2[-1]['figs'][0]['plots_z'][((split_nr - 1) * parts):]
+                st_list2[-1]['figs'][0]['legend'] = st_list2[-1]['figs'][0]['legend'][((split_nr - 1) * parts):]
                 cnt += 1
                 i_old = i_new + 1
                 act_figs = 0
@@ -3393,7 +3401,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             tmp1 = tmp.get_group(grp_it)
             tmp1 = tmp1.drop(it_pars_cols_name, axis=1)
             # nr_equal_ss = int(tmp1.groupby(xy_axis_columns[0]).size().array[0])
-            env_3d_info = get_3d_tex_info(tmp1, xy_axis_columns, cat_sort)
+            env_3d_info, tmp1 = get_3d_tex_info(tmp1, xy_axis_columns, cat_sort)
             if len(it_parameters) > 1:
                 splitted_grp = grp_it.split('-')
             else:
@@ -4965,7 +4973,7 @@ def check_missing_data_block_length_3D(df, xy_axis_columns):
         all_entries = df[xy_axis_columns[an1]].unique()
         if all_entries.size != blocks.max():
             # Get correct order
-            if hlp[an]:
+            if hlp[an1]:
                 or_dir = float(df[xy_axis_columns[an1]].iloc[1]) - float(df[xy_axis_columns[an1]].iloc[0])
                 if or_dir > 0:
                     all_entries.sort_values(ascending=True, inplace=True)
@@ -4975,7 +4983,7 @@ def check_missing_data_block_length_3D(df, xy_axis_columns):
                 ordered = []
                 iter_objs = [grps.get_group(a)[xy_axis_columns[an1]].iteritems() for a in grp_keys]
                 found = [True] * len(iter_objs)
-                vals_old = [df.loc[xy_axis_columns[an1]].iloc[0]] * len(iter_objs)
+                vals_old = [df.loc[:, xy_axis_columns[an1]].iloc[0]] * len(iter_objs)
                 for j in range(0, all_entries.size):
                     next_entry = []
                     for id, i in enumerate(iter_objs):
@@ -4996,23 +5004,40 @@ def check_missing_data_block_length_3D(df, xy_axis_columns):
                             found[id] = True
                 all_entries = pd.Series(ordered)
         else:
-            all_entries = grps.get_group(blocks.idxmax()).loc[xy_axis_columns[an1]]
-        missing_entries = []
+            all_entries = grps.get_group(blocks.idxmax()).loc[:, xy_axis_columns[an1]]
+        all_entries.reset_index(drop=True, inplace=True)
+        idx_new = []
         for grp_k in grp_keys:
-            grp = grps.get_group(grp_k).loc[xy_axis_columns[an1]]
-            for _, val in all_entries.iteritems():
-                if val not in grp:
-                    missing_entries.append((grp_k, val))
+            if an == 0:
+                for _, val in all_entries.iteritems():
+                    idx_new.append((grp_k, val))
+            else:
+                for _, val in all_entries.iteritems():
+                    idx_new.append((val, grp_k))
+
+        # missing_entries = []
+        # for grp_k in grp_keys:
+        #     grp = grps.get_group(grp_k).loc[:, xy_axis_columns[an1]]
+        #     me1 = {'val': [], 'idx': [], 'key': []}
+        #     for idx, val in all_entries.iteritems():
+        #         if val not in grp:
+        #             me1['val'].append(val)
+        #             me1['idx'].append(idx)
+        #             me1['key'].append(grp_k)
+        #     missing_entries.append(pd.DataFrame(me1).sort_values(by=['idx']))
+        # missing_entries = pd.concat(missing_entries, axis=0, ignore_index=True)
         idx_save = None
         if df.index.name:
             idx_save = df.index.name
             df.reset_index(inplace=True)
         df.set_index(xy_axis_columns, inplace=True)
-        for j in missing_entries:
-            df.loc[j, :] = [np.NaN] * int(df.shape[1])
+        df = df.reindex(idx_new, copy=False)
+        # for j in missing_entries:
+        #     df.loc[j, :] = [np.NaN] * int(df.shape[1])
         df.reset_index(inplace=True)
         if idx_save:
             df.set_index(idx_save, inplace=True)
+    return df
 
 
 def get_3d_tex_info(df, xy_axis_columns, cat_sort):
@@ -5020,7 +5045,7 @@ def get_3d_tex_info(df, xy_axis_columns, cat_sort):
     is_numericy = check_if_numeric(df, xy_axis_columns[1])
     if cat_sort:
         categorical_sort_3d(df, cat_sort, not is_numericx, not is_numericy, xy_axis_columns)
-    check_missing_data_block_length_3D(df, xy_axis_columns)
+    df = check_missing_data_block_length_3D(df, xy_axis_columns)
     colname_x = gen_3D_number_rep_for_string(df, xy_axis_columns[0], True, is_numericx)
     colname_y = gen_3D_number_rep_for_string(df, xy_axis_columns[1], False, is_numericy)
     nr_equal_ss, tick_dist, lbl_xy = get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy)
@@ -5037,7 +5062,7 @@ def get_3d_tex_info(df, xy_axis_columns, cat_sort):
             'tick_dist': tick_dist,
             'lbl_xy': lbl_xy,
             'lbl_nr': lbl_col_nr}
-    return info
+    return info, df
 
 
 def gen_lbl_col_string_3d(df, col_name, nr_equal_ss):
@@ -7108,9 +7133,10 @@ def main():
                        'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
     sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
     eval_numbers = [[-1], [-1], [-1], [-1], [-1], [-1], [-1], [-1]]
-    specific_ev_nrs = [('correspondence_pool', 1, list(range(5, 11)))]
-    skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo']
-    skip_sub_tests = [[1], None, None, None, None, None, None, None]
+    specific_ev_nrs = [('robustness', 4, list(range(17, 20)))]
+    skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
+                       'correspondence_pool', 'usac_vs_autocalib']
+    skip_sub_tests = [[1], None, None, None, None, None, [1, 2, 3, 5, 6], None]
     tests = []
     for i1, (i, j, k) in enumerate(zip(main_test_names, sub_test_numbers, eval_numbers)):
         if skip_main_tests and i in skip_main_tests:
