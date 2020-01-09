@@ -2,7 +2,7 @@
 Loads initial configuration files and builds a folder structure and an overview file for generating
 specific configuration and overview files for scenes by varying the used inlier ratio and keypoint accuracy
 """
-import sys, re, numpy as np, argparse, os, pandas as pd, subprocess as sp
+import sys, re, argparse, os, subprocess as sp
 from shutil import copyfile
 
 def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path, treatTPasCorrs):
@@ -21,6 +21,8 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
     if len(files) == 0:
         raise ValueError('No files including _init found.')
     ovfile_new = os.path.join(input_path, 'generated_dirs_config.txt')
+    if os.path.exists(ovfile_new):
+        raise FileExistsError("File containing configuration file names already exists: " + ovfile_new)
     with open(ovfile_new, 'w') as fo:
         for i in files:
             filen = os.path.basename(i)
@@ -163,12 +165,20 @@ def main():
             raise ValueError("Path for loading sequences does not exist")
     #else:
         #args.load_path = args.store_path
-    if args.inlier_range:
-        gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path,
-                    args.load_path, args.treatTPasCorrs)
-    else:
-        gen_configs(args.path, [], args.inlchrate_range, args.kpAccRange, args.img_path, args.store_path,
-                    args.load_path, False)
+    try:
+        if args.inlier_range:
+            gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path,
+                        args.load_path, args.treatTPasCorrs)
+        else:
+            gen_configs(args.path, [], args.inlchrate_range, args.kpAccRange, args.img_path, args.store_path,
+                        args.load_path, False)
+    except FileExistsError:
+        print(sys.exc_info()[0])
+        return 1
+    except:
+        print("Unexpected error: ", sys.exc_info()[0])
+        raise
+    return 0
 
 
 if __name__ == "__main__":

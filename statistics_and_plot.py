@@ -10,6 +10,7 @@ from copy import deepcopy
 import shutil
 import multiprocessing
 from difflib import SequenceMatcher
+# from timeit import default_timer as timer
 
 
 ji_env = ji.Environment(
@@ -398,7 +399,11 @@ def calcSatisticAndPlot_2D(data,
                 compare_source = None
 
     #Group by USAC parameters 5&6 and calculate the statistic
+    # start = timer()
     stats = df.groupby(it_parameters + x_axis_column).describe()
+    # end = timer()
+    # print(end - start)
+    # return 0
     if special_calcs_func is not None and special_calcs_args is not None:
         if 'func_name' in special_calcs_args:
             special_path_sub = os.path.join(store_path, 'evals_function_' + special_calcs_args['func_name'])
@@ -7134,9 +7139,11 @@ def main():
     sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
     eval_numbers = [[-1], [-1], [-1], [-1], [-1], [-1], [-1], [-1]]
     specific_ev_nrs = [('robustness', 4, list(range(17, 20)))]
-    skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
-                       'correspondence_pool', 'usac_vs_autocalib']
-    skip_sub_tests = [[1], None, None, None, None, None, [1, 2, 3, 5, 6], None]
+    # skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
+    #                    'correspondence_pool', 'usac_vs_autocalib']
+    skip_main_tests = ['usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
+                       'correspondence_pool', 'robustness', 'usac_vs_autocalib']
+    skip_sub_tests = [None, None, None, None, None, None, [1, 2, 3, 5, 6], None]
     tests = []
     for i1, (i, j, k) in enumerate(zip(main_test_names, sub_test_numbers, eval_numbers)):
         if skip_main_tests and i in skip_main_tests:
