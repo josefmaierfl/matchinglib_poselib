@@ -385,6 +385,9 @@ def get_best_comb_scenes_1(**keywords):
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg.split('-')
@@ -396,6 +399,7 @@ def get_best_comb_scenes_1(**keywords):
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          err_name: b_min}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return ret['res']
 
@@ -523,6 +527,9 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, vars['res_folder'], res)
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = tmp_min[it_pars_cols_name][0].split('-')
@@ -535,6 +542,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          't_min': min_t}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return res
 
@@ -798,6 +806,9 @@ def get_best_comb_inlrat_k(**keywords):
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg_best.split('-')
@@ -809,4 +820,5 @@ def get_best_comb_inlrat_k(**keywords):
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          'ke_best_val': b_best}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
     return ret['res']

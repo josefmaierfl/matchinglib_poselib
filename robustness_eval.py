@@ -640,6 +640,9 @@ def get_best_comb_scenes_1(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, keywords['res_folder'], ret['res'])
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = b_mmean[ret['it_parameters']].to_numpy()
@@ -651,6 +654,7 @@ def get_best_comb_scenes_1(**keywords):
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                          'mean_Rt_error': float(b_mmean['Rt_diff'])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return ret['res']
 
@@ -1198,6 +1202,9 @@ def get_best_comb_3d_scenes_1(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, keywords['res_folder'], ret['res'])
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = b_mmmean[ret['it_parameters']].to_numpy()
@@ -1209,6 +1216,7 @@ def get_best_comb_3d_scenes_1(**keywords):
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                          'mean_Rt_error': float(b_mmmean['Rt_diff'])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
         keywords['res'] = ret['res']
@@ -1649,6 +1657,9 @@ def calc_calib_delay(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = df_mmean.to_numpy()
@@ -1659,11 +1670,13 @@ def calc_calib_delay(**keywords):
             alg_w[val] = float(alg_comb_bestl[i])
         yaml.dump({main_parameter_name: {'Algorithm': alg_w}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
         keywords['res'] = res
         res = compare_evaluations(**keywords)
     return res
+
 
 def compare_evaluations(**keywords):
     if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
@@ -2257,6 +2270,9 @@ def get_ml_acc(**keywords):
             # Check if file and parameters exist
             from usac_eval import check_par_file_exists, NoAliasDumper
             ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+            import eval_mutex as em
+            em.init_lock()
+            em.acquire_lock()
             with open(ppar_file, 'a') as fo:
                 # Write parameters
                 alg_comb_bestl = df6[keywords['it_parameters']].to_numpy()
@@ -2269,6 +2285,7 @@ def get_ml_acc(**keywords):
                                                  'mean_error_difference': float(df6['Rt_diff2_ml']),
                                                  'error_ratio': float(df6['rat_defa_high'])}},
                           stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+            em.release_lock()
 
     pdfs_info = []
     max_figs_pdf = 50
@@ -2734,6 +2751,9 @@ def get_best_stability_pars(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = mean_pars.to_numpy()
@@ -2744,6 +2764,7 @@ def get_best_stability_pars(**keywords):
             alg_w[val] = float(alg_comb_bestl[i])
         yaml.dump({main_parameter_name: {'Algorithm': alg_w}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
     return res
 
 
@@ -2953,6 +2974,9 @@ def get_best_robust_pool_pars(**keywords):
         # Check if file and parameters exist
         from usac_eval import check_par_file_exists, NoAliasDumper
         ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, keywords['res_folder'], ret['res'])
+        import eval_mutex as em
+        em.init_lock()
+        em.acquire_lock()
         with open(ppar_file, 'a') as fo:
             # Write parameters
             alg_comb_bestl = [val_max]
@@ -2967,6 +2991,7 @@ def get_best_robust_pool_pars(**keywords):
             yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                              'value_count': alg_counts}},
                       stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+        em.release_lock()
 
         if 'comp_res' in keywords and keywords['comp_res'] and isinstance(keywords['comp_res'], list):
             from statistics_and_plot import read_yaml_pars
@@ -2985,6 +3010,9 @@ def get_best_robust_pool_pars(**keywords):
             if found:
                 alg_counts_sort = sorted(alg_counts.items(), key=lambda kv: kv[1], reverse=True)
                 main_parameter_name += '_final'
+                import eval_mutex as em
+                em.init_lock()
+                em.acquire_lock()
                 with open(ppar_file, 'a') as fo:
                     # Write parameters
                     alg_comb_bestl = [alg_counts_sort[0][0]]
@@ -2996,6 +3024,7 @@ def get_best_robust_pool_pars(**keywords):
                     yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                                      'value_count': alg_counts}},
                               stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+                em.release_lock()
             else:
                 warnings.warn('No matching parameters were found in yaml file.', UserWarning)
                 keywords['res'] += 1
@@ -3461,7 +3490,11 @@ def calc_calib_delay_noPar(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         yaml.dump({main_parameter_name: df_mmean},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
     return res

@@ -1251,6 +1251,9 @@ def get_best_comb_and_th_1(**keywords):
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg_comb_best.split('-')
@@ -1264,6 +1267,7 @@ def get_best_comb_and_th_1(**keywords):
                                          'th_best_mean': th_best_mean,
                                          'b_best_val': b_best_val}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
     return ret['res']
 
 
@@ -1354,6 +1358,9 @@ def get_best_comb_inlrat_1(**keywords):
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg_best.split('-')
@@ -1365,6 +1372,7 @@ def get_best_comb_inlrat_1(**keywords):
         yaml.dump({main_parameter_name: {'Algorithms': alg_w,
                                          'b_best_val': b_best}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
     return ret['res']
 
 
@@ -1708,6 +1716,9 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
     # Check if file and parameters exist
     ppar_file, ret['res'] = check_par_file_exists(main_parameter_name, ret['res_folder'], ret['res'])
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg.split('-')
@@ -1720,6 +1731,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                          'th': th_mean,
                                          'b_min': b_min}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return ret['res']
 
@@ -2651,6 +2663,9 @@ def estimate_alg_time_fixed_kp(**vars):
     # Check if file and parameters exist
     ppar_file, res = check_par_file_exists(main_parameter_name, vars['res_folder'], res)
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg.split('-')
@@ -2661,8 +2676,10 @@ def estimate_alg_time_fixed_kp(**vars):
             alg_w[val] = alg_comb_bestl[i]
         yaml.dump({main_parameter_name: alg_w},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+        em.release_lock()
 
     return res
+
 
 def get_time_fixed_kp(**vars):
     drop_cols = []
@@ -3173,6 +3190,9 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     # Check if file and parameters exist
     ppar_file, res = check_par_file_exists(main_parameter_name, vars['res_folder'], res)
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = str(min_t[index_name].values[0]).split('-')
@@ -3188,6 +3208,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                                          par_name[1]: par1[1],
                                          'Time_us': float(min_t[col_name].values[0])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return res
 
@@ -3989,6 +4010,9 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     # Check if file and parameters exist
     ppar_file, res = check_par_file_exists(main_parameter_name, vars['res_folder'], res)
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl1 = str(min1_t[index_name].values[0]).split('-')
@@ -4018,6 +4042,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                                                   'Time_us': float(min2_t[col_name].values[0])}
                                          }},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return res
 
@@ -4283,6 +4308,9 @@ def get_min_inlrat_diff(**keywords):
 
     min_diff = min_mean_diff.loc[[min_mean_diff['inlRat_diff'].idxmin()]]
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = str(min_diff[it_parameters_name].values[0]).split('-')
@@ -4295,5 +4323,6 @@ def get_min_inlrat_diff(**keywords):
                                          str(grp_names[-1]): float(min_diff[grp_names[-1]].values[0]),
                                          'inlRatDiff': float(min_diff['inlRat_diff'].values[0])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return res

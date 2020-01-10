@@ -852,6 +852,9 @@ def eval_corr_pool_converge(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = best_alg.split('-')
@@ -865,6 +868,7 @@ def eval_corr_pool_converge(**keywords):
                                          'mean_R_error': mean_r_error,
                                          'mean_t_error': mean_t_error}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     df_grp = tmp.groupby(keywords['partitions'])
     grp_keys = df_grp.groups.keys()
@@ -1514,6 +1518,9 @@ def eval_corr_pool_converge_vs_x(**keywords):
     # Check if file and parameters exist
     from usac_eval import check_par_file_exists, NoAliasDumper
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], res)
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = alg_idx.split('-')
@@ -1527,6 +1534,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
                                          'mean_R_error': rdiff,
                                          'mean_t_error': tdiff}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
     return res
 
 

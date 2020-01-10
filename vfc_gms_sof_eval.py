@@ -28,6 +28,9 @@ def get_min_inlrat_diff_no_fig(**keywords):
     # Check if file and parameters exist
     ppar_file, res = check_par_file_exists(main_parameter_name, keywords['res_folder'], 0)
 
+    import eval_mutex as em
+    em.init_lock()
+    em.acquire_lock()
     with open(ppar_file, 'a') as fo:
         # Write parameters
         alg_comb_bestl = tmp.index.values[0]
@@ -39,5 +42,6 @@ def get_min_inlrat_diff_no_fig(**keywords):
         yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                          keywords['err_type']: float(tmp['mean'].values[0])}},
                   stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    em.release_lock()
 
     return res
