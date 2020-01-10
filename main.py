@@ -8,6 +8,21 @@ def main():
                                                  'testing the autocalibration SW')
     parser.add_argument('--path', type=str, required=True,
                         help='Directory holding directories with template configuration files')
+    parser.add_argument('--skip_tests', type=str, nargs='+', required=False,
+                        help='List of test names that should be completely skipped. '
+                             'Possible tests: usac-testing, usac_vs_ransac, refinement_ba, vfc_gms_sof, '
+                             'refinement_ba_stereo, correspondence_pool, robustness, usac_vs_autocalib; '
+                             'Format: test1 test2 ...')
+    parser.add_argument('--skip_gen_sc_conf', type=str, nargs='+', required=False,
+                        help='List of test names for which the generation of configuration files out of '
+                             'initial configuration files should be skipped as they are already available. '
+                             'Possible tests: usac-testing, correspondence_pool, robustness, usac_vs_autocalib; '
+                             'Format: test1 test2 ...')
+    parser.add_argument('--skip_crt_sc', type=str, nargs='+', required=False,
+                        help='List of test names for which the creation of scenes '
+                             'should be skipped as they are already available. '
+                             'Possible tests: usac-testing, correspondence_pool, robustness, usac_vs_autocalib; '
+                             'Format: test1 test2 ...')
     parser.add_argument('--img_path', type=str, required=True,
                         help='Path to images')
     parser.add_argument('--store_path', type=str, required=True,
@@ -15,6 +30,15 @@ def main():
     parser.add_argument('--load_path', type=str, required=False,
                         help='Optional loading path for generated scenes and matches. '
                              'If not provided, store_path is used.')
+    parser.add_argument('--nrCPUs', type=int, required=False, default=4,
+                        help='Number of CPU cores for parallel processing. If a negative value is provided, '
+                             'the program tries to find the number of available CPUs on the system - if it fails, '
+                             'the absolute value of nrCPUs is used. Default: 4')
+    parser.add_argument('--executable', type=str, required=True,
+                        help='Executable of the application generating the sequences')
+    parser.add_argument('--message_path', type=str, required=True,
+                        help='Storing path for text files containing error and normal messages during the '
+                             'generation process of scenes and matches')
     args = parser.parse_args()
     if not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -28,8 +52,32 @@ def main():
     if args.load_path:
         if not os.path.exists(args.load_path):
             raise ValueError("Path for loading sequences does not exist")
-    #else:
-        #args.load_path = args.store_path
+    if not os.path.exists(args.message_path):
+        raise ValueError("Path for storing stdout and stderr does not exist")
+    if not os.path.isfile(args.executable):
+        raise ValueError('Executable ' + args.executable + ' for generating scenes does not exist')
+    elif not os.access(args.executable,os.X_OK):
+        raise ValueError('Unable to execute ' + args.executable)
+    if args.nrCPUs > 72 or args.nrCPUs == 0:
+        raise ValueError("Unable to use " + str(args.nrCPUs) + " CPU cores.")
+    av_cpus = os.cpu_count()
+    if av_cpus:
+        if args.nrCPUs < 0:
+            cpu_use = av_cpus
+        elif args.nrCPUs > av_cpus:
+            print('Demanded ' + str(args.nrCPUs) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
+                  + str(av_cpus) + ' CPUs.')
+            cpu_use = av_cpus
+        else:
+            cpu_use = args.nrCPUs
+    elif args.nrCPUs < 0:
+        print('Unable to determine # of CPUs. Using ' + str(abs(args.nrCPUs)) + ' CPUs.')
+        cpu_use = abs(args.nrCPUs)
+    else:
+        cpu_use = args.nrCPUs
+
+    main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
+                       'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
     try:
         if args.inlier_range:
             gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path,

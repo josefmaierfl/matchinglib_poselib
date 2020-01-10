@@ -164,8 +164,6 @@ def main():
     if args.load_path:
         if not os.path.exists(args.load_path):
             raise ValueError("Path for loading sequences does not exist")
-    #else:
-        #args.load_path = args.store_path
     try:
         if args.inlier_range:
             gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path,
