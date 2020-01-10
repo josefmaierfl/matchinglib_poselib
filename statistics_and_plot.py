@@ -2,7 +2,7 @@
 Evaluates results from the autocalibration present in a pandas DataFrame as specified in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, os, subprocess as sp, warnings, numpy as np, math, re, regex
+import sys, os, subprocess as sp, warnings, numpy as np, math, re, regex, psutil, time
 # import modin.pandas as pd
 import pandas as pd
 import jinja2 as ji
@@ -68,6 +68,36 @@ def compile_tex(rendered_tex,
                 cpu_use = av_cpus
             else:
                 cpu_use = nr_cpus
+            if mult_proc:
+                cpu_per = psutil.cpu_percent()
+                if cpu_per > 10:
+                    nr_tasks = len(rendered_tex)
+                    if nr_tasks >= cpu_use:
+                        cpu_rat = 100
+                    else:
+                        cpu_rat = nr_tasks / cpu_use
+                    cpu_rem = 100 - cpu_per
+                    if cpu_rem < cpu_rat:
+                        if cpu_rem >= (cpu_rat / 2):
+                            cpu_use = int(math.ceil(cpu_use * cpu_rem / 100))
+                        else:
+                            wcnt = 0
+                            while cpu_rem < (cpu_rat / 2) and wcnt < 600:
+                                time.sleep(.5)
+                                cpu_rem = 100 - psutil.cpu_percent()
+                                wcnt += 1
+                            if wcnt >= 600:
+                                if nr_tasks > 50:
+                                    cpu_use = max(int(math.ceil(cpu_use * cpu_rem / 100)),
+                                                  int(math.ceil(0.25 * cpu_use)),
+                                                  int(min(4, cpu_use)))
+                                else:
+                                    cpu_use = max(int(math.ceil(cpu_use * cpu_rem / 100)),
+                                                  int(math.ceil(0.1 * cpu_use)),
+                                                  int(min(2, cpu_use)))
+                            else:
+                                cpu_use = int(math.ceil(cpu_use * cpu_rem / 100))
+
         rep_make = 1
         if make_fig_index or figs_externalize:
             rep_make = 2

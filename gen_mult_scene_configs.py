@@ -2,8 +2,9 @@
 Loads initial configuration files and builds a folder structure and an overview file for generating
 specific configuration and overview files for scenes by varying the used inlier ratio and keypoint accuracy
 """
-import sys, re, argparse, os, subprocess as sp
+import sys, re, argparse, os, subprocess as sp, warnings
 from shutil import copyfile
+
 
 def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path, treatTPasCorrs):
     use_load_path = False
@@ -173,7 +174,7 @@ def main():
             gen_configs(args.path, [], args.inlchrate_range, args.kpAccRange, args.img_path, args.store_path,
                         args.load_path, False)
     except FileExistsError:
-        print(sys.exc_info()[0])
+        warnings.warn(sys.exc_info()[0], UserWarning)
         return 1
     except:
         print("Unexpected error: ", sys.exc_info()[0])
