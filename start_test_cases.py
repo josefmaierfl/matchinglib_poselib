@@ -3,6 +3,7 @@ Execute different test scenarios for the autocalibration based on name and test 
 Autocalibration-Parametersweep-Testing.xlsx
 """
 import sys, re, argparse, os, warnings, time, subprocess as sp
+import ruamel.yaml as yaml, numpy as np
 
 def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, test_name, test_nr):
     args = ['--path', path_ov_file, '--nrCPUs', str(cpu_cnt), '--executable', executable,
@@ -827,35 +828,385 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
     return retcode
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Execute different test scenarios for the autocalibration based '
-                                                 'on name and test number in file '
-                                                 'Autocalibration-Parametersweep-Testing.xlsx')
-    parser.add_argument('--path', type=str, required=True,
-                        help='Directory holding file \'generated_dirs_config.txt\'')
-    parser.add_argument('--nrCPUs', type=int, required=False, default=4,
-                        help='Number of CPU cores for parallel processing. If a negative value is provided, '
-                             'the program tries to find the number of available CPUs on the system - if it fails, '
-                             'the absolute value of nrCPUs is used. Default: 4')
-    parser.add_argument('--executable', type=str, required=True,
-                        help='Executable of the autocalibration SW')
-    parser.add_argument('--message_path', type=str, required=True,
-                        help='Storing path for text files containing error and normal messages during the '
-                             'generation process of scenes and matches. For every different test a '
-                             'new directory with the name of option test_name is created. '
-                             'Within this directory another directory is created with the name of option test_nr')
-    parser.add_argument('--output_path', type=str, required=True,
-                        help='Main output path for results of the autocalibration. For every different test a '
-                             'new directory with the name of option test_name is created. '
-                             'Within this directory another directory is created with the name of option test_nr')
-    parser.add_argument('--test_name', type=str, required=True,
-                        help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
-    parser.add_argument('--test_nr', type=int, required=False,
-                        help='Test number within the main test specified by test_name starting with 1')
-    args = parser.parse_args()
+def write_par_file_template(path):
+    pfile = os.path.join(path, 'optimal_autocalib_pars.yml')
+    if os.path.exists(pfile):
+        raise ValueError('Parameter file already exists')
+    from usac_eval import NoAliasDumper
 
-    return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
-                       args.output_path, args.test_name.lower(), args.test_nr)
+    usac56 = None #[2, 5]
+    usac123 = None #[3, 1, 1]
+    USACInlratFilt = None #0
+    th = None #0.85
+    refineRT = None #[4, 2]
+    robMFilt = None #'USAC'
+    bart = None #1
+    refineRT_stereo = None #[4, 2]
+    bart_stereo = None #1
+    minPtsDistance = None #3.0
+    maxPoolCorrespondences = None #8000
+    maxRat3DPtsFar = None #0.5
+    maxDist3DPtsZ = None #50.0
+    relInlRatThLast = None #0.35
+    relInlRatThNew = None #0.2
+    minInlierRatSkip = None #0.38
+    relMinInlierRatSkip = None #0.7
+    minInlierRatioReInit = None #0.67
+    checkPoolPoseRobust = None #3
+    minContStablePoses = None #3
+    minNormDistStable = None #0.5
+    absThRankingStable = None #0.075
+    useRANSAC_fewMatches = None #False
+
+    pars = {'usac56': usac56,
+            'usac123': usac123,
+            'USACInlratFilt': USACInlratFilt,
+            'th': th,
+            'refineRT': refineRT,
+            'robMFilt': robMFilt,
+            'bart': bart,
+            'refineRT_stereo': refineRT_stereo,
+            'bart_stereo': bart_stereo,
+            'minPtsDistance': minPtsDistance,
+            'maxPoolCorrespondences': maxPoolCorrespondences,
+            'maxRat3DPtsFar': maxRat3DPtsFar,
+            'maxDist3DPtsZ': maxDist3DPtsZ,
+            'relInlRatThLast': relInlRatThLast,
+            'relInlRatThNew': relInlRatThNew,
+            'minInlierRatSkip': minInlierRatSkip,
+            'relMinInlierRatSkip': relMinInlierRatSkip,
+            'minInlierRatioReInit': minInlierRatioReInit,
+            'checkPoolPoseRobust': checkPoolPoseRobust,
+            'minContStablePoses': minContStablePoses,
+            'minNormDistStable': minNormDistStable,
+            'absThRankingStable': absThRankingStable,
+            'useRANSAC_fewMatches': useRANSAC_fewMatches}
+    with open(pfile, 'w') as fo:
+        # Write mat
+        yaml.dump(pars, stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return 0
+
+
+def read_pars_yaml(path):
+    from usac_eval import readYaml
+    pfile = os.path.join(path, 'optimal_autocalib_pars.yml')
+    if os.path.exists(pfile):
+        try:
+            ydata = readYaml(pfile)
+        except BaseException:
+            raise ValueError('Unable to read parameter file')
+            return -1
+    else:
+        warnings.warn('Parameter file does not exist. Creating a template.', UserWarning)
+        try:
+            write_par_file_template(path)
+        except ValueError:
+            raise ValueError('Parameter file exists but cannot be read.')
+        ydata = readYaml(pfile)
+    return ydata
+
+
+def read_pars(path, pars_list):
+    data = read_pars_yaml(path)
+    ret = {}
+    for i in pars_list:
+        try:
+            ret[i] = data[i]
+        except:
+            warnings.warn('Parameter ' + i + ' not found in YAML file. Setting it not none', UserWarning)
+            ret[i] = None
+    return ret
+
+
+def convert_autoc_pars_out_to_in(par_name, par_value):
+    if isinstance(par_name, list):
+        ret = []
+        main_par = None
+        for i, j in zip(par_name, par_value):
+            if not isinstance(i, str) or not isinstance(j, str):
+                raise ValueError('Input parameters must be of type str')
+            if i == 'USAC_parameters_automaticSprtInit':
+                if not ret:
+                    ret = [None, None, None]
+                    main_par = 'usac123'
+                if j == 'SPRT_DEFAULT_INIT':
+                    ret[0] = 0
+                elif j == 'SPRT_DELTA_AUTOM_INIT':
+                    ret[0] = 1
+                elif j == 'SPRT_EPSILON_AUTOM_INIT':
+                    ret[0] = 2
+                elif j == 'SPRT_DELTA_AND_EPSILON_AUTOM_INIT':
+                    ret[0] = 3
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'USAC_parameters_automaticProsacParameters':
+                if not ret:
+                    ret = [None, None, None]
+                    main_par = 'usac123'
+                if j == 'enabled':
+                    ret[1] = 1
+                elif j == 'disabled':
+                    ret[1] = 0
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'USAC_parameters_prevalidateSample':
+                if not ret:
+                    ret = [None, None, None]
+                    main_par = 'usac123'
+                if j == 'enabled':
+                    ret[2] = 1
+                elif j == 'disabled':
+                    ret[2] = 0
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'USAC_parameters_estimator':
+                if not ret:
+                    ret = [None, None]
+                    main_par = 'usac56'
+                if j == 'POSE_NISTER':
+                    ret[0] = 0
+                elif j == 'POSE_EIG_KNEIP':
+                    ret[0] = 1
+                elif j == 'POSE_STEWENIUS':
+                    ret[0] = 2
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'USAC_parameters_refinealg':
+                if not ret:
+                    ret = [None, None]
+                    main_par = 'usac56'
+                if j == 'REF_WEIGHTS':
+                    ret[1] = 0
+                elif j == 'REF_8PT_PSEUDOHUBER':
+                    ret[1] = 1
+                elif j == 'REF_EIG_KNEIP':
+                    ret[1] = 2
+                elif j == 'REF_EIG_KNEIP_WEIGHTS':
+                    ret[1] = 3
+                elif j == 'REF_STEWENIUS':
+                    ret[1] = 4
+                elif j == 'REF_STEWENIUS_WEIGHTS':
+                    ret[1] = 5
+                elif j == 'REF_NISTER':
+                    ret[1] = 6
+                elif j == 'REF_NISTER_WEIGHTS':
+                    ret[1] = 7
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'refineMethod_algorithm' or i == 'stereoParameters_refineMethod_algorithm':
+                if not ret:
+                    ret = [None, None]
+                    main_par = 'refineRT'
+                if j == 'PR_NO_REFINEMENT':
+                    ret[0] = 0
+                elif j == 'PR_8PT':
+                    ret[0] = 2
+                elif j == 'PR_NISTER':
+                    ret[0] = 3
+                elif j == 'PR_STEWENIUS':
+                    ret[0] = 4
+                elif j == 'PR_KNEIP':
+                    ret[0] = 5
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'refineMethod_costFunction' or i == 'stereoParameters_refineMethod_costFunction':
+                if not ret:
+                    ret = [None, None]
+                    main_par = 'refineRT'
+                if j == 'PR_TORR_WEIGHTS':
+                    ret[1] = 1
+                elif j == 'PR_PSEUDOHUBER_WEIGHTS':
+                    ret[1] = 2
+                elif j == 'PR_NO_WEIGHTS':
+                    ret[1] = 0
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'stereoParameters_refineMethod_CorrPool_algorithm':
+                if not ret:
+                    ret = [None, None]
+                    main_par = 'refineRT_stereo'
+                if j == 'PR_NO_REFINEMENT':
+                    ret[0] = 0
+                elif j == 'PR_8PT':
+                    ret[0] = 2
+                elif j == 'PR_NISTER':
+                    ret[0] = 3
+                elif j == 'PR_STEWENIUS':
+                    ret[0] = 4
+                elif j == 'PR_KNEIP':
+                    ret[0] = 5
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            elif i == 'stereoParameters_refineMethod_CorrPool_costFunction':
+                if not ret:
+                    ret = [None, None]
+                    main_par = 'refineRT_stereo'
+                if j == 'PR_TORR_WEIGHTS':
+                    ret[1] = 1
+                elif j == 'PR_PSEUDOHUBER_WEIGHTS':
+                    ret[1] = 2
+                elif j == 'PR_NO_WEIGHTS':
+                    ret[1] = 0
+                else:
+                    raise ValueError('Invalid value \'' + j + '\' for parameter ' + i)
+            else:
+                raise ValueError('Unknown parameter ' + i)
+        if not main_par:
+            raise ValueError('Main parameter name not found.')
+        for i in ret:
+            if i is None:
+                raise ValueError('Invalid number of parameters provided for ' + main_par)
+        return {main_par: ret}
+    elif isinstance(par_name, str):
+        if par_name == 'th' or par_name == 'USAC_parameters_th_pixels' or par_name == 'stereoParameters_th_pix_user':
+            if not isinstance(par_value, float):
+                raise ValueError('Threshold must be a float value')
+            return {'th': par_value}
+        elif par_name == 'RobMethod' or par_name == 'stereoParameters_RobMethod':
+            if par_value not in ['USAC', 'RANSAC']:
+                raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+            return {'robMFilt': par_value}
+        elif par_name == 'USAC_parameters_USACInlratFilt':
+            if not (par_value == 'GMS' or par_value == 'VFC'):
+                raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+            return {'USACInlratFilt': par_value}
+        elif par_name == 'BART' or par_name == 'stereoParameters_BART':
+            if par_value == 'disabled':
+                return {'bart': 0}
+            elif par_value == 'extr_only':
+                return {'bart': 1}
+            elif par_value == 'extr_intr':
+                return {'bart': 2}
+            else:
+                raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+        elif par_name == 'stereoParameters_BART_CorrPool':
+            if par_value == 'disabled':
+                return {'bart_stereo': 0}
+            elif par_value == 'extr_only':
+                return {'bart_stereo': 1}
+            elif par_value == 'extr_intr':
+                return {'bart_stereo': 2}
+            else:
+                raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+        elif par_name == 'stereoParameters_checkPoolPoseRobust':
+            if isinstance(par_value, float):
+                par_value = int(par_value)
+            elif not isinstance(par_value, int):
+                raise ValueError('Parameter ' + par_name + ' must be of type float or int')
+            return {'checkPoolPoseRobust': par_value}
+        elif par_name == 'stereoParameters_useRANSAC_fewMatches':
+            if par_value == 'enabled':
+                return {'useRANSAC_fewMatches': True}
+            elif par_value == 'disabled':
+                return {'useRANSAC_fewMatches': False}
+            else:
+                raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+        elif par_name == 'stereoParameters_maxPoolCorrespondences':
+            if isinstance(par_value, float):
+                par_value = int(par_value)
+            elif not isinstance(par_value, int):
+                raise ValueError('Parameter ' + par_name + ' must be of type float or int')
+            return {'maxPoolCorrespondences': par_value}
+        elif par_name == 'stereoParameters_maxDist3DPtsZ':
+            if isinstance(par_value, int):
+                par_value = float(par_value)
+            elif not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float or int')
+            return {'maxDist3DPtsZ': par_value}
+        elif par_name == 'stereoParameters_maxRat3DPtsFar':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'maxRat3DPtsFar': par_value}
+        elif par_name == 'stereoParameters_minStartAggInlRat':
+            # Set to a fixed value - no evals for this value
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'minStartAggInlRat': par_value}
+        elif par_name == 'stereoParameters_minInlierRatSkip':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'minInlierRatSkip': par_value}
+        elif par_name == 'stereoParameters_relInlRatThLast':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'relInlRatThLast': par_value}
+        elif par_name == 'stereoParameters_relInlRatThNew':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'relInlRatThNew': par_value}
+        elif par_name == 'stereoParameters_relMinInlierRatSkip':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'relMinInlierRatSkip': par_value}
+        elif par_name == 'stereoParameters_minInlierRatioReInit':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'minInlierRatioReInit': par_value}
+        elif par_name == 'stereoParameters_maxSkipPairs':
+            # currently not used in test framework
+            return {'maxSkipPairs': par_value}
+        elif par_name == 'stereoParameters_minNormDistStable':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'minNormDistStable': par_value}
+        elif par_name == 'stereoParameters_absThRankingStable':
+            if not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float')
+            return {'absThRankingStable': par_value}
+        elif par_name == 'stereoParameters_minContStablePoses':
+            if isinstance(par_value, float):
+                par_value = int(par_value)
+            elif not isinstance(par_value, int):
+                raise ValueError('Parameter ' + par_name + ' must be of type float or int')
+            return {'minContStablePoses': par_value}
+        elif par_name == 'stereoParameters_raiseSkipCnt':
+            # currently not used in test framework
+            return {'raiseSkipCnt': par_value}
+        elif par_name == 'stereoParameters_minPtsDistance':
+            if isinstance(par_value, int):
+                par_value = float(par_value)
+            elif not isinstance(par_value, float):
+                raise ValueError('Parameter ' + par_name + ' must be of type float or int')
+            return {'minPtsDistance': par_value}
+        else:
+            raise ValueError('Unknown parameter ' + par_name)
+    else:
+        raise ValueError('Type of parameter ' + par_name + ' must be str or list')
+
+
+def main():
+    write_par_file_template('/home/maierj/work/Sequence_Test/py_test')
+    print(read_pars('/home/maierj/work/Sequence_Test/py_test', ['usac56', 'robMFilt']))
+    # parser = argparse.ArgumentParser(description='Execute different test scenarios for the autocalibration based '
+    #                                              'on name and test number in file '
+    #                                              'Autocalibration-Parametersweep-Testing.xlsx')
+    # parser.add_argument('--path', type=str, required=True,
+    #                     help='Directory holding file \'generated_dirs_config.txt\'')
+    # parser.add_argument('--nrCPUs', type=int, required=False, default=4,
+    #                     help='Number of CPU cores for parallel processing. If a negative value is provided, '
+    #                          'the program tries to find the number of available CPUs on the system - if it fails, '
+    #                          'the absolute value of nrCPUs is used. Default: 4')
+    # parser.add_argument('--executable', type=str, required=True,
+    #                     help='Executable of the autocalibration SW')
+    # parser.add_argument('--message_path', type=str, required=True,
+    #                     help='Storing path for text files containing error and normal messages during the '
+    #                          'generation process of scenes and matches. For every different test a '
+    #                          'new directory with the name of option test_name is created. '
+    #                          'Within this directory another directory is created with the name of option test_nr')
+    # parser.add_argument('--output_path', type=str, required=True,
+    #                     help='Main output path for results of the autocalibration. For every different test a '
+    #                          'new directory with the name of option test_name is created. '
+    #                          'Within this directory another directory is created with the name of option test_nr')
+    # parser.add_argument('--test_name', type=str, required=True,
+    #                     help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
+    # parser.add_argument('--test_nr', type=int, required=False,
+    #                     help='Test number within the main test specified by test_name starting with 1')
+    # parser.add_argument('--load_parameters', type=str, required=False,
+    #                     help='Optional YAML file containing optimal parameter values for the autocalibration SW.')
+    # args = parser.parse_args()
+    #
+    # return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
+    #                    args.output_path, args.test_name.lower(), args.test_nr)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,8 @@ import sys, re, argparse, os, subprocess as sp, warnings
 from shutil import copyfile
 
 
-def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path, treatTPasCorrs):
+def gen_configs(input_path, path_confs_out, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path,
+                treatTPasCorrs):
     use_load_path = False
     if load_path:
         use_load_path = True
@@ -21,7 +22,7 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
             files.append(i)
     if len(files) == 0:
         raise ValueError('No files including _init found.')
-    ovfile_new = os.path.join(input_path, 'generated_dirs_config.txt')
+    ovfile_new = os.path.join(path_confs_out, 'generated_dirs_config.txt')
     if os.path.exists(ovfile_new):
         raise FileExistsError("File containing configuration file names already exists: " + ovfile_new)
     with open(ovfile_new, 'w') as fo:
@@ -33,7 +34,7 @@ def gen_configs(input_path, inlier_range, inlier_chr, kpAccRange, img_path, stor
                 ending = fnObj.group(2)
             else:
                 raise ValueError('Cannot extract part of file name')
-            pathnew = os.path.join(input_path, base)
+            pathnew = os.path.join(path_confs_out, base)
             try:
                 os.mkdir(pathnew)
             except FileExistsError:
@@ -106,6 +107,9 @@ def main():
                                                  'varying the used inlier ratio and keypoint accuracy')
     parser.add_argument('--path', type=str, required=True,
                         help='Directory holding template configuration files')
+    parser.add_argument('--path_confs_out', type=str, required=False,
+                        help='Optional directory for writing configuration files. If not available, '
+                             'the directory from argument \'path\' is used.')
     parser.add_argument('--inlier_range', type=float, nargs=3, required=False,
                         help='Range for the inlier ratio. Format: min max step_size')
     parser.add_argument('--inlchrate_range', type=float, nargs='+', required=False,
@@ -130,6 +134,10 @@ def main():
     args = parser.parse_args()
     if not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding template scene configuration files does not exist')
+    if not args.path_confs_out:
+        args.path_confs_out = args.path
+    elif not os.path.exists(args.path_confs_out):
+        os.makedirs(args.path_confs_out, exist_ok=True)
     if args.inlier_range:
         if (args.inlier_range[0] > args.inlier_range[1]) or \
                 (args.inlier_range[2] > (args.inlier_range[1] - args.inlier_range[0])):
@@ -166,11 +174,11 @@ def main():
             raise ValueError("Path for loading sequences does not exist")
     try:
         if args.inlier_range:
-            gen_configs(args.path, args.inlier_range, [], args.kpAccRange, args.img_path, args.store_path,
-                        args.load_path, args.treatTPasCorrs)
+            gen_configs(args.path, args.path_confs_out, args.inlier_range, [], args.kpAccRange, args.img_path,
+                        args.store_path, args.load_path, args.treatTPasCorrs)
         else:
-            gen_configs(args.path, [], args.inlchrate_range, args.kpAccRange, args.img_path, args.store_path,
-                        args.load_path, False)
+            gen_configs(args.path, args.path_confs_out, [], args.inlchrate_range, args.kpAccRange, args.img_path,
+                        args.store_path, args.load_path, False)
     except FileExistsError:
         warnings.warn(sys.exc_info()[0], UserWarning)
         return 1

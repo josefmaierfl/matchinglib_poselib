@@ -1597,9 +1597,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction',
-                                     'stereoParameters_BART']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction',
+                                     'stereoParameters_BART_CorrPool']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'refRT_stereo_BA_opts_inlrat'}
@@ -1638,9 +1638,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction',
-                                     'stereoParameters_BART']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction',
+                                     'stereoParameters_BART_CorrPool']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['depthDistr', 'kpAccSd']
                     special_calcs_args = {'build_pdf': (True, True, True),
@@ -1677,9 +1677,9 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     fig_title_pre_str = 'Statistics on Execution Times for Comparison of '
                     eval_columns = ['stereoRefine_us']
                     units = [('stereoRefine_us', '/$\\mu s$')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction',
-                                     'stereoParameters_BART']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction',
+                                     'stereoParameters_BART_CorrPool']
                     special_calcs_args = {'res_par_name': 'refRT_BA_stereo_min_time',
                                           'err_type': 'min_mean_time',
                                           'mk_no_folder': True}
@@ -1723,8 +1723,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'refRT_stereo_opts_for_BA2_inlrat'}
@@ -1764,8 +1764,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
                              ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
                              ('t_diff_ty', ''), ('t_diff_tz', '')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['depthDistr', 'kpAccSd']
                     special_calcs_args = {'build_pdf': (True, True, True),
@@ -1811,8 +1811,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('K2_fxDiff', '/pixel'), ('K1_fyDiff', '/pixel'), ('K2_fyDiff', '/pixel'),
                              ('K1_cxDiff', '/pixel'), ('K2_cxDiff', '/pixel'), ('K1_cyDiff', '/pixel'),
                              ('K2_cyDiff', '/pixel')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction']
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'res_par_name': 'refRT_stereo_opts_for_BA2_K_inlrat'}
@@ -1856,8 +1856,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                              ('K2_fxDiff', '/pixel'), ('K1_fyDiff', '/pixel'), ('K2_fyDiff', '/pixel'),
                              ('K1_cxDiff', '/pixel'), ('K2_cxDiff', '/pixel'), ('K1_cyDiff', '/pixel'),
                              ('K2_cyDiff', '/pixel')]
-                    it_parameters = ['stereoParameters_refineMethod_algorithm',
-                                     'stereoParameters_refineMethod_costFunction']
+                    it_parameters = ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                     'stereoParameters_refineMethod_CorrPool_costFunction']
                     # partitions = ['kpDistr', 'depthDistr', 'nrTP', 'kpAccSd', 'th']
                     partitions = ['depthDistr', 'kpAccSd']
                     from refinement_eval import combineK
