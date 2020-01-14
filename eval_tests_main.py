@@ -2,12 +2,13 @@
 Loads test results and calls specific functions for evaluation as specified in file
 Autocalibration-Parametersweep-Testing.xlsx
 """
-import sys, re, argparse, os, subprocess as sp, warnings, numpy as np
+import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
+import multiprocessing
 import ruamel.yaml as yaml
-import modin.pandas as mpd
+# import modin.pandas as mpd
 import pandas as pd
-
-#warnings.simplefilter('ignore', category=UserWarning)
+from timeit import default_timer as timer
+import contextlib, logging
 
 def opencv_matrix_constructor(loader, node):
     mapping = loader.construct_mapping(node, deep=True)
@@ -18,6 +19,7 @@ yaml.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matrix_construct
 yaml.SafeLoader.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matrix_constructor)
 
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
+
 
 def readOpenCVYaml(file, isstr = False):
     if isstr:
@@ -49,8 +51,9 @@ def RepresentsInt(s):
         return False
 
 
-def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars):
-    #Load test results
+def load_test_res(load_path):
+    # Load test results
+    start = timer()
     res_path = os.path.join(load_path, 'results')
     if not os.path.exists(res_path):
         raise ValueError('No results folder found')
@@ -77,14 +80,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             if not os.path.exists(csvf):
                 raise ValueError('Results file ' + csvf + ' not found')
             csv_data = pd.read_csv(csvf, delimiter=';', engine='c')
-            #print('Loaded', csvf, 'with shape', csv_data.shape)
-            #csv_data.set_index('Nr')
+            # print('Loaded', csvf, 'with shape', csv_data.shape)
+            # csv_data.set_index('Nr')
             addSequInfo_sep = None
             # for idx, row in csv_data.iterrows():
             for row in csv_data.itertuples():
-                #tmp = row['addSequInfo'].split('_')
+                # tmp = row['addSequInfo'].split('_')
                 tmp = row.addSequInfo.split('_')
-                tmp = dict([(tmp[x], tmp[x + 1]) for x in range(0,len(tmp), 2)])
+                tmp = dict([(tmp[x], tmp[x + 1]) for x in range(0, len(tmp), 2)])
                 if addSequInfo_sep:
                     for k in addSequInfo_sep.keys():
                         addSequInfo_sep[k].append(tmp[k])
@@ -102,12 +105,175 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             csv_new = pd.concat([csv_data, data_set_repl], axis=1, sort=False, join_axes=[csv_data.index])
             data_list.append(csv_new)
     data = pd.concat(data_list, ignore_index=True, sort=False, copy=False)
+    end = timer()
+    load_time = end - start
+    return data, load_time
+
+
+def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path):
+    data, load_time = load_test_res(load_path)
     # data_dict = data.to_dict('list')
     # data = mpd.DataFrame(data_dict)
-    data = mpd.utils.from_pandas(data)
+    # data = mpd.utils.from_pandas(data)
     #print('Finished loading data')
+
+    main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
+                       'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
+    sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
+    sub_sub_test_nr = [[list(range(1, 7)), list(range(7, 15)) + [36]],
+                       [list(range(1, 8))],
+                       [list(range(1, 6)), list(range(1, 5))],
+                       [list(range(1, 8))],
+                       [list(range(1, 4)), list(range(1, 5))],
+                       [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
+                       [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
+                        list(range(25, 29)), list(range(29, 38))],
+                       [list(range(1, 9))]]
+    evals_w_compare = [('refinement_ba_stereo', 1, 1),
+                       ('refinement_ba_stereo', 1, 2),
+                       ('refinement_ba_stereo', 2, 1),
+                       ('refinement_ba_stereo', 2, 2),
+                       ('refinement_ba_stereo', 2, 3),
+                       ('refinement_ba_stereo', 2, 4),
+                       ('correspondence_pool', 3, 14),
+                       ('correspondence_pool', 3, 15)]
+    test_idx = main_test_names.index(test_name)
+    tn_idx = 0
+    if test_nr and test_nr <= sub_test_numbers[test_idx]:
+        tn_idx = test_nr - 1
+    evcn = list(dict.fromkeys([a[0] for a in evals_w_compare]))
+    if eval_nr[0] == -1:
+        used_evals = sub_sub_test_nr[test_idx][tn_idx]
+    else:
+        used_evals = eval_nr
+    comp_pars_list = []
+    if test_name in evcn:
+        for i in evals_w_compare:
+            if i[0] == test_name and i[1] == test_nr:
+                if (eval_nr[0] == -1 or i[2] in eval_nr) and not comp_pars:
+                    raise ValueError('Figure name for comparison must be provided')
+                elif i[2] in eval_nr and i[2] not in comp_pars.keys():
+                    raise ValueError('Wrong evaluation number for comparison provided')
+
+        for i in used_evals:
+            if comp_pars and i in comp_pars.keys():
+                comp_pars_list.append(comp_pars[i])
+            else:
+                comp_pars_list.append(None)
+    else:
+        comp_pars_list = [None] * len(used_evals)
+
+    if cpu_use == 1 and not comp_pars:
+        return eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
+    elif cpu_use == 1:
+        evs_no_cmp = [a for i, a in enumerate(used_evals) if not comp_pars_list[i]]
+        evs_cmp = [[i, a] for i, a in enumerate(used_evals) if comp_pars_list[i]]
+        ret = eval_test_exec(data, output_path, test_name, test_nr, evs_no_cmp, None, None)
+        for i in evs_cmp:
+            ret += eval_test_exec(data, output_path, test_name, test_nr, [i[1]], comp_path, comp_pars_list[i[0]])
+        return ret
+    else:
+        # parts = 1
+        # rest = 0
+        # if cpu_use > len(used_evals):
+        #     cpu_use = len(used_evals)
+        # elif cpu_use < len(used_evals):
+        #     parts = int(float(len(used_evals)) / float(cpu_use))
+        #     rest = len(used_evals) % cpu_use
+        # cmds = [[(data, output_path, test_name, test_nr, a, comp_path, b)
+        #          for a, b in zip(used_evals[(p * cpu_use):(p * (cpu_use + 1))],
+        #                          comp_pars_list[(p * cpu_use):(p * (cpu_use + 1))])] for p in range(0, parts)]
+        # if rest:
+        #     cmds.append([(data, output_path, test_name, test_nr, a, comp_path, b)
+        #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
+        #                                  comp_pars_list[(len(used_evals) - rest):])])
+        message_path_new = os.path.join(message_path, test_name)
+        try:
+            os.mkdir(message_path_new)
+        except FileExistsError:
+            pass
+        message_path_new = os.path.join(message_path_new, str(test_nr))
+        try:
+            os.mkdir(message_path_new)
+        except FileExistsError:
+            pass
+        cmds = [(data, output_path, test_name, test_nr, a, comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+
+        err_trace_base_name = 'evals_except_' + test_name + '_' + str(test_nr)
+        base = err_trace_base_name
+        excmess = os.path.join(message_path_new, base + '.txt')
+        cnt = 1
+        while os.path.exists(excmess):
+            base = err_trace_base_name + '_-_' + str(cnt)
+            excmess = os.path.join(message_path_new, base + '.txt')
+            cnt += 1
+        logging.basicConfig(filename=excmess, level=logging.DEBUG)
+        ret = 0
+        cnt_dot = 0
+        with multiprocessing.Pool(processes=cpu_use) as pool:
+            results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
+            res1 = []
+            for i, r in enumerate(results):
+                while 1:
+                    sys.stdout.flush()
+                    try:
+                        res = r.get(2.0)
+                        ret += res
+                        break
+                    except multiprocessing.TimeoutError:
+                        if cnt_dot >= 90:
+                            print()
+                            cnt_dot = 0
+                        sys.stdout.write('.')
+                        cnt_dot = cnt_dot + 1
+                    except Exception:
+                        logging.error('Fatal error within evaluation on ' + test_name +
+                                      ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
+                        res1.append(cmds[i][2:5])
+                        ret += 1
+                        break
+        if os.stat(excmess).st_size == 0:
+            os.remove(excmess)
+        if res1:
+            failed_cmds_base_name = 'cmds_evals_failed_' + test_name + '_' + str(test_nr)
+            base = failed_cmds_base_name
+            fcmdsmess = os.path.join(message_path_new, base + '.txt')
+            cnt = 1
+            while os.path.exists(excmess):
+                base = failed_cmds_base_name + '_-_' + str(cnt)
+                fcmdsmess = os.path.join(message_path_new, base + '.txt')
+                cnt += 1
+            with open(fcmdsmess, 'w') as fo1:
+                fo1.write('Failed evaluations:\n')
+                fo1.write('\n'.join('  '.join(map(str, res1))))
+        return ret
+
+
+def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
+    mess_base_name = 'evals_' + test_name + '_' + str(test_nr) + '_' + str(eval_nr)
+    base = mess_base_name
+    errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
+    stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
+    cnt = 1
+    while os.path.exists(errmess) or os.path.exists(stdmess):
+        base = mess_base_name + '_-_' + str(cnt)
+        errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
+        stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
+        cnt += 1
+    with open(stdmess, 'a') as f_std, open(errmess, 'a') as f_err:
+        with contextlib.redirect_stdout(f_std), contextlib.redirect_stderr(f_err):
+            ret = eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
+    if os.stat(errmess).st_size == 0:
+        os.remove(errmess)
+    if os.stat(stdmess).st_size == 0:
+        os.remove(stdmess)
+    return ret
+
+
+def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars):
     ret = 0
-    if test_name == 'testing_tests':#'usac-testing':
+    if test_name == 'usac-testing':
         if not test_nr:
             raise ValueError('test_nr is required for usac-testing')
         from statistics_and_plot import calcSatisticAndPlot_2D, \
@@ -4978,15 +5144,25 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     return ret
 
 
-def get_compare_info(comp_pars, comp_path, test_name, test_r, eval_description_path, descr, repl_eval=None):
+def get_compare_info(comp_pars, comp_path, test_name, test_r, eval_description_path, descr, repl_eval=None,
+                     unique_path=None):
     if not comp_pars:
         raise ValueError('Parameter values for comparing refinement without kp aggregation missing')
-    c_path = os.path.join(comp_path, test_name)
-    if not os.path.exists(c_path):
-        raise ValueError('Specific test compare directory ' + c_path + '  not found')
-    c_path = os.path.join(c_path, str(test_r))
-    if not os.path.exists(c_path):
-        raise ValueError('Specific test nr compare directory ' + c_path + '  not found')
+    if not comp_path and unique_path:
+        c_path = unique_path
+        if not os.path.exists(c_path):
+            raise ValueError('Specific compare directory ' + c_path + ' not found')
+    else:
+        c_path = os.path.join(comp_path, test_name)
+        if not os.path.exists(c_path):
+            raise ValueError('Specific test compare directory ' + c_path + ' not found')
+        if test_r:
+            c_path = os.path.join(c_path, str(test_r))
+            if not os.path.exists(c_path):
+                raise ValueError('Specific test nr compare directory ' + c_path + ' not found')
+        c_path = os.path.join(c_path, 'evals')
+        if not os.path.exists(c_path):
+            raise ValueError('Specific \'evals\' compare directory ' + c_path + ' not found')
     compare_source = {'store_path': c_path,
                       'it_par_select': [a.split('-')[-1] for a in comp_pars],
                       'it_parameters': [a.split('-')[0] for a in comp_pars],
@@ -5024,6 +5200,13 @@ def main():
     parser.add_argument('--output_path', type=str, required=False,
                         help='Optional output directory. By default, (if this option is not provided, the data is '
                              'stored in a new directory inside the directory for a specific test.')
+    parser.add_argument('--nrCPUs', type=int, required=False, default=4,
+                        help='Number of CPU cores for parallel processing. If a negative value is provided, '
+                             'the program tries to find the number of available CPUs on the system - if it fails, '
+                             'the absolute value of nrCPUs is used. Default: 4')
+    parser.add_argument('--message_path', type=str, required=False,
+                        help='Storing path for text files containing error and normal mesages during '
+                             'execution of evals')
     parser.add_argument('--test_name', type=str, required=True,
                         help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
     parser.add_argument('--test_nr', type=int, required=False,
@@ -5038,12 +5221,18 @@ def main():
     parser.add_argument('--compare_pars', type=str, required=False, nargs='*', default=[],
                         help='If provided, results from already performed evaluations can be loaded and added to '
                              'the current evaluation for comparison. The type of evaluation must be similar '
-                             '(same axis, data partitions, ...). The argument must be provided as a list of strings '
+                             '(same axis, data partitions, ...). If provided, also argument \'comp_pars_ev_nr\' must '
+                             'be provided if argument \'eval_nr\' equals -1 [default] or a list of evaluation numbers '
+                             'was given. The argument \'compare_pars\' must be provided as a list of strings '
                              '(e.g. --compare str1 str2 str3 ...). The list must contain the parameter-parameter '
                              'value pairs of the already performed evaluation for which the comparison should be performed '
                              '(like \'--compare_pars refineMethod_algorithm-PR_STEWENIUS '
                              'refineMethod_costFunction-PR_PSEUDOHUBER_WEIGHTS BART-extr_only\' for the evaluation '
                              'of refinement methods and bundle adjustment options).')
+    parser.add_argument('--comp_pars_ev_nr', type=str, required=False, nargs='*', default=[],
+                        help='If provided, argument \'compare_pars\' must also be provided. For every '
+                             'string in argument \'compare_pars\' the evaluation number at which the comparison '
+                             'should be performed must be provided.')
     parser.add_argument('--compare_path', type=str, required=False,
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
                              'the path from option --path is used. Results are only loaded, if option '
@@ -5052,6 +5241,28 @@ def main():
 
     if not os.path.exists(args.path):
         raise ValueError('Main directory not found')
+    if args.nrCPUs > 72 or args.nrCPUs == 0:
+        raise ValueError("Unable to use " + str(args.nrCPUs) + " CPU cores.")
+    av_cpus = os.cpu_count()
+    if av_cpus:
+        if args.nrCPUs < 0:
+            cpu_use = av_cpus
+        elif args.nrCPUs > av_cpus:
+            print('Demanded ' + str(args.nrCPUs) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
+                  + str(av_cpus) + ' CPUs.')
+            cpu_use = av_cpus
+        else:
+            cpu_use = args.nrCPUs
+    elif args.nrCPUs < 0:
+        print('Unable to determine # of CPUs. Using ' + str(abs(args.nrCPUs)) + ' CPUs.')
+        cpu_use = abs(args.nrCPUs)
+    else:
+        cpu_use = args.nrCPUs
+    if cpu_use > 1:
+        if not args.message_path:
+            raise ValueError("Path for storing stdout and stderr must be provided")
+        if not os.path.exists(args.message_path):
+            raise ValueError("Path for storing stdout and stderr does not exist")
     test_name = args.test_name.lower()
     load_path = os.path.join(args.path, args.test_name)
     if not os.path.exists(load_path):
@@ -5063,7 +5274,7 @@ def main():
     if args.output_path:
         if not os.path.exists(args.output_path):
             raise ValueError('Specified output directory not found')
-        output_path =  args.output_path
+        output_path = args.output_path
     else:
         output_path = os.path.join(load_path, 'evals')
         try:
@@ -5073,7 +5284,18 @@ def main():
     comp_path = None
     comp_pars = None
     if args.compare_pars:
-        comp_pars = args.compare_pars
+        if (args.eval_nr[0] == -1 or len(args.eval_nr) > 1) and \
+            (not args.comp_pars_ev_nr or len(args.compare_pars) != len(args.comp_pars_ev_nr)):
+            raise ValueError('Both arguments \'compare_pars\' and \'comp_pars_ev_nr\' must be provided and contain the '
+                             'same number of elements')
+        elif (args.eval_nr[0] != -1 and len(args.eval_nr) == 1):
+            comp_pars = {args.eval_nr[0]: args.compare_pars}
+        else:
+            comp_pars = {}
+            for a in list(dict.fromkeys(args.comp_pars_ev_nr)):
+                comp_pars[a] = []
+            for a, b in zip(args.compare_pars, args.comp_pars_ev_nr):
+                comp_pars[b].append(a)
         if args.compare_path:
             comp_path = args.compare_path
             if not os.path.exists(comp_path):
@@ -5081,7 +5303,8 @@ def main():
         else:
             comp_path = args.path
 
-    return eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars)
+    return eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars, cpu_use,
+                     args.message_path)
 
 
 if __name__ == "__main__":
