@@ -834,14 +834,14 @@ def write_par_file_template(path):
         raise ValueError('Parameter file already exists')
     from usac_eval import NoAliasDumper
 
-    usac56 = None #[2, 5]
-    usac123 = None #[3, 1, 1]
+    usac56 = [None, None] #[2, 5]
+    usac123 = [None, None, None] #[3, 1, 1]
     USACInlratFilt = None #0
     th = None #0.85
-    refineRT = None #[4, 2]
+    refineRT = [None, None] #[4, 2]
     robMFilt = None #'USAC'
     bart = None #1
-    refineRT_stereo = None #[4, 2]
+    refineRT_stereo = [None, None] #[4, 2]
     bart_stereo = None #1
     minPtsDistance = None #3.0
     maxPoolCorrespondences = None #8000
@@ -882,7 +882,6 @@ def write_par_file_template(path):
             'absThRankingStable': absThRankingStable,
             'useRANSAC_fewMatches': useRANSAC_fewMatches}
     with open(pfile, 'w') as fo:
-        # Write mat
         yaml.dump(pars, stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
     return 0
 
@@ -915,7 +914,23 @@ def read_pars(path, pars_list):
         except:
             warnings.warn('Parameter ' + i + ' not found in YAML file. Setting it not none', UserWarning)
             ret[i] = None
+    for i in ret.items():
+        if isinstance(i[1], list) and None in i[1]:
+            ret[i[0]] = None
     return ret
+
+
+def write_parameters(path, pars):
+    if not isinstance(pars, dict):
+        raise ValueError('Parameters must be provided in dict format')
+    data = read_pars_yaml(path)
+    for i in pars.items():
+        data[i[0]] = i[1]
+    pfile = os.path.join(path, 'optimal_autocalib_pars.yml')
+    from usac_eval import NoAliasDumper
+    with open(pfile, 'w') as fo:
+        yaml.dump(data, stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
+    return 0
 
 
 def convert_autoc_pars_out_to_in(par_name, par_value):
@@ -1175,38 +1190,36 @@ def convert_autoc_pars_out_to_in(par_name, par_value):
 
 
 def main():
-    write_par_file_template('/home/maierj/work/Sequence_Test/py_test')
-    print(read_pars('/home/maierj/work/Sequence_Test/py_test', ['usac56', 'robMFilt']))
-    # parser = argparse.ArgumentParser(description='Execute different test scenarios for the autocalibration based '
-    #                                              'on name and test number in file '
-    #                                              'Autocalibration-Parametersweep-Testing.xlsx')
-    # parser.add_argument('--path', type=str, required=True,
-    #                     help='Directory holding file \'generated_dirs_config.txt\'')
-    # parser.add_argument('--nrCPUs', type=int, required=False, default=4,
-    #                     help='Number of CPU cores for parallel processing. If a negative value is provided, '
-    #                          'the program tries to find the number of available CPUs on the system - if it fails, '
-    #                          'the absolute value of nrCPUs is used. Default: 4')
-    # parser.add_argument('--executable', type=str, required=True,
-    #                     help='Executable of the autocalibration SW')
-    # parser.add_argument('--message_path', type=str, required=True,
-    #                     help='Storing path for text files containing error and normal messages during the '
-    #                          'generation process of scenes and matches. For every different test a '
-    #                          'new directory with the name of option test_name is created. '
-    #                          'Within this directory another directory is created with the name of option test_nr')
-    # parser.add_argument('--output_path', type=str, required=True,
-    #                     help='Main output path for results of the autocalibration. For every different test a '
-    #                          'new directory with the name of option test_name is created. '
-    #                          'Within this directory another directory is created with the name of option test_nr')
-    # parser.add_argument('--test_name', type=str, required=True,
-    #                     help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
-    # parser.add_argument('--test_nr', type=int, required=False,
-    #                     help='Test number within the main test specified by test_name starting with 1')
-    # parser.add_argument('--load_parameters', type=str, required=False,
-    #                     help='Optional YAML file containing optimal parameter values for the autocalibration SW.')
-    # args = parser.parse_args()
-    #
-    # return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
-    #                    args.output_path, args.test_name.lower(), args.test_nr)
+    parser = argparse.ArgumentParser(description='Execute different test scenarios for the autocalibration based '
+                                                 'on name and test number in file '
+                                                 'Autocalibration-Parametersweep-Testing.xlsx')
+    parser.add_argument('--path', type=str, required=True,
+                        help='Directory holding file \'generated_dirs_config.txt\'')
+    parser.add_argument('--nrCPUs', type=int, required=False, default=4,
+                        help='Number of CPU cores for parallel processing. If a negative value is provided, '
+                             'the program tries to find the number of available CPUs on the system - if it fails, '
+                             'the absolute value of nrCPUs is used. Default: 4')
+    parser.add_argument('--executable', type=str, required=True,
+                        help='Executable of the autocalibration SW')
+    parser.add_argument('--message_path', type=str, required=True,
+                        help='Storing path for text files containing error and normal messages during the '
+                             'generation process of scenes and matches. For every different test a '
+                             'new directory with the name of option test_name is created. '
+                             'Within this directory another directory is created with the name of option test_nr')
+    parser.add_argument('--output_path', type=str, required=True,
+                        help='Main output path for results of the autocalibration. For every different test a '
+                             'new directory with the name of option test_name is created. '
+                             'Within this directory another directory is created with the name of option test_nr')
+    parser.add_argument('--test_name', type=str, required=True,
+                        help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
+    parser.add_argument('--test_nr', type=int, required=False,
+                        help='Test number within the main test specified by test_name starting with 1')
+    parser.add_argument('--load_parameters', type=str, required=False,
+                        help='Optional YAML file containing optimal parameter values for the autocalibration SW.')
+    args = parser.parse_args()
+
+    return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
+                       args.output_path, args.test_name.lower(), args.test_nr)
 
 
 if __name__ == "__main__":
