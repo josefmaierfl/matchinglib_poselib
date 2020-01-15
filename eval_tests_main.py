@@ -188,7 +188,12 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         #     cmds.append([(data, output_path, test_name, test_nr, a, comp_path, b)
         #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
         #                                  comp_pars_list[(len(used_evals) - rest):])])
-        message_path_new = os.path.join(message_path, test_name)
+        message_path_new = os.path.join(message_path, 'evals')
+        try:
+            os.mkdir(message_path_new)
+        except FileExistsError:
+            pass
+        message_path_new = os.path.join(message_path_new, test_name)
         try:
             os.mkdir(message_path_new)
         except FileExistsError:

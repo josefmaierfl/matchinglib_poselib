@@ -62,6 +62,69 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
     # Change useRANSAC_fewMatches to true or false based on result of test_nr 4 of robustness
     useRANSAC_fewMatches = None
 
+    if test_name != 'usac-testing' or test_nr > 1:
+        if test_name == 'usac-testing' and test_nr == 2:
+            pars_list = ['usac56']
+        elif test_name == 'usac_vs_ransac':
+            pars_list = ['usac56', 'usac123', 'USACInlratFilt']
+        elif test_name == 'refinement_ba':
+            pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th']
+        elif test_name == 'vfc_gms_sof':
+            pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'robMFilt']
+        elif test_name == 'refinement_ba_stereo':
+            pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart']
+        elif test_name == 'correspondence_pool':
+            if test_nr == 1:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo']
+            elif test_nr == 2:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences']
+            elif test_nr == 3:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                             'maxRat3DPtsFar', 'maxDist3DPtsZ']
+        elif test_name == 'robustness':
+            if test_nr == 1:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                             'maxRat3DPtsFar', 'maxDist3DPtsZ']
+            elif test_nr == 2:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                             'maxRat3DPtsFar', 'maxDist3DPtsZ', 'relInlRatThLast', 'relInlRatThNew',
+                             'minInlierRatSkip', 'relMinInlierRatSkip', 'minInlierRatioReInit']
+            elif test_nr == 3 or test_nr == 4:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                             'maxRat3DPtsFar', 'maxDist3DPtsZ', 'relInlRatThLast', 'relInlRatThNew',
+                             'minInlierRatSkip', 'relMinInlierRatSkip', 'minInlierRatioReInit',
+                             'checkPoolPoseRobust']
+            elif test_nr == 5:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                             'maxRat3DPtsFar', 'maxDist3DPtsZ', 'relInlRatThLast', 'relInlRatThNew',
+                             'minInlierRatSkip', 'relMinInlierRatSkip', 'minInlierRatioReInit',
+                             'checkPoolPoseRobust', 'minContStablePoses', 'minNormDistStable', 'absThRankingStable']
+            elif test_nr == 6:
+                pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                             'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                             'maxRat3DPtsFar', 'maxDist3DPtsZ', 'relInlRatThLast', 'relInlRatThNew',
+                             'minInlierRatSkip', 'relMinInlierRatSkip', 'minInlierRatioReInit',
+                             'checkPoolPoseRobust', 'minContStablePoses', 'minNormDistStable', 'absThRankingStable',
+                             'useRANSAC_fewMatches']
+        elif test_name == 'usac_vs_autocalib':
+            pars_list = ['usac56', 'usac123', 'USACInlratFilt', 'th', 'refineRT', 'bart',
+                         'refineRT_stereo', 'bart_stereo', 'minPtsDistance', 'maxPoolCorrespondences',
+                         'maxRat3DPtsFar', 'maxDist3DPtsZ', 'relInlRatThLast', 'relInlRatThNew',
+                         'minInlierRatSkip', 'relMinInlierRatSkip', 'minInlierRatioReInit',
+                         'checkPoolPoseRobust', 'minContStablePoses', 'minNormDistStable', 'absThRankingStable',
+                         'useRANSAC_fewMatches']
+        else:
+            raise ValueError('Unknown test name ' + test_name)
+        pars_opt = read_pars(output_path, pars_list)
+        for i in pars_opt.keys():
+            locals()[i] = pars_opt[i]
 
     if test_name == 'usac-testing':
         args += ['--refineRT', '0', '0']
