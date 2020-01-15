@@ -1265,20 +1265,19 @@ def main():
     parser.add_argument('--executable', type=str, required=True,
                         help='Executable of the autocalibration SW')
     parser.add_argument('--message_path', type=str, required=True,
-                        help='Storing path for text files containing error and normal messages during the '
-                             'generation process of scenes and matches. For every different test a '
+                        help='Storing path for text files containing error and normal messages while '
+                             'testing. For every different test a '
                              'new directory with the name of option test_name is created. '
                              'Within this directory another directory is created with the name of option test_nr')
     parser.add_argument('--output_path', type=str, required=True,
-                        help='Main output path for results of the autocalibration. For every different test a '
-                             'new directory with the name of option test_name is created. '
-                             'Within this directory another directory is created with the name of option test_nr')
+                        help='Main output path for results of the autocalibration. This directory is also used for '
+                             'loading and storing the YML file with found optimal parameters. For every different '
+                             'test a new directory with the name of option test_name is created. '
+                             'Within this directory another directory is created with the name of option test_nr.')
     parser.add_argument('--test_name', type=str, required=True,
                         help='Name of the main test like \'USAC-testing\' or \'USAC_vs_RANSAC\'')
     parser.add_argument('--test_nr', type=int, required=False,
                         help='Test number within the main test specified by test_name starting with 1')
-    parser.add_argument('--load_parameters', type=str, required=False,
-                        help='Optional YAML file containing optimal parameter values for the autocalibration SW.')
     args = parser.parse_args()
 
     return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,

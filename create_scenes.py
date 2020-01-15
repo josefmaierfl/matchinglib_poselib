@@ -21,6 +21,7 @@ yaml.SafeLoader.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matri
 
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 
+
 def genScenes(input_path, executable, nr_cpus, message_path):
     dirs_f = os.path.join(input_path, 'generated_dirs_config.txt')
     if not os.path.exists(dirs_f):
@@ -65,6 +66,11 @@ def genScenes(input_path, executable, nr_cpus, message_path):
         cpus_rest = [int(sub_cpus)] * nr_used_cpus
         for i in range(0, int(round((sub_cpus - math.floor(sub_cpus)) * nr_used_cpus))):
             cpus_rest[i] = cpus_rest[i] + 1
+    message_path_new = os.path.join(message_path, 'scene_creation')
+    try:
+        os.mkdir(message_path_new)
+    except FileExistsError:
+        pass
     work_items = [(dirscp[x], cpus_rest[x], executable, message_path) for x in range(0, nr_used_cpus)]
     cnt_dot = 0
     cmd_fails = []
