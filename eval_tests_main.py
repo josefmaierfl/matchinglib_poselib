@@ -112,6 +112,7 @@ def load_test_res(load_path):
 
 def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path):
     data, load_time = load_test_res(load_path)
+    # data = None
     # data_dict = data.to_dict('list')
     # data = mpd.DataFrame(data_dict)
     # data = mpd.utils.from_pandas(data)
@@ -150,14 +151,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     if test_name in evcn:
         for i in evals_w_compare:
             if i[0] == test_name and i[1] == test_nr:
-                if (eval_nr[0] == -1 or i[2] in eval_nr) and not comp_pars:
+                if i[2] in used_evals and not comp_pars:
                     raise ValueError('Figure name for comparison must be provided')
-                elif i[2] in eval_nr and i[2] not in comp_pars.keys():
+                elif i[2] in used_evals and str(i[2]) not in comp_pars.keys():
                     raise ValueError('Wrong evaluation number for comparison provided')
 
         for i in used_evals:
-            if comp_pars and i in comp_pars.keys():
-                comp_pars_list.append(comp_pars[i])
+            if comp_pars and str(i) in comp_pars.keys():
+                comp_pars_list.append(comp_pars[str(i)])
             else:
                 comp_pars_list.append(None)
     else:
@@ -240,13 +241,13 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             base = failed_cmds_base_name
             fcmdsmess = os.path.join(message_path_new, base + '.txt')
             cnt = 1
-            while os.path.exists(excmess):
+            while os.path.exists(fcmdsmess):
                 base = failed_cmds_base_name + '_-_' + str(cnt)
                 fcmdsmess = os.path.join(message_path_new, base + '.txt')
                 cnt += 1
             with open(fcmdsmess, 'w') as fo1:
                 fo1.write('Failed evaluations:\n')
-                fo1.write('\n'.join('  '.join(map(str, res1))))
+                fo1.write('\n'.join(['  '.join(map(str, a)) for a in res1]))
         return ret
 
 
@@ -264,11 +265,27 @@ def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp
     with open(stdmess, 'a') as f_std, open(errmess, 'a') as f_err:
         with contextlib.redirect_stdout(f_std), contextlib.redirect_stderr(f_err):
             ret = eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
+            # ret = test_func(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
     if os.stat(errmess).st_size == 0:
         os.remove(errmess)
     if os.stat(stdmess).st_size == 0:
         os.remove(stdmess)
     return ret
+
+
+# def test_func(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars):
+#     print('This is a test print')
+#     # print('This is an error message', file=sys.stderr)
+#     try:
+#         a = 5/0
+#     except ZeroDivisionError as e:
+#         print('Zero: ', e)
+#     # t1()
+#     return 1
+#
+#
+# def t1():
+#     raise ValueError('Inside function')
 
 
 def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars):
@@ -5235,7 +5252,7 @@ def main():
                              'should be performed must be provided.')
     parser.add_argument('--compare_path', type=str, required=False,
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
-                             'the path from option --path is used. Results are only loaded, if option '
+                             'the part from option --path is used. Results are only loaded, if option '
                              '--compare_pars is provided.')
     args = parser.parse_args()
 
@@ -5285,7 +5302,7 @@ def main():
     comp_pars = None
     if args.compare_pars:
         if (args.eval_nr[0] == -1 or len(args.eval_nr) > 1) and \
-            (not args.comp_pars_ev_nr or len(args.compare_pars) != len(args.comp_pars_ev_nr)):
+           (not args.comp_pars_ev_nr or len(args.compare_pars) != len(args.comp_pars_ev_nr)):
             raise ValueError('Both arguments \'compare_pars\' and \'comp_pars_ev_nr\' must be provided and contain the '
                              'same number of elements')
         elif (args.eval_nr[0] != -1 and len(args.eval_nr) == 1):
