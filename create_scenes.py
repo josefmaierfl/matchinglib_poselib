@@ -71,7 +71,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
         os.mkdir(message_path_new)
     except FileExistsError:
         pass
-    work_items = [(dirscp[x], cpus_rest[x], executable, message_path) for x in range(0, nr_used_cpus)]
+    work_items = [(dirscp[x], cpus_rest[x], executable, message_path_new) for x in range(0, nr_used_cpus)]
     cnt_dot = 0
     cmd_fails = []
     with MyPool(processes=nr_used_cpus) as pool:
@@ -120,10 +120,10 @@ def genScenes(input_path, executable, nr_cpus, message_path):
         pool.join()
 
     if cmd_fails:
-        res_file = os.path.join(message_path, 'sequ_matches_cmds_dirs_error_overview.txt')
+        res_file = os.path.join(message_path_new, 'sequ_matches_cmds_dirs_error_overview.txt')
         cnt = 1
         while os.path.exists(res_file):
-            res_file = os.path.join(message_path, 'sequ_matches_cmds_dirs_error_overview' + str(cnt) + '.txt')
+            res_file = os.path.join(message_path_new, 'sequ_matches_cmds_dirs_error_overview' + str(cnt) + '.txt')
             cnt = cnt + 1
 
         with open(res_file, 'w') as fo:
@@ -134,6 +134,12 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                 fo.write('\n'.join(r))
         return 1
     return 0
+
+
+def retry_dirs_from_file(file_name, executable, nr_cpus, message_path):
+    if not os.path.exists(file_name):
+        raise ValueError('File ' + file_name + ' not found')
+
 
 class NoDaemonProcess(multiprocessing.Process):
     # make 'daemon' attribute always return False

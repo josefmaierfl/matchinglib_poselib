@@ -69,6 +69,7 @@ def compile_tex(rendered_tex,
             else:
                 cpu_use = nr_cpus
             if mult_proc:
+                time.sleep(.5)
                 cpu_per = psutil.cpu_percent()
                 if cpu_per > 10:
                     nr_tasks = len(rendered_tex)
@@ -7168,12 +7169,12 @@ def main():
                        'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
     sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
     eval_numbers = [[-1], [-1], [-1], [-1], [-1], [-1], [-1], [-1]]
-    specific_ev_nrs = [('robustness', 4, list(range(17, 20)))]
+    specific_ev_nrs = [('robustness', 2, [7])]
     # skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
     #                    'correspondence_pool', 'usac_vs_autocalib']
-    skip_main_tests = ['usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
-                       'correspondence_pool', 'robustness', 'usac_vs_autocalib']
-    skip_sub_tests = [None, None, None, None, None, None, [1, 2, 3, 5, 6], None]
+    skip_main_tests = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof', 'refinement_ba_stereo',
+                       'correspondence_pool', 'usac_vs_autocalib']
+    skip_sub_tests = [None, None, None, None, None, None, [1, 3, 4, 5, 6], None]
     tests = []
     for i1, (i, j, k) in enumerate(zip(main_test_names, sub_test_numbers, eval_numbers)):
         if skip_main_tests and i in skip_main_tests:

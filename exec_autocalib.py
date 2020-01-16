@@ -268,6 +268,12 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
     if cf.empty:
         raise ValueError("File " + csv_cmd_file + " is empty.")
 
+    message_path_new = os.path.join(message_path, 'tests')
+    try:
+        os.mkdir(message_path_new)
+    except FileExistsError:
+        pass
+
     cmds = []
     for index, row in cf.iterrows():
         opts = row['cmd'].split(' ')
@@ -283,7 +289,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
         opts += ['--addSequInfo', '_'.join(infos)]
         single_cmd = [executable] + opts
         mess_base_name = 'out_' + str(int(nr_call)) + '_' + str(index)
-        cmds.append((single_cmd, row, message_path, mess_base_name, nr_call))
+        cmds.append((single_cmd, row, message_path_new, mess_base_name, nr_call))
 
     lock = multiprocessing.Lock()
     lock2 = multiprocessing.Lock()
