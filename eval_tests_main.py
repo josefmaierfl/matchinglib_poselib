@@ -118,18 +118,20 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     # data = mpd.utils.from_pandas(data)
     #print('Finished loading data')
 
-    main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
-                       'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
-    sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
-    sub_sub_test_nr = [[list(range(1, 7)), list(range(7, 15)) + [36]],
-                       [list(range(1, 8))],
-                       [list(range(1, 6)), list(range(1, 5))],
-                       [list(range(1, 8))],
-                       [list(range(1, 4)), list(range(1, 5))],
-                       [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
-                       [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
-                        list(range(25, 29)), list(range(29, 38))],
-                       [list(range(1, 9))]]
+    import evaluation_numbers as en
+    main_test_names, sub_test_numbers, sub_sub_test_nr = en.get_available_evals()
+    # main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
+    #                    'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
+    # sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
+    # sub_sub_test_nr = [[list(range(1, 7)), list(range(7, 15)) + [36]],
+    #                    [list(range(1, 8))],
+    #                    [list(range(1, 6)), list(range(1, 5))],
+    #                    [list(range(1, 8))],
+    #                    [list(range(1, 4)), list(range(1, 5))],
+    #                    [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
+    #                    [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
+    #                     list(range(25, 29)), list(range(29, 38))],
+    #                    [list(range(1, 9))]]
     evals_w_compare = [('refinement_ba_stereo', 1, 1),
                        ('refinement_ba_stereo', 1, 2),
                        ('refinement_ba_stereo', 2, 1),

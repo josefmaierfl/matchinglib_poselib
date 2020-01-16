@@ -3,42 +3,41 @@ Main script file for executing the whole test procedure for testing the autocali
 """
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np
 
+
 def get_skip_use_evals(strings):
-    main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
-                       'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
-    sub_test_numbers = [2, 1, 2, 1, 2, 3, 6, 1]
-    sub_sub_test_nr = [[list(range(1, 7)), list(range(7, 15)) + [36]],
-                       [list(range(1, 8))],
-                       [list(range(1, 6)), list(range(1, 5))],
-                       [list(range(1, 8))],
-                       [list(range(1, 4)), list(range(1, 5))],
-                       [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
-                       [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
-                        list(range(25, 29)), list(range(29, 38))],
-                       [list(range(1, 9))]]
-    test_idx = main_test_names.index(test_name)
-    tn_idx = 0
-    if test_nr and test_nr <= sub_test_numbers[test_idx]:
-        tn_idx = test_nr - 1
+    import evaluation_numbers as en
+    main_test_names, sub_test_numbers, sub_sub_test_nr = en.get_available_evals()
+    if not strings:
+        use_evals = dict.fromkeys(main_test_names)
+        for i, mn in enumerate(main_test_names):
+            if sub_test_numbers[i] == 1:
+                use_evals[mn] = {'0': sub_sub_test_nr[i][0]}
+            else:
+                use_evals[mn] = {'1': sub_sub_test_nr[i][0]}
+                for j in range(1, sub_test_numbers[i]):
+                    use_evals[mn][str(j + 1)] = sub_sub_test_nr[i][j]
+        return use_evals
+    use_skip_evals = {}
     use_evals = {}
-    if strings[0] == 'use+':
-        last_main = False
-        last_test = False
-        last_eval = False
-        current_main = ''
-        current_test = ''
+    is_skip = False
+    if strings[0] == 'use+' or strings[0] == 'skip+':
         if strings[1] not in main_test_names:
             raise ValueError('Invalid order in given list of argument skip_use_eval_name_nr')
         else:
-            use_evals[strings[1]] = []
+            use_skip_evals[strings[1]] = {}
         if len(strings) == 2:
             test_idx = main_test_names.index(strings[1])
-            use_evals[strings[1]] = {}
+            use_skip_evals[strings[1]] = {}
             for a in range(1, sub_test_numbers[test_idx] + 1):
-                use_evals[strings[1]][str(a)] = [-1]
+                use_skip_evals[strings[1]][str(a)] = [-1]
         else:
             current_main = strings[1]
+            current_test = ''
+            if not any([a == current_main for a in main_test_names]):
+                raise ValueError('Specified main evaluation name ' + current_main + ' not found')
             last_main = True
+            last_test = False
+            last_eval = False
             test_idx = main_test_names.index(current_main)
             for i in range(2, len(strings)):
                 try:
@@ -48,12 +47,26 @@ def get_skip_use_evals(strings):
                     elif nr < 0 and not last_test and not last_eval and not last_main:
                         raise ValueError('Undefined behaviour during parsing of evaluations to execute')
                     elif nr < 0 and not last_test and not last_eval and last_main:
-                        use_evals[current_main] = {str(0): [abs(nr)]}
+                        if use_skip_evals[current_main]:
+                            raise ValueError(current_main + ' is used 2 times')
+                        nr = abs(nr)
+                        if nr not in sub_sub_test_nr[test_idx][0]:
+                            raise ValueError('Eval nr ' + str(nr) +
+                                             ' not available for main evaluation ' + current_main)
+                        use_skip_evals[current_main] = {str(0): [nr]}
                         last_eval = True
                         last_main = False
                         current_test = '0'
-                    elif nr < 0 and last_test or last_eval:
-                        use_evals[current_main][current_test].append(abs(nr))
+                    elif nr < 0 and (last_test or last_eval):
+                        nr = abs(nr)
+                        eval_idx = int(current_test)
+                        if sub_test_numbers[test_idx] > 1:
+                            eval_idx -= 1
+                        if nr not in sub_sub_test_nr[test_idx][eval_idx]:
+                            raise ValueError('Eval nr ' + str(nr) +
+                                             ' not available for main evaluation ' + current_main +
+                                             ' and test nr ' + current_test)
+                        use_skip_evals[current_main][current_test].append(nr)
                         last_eval = True
                         last_test = False
                         last_main = False
@@ -67,7 +80,8 @@ def get_skip_use_evals(strings):
                         else:
                             current_test = str(nr)
                         last_main = False
-                        use_evals[current_main] = {current_test: []}
+                        last_test = True
+                        use_skip_evals[current_main] = {current_test: []}
                     elif nr >= 0 and last_test:
                         if nr == 0 and sub_test_numbers[test_idx] > 1:
                             raise ValueError('Invalid test number (0) for main eval ' + current_main)
@@ -75,9 +89,17 @@ def get_skip_use_evals(strings):
                             raise ValueError('Test number ' + str(nr) + ' out of range for main eval ' + current_main)
                         elif nr <= 1 and sub_test_numbers[test_idx] == 1:
                             raise ValueError('Main eval ' + current_main + ' does not support multiple test numbers')
-                        use_evals[current_main][current_test].append(-1)
+                        eval_idx = int(current_test)
+                        if sub_test_numbers[test_idx] > 1:
+                            eval_idx -= 1
+                        use_skip_evals[current_main][current_test] = sub_sub_test_nr[test_idx][eval_idx]
                         current_test = str(nr)
-                        use_evals[current_main] = {current_test: []}
+                        if use_skip_evals[current_main]:
+                            if any([current_test == a for a in use_skip_evals[current_main].keys()]):
+                                raise ValueError('Test ' + current_test + ' of ' + current_main + ' is used 2 times')
+                            use_skip_evals[current_main][current_test] = []
+                        else:
+                            use_skip_evals[current_main] = {current_test: []}
                         last_main = False
                     elif nr >= 0 and last_eval:
                         if nr == 0 and sub_test_numbers[test_idx] > 1:
@@ -89,22 +111,284 @@ def get_skip_use_evals(strings):
                         last_eval = False
                         last_test = True
                         current_test = str(nr)
-                        use_evals[current_main] = {current_test: []}
+                        if any([current_test == a for a in use_skip_evals[current_main].keys()]):
+                            raise ValueError('Test ' + current_test + ' of ' + current_main + ' is used 2 times')
+                        use_skip_evals[current_main][current_test] = []
                         last_main = False
                     else:
                         raise ValueError('Undefined behaviour during parsing of evaluations to execute')
                 except ValueError:
-                    if last_test:
-                        use_evals[current_main][current_test].append(-1)
-                        last_test = False
-                    last_eval = False
-                    if strings[i] in main_test_names:
-                        if any([strings[i] == a for a in use_evals.keys()]):
+                    if any([a == strings[i] for a in main_test_names]):
+                        if any([strings[i] == a for a in use_skip_evals.keys()]):
                             raise ValueError('Main eval ' + strings[i] + ' is used multiple times')
+                        if last_test:
+                            eval_idx = int(current_test)
+                            if sub_test_numbers[test_idx] > 1:
+                                eval_idx -= 1
+                            use_skip_evals[current_main][current_test] = sub_sub_test_nr[test_idx][eval_idx]
+                            last_test = False
+                        elif last_main:
+                            if sub_test_numbers[test_idx] == 1:
+                                use_skip_evals[current_main] = {'0': sub_sub_test_nr[test_idx][0]}
+                            else:
+                                use_skip_evals[current_main] = {'1': sub_sub_test_nr[test_idx][0]}
+                                for j in range(1, sub_test_numbers[test_idx]):
+                                    use_skip_evals[current_main][str(j + 1)] = sub_sub_test_nr[test_idx][j]
                         current_main = strings[i]
                         test_idx = main_test_names.index(current_main)
-                        use_evals[current_main] = {}
+                        use_skip_evals[current_main] = {}
                         last_main = True
+                        last_eval = False
+                    elif strings[i][0] == 'r':
+                        tmp = strings[i][1:].split('-')
+                        if len(tmp) != 2:
+                            raise ValueError(strings[i] + ' is no range')
+                        else:
+                            try:
+                                e1 = int(tmp[0])
+                                e2 = int(tmp[1])
+                            except ValueError:
+                                raise ValueError(strings[i] + ' is no range')
+                            ev_list = list(range(e1, (e2 + 1)))
+                            if not last_test and not last_eval and sub_test_numbers[test_idx] > 1:
+                                raise ValueError('A test number must be specified before eval numbers')
+                            elif not last_test and not last_eval and not last_main:
+                                raise ValueError('Undefined behaviour during parsing of evaluations to execute')
+                            elif not last_test and not last_eval and last_main:
+                                if e1 not in sub_sub_test_nr[test_idx][0] or \
+                                        e2 not in sub_sub_test_nr[test_idx][0]:
+                                    raise ValueError('Eval nr range ' + strings[i][1:] +
+                                                     ' not available for main evaluation ' + current_main)
+                                use_skip_evals[current_main] = {str(0): ev_list}
+                                last_main = False
+                                current_test = '0'
+                            elif last_test or last_eval:
+                                eval_idx = int(current_test)
+                                if sub_test_numbers[test_idx] > 1:
+                                    eval_idx -= 1
+                                if e1 not in sub_sub_test_nr[test_idx][eval_idx] or \
+                                        e2 not in sub_sub_test_nr[test_idx][eval_idx]:
+                                    raise ValueError('Eval nr range ' + strings[i][1:] +
+                                                     ' not available for main evaluation ' + current_main +
+                                                     ' and test nr ' + current_test)
+                                use_skip_evals[current_main][current_test] += ev_list
+                                last_test = False
+                                last_main = False
+                            else:
+                                raise ValueError('Undefined behaviour during parsing of evaluations to execute')
+                            last_eval = True
+                    else:
+                        raise ValueError('Specified main evaluation name ' + strings[i] + ' not found')
+            if last_main:
+                if sub_test_numbers[test_idx] == 1:
+                    use_skip_evals[current_main] = {'0': sub_sub_test_nr[test_idx][0]}
+                else:
+                    use_skip_evals[current_main] = {'1': sub_sub_test_nr[test_idx][0]}
+                    for j in range(1, sub_test_numbers[test_idx]):
+                        use_skip_evals[current_main][str(j + 1)] = sub_sub_test_nr[test_idx][j]
+            elif last_test:
+                eval_idx = int(current_test)
+                if sub_test_numbers[test_idx] > 1:
+                    eval_idx -= 1
+                use_skip_evals[current_main][current_test] = sub_sub_test_nr[test_idx][eval_idx]
+            elif not last_eval:
+                raise ValueError('Undefined behaviour during parsing of evaluations to execute')
+        if strings[0] == 'skip+':
+            is_skip = True
+        else:
+            use_evals = use_skip_evals
+
+    elif strings[0] == 'use':
+        for i in range(1, len(strings)):
+            current_main = strings[i]
+            if any([a == current_main for a in main_test_names]):
+                test_idx = main_test_names.index(current_main)
+                if sub_test_numbers[test_idx] == 1:
+                    use_evals[current_main] = {'0': sub_sub_test_nr[test_idx][0]}
+                else:
+                    use_evals[current_main] = {'1': sub_sub_test_nr[test_idx][0]}
+                    for j in range(1, sub_test_numbers[test_idx]):
+                        use_evals[current_main][str(j + 1)] = sub_sub_test_nr[test_idx][j]
+            else:
+                raise ValueError('Specified main evaluation name ' + current_main + ' not found')
+    else:
+        is_skip = True
+        for cm in strings:
+            if any([a == cm for a in main_test_names]):
+                test_idx = main_test_names.index(cm)
+                if sub_test_numbers[test_idx] == 1:
+                    use_skip_evals[cm] = {'0': sub_sub_test_nr[test_idx][0]}
+                else:
+                    use_skip_evals[cm] = {'1': sub_sub_test_nr[test_idx][0]}
+                    for j in range(1, sub_test_numbers[test_idx]):
+                        use_skip_evals[cm][str(j + 1)] = sub_sub_test_nr[test_idx][j]
+            else:
+                raise ValueError('Specified main evaluation name ' + cm + ' not found')
+    if is_skip:
+        for i, cm in enumerate(main_test_names):
+            main_used = False
+            if any([a == cm for a in use_skip_evals.keys()]):
+                if sub_test_numbers[i] == 1:
+                    test_used = False
+                    for j in sub_sub_test_nr[i][0]:
+                        if j not in use_skip_evals[cm]['0']:
+                            if test_used:
+                                use_evals[cm]['0'].append(j)
+                            else:
+                                use_evals[cm] = {'0': [j]}
+                                test_used = True
+                else:
+                    for tn in range(0, sub_test_numbers[i]):
+                        test_used = False
+                        if any([a == str(tn + 1) for a in use_skip_evals[cm].keys()]):
+                            for j in sub_sub_test_nr[i][tn]:
+                                if j not in use_skip_evals[cm][str(tn + 1)]:
+                                    if test_used:
+                                        use_evals[cm][str(tn + 1)].append(j)
+                                    else:
+                                        if main_used:
+                                            use_evals[cm][str(tn + 1)] = [j]
+                                        else:
+                                            use_evals[cm] = {str(tn + 1): [j]}
+                                            main_used = True
+                                        test_used = True
+                        else:
+                            if main_used:
+                                use_evals[cm][str(tn + 1)] = sub_sub_test_nr[i][tn]
+                            else:
+                                use_evals[cm] = {str(tn + 1): sub_sub_test_nr[i][tn]}
+                                main_used = True
+            else:
+                if sub_test_numbers[i] == 1:
+                    use_evals[cm] = {'0': sub_sub_test_nr[i][0]}
+                else:
+                    use_evals[cm] = {'1': sub_sub_test_nr[i][0]}
+                    for tn in range(1, sub_test_numbers[i]):
+                        use_evals[cm][str(tn + 1)] = sub_sub_test_nr[i][tn]
+    return use_evals
+
+
+def get_skip_use_cal_tests(strings):
+    import evaluation_numbers as en
+    main_test_names, sub_test_numbers = en.get_available_tests()
+    if not strings:
+        use_tests = dict.fromkeys(main_test_names)
+        for i, mn in enumerate(main_test_names):
+            if sub_test_numbers[i] == 1:
+                use_tests[mn] = None
+            else:
+                use_tests[mn] = list(range(1, (sub_test_numbers[i] + 1)))
+        return use_tests
+    use_skip_tests = {}
+    use_tests = {}
+    is_skip = False
+    if strings[0] == 'use+' or strings[0] == 'skip+':
+        if strings[1] not in main_test_names:
+            raise ValueError('Invalid order in given list of argument skip_use_eval_name_nr')
+        else:
+            use_skip_tests[strings[1]] = {}
+        if len(strings) == 2:
+            test_idx = main_test_names.index(strings[1])
+            use_skip_tests[strings[1]] = list(range(1, (sub_test_numbers[test_idx] + 1)))
+        else:
+            current_main = strings[1]
+            current_test = ''
+            if not any([a == current_main for a in main_test_names]):
+                raise ValueError('Specified main evaluation name ' + current_main + ' not found')
+            last_main = True
+            last_test = False
+            test_idx = main_test_names.index(current_main)
+            for i in range(2, len(strings)):
+                try:
+                    nr = int(strings[i])
+                    if nr < 0:
+                        raise ValueError('A test number must be positive')
+                    elif nr >= 0 and last_main:
+                        if nr == 0 and sub_test_numbers[test_idx] > 1:
+                            raise ValueError('Invalid test number (0) for main eval ' + current_main)
+                        elif nr > sub_test_numbers[test_idx]:
+                            raise ValueError('Test number ' + str(nr) + ' out of range for main eval ' + current_main)
+                        if nr <= 1 and sub_test_numbers[test_idx] == 1:
+                            use_skip_tests[current_main] = None
+                        else:
+                            use_skip_tests[current_main] = [nr]
+                        last_main = False
+                        last_test = True
+                    elif nr >= 0 and last_test:
+                        if nr == 0 and sub_test_numbers[test_idx] > 1:
+                            raise ValueError('Invalid test number (0) for main eval ' + current_main)
+                        elif nr > sub_test_numbers[test_idx]:
+                            raise ValueError('Test number ' + str(nr) + ' out of range for main eval ' + current_main)
+                        elif nr <= 1 and sub_test_numbers[test_idx] == 1:
+                            raise ValueError('Main eval ' + current_main + ' does not support multiple test numbers')
+                        use_skip_tests[current_main].append(nr)
+                        last_main = False
+                    else:
+                        raise ValueError('Undefined behaviour during parsing of evaluations to execute')
+                except ValueError:
+                    if any([a == strings[i] for a in main_test_names]):
+                        if any([strings[i] == a for a in use_skip_tests.keys()]):
+                            raise ValueError('Main eval ' + strings[i] + ' is used multiple times')
+                        if last_main:
+                            if sub_test_numbers[test_idx] == 1:
+                                use_skip_tests[current_main] = None
+                            else:
+                                use_skip_tests[current_main] = list(range(1, (sub_test_numbers[test_idx] + 1)))
+                        current_main = strings[i]
+                        test_idx = main_test_names.index(current_main)
+                        use_skip_tests[current_main] = []
+                        last_main = True
+                    else:
+                        raise ValueError('Specified main evaluation name ' + strings[i] + ' not found')
+            if last_main:
+                if sub_test_numbers[test_idx] == 1:
+                    use_skip_tests[current_main] = None
+                else:
+                    use_skip_tests[current_main] = list(range(1, (sub_test_numbers[test_idx] + 1)))
+        if strings[0] == 'skip+':
+            is_skip = True
+        else:
+            use_tests = use_skip_tests
+    elif strings[0] == 'use':
+        for i in range(1, len(strings)):
+            current_main = strings[i]
+            if any([a == current_main for a in main_test_names]):
+                test_idx = main_test_names.index(current_main)
+                if sub_test_numbers[test_idx] == 1:
+                    use_tests[current_main] = None
+                else:
+                    use_tests[current_main] = list(range(1, (sub_test_numbers[test_idx] + 1)))
+            else:
+                raise ValueError('Specified main evaluation name ' + current_main + ' not found')
+    else:
+        is_skip = True
+        for cm in strings:
+            if any([a == cm for a in main_test_names]):
+                test_idx = main_test_names.index(cm)
+                if sub_test_numbers[test_idx] == 1:
+                    use_skip_tests[cm] = None
+                else:
+                    use_skip_tests[cm] = list(range(1, (sub_test_numbers[test_idx] + 1)))
+            else:
+                raise ValueError('Specified main evaluation name ' + cm + ' not found')
+    if is_skip:
+        for i, cm in enumerate(main_test_names):
+            main_used = False
+            if any([a == cm for a in use_skip_tests.keys()]):
+                if sub_test_numbers[i] != 1:
+                    for tn in range(1, (sub_test_numbers[i] + 1)):
+                        if tn not in use_skip_tests[cm]:
+                            if main_used:
+                                use_tests[cm].append(tn)
+                            else:
+                                use_tests[cm] = [tn]
+                                main_used = True
+            else:
+                if sub_test_numbers[i] == 1:
+                    use_tests[cm] = None
+                else:
+                    use_tests[cm] = list(range(1, (sub_test_numbers[i] + 1)))
+    return use_tests
 
 
 def main():
@@ -146,7 +430,8 @@ def main():
                              '(name) and , e.g.: use+ correspondence_pool 2 robustness 3 5 6; If the first element of '
                              'the list equals \'skip+\', pairs of test names and multiple test numbers can be '
                              'specified which should be skipped, e.g.: skip+ correspondence_pool 2 robustness 3 5 6; '
-                             'Possible tests: usac-testing, correspondence_pool, robustness, usac_vs_autocalib')
+                             'Possible tests: usac-testing, usac_vs_ransac, refinement_ba, vfc_gms_sof, '
+                             'refinement_ba_stereo, correspondence_pool, robustness, usac_vs_autocalib')
     parser.add_argument('--skip_use_eval_name_nr', type=str, nargs='+', required=False,
                         help='List of evaluation names for which evaluating results '
                              'should be skipped as they were already performed. If the first element of the list '
@@ -163,7 +448,8 @@ def main():
                              'be used for skipping evaluations using \'skip+\' as first element in the list.'
                              'the list equals \'skip+\', pairs of eval names and multiple eval numbers can be '
                              'specified which should be skipped, e.g.: skip+ correspondence_pool 2 robustness 3 5 6; '
-                             'Possible tests: usac-testing, correspondence_pool, robustness, usac_vs_autocalib')
+                             'Possible tests: usac-testing, usac_vs_ransac, refinement_ba, vfc_gms_sof, '
+                             'refinement_ba_stereo, correspondence_pool, robustness, usac_vs_autocalib')
     parser.add_argument('--img_path', type=str, required=False,
                         help='Path to images')
     parser.add_argument('--store_path_sequ', type=str, required=False,
@@ -218,20 +504,20 @@ def main():
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
                                                     'configuration files does not exist')
-    main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
-                       'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
+    import evaluation_numbers as en
+    main_test_names = en.get_available_main_tests()
     if args.skip_tests:
         for i in args.skip_tests:
             if i not in main_test_names:
                 raise ValueError('Cannot skip test ' + i + ' as it does not exist.')
-    scenes_test_names = ['usac-testing', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
+    scenes_test_names = en.get_available_sequences()
     if args.skip_gen_sc_conf:
         for i in args.skip_gen_sc_conf:
             if i not in scenes_test_names:
                 raise ValueError('Cannot skip generation of configuration files for '
                                  'scenes with test name ' + i + ' as it does not exist.')
     if args.skip_crt_sc:
-        for i in args.skip_gen_sc_conf:
+        for i in args.skip_crt_sc:
             if i not in scenes_test_names:
                 raise ValueError('Cannot skip creation of scenes with test name ' + i + ' as it does not exist.')
     if args.crt_sc_dirs_file and not os.path.exists(args.crt_sc_dirs_file):
@@ -291,15 +577,10 @@ def main():
         if not args.exec_cal:
             raise ValueError('Argument exec_cal must be provided')
 
+    use_evals = get_skip_use_evals(args.skip_use_eval_name_nr)
+    use_cal_tests = get_skip_use_cal_tests(args.skip_use_test_name_nr)
 
-    try:
 
-    except FileExistsError:
-        print(sys.exc_info()[0])
-        return 1
-    except:
-        print("Unexpected error: ", sys.exc_info()[0])
-        raise
     return 0
 
 
