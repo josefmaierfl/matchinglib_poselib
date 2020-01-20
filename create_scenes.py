@@ -22,26 +22,51 @@ yaml.SafeLoader.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matri
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 
 
-def genScenes(input_path, executable, nr_cpus, message_path):
-    dirs_f = os.path.join(input_path, 'generated_dirs_config.txt')
-    if not os.path.exists(dirs_f):
-        raise ValueError("Unable to load " + dirs_f)
+def genScenes(input_path, executable, nr_cpus, message_path, retry_file=None):
+    if retry_file:
+        if not os.path.exists(retry_file):
+            raise ValueError("Unable to load " + retry_file)
+        dirs_f = retry_file
+    else:
+        dirs_f = os.path.join(input_path, 'generated_dirs_config.txt')
+        if not os.path.exists(dirs_f):
+            raise ValueError("Unable to load " + dirs_f)
 
     #data = readOpenCVYaml('/home/maierj/work/Sequence_Test/Test_load_save/USAC/usac_kp-distr-1corn_depth-NMF_TP-500/sequInfos.yaml')
 
     dirsc = []
     with open(dirs_f, 'r') as fi:
         #Load directory holding configuration files
-        confd = fi.readline().rstrip()
-        while confd:
+        confd = fi.readline()
+        cont = False
+        if confd:
+            confd = confd.rstrip()
+            cont = True
+        while cont:
             if not os.path.exists(confd):
                 raise ValueError("Directory " + confd + " does not exist.")
             #Load list of configuration files and settings for generating scenes
-            ovcf = os.path.join(confd, 'config_files.csv')
+            if retry_file:
+                if not confd:
+                    confd = fi.readline()
+                    if confd:
+                        confd = confd.rstrip()
+                        cont = True
+                    else:
+                        cont = False
+                    continue
+                ovcf = confd
+            else:
+                ovcf = os.path.join(confd, 'config_files.csv')
             if not os.path.exists(ovcf):
                 raise ValueError("File " + ovcf + " does not exist.")
             dirsc.append(ovcf)
-            confd = fi.readline().rstrip()
+            confd = fi.readline()
+            if confd:
+                confd = confd.rstrip()
+                cont = True
+            else:
+                cont = False
     maxd_parallel = int(len(dirsc) / nr_cpus)
     if maxd_parallel == 0:
         maxd_parallel = 1
@@ -74,6 +99,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
     work_items = [(dirscp[x], cpus_rest[x], executable, message_path_new) for x in range(0, nr_used_cpus)]
     cnt_dot = 0
     cmd_fails = []
+    cmd_fails_dir = []
     with MyPool(processes=nr_used_cpus) as pool:
         #results = pool.map(processDir, work_items)
         results = [pool.apply_async(processDir, t) for t in work_items]
@@ -99,7 +125,7 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                     print('Some of the following directories might be not processed completely:')
                     print('\n'.join(work_items[cnt][0]))
                     print('\n')
-                    cmd_fails.append(work_items[cnt][0])
+                    cmd_fails_dir.append(work_items[cnt][0])
                     break
                 except multiprocessing.TimeoutError:
                     if cnt_dot >= 90:
@@ -113,25 +139,39 @@ def genScenes(input_path, executable, nr_cpus, message_path):
                     e = sys.exc_info()
                     print(str(e))
                     sys.stdout.flush()
-                    cmd_fails.append(work_items[cnt][0])
+                    cmd_fails_dir.append(work_items[cnt][0])
                     break
             cnt = cnt + 1
         pool.close()
         pool.join()
 
-    if cmd_fails:
-        res_file = os.path.join(message_path_new, 'sequ_matches_cmds_dirs_error_overview.txt')
-        cnt = 1
-        while os.path.exists(res_file):
-            res_file = os.path.join(message_path_new, 'sequ_matches_cmds_dirs_error_overview' + str(cnt) + '.txt')
-            cnt = cnt + 1
+    if cmd_fails or cmd_fails_dir:
+        if cmd_fails:
+            res_file = os.path.join(message_path_new, 'sequ_matches_cmds_error_overview.txt')
+            cnt = 1
+            while os.path.exists(res_file):
+                res_file = os.path.join(message_path_new, 'sequ_matches_cmds_error_overview' + str(cnt) + '.txt')
+                cnt = cnt + 1
 
-        with open(res_file, 'w') as fo:
-            cmd_fails_tmp = []
-            for r in cmd_fails:
-                cmd_fails_tmp.append(' '.join(map(str, r)))
-            for r in cmd_fails_tmp:
-                fo.write('\n'.join(r))
+            with open(res_file, 'w') as fo:
+                cmd_fails_tmp = []
+                for r in cmd_fails:
+                    cmd_fails_tmp.append(' '.join(map(str, r)))
+                for r in cmd_fails_tmp:
+                    fo.write('\n'.join(r))
+        if cmd_fails_dir:
+            res_file = os.path.join(message_path_new, 'sequ_matches_dirs_error_overview.txt')
+            cnt = 1
+            while os.path.exists(res_file):
+                res_file = os.path.join(message_path_new, 'sequ_matches_dirs_error_overview' + str(cnt) + '.txt')
+                cnt = cnt + 1
+
+            with open(res_file, 'w') as fo:
+                cmd_fails_tmp = []
+                for r in cmd_fails_dir:
+                    cmd_fails_tmp.append('\n'.join(r))
+                for r in cmd_fails_tmp:
+                    fo.write('\n\n'.join(r))
         return 1
     return 0
 
@@ -139,6 +179,200 @@ def genScenes(input_path, executable, nr_cpus, message_path):
 def retry_dirs_from_file(file_name, executable, nr_cpus, message_path):
     if not os.path.exists(file_name):
         raise ValueError('File ' + file_name + ' not found')
+    return genScenes(None, executable, nr_cpus, message_path, file_name)
+
+
+def retry_cmds_from_file(file_name, nr_cpus, message_path):
+    if not os.path.exists(file_name):
+        raise ValueError('File ' + file_name + ' not found')
+    message_path_new = os.path.join(message_path, 'scene_creation')
+    try:
+        os.mkdir(message_path_new)
+    except FileExistsError:
+        pass
+    mess_new = os.path.join(message_path, 'retry_cmds')
+    try:
+        os.mkdir(mess_new)
+    except FileExistsError:
+        pass
+    cmds = []
+    with open(file_name, 'r') as fi:
+        # Load directory holding configuration files
+        confd = fi.readline().rstrip()
+        cont = False
+        if confd:
+            confd = confd.rstrip()
+            cont = True
+        while cont:
+            if not os.path.exists(confd):
+                raise ValueError("Directory " + confd + " does not exist.")
+            if not confd:
+                confd = fi.readline()
+                if confd:
+                    confd = confd.rstrip()
+                    cont = True
+                else:
+                    cont = False
+                continue
+            cmds.append(confd.split(' '))
+            confd = fi.readline()
+            if confd:
+                confd = confd.rstrip()
+                cont = True
+            else:
+                cont = False
+
+    cmds_sequ = []
+    cmds_match = []
+    cmd_fails = []
+    for i in confd:
+        if '--load_folder' in i:
+            cmds_match.append(i)
+        else:
+            cmds_sequ.append(i)
+    if cmds_match:
+        cmds_ordered = {}
+        for i in cmds_match:
+            if not cmds_ordered or i[10] not in cmds_ordered.keys():
+                cmds_ordered[i[10]] = [i]
+            else:
+                cmds_ordered[i[10]].append(i)
+
+        # cpus_use = max(int(nr_cpus / len(cmds_ordered.keys())), 1)
+        # cpus_rest = nr_cpus % cpus_use
+        # longest = ('', 0)
+        # cpu_list = {}
+        # for i in cmds_ordered.keys():
+        #     cpu_list[i] = cpus_use
+        #     if len(cmds_ordered[i]) > longest[2]:
+        #         longest = (i, len(cmds_ordered[i]))
+        # cpu_list[longest[0]] += cpus_rest
+        cmds = []
+        for i in cmds_ordered.keys():
+            # Generate unique path for storing messages
+            dirn = os.path.dirname(cmds_ordered[i][8])
+            sub_dirs = re.findall(r'[\w-]+', dirn)
+            if sub_dirs:
+                base = sub_dirs[-1]
+            else:
+                warnings.warn('Unable to extract last sub-directory name of ' + cmds_ordered[i][8], UserWarning)
+                warnings.warn('Skipping calculations of matches for sequence folder ' + i, UserWarning)
+                sys.stdout.flush()
+                continue
+            mess_new1 = os.path.join(mess_new, base)
+            try:
+                os.mkdir(mess_new1)
+            except FileExistsError:
+                print('Directory ', mess_new1, ' already exists.')
+                print('Overwriting previous stderr and stdout message files if file names are equal')
+                sys.stdout.flush()
+            ov_file = os.path.join(i, 'matchInfos.yaml')
+            if not os.path.exists(ov_file):
+                raise ValueError('File ' + ov_file + ' does not exist')
+            cnt = 0
+            try:
+                data = readOpenCVYaml(ov_file)
+            except:
+                raise ValueError("Unable to read yaml file " + ov_file)
+            while 1:
+                try:
+                    data_set = data['parSetNr' + str(int(cnt))]
+                    cnt += 1
+                except:
+                    break
+            if cnt == 0:
+                raise ValueError('No sequence available in ' + ov_file)
+            for j in cmds_ordered[i]:
+                cmds.append((j, int(cnt), mess_new1, nr_cpus, True))
+                cnt += 1
+        res2 = gen_matches_multiprocessing(cmds, cmd_fails, nr_cpus)
+        if res2:
+            res_file = os.path.join(mess_new, 'results.txt')
+            if os.path.exists(res_file):
+                print('results.txt already exists. Overwriting...')
+                sys.stdout.flush()
+            with open(res_file, 'w') as fo:
+                res1_tmp = []
+                for r in res2:
+                    if len(r) == 1:
+                        res1_tmp.append(r[0] + '\n')
+                    else:
+                        res2_tmp = []
+                        for r1 in r:
+                            if isinstance(r1, (list,)):
+                                res2_tmp.append(' '.join(map(str, r1)))
+                            else:
+                                res2_tmp.append('Inner-parSetNr: ' + str(r1))
+                        res1_tmp.append('\n'.join(res2_tmp))
+                fo.write('\n\n'.join(res1_tmp))
+
+    if cmds_sequ:
+        folders = []
+        # Get cmds with same config folder
+        cmds_ordered = {}
+        for i in cmds_sequ:
+            path = os.path.dirname(i[8])
+            if not cmds_ordered or path not in cmds_ordered.keys():
+                cmds_ordered[path] = [i]
+            else:
+                cmds_ordered[path].append(i)
+        # Get overview file to be able to read which matches should be generated after creating the sequence
+        for i in cmds_ordered.keys():
+            # Get last parSetNr
+            ovs_f = os.path.join(cmds_ordered[i][0][6], 'sequInfos.yaml')
+            if not os.path.exists(ovs_f):
+                raise ValueError("Sequence overview file " + ovs_f + " does not exist.")
+            try:
+                data = readOpenCVYaml(ovs_f)
+            except:
+                raise ValueError("Unable to read yaml file " + ovs_f)
+            cnt = 0
+            while 1:
+                try:
+                    data_set = data['parSetNr' + str(int(cnt))]
+                    cnt += 1
+                except:
+                    break
+            if cnt == 0:
+                raise ValueError('No sequence available in ' + ovs_f + ' The whole directery should be processed.')
+            ovcf = os.path.join(i, 'config_files.csv')
+            confs_list = []
+            if not os.path.exists(ovcf):
+                raise ValueError("File " + ovcf + " does not exist.")
+            cf = pandas.read_csv(ovcf, delimiter=';')
+            if cf.empty:
+                print("File " + ovcf + " is empty.")
+                print('Skipping all configuration files listed in ', ovcf)
+                sys.stdout.flush()
+                continue
+
+            for j in cmds_ordered[i]:
+                fname = os.path.basename(j[8])
+                sequ_row = cf.loc[cf['conf_file'] == j[8]]
+                if sequ_row.empty or not isinstance(sequ_row, pandas.Series):
+                    raise ValueError('Unable to locate config file ' + j[8] + ' in overview file ' + ovcf)
+                parSet = int(sequ_row['parSetNr'])
+                small_set = cf.loc[cf['parSetNr'] == parSet]
+                small_set['parSetNr'] = [cnt] * int(small_set.shape[0])
+                confs_list.append(small_set)
+                cnt += 1
+            cf_new = pandas.concat(confs_list, axis=0, ignore_index=True)
+            # Check which new file name we can use
+            f_name_new = os.path.join(i, 'config_files_retry_1.csv')
+            cnt = 2
+            while os.path.exists(f_name_new):
+                f_name_new = os.path.join(i, 'config_files_retry_' + str(cnt) + '.csv')
+                cnt += 1
+            cf_new.to_csv(index=True, sep=';', path_or_buf=f_name_new)
+            folders.append(f_name_new)
+
+        processDir(folders, nr_cpus, executable, message_path)
+
+
+
+
+
+
 
 
 class NoDaemonProcess(multiprocessing.Process):
@@ -167,7 +401,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
         #Split entries into tasks for generating initial sequences and matches only
         c_sequ = cf.loc[cf['scene_exists'] == 0]
         c_match = cf.loc[cf['scene_exists'] == 1]
-        c_match.sort_values('parSetNr')
+        c_match.sort_values('parSetNr', inplace=True)
 
         #Calculate sequences first using multiple CPUs
         maxd_parallel1 = int(c_sequ.shape[0] / cpus_rest)
@@ -355,68 +589,10 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                         res1_2.append('Not able to generate matches for sequence with parSetNr'
                                        + str(i) + ' as the sequence was probably not generated.')
 
-        res2 = []
         if cmds_m:
-            # maxd_parallel2 = int(len(cmds_m) / cpus_rest)
-            # if maxd_parallel2 == 0:
-            #     maxd_parallel2 = 1
-            # nr_used_cpus2 = min(int(len(cmds_m) / maxd_parallel2), cpus_rest)
-            #
-            # cmds_tmp = []
-            # for t in cmds_m:
-            #     lst = list(t)
-            #     lst[3] = nr_used_cpus2
-            #     cmds_tmp.append(tuple(lst))
-            # cmds_m = cmds_tmp
-            cnt_start_fail = None
-            with multiprocessing.Pool(processes=cpus_rest) as pool:
-                results = [pool.apply_async(processSequences, t) for t in cmds_m]
-                cnt = 0
-                for r in results:
-                    try:
-                        res2.append(r.get())
-                        if len(res2[-1]) == 1:
-                            if res2[-1][0] == 'noExe' or res2[-1][0] == 'badName':
-                                res2[-1][0] = 'Failed to start ' + ' '.join(map(str, cmds_m[cnt][0]))
-                                print('Unable to start a process. Stopping calculations.')
-                                sys.stdout.flush()
-                                pool.terminate()
-                                cnt_start_fail = cnt
-                                break
-                    except FileExistsError:
-                        print('Something went wrong. Check first used parSetNr. Stopping calculations.')
-                        sys.stdout.flush()
-                        pool.terminate()
-                        cnt_start_fail = cnt
-                        break
-                    except ChildProcessError:
-                        print('Generation of matches failed.')
-                        sys.stdout.flush()
-                        res2.append(['Failed to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
-                        cmd_fails.append(cmds[cnt][0])
-                    except InterruptedError:
-                        print('Unable to generate matches as some user inputs are wrong. Stopping calculations.')
-                        pool.terminate()
-                        cnt_start_fail = cnt
-                        break
-                    except TimeoutError:
-                        print('Generation of matches failed due to timeout.')
-                        sys.stdout.flush()
-                        res2.append(['Failed (timeout) to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
-                        cmd_fails.append(cmds[cnt][0])
-                    except:
-                        print('Unknown exception in generating matches only.')
-                        e = sys.exc_info()
-                        print(str(e))
-                        sys.stdout.flush()
-                        res2.append(['Failed (Unknown exception) to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
-                        cmd_fails.append(cmds[cnt][0])
-                    cnt = cnt + 1
-                pool.close()
-                pool.join()
-            if cnt_start_fail:
-                for i in range(cnt_start_fail, len(cmds_m)):
-                    cmd_fails.append(cmds_m[i][0])
+            res2 = gen_matches_multiprocessing(cmds_m, cmd_fails, cpus_rest)
+        else:
+            res2 = []
 
         if res1:
             res_file = os.path.join(mess_new, 'results.txt')
@@ -460,6 +636,70 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
     return cmd_fails
 
 
+def gen_matches_multiprocessing(cmds_m, cmd_fails, cpus_rest):
+    res2 = []
+    # maxd_parallel2 = int(len(cmds_m) / cpus_rest)
+    # if maxd_parallel2 == 0:
+    #     maxd_parallel2 = 1
+    # nr_used_cpus2 = min(int(len(cmds_m) / maxd_parallel2), cpus_rest)
+    #
+    # cmds_tmp = []
+    # for t in cmds_m:
+    #     lst = list(t)
+    #     lst[3] = nr_used_cpus2
+    #     cmds_tmp.append(tuple(lst))
+    # cmds_m = cmds_tmp
+    cnt_start_fail = None
+    with multiprocessing.Pool(processes=cpus_rest) as pool:
+        results = [pool.apply_async(processSequences, t) for t in cmds_m]
+        cnt = 0
+        for r in results:
+            try:
+                res2.append(r.get())
+                if len(res2[-1]) == 1:
+                    if res2[-1][0] == 'noExe' or res2[-1][0] == 'badName':
+                        res2[-1][0] = 'Failed to start ' + ' '.join(map(str, cmds_m[cnt][0]))
+                        print('Unable to start a process. Stopping calculations.')
+                        sys.stdout.flush()
+                        pool.terminate()
+                        cnt_start_fail = cnt
+                        break
+            except FileExistsError:
+                print('Something went wrong. Check first used parSetNr. Stopping calculations.')
+                sys.stdout.flush()
+                pool.terminate()
+                cnt_start_fail = cnt
+                break
+            except ChildProcessError:
+                print('Generation of matches failed.')
+                sys.stdout.flush()
+                res2.append(['Failed to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
+                cmd_fails.append(cmds_m[cnt][0])
+            except InterruptedError:
+                print('Unable to generate matches as some user inputs are wrong. Stopping calculations.')
+                pool.terminate()
+                cnt_start_fail = cnt
+                break
+            except TimeoutError:
+                print('Generation of matches failed due to timeout.')
+                sys.stdout.flush()
+                res2.append(['Failed (timeout) to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
+                cmd_fails.append(cmds_m[cnt][0])
+            except:
+                print('Unknown exception in generating matches only.')
+                e = sys.exc_info()
+                print(str(e))
+                sys.stdout.flush()
+                res2.append(['Failed (Unknown exception) to generate ' + ' '.join(map(str, cmds_m[cnt][0]))])
+                cmd_fails.append(cmds_m[cnt][0])
+            cnt = cnt + 1
+        pool.close()
+        pool.join()
+    if cnt_start_fail:
+        for i in range(cnt_start_fail, len(cmds_m)):
+            cmd_fails.append(cmds_m[i][0])
+    return res2
+
 def searchParSetNr(ov_file, parSetNr):
     # Check if the overview file contains the parameters
     if os.path.exists(ov_file):
@@ -468,7 +708,10 @@ def searchParSetNr(ov_file, parSetNr):
         except:
             return False
         if data:
-            data_set = data['parSetNr' + str(parSetNr)]
+            try:
+                data_set = data['parSetNr' + str(parSetNr)]
+            except:
+                return False
             if data_set:
                 return True
             else:
