@@ -35,3 +35,29 @@ def get_available_main_tests():
 
 def get_available_sequences():
     return ['usac-testing', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
+
+
+def get_config_file_dir(test_name):
+    if test_name not in get_available_sequences():
+        raise ValueError('Cannot find config files for given test name ' + test_name)
+    dirs = {'usac-testing': 'USAC',
+            'correspondence_pool': 'Corr_Pool',
+            'robustness': 'Robustness',
+            'usac_vs_autocalib': 'USAC_vs_Autocalib'}
+    return dirs[test_name]
+
+
+def get_config_file_parameters(test_name):
+    if test_name not in get_available_sequences():
+        raise ValueError('Cannot create config files for given test name ' + test_name)
+    parameters = {'usac-testing': {'inlier_range': [0.1, 0.9, 0.1],
+                                   'kpAccRange': [0.5, 4.0, 0.5],
+                                   'treatTPasCorrs': True,
+                                   'treatTPasCorrsConfsSel': 'TP-100to1000'},
+                  'correspondence_pool': {'inlier_range': [0.1, 0.9, 0.1],
+                                          'kpAccRange': [0.5, 4.0, 0.5]},
+                  'robustness': {'inlchrate_range': [0.1, 0.7, 0.15, 1.0],
+                                 'kpAccRange': [0.5, 3.5, 1.0]},
+                  'usac_vs_autocalib': {'inlier_range': [0.1, 0.9, 0.2],
+                                        'kpAccRange': [0.5, 3.5, 1.0]}}
+    return parameters[test_name]

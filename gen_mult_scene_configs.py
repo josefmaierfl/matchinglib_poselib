@@ -7,7 +7,7 @@ from shutil import copyfile
 
 
 def gen_configs(input_path, path_confs_out, inlier_range, inlier_chr, kpAccRange, img_path, store_path, load_path,
-                treatTPasCorrs):
+                treatTPasCorrs, treatTPasCorrsSel):
     use_load_path = False
     if load_path:
         use_load_path = True
@@ -73,7 +73,12 @@ def gen_configs(input_path, path_confs_out, inlier_range, inlier_chr, kpAccRange
                                '--store_path', store_path_new,
                                '--load_path', load_path_n]
                     if treatTPasCorrs:
-                        cmdline += '--treatTPasCorrs'
+                        if treatTPasCorrsSel:
+                            fnObj = re.search(treatTPasCorrsSel, filen, re.I)
+                            if fnObj:
+                                cmdline += '--treatTPasCorrs'
+                        else:
+                            cmdline += '--treatTPasCorrs'
                     retcode = sp.run(cmdline, shell=False, check=True).returncode
                 else:
                     cmdline = ['python', pyfilename, '--filename', filenew,
@@ -121,10 +126,14 @@ def main():
                              'approximate maximum keypoint accuracy based on the given value as the value in '
                              'the configuration file corresponds to the standard deviation. '
                              'Format: min max step_size')
-    parser.add_argument('--treatTPasCorrs', type=bool, nargs='?', required=True, default=False, const=True,
+    parser.add_argument('--treatTPasCorrs', type=bool, nargs='?', required=False, default=False, const=True,
                         help='If provided, the number of TP is calculated and written to the config file based on '
                              'the given inlier ratios and the number or range of desired correspondences (TP+FP) '
                              'that is extracted from the filename (*_TP-?*).')
+    parser.add_argument('--treatTPasCorrsConfsSel', type=str, required=False,
+                        help='If provided and option treatTPasCorrs is provided, one unique string element which '
+                             'can be found in one or more initial configuration files. Only for these files, the '
+                             'number of TP is calculated as described in the option description of treatTPasCorrs.')
     parser.add_argument('--img_path', type=str, required=True,
                         help='Path to images')
     parser.add_argument('--store_path', type=str, required=True,
@@ -173,10 +182,12 @@ def main():
     if args.load_path:
         if not os.path.exists(args.load_path):
             raise ValueError("Path for loading sequences does not exist")
+    if args.treatTPasCorrsConfsSel and not args.treatTPasCorrs:
+        raise ValueError('Specified treatTPasCorrsConfsSel but not treatTPasCorrs')
     try:
         if args.inlier_range:
             ret = gen_configs(args.path, args.path_confs_out, args.inlier_range, [], args.kpAccRange, args.img_path,
-                              args.store_path, args.load_path, args.treatTPasCorrs)
+                              args.store_path, args.load_path, args.treatTPasCorrs, args.treatTPasCorrsConfsSel)
         else:
             ret = gen_configs(args.path, args.path_confs_out, [], args.inlchrate_range, args.kpAccRange, args.img_path,
                               args.store_path, args.load_path, False)

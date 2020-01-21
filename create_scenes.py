@@ -773,6 +773,7 @@ def searchParSetNr(ov_file, parSetNr):
         print('File with overview parameters not found after timeout.')
     return False
 
+
 def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
     #Check if we have to wait until other sequence generation processes have finished writing into the overview file
     if loaded:

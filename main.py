@@ -1,11 +1,90 @@
 """
 Main script file for executing the whole test procedure for testing the autocalibration SW
 """
-import sys, re, argparse, os, subprocess as sp, warnings, numpy as np
+import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, logging
+import communication as com
+import evaluation_numbers as en
+import pandas as pd
+
+token = ''
+use_sms = False
+
+
+def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_sc,
+                        use_cal_tests, use_evals, img_path, store_path_sequ, load_path, cpu_use,
+                        exec_sequ, message_path, exec_cal, store_path_cal, compare_pars,
+                        comp_pars_ev_nr, compare_path):
+    main_tests = en.get_available_main_tests()
+    scene_creation = en.get_available_sequences()
+    if skip_tests:
+        main_tests = [a for a in main_tests if not any([b == a for b in skip_tests])]
+        scene_creation = [a for a in scene_creation if not any([b == a for b in skip_tests])]
+        for i in skip_tests:
+            use_cal_tests.pop(i, None)
+            use_evals.pop(i, None)
+    for mt in main_tests:
+        # Generate configuration files
+        if any([b == mt for b in scene_creation]) and \
+                not (skip_gen_sc_conf and any([b == mt for b in skip_gen_sc_conf])):
+            ret = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
+            if ret:
+                return ret
+        # Generate scenes and matches
+        if any([b == mt for b in scene_creation]) and \
+                not (skip_crt_sc and any([b == mt for b in skip_crt_sc])):
+            ret = gen_scenes(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
+            if ret:
+                return ret
+
+
+def gen_scenes(main_tests, cpu_use):
+    if not path_init_confs:
+        raise ValueError('Path containing initial configuration files must be provided.')
+
+
+def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store_path_sequ, load_path):
+    if not path_init_confs:
+        raise ValueError('Path containing initial configuration files must be provided.')
+    dir_name = en.get_config_file_dir(test_name)
+    sub_path = os.path.join(path_init_confs, dir_name)
+    if not os.path.exists(sub_path):
+        raise ValueError('Sub-path ' + sub_path + ' for loading initial config files not found')
+    if not img_path:
+        raise ValueError('Path containing images for creating matches must be provided.')
+    if not store_path_sequ:
+        raise ValueError('Path for storing scenes and matches must be provided.')
+    pars = en.get_config_file_parameters(test_name)
+
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'gen_mult_scene_configs.py')
+    cmdline = ['python', pyfilename, '--path', sub_path,
+               '--img_path', img_path, '--store_path', store_path_sequ]
+    if path_confs_out:
+        cmdline += ['--path_confs_out', path_confs_out]
+    if load_path:
+        cmdline += ['--load_path', load_path]
+    for key, val in pars.items():
+        if not isinstance(val, bool) or val:
+            cmdline.append('--' + key)
+        if isinstance(val, list):
+            cmdline += ['%.2f' % a for a in val]
+        elif not isinstance(val, bool):
+            cmdline.append(str(val))
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=120).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for generating sequence configuration files for ' + test_name, exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Failed to generate sequence configuration files for ' + test_name, exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Failed to generate sequence configuration files for ' + test_name)
+    return ret
 
 
 def get_skip_use_evals(strings):
-    import evaluation_numbers as en
     main_test_names, sub_test_numbers, sub_sub_test_nr = en.get_available_evals()
     if not strings:
         use_evals = dict.fromkeys(main_test_names)
@@ -269,7 +348,6 @@ def get_skip_use_evals(strings):
 
 
 def get_skip_use_cal_tests(strings):
-    import evaluation_numbers as en
     main_test_names, sub_test_numbers = en.get_available_tests()
     if not strings:
         use_tests = dict.fromkeys(main_test_names)
@@ -391,6 +469,88 @@ def get_skip_use_cal_tests(strings):
     return use_tests
 
 
+def enable_messaging():
+    global token, use_sms
+    token, use_sms = com.decrypt_token()
+
+
+def send_message(text):
+    if use_sms:
+        com.send_sms(text, token)
+
+
+def enable_logging(path):
+    base = 'error_log_main_level_%03d'
+    excmess = os.path.join(path, (base % 1) + '.txt')
+    cnt = 2
+    while os.path.exists(excmess):
+        excmess = os.path.join(path, (base % cnt) + '.txt')
+        cnt += 1
+    logging.basicConfig(filename=excmess, level=logging.DEBUG)
+
+
+def retry_scenes_gen_dir(filename, exec_sequ, message_path, cpu_use):
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'create_scenes.py')
+    cmdline = ['python', pyfilename, '--retry_dirs_file', filename,
+               '--nrCPUs', str(cpu_use), '--executable', exec_sequ, '--message_path', message_path]
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=18000).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for generating sequences.', exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Failed to generate scene and/or matches during retry', exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Retrying generation of sequences based on all configuration files in directories failed.')
+    return ret
+
+
+def retry_scenes_gen_cmds(filename, message_path, cpu_use):
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'create_scenes.py')
+    cmdline = ['python', pyfilename, '--retry_cmds_file', filename,
+               '--nrCPUs', str(cpu_use), '--message_path', message_path]
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=18000).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for generating sequences.', exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Failed to generate scene and/or matches during retry', exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Retrying generation of sequences based on single command lines failed.')
+    return ret
+
+
+def retry_autocalibration(filename, nrCall, store_path, exec_cal, message_path, cpu_use):
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'retry_test_cases.py')
+    cmdline = ['python', pyfilename, '--csv_file', filename, '--nrCPUs', str(cpu_use),
+               '--message_path', message_path, '--nrCall', str(nrCall), '--output_path', store_path,
+               '--executable', exec_cal]
+    cf = pd.read_csv(filename, delimiter=';')
+    if cf.empty:
+        raise ValueError("File " + filename + " is empty.")
+    t_out = int(cf.shape[0]) * 200 * 15
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=t_out).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for testing autocalibration during retry.', exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Failed to test autocalibration during retry', exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Failed to test autocalibration during retry.')
+    return ret
+
+
 def main():
     parser = argparse.ArgumentParser(description='Main script file for executing the whole test procedure for '
                                                  'testing the autocalibration SW')
@@ -504,7 +664,8 @@ def main():
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
                                                     'configuration files does not exist')
-    import evaluation_numbers as en
+    if args.path_confs_out and not os.path.exists(args.path_confs_out):
+        raise ValueError('Directory ' + args.path_confs_out + ' for storing config files does not exist')
     main_test_names = en.get_available_main_tests()
     if args.skip_tests:
         for i in args.skip_tests:
@@ -522,6 +683,8 @@ def main():
                 raise ValueError('Cannot skip creation of scenes with test name ' + i + ' as it does not exist.')
     if args.crt_sc_dirs_file and not os.path.exists(args.crt_sc_dirs_file):
         raise ValueError('File ' + args.crt_sc_dirs_file + ' does not exist.')
+    elif args.crt_sc_dirs_file and not args.exec_sequ:
+        raise ValueError('Executable for generating scenes must be provided')
     if args.crt_sc_cmds_file and not os.path.exists(args.crt_sc_cmds_file):
         raise ValueError('File ' + args.crt_sc_cmds_file + ' does not exist.')
     if args.img_path and not os.path.exists(args.img_path):
@@ -577,10 +740,32 @@ def main():
         if not args.exec_cal:
             raise ValueError('Argument exec_cal must be provided')
 
+    enable_messaging()
+    enable_logging(args.message_path)
+
+    if args.crt_sc_dirs_file and args.crt_sc_cmds_file:
+        ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
+        ret += retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
+        sys.exit(ret)
+    if args.crt_sc_dirs_file:
+        ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
+        sys.exit(ret)
+    if args.crt_sc_cmds_file:
+        ret = retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
+        sys.exit(ret)
+
+    if args.cal_retry_file:
+        ret = retry_autocalibration(args.cal_retry_file, args.cal_retry_nrCall, args.store_path_cal,
+                                    args.exec_cal, args.message_path, cpu_use)
+        sys.exit(ret)
+
     use_evals = get_skip_use_evals(args.skip_use_eval_name_nr)
     use_cal_tests = get_skip_use_cal_tests(args.skip_use_test_name_nr)
 
-    ret = start_testing(args.path, args.path_confs_out)
+    ret = start_testing(args.path, args.path_confs_out, args.skip_tests, args.skip_gen_sc_conf, args.skip_crt_sc,
+                        use_cal_tests, use_evals, args.img_path, args.store_path_sequ, args.load_path, cpu_use,
+                        args.exec_sequ, args.message_path, args.exec_cal, args.store_path_cal, args.compare_pars,
+                        args.comp_pars_ev_nr, args.compare_path)
     sys.exit(ret)
 
 

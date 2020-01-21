@@ -178,7 +178,7 @@ def main():
                              'approximate maximum keypoint accuracy based on the given value as the value in '
                              'the configuration file corresponds to the standard deviation. '
                              'Format: min max step_size')
-    parser.add_argument('--treatTPasCorrs', type=bool, nargs='?', required=True, default=False, const=True,
+    parser.add_argument('--treatTPasCorrs', type=bool, nargs='?', required=False, default=False, const=True,
                         help='If provided, the number of TP is calculated and written to the config file based on '
                              'the given inlier ratios and the number or range of desired correspondences (TP+FP) '
                              'that is extracted from the filename (*_TP-?*).')
