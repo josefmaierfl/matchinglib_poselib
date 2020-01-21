@@ -43,8 +43,6 @@ def genScenes(input_path, executable, nr_cpus, message_path, retry_file=None):
             confd = confd.rstrip()
             cont = True
         while cont:
-            if not os.path.exists(confd):
-                raise ValueError("Directory " + confd + " does not exist.")
             #Load list of configuration files and settings for generating scenes
             if retry_file:
                 if not confd:
@@ -55,8 +53,12 @@ def genScenes(input_path, executable, nr_cpus, message_path, retry_file=None):
                     else:
                         cont = False
                     continue
+                if not os.path.exists(confd):
+                    raise ValueError("Directory " + confd + " does not exist.")
                 ovcf = confd
             else:
+                if not os.path.exists(confd):
+                    raise ValueError("Directory " + confd + " does not exist.")
                 ovcf = os.path.join(confd, 'config_files.csv')
             if not os.path.exists(ovcf):
                 raise ValueError("File " + ovcf + " does not exist.")
@@ -198,14 +200,12 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
     cmds = []
     with open(file_name, 'r') as fi:
         # Load directory holding configuration files
-        confd = fi.readline().rstrip()
+        confd = fi.readline()
         cont = False
         if confd:
             confd = confd.rstrip()
             cont = True
         while cont:
-            if not os.path.exists(confd):
-                raise ValueError("Directory " + confd + " does not exist.")
             if not confd:
                 confd = fi.readline()
                 if confd:
@@ -214,6 +214,8 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
                 else:
                     cont = False
                 continue
+            if not os.path.exists(confd):
+                raise ValueError("Directory " + confd + " does not exist.")
             cmds.append(confd.split(' '))
             confd = fi.readline()
             if confd:
@@ -275,10 +277,9 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
             except:
                 raise ValueError("Unable to read yaml file " + ov_file)
             while 1:
-                try:
-                    data_set = data['parSetNr' + str(int(cnt))]
+                if 'parSetNr' + str(int(cnt)) in data.keys():
                     cnt += 1
-                except:
+                else:
                     break
             if cnt == 0:
                 raise ValueError('No sequence available in ' + ov_file)
@@ -306,6 +307,7 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
                         res1_tmp.append('\n'.join(res2_tmp))
                 fo.write('\n\n'.join(res1_tmp))
 
+    ret = 0
     if cmds_sequ:
         folders = []
         # Get cmds with same config folder
@@ -328,13 +330,12 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
                 raise ValueError("Unable to read yaml file " + ovs_f)
             cnt = 0
             while 1:
-                try:
-                    data_set = data['parSetNr' + str(int(cnt))]
+                if 'parSetNr' + str(int(cnt)) in data.keys():
                     cnt += 1
-                except:
+                else:
                     break
             if cnt == 0:
-                raise ValueError('No sequence available in ' + ovs_f + ' The whole directery should be processed.')
+                raise ValueError('No sequence available in ' + ovs_f + '. The whole directery should be processed.')
             ovcf = os.path.join(i, 'config_files.csv')
             confs_list = []
             if not os.path.exists(ovcf):
@@ -347,13 +348,13 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
                 continue
 
             for j in cmds_ordered[i]:
-                fname = os.path.basename(j[8])
+                # fname = os.path.basename(j[8])
                 sequ_row = cf.loc[cf['conf_file'] == j[8]]
-                if sequ_row.empty or not isinstance(sequ_row, pandas.Series):
+                if sequ_row.empty or sequ_row.shape[0] != 1:
                     raise ValueError('Unable to locate config file ' + j[8] + ' in overview file ' + ovcf)
                 parSet = int(sequ_row['parSetNr'])
-                small_set = cf.loc[cf['parSetNr'] == parSet]
-                small_set['parSetNr'] = [cnt] * int(small_set.shape[0])
+                small_set = cf.loc[cf['parSetNr'] == parSet].copy(deep=True)
+                small_set.loc[:, 'parSetNr'] = [cnt] * int(small_set.shape[0])
                 confs_list.append(small_set)
                 cnt += 1
             cf_new = pandas.concat(confs_list, axis=0, ignore_index=True)
@@ -366,13 +367,63 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
             cf_new.to_csv(index=True, sep=';', path_or_buf=f_name_new)
             folders.append(f_name_new)
 
-        processDir(folders, nr_cpus, executable, message_path)
+        cmd_fails_dir = []
+        try:
+            res = processDir(folders, nr_cpus, cmds_sequ[0][0], mess_new)
+            print()
+            if res:
+                cmd_fails += res
+                print('Finished the following directories with errors:')
+            else:
+                print('Finished the following directories:')
+            print('\n'.join(folders))
+            print('\n')
+        except ValueError as e:
+            print()
+            print('Exception during processing a folder with multiple configuration files:')
+            print(str(e))
+            print('Some of the following directories might be not processed completely:')
+            print('\n'.join(folders))
+            print('\n')
+            cmd_fails_dir.append(folders)
+        except:
+            print()
+            print('Unknown exception in processing directories.')
+            e = sys.exc_info()
+            print(str(e))
+            sys.stdout.flush()
+            cmd_fails_dir.append(folders)
 
+        if cmd_fails_dir:
+            ret = 1
+            res_file = os.path.join(mess_new, 'sequ_matches_dirs_error_overview.txt')
+            cnt = 1
+            while os.path.exists(res_file):
+                res_file = os.path.join(mess_new, 'sequ_matches_dirs_error_overview' + str(cnt) + '.txt')
+                cnt = cnt + 1
 
+            with open(res_file, 'w') as fo:
+                cmd_fails_tmp = []
+                for r in cmd_fails_dir:
+                    cmd_fails_tmp.append('\n'.join(r))
+                for r in cmd_fails_tmp:
+                    fo.write('\n\n'.join(r))
 
+    if cmd_fails:
+        ret += 1
+        res_file = os.path.join(mess_new, 'sequ_matches_cmds_error_overview.txt')
+        cnt = 1
+        while os.path.exists(res_file):
+            res_file = os.path.join(mess_new, 'sequ_matches_cmds_error_overview' + str(cnt) + '.txt')
+            cnt = cnt + 1
 
-
-
+        with open(res_file, 'w') as fo:
+            cmd_fails_tmp = []
+            for r in cmd_fails:
+                cmd_fails_tmp.append(' '.join(map(str, r)))
+            for r in cmd_fails_tmp:
+                fo.write('\n'.join(r))
+    return ret
 
 
 class NoDaemonProcess(multiprocessing.Process):
