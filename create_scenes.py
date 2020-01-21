@@ -955,26 +955,38 @@ def readOpenCVYaml(file):
 
 def main():
     parser = argparse.ArgumentParser(description='Generate multiple scenes and matches from configuration files')
-    parser.add_argument('--path', type=str, required=True,
+    parser.add_argument('--path', type=str, required=False,
                         help='Directory holding file \'generated_dirs_config.txt\'')
     parser.add_argument('--nrCPUs', type=int, required=False, default=4,
                         help='Number of CPU cores for parallel processing. If a negative value is provided, '
                              'the program tries to find the number of available CPUs on the system - if it fails, '
                              'the absolute value of nrCPUs is used. Default: 4')
-    parser.add_argument('--executable', type=str, required=True,
+    parser.add_argument('--executable', type=str, required=False,
                         help='Executable of the application generating the sequences')
     parser.add_argument('--message_path', type=str, required=True,
                         help='Storing path for text files containing error and normal mesages during the '
                              'generation process of scenes and matches')
+    parser.add_argument('--retry_dirs_file', type=str, required=False,
+                        help='File name including path which holds directory names for which the last scene creation '
+                             'process failed and, thus, should be tried again.')
+    parser.add_argument('--retry_cmds_file', type=str, required=False,
+                        help='File name including path which holds command lines for which the last scene and/or '
+                             'matches creation process failed and, thus, should be tried again.')
     args = parser.parse_args()
-    if not os.path.exists(args.path):
-        raise ValueError('Directory ' + args.path + ' does not exist')
+    if args.path:
+        if not args.executable:
+            raise ValueError('Missing argument executable')
+        if not os.path.exists(args.path):
+            raise ValueError('Directory ' + args.path + ' does not exist')
+    if args.retry_dirs_file and not args.executable:
+        raise ValueError('Missing argument executable')
+    if args.executable:
+        if not os.path.isfile(args.executable):
+            raise ValueError('Executable ' + args.executable + ' for generating scenes does not exist')
+        elif not os.access(args.executable, os.X_OK):
+            raise ValueError('Unable to execute ' + args.executable)
     if not os.path.exists(args.message_path):
         raise ValueError("Path for storing stdout and stderr does not exist")
-    if not os.path.isfile(args.executable):
-        raise ValueError('Executable ' + args.executable + ' for generating scenes does not exist')
-    elif not os.access(args.executable,os.X_OK):
-        raise ValueError('Unable to execute ' + args.executable)
     if args.nrCPUs > 72 or args.nrCPUs == 0:
         raise ValueError("Unable to use " + str(args.nrCPUs) + " CPU cores.")
     av_cpus = os.cpu_count()
@@ -993,7 +1005,15 @@ def main():
     else:
         cpu_use = args.nrCPUs
 
-    ret = genScenes(args.path, args.executable, cpu_use, args.message_path)
+    if args.path:
+        ret = genScenes(args.path, args.executable, cpu_use, args.message_path)
+    elif args.retry_dirs_file:
+        ret = retry_dirs_from_file(args.retry_dirs_file, args.executable, cpu_use, args.message_path)
+    elif not args.retry_cmds_file:
+        parser.print_help()
+        raise ValueError('Too less arguments.')
+    else:
+        ret = retry_cmds_from_file(args.retry_cmds_file, cpu_use, args.message_path)
     sys.exit(ret)
 
 
