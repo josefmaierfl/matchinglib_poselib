@@ -5327,8 +5327,9 @@ def main():
         else:
             comp_path = args.path
 
-    return eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars, cpu_use,
-                     args.message_path)
+    ret = eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars, cpu_use,
+                    args.message_path)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

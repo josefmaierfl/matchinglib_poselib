@@ -1051,8 +1051,10 @@ def main():
             it.append('--useGTCamMat')
 
 
-    return autocalib_pre(args.path, args.executable, cpu_use, args.message_path, args.output_path, args.inlier_ratios,
-                         args.kp_accs, args.depths, args.kp_pos_distr, args.nr_keypoints, cmds)
+    ret = autocalib_pre(args.path, args.executable, cpu_use, args.message_path, args.output_path, args.inlier_ratios,
+                        args.kp_accs, args.depths, args.kp_pos_distr, args.nr_keypoints, cmds)
+    sys.exit(ret)
+
 
 def appUSAC(reslist, cfgUSAC, idx, errstr, maxv, missdig):
     if cfgUSAC[idx] > 0:
@@ -1068,6 +1070,7 @@ def appUSAC(reslist, cfgUSAC, idx, errstr, maxv, missdig):
         for it in reslist:
             it.append(cfgUSAC[idx - 6])
     return reslist
+
 
 def appRange(reslist, inlist, str_name):
     if len(inlist) == 1:
@@ -1097,6 +1100,7 @@ def appRange(reslist, inlist, str_name):
         raise ValueError('Wrong number of arguments for ' + str_name)
     return reslist
 
+
 def resolveRange(inlist, str_name):
     if len(inlist) != 3:
         raise ValueError('Wrong number of arguments for ' + str_name)
@@ -1118,6 +1122,7 @@ def resolveRange(inlist, str_name):
         for th in range(inlist[0], inlist[1] + inlist[2], inlist[2]):
             reslist.append(th)
     return reslist
+
 
 def appMultRanges(reslist, inlist, str_name):
     if len(inlist) == 1:
@@ -1155,6 +1160,7 @@ def appMultRanges(reslist, inlist, str_name):
     else:
         raise ValueError('Wrong number of arguments for ' + str_name)
     return reslist
+
 
 if __name__ == "__main__":
     main()

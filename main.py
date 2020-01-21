@@ -580,10 +580,8 @@ def main():
     use_evals = get_skip_use_evals(args.skip_use_eval_name_nr)
     use_cal_tests = get_skip_use_cal_tests(args.skip_use_test_name_nr)
 
-    return start_testing(args.path, args.path_confs_out)
-
-
-    return 0
+    ret = start_testing(args.path, args.path_confs_out)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

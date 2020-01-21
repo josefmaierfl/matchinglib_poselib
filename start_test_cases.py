@@ -1280,8 +1280,9 @@ def main():
                         help='Test number within the main test specified by test_name starting with 1')
     args = parser.parse_args()
 
-    return choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
-                       args.output_path, args.test_name.lower(), args.test_nr)
+    ret = choose_test(args.path, args.executable, args.nrCPUs, args.message_path,
+                      args.output_path, args.test_name.lower(), args.test_nr)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

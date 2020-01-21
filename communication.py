@@ -57,6 +57,7 @@ def send_sms(text, token):
                            from_="+12512701072",
                            body=text)
 
+
 def main():
     encr = False
     if encr:

@@ -2,8 +2,9 @@
 Loads initial configuration files and creates scenes which can be further used to extract information
 that is needed for the final configuration files
 """
-import re, argparse, os, subprocess as sp
+import re, argparse, os, sys, subprocess as sp
 from copy import deepcopy
+
 
 def gen_scenes(test_app, input_path, img_path, store_path, message_path):
     # Load file names
@@ -78,6 +79,8 @@ def gen_scenes(test_app, input_path, img_path, store_path, message_path):
             cerrf.close()
             messf.close()
             cnt = cnt + 1
+    return 0
+
 
 def main():
     parser = argparse.ArgumentParser(description='Execute generateVirtualSequence for multiple configuration files')
@@ -107,7 +110,8 @@ def main():
         raise ValueError('Unable to execute ' + args.executable)
     if not os.path.exists(args.message_path):
         raise ValueError("Path for storing stdout and stderr does not exist")
-    gen_scenes(args.executable, args.path, args.img_path, args.store_path, args.message_path)
+    ret = gen_scenes(args.executable, args.path, args.img_path, args.store_path, args.message_path)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

@@ -66,6 +66,7 @@ def gen_configs(input_file_name, inlier_range, inlier_values, kpAccRange, img_pa
     df = pd.DataFrame(data=datac)
     ov_file = os.path.join(path, 'config_files.csv')
     df.to_csv(index=True, sep=';', path_or_buf=ov_file)
+    return 0
 
 
 def write_config_file(finput, foutput, inlR, acc):
@@ -150,8 +151,9 @@ def main():
             raise ValueError("Path for loading sequences does not exist")
     else:
         args.load_path = args.store_path
-    gen_configs(args.filename, args.inlchrate_range[0:3], args.inlchrate_range[3:], args.kpAccRange, args.img_path,
-                args.store_path, args.load_path)
+    ret = gen_configs(args.filename, args.inlchrate_range[0:3], args.inlchrate_range[3:], args.kpAccRange,
+                      args.img_path, args.store_path, args.load_path)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

@@ -62,8 +62,9 @@ def main():
     if args.nrCall < 1:
         raise ValueError("Invalid nrCall number")
 
-    return retry_test(args.csv_file, args.executable, cpu_use, args.message_path,
-                       args.output_path, args.nrCall)
+    ret = retry_test(args.csv_file, args.executable, cpu_use, args.message_path,
+                     args.output_path, args.nrCall)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

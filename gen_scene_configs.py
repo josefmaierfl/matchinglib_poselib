@@ -5,6 +5,7 @@ import sys, re, numpy as np, argparse, os, pandas as pd
 #from tabulate import tabulate as tab
 #from copy import deepcopy
 
+
 def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path, load_path, treatTPasCorrs):
     path, fname = os.path.split(input_file_name)
     base = ''
@@ -64,6 +65,7 @@ def gen_configs(input_file_name, inlier_range, kpAccRange, img_path, store_path,
     ov_file = os.path.join(path, 'config_files.csv')
     df.to_csv(index=True, sep=';', path_or_buf=ov_file)
     #cf = pandas.read_csv(input_file_name, delimiter=';')
+    return 0
 
 
 def getTPRange(filename, inl):
@@ -213,8 +215,9 @@ def main():
             raise ValueError("Path for loading sequences does not exist")
     else:
         args.load_path = args.store_path
-    gen_configs(args.filename, args.inlier_range, args.kpAccRange, args.img_path, args.store_path, args.load_path,
-                args.treatTPasCorrs)
+    ret = gen_configs(args.filename, args.inlier_range, args.kpAccRange, args.img_path, args.store_path, args.load_path,
+                      args.treatTPasCorrs)
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

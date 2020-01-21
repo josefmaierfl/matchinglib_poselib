@@ -100,6 +100,7 @@ def gen_configs(input_path, path_confs_out, inlier_range, inlier_chr, kpAccRange
             os.remove(filenew)
             #Write directory name holding config files to overview file
             fo.write(pathnew + '\n')
+    return 0
 
 
 def main():
@@ -174,18 +175,18 @@ def main():
             raise ValueError("Path for loading sequences does not exist")
     try:
         if args.inlier_range:
-            gen_configs(args.path, args.path_confs_out, args.inlier_range, [], args.kpAccRange, args.img_path,
-                        args.store_path, args.load_path, args.treatTPasCorrs)
+            ret = gen_configs(args.path, args.path_confs_out, args.inlier_range, [], args.kpAccRange, args.img_path,
+                              args.store_path, args.load_path, args.treatTPasCorrs)
         else:
-            gen_configs(args.path, args.path_confs_out, [], args.inlchrate_range, args.kpAccRange, args.img_path,
-                        args.store_path, args.load_path, False)
+            ret = gen_configs(args.path, args.path_confs_out, [], args.inlchrate_range, args.kpAccRange, args.img_path,
+                              args.store_path, args.load_path, False)
     except FileExistsError:
         warnings.warn(sys.exc_info()[0], UserWarning)
-        return 1
+        sys.exit(1)
     except:
         print("Unexpected error: ", sys.exc_info()[0])
         raise
-    return 0
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

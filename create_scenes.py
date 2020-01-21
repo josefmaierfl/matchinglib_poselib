@@ -993,7 +993,9 @@ def main():
     else:
         cpu_use = args.nrCPUs
 
-    return genScenes(args.path, args.executable, cpu_use, args.message_path)
+    ret = genScenes(args.path, args.executable, cpu_use, args.message_path)
+    sys.exit(ret)
+
 
 if __name__ == "__main__":
     main()
