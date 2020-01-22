@@ -61,3 +61,39 @@ def get_config_file_parameters(test_name):
                   'usac_vs_autocalib': {'inlier_range': [0.1, 0.9, 0.2],
                                         'kpAccRange': [0.5, 3.5, 1.0]}}
     return parameters[test_name]
+
+
+def check_calc_opt_pars(test_name, test_nr):
+    parameters = {'usac-testing': {'1': ['USAC_parameters_estimator', 'USAC_parameters_refinealg'],
+                                   '2': ['USAC_parameters_automaticSprtInit',
+                                         'USAC_parameters_automaticProsacParameters',
+                                         'USAC_parameters_prevalidateSample', 'USAC_parameters_USACInlratFilt']},
+                  'usac_vs_ransac': ['th', 'RobMethod'],
+                  'refinement_ba': {'1': None, '2': ['refineMethod_algorithm', 'refineMethod_costFunction', 'BART']},
+                  'vfc_gms_sof': None,
+                  'refinement_ba_stereo': {'1': None, '2': ['stereoParameters_refineMethod_CorrPool_algorithm',
+                                                            'stereoParameters_refineMethod_CorrPool_costFunction',
+                                                            'stereoParameters_BART_CorrPool']},
+                  'correspondence_pool': {'1': ['stereoParameters_minPtsDistance',
+                                                'stereoParameters_maxPoolCorrespondences'],
+                                          '2': ['stereoParameters_maxRat3DPtsFar', 'stereoParameters_maxDist3DPtsZ'],
+                                          '3': None},
+                  'robustness': {'1': ['stereoParameters_relInlRatThLast', 'stereoParameters_relInlRatThNew',
+                                       'stereoParameters_minInlierRatSkip', 'stereoParameters_relMinInlierRatSkip',
+                                       'stereoParameters_minInlierRatioReInit'],
+                                 '2': ['stereoParameters_checkPoolPoseRobust'],
+                                 '3': None,
+                                 '4': ['stereoParameters_minContStablePoses', 'stereoParameters_minNormDistStable',
+                                       'stereoParameters_absThRankingStable'],
+                                 '5': ['stereoParameters_useRANSAC_fewMatches'],
+                                 '6': None},
+                  'usac_vs_autocalib': None}
+    pars_sel = parameters[test_name]
+    if pars_sel is None:
+        return None
+    elif isinstance(pars_sel, list):
+        return pars_sel
+    return pars_sel[str(test_nr)]
+
+
+# def get_res_par_keys(par_est)

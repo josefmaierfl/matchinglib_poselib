@@ -125,6 +125,11 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         pars_opt = read_pars(output_path, pars_list)
         for i in pars_opt.keys():
             locals()[i] = pars_opt[i]
+    else:
+        try:
+            write_par_file_template(output_path)
+        except ValueError:
+            raise ValueError('Parameter file for storing optimal parameters already exists.')
 
     if test_name == 'usac-testing':
         args += ['--refineRT', '0', '0']
@@ -957,7 +962,6 @@ def read_pars_yaml(path):
             ydata = readYaml(pfile)
         except BaseException:
             raise ValueError('Unable to read parameter file')
-            return -1
     else:
         warnings.warn('Parameter file does not exist. Creating a template.', UserWarning)
         try:

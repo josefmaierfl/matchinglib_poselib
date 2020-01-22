@@ -5304,7 +5304,7 @@ def main():
         try:
             os.mkdir(output_path)
         except FileExistsError:
-            raise ValueError('Directory ' + output_path + ' already exists')
+            warnings.warn('Directory ' + output_path + ' already exists', UserWarning)
     comp_path = None
     comp_pars = None
     if args.compare_pars:

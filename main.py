@@ -23,23 +23,107 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
             use_cal_tests.pop(i, None)
             use_evals.pop(i, None)
     for mt in main_tests:
+        # Make dir for messages
+        message_path_new = os.path.join(message_path, mt)
+        try:
+            os.mkdir(message_path_new)
+        except FileExistsError:
+            pass
         # Generate configuration files
+        pco = None
         if any([b == mt for b in scene_creation]) and \
                 not (skip_gen_sc_conf and any([b == mt for b in skip_gen_sc_conf])):
-            ret = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
+            ret, pco = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
             if ret:
                 return ret
         # Generate scenes and matches
         if any([b == mt for b in scene_creation]) and \
                 not (skip_crt_sc and any([b == mt for b in skip_crt_sc])):
-            ret = gen_scenes(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
+            if pco is None:
+                pco = get_confs_path(mt, path, path_confs_out)
+            ret = gen_scenes(mt, pco, exec_sequ, message_path, cpu_use)
+            if ret:
+                return ret
+        # Run autocalibration and evaluation
+        if any([b == mt for b in use_cal_tests.keys()]):
+            if use_cal_tests[mt] is None:
+                test_nr_list = [None]
+            else:
+                test_nr_list = use_cal_tests[mt]
+            for tn in test_nr_list:
+                if pco is None:
+                    pco = get_confs_path(mt, path, path_confs_out)
+                # Run autocalibration
+                ret = start_autocalibration(mt, tn, pco, store_path_cal, exec_cal, message_path, cpu_use)
+                if ret:
+                    return ret
+                # Run evaluation
+                if any([b == mt for b in use_evals.keys()]) and \
+                        (tn is None or any([b == str(tn) for b in use_evals[mt].keys()])):
+                ret = start_eval()
+                if ret:
+                    return ret
+        elif any([b == mt for b in use_evals.keys()]):
+            # Run evaluation
+            ret = start_eval()
             if ret:
                 return ret
 
 
-def gen_scenes(main_tests, cpu_use):
-    if not path_init_confs:
-        raise ValueError('Path containing initial configuration files must be provided.')
+def start_eval(test_name, test_nr, store_path_cal):
+
+    # After evals are finished try to find optimal parameters
+    evals_path = os.path.join(store_path_cal, test_name)
+    if test_nr:
+        evals_path = os.path.join(evals_path, str(test_nr))
+    evals_path = os.path.join(evals_path, 'evals')
+    if not os.path.exists(evals_path):
+        warnings.warn('Unable to locate results path of evaluations. Cannot estimate optimal parameters.')
+
+
+def start_autocalibration(test_name, test_nr, gen_dirs_config_f, output_path, executable, message_path, cpu_use):
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'start_test_cases.py')
+    cmdline = ['python', pyfilename, '--path', gen_dirs_config_f, '--nrCPUs', cpu_use, '--output_path', output_path,
+               '--executable', executable, '--message_path', message_path, '--test_name', test_name]
+    if test_nr:
+        cmdline += ['--test_nr', str(test_nr)]
+    tout = int(96768000 / cpu_use)# 1209600 possibilities * (150 + 50) / 2 frames * 0.8 seconds
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=tout).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for testing autocalibration in main test ' +
+                      test_name + (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Autocalibration failed. Main test ' + test_name +
+                      (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Autocalibration failed. Main test ' + test_name +
+                     (' with test nr ' + str(test_nr) if test_nr else ''))
+    return ret
+
+
+def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'create_scenes.py')
+    cmdline = ['python', pyfilename, '--path', gen_dirs_config_f, '--nrCPUs', cpu_use,
+               '--executable', executable, '--message_path', message_path]
+    tout = int(3024000 / cpu_use)
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=tout).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for generating scenes and matches for ' + test_name, exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Failed to generate scenes and matches for ' + test_name, exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Failed to generate scenes and matches for ' + test_name)
+    return ret
 
 
 def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store_path_sequ, load_path):
@@ -60,7 +144,14 @@ def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store
     cmdline = ['python', pyfilename, '--path', sub_path,
                '--img_path', img_path, '--store_path', store_path_sequ]
     if path_confs_out:
-        cmdline += ['--path_confs_out', path_confs_out]
+        pco = os.path.join(path_confs_out, dir_name)
+        try:
+            os.mkdir(pco)
+        except FileExistsError:
+            pass
+        cmdline += ['--path_confs_out', pco]
+    else:
+        pco = sub_path
     if load_path:
         cmdline += ['--load_path', load_path]
     for key, val in pars.items():
@@ -81,7 +172,23 @@ def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store
         ret = 2
     if ret:
         send_message('Failed to generate sequence configuration files for ' + test_name)
-    return ret
+    return ret, pco
+
+
+def get_confs_path(test_name, path_confs_init=None, path_confs_out=None):
+    dir_name = en.get_config_file_dir(test_name)
+    if not path_confs_out and not path_confs_init:
+        raise ValueError('Main path to initial configuration files is missing.')
+    elif path_confs_out:
+        path = os.path.join(path_confs_out, dir_name)
+        if not os.path.exists(path):
+            raise ValueError('Path with configuration files does not exist')
+        return path
+    warnings.warn('Are you sure you have not chosen a specific path for storing configuration files?')
+    path = os.path.join(path_confs_init, dir_name)
+    if not os.path.exists(path):
+        raise ValueError('Path with configuration files does not exist')
+    return path
 
 
 def get_skip_use_evals(strings):
