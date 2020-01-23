@@ -88,8 +88,8 @@ def get_USAC_pars123(eval_path, par_name):
            data[main_pars[3]]['Algorithms'][par_name],
            data[main_pars[4]][par_name],
            data[main_pars[5]]['Algorithm'][par_name],
-           data[main_pars[6]]['Algorithm']['res1'][par_name],
-           data[main_pars[6]]['Algorithm']['res2'][par_name],
+           data[main_pars[6]]['res1']['Algorithm'][par_name],
+           data[main_pars[6]]['res2']['Algorithm'][par_name],
            data[main_pars[7]]['Algorithm'][par_name]]
     if all(a == res[0] for a in res):
         return res[0]
@@ -103,20 +103,83 @@ def get_USAC_pars123(eval_path, par_name):
                    data[main_pars[3]]['b_min']] + [np.NaN] * 5
         time = [np.NaN] * 5 + [data[main_pars[5]]['Time_us'],
                                data[main_pars[6]]['res1']['Time_us'],
-                               data[main_pars[6]]['res1']['Time_us']]
-        idiff = [np.NaN] * 8 + data[main_pars[7]]['inlRatDiff']
+                               data[main_pars[6]]['res2']['Time_us']] + [np.NaN]
+        weight = [0.4] + [1.0] * 5 + [0.3] * 2 + [0.5]
+        idiff = [np.NaN] * 8 + [data[main_pars[7]]['inlRatDiff']]
         d1 = {'res_name': index, 'index2': index2, 'fieldType': fieldType,
-              'err_val': err_val, 'time': time, 'idiff': idiff, 'alg_name': res}
+              'err_val': err_val, 'time': time, 'idiff': idiff, 'alg_name': res, 'weight': weight}
         df = pd.DataFrame(data=d1)
         tc = df.loc[df['fieldType'] == 'time']['alg_name'].value_counts()
-        tc = tc.loc[tc.gt(1)]
-        if tc.empty:
+        tc.name = tc.name + '_cnt'
+        tc.index.name = 'alg_name'
+        tc_df = tc.reset_index()
+        tc2 = tc.loc[tc.gt(1)]
+        if tc2.empty:
             return None
+        bc = df.loc[df['fieldType'] == 'err']['alg_name'].value_counts()
+        bc.name = bc.name + '_cnt'
+        bc.index.name = 'alg_name'
+        bc2 = bc.loc[bc.gt(1)]
+        if bc2.empty:
+            return None
+        same = tc_df['alg_name'].isin(bc.index.values.tolist())
+        df2 = df.loc[df['alg_name'].isin(tc_df.loc[same, 'alg_name'].tolist())].groupby(['fieldType', 'alg_name'])
+        df_sum = df2['weight'].sum().reset_index()
+        df_sum = df_sum.loc[((df_sum['weight'] > 1) & (df_sum['fieldType'] == 'time')) |
+                            ((df_sum['weight'] > 1) & (df_sum['fieldType'] == 'err')) | (df_sum['fieldType'] == 'diff')]
+        if df_sum.empty:
+            return None
+        if df_sum.shape[0] == 1:
+            return str(df_sum.loc[:, 'alg_name'].iloc[0])
+        df_sum2 = df_sum.groupby(['alg_name'])['weight'].sum().sort_values(ascending=False)
+        if df_sum2.iloc[0] == df_sum2.iloc[1]:
+            df_sum2 = df_sum2.loc[(df_sum2 == df_sum2.iloc[0])]
+            df3 = df.loc[df['alg_name'].isin(df_sum2.index.values.tolist())]
+            df3 = df3.loc[(df3['fieldType'] == 'err')]
+            df3_sum = df3.groupby('alg_name').apply(lambda x: np.average(x.err_val, weights=x.weight)).sort_values()
+            return str(df3_sum.index.values.tolist()[0])
+        else:
+            return str(df_sum2.index.values.tolist()[0])
 
 
+def check_usac123_comb_exists(eval_path):
+    main_pars = ['USAC_opt_search_ops_th', 'USAC_opt_search_ops_inlrat', 'USAC_opt_search_ops_kpAccSd_th',
+                 'USAC_opt_search_ops_inlrat_th', 'USAC_opt_search_min_time', 'USAC_opt_search_min_time_inlrat_th',
+                 'USAC_opt_search_min_time_kpAccSd_inlrat_th', 'USAC_opt_search_min_inlrat_diff']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [data[main_pars[0]]['Algorithms'],
+           data[main_pars[1]]['Algorithms'],
+           data[main_pars[2]]['Algorithms'],
+           data[main_pars[3]]['Algorithms'],
+           data[main_pars[4]],
+           data[main_pars[5]]['Algorithm'],
+           data[main_pars[6]]['res1']['Algorithm'],
+           data[main_pars[6]]['res2']['Algorithm'],
+           data[main_pars[7]]['Algorithm']]
+    return res
 
 
+def check_comb_exists(eval_path, par_names, func_name):
+    if not isinstance(par_names, dict):
+        raise ValueError('Parameter names musts be in dict format')
+    if len(par_names.keys()) == 1:
+        return True
+    combs = func_name(eval_path)
+    for i in par_names.keys():
+        for j in combs:
+            if not any(a == i for a in j.keys()):
+                raise ValueError('Parameter names read from file do not match given names.')
+    for i in combs:
+        if all(i[a] == par_names[a] for a in par_names.keys()):
+            return True
+    return False
 
 
+def main():
+    path = '/home/maierj/work/Sequence_Test/py_test/usac-testing/1'
+    ret = get_USAC_pars56(path, 'USAC_parameters_refinealg')
 
-
+if __name__ == '__main__':
+    main()
