@@ -4,7 +4,7 @@ Reads results from evaluation and tries to find the optimal parameters for autoc
 import os, warnings
 import pandas as pd
 import numpy as np
-
+from copy import deepcopy
 
 def read_paramter_file(eval_path, main_pars):
     par_file = os.path.join(eval_path, 'resulting_best_parameters.yaml')
@@ -142,6 +142,167 @@ def get_USAC_pars123(eval_path, par_name):
             return str(df_sum2.index.values.tolist()[0])
 
 
+def get_th(eval_path1, eval_path2):
+    main_pars1 = ['USAC_opt_refine_ops_th', 'USAC_opt_refine_ops_inlrat_th']
+    main_pars2 = ['USAC_opt_search_ops_th', 'USAC_opt_search_ops_kpAccSd_th',
+                  'USAC_opt_search_ops_inlrat_th', 'USAC_opt_search_min_time_inlrat_th',
+                  'USAC_opt_search_min_time_kpAccSd_inlrat_th', 'USAC_opt_search_min_inlrat_diff']
+    data1 = read_paramter_file(eval_path1, main_pars1)
+    if data1 is None:
+        return None
+    data2 = read_paramter_file(eval_path2, main_pars2)
+    if data2 is None:
+        return None
+    # Results from smallest errors
+    res1 = [data1[main_pars1[0]]['th_best'],
+            data1[main_pars1[0]]['th_best_mean'],
+            data1[main_pars1[1]]['th'],
+            data2[main_pars2[0]]['th_best'],
+            data2[main_pars2[0]]['th_best_mean'],
+            data2[main_pars2[1]]['th'],
+            data2[main_pars2[2]]['th'],
+            data2[main_pars2[5]]['th']]
+    res1 = [float(a) for a in res1]
+    # Results from best timing
+    res2 = [data2[main_pars2[3]]['th'],
+            data2[main_pars2[4]]['res1']['th'],
+            data2[main_pars2[4]]['res2']['th']]
+    res2 = [float(a) for a in res2]
+    s_err = pd.Series(res1)
+    ses = s_err.describe()
+    if ses['max'] - ses['min'] > 0.5:
+        return None
+    s_t = pd.Series(res2)
+    sts = s_t.describe()
+    if sts[r'50%'] < ses['min'] or sts[r'50%'] > ses['max']:
+        return None
+    if ses['std'] > 0.2:
+        s_err1 = s_err.loc[((s_err >= ses[r'25%']) & (s_err <= ses[r'75%']))]
+        ses1 = s_err1.describe()
+        if ses1['std'] > 0.15:
+            return None
+        s_err1 = s_err1.append(pd.Series(sts[r'50%']))
+        ses1 = s_err1.describe()
+        return float(ses1['mean'])
+    s_err = s_err.append(pd.Series(sts[r'50%']))
+    ses = s_err.describe()
+    return float(ses['mean'])
+
+
+def get_robMFilt(eval_path, par_name):
+    # par_name should be RobMethod
+    main_pars = ['usac_vs_autoc_stabRT_inlrat', 'usac_vs_autoc_stabRT_depth']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [data[main_pars[0]]['Algorithms'][par_name],
+           data[main_pars[1]]['Algorithms'][par_name]]
+    if all(a == res[0] for a in res):
+        if res[0] != 'USAC':
+            warnings.warn('RANSAC is found to be better in terms of accuracy compared to USAC.')
+        return res[0]
+    else:
+        b0 = data[main_pars[0]]['b_best_val']
+        b1 = data[main_pars[1]]['b_best_val']
+        diff = abs((b0 - b1) / max(b0, b1))
+        if diff > 0.1:
+            return None
+        if np.isclose(b0, b1):
+            return 'USAC'
+        if b0 > b1:
+            return res[1]
+        else:
+            return res[0]
+
+
+def get_refinement_ba(eval_path1, eval_path2, par_name):
+    # Possible par_name: stereoParameters_refineMethod_CorrPool_algorithm,
+    # stereoParameters_refineMethod_CorrPool_costFunction, stereoParameters_BART_CorrPool
+    main_pars1 = ['refineRT_BA_opts_inlrat', 'refinement_ba_best_comb_scenes', 'refineRT_BA_min_time',
+                  'refineRT_BA_opts_kpAccSd']
+    main_pars2 = ['refineRT_opts_for_BA2_inlrat', 'refinement_best_comb_for_BA2_scenes',
+                  'refineRT_opts_for_BA2_K_inlrat', 'refinement_best_comb_for_BA2_K_scenes']
+    data1 = read_paramter_file(eval_path1, main_pars1)
+    if data1 is None:
+        return None
+    res = [data1[a]['Algorithms'][par_name] for a in main_pars1]
+    fieldType = ['err'] * 2 + ['time'] + ['err']
+    err_val = [data1[main_pars1[0]]['b_best_val'],
+               data1[main_pars1[1]]['b_min']] + [np.NaN] + [data1[main_pars1[3]]['b_best_val']]
+    time = [np.NaN] * 2 + [data1[main_pars1[2]]['t_min']] + [np.NaN]
+    kerr = [np.NaN] * 4
+    weight = [1.0] * 2 + [0.75, 1.0]
+    index = deepcopy(main_pars1)
+    minw = 2.0
+    if par_name != 'stereoParameters_BART_CorrPool':
+        data2 = read_paramter_file(eval_path2, main_pars2)
+        if data2 is None:
+            return None
+        res += [data2[a]['Algorithms'][par_name] for a in main_pars2]
+        fieldType += ['err'] * 2 + ['kerr'] * 2
+        err_val += [data2[main_pars2[0]]['b_best_val'],
+                    data2[main_pars2[1]]['b_min']] + [np.NaN] * 2
+        time += [np.NaN] * 4
+        kerr += [np.NaN] * 2 + [data2[main_pars2[2]]['ke_best_val'], data2[main_pars2[3]]['ke_min']]
+        weight += [0.7] * 2 + [0.4] * 2
+        index += main_pars2
+        minw = 2.5
+    if all(a == res[0] for a in res):
+        return res[0]
+    else:
+        d1 = {'res_name': index, 'fieldType': fieldType,
+              'err_val': err_val, 'time': time, 'kerr': kerr, 'alg_name': res, 'weight': weight}
+        df = pd.DataFrame(data=d1)
+        df_err = df.loc[df['fieldType'] == 'err']
+        addw = df_err['alg_name'].isin(df.loc[(df['fieldType'] == 'time'), 'alg_name'].tolist())
+        if not addw.any():
+            minw *= 1.15
+        else:
+            df_err.loc[addw, 'weight'] += 0.3
+        if par_name != 'stereoParameters_BART_CorrPool':
+            addw = df_err['alg_name'].isin(df.loc[(df['fieldType'] == 'kerr'), 'alg_name'].tolist())
+            if not addw.any():
+                minw *= 1.1
+            else:
+                bc = df.loc[(df['fieldType'] == 'kerr'), 'alg_name'].value_counts()
+                df_err.loc[addw, 'weight'] += 0.25 * float(bc.iloc[0])
+        dfe_sum = df_err.groupby(['alg_name'])['weight'].sum().sort_values(ascending=False)
+        if dfe_sum.iloc[0] < minw:
+            return None
+        if dfe_sum.shape[0] == 1:
+            return str(dfe_sum.index.values.tolist()[0])
+        if dfe_sum.iloc[0] == dfe_sum.iloc[1]:
+            df_sum2 = dfe_sum.loc[(dfe_sum == dfe_sum.iloc[0])]
+            df3 = df_err.loc[df_err['alg_name'].isin(df_sum2.index.values.tolist())]
+            df3_sum = df3.groupby('alg_name').apply(lambda x: np.average(x.err_val, weights=x.weight)).sort_values()
+            return str(df3_sum.index.values.tolist()[0])
+        else:
+            return str(dfe_sum.index.values.tolist()[0])
+
+
+def check_usac56_comb_exists(eval_path):
+    main_pars = ['USAC_opt_refine_ops_th', 'USAC_opt_refine_ops_inlrat', 'USAC_opt_refine_ops_inlrat_th',
+                 'USAC_opt_refine_min_time']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [data[main_pars[0]]['Algorithms'],
+           data[main_pars[1]]['Algorithms'],
+           data[main_pars[2]]['Algorithms'],
+           data[main_pars[3]]]
+    return res
+
+
+def check_refinement_ba_comb_exists(eval_path1):
+    main_pars1 = ['refineRT_BA_opts_inlrat', 'refinement_ba_best_comb_scenes', 'refineRT_BA_min_time',
+                  'refineRT_BA_opts_kpAccSd']
+    data1 = read_paramter_file(eval_path1, main_pars1)
+    if data1 is None:
+        return None
+    res = [data1[a]['Algorithms'] for a in main_pars1]
+    return res
+
+
 def check_usac123_comb_exists(eval_path):
     main_pars = ['USAC_opt_search_ops_th', 'USAC_opt_search_ops_inlrat', 'USAC_opt_search_ops_kpAccSd_th',
                  'USAC_opt_search_ops_inlrat_th', 'USAC_opt_search_min_time', 'USAC_opt_search_min_time_inlrat_th',
@@ -170,7 +331,7 @@ def check_comb_exists(eval_path, par_names, func_name):
     for i in par_names.keys():
         for j in combs:
             if not any(a == i for a in j.keys()):
-                raise ValueError('Parameter names read from file do not match given names.')
+                return False #raise ValueError('Parameter names read from file do not match given names.')
     for i in combs:
         if all(i[a] == par_names[a] for a in par_names.keys()):
             return True
@@ -178,8 +339,17 @@ def check_comb_exists(eval_path, par_names, func_name):
 
 
 def main():
-    path = '/home/maierj/work/Sequence_Test/py_test/usac-testing/1'
-    ret = get_USAC_pars56(path, 'USAC_parameters_refinealg')
+    path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
+    path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
+    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']
+    rets = dict.fromkeys(pars)
+    for i in pars:
+        rets[i] = get_refinement_ba(path, path2, i)
+    ret = check_comb_exists(path, rets, check_refinement_ba_comb_exists)
+    # th = get_th(path, path2)
+    # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
+    # ret = get_robMFilt(path, 'stereoRef')
+
 
 if __name__ == '__main__':
     main()
