@@ -112,6 +112,7 @@ def load_test_res(load_path):
 
 def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path):
     data, load_time = load_test_res(load_path)
+    print('Finished loading test results after ', load_time, ' seconds.')
     # data = None
     # data_dict = data.to_dict('list')
     # data = mpd.DataFrame(data_dict)

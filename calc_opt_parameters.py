@@ -345,6 +345,109 @@ def get_refinement_ba_stereo(eval_path1, eval_path2, par_name):
             return str(dfe_sum.index.values.tolist()[0])
 
 
+def get_corrpool_size(eval_path):
+    # Possible par_name: stereoParameters_maxPoolCorrespondences
+    main_pars = ['corrpool_size_pts_dist_inlrat', 'corrpool_size_pts_dist_best_comb_scenes',
+                 'corrpool_size_pts_dist_end_frames_best_comb_scenes', 'corrpool_size_converge',
+                 'corrpool_size_converge_mean']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [float(data[main_pars[0]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
+           float(data[main_pars[1]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
+           float(data[main_pars[2]]['Algorithms']['stereoParameters_maxPoolCorrespondences'])]
+    res1 = [float(data[main_pars[3]]['mean_conv_pool_size']),
+            float(data[main_pars[4]]['mean_conv_pool_size'])]
+    res_dist = [float(data[main_pars[3]]['Algorithm']['stereoParameters_minPtsDistance']),
+                float(data[main_pars[4]]['Algorithm']['stereoParameters_minPtsDistance'])]
+    b_err = [data[main_pars[0]]['b_best_val'],
+             data[main_pars[1]]['b_min'],
+             data[main_pars[2]]['b_min']]
+    err1 = [abs(data[main_pars[3]]['mean_R_error']) + abs(data[main_pars[3]]['mean_t_error']),
+            abs(data[main_pars[4]]['mean_R_error']) + abs(data[main_pars[4]]['mean_t_error'])]
+    mi = min(res)
+    ma = max(res)
+    if np.isclose(mi, ma):
+        m = mi
+    else:
+        m = mi + (mi + ma) / 2
+    mm = [min(0.75 * m, mi), max(1.2 * m, ma)]
+    in_range = []
+    for idx, i in enumerate(res1):
+        if (i > mm[0]) and (i < mm[1]) and i < 25000.0:
+            in_range.append(idx)
+    if not in_range:
+        return None
+    elif len(in_range) == 1:
+        m = res1[in_range[0]]
+    else:
+        if any((a / max(res1)) < 0.75 for a in res1):
+            return None
+        if np.isclose(res_dist[0], res_dist[1]) or np.isclose(err1[0], err1[1]):
+            m = sum(res1) / len(res1)
+        else:
+            w = [1.3 - a / max(err1) for a in err1]
+            m = np.average(np.array(res1), weights=np.array(w))
+    d = [abs(a - m) for a in res]
+    w = [(1.5 - a / max(d)) for a in d]
+    w1 = [1.5 - a / max(b_err) for a in b_err]
+    w = [a * b for a, b in zip(w, w1)]
+    w = [0.1 * a / max(w) for a in w]
+    return int(np.average(np.array([m] + res), weights=np.array([1.0] + w)))
+
+
+def get_min_pt_dist(eval_path, maxPoolCorrs):
+    if maxPoolCorrs is None:
+        return None
+    # Possible par_name: stereoParameters_minPtsDistance
+    main_pars = ['corrpool_size_pts_dist_inlrat', 'corrpool_size_pts_dist_best_comb_scenes',
+                 'corrpool_size_pts_dist_end_frames_best_comb_scenes', 'corrpool_size_converge',
+                 'corrpool_size_converge_mean']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [float(data[main_pars[0]]['Algorithms']['stereoParameters_minPtsDistance']),
+           float(data[main_pars[1]]['Algorithms']['stereoParameters_minPtsDistance']),
+           float(data[main_pars[2]]['Algorithms']['stereoParameters_minPtsDistance']),
+           float(data[main_pars[3]]['Algorithm']['stereoParameters_minPtsDistance']),
+           float(data[main_pars[4]]['Algorithm']['stereoParameters_minPtsDistance'])]
+    res1 = [float(data[main_pars[0]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
+            float(data[main_pars[1]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
+            float(data[main_pars[2]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
+            float(data[main_pars[3]]['mean_conv_pool_size']),
+            float(data[main_pars[4]]['mean_conv_pool_size'])]
+    b_err = [data[main_pars[0]]['b_best_val'],
+             data[main_pars[1]]['b_min'],
+             data[main_pars[2]]['b_min']]
+    if np.allclose(np.array(res), res[0]):
+        return res[0]
+    s_d = pd.Series(res)
+    sds = s_d.describe()
+    if sds['max'] - sds['min'] > 8:
+        return None
+    if sds['std'] > 4:
+        return None
+    w = [(1.5 - a / max(b_err)) for a in b_err]
+    w = [a / max(w) for a in w] + [1.0, 1.0]
+    d = [abs(a - maxPoolCorrs) for a in res1]
+    w1 = [(1.3 - a / max(d)) for a in d]
+    w1 = [0.33 * a / max(w1) for a in w1]
+    w = [a * b for a, b in zip(w, w1)]
+    return round(float(np.average(np.array(res), weights=np.array(w))), 3)
+
+
+def get_corrpool_1(eval_path):
+    pool_size = get_corrpool_size(eval_path)
+    if pool_size is None:
+        return None
+    if pool_size > 10000:
+        warnings.warn('Estimated a really large optimal correspondence pool size of ' + str(pool_size), UserWarning)
+    pts_dist = get_min_pt_dist(eval_path, pool_size)
+    if pts_dist is None:
+        return None
+    return {'stereoParameters_maxPoolCorrespondences': pool_size, 'stereoParameters_minPtsDistance': pts_dist}
+
+
 def check_usac56_comb_exists(eval_path):
     main_pars = ['USAC_opt_refine_ops_th', 'USAC_opt_refine_ops_inlrat', 'USAC_opt_refine_ops_inlrat_th',
                  'USAC_opt_refine_min_time']
@@ -433,17 +536,18 @@ def check_comb_exists(eval_path, par_names, func_name, eval_path2=None, skip_par
 
 
 def main():
-    path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/1'
+    path = '/home/maierj/work/Sequence_Test/py_test/correspondence_pool/1'
     path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'
     pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'USAC_parameters_USACInlratFilt']
-    skip_cons_par = ['USAC_parameters_USACInlratFilt']
-    rets = dict.fromkeys(pars)
-    for i in pars:
-        rets[i] = get_refinement_ba_stereo(path, path2, i)
-    ret = check_comb_exists(path, rets, check_refinement_ba_stereo_comb_exists, path2, skip_cons_par)
+    # skip_cons_par = ['USAC_parameters_USACInlratFilt']
+    # rets = dict.fromkeys(pars)
+    # for i in pars:
+    #     rets[i] = get_refinement_ba_stereo(path, path2, i)
+    # ret = check_comb_exists(path, rets, check_refinement_ba_stereo_comb_exists, path2, skip_cons_par)
     # th = get_th(path, path2)
     # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
     # ret = get_robMFilt(path, 'stereoRef')
+    ret = get_corrpool_1(path)
 
 
 if __name__ == '__main__':
