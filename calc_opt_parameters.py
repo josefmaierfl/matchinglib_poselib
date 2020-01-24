@@ -448,6 +448,35 @@ def get_corrpool_1(eval_path):
     return {'stereoParameters_maxPoolCorrespondences': pool_size, 'stereoParameters_minPtsDistance': pts_dist}
 
 
+def get_corrpool_2(eval_path, par_name):
+    # Possible par_name: stereoParameters_maxRat3DPtsFar, stereoParameters_maxDist3DPtsZ
+    main_pars = ['corrpool_rat_dist_3Dpts_inlrat', 'corrpool_rat_dist_3Dpts_best_comb_scenes']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [float(data[a]['Algorithms'][par_name]) for a in main_pars]
+    b_err = [data[main_pars[0]]['b_best_val'],
+             data[main_pars[1]]['b_min']]
+    if np.isclose(res[0], res[1]):
+        return res[0]
+    if any((a / max(res)) < 0.74 for a in res):
+        return None
+    w = [(1.5 - a / max(b_err)) for a in b_err]
+    return round(float(np.average(np.array(res), weights=np.array(w))), 3)
+
+
+def check_corrpool_2_comb_exists(eval_path):
+    main_pars = ['corrpool_rat_dist_3Dpts_inlrat', 'corrpool_rat_dist_3Dpts_best_comb_scenes']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [data[a]['Algorithms'] for a in main_pars]
+    for i in res:
+        for j in i.keys():
+            i[j] = float(i[j])
+    return res
+
+
 def check_usac56_comb_exists(eval_path):
     main_pars = ['USAC_opt_refine_ops_th', 'USAC_opt_refine_ops_inlrat', 'USAC_opt_refine_ops_inlrat_th',
                  'USAC_opt_refine_min_time']
@@ -535,19 +564,44 @@ def check_comb_exists(eval_path, par_names, func_name, eval_path2=None, skip_par
     return False
 
 
+def check_comb_is_close(eval_path, par_names, func_name, eval_path2=None, skip_par_name=None):
+    if not isinstance(par_names, dict):
+        raise ValueError('Parameter names musts be in dict format')
+    if skip_par_name is not None and not isinstance(skip_par_name, list):
+        raise ValueError('Skip parameter names musts be in list format')
+    par_names1 = deepcopy(par_names)
+    if skip_par_name is not None:
+        for key in skip_par_name:
+            par_names1.pop(key, None)
+    if len(par_names1.keys()) == 1:
+        return True
+    if eval_path2 is not None:
+        combs = func_name(eval_path, eval_path2)
+    else:
+        combs = func_name(eval_path)
+    for i in par_names1.keys():
+        for j in combs:
+            if not any(a == i for a in j.keys()):
+                return False #raise ValueError('Parameter names read from file do not match given names.')
+    for i in combs:
+        if all(np.isclose(par_names1[a], i[a], rtol=0.2, atol=1e-6) for a in par_names1.keys()):
+            return True
+    return False
+
+
 def main():
-    path = '/home/maierj/work/Sequence_Test/py_test/correspondence_pool/1'
+    path = '/home/maierj/work/Sequence_Test/py_test/correspondence_pool/2'
     path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'
-    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'USAC_parameters_USACInlratFilt']
+    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']
     # skip_cons_par = ['USAC_parameters_USACInlratFilt']
-    # rets = dict.fromkeys(pars)
-    # for i in pars:
-    #     rets[i] = get_refinement_ba_stereo(path, path2, i)
-    # ret = check_comb_exists(path, rets, check_refinement_ba_stereo_comb_exists, path2, skip_cons_par)
+    rets = dict.fromkeys(pars)
+    for i in pars:
+        rets[i] = get_corrpool_2(path, i)
+    ret = check_comb_is_close(path, rets, check_corrpool_2_comb_exists)
     # th = get_th(path, path2)
     # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
     # ret = get_robMFilt(path, 'stereoRef')
-    ret = get_corrpool_1(path)
+    ret = get_corrpool_2(path, pars[0])
 
 
 if __name__ == '__main__':
