@@ -216,8 +216,7 @@ def get_robMFilt(eval_path, par_name):
 
 
 def get_refinement_ba(eval_path1, eval_path2, par_name):
-    # Possible par_name: stereoParameters_refineMethod_CorrPool_algorithm,
-    # stereoParameters_refineMethod_CorrPool_costFunction, stereoParameters_BART_CorrPool
+    # Possible par_name: refineMethod_algorithm, refineMethod_costFunction, BART
     main_pars1 = ['refineRT_BA_opts_inlrat', 'refinement_ba_best_comb_scenes', 'refineRT_BA_min_time',
                   'refineRT_BA_opts_kpAccSd']
     main_pars2 = ['refineRT_opts_for_BA2_inlrat', 'refinement_best_comb_for_BA2_scenes',
@@ -234,7 +233,7 @@ def get_refinement_ba(eval_path1, eval_path2, par_name):
     weight = [1.0] * 2 + [0.75, 1.0]
     index = deepcopy(main_pars1)
     minw = 2.0
-    if par_name != 'stereoParameters_BART_CorrPool':
+    if par_name != 'BART':
         data2 = read_paramter_file(eval_path2, main_pars2)
         if data2 is None:
             return None
@@ -253,16 +252,82 @@ def get_refinement_ba(eval_path1, eval_path2, par_name):
         d1 = {'res_name': index, 'fieldType': fieldType,
               'err_val': err_val, 'time': time, 'kerr': kerr, 'alg_name': res, 'weight': weight}
         df = pd.DataFrame(data=d1)
-        df_err = df.loc[df['fieldType'] == 'err']
+        df_err = df.loc[df['fieldType'] == 'err'].copy(deep=True)
         addw = df_err['alg_name'].isin(df.loc[(df['fieldType'] == 'time'), 'alg_name'].tolist())
         if not addw.any():
             minw *= 1.15
         else:
             df_err.loc[addw, 'weight'] += 0.3
-        if par_name != 'stereoParameters_BART_CorrPool':
+        if par_name != 'BART':
             addw = df_err['alg_name'].isin(df.loc[(df['fieldType'] == 'kerr'), 'alg_name'].tolist())
             if not addw.any():
                 minw *= 1.1
+            else:
+                bc = df.loc[(df['fieldType'] == 'kerr'), 'alg_name'].value_counts()
+                df_err.loc[addw, 'weight'] += 0.25 * float(bc.iloc[0])
+        dfe_sum = df_err.groupby(['alg_name'])['weight'].sum().sort_values(ascending=False)
+        if dfe_sum.iloc[0] < minw:
+            return None
+        if dfe_sum.shape[0] == 1:
+            return str(dfe_sum.index.values.tolist()[0])
+        if dfe_sum.iloc[0] == dfe_sum.iloc[1]:
+            df_sum2 = dfe_sum.loc[(dfe_sum == dfe_sum.iloc[0])]
+            df3 = df_err.loc[df_err['alg_name'].isin(df_sum2.index.values.tolist())]
+            df3_sum = df3.groupby('alg_name').apply(lambda x: np.average(x.err_val, weights=x.weight)).sort_values()
+            return str(df3_sum.index.values.tolist()[0])
+        else:
+            return str(dfe_sum.index.values.tolist()[0])
+
+
+def get_refinement_ba_stereo(eval_path1, eval_path2, par_name):
+    # Possible par_name: stereoParameters_refineMethod_CorrPool_algorithm,
+    # stereoParameters_refineMethod_CorrPool_costFunction, stereoParameters_BART_CorrPool
+    main_pars1 = ['refRT_stereo_BA_opts_inlrat', 'ref_stereo_ba_best_comb_scenes', 'refRT_BA_stereo_min_time']
+    main_pars2 = ['refRT_stereo_opts_for_BA2_inlrat', 'ref_stereo_best_comb_for_BA2_scenes',
+                  'refRT_stereo_opts_for_BA2_K_inlrat', 'ref_stereo_best_comb_for_BA2_K_scenes']
+    data1 = read_paramter_file(eval_path1, main_pars1)
+    if data1 is None:
+        return None
+    res = [str(data1[main_pars1[0]]['Algorithms'][par_name]),
+           str(data1[main_pars1[1]]['Algorithms'][par_name]),
+           str(data1[main_pars1[2]]['Algorithm'][par_name])]
+    fieldType = ['err'] * 2 + ['time']
+    err_val = [data1[main_pars1[0]]['b_best_val'],
+               data1[main_pars1[1]]['b_min']] + [np.NaN]
+    time = [np.NaN] * 2 + [data1[main_pars1[2]]['min_mean_time']]
+    kerr = [np.NaN] * 3
+    weight = [1.0] * 2 + [0.75]
+    index = deepcopy(main_pars1)
+    minw = 1.39
+    if par_name != 'stereoParameters_BART_CorrPool':
+        data2 = read_paramter_file(eval_path2, main_pars2)
+        if data2 is None:
+            return None
+        res += [str(data2[a]['Algorithms'][par_name]) for a in main_pars2]
+        fieldType += ['err'] * 2 + ['kerr'] * 2
+        err_val += [data2[main_pars2[0]]['b_best_val'],
+                    data2[main_pars2[1]]['b_min']] + [np.NaN] * 2
+        time += [np.NaN] * 4
+        kerr += [np.NaN] * 2 + [data2[main_pars2[2]]['ke_best_val'], data2[main_pars2[3]]['ke_min']]
+        weight += [0.7] * 2 + [0.4] * 2
+        index += main_pars2
+        minw = 2.5
+    if all(a == res[0] for a in res):
+        return res[0]
+    else:
+        d1 = {'res_name': index, 'fieldType': fieldType,
+              'err_val': err_val, 'time': time, 'kerr': kerr, 'alg_name': res, 'weight': weight}
+        df = pd.DataFrame(data=d1)
+        df_err = df.loc[df['fieldType'] == 'err'].copy(deep=True)
+        addw = df_err['alg_name'].isin(df.loc[(df['fieldType'] == 'time'), 'alg_name'].tolist())
+        if not addw.any():
+            minw *= 1.15
+        else:
+            df_err.loc[addw, 'weight'] += 0.4
+        if par_name != 'stereoParameters_BART_CorrPool':
+            addw = df_err['alg_name'].isin(df.loc[(df['fieldType'] == 'kerr'), 'alg_name'].tolist())
+            if not addw.any():
+                minw *= 1.15
             else:
                 bc = df.loc[(df['fieldType'] == 'kerr'), 'alg_name'].value_counts()
                 df_err.loc[addw, 'weight'] += 0.25 * float(bc.iloc[0])
@@ -303,6 +368,26 @@ def check_refinement_ba_comb_exists(eval_path1):
     return res
 
 
+def check_refinement_ba_stereo_comb_exists(eval_path1, eval_path2):
+    main_pars1 = ['refRT_stereo_BA_opts_inlrat', 'ref_stereo_ba_best_comb_scenes', 'refRT_BA_stereo_min_time']
+    main_pars2 = ['refRT_stereo_opts_for_BA2_inlrat', 'ref_stereo_best_comb_for_BA2_scenes',
+                  'refRT_stereo_opts_for_BA2_K_inlrat', 'ref_stereo_best_comb_for_BA2_K_scenes']
+    data1 = read_paramter_file(eval_path1, main_pars1)
+    if data1 is None:
+        return None
+    res = [data1[main_pars1[0]]['Algorithms'],
+           data1[main_pars1[1]]['Algorithms'],
+           data1[main_pars1[2]]['Algorithm']]
+    for i in res:
+        for j in i.keys():
+            i[j] = str(i[j])
+    data2 = read_paramter_file(eval_path2, main_pars2)
+    if data2 is None:
+        return None
+    res += [data2[a]['Algorithms'] for a in main_pars2]
+    return res
+
+
 def check_usac123_comb_exists(eval_path):
     main_pars = ['USAC_opt_search_ops_th', 'USAC_opt_search_ops_inlrat', 'USAC_opt_search_ops_kpAccSd_th',
                  'USAC_opt_search_ops_inlrat_th', 'USAC_opt_search_min_time', 'USAC_opt_search_min_time_inlrat_th',
@@ -322,30 +407,40 @@ def check_usac123_comb_exists(eval_path):
     return res
 
 
-def check_comb_exists(eval_path, par_names, func_name):
+def check_comb_exists(eval_path, par_names, func_name, eval_path2=None, skip_par_name=None):
     if not isinstance(par_names, dict):
         raise ValueError('Parameter names musts be in dict format')
-    if len(par_names.keys()) == 1:
+    if skip_par_name is not None and not isinstance(skip_par_name, list):
+        raise ValueError('Skip parameter names musts be in list format')
+    par_names1 = deepcopy(par_names)
+    if skip_par_name is not None:
+        for key in skip_par_name:
+            par_names1.pop(key, None)
+    if len(par_names1.keys()) == 1:
         return True
-    combs = func_name(eval_path)
-    for i in par_names.keys():
+    if eval_path2 is not None:
+        combs = func_name(eval_path, eval_path2)
+    else:
+        combs = func_name(eval_path)
+    for i in par_names1.keys():
         for j in combs:
             if not any(a == i for a in j.keys()):
                 return False #raise ValueError('Parameter names read from file do not match given names.')
     for i in combs:
-        if all(i[a] == par_names[a] for a in par_names.keys()):
+        if all(i[a] == par_names1[a] for a in par_names1.keys()):
             return True
     return False
 
 
 def main():
-    path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/1'
-    path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba/2'
-    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']
+    path = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/1'
+    path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'
+    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'USAC_parameters_USACInlratFilt']
+    skip_cons_par = ['USAC_parameters_USACInlratFilt']
     rets = dict.fromkeys(pars)
     for i in pars:
-        rets[i] = get_refinement_ba(path, path2, i)
-    ret = check_comb_exists(path, rets, check_refinement_ba_comb_exists)
+        rets[i] = get_refinement_ba_stereo(path, path2, i)
+    ret = check_comb_exists(path, rets, check_refinement_ba_stereo_comb_exists, path2, skip_cons_par)
     # th = get_th(path, path2)
     # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
     # ret = get_robMFilt(path, 'stereoRef')
