@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from copy import deepcopy
 
+
 def read_paramter_file(eval_path, main_pars):
     par_file = os.path.join(eval_path, 'resulting_best_parameters.yaml')
     if not os.path.exists(par_file):
@@ -465,6 +466,146 @@ def get_corrpool_2(eval_path, par_name):
     return round(float(np.average(np.array(res), weights=np.array(w))), 3)
 
 
+def get_robustness_1(eval_path, par_name):
+    # Possible par_name: stereoParameters_relInlRatThLast, stereoParameters_relInlRatThNew,
+    # stereoParameters_minInlierRatSkip, stereoParameters_relMinInlierRatSkip, stereoParameters_minInlierRatioReInit
+    main_pars = ['robustness_best_comb_scenes_inlc', 'robustness_best_comb_scenes_inlc_depth',
+                 'robustness_best_comb_scenes_inlc_kpAccSd', 'robustness_delay_jra', 'robustness_delay_jta']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [float(data[a]['Algorithm'][par_name]) for a in main_pars]
+    b_err = [abs(data[main_pars[0]]['mean_Rt_error']),
+             abs(data[main_pars[1]]['mean_Rt_error']),
+             abs(data[main_pars[2]]['mean_Rt_error'])]
+    if np.allclose(np.array(res), res[0], rtol=0.1, atol=1e-3):
+        return round(sum(res) / len(res), 3)
+    s_d = pd.Series(res)
+    sds = s_d.describe()
+    if sds['max'] - sds['min'] > 0.4:
+        return None
+    if sds['std'] > 0.18:
+        return None
+    w = [(1.5 - a / max(b_err)) for a in b_err]
+    w = [a / max(w) for a in w] + [0.75, 0.75]
+    return round(float(np.average(np.array(res), weights=np.array(w))), 3)
+
+
+def get_robustness_2(eval_path):
+    # Possible par_name: stereoParameters_checkPoolPoseRobust
+    main_pars = ['robustness_best_comb_scenes_poolr_inlc', 'robustness_best_comb_scenes_poolr_inlc_ml',
+                 'robustness_best_comb_scenes_poolr_inlc_depth', 'robustness_best_comb_scenes_poolr_inlc_depth_ml',
+                 'robustness_best_comb_scenes_poolr_inlc_kpAccSd', 'robustness_best_comb_scenes_poolr_inlc_kpAccSd_ml',
+                 'robustness_best_comb_scenes_poolr_depth_kpAccSd',
+                 'robustness_best_comb_scenes_poolr_depth_kpAccSd_ml']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [float(data[a]['Algorithm']['stereoParameters_checkPoolPoseRobust']) for a in main_pars]
+    b_err = [abs(data[a]['mean_Rt_error']) for a in main_pars]
+    if np.allclose(np.array(res), res[0], rtol=0.25, atol=1e-3):
+        return int(round(sum(res) / len(res)))
+    zeros = [np.isclose(a, 0) for a in res]
+    rz = zeros.count(True) / len(zeros)
+    if rz > 0.5:
+        return int(0)
+    ones = [np.isclose(a, 1.0) for a in res]
+    ro = ones.count(True) / len(ones)
+    if ro > 0.5:
+        return int(1)
+    s_d = pd.Series(res)
+    sds = s_d.describe()
+    if sds['max'] - sds['min'] > 3:
+        return None
+    if sds['std'] > 1.1:
+        return None
+    w = [(1.5 - a / max(b_err)) for a in b_err]
+    return int(round(float(np.average(np.array(res), weights=np.array(w)))))
+
+
+def get_robustness_4(eval_path, par_name):
+    # Possible par_name: stereoParameters_minContStablePoses, stereoParameters_minNormDistStable,
+    # stereoParameters_absThRankingStable
+    main_pars = ['robustness_best_comb_scenes_poolr_inlc', 'robustness_best_comb_scenes_poolr_inlc_ml',
+                 'robustness_best_comb_scenes_poolr_inlc_depth', 'robustness_best_comb_scenes_poolr_inlc_depth_ml',
+                 'robustness_best_comb_scenes_poolr_inlc_kpAccSd', 'robustness_best_comb_scenes_poolr_inlc_kpAccSd_ml',
+                 'robustness_best_comb_scenes_poolr_depth_kpAccSd',
+                 'robustness_best_comb_scenes_poolr_depth_kpAccSd_ml']
+    data = read_paramter_file(eval_path, [])
+    if not data:
+        return None
+    if len(main_pars) != len(data.keys()):
+        if len(data.keys()) < 2:
+            warnings.warn('Found too less result names in resulting_best_parameters.yaml of test nr 4 of '
+                          'main test robustness', UserWarning)
+            return None
+        for i in data.keys():
+            if any(a == i for a in main_pars):
+                warnings.warn('Found non-supported result name in resulting_best_parameters.yaml of test nr 4 of '
+                              'main test robustness', UserWarning)
+                return None
+        main_pars = list(data.keys())
+    res = [float(data[a]['Algorithm'][par_name]) for a in main_pars]
+    b_err = [data[a]['error_ratio'] for a in main_pars]
+    if np.allclose(np.array(res), res[0], rtol=0.15, atol=1e-6):
+        if par_name == 'stereoParameters_minContStablePoses':
+            return int(round(sum(res) / len(res)))
+        else:
+            return round(sum(res) / len(res), 6)
+    s_d = pd.Series(res)
+    sds = s_d.describe()
+    if par_name == 'stereoParameters_minContStablePoses':
+        if sds['max'] - sds['min'] > 2:
+            return None
+    elif abs(sds[r'50%'] - sds['mean']) / max(sds[r'50%'], sds['mean']) < 0.75:
+        return None
+    w = [a / max(b_err) for a in b_err]
+    if par_name == 'stereoParameters_minContStablePoses':
+        return int(round(float(np.average(np.array(res), weights=np.array(w)))))
+    else:
+        return round(float(np.average(np.array(res), weights=np.array(w))), 6)
+
+
+def check_robustness_1_comb_exists(eval_path):
+    main_pars = ['robustness_best_comb_scenes_inlc', 'robustness_best_comb_scenes_inlc_depth',
+                 'robustness_best_comb_scenes_inlc_kpAccSd', 'robustness_delay_jra', 'robustness_delay_jta']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [data[a]['Algorithm'] for a in main_pars]
+    for i in res:
+        for j in i.keys():
+            i[j] = float(i[j])
+    return res
+
+
+def check_robustness_4_comb_exists(eval_path):
+    main_pars = ['robustness_best_comb_scenes_poolr_inlc', 'robustness_best_comb_scenes_poolr_inlc_ml',
+                 'robustness_best_comb_scenes_poolr_inlc_depth', 'robustness_best_comb_scenes_poolr_inlc_depth_ml',
+                 'robustness_best_comb_scenes_poolr_inlc_kpAccSd', 'robustness_best_comb_scenes_poolr_inlc_kpAccSd_ml',
+                 'robustness_best_comb_scenes_poolr_depth_kpAccSd',
+                 'robustness_best_comb_scenes_poolr_depth_kpAccSd_ml']
+    data = read_paramter_file(eval_path, [])
+    if not data:
+        return None
+    if len(main_pars) != len(data.keys()):
+        if len(data.keys()) < 2:
+            warnings.warn('Found too less result names in resulting_best_parameters.yaml of test nr 4 of '
+                          'main test robustness', UserWarning)
+            return None
+        for i in data.keys():
+            if any(a == i for a in main_pars):
+                warnings.warn('Found non-supported result name in resulting_best_parameters.yaml of test nr 4 of '
+                              'main test robustness', UserWarning)
+                return None
+        main_pars = list(data.keys())
+    res = [data[a]['Algorithm'] for a in main_pars]
+    for i in res:
+        for j in i.keys():
+            i[j] = float(i[j])
+    return res
+
+
 def check_corrpool_2_comb_exists(eval_path):
     main_pars = ['corrpool_rat_dist_3Dpts_inlrat', 'corrpool_rat_dist_3Dpts_best_comb_scenes']
     data = read_paramter_file(eval_path, main_pars)
@@ -544,6 +685,8 @@ def check_comb_exists(eval_path, par_names, func_name, eval_path2=None, skip_par
         raise ValueError('Parameter names musts be in dict format')
     if skip_par_name is not None and not isinstance(skip_par_name, list):
         raise ValueError('Skip parameter names musts be in list format')
+    if any(a is None for a in par_names.values()):
+        return False
     par_names1 = deepcopy(par_names)
     if skip_par_name is not None:
         for key in skip_par_name:
@@ -569,6 +712,8 @@ def check_comb_is_close(eval_path, par_names, func_name, eval_path2=None, skip_p
         raise ValueError('Parameter names musts be in dict format')
     if skip_par_name is not None and not isinstance(skip_par_name, list):
         raise ValueError('Skip parameter names musts be in list format')
+    if any(a is None for a in par_names.values()):
+        return False
     par_names1 = deepcopy(par_names)
     if skip_par_name is not None:
         for key in skip_par_name:
@@ -584,24 +729,26 @@ def check_comb_is_close(eval_path, par_names, func_name, eval_path2=None, skip_p
             if not any(a == i for a in j.keys()):
                 return False #raise ValueError('Parameter names read from file do not match given names.')
     for i in combs:
-        if all(np.isclose(par_names1[a], i[a], rtol=0.2, atol=1e-6) for a in par_names1.keys()):
+        if all(np.isclose(par_names1[a], i[a], rtol=0.2, atol=1e-3) for a in par_names1.keys()):
             return True
     return False
 
 
 def main():
-    path = '/home/maierj/work/Sequence_Test/py_test/correspondence_pool/2'
+    path = '/home/maierj/work/Sequence_Test/py_test/robustness/4'
     path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'
-    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg']
+    pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'stereoParameters_minContStablePoses']
     # skip_cons_par = ['USAC_parameters_USACInlratFilt']
     rets = dict.fromkeys(pars)
     for i in pars:
-        rets[i] = get_corrpool_2(path, i)
-    ret = check_comb_is_close(path, rets, check_corrpool_2_comb_exists)
+        rets[i] = get_robustness_4(path, i)
+    ret = check_comb_is_close(path, rets, check_robustness_4_comb_exists)
     # th = get_th(path, path2)
     # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
     # ret = get_robMFilt(path, 'stereoRef')
-    ret = get_corrpool_2(path, pars[0])
+    # ret = get_corrpool_2(path, pars[0])
+    ret = get_robustness_2(path)
+    print(ret)
 
 
 if __name__ == '__main__':
