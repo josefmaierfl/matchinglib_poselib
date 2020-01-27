@@ -526,11 +526,11 @@ def get_robustness_2(eval_path):
 def get_robustness_4(eval_path, par_name):
     # Possible par_name: stereoParameters_minContStablePoses, stereoParameters_minNormDistStable,
     # stereoParameters_absThRankingStable
-    main_pars = ['robustness_best_comb_scenes_poolr_inlc', 'robustness_best_comb_scenes_poolr_inlc_ml',
-                 'robustness_best_comb_scenes_poolr_inlc_depth', 'robustness_best_comb_scenes_poolr_inlc_depth_ml',
-                 'robustness_best_comb_scenes_poolr_inlc_kpAccSd', 'robustness_best_comb_scenes_poolr_inlc_kpAccSd_ml',
-                 'robustness_best_comb_scenes_poolr_depth_kpAccSd',
-                 'robustness_best_comb_scenes_poolr_depth_kpAccSd_ml']
+    main_pars = ['robustness_best_pose_stable_pars', 'robustness_best_stable_pars_inlc_rt',
+                 'robustness_best_stable_pars_depthDistr', 'robustness_best_stable_pars_kpAccSd',
+                 'robustness_best_pose_stable_pars_stMl', 'robustness_best_stable_pars_inlc_rt_stMl',
+                 'robustness_best_stable_pars_depthDistr_stMl',
+                 'robustness_best_stable_pars_kpAccSd_stMl']
     data = read_paramter_file(eval_path, [])
     if not data:
         return None
@@ -546,7 +546,6 @@ def get_robustness_4(eval_path, par_name):
                 return None
         main_pars = list(data.keys())
     res = [float(data[a]['Algorithm'][par_name]) for a in main_pars]
-    b_err = [data[a]['error_ratio'] for a in main_pars]
     if np.allclose(np.array(res), res[0], rtol=0.15, atol=1e-6):
         if par_name == 'stereoParameters_minContStablePoses':
             return int(round(sum(res) / len(res)))
@@ -557,13 +556,57 @@ def get_robustness_4(eval_path, par_name):
     if par_name == 'stereoParameters_minContStablePoses':
         if sds['max'] - sds['min'] > 2:
             return None
-    elif abs(sds[r'50%'] - sds['mean']) / max(sds[r'50%'], sds['mean']) < 0.75:
+    elif abs(sds[r'50%'] - sds['mean']) / max(sds[r'50%'], sds['mean']) > 0.2:
         return None
+    d = [abs(a - sds[r'50%']) for a in res]
+    w1 = [(1.5 - a / max(d)) for a in d]
+    w1 = [0.5 * a / max(w1) for a in w1]
+    b_err = [data[a]['error_ratio'] if 'error_ratio' in data[a].keys() else np.NaN for a in main_pars]
+    e_max = pd.Series(b_err).max()
+    b_err = [e_max if np.isnan(a) else a for a in b_err]
     w = [a / max(b_err) for a in b_err]
+    w = [a * b for a, b in zip(w, w1)]
     if par_name == 'stereoParameters_minContStablePoses':
         return int(round(float(np.average(np.array(res), weights=np.array(w)))))
     else:
         return round(float(np.average(np.array(res), weights=np.array(w))), 6)
+
+
+def get_robustness_5(eval_path):
+    # Possible par_name: stereoParameters_useRANSAC_fewMatches
+    main_pars = ['robustness_ransac_fewMatch_inlc', 'robustness_ransac_fewMatch_inlc_depth',
+                 'robustness_ransac_fewMatch_inlc_kpAcc', 'robustness_ransac_fewMatch_inlc_kpAcc_final']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [bool(data[a]['Algorithm']['stereoParameters_useRANSAC_fewMatches']) for a in main_pars]
+    if all(res) or not any(res):
+        return res[0]
+    cnt_opts = [data[a]['value_count'] for a in main_pars]
+    cnt_01 = [0, 0]
+    for i in cnt_opts:
+        for j in i.keys():
+            if int(j):
+                cnt_01[1] += i[j]
+            else:
+                cnt_01[0] += i[j]
+    res_01 = [res.count(False), res.count(True)]
+    fr0 = res_01[0] / len(res)
+    fc0 = cnt_01[0] / sum(cnt_01)
+    if 0.4 < fr0 < 0.6 and 0.4 < fc0 < 0.6:
+        return None
+    if 0.4 < fr0 < 0.6:
+        if fc0 < 0.5:
+            return True
+        return False
+    elif 0.4 < fc0 < 0.6:
+        if fr0 < 0.5:
+            return True
+        return False
+    f0 = 0.35 * fr0 + 0.65 * fc0
+    if f0 < 0.5:
+        return True
+    return False
 
 
 def check_robustness_1_comb_exists(eval_path):
@@ -580,11 +623,11 @@ def check_robustness_1_comb_exists(eval_path):
 
 
 def check_robustness_4_comb_exists(eval_path):
-    main_pars = ['robustness_best_comb_scenes_poolr_inlc', 'robustness_best_comb_scenes_poolr_inlc_ml',
-                 'robustness_best_comb_scenes_poolr_inlc_depth', 'robustness_best_comb_scenes_poolr_inlc_depth_ml',
-                 'robustness_best_comb_scenes_poolr_inlc_kpAccSd', 'robustness_best_comb_scenes_poolr_inlc_kpAccSd_ml',
-                 'robustness_best_comb_scenes_poolr_depth_kpAccSd',
-                 'robustness_best_comb_scenes_poolr_depth_kpAccSd_ml']
+    main_pars = ['robustness_best_pose_stable_pars', 'robustness_best_stable_pars_inlc_rt',
+                 'robustness_best_stable_pars_depthDistr', 'robustness_best_stable_pars_kpAccSd',
+                 'robustness_best_pose_stable_pars_stMl', 'robustness_best_stable_pars_inlc_rt_stMl',
+                 'robustness_best_stable_pars_depthDistr_stMl',
+                 'robustness_best_stable_pars_kpAccSd_stMl']
     data = read_paramter_file(eval_path, [])
     if not data:
         return None
@@ -735,19 +778,19 @@ def check_comb_is_close(eval_path, par_names, func_name, eval_path2=None, skip_p
 
 
 def main():
-    path = '/home/maierj/work/Sequence_Test/py_test/robustness/4'
+    path = '/home/maierj/work/Sequence_Test/py_test/robustness/5'
     path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'
     pars = ['USAC_parameters_estimator', 'USAC_parameters_refinealg', 'stereoParameters_minContStablePoses']
     # skip_cons_par = ['USAC_parameters_USACInlratFilt']
-    rets = dict.fromkeys(pars)
-    for i in pars:
-        rets[i] = get_robustness_4(path, i)
-    ret = check_comb_is_close(path, rets, check_robustness_4_comb_exists)
+    # rets = dict.fromkeys(pars)
+    # for i in pars:
+    #     rets[i] = get_robustness_4(path, i)
+    # ret = check_comb_is_close(path, rets, check_robustness_4_comb_exists)
     # th = get_th(path, path2)
     # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
     # ret = get_robMFilt(path, 'stereoRef')
     # ret = get_corrpool_2(path, pars[0])
-    ret = get_robustness_2(path)
+    ret = get_robustness_5(path)
     print(ret)
 
 
