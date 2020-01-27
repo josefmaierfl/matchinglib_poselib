@@ -96,6 +96,14 @@ def check_calc_opt_pars(test_name, test_nr):
     return pars_sel[str(test_nr)]
 
 
+def calc_opt_pars(test_name, test_nr, store_path_cal):
+    pars = check_calc_opt_pars(test_name, test_nr)
+    if pars is None:
+        return True
+    import calc_opt_parameters as cop
+    pars_info = {'usac-testing': {'1': {'func': }}}
+
+
 def get_evals_with_compare():
     evals_w_compare = [('refinement_ba_stereo', 1, 1),
                        ('refinement_ba_stereo', 1, 2),
@@ -106,6 +114,15 @@ def get_evals_with_compare():
                        ('correspondence_pool', 3, 14),
                        ('correspondence_pool', 3, 15)]
     return evals_w_compare
+
+
+def get_eval_nrs_for_cmp(test_name, test_nr):
+    evals_w_compare = get_evals_with_compare()
+    ev_nr = []
+    for i in evals_w_compare:
+        if i[0] == test_name and i[1] == test_nr:
+            ev_nr.append(i[2])
+    return ev_nr
 
 
 def check_if_eval_needs_compare_data(test_name, test_nr, eval_nr=None):
@@ -132,4 +149,8 @@ def check_if_eval_needs_compare_data(test_name, test_nr, eval_nr=None):
     return False
 
 
-# def get_res_par_keys(par_est)
+def get_load_pars_for_comparison(test_name, test_nr):
+    load_pars = {'refinement_ba_stereo': {'1': ['refineRT', 'bart'],
+                                          '2': ['refineRT']},
+                 'correspondence_pool': {'3': ['refineRT', 'bart']}}
+    return load_pars[test_name][str(test_nr)]

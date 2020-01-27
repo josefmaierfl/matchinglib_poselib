@@ -777,6 +777,76 @@ def check_comb_is_close(eval_path, par_names, func_name, eval_path2=None, skip_p
     return False
 
 
+def get_usac_testing_1(paths, par_names):
+    rets = dict.fromkeys(par_names)
+    for i in par_names:
+        rets[i] = get_USAC_pars56(paths[0], i)
+    ret = check_comb_exists(paths[0], rets, check_usac56_comb_exists)
+    if ret:
+        return rets
+    return None
+
+
+def get_usac_testing_2(paths, par_names):
+    par_names1 = [a for a in par_names if a != 'th']
+    rets = dict.fromkeys(par_names1)
+    for i in par_names1:
+        rets[i] = get_USAC_pars123(paths[1], i)
+    ret = check_comb_exists(paths[1], rets, check_usac123_comb_exists)
+    if ret:
+        th = get_th(paths[0], paths[1])
+        if th is None:
+            return None
+        rets['th'] = th
+        return rets
+    return None
+
+
+def get_usac_vs_ransac(paths, par_names):
+    ret = get_robMFilt(paths[0], par_names[0])
+    if ret is None:
+        return None
+    return {par_names[0]: ret}
+
+
+def get_refinement_ba_2(paths, par_names):
+    rets = dict.fromkeys(par_names)
+    for i in par_names:
+        rets[i] = get_refinement_ba(paths[0], paths[1], i)
+    ret = check_comb_exists(paths[0], rets, check_refinement_ba_comb_exists)
+    if ret:
+        return rets
+    return None
+
+
+def get_refinement_ba_stereo_2(paths, par_names):
+    rets = dict.fromkeys(par_names)
+    for i in par_names:
+        rets[i] = get_refinement_ba_stereo(paths[0], paths[1], i)
+    ret = check_comb_exists(paths[0], rets, check_refinement_ba_stereo_comb_exists, paths[1],
+                            ['stereoParameters_BART_CorrPool'])
+    if ret:
+        return rets
+    return None
+
+
+def get_correspondence_pool_1(paths, par_names):
+    rets = get_corrpool_1(paths[0])
+    if rets:
+        return rets
+    return None
+
+
+def get_correspondence_pool_2(paths, par_names):
+    rets = dict.fromkeys(par_names)
+    for i in par_names:
+        rets[i] = get_corrpool_2(paths[0], i)
+    ret = check_comb_is_close(paths[0], rets, check_corrpool_2_comb_exists)
+    if ret:
+        return rets
+    return None
+
+
 def main():
     path = '/home/maierj/work/Sequence_Test/py_test/robustness/5'
     path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'

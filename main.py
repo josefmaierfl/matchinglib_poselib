@@ -91,8 +91,25 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
             raise ValueError('Evaluation numbers where comparisons should be included must be provided.')
         cmdline += ['--compare_pars', compare_pars]
     elif en.check_if_eval_needs_compare_data(test_name, test_nr, use_evals):
-        succ, comp_data = get_compare_data(test_name, test_nr, use_evals, store_path_cal)
+        comp_pars_ev_nr, compare_pars = get_compare_data(test_name, test_nr, use_evals, store_path_cal)
+        cmdline += ['--comp_pars_ev_nr', comp_pars_ev_nr, '--compare_pars', compare_pars]
 
+    tout = len(use_evals) * 4 * 3600
+    try:
+        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                     check=True, timeout=tout).returncode
+    except sp.TimeoutExpired:
+        logging.error('Timeout expired for evaluating results in main test ' +
+                      test_name + (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
+        ret = 1
+    except Exception:
+        logging.error('Evaluation failed. Main test ' + test_name +
+                      (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
+        ret = 2
+    if ret:
+        send_message('Evaluation failed. Main test ' + test_name +
+                     (' with test nr ' + str(test_nr) if test_nr else ''))
+        return ret
 
     # After evals are finished try to find optimal parameters
     evals_path = os.path.join(store_path_cal, test_name)
@@ -104,7 +121,22 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
 
 
 def get_compare_data(test_name, test_nr, use_evals, store_path_cal):
-
+    pars_list = en.get_load_pars_for_comparison(test_name, test_nr)
+    from start_test_cases import read_pars, convert_autoc_pars_in_to_out
+    pars = read_pars(store_path_cal, pars_list)
+    pars_out = []
+    for i in pars.items():
+        if i[1] is None:
+            raise ValueError('Parameter ' + i[0] + ' for comparison couldnt be read from yaml file.')
+        tmp = convert_autoc_pars_in_to_out(i[0], i[1])
+        for j in tmp.items():
+            pars_out.append(j[0] + '-' + str(j[1]))
+    ev_nums = en.get_eval_nrs_for_cmp(test_name, test_nr)
+    ev = []
+    for i in ev_nums:
+        ev += [str(i)] * len(pars_out)
+    pars_out *= len(ev_nums)
+    return ev, pars_out
 
 
 def start_autocalibration(test_name, test_nr, gen_dirs_config_f, output_path, executable, message_path, cpu_use):
