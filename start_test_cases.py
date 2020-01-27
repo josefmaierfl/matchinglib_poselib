@@ -1256,6 +1256,246 @@ def convert_autoc_pars_out_to_in(par_name, par_value):
         raise ValueError('Type of parameter ' + par_name + ' must be str or list')
 
 
+def convert_autoc_pars_in_to_out(par_name, par_value):
+    if par_name == 'usac123':
+        if not isinstance(par_value, list) or len(par_value) != 3:
+            raise ValueError('Wrong input parameters for usac123')
+        pars_out = {}
+        for idx, i in enumerate(par_value):
+            if idx == 0:
+                if i == 0:
+                    pars_out['USAC_parameters_automaticSprtInit'] = 'SPRT_DEFAULT_INIT'
+                elif i == 1:
+                    pars_out['USAC_parameters_automaticSprtInit'] = 'SPRT_DELTA_AUTOM_INIT'
+                elif i == 2:
+                    pars_out['USAC_parameters_automaticSprtInit'] = 'SPRT_EPSILON_AUTOM_INIT'
+                elif i == 3:
+                    pars_out['USAC_parameters_automaticSprtInit'] = 'SPRT_DELTA_AND_EPSILON_AUTOM_INIT'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter usac123[' + str(idx) + ']')
+            elif idx == 1:
+                if i == 0:
+                    pars_out['USAC_parameters_automaticProsacParameters'] = 'disabled'
+                elif i == 1:
+                    pars_out['USAC_parameters_automaticProsacParameters'] = 'enabled'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter usac123[' + str(idx) + ']')
+            elif idx == 2:
+                if i == 0:
+                    pars_out['USAC_parameters_prevalidateSample'] = 'disabled'
+                elif i == 1:
+                    pars_out['USAC_parameters_prevalidateSample'] = 'enabled'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter usac123[' + str(idx) + ']')
+    elif par_name == 'usac56':
+        if not isinstance(par_value, list) or len(par_value) != 2:
+            raise ValueError('Wrong input parameters for usac56')
+        pars_out = {}
+        for idx, i in enumerate(par_value):
+            if idx == 0:
+                if i == 0:
+                    pars_out['USAC_parameters_estimator'] = 'POSE_NISTER'
+                elif i == 1:
+                    pars_out['USAC_parameters_estimator'] = 'POSE_EIG_KNEIP'
+                elif i == 2:
+                    pars_out['USAC_parameters_estimator'] = 'POSE_STEWENIUS'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter usac56[' + str(idx) + ']')
+            elif idx == 1:
+                if i == 0:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_WEIGHTS'
+                elif i == 1:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_8PT_PSEUDOHUBER'
+                elif i == 2:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_EIG_KNEIP'
+                elif i == 3:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_EIG_KNEIP_WEIGHTS'
+                elif i == 4:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_STEWENIUS'
+                elif i == 5:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_STEWENIUS_WEIGHTS'
+                elif i == 6:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_NISTER'
+                elif i == 7:
+                    pars_out['USAC_parameters_refinealg'] = 'REF_NISTER_WEIGHTS'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter usac56[' + str(idx) + ']')
+    elif par_name == 'refineRT':
+        if not isinstance(par_value, list) or len(par_value) != 2:
+            raise ValueError('Wrong input parameters for refineRT')
+        pars_out = {}
+        for idx, i in enumerate(par_value):
+            if idx == 0:
+                if i == 0:
+                    pars_out['refineMethod_algorithm'] = 'PR_NO_REFINEMENT'
+                elif i == 2:
+                    pars_out['refineMethod_algorithm'] = 'PR_8PT'
+                elif i == 3:
+                    pars_out['refineMethod_algorithm'] = 'PR_NISTER'
+                elif i == 4:
+                    pars_out['refineMethod_algorithm'] = 'PR_STEWENIUS'
+                elif i == 5:
+                    pars_out['refineMethod_algorithm'] = 'PR_KNEIP'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter refineRT[' + str(idx) + ']')
+            elif idx == 1:
+                if i == 0:
+                    pars_out['refineMethod_costFunction'] = 'PR_NO_WEIGHTS'
+                elif i == 1:
+                    pars_out['refineMethod_costFunction'] = 'PR_TORR_WEIGHTS'
+                elif i == 2:
+                    pars_out['refineMethod_costFunction'] = 'PR_PSEUDOHUBER_WEIGHTS'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter refineRT[' + str(idx) + ']')
+    elif par_name == 'refineRT_stereo':
+        if not isinstance(par_value, list) or len(par_value) != 2:
+            raise ValueError('Wrong input parameters for refineRT_stereo')
+        pars_out = {}
+        for idx, i in enumerate(par_value):
+            if idx == 0:
+                if i == 0:
+                    pars_out['stereoParameters_refineMethod_CorrPool_algorithm'] = 'PR_NO_REFINEMENT'
+                elif i == 2:
+                    pars_out['stereoParameters_refineMethod_CorrPool_algorithm'] = 'PR_8PT'
+                elif i == 3:
+                    pars_out['stereoParameters_refineMethod_CorrPool_algorithm'] = 'PR_NISTER'
+                elif i == 4:
+                    pars_out['stereoParameters_refineMethod_CorrPool_algorithm'] = 'PR_STEWENIUS'
+                elif i == 5:
+                    pars_out['stereoParameters_refineMethod_CorrPool_algorithm'] = 'PR_KNEIP'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter refineRT_stereo[' + str(idx) + ']')
+            elif idx == 1:
+                if i == 0:
+                    pars_out['stereoParameters_refineMethod_CorrPool_costFunction'] = 'PR_NO_WEIGHTS'
+                elif i == 1:
+                    pars_out['stereoParameters_refineMethod_CorrPool_costFunction'] = 'PR_TORR_WEIGHTS'
+                elif i == 2:
+                    pars_out['stereoParameters_refineMethod_CorrPool_costFunction'] = 'PR_PSEUDOHUBER_WEIGHTS'
+                else:
+                    raise ValueError('Invalid value \'' + str(i) + '\' for parameter refineRT_stereo[' + str(idx) + ']')
+    elif par_name == 'th':
+        if isinstance(par_value, int):
+            par_value = float(par_value)
+        elif not isinstance(par_value, float):
+            raise ValueError('Wrong input format for th')
+        pars_out = {'th': par_value}
+    elif par_name == 'robMFilt':
+        if not isinstance(par_value, str):
+            raise ValueError('Wrong input format for robMFilt')
+        if par_value not in ['USAC', 'RANSAC']:
+            raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+        pars_out = {'RobMethod': par_value}
+    elif par_name == 'USACInlratFilt':
+        if not isinstance(par_value, str):
+            raise ValueError('Wrong input format for USACInlratFilt')
+        if not (par_value == 'GMS' or par_value == 'VFC'):
+            raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+        pars_out = {'USAC_parameters_USACInlratFilt': par_value}
+    elif par_name == 'bart':
+        if isinstance(par_value, float):
+            par_value = int(par_value)
+        elif not isinstance(par_value, int):
+            raise ValueError('Wrong input format for bart')
+        if par_value == 0:
+            pars_out = {'BART': 'disabled'}
+        elif par_value == 1:
+            pars_out = {'BART': 'extr_only'}
+        elif par_value == 2:
+            pars_out = {'BART': 'extr_intr'}
+        else:
+            raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+    elif par_name == 'bart_stereo':
+        if isinstance(par_value, float):
+            par_value = int(par_value)
+        elif not isinstance(par_value, int):
+            raise ValueError('Wrong input format for bart_stereo')
+        if par_value == 0:
+            pars_out = {'stereoParameters_BART_CorrPool': 'disabled'}
+        elif par_value == 1:
+            pars_out = {'stereoParameters_BART_CorrPool': 'extr_only'}
+        elif par_value == 2:
+            pars_out = {'stereoParameters_BART_CorrPool': 'extr_intr'}
+        else:
+            raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
+    elif par_name == 'checkPoolPoseRobust':
+        if isinstance(par_value, float):
+            par_value = int(par_value)
+        elif not isinstance(par_value, int):
+            raise ValueError('Wrong input format for checkPoolPoseRobust')
+        pars_out = {'stereoParameters_checkPoolPoseRobust': par_value}
+    elif par_name == 'useRANSAC_fewMatches':
+        if not isinstance(par_value, bool):
+            raise ValueError('Wrong input format for useRANSAC_fewMatches')
+        if par_value:
+            pars_out = {'stereoParameters_useRANSAC_fewMatches': 'enabled'}
+        else:
+            pars_out = {'stereoParameters_useRANSAC_fewMatches': 'disabled'}
+    elif par_name == 'maxPoolCorrespondences':
+        if isinstance(par_value, float):
+            par_value = int(par_value)
+        elif not isinstance(par_value, int):
+            raise ValueError('Wrong input format for maxPoolCorrespondences')
+        pars_out = {'stereoParameters_maxPoolCorrespondences': par_value}
+    elif par_name == 'maxDist3DPtsZ':
+        if isinstance(par_value, int):
+            par_value = float(par_value)
+        elif not isinstance(par_value, float):
+            raise ValueError('Wrong input format for maxDist3DPtsZ')
+        pars_out = {'stereoParameters_maxDist3DPtsZ': par_value}
+    elif par_name == 'maxRat3DPtsFar':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for maxRat3DPtsFar')
+        pars_out = {'stereoParameters_maxRat3DPtsFar': par_value}
+    elif par_name == 'minStartAggInlRat':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for minStartAggInlRat')
+        pars_out = {'stereoParameters_minStartAggInlRat': par_value}
+    elif par_name == 'minInlierRatSkip':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for minInlierRatSkip')
+        pars_out = {'stereoParameters_minInlierRatSkip': par_value}
+    elif par_name == 'relInlRatThLast':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for relInlRatThLast')
+        pars_out = {'stereoParameters_relInlRatThLast': par_value}
+    elif par_name == 'relInlRatThNew':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for relInlRatThNew')
+        pars_out = {'stereoParameters_relInlRatThNew': par_value}
+    elif par_name == 'relMinInlierRatSkip':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for relMinInlierRatSkip')
+        pars_out = {'stereoParameters_relMinInlierRatSkip': par_value}
+    elif par_name == 'minInlierRatioReInit':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for minInlierRatioReInit')
+        pars_out = {'stereoParameters_minInlierRatioReInit': par_value}
+    elif par_name == 'minNormDistStable':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for minNormDistStable')
+        pars_out = {'stereoParameters_minNormDistStable': par_value}
+    elif par_name == 'absThRankingStable':
+        if not isinstance(par_value, float):
+            raise ValueError('Wrong input format for absThRankingStable')
+        pars_out = {'stereoParameters_absThRankingStable': par_value}
+    elif par_name == 'minContStablePoses':
+        if isinstance(par_value, float):
+            par_value = int(par_value)
+        elif not isinstance(par_value, int):
+            raise ValueError('Wrong input format for minContStablePoses')
+        pars_out = {'stereoParameters_minContStablePoses': par_value}
+    elif par_name == 'minPtsDistance':
+        if isinstance(par_value, int):
+            par_value = float(par_value)
+        elif not isinstance(par_value, float):
+            raise ValueError('Wrong input format for minPtsDistance')
+        pars_out = {'stereoParameters_minPtsDistance': par_value}
+    else:
+        raise ValueError('Unknown parameter ' + par_name)
+    return pars_out
+
+
 def main():
     parser = argparse.ArgumentParser(description='Execute different test scenarios for the autocalibration based '
                                                  'on name and test number in file '

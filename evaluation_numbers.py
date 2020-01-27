@@ -96,4 +96,40 @@ def check_calc_opt_pars(test_name, test_nr):
     return pars_sel[str(test_nr)]
 
 
+def get_evals_with_compare():
+    evals_w_compare = [('refinement_ba_stereo', 1, 1),
+                       ('refinement_ba_stereo', 1, 2),
+                       ('refinement_ba_stereo', 2, 1),
+                       ('refinement_ba_stereo', 2, 2),
+                       ('refinement_ba_stereo', 2, 3),
+                       ('refinement_ba_stereo', 2, 4),
+                       ('correspondence_pool', 3, 14),
+                       ('correspondence_pool', 3, 15)]
+    return evals_w_compare
+
+
+def check_if_eval_needs_compare_data(test_name, test_nr, eval_nr=None):
+    if test_nr is None:
+        return False
+    test_names, test_nrs = get_available_tests()
+    test_idx = test_names.index(test_name)
+    max_testnr = test_nrs[test_idx]
+    if max_testnr == 1:
+        return False
+    ec = get_evals_with_compare()
+    if eval_nr is None:
+        for a in ec:
+            if a[0] == test_name and a[1] == test_nr:
+                return True
+    elif isinstance(eval_nr, list):
+        for a in ec:
+            if a[0] == test_name and a[1] == test_nr and any(a[2] == b for b in eval_nr):
+                return True
+    else:
+        for a in ec:
+            if a[0] == test_name and a[1] == test_nr and a[2] == eval_nr:
+                return True
+    return False
+
+
 # def get_res_par_keys(par_est)

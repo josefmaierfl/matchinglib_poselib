@@ -60,9 +60,9 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                 # Run evaluation
                 if any([b == mt for b in use_evals.keys()]) and \
                         (tn is None or any([b == str(tn) for b in use_evals[mt].keys()])):
-                ret = start_eval()
-                if ret:
-                    return ret
+                    ret = start_eval()
+                    if ret:
+                        return ret
         elif any([b == mt for b in use_evals.keys()]):
             # Run evaluation
             ret = start_eval()
@@ -70,7 +70,29 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                 return ret
 
 
-def start_eval(test_name, test_nr, store_path_cal):
+def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_path,
+               compare_pars, comp_pars_ev_nr, compare_path):
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    pyfilename = os.path.join(pyfilepath, 'eval_tests_main.py')
+    cmdline = ['python', pyfilename, '--path', store_path_cal, '--nrCPUs', str(cpu_use),
+               '--message_path', message_path, '--test_name', test_name]
+    if test_nr:
+        cmdline += ['--test_nr', str(test_nr)]
+    cmdline.append('--eval_nr')
+    cmdline += [str(a) for a in use_evals]
+    if compare_path:
+        cmdline += ['--compare_path', compare_path]
+    if comp_pars_ev_nr is not None:
+        if compare_pars is None:
+            raise ValueError('Compare parameters must be provided.')
+        cmdline += ['--comp_pars_ev_nr', comp_pars_ev_nr]
+    if compare_pars is not None:
+        if comp_pars_ev_nr is None:
+            raise ValueError('Evaluation numbers where comparisons should be included must be provided.')
+        cmdline += ['--compare_pars', compare_pars]
+    elif en.check_if_eval_needs_compare_data(test_name, test_nr, use_evals):
+        succ, comp_data = get_compare_data(test_name, test_nr, use_evals, store_path_cal)
+
 
     # After evals are finished try to find optimal parameters
     evals_path = os.path.join(store_path_cal, test_name)
@@ -81,11 +103,16 @@ def start_eval(test_name, test_nr, store_path_cal):
         warnings.warn('Unable to locate results path of evaluations. Cannot estimate optimal parameters.')
 
 
+def get_compare_data(test_name, test_nr, use_evals, store_path_cal):
+
+
+
 def start_autocalibration(test_name, test_nr, gen_dirs_config_f, output_path, executable, message_path, cpu_use):
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     pyfilename = os.path.join(pyfilepath, 'start_test_cases.py')
-    cmdline = ['python', pyfilename, '--path', gen_dirs_config_f, '--nrCPUs', cpu_use, '--output_path', output_path,
-               '--executable', executable, '--message_path', message_path, '--test_name', test_name]
+    cmdline = ['python', pyfilename, '--path', gen_dirs_config_f, '--nrCPUs', str(cpu_use),
+               '--output_path', output_path, '--executable', executable, '--message_path', message_path,
+               '--test_name', test_name]
     if test_nr:
         cmdline += ['--test_nr', str(test_nr)]
     tout = int(96768000 / cpu_use)# 1209600 possibilities * (150 + 50) / 2 frames * 0.8 seconds
@@ -109,7 +136,7 @@ def start_autocalibration(test_name, test_nr, gen_dirs_config_f, output_path, ex
 def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     pyfilename = os.path.join(pyfilepath, 'create_scenes.py')
-    cmdline = ['python', pyfilename, '--path', gen_dirs_config_f, '--nrCPUs', cpu_use,
+    cmdline = ['python', pyfilename, '--path', gen_dirs_config_f, '--nrCPUs', str(cpu_use),
                '--executable', executable, '--message_path', message_path]
     tout = int(3024000 / cpu_use)
     try:
@@ -765,7 +792,7 @@ def main():
                              'should be performed must be provided.')
     parser.add_argument('--compare_path', type=str, required=False,
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
-                             'the part from option --path is used. Results are only loaded, if option '
+                             'the part from option --store_path_cal is used. Results are only loaded, if option '
                              '--compare_pars is provided.')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):

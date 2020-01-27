@@ -133,14 +133,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     #                    [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
     #                     list(range(25, 29)), list(range(29, 38))],
     #                    [list(range(1, 9))]]
-    evals_w_compare = [('refinement_ba_stereo', 1, 1),
-                       ('refinement_ba_stereo', 1, 2),
-                       ('refinement_ba_stereo', 2, 1),
-                       ('refinement_ba_stereo', 2, 2),
-                       ('refinement_ba_stereo', 2, 3),
-                       ('refinement_ba_stereo', 2, 4),
-                       ('correspondence_pool', 3, 14),
-                       ('correspondence_pool', 3, 15)]
+    evals_w_compare = en.get_evals_with_compare()
     test_idx = main_test_names.index(test_name)
     tn_idx = 0
     if test_nr and test_nr <= sub_test_numbers[test_idx]:
@@ -151,7 +144,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     else:
         used_evals = eval_nr
     comp_pars_list = []
-    if test_name in evcn:
+    if any(test_name == a for a in evcn):
         for i in evals_w_compare:
             if i[0] == test_name and i[1] == test_nr:
                 if i[2] in used_evals and not comp_pars:
@@ -5313,7 +5306,7 @@ def main():
            (not args.comp_pars_ev_nr or len(args.compare_pars) != len(args.comp_pars_ev_nr)):
             raise ValueError('Both arguments \'compare_pars\' and \'comp_pars_ev_nr\' must be provided and contain the '
                              'same number of elements')
-        elif (args.eval_nr[0] != -1 and len(args.eval_nr) == 1):
+        elif args.eval_nr[0] != -1 and len(args.eval_nr) == 1:
             comp_pars = {args.eval_nr[0]: args.compare_pars}
         else:
             comp_pars = {}
