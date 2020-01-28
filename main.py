@@ -809,7 +809,8 @@ def main():
                         help='Directory holding directories with template configuration files')
     parser.add_argument('--path_confs_out', type=str, required=False,
                         help='Optional directory for writing configuration files. If not available, '
-                             'the directory is derived from argument \'path\'.')
+                             'the directory is derived from argument \'path\' if '
+                             'option \'complete_res_path\' is not provided.')
     parser.add_argument('--skip_tests', type=str, nargs='+', required=False,
                         help='List of test names that should be completely skipped. '
                              'Possible tests: usac-testing, usac_vs_ransac, refinement_ba, vfc_gms_sof, '
@@ -871,10 +872,10 @@ def main():
     parser.add_argument('--nrCPUs', type=int, required=False, default=-16,
                         help='Number of CPU cores for parallel processing. If a negative value is provided, '
                              'the program tries to find the number of available CPUs on the system - if it fails, '
-                             'the absolute value of nrCPUs is used. Default: 4')
+                             'the absolute value of nrCPUs is used. Default: -16')
     parser.add_argument('--exec_sequ', type=str, required=False,
                         help='Executable of the application generating the sequences')
-    parser.add_argument('--message_path', type=str, required=True,
+    parser.add_argument('--message_path', type=str, required=False,
                         help='Storing path for text files containing error and normal messages')
     parser.add_argument('--exec_cal', type=str, required=False,
                         help='Executable of the autocalibration SW')
@@ -911,6 +912,18 @@ def main():
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
                              'the part from option --store_path_cal is used. Results are only loaded, if option '
                              '--compare_pars is provided.')
+    parser.add_argument('--complete_res_path', type=str, required=False,
+                        help='If provided, the full path structure for storing data is generated at the given '
+                             'location except for parameters that were explicitely provided. Moreover, the input path '
+                             'for initial configuration files is expected to be in \'Config_Files\' within the '
+                             'directory holding this python file except option \'path\' is provided. '
+                             'The input images should be located in a folder called \'images\' one folder level up '
+                             'compared to the directory holding this python file (../images/). The latter also holds '
+                             'for the executable generating sequences which should be located in '
+                             '\'../generateVirtualSequence/build/\' and should be named '
+                             '\'virtualSequenceLib-CMD-interface\'. The executable of the autocalibration SW should '
+                             'similarly be located at \'../matchinglib_poselib/build/\' and called '
+                             '\'noMatch_poselib-test\'.')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -948,7 +961,7 @@ def main():
     if args.load_path:
         if not os.path.exists(args.load_path):
             raise ValueError("Path for loading sequences does not exist")
-    if not os.path.exists(args.message_path):
+    if not args.complete_res_path and (not args.message_path or not os.path.exists(args.message_path)):
         raise ValueError("Path for storing stdout and stderr does not exist")
     if args.exec_sequ:
         if not os.path.isfile(args.exec_sequ):
@@ -977,8 +990,60 @@ def main():
         cpu_use = abs(args.nrCPUs)
     else:
         cpu_use = args.nrCPUs
+    print('Using ', cpu_use, ' CPUs for testing')
     if args.store_path_cal and not os.path.exists(args.store_path_cal):
         raise ValueError("Path for storing test results from autocalibration does not exist")
+
+    if args.complete_res_path:
+        if not os.path.exists(args.complete_res_path):
+            raise ValueError('Folder ' + args.complete_res_path + ' does not exist')
+        pyfilepath = os.path.dirname(os.path.realpath(__file__))
+        parent = os.path.dirname(pyfilepath)
+        if not args.path:
+            args.path = os.path.join(pyfilepath, 'Config_Files')
+            if not os.path.exists(args.path):
+                raise ValueError('Missing initial configuration main folder within python files folder')
+        if not args.path_confs_out:
+            args.path_confs_out = os.path.join(args.complete_res_path, 'conf_files_generated')
+            try:
+                os.mkdir(args.path_confs_out)
+            except FileExistsError:
+                pass
+        if not args.img_path:
+            args.img_path = os.path.join(parent, 'images')
+            if not os.path.exists(args.img_path):
+                raise ValueError('Missing image folder at: ' + args.img_path)
+        if not args.store_path_sequ:
+            args.store_path_sequ = os.path.join(args.complete_res_path, 'sequences_generated')
+            try:
+                os.mkdir(args.store_path_sequ)
+            except FileExistsError:
+                pass
+        if not args.exec_sequ:
+            args.exec_sequ = os.path.join(parent, 'generateVirtualSequence/build/virtualSequenceLib-CMD-interface')
+            if not os.path.isfile(args.exec_sequ):
+                raise ValueError('Executable ' + args.exec_sequ + ' for generating scenes does not exist')
+            elif not os.access(args.exec_sequ, os.X_OK):
+                raise ValueError('Unable to execute ' + args.exec_sequ)
+        if not args.message_path:
+            args.message_path = os.path.join(parent, 'messages')
+            try:
+                os.mkdir(args.message_path)
+            except FileExistsError:
+                pass
+        if not args.exec_cal:
+            args.exec_cal = os.path.join(parent, 'matchinglib_poselib/build/noMatch_poselib-test')
+            if not os.path.isfile(args.exec_cal):
+                raise ValueError('Executable ' + args.exec_cal + ' of autocalibration does not exist')
+            elif not os.access(args.exec_cal, os.X_OK):
+                raise ValueError('Unable to execute ' + args.exec_cal)
+        if not args.store_path_cal:
+            args.store_path_cal = os.path.join(parent, 'testing_results')
+            try:
+                os.mkdir(args.store_path_cal)
+            except FileExistsError:
+                pass
+
     if args.cal_retry_file or args.cal_retry_nrCall:
         if not (args.cal_retry_file and args.cal_retry_nrCall):
             raise ValueError('Both parameters cal_retry_file and cal_retry_nrCall must be provided')
