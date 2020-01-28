@@ -30,20 +30,21 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
         except FileExistsError:
             pass
         # Generate configuration files
-        pco = None
         if any([b == mt for b in scene_creation]) and \
                 not (skip_gen_sc_conf and any([b == mt for b in skip_gen_sc_conf])):
-            ret, pco = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
+            ret = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
             if ret:
                 return ret
+            print('Finished generating sequence configuration files for ' + mt)
         # Generate scenes and matches
         if any([b == mt for b in scene_creation]) and \
                 not (skip_crt_sc and any([b == mt for b in skip_crt_sc])):
-            if pco is None:
-                pco = get_confs_path(mt, path, path_confs_out)
-            ret = gen_scenes(mt, pco, exec_sequ, message_path, cpu_use)
-            if ret:
-                return ret
+            pcol = get_confs_path(mt, -1, path, path_confs_out)
+            for pco in pcol:
+                ret = gen_scenes(mt, pco, exec_sequ, message_path, cpu_use)
+                if ret:
+                    return ret
+            print('Finished generating scenes and matches for ' + mt)
         # Run autocalibration and evaluation
         if any([b == mt for b in use_cal_tests.keys()]):
             if use_cal_tests[mt] is None:
@@ -51,12 +52,13 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
             else:
                 test_nr_list = use_cal_tests[mt]
             for tn in test_nr_list:
-                if pco is None:
-                    pco = get_confs_path(mt, path, path_confs_out)
+                (conf_name, conf_nr) = en.get_autocalib_sequence_config_ref(mt, tn)
+                pco = get_confs_path(conf_name, conf_nr, path, path_confs_out)
                 # Run autocalibration
                 ret = start_autocalibration(mt, tn, pco, store_path_cal, exec_cal, message_path, cpu_use)
                 if ret:
                     return ret
+                print('Finished testing autocalibration for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
                 # Run evaluation
                 if any([b == mt for b in use_evals.keys()]) and \
                         (tn is None or any([b == str(tn) for b in use_evals[mt].keys()])):
@@ -68,6 +70,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                                      compare_pars, comp_pars_ev_nr, compare_path)
                     if ret:
                         return ret
+                    print('Finished evaluation for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
         elif any([b == mt for b in use_evals.keys()]):
             # Run evaluation
             for nr_key in use_evals[mt].keys():
@@ -81,7 +84,9 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                                  compare_pars, comp_pars_ev_nr, compare_path)
                 if ret:
                     return ret
+                print('Finished evaluation for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
     send_message('Testing finished without errors')
+    print('Testing finished without errors')
     return 0
 
 
@@ -233,10 +238,12 @@ def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
         ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
                      check=True, timeout=tout).returncode
     except sp.TimeoutExpired:
-        logging.error('Timeout expired for generating scenes and matches for ' + test_name, exc_info=True)
+        logging.error('Timeout expired for generating scenes and matches using directory ' +
+                      gen_dirs_config_f + ' for ' + test_name, exc_info=True)
         ret = 1
     except Exception:
-        logging.error('Failed to generate scenes and matches for ' + test_name, exc_info=True)
+        logging.error('Failed to generate scenes and matches using directory ' +
+                      gen_dirs_config_f + ' for ' + test_name, exc_info=True)
         ret = 2
     if ret:
         send_message('Failed to generate scenes and matches for ' + test_name)
@@ -246,65 +253,85 @@ def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
 def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store_path_sequ, load_path):
     if not path_init_confs:
         raise ValueError('Path containing initial configuration files must be provided.')
-    dir_name = en.get_config_file_dir(test_name)
-    sub_path = os.path.join(path_init_confs, dir_name)
-    if not os.path.exists(sub_path):
-        raise ValueError('Sub-path ' + sub_path + ' for loading initial config files not found')
     if not img_path:
         raise ValueError('Path containing images for creating matches must be provided.')
     if not store_path_sequ:
         raise ValueError('Path for storing scenes and matches must be provided.')
     pars = en.get_config_file_parameters(test_name)
-
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     pyfilename = os.path.join(pyfilepath, 'gen_mult_scene_configs.py')
-    cmdline = ['python', pyfilename, '--path', sub_path,
-               '--img_path', img_path, '--store_path', store_path_sequ]
-    if path_confs_out:
-        pco = os.path.join(path_confs_out, dir_name)
+    dir_names = en.get_mult_conf_dirs_per_test(test_name)
+    ret = 3
+    for dir_name in dir_names:
+        sub_path = os.path.join(path_init_confs, dir_name)
+        if not os.path.exists(sub_path):
+            raise ValueError('Sub-path ' + sub_path + ' for loading initial config files not found')
+        cmdline = ['python', pyfilename, '--path', sub_path,
+                   '--img_path', img_path, '--store_path', store_path_sequ]
+        if path_confs_out:
+            pco = os.path.join(path_confs_out, dir_name)
+            try:
+                os.mkdir(pco)
+            except FileExistsError:
+                pass
+            cmdline += ['--path_confs_out', pco]
+        if load_path:
+            cmdline += ['--load_path', load_path]
+        for key, val in pars.items():
+            if not isinstance(val, bool) or val:
+                cmdline.append('--' + key)
+            if isinstance(val, list):
+                cmdline += ['%.2f' % a for a in val]
+            elif not isinstance(val, bool):
+                cmdline.append(str(val))
         try:
-            os.mkdir(pco)
-        except FileExistsError:
-            pass
-        cmdline += ['--path_confs_out', pco]
+            ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                         check=True, timeout=120).returncode
+        except sp.TimeoutExpired:
+            logging.error('Timeout expired for generating sequence configuration files in directory ' +
+                          dir_name + ' for ' + test_name, exc_info=True)
+            ret = 1
+        except Exception:
+            logging.error('Failed to generate sequence configuration files in directory ' +
+                          dir_name + ' for ' + test_name, exc_info=True)
+            ret = 2
+        if ret:
+            send_message('Failed to generate sequence configuration files in directory ' +
+                         dir_name + ' for ' + test_name)
+            return ret
+    return ret
+
+
+def get_confs_path(test_name, test_nr=-1, path_confs_init=None, path_confs_out=None):
+    if test_nr == -1:
+        dir_name = en.get_mult_conf_dirs_per_test(test_name)
     else:
-        pco = sub_path
-    if load_path:
-        cmdline += ['--load_path', load_path]
-    for key, val in pars.items():
-        if not isinstance(val, bool) or val:
-            cmdline.append('--' + key)
-        if isinstance(val, list):
-            cmdline += ['%.2f' % a for a in val]
-        elif not isinstance(val, bool):
-            cmdline.append(str(val))
-    try:
-        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
-                     check=True, timeout=120).returncode
-    except sp.TimeoutExpired:
-        logging.error('Timeout expired for generating sequence configuration files for ' + test_name, exc_info=True)
-        ret = 1
-    except Exception:
-        logging.error('Failed to generate sequence configuration files for ' + test_name, exc_info=True)
-        ret = 2
-    if ret:
-        send_message('Failed to generate sequence configuration files for ' + test_name)
-    return ret, pco
-
-
-def get_confs_path(test_name, path_confs_init=None, path_confs_out=None):
-    dir_name = en.get_config_file_dir(test_name)
+        dir_name = en.get_config_file_dir(test_name, test_nr)
     if not path_confs_out and not path_confs_init:
         raise ValueError('Main path to initial configuration files is missing.')
     elif path_confs_out:
-        path = os.path.join(path_confs_out, dir_name)
+        if isinstance(dir_name, list):
+            path = []
+            for dn in dir_name:
+                path.append(os.path.join(path_confs_out, dn))
+                if not os.path.exists(path[-1]):
+                    raise ValueError('Path with configuration files does not exist')
+        else:
+            path = os.path.join(path_confs_out, dir_name)
+            if not os.path.exists(path):
+                raise ValueError('Path with configuration files does not exist')
+        return path
+    warnings.warn('Are you sure you have not chosen a specific path for storing configuration files?', UserWarning)
+    if isinstance(dir_name, list):
+        path = []
+        for dn in dir_name:
+            path.append(os.path.join(path_confs_init, dn))
+            if not os.path.exists(path[-1]):
+                raise ValueError('Path with configuration files does not exist')
+    else:
+        path = os.path.join(path_confs_init, dir_name)
         if not os.path.exists(path):
             raise ValueError('Path with configuration files does not exist')
-        return path
-    warnings.warn('Are you sure you have not chosen a specific path for storing configuration files?')
-    path = os.path.join(path_confs_init, dir_name)
-    if not os.path.exists(path):
-        raise ValueError('Path with configuration files does not exist')
     return path
 
 

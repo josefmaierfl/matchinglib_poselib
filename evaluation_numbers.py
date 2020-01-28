@@ -37,14 +37,57 @@ def get_available_sequences():
     return ['usac-testing', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
 
 
-def get_config_file_dir(test_name):
+def get_config_file_dir(test_name, test_nr=None, return_mult_dirs=False):
     if test_name not in get_available_sequences():
         raise ValueError('Cannot find config files for given test name ' + test_name)
     dirs = {'usac-testing': 'USAC',
             'correspondence_pool': 'Corr_Pool',
-            'robustness': 'Robustness',
+            'robustness': {'1': 'Robustness_small',
+                           '2': 'Robustness_small',
+                           '3': 'Robustness_small',
+                           '4': 'Robustness_small',
+                           '5': 'Robustness_small',
+                           '6': 'Robustness_large'},
             'usac_vs_autocalib': 'USAC_vs_Autocalib'}
-    return dirs[test_name]
+    tmp = dirs[test_name]
+    if isinstance(tmp, dict):
+        if return_mult_dirs:
+            return list(dict.fromkeys(list(tmp.values())))
+        elif test_nr is None:
+            raise ValueError('test_nr must be provided for selecting configuration folder')
+        tmp = tmp[str(test_nr)]
+    elif return_mult_dirs:
+        return [tmp]
+    return tmp
+
+
+def get_mult_conf_dirs_per_test(test_name):
+    return get_config_file_dir(test_name, None, True)
+
+
+def get_autocalib_sequence_config_ref(test_name, test_nr):
+    data_from_test = {'usac-testing': {'1': ('usac-testing', 1),
+                                       '2': ('usac-testing', 1)},
+                      'usac_vs_ransac': ('usac-testing', 1),
+                      'refinement_ba': {'1': ('usac-testing', 1),
+                                        '2': ('usac-testing', 1)},
+                      'vfc_gms_sof': ('usac-testing', 1),
+                      'refinement_ba_stereo': {'1': ('usac-testing', 1),
+                                               '2': ('usac-testing', 1)},
+                      'correspondence_pool': {'1': ('correspondence_pool', 1),
+                                              '2': ('correspondence_pool', 1),
+                                              '3': ('usac-testing', 1)},
+                      'robustness': {'1': ('robustness', 1),
+                                     '2': ('robustness', 1),
+                                     '3': ('robustness', 1),
+                                     '4': ('robustness', 1),
+                                     '5': ('robustness', 1),
+                                     '6': ('robustness', 6)},
+                      'usac_vs_autocalib': 'usac_vs_autocalib'}
+    tmp = data_from_test[test_name]
+    if isinstance(tmp, dict):
+        tmp = tmp[str(test_nr)]
+    return tmp
 
 
 def get_config_file_parameters(test_name):
