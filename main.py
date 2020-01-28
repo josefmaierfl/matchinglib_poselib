@@ -8,6 +8,9 @@ import pandas as pd
 
 token = ''
 use_sms = False
+test_main = True
+test_ret = [0, 0, 0]
+test_raise = [False, False, False]
 
 
 def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_sc,
@@ -116,8 +119,13 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
 
     tout = len(use_evals) * 4 * 3600
     try:
-        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
-                     check=True, timeout=tout).returncode
+        if test_main:
+            ret = test_ret[2]
+            if test_raise[2]:
+                raise ValueError('Test in start_eval')
+        else:
+            ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                         check=True, timeout=tout).returncode
     except sp.TimeoutExpired:
         logging.error('Timeout expired for evaluating results in main test ' +
                       test_name + (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
@@ -212,8 +220,13 @@ def start_autocalibration(test_name, test_nr, gen_dirs_config_f, output_path, ex
         cmdline += ['--test_nr', str(test_nr)]
     tout = int(96768000 / cpu_use)# 1209600 possibilities * (150 + 50) / 2 frames * 0.8 seconds
     try:
-        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
-                     check=True, timeout=tout).returncode
+        if test_main:
+            ret = test_ret[1]
+            if test_raise[1]:
+                raise ValueError('Test in start_autocalibration')
+        else:
+            ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                         check=True, timeout=tout).returncode
     except sp.TimeoutExpired:
         logging.error('Timeout expired for testing autocalibration in main test ' +
                       test_name + (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
@@ -235,8 +248,13 @@ def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
                '--executable', executable, '--message_path', message_path]
     tout = int(3024000 / cpu_use)
     try:
-        ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
-                     check=True, timeout=tout).returncode
+        if test_main:
+            ret = test_ret[0]
+            if test_raise[0]:
+                raise ValueError('Test in gen_scenes')
+        else:
+            ret = sp.run(cmdline, shell=False, stdout=sys.stdout, stderr=sys.stderr,
+                         check=True, timeout=tout).returncode
     except sp.TimeoutExpired:
         logging.error('Timeout expired for generating scenes and matches using directory ' +
                       gen_dirs_config_f + ' for ' + test_name, exc_info=True)
@@ -1075,13 +1093,18 @@ def main():
                                     args.exec_cal, args.message_path, cpu_use)
         sys.exit(ret)
 
-    use_evals = get_skip_use_evals(args.skip_use_eval_name_nr)
-    use_cal_tests = get_skip_use_cal_tests(args.skip_use_test_name_nr)
+    try:
+        use_evals = get_skip_use_evals(args.skip_use_eval_name_nr)
+        use_cal_tests = get_skip_use_cal_tests(args.skip_use_test_name_nr)
 
-    ret = start_testing(args.path, args.path_confs_out, args.skip_tests, args.skip_gen_sc_conf, args.skip_crt_sc,
-                        use_cal_tests, use_evals, args.img_path, args.store_path_sequ, args.load_path, cpu_use,
-                        args.exec_sequ, args.message_path, args.exec_cal, args.store_path_cal, args.compare_pars,
-                        args.comp_pars_ev_nr, args.compare_path)
+        ret = start_testing(args.path, args.path_confs_out, args.skip_tests, args.skip_gen_sc_conf, args.skip_crt_sc,
+                            use_cal_tests, use_evals, args.img_path, args.store_path_sequ, args.load_path, cpu_use,
+                            args.exec_sequ, args.message_path, args.exec_cal, args.store_path_cal, args.compare_pars,
+                            args.comp_pars_ev_nr, args.compare_path)
+    except Exception:
+        logging.error('Error in main file', exc_info=True)
+        ret = 99
+        send_message('Error in main file')
     sys.exit(ret)
 
 
