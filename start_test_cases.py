@@ -1000,6 +1000,47 @@ def write_parameters(path, pars):
     return 0
 
 
+def convert_mult_autoc_pars_out_to_in(pars):
+    if not isinstance(pars, dict):
+        raise ValueError('Wrong input format for converting parameter names')
+    grps = [['USAC_parameters_automaticSprtInit',
+             'USAC_parameters_automaticProsacParameters',
+             'USAC_parameters_prevalidateSample'],
+            ['USAC_parameters_estimator',
+             'USAC_parameters_refinealg'],
+            ['refineMethod_algorithm',
+             'refineMethod_costFunction'],
+            ['stereoParameters_refineMethod_CorrPool_algorithm',
+             'stereoParameters_refineMethod_CorrPool_costFunction']]
+    pars_k = pars.keys()
+    dellist = []
+    res_list = []
+    res_pars = []
+    for grp in grps:
+        cnt = 0
+        for elem in grp:
+            for key in pars_k:
+                if key == elem:
+                    if cnt == 0:
+                        res_list.append([key])
+                        res_pars.append([pars[key]])
+                    else:
+                        res_list[-1].append(key)
+                        res_pars[-1].append(pars[key])
+                    cnt += 1
+                    dellist.append(key)
+        if cnt > 0 and len(grp) != cnt:
+            raise ValueError('Insufficient parameter names for conversion')
+    for key in pars_k:
+        if key not in dellist:
+            res_list.append(key)
+            res_pars.append(pars[key])
+    pars_out = {}
+    for name, value in zip(res_list, res_pars):
+        pars_out.update(convert_autoc_pars_out_to_in(name, value))
+    return pars_out
+
+
 def convert_autoc_pars_out_to_in(par_name, par_value):
     if isinstance(par_name, list):
         ret = []

@@ -60,14 +60,29 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                 # Run evaluation
                 if any([b == mt for b in use_evals.keys()]) and \
                         (tn is None or any([b == str(tn) for b in use_evals[mt].keys()])):
-                    ret = start_eval()
+                    if tn is None:
+                        ev_nrs = use_evals[mt]
+                    else:
+                        ev_nrs = use_evals[mt][str(tn)]
+                    ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path,
+                                     compare_pars, comp_pars_ev_nr, compare_path)
                     if ret:
                         return ret
         elif any([b == mt for b in use_evals.keys()]):
             # Run evaluation
-            ret = start_eval()
-            if ret:
-                return ret
+            for nr_key in use_evals[mt].keys():
+                if nr_key == '0':
+                    tn = None
+                    ev_nrs = use_evals[mt]
+                else:
+                    tn = int(nr_key)
+                    ev_nrs = use_evals[mt][nr_key]
+                ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path,
+                                 compare_pars, comp_pars_ev_nr, compare_path)
+                if ret:
+                    return ret
+    send_message('Testing finished without errors')
+    return 0
 
 
 def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_path,
@@ -112,12 +127,51 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
         return ret
 
     # After evals are finished try to find optimal parameters
-    evals_path = os.path.join(store_path_cal, test_name)
-    if test_nr:
-        evals_path = os.path.join(evals_path, str(test_nr))
-    evals_path = os.path.join(evals_path, 'evals')
-    if not os.path.exists(evals_path):
-        warnings.warn('Unable to locate results path of evaluations. Cannot estimate optimal parameters.')
+    try:
+        ret = find_optimal_parameters(test_name, test_nr, store_path_cal)
+    except Exception:
+        logging.error('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
+                      (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
+        ret = 1
+    if ret:
+        send_message('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
+                     (' with test nr ' + str(test_nr) if test_nr else ''))
+    return ret
+
+
+def find_optimal_parameters(test_name, test_nr, store_path_cal):
+    path_name = os.path.join(store_path_cal, test_name)
+    if not os.path.exists(path_name):
+        raise ValueError('Path ' + path_name + ' for loading evaluation results does not exist')
+    func_info = en.get_opt_pars_func(test_name, test_nr)
+    if func_info is None:
+        return True
+    paths = []
+    for nr in func_info['test_nrs']:
+        path_nr = os.path.join(path_name, str(nr))
+        if not os.path.exists(path_nr):
+            raise ValueError('Path ' + path_nr + ' for loading evaluation results does not exist')
+        evals_path = os.path.join(path_nr, 'evals')
+        if not os.path.exists(evals_path):
+            raise ValueError('Unable to locate results path of evaluations. Cannot estimate optimal parameters.')
+        paths.append(evals_path)
+    pars = func_info['func'](paths, func_info['pars'])
+    if pars is None:
+        return False
+    ret = True
+    if isinstance(pars, list):
+        ret = False
+        tmp = {}
+        for i in pars:
+            if i is not None:
+                tmp.update(i)
+        if not tmp:
+            return False
+        pars = tmp
+    from start_test_cases import write_parameters, convert_mult_autoc_pars_out_to_in
+    pars_out = convert_mult_autoc_pars_out_to_in(pars)
+    write_parameters(store_path_cal, pars_out)
+    return ret
 
 
 def get_compare_data(test_name, test_nr, use_evals, store_path_cal):
@@ -132,10 +186,14 @@ def get_compare_data(test_name, test_nr, use_evals, store_path_cal):
         for j in tmp.items():
             pars_out.append(j[0] + '-' + str(j[1]))
     ev_nums = en.get_eval_nrs_for_cmp(test_name, test_nr)
-    ev = []
+    ev_nums1 = []
     for i in ev_nums:
+        if i in use_evals:
+            ev_nums1.append(i)
+    ev = []
+    for i in ev_nums1:
         ev += [str(i)] * len(pars_out)
-    pars_out *= len(ev_nums)
+    pars_out *= len(ev_nums1)
     return ev, pars_out
 
 

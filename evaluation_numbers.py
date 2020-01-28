@@ -96,12 +96,27 @@ def check_calc_opt_pars(test_name, test_nr):
     return pars_sel[str(test_nr)]
 
 
-def calc_opt_pars(test_name, test_nr, store_path_cal):
+def get_opt_pars_func(test_name, test_nr):
     pars = check_calc_opt_pars(test_name, test_nr)
     if pars is None:
-        return True
+        return None
     import calc_opt_parameters as cop
-    pars_info = {'usac-testing': {'1': {'func': }}}
+    pars_info = {'usac-testing': {'1': {'func': cop.get_usac_testing_1, 'test_nrs': [1]},
+                                  '2': {'func': cop.get_usac_testing_2, 'test_nrs': [1, 2]}},
+                 'usac_vs_ransac': {'func': cop.get_usac_vs_ransac, 'test_nrs': [None]},
+                 'refinement_ba': {'2': {'func': cop.get_refinement_ba_2, 'test_nrs': [1, 2]}},
+                 'refinement_ba_stereo': {'2': {'func': cop.get_refinement_ba_stereo_2, 'test_nrs': [1, 2]}},
+                 'correspondence_pool': {'1': {'func': cop.get_correspondence_pool_1, 'test_nrs': [1]},
+                                         '2': {'func': cop.get_correspondence_pool_2, 'test_nrs': [2]}},
+                 'robustness': {'1': {'func': cop.get_robustness_1, 'test_nrs': [1]},
+                                '2': {'func': cop.get_robustness_2, 'test_nrs': [2]},
+                                '4': {'func': cop.get_robustness_4, 'test_nrs': [4]},
+                                '5': {'func': cop.get_robustness_5, 'test_nrs': [5]}}}
+    tmp = pars_info[test_name]
+    if test_nr:
+        tmp = tmp[str(test_nr)]
+    tmp['pars'] = pars
+    return tmp
 
 
 def get_evals_with_compare():

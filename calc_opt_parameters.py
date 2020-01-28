@@ -466,7 +466,7 @@ def get_corrpool_2(eval_path, par_name):
     return round(float(np.average(np.array(res), weights=np.array(w))), 3)
 
 
-def get_robustness_1(eval_path, par_name):
+def get_robustness_1_par(eval_path, par_name):
     # Possible par_name: stereoParameters_relInlRatThLast, stereoParameters_relInlRatThNew,
     # stereoParameters_minInlierRatSkip, stereoParameters_relMinInlierRatSkip, stereoParameters_minInlierRatioReInit
     main_pars = ['robustness_best_comb_scenes_inlc', 'robustness_best_comb_scenes_inlc_depth',
@@ -491,7 +491,7 @@ def get_robustness_1(eval_path, par_name):
     return round(float(np.average(np.array(res), weights=np.array(w))), 3)
 
 
-def get_robustness_2(eval_path):
+def get_robustness_2_par(eval_path):
     # Possible par_name: stereoParameters_checkPoolPoseRobust
     main_pars = ['robustness_best_comb_scenes_poolr_inlc', 'robustness_best_comb_scenes_poolr_inlc_ml',
                  'robustness_best_comb_scenes_poolr_inlc_depth', 'robustness_best_comb_scenes_poolr_inlc_depth_ml',
@@ -523,7 +523,7 @@ def get_robustness_2(eval_path):
     return int(round(float(np.average(np.array(res), weights=np.array(w)))))
 
 
-def get_robustness_4(eval_path, par_name):
+def get_robustness_4_par(eval_path, par_name):
     # Possible par_name: stereoParameters_minContStablePoses, stereoParameters_minNormDistStable,
     # stereoParameters_absThRankingStable
     main_pars = ['robustness_best_pose_stable_pars', 'robustness_best_stable_pars_inlc_rt',
@@ -572,7 +572,7 @@ def get_robustness_4(eval_path, par_name):
         return round(float(np.average(np.array(res), weights=np.array(w))), 6)
 
 
-def get_robustness_5(eval_path):
+def get_robustness_5_par(eval_path):
     # Possible par_name: stereoParameters_useRANSAC_fewMatches
     main_pars = ['robustness_ransac_fewMatch_inlc', 'robustness_ransac_fewMatch_inlc_depth',
                  'robustness_ransac_fewMatch_inlc_kpAcc', 'robustness_ransac_fewMatch_inlc_kpAcc_final']
@@ -793,13 +793,13 @@ def get_usac_testing_2(paths, par_names):
     for i in par_names1:
         rets[i] = get_USAC_pars123(paths[1], i)
     ret = check_comb_exists(paths[1], rets, check_usac123_comb_exists)
-    if ret:
-        th = get_th(paths[0], paths[1])
-        if th is None:
-            return None
+    th = get_th(paths[0], paths[1])
+    if th is None and not ret:
+        return None
+    elif th is not None and ret:
         rets['th'] = th
         return rets
-    return None
+    return [th, rets]
 
 
 def get_usac_vs_ransac(paths, par_names):
@@ -847,6 +847,40 @@ def get_correspondence_pool_2(paths, par_names):
     return None
 
 
+def get_robustness_1(paths, par_names):
+    rets = dict.fromkeys(par_names)
+    for i in par_names:
+        rets[i] = get_robustness_1_par(paths[0], i)
+    ret = check_comb_is_close(paths[0], rets, check_robustness_1_comb_exists)
+    if ret:
+        return rets
+    return None
+
+
+def get_robustness_2(paths, par_names):
+    ret = get_robustness_2_par(paths[0])
+    if ret is None:
+        return None
+    return {par_names[0]: ret}
+
+
+def get_robustness_4(paths, par_names):
+    rets = dict.fromkeys(par_names)
+    for i in par_names:
+        rets[i] = get_robustness_4_par(paths[0], i)
+    ret = check_comb_is_close(paths[0], rets, check_robustness_4_comb_exists)
+    if ret:
+        return rets
+    return None
+
+
+def get_robustness_5(paths, par_names):
+    ret = get_robustness_5_par(paths[0])
+    if ret is None:
+        return None
+    return {par_names[0]: ret}
+
+
 def main():
     path = '/home/maierj/work/Sequence_Test/py_test/robustness/5'
     path2 = '/home/maierj/work/Sequence_Test/py_test/refinement_ba_stereo/2'
@@ -860,7 +894,7 @@ def main():
     # path = '/home/maierj/work/Sequence_Test/py_test/usac_vs_autocalib/1'
     # ret = get_robMFilt(path, 'stereoRef')
     # ret = get_corrpool_2(path, pars[0])
-    ret = get_robustness_5(path)
+    ret = get_robustness_5_par(path)
     print(ret)
 
 
