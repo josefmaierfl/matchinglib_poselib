@@ -44,7 +44,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                 not (skip_crt_sc and any([b == mt for b in skip_crt_sc])):
             pcol = get_confs_path(mt, -1, path, path_confs_out)
             for pco in pcol:
-                ret = gen_scenes(mt, pco, exec_sequ, message_path, cpu_use)
+                ret = gen_scenes(mt, pco, exec_sequ, message_path_new, cpu_use)
                 if ret:
                     return ret
             print('Finished generating scenes and matches for ' + mt)
@@ -52,24 +52,31 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
         if any([b == mt for b in use_cal_tests.keys()]):
             if use_cal_tests[mt] is None:
                 test_nr_list = [None]
+                test_nrs1 = test_nr_list
             else:
                 test_nr_list = use_cal_tests[mt]
-            for tn in test_nr_list:
-                (conf_name, conf_nr) = en.get_autocalib_sequence_config_ref(mt, tn)
-                pco = get_confs_path(conf_name, conf_nr, path, path_confs_out)
-                # Run autocalibration
-                ret = start_autocalibration(mt, tn, pco, store_path_cal, exec_cal, message_path, cpu_use)
-                if ret:
-                    return ret
-                print('Finished testing autocalibration for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
+                if any([b == mt for b in use_evals.keys()]):
+                    test_nrs1 = list(map(int, list(dict.fromkeys(list(map(int, use_evals[mt].keys())) + test_nr_list))))
+                else:
+                    test_nrs1 = test_nr_list
+            for tn in test_nrs1:
+                if tn in test_nr_list:
+                    (conf_name, conf_nr) = en.get_autocalib_sequence_config_ref(mt, tn)
+                    pco = get_confs_path(conf_name, conf_nr, path, path_confs_out)
+                    # Run autocalibration
+                    ret = start_autocalibration(mt, tn, pco, store_path_cal, exec_cal, message_path_new, cpu_use)
+                    if ret:
+                        return ret
+                    print('Finished testing autocalibration for main test ', mt,
+                          (' and test nr ' + str(tn) if tn else ''))
                 # Run evaluation
                 if any([b == mt for b in use_evals.keys()]) and \
                         (tn is None or any([b == str(tn) for b in use_evals[mt].keys()])):
                     if tn is None:
-                        ev_nrs = use_evals[mt]
+                        ev_nrs = use_evals[mt]['0']
                     else:
                         ev_nrs = use_evals[mt][str(tn)]
-                    ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path,
+                    ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
                                      compare_pars, comp_pars_ev_nr, compare_path)
                     if ret:
                         return ret
@@ -83,7 +90,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                 else:
                     tn = int(nr_key)
                     ev_nrs = use_evals[mt][nr_key]
-                ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path,
+                ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
                                  compare_pars, comp_pars_ev_nr, compare_path)
                 if ret:
                     return ret
@@ -115,7 +122,7 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
         cmdline += ['--compare_pars', compare_pars]
     elif en.check_if_eval_needs_compare_data(test_name, test_nr, use_evals):
         comp_pars_ev_nr, compare_pars = get_compare_data(test_name, test_nr, use_evals, store_path_cal)
-        cmdline += ['--comp_pars_ev_nr', comp_pars_ev_nr, '--compare_pars', compare_pars]
+        cmdline += ['--comp_pars_ev_nr'] + list(map(str, comp_pars_ev_nr)) + ['--compare_pars'] + compare_pars
 
     tout = len(use_evals) * 4 * 3600
     try:
@@ -129,12 +136,15 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
     except sp.TimeoutExpired:
         logging.error('Timeout expired for evaluating results in main test ' +
                       test_name + (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        ret = 1
+        ret = 98
     except Exception:
         logging.error('Evaluation failed. Main test ' + test_name +
                       (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        ret = 2
+        ret = 99
     if ret:
+        if ret < 98:
+            logging.error('Evaluation failed. Main test ' + test_name +
+                          (' with test nr ' + str(test_nr) if test_nr else ''))
         send_message('Evaluation failed. Main test ' + test_name +
                      (' with test nr ' + str(test_nr) if test_nr else ''))
         return ret
@@ -142,10 +152,14 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
     # After evals are finished try to find optimal parameters
     try:
         ret = find_optimal_parameters(test_name, test_nr, store_path_cal)
+        if ret:
+            ret = 0
+        else:
+            ret = 1
     except Exception:
         logging.error('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
                       (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        ret = 1
+        ret = 99
     if ret:
         send_message('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
                      (' with test nr ' + str(test_nr) if test_nr else ''))
@@ -161,10 +175,16 @@ def find_optimal_parameters(test_name, test_nr, store_path_cal):
         return True
     paths = []
     for nr in func_info['test_nrs']:
-        path_nr = os.path.join(path_name, str(nr))
-        if not os.path.exists(path_nr):
-            raise ValueError('Path ' + path_nr + ' for loading evaluation results does not exist')
-        evals_path = os.path.join(path_nr, 'evals')
+        if nr is None:
+            path_nr = path_name
+        else:
+            path_nr = os.path.join(path_name, str(nr))
+            if not os.path.exists(path_nr):
+                raise ValueError('Path ' + path_nr + ' for loading evaluation results does not exist')
+        if test_main:
+            evals_path = path_nr
+        else:
+            evals_path = os.path.join(path_nr, 'evals')
         if not os.path.exists(evals_path):
             raise ValueError('Unable to locate results path of evaluations. Cannot estimate optimal parameters.')
         paths.append(evals_path)
@@ -230,12 +250,15 @@ def start_autocalibration(test_name, test_nr, gen_dirs_config_f, output_path, ex
     except sp.TimeoutExpired:
         logging.error('Timeout expired for testing autocalibration in main test ' +
                       test_name + (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        ret = 1
+        ret = 98
     except Exception:
         logging.error('Autocalibration failed. Main test ' + test_name +
                       (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        ret = 2
+        ret = 99
     if ret:
+        if ret < 98:
+            logging.error('Autocalibration failed. Main test ' + test_name +
+                          (' with test nr ' + str(test_nr) if test_nr else ''))
         send_message('Autocalibration failed. Main test ' + test_name +
                      (' with test nr ' + str(test_nr) if test_nr else ''))
     return ret
@@ -258,12 +281,15 @@ def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
     except sp.TimeoutExpired:
         logging.error('Timeout expired for generating scenes and matches using directory ' +
                       gen_dirs_config_f + ' for ' + test_name, exc_info=True)
-        ret = 1
+        ret = 98
     except Exception:
         logging.error('Failed to generate scenes and matches using directory ' +
                       gen_dirs_config_f + ' for ' + test_name, exc_info=True)
-        ret = 2
+        ret = 99
     if ret:
+        if ret < 98:
+            logging.error('Failed to generate scenes and matches using directory ' +
+                          gen_dirs_config_f + ' for ' + test_name)
         send_message('Failed to generate scenes and matches for ' + test_name)
     return ret
 
@@ -308,12 +334,15 @@ def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store
         except sp.TimeoutExpired:
             logging.error('Timeout expired for generating sequence configuration files in directory ' +
                           dir_name + ' for ' + test_name, exc_info=True)
-            ret = 1
+            ret = 98
         except Exception:
             logging.error('Failed to generate sequence configuration files in directory ' +
                           dir_name + ' for ' + test_name, exc_info=True)
-            ret = 2
+            ret = 99
         if ret:
+            if ret < 98:
+                logging.error('Failed to generate sequence configuration files in directory ' +
+                              dir_name + ' for ' + test_name)
             send_message('Failed to generate sequence configuration files in directory ' +
                          dir_name + ' for ' + test_name)
             return ret
@@ -768,11 +797,13 @@ def retry_scenes_gen_dir(filename, exec_sequ, message_path, cpu_use):
                      check=True, timeout=18000).returncode
     except sp.TimeoutExpired:
         logging.error('Timeout expired for generating sequences.', exc_info=True)
-        ret = 1
+        ret = 98
     except Exception:
         logging.error('Failed to generate scene and/or matches during retry', exc_info=True)
-        ret = 2
+        ret = 99
     if ret:
+        if ret < 98:
+            logging.error('Retrying generation of sequences based on all configuration files in directories failed.')
         send_message('Retrying generation of sequences based on all configuration files in directories failed.')
     return ret
 
@@ -787,11 +818,13 @@ def retry_scenes_gen_cmds(filename, message_path, cpu_use):
                      check=True, timeout=18000).returncode
     except sp.TimeoutExpired:
         logging.error('Timeout expired for generating sequences.', exc_info=True)
-        ret = 1
+        ret = 98
     except Exception:
         logging.error('Failed to generate scene and/or matches during retry', exc_info=True)
-        ret = 2
+        ret = 99
     if ret:
+        if ret < 98:
+            logging.error('Retrying generation of sequences based on single command lines failed.')
         send_message('Retrying generation of sequences based on single command lines failed.')
     return ret
 
@@ -811,11 +844,13 @@ def retry_autocalibration(filename, nrCall, store_path, exec_cal, message_path, 
                      check=True, timeout=t_out).returncode
     except sp.TimeoutExpired:
         logging.error('Timeout expired for testing autocalibration during retry.', exc_info=True)
-        ret = 1
+        ret = 98
     except Exception:
         logging.error('Failed to test autocalibration during retry', exc_info=True)
-        ret = 2
+        ret = 99
     if ret:
+        if ret < 98:
+            logging.error('Failed to test autocalibration during retry')
         send_message('Failed to test autocalibration during retry.')
     return ret
 
@@ -911,7 +946,7 @@ def main():
                              'smallest possible value is 1. There shouldn\'t be a csv file '
                              '\'commands_and_parameters_unsuccessful_$.csv\' with an equal or higher value of $ in '
                              'the same folder.')
-    parser.add_argument('--compare_pars', type=str, required=False, nargs='*', default=[],
+    parser.add_argument('--compare_pars', type=str, required=False, nargs='*', default=None,
                         help='If provided, results from already performed evaluations can be loaded and added to '
                              'the current evaluation for comparison. The type of evaluation must be similar '
                              '(same axis, data partitions, ...). If provided, also argument \'comp_pars_ev_nr\' must '
@@ -922,7 +957,7 @@ def main():
                              '(like \'--compare_pars refineMethod_algorithm-PR_STEWENIUS '
                              'refineMethod_costFunction-PR_PSEUDOHUBER_WEIGHTS BART-extr_only\' for the evaluation '
                              'of refinement methods and bundle adjustment options).')
-    parser.add_argument('--comp_pars_ev_nr', type=str, required=False, nargs='*', default=[],
+    parser.add_argument('--comp_pars_ev_nr', type=str, required=False, nargs='*', default=None,
                         help='If provided, argument \'compare_pars\' must also be provided. For every '
                              'string in argument \'compare_pars\' the evaluation number at which the comparison '
                              'should be performed must be provided.')
@@ -1009,6 +1044,7 @@ def main():
     else:
         cpu_use = args.nrCPUs
     print('Using ', cpu_use, ' CPUs for testing')
+    sys.stdout.flush()
     if args.store_path_cal and not os.path.exists(args.store_path_cal):
         raise ValueError("Path for storing test results from autocalibration does not exist")
 
@@ -1044,7 +1080,7 @@ def main():
             elif not os.access(args.exec_sequ, os.X_OK):
                 raise ValueError('Unable to execute ' + args.exec_sequ)
         if not args.message_path:
-            args.message_path = os.path.join(parent, 'messages')
+            args.message_path = os.path.join(args.complete_res_path, 'messages')
             try:
                 os.mkdir(args.message_path)
             except FileExistsError:
@@ -1056,7 +1092,7 @@ def main():
             elif not os.access(args.exec_cal, os.X_OK):
                 raise ValueError('Unable to execute ' + args.exec_cal)
         if not args.store_path_cal:
-            args.store_path_cal = os.path.join(parent, 'testing_results')
+            args.store_path_cal = os.path.join(args.complete_res_path, 'testing_results')
             try:
                 os.mkdir(args.store_path_cal)
             except FileExistsError:

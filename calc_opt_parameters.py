@@ -133,6 +133,8 @@ def get_USAC_pars123(eval_path, par_name):
         if df_sum.shape[0] == 1:
             return str(df_sum.loc[:, 'alg_name'].iloc[0])
         df_sum2 = df_sum.groupby(['alg_name'])['weight'].sum().sort_values(ascending=False)
+        if df_sum2.shape[0] == 1:
+            return str(df_sum2.index.values.tolist()[0])
         if df_sum2.iloc[0] == df_sum2.iloc[1]:
             df_sum2 = df_sum2.loc[(df_sum2 == df_sum2.iloc[0])]
             df3 = df.loc[df['alg_name'].isin(df_sum2.index.values.tolist())]
@@ -190,7 +192,7 @@ def get_th(eval_path1, eval_path2):
     return float(ses['mean'])
 
 
-def get_robMFilt(eval_path, par_name):
+def get_usac_vs_autocalib(eval_path, par_name):
     # par_name should be RobMethod
     main_pars = ['usac_vs_autoc_stabRT_inlrat', 'usac_vs_autoc_stabRT_depth']
     data = read_paramter_file(eval_path, main_pars)
@@ -214,6 +216,62 @@ def get_robMFilt(eval_path, par_name):
             return res[1]
         else:
             return res[0]
+
+
+def get_robMFilt(eval_path, par_name):
+    # par_name should be RobMethod
+    main_pars = ['USAC_vs_RANSAC_th', 'USAC_vs_RANSAC_inlrat', 'USAC_vs_RANSAC_inlrat_th',
+                 'USAC_vs_RANSAC_min_time', 'USAC_vs_RANSAC_min_inlrat_diff']
+    data = read_paramter_file(eval_path, main_pars)
+    if data is None:
+        return None
+    res = [data[main_pars[0]]['Algorithms'][par_name],
+           data[main_pars[1]]['Algorithms'][par_name],
+           data[main_pars[2]]['Algorithms'][par_name],
+           data[main_pars[3]][par_name],
+           data[main_pars[4]]['Algorithm'][par_name]]
+    if all(a == res[0] for a in res):
+        return res[0]
+    else:
+        same = [res[3] == a for a in res[:3]] + [res[3] == res[4]]
+        if not any(same):
+            return None
+        from itertools import compress
+        sl = same[-1]
+        same.pop()
+        same_neg = [not a for a in same]
+        same += [False, sl]
+        same_neg += [False, not sl]
+        filtered = list(compress(main_pars, same))
+        if len(filtered) == 1 and filtered[0] == main_pars[0]:
+            return None
+        elif len(filtered) == 2 and ((filtered[0] == main_pars[1] and filtered[1] == main_pars[2]) or \
+                (filtered[0] == main_pars[1] and filtered[1] == main_pars[4]) or \
+                (filtered[0] == main_pars[2] and filtered[1] == main_pars[4])):
+            return res[1]
+        elif len(filtered) == 3:
+            return res[3]
+        filtered_neg = list(compress(main_pars, same_neg))
+        b_vals = []
+        b_vals_neg = []
+        for i in filtered:
+            if i == 'USAC_vs_RANSAC_th' or i == 'USAC_vs_RANSAC_inlrat':
+                b_vals.append(data[i]['b_best_val'])
+            elif i != 'USAC_vs_RANSAC_min_inlrat_diff':
+                b_vals.append(data[i]['b_min'])
+        for i in filtered_neg:
+            if i == 'USAC_vs_RANSAC_th' or i == 'USAC_vs_RANSAC_inlrat':
+                b_vals_neg.append(data[i]['b_best_val'])
+            elif i != 'USAC_vs_RANSAC_min_inlrat_diff':
+                b_vals_neg.append(data[i]['b_min'])
+        b_mean = sum(b_vals) / len(b_vals)
+        b_mean_neg = sum(b_vals_neg) / len(b_vals_neg)
+        diff = abs((b_mean - b_mean_neg) / max(b_mean, b_mean_neg))
+        if (len(filtered) == 2 and diff < 0.125) or (len(filtered) == 1 and diff < 0.05):
+            for idx, i in enumerate(main_pars):
+                if i == filtered[0]:
+                    return res[idx]
+    return None
 
 
 def get_refinement_ba(eval_path1, eval_path2, par_name):
@@ -393,7 +451,7 @@ def get_corrpool_size(eval_path):
     w = [(1.5 - a / max(d)) for a in d]
     w1 = [1.5 - a / max(b_err) for a in b_err]
     w = [a * b for a, b in zip(w, w1)]
-    w = [0.1 * a / max(w) for a in w]
+    w = [a / max(w) for a in w]
     return int(np.average(np.array([m] + res), weights=np.array([1.0] + w)))
 
 
@@ -579,8 +637,8 @@ def get_robustness_5_par(eval_path):
     data = read_paramter_file(eval_path, main_pars)
     if data is None:
         return None
-    res = [bool(data[a]['Algorithm']['stereoParameters_useRANSAC_fewMatches']) for a in main_pars]
-    if all(res) or not any(res):
+    res = [data[a]['Algorithm']['stereoParameters_useRANSAC_fewMatches'] for a in main_pars]
+    if all(a == res[0] for a in res):
         return res[0]
     cnt_opts = [data[a]['value_count'] for a in main_pars]
     cnt_01 = [0, 0]
@@ -590,23 +648,23 @@ def get_robustness_5_par(eval_path):
                 cnt_01[1] += i[j]
             else:
                 cnt_01[0] += i[j]
-    res_01 = [res.count(False), res.count(True)]
+    res_01 = [res.count('disabled'), res.count('enabled')]
     fr0 = res_01[0] / len(res)
     fc0 = cnt_01[0] / sum(cnt_01)
     if 0.4 < fr0 < 0.6 and 0.4 < fc0 < 0.6:
         return None
     if 0.4 < fr0 < 0.6:
         if fc0 < 0.5:
-            return True
-        return False
+            return 'enabled'
+        return 'disabled'
     elif 0.4 < fc0 < 0.6:
         if fr0 < 0.5:
-            return True
-        return False
+            return 'enabled'
+        return 'disabled'
     f0 = 0.35 * fr0 + 0.65 * fc0
     if f0 < 0.5:
-        return True
-    return False
+        return 'enabled'
+    return 'disabled'
 
 
 def check_robustness_1_comb_exists(eval_path):

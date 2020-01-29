@@ -76,9 +76,9 @@ def gen_configs(input_path, path_confs_out, inlier_range, inlier_chr, kpAccRange
                         if treatTPasCorrsSel:
                             fnObj = re.search(treatTPasCorrsSel, filen, re.I)
                             if fnObj:
-                                cmdline += '--treatTPasCorrs'
+                                cmdline += ['--treatTPasCorrs']
                         else:
-                            cmdline += '--treatTPasCorrs'
+                            cmdline += ['--treatTPasCorrs']
                     retcode = sp.run(cmdline, shell=False, check=True).returncode
                 else:
                     cmdline = ['python', pyfilename, '--filename', filenew,
@@ -177,8 +177,8 @@ def main():
         raise ValueError("Image path does not exist")
     if not os.path.exists(args.store_path):
         raise ValueError("Path for storing sequences does not exist")
-    if len(os.listdir(args.store_path)) != 0:
-        raise ValueError("Path for storing sequences is not empty")
+    # if len(os.listdir(args.store_path)) != 0:
+    #     raise ValueError("Path for storing sequences is not empty")
     if args.load_path:
         if not os.path.exists(args.load_path):
             raise ValueError("Path for loading sequences does not exist")
@@ -190,7 +190,7 @@ def main():
                               args.store_path, args.load_path, args.treatTPasCorrs, args.treatTPasCorrsConfsSel)
         else:
             ret = gen_configs(args.path, args.path_confs_out, [], args.inlchrate_range, args.kpAccRange, args.img_path,
-                              args.store_path, args.load_path, False)
+                              args.store_path, args.load_path, False, None)
     except FileExistsError:
         warnings.warn(sys.exc_info()[0], UserWarning)
         sys.exit(1)
