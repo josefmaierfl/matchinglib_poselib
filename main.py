@@ -156,13 +156,14 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
             ret = 0
         else:
             ret = 1
+            send_message('Finding optimal parameters failed. They have to be manually entered. Main test ' + test_name +
+                         (' with test nr ' + str(test_nr) if test_nr else ''))
     except Exception:
         logging.error('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
                       (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        ret = 99
-    if ret:
         send_message('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
                      (' with test nr ' + str(test_nr) if test_nr else ''))
+        ret = 99
     return ret
 
 
@@ -769,12 +770,16 @@ def get_skip_use_cal_tests(strings):
 
 def enable_messaging():
     global token, use_sms
-    token, use_sms = com.decrypt_token()
+    use_sms, token = com.decrypt_token()
 
 
 def send_message(text):
     if use_sms:
-        com.send_sms(text, token)
+        try:
+            com.send_sms(text, token)
+        except Exception:
+            logging.error('Failed to send SMS', exc_info=True)
+            warnings.warn('Unable to send messages!', UserWarning)
 
 
 def enable_logging(path):

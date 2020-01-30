@@ -83,7 +83,7 @@ def get_autocalib_sequence_config_ref(test_name, test_nr):
                                      '4': ('robustness', 1),
                                      '5': ('robustness', 1),
                                      '6': ('robustness', 6)},
-                      'usac_vs_autocalib': 'usac_vs_autocalib'}
+                      'usac_vs_autocalib': ('usac_vs_autocalib', None)}
     tmp = data_from_test[test_name]
     if isinstance(tmp, dict):
         tmp = tmp[str(test_nr)]
