@@ -1,0 +1,15 @@
+
+
+include("@CMAKE_INSTALL_PREFIX@/@INSTALL_CMAKE_DIR@/CLAPACK.cmake")
+
+# The CLAPACK include file directories.
+set(CLAPACK_INCLUDE_DIRS "@CLAPACK_INCLUDE_DIRECTORIES@")
+
+# The CLAPACK library directories.
+# Includes CLAPACK libs directory and OTHER libs directories
+set(CLAPACK_LIBRARY_DIRS "@CLAPACK_LIBRARY_DIRECTORIES@")
+
+# This includes all libraries that CLAPACK generates.
+set(CLAPACK_LIBRARIES "@CLAPACK_LIBRARIES@")
+
+
