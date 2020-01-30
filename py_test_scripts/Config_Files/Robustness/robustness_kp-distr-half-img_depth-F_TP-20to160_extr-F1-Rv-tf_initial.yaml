@@ -1,0 +1,4071 @@
+%YAML:1.0
+---
+# This file contains user specific parameters used to generate multiple consecutive stereo frames with correspondences.
+#
+#
+# Number of total frames. Max. 10000
+nrTotalFrames: 150
+# ---- Options for stereo extrinsics ----
+#
+#
+# Number of different stereo configurations (max. 1000).
+# The number of frames per camera configuration is controlled by the smallest number of the change rates (e.g. txChangeFRate) for tx, ty, tz, roll, pitch, and yaw.
+nrStereoConfigs: 150
+# Specifies after how many frames the x-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
+# Set this value to 0, if you do not want to change the x-component linearly.
+txChangeFRate: 0
+# Specifies after how many frames the y-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
+# Set this value to 0, if you do not want to change the y-component linearly.
+tyChangeFRate: 0
+# Specifies after how many frames the z-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
+# Set this value to 0, if you do not want to change the z-component linearly.
+tzChangeFRate: 0
+# Specifies after how many frames the roll angle (angle about x-axis) between the stereo cameras shall be changed linearly by a given value.
+# Set this value to 0, if you do not want to change the roll linearly.
+rollChangeFRate: 1
+# Specifies after how many frames the pitch angle (angle about y-axis) between the stereo cameras shall be changed linearly by a given value.
+# Set this value to 0, if you do not want to change the pitch linearly.
+pitchChangeFRate: 1
+# Specifies after how many frames the yaw angle (angle about z-axis) between the stereo cameras shall be changed linearly by a given value.
+# Set this value to 0, if you do not want to change the yaw linearly.
+yawChangeFRate: 1
+# Linear change rate for tx (x-component of the translation vector between the stereo cameras).
+txLinChangeVal: -1.0000000000000000e-02
+# Linear change rate for ty (y-component of the translation vector between the stereo cameras).
+tyLinChangeVal: 1.0000000000000000e-03
+# Linear change rate for tz (z-component of the translation vector between the stereo cameras).
+tzLinChangeVal: 5.0000000000000001e-04
+# Linear change rate for the roll angle (angle in degrees about x-axis) between the stereo cameras.
+rollLinChangeVal: -0.02
+# Linear change rate for the pitch angle (angle in degrees about y-axis) between the stereo cameras.
+pitchLinChangeVal: -0.02
+# Linear change rate for the yaw angle (angle in degrees about z-axis) between the stereo cameras.
+yawLinChangeVal: -0.02
+# Start value for tx (x-component (right) of the translation vector between the stereo cameras).
+# Only used if the specified range is 0.
+txStartVal: -1.
+# Start value for ty (y-component (down) of the translation vector between the stereo cameras).
+# Only used if the specified range is 0.
+tyStartVal: 1.0000000000000001e-01
+# Start value for tz (z-component (forward) of the translation vector between the stereo cameras).
+# Only used if the specified range is 0.
+tzStartVal: 1.0000000000000000e-02
+# Start value for the roll angle (angle in degrees about x-axis, right handed coordinate system, R = R_y * R_z * R_x) between the stereo cameras.
+# Only used if the specified range is 0.
+rollStartVal: 2.
+# Start value for the pitch angle (angle in degrees about y-axis, right handed coordinate system, R = R_y * R_z * R_x) between the stereo cameras.
+# Only used if the specified range is 0.
+pitchStartVal: -8.1999999999999993e+00
+# Start value for the yaw angle (angle in degrees about z-axis, right handed coordinate system, R = R_y * R_z * R_x) between the stereo cameras.
+# Only used if the specified range is 0.
+yawStartVal: 1.5
+# Possible range of the initial tx (x-component (right) of the translation vector between the stereo cameras) to be able to meet a user specific image overlap.
+# The optimal tx starting-value is by default only estimated for the first stereo configuration. If specified by txVariable, the range is used for every new configuration.
+# If the range (difference between both values) is 0, tx will be kept fixed at the given start value for tx.
+txRange:
+   first: 0
+   second: 0
+# Possible range of the initial ty (y-component (down) of the translation vector between the stereo cameras) to be able to meet a user specific image overlap.
+# The optimal ty starting-value is by default only estimated for the first stereo configuration. If specified by tyVariable, the range is used for every new configuration.
+# If the range (difference between both values) is 0, ty will be kept fixed at the given start value for ty.
+tyRange:
+   first: -2.0000000000000001e-01
+   second: 2.0000000000000001e-01
+# Possible range of the initial tz (z-component (forward) of the translation vector between the stereo cameras) to be able to meet a user specific image overlap.
+# The optimal tz starting-value is by default only estimated for the first stereo configuration. If specified by tzVariable, the range is used for every new configuration.
+# If the range (difference between both values) is 0, tz will be kept fixed at the given start value for tz.
+tzRange:
+   first: -1.0000000000000001e-01
+   second: 1.0000000000000001e-01
+# Possible range for the initial roll angle (angle in degrees about x-axis between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x)
+# to be able to meet a user specific image overlap. The optimal roll starting-value is by default only estimated for the
+# first stereo configuration. If specified by rollVariable, the range is used for every new configuration.
+# If the range (difference between both values) is 0, the roll angle will be kept fixed at the given start value for roll.
+rollRange:
+   first: -8.
+   second: 8.
+# Possible range for the initial pitch angle (angle in degrees about y-axis between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x)
+# to be able to meet a user specific image overlap. The optimal pitch starting-value is by default only estimated for the
+# first stereo configuration. If specified by pitchVariable, the range is used for every new configuration.
+# If the range (difference between both values) is 0, the pitch angle will be kept fixed at the given start value for pitch.
+pitchRange:
+   first: -8.
+   second: 20.
+# Possible range for the initial yaw angle (angle in degrees about z-axis between the stereo cameras, right handed coordinate system, R = R_y * R_z * R_x)
+# to be able to meet a user specific image overlap. The optimal yaw starting-value is by default only estimated for the
+# first stereo configuration. If specified by yawVariable, the range is used for every new configuration.
+# If the range (difference between both values) is 0, the yaw angle will be kept fixed at the given start value for yaw.
+yawRange:
+   first: 0
+   second: 0
+# Use the specified tx-range for every new stereo configuration (not only for the first) where tx should change (depends on txChangeFRate).
+# If this value is 1, an optimal value is selected within the given range for every new changed stereo configuration to meet a
+# specific image overlap between the 2 stereo cameras. Otherwise set the value to 0.
+txVariable: 0
+# Use the specified ty-range for every new stereo configuration (not only for the first) where ty should change (depends on tyChangeFRate).
+# If this value is 1, an optimal value is selected within the given range for every new changed stereo configuration to meet a
+# specific image overlap between the 2 stereo cameras. Otherwise set the value to 0.
+tyVariable: 0
+# Use the specified tz-range for every new stereo configuration (not only for the first) where tz should change (depends on tzChangeFRate).
+# If this value is 1, an optimal value is selected within the given range for every new changed stereo configuration to meet a
+# specific image overlap between the 2 stereo cameras. Otherwise set the value to 0.
+tzVariable: 0
+# Use the specified roll-range for every new stereo configuration (not only for the first) where the roll angle should change (depends on rollChangeFRate).
+# If this value is 1, an optimal value is selected within the given range for every new changed stereo configuration to meet a
+# specific image overlap between the 2 stereo cameras. Otherwise set the value to 0.
+rollVariable: 0
+# Use the specified pitch-range for every new stereo configuration (not only for the first) where the pitch angle should change (depends on pitchChangeFRate).
+# If this value is 1, an optimal value is selected within the given range for every new changed stereo configuration to meet a
+# specific image overlap between the 2 stereo cameras. Otherwise set the value to 0.
+pitchVariable: 0
+# Use the specified yaw-range for every new stereo configuration (not only for the first) where the yaw angle should change (depends on yawChangeFRate).
+# If this value is 1, an optimal value is selected within the given range for every new changed stereo configuration to meet a
+# specific image overlap between the 2 stereo cameras. Otherwise set the value to 0.
+yawVariable: 0
+# Set this variable to 1 if you want to use your own extrinsic and intrinsic camera parameters (set them in specificCamPars).
+# Otherwise, set this value to 0.
+useSpecificCamPars: 1
+# Input for specific extrinsic and intrinsic stereo camera parameters. The translation vectors must include the scale factor.
+# Rotation matrices must be generated by R = R_y * R_z * R_x (right handed coordinate system, x-axis: right, y-axis: down, z-axis: forward); x2 = R * x1 + t.
+# Every list element specifies a new stereo pair. To use these parameters,useSpecificCamPars must be set to 1.
+# Currently there is only support for different extrinsics. The camera matrices stay the same as for the first stereo configuration
+# regardless of what is entered for the camera matrices in the subsequent configurations.
+# The update frequence (in frames) is calculated by nrTotalFrames devided by the number of entered stereo configurations (here) or nrStereoConfigs (whatever value is smaller; nrStereoConfigs is not allowed to be larger than the number of entries entered here).
+specificCamPars:
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9952809628157224, -0.020342187494971173, 0.09487887259304902, 0.026176948277968463,
+        0.9978149698500283, -0.06066344304471854, -0.09343753226333171, 0.06286080934180441,
+        0.9936387402941937]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9953225551661989, -0.020050326909416456, 0.09450394472324605, 0.02582800045641234,
+        0.997845144635161, -0.06031568386794601, -0.0930909532116434, 0.06247440851148547,
+        0.9936956388710214]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9953639055487369, -0.019758178873385022, 0.09412921915310155, 0.025479049487792716,
+        0.9978750766312551, -0.05996790370994794, -0.09274434520747833, 0.06208820987735352,
+        0.9937522531427347]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9954050139431824, -0.019465743654113493, 0.09375469609979711, 0.0251300954146282,
+        0.9979047658237215, -0.05962010274022816, -0.09239770841976902, 0.06170221365798814,
+        0.9938085833340741]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9954458803294997, -0.01917302151900899, 0.09338037578024022, 0.0247811382794378,
+        0.9979342121980902, -0.05927228112830063, -0.092051043017462, 0.06131642007169482,
+        0.9938646296699509]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9954865046877713, -0.01888001273564878, 0.0930062584110642, 0.024432178124740873,
+        0.9979634157400098, -0.05892443904368941, -0.09170434916951782, 0.0609308293365048,
+        0.9939203923754462]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9955268869981972, -0.01858671757177999, 0.09263234420862788, 0.024083214993057163,
+        0.9979923764352463, -0.05857657665592846, -0.09135762704491081, 0.06054544167017498,
+        0.9939758716758101]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9955670272410955, -0.018293136295319305, 0.09225863338901572, 0.023734248926906756,
+        0.9980210942696849, -0.05822869413456171, -0.09101087681262915, 0.060160257290187744,
+        0.9940310677964622]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9956069253969023, -0.01799926917435269, 0.09188512616803736, 0.023385279968810124,
+        0.9980495692293289, -0.05788079164914288, -0.09066409864167467, 0.05977527641375083,
+        0.9940859809629911]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9956465814461719, -0.017705116477135067, 0.0915118227612278, 0.023036308161288068,
+        0.9980778013002998, -0.0575328693692354, -0.09031729270106285, 0.05939049925779722,
+        0.994140611401154]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9956859953695764, -0.017410678472090022, 0.09113872338384701, 0.022687333546861747,
+        0.9981057904688377, -0.05718492746441236, -0.08997045915982269, 0.05900592603898495,
+        0.994194959336876]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9957251671479058, -0.017115955427809512, 0.09076582825087999, 0.022338356168052655,
+        0.9981335367213011, -0.05683696610425642, -0.08962359818699665, 0.05862155697369703,
+        0.9942490249962508]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9957640967620683, -0.016820947613053566, 0.09039313757703644, 0.021989376067382632,
+        0.9981610400441666, -0.056488985458359724, -0.08927670995164053, 0.05823739227804129,
+        0.9943028086055395]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9958027841930903, -0.01652565529674996, 0.09002065157675086, 0.021640393287373837,
+        0.9981883004240298, -0.056140985696323815, -0.08892979462282347, 0.057853432167850244,
+        0.9943563103911708]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9958412294221156, -0.016230078747993978, 0.08964837046418214, 0.021291407870548774,
+        0.9982153178476038, -0.05579296698775954, -0.08858285236962775, 0.057469676858680936,
+        0.9944095305797402]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9958794324304068, -0.015934218236048032, 0.08927629445321374, 0.02094241985943025,
+        0.9982420923017211, -0.055444929502286994, -0.08823588336114888, 0.05708612656581482,
+        0.9944624693980109]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.995917393199344, -0.015638074030341422, 0.08890442375745321, 0.020593429296541396,
+        0.9982686237733319, -0.055096873409535424, -0.08788888776649527, 0.056702781504257636,
+        0.9945151270729112]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9959551117104257, -0.015341646400470029, 0.08853275859023235, 0.020244436224405655,
+        0.9982949122495051, -0.05474879887914312, -0.08754186575478837, 0.05631964188873929,
+        0.9945675038315372]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9959925879452683, -0.015044935616195979, 0.08816129916460692, 0.019895440685546776,
+        0.9983209577174281, -0.054400706080757415, -0.08719481749516249, 0.05593670793371366,
+        0.9946195999011499]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9960298218856066, -0.014747941947447376, 0.08779004569335659, 0.019546442722488802,
+        0.9983467601644066, -0.05405259518403448, -0.08684774315676477, 0.055553979853358526,
+        0.9946714155091767]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9960668135132928, -0.014450665664318001, 0.08741899838898472, 0.01919744237775608,
+        0.998372319577865, -0.05370446635863934, -0.086500642908755, 0.055171457861575394,
+        0.9947229508832097]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9961035628102979, -0.014153107037066997, 0.08704815746371827, 0.018848439693873238,
+        0.9983976359453456, -0.05335631977424576, -0.08615351692030564, 0.05478914217198942,
+        0.9947742062510065]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9961400697587106, -0.01385526633611857, 0.08667752312950767, 0.018499434713365202,
+        0.9984227092545097, -0.05300815560053617, -0.08580636536060164, 0.054407032997949224,
+        0.9948251818404895]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.996176334340738, -0.013557143832061705, 0.08630709559802675, 0.018150427478757163,
+        0.9984475394931369, -0.05265997400720153, -0.08545918839884051, 0.05402513055252671,
+        0.9948758778797454]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9962123565387051, -0.013258739795649843, 0.08593687508067246, 0.0178014180325746,
+        0.9984721266491252, -0.05231177516394133, -0.08511198620423202, 0.053643435048517096,
+        0.994926294597025]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9962481363350552, -0.0129600544978006, 0.08556686178856492, 0.01745240641734325,
+        0.9984964707104912, -0.051963559240463475, -0.08476475894599834, 0.053261946698438645,
+        0.9949764322207433]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9962836737123495, -0.012661088209595444, 0.08519705593254707, 0.01710339267558912,
+        0.9985205716653697, -0.05161532640648416, -0.08441750679337383, 0.052880665714532565,
+        0.9950262909794788]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9963189686532677, -0.01236184120227942, 0.0848274577231848, 0.016754376849838482,
+        0.9985444295020144, -0.05126707683172782, -0.08407022991560494, 0.052499592308762874,
+        0.9950758711019733]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9963540211406072, -0.012062313747260824, 0.08445806737076661, 0.016405358982617843,
+        0.9985680442087971, -0.05091881068592709, -0.0837229284819502, 0.05211872669281633,
+        0.9951251728171314]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9963888311572842, -0.011762506116110929, 0.08408888508530357, 0.016056339116453985,
+        0.9985914157742083, -0.05057052813882265, -0.08337560266168013, 0.051738069078102224,
+        0.9951741963540207]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9964233986863326, -0.011462418580563658, 0.08371991107652917, 0.015707317293873917,
+        0.9986145441868574, -0.050222229360163205, -0.08302825262407713, 0.051357619675752295,
+        0.9952229419418712]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9964577237109045, -0.011162051412515282, 0.08335114555389919, 0.015358293557404881,
+        0.9986374294354713, -0.04987391451970531, -0.08268087853843535, 0.05097737869662054,
+        0.9952714098100748]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9964918062142701, -0.010861404884024154, 0.0829825887265916, 0.015009267949574369,
+        0.9986600715088961, -0.0495255837872134, -0.0823334805740607, 0.05059734635128319,
+        0.9953196001881852]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9965256461798186, -0.010560479267310362, 0.0826142408035064, 0.014660240512910089,
+        0.9986824703960967, -0.04917723733245965, -0.08198605890027076, 0.050217522850038526,
+        0.9953675133059182]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9965592435910564, -0.010259274834755456, 0.08224610199326551, 0.014311211289939976,
+        0.9987046260861558, -0.04882887532522389, -0.08163861368639459, 0.049837908402906694,
+        0.9954151493931499]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9965925984316084, -0.009957791858902137, 0.08187817250421263, 0.01396218032319218,
+        0.9987265385682753, -0.04848049793529353, -0.08129114510177282, 0.04945850321962966,
+        0.9954625086799183]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9966257106852183, -0.009656030612453955, 0.08151045254441307, 0.01361314765519507,
+        0.998748207831775, -0.04813210533246346, -0.08094365331575738, 0.049079307509671044,
+        0.9955095913964213]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9966585803357472, -0.009353991368275007, 0.08114294232165371, 0.013264113328477213,
+        0.9987696338660937, -0.047783697686536016, -0.08059613849771154, 0.04870032148221602,
+        0.9955563977730174]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9966912073671749, -0.009051674399389639, 0.0807756420434429, 0.012915077385567388,
+        0.9987908166607887, -0.04743527516732086, -0.08024860081700982, 0.048321545346171155,
+        0.9956029280402253]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9967235917635996, -0.008749079978982131, 0.08040855191701009, 0.012566039868994556,
+        0.9988117562055358, -0.04708683794463488, -0.07990104044303786, 0.047942979310164294,
+        0.9956491824287232]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9967557335092374, -0.008446208380396418, 0.08004167214930602, 0.01221700082128789,
+        0.998832452490129, -0.04673838618830215, -0.07955345754519234, 0.04756462358254445,
+        0.9956951611693491]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9967876325884227, -0.008143059877135761, 0.07967500294700244, 0.011867960284976737,
+        0.9988529055044815, -0.046389920068153824, -0.07920585229288099, 0.047186478371381645,
+        0.9957408644930997]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9968192889856085, -0.007839634742862466, 0.07930854451649194, 0.011518918302590626,
+        0.9988731152386244, -0.04604143975402806, -0.07885822485552234, 0.04680854388446682,
+        0.9957862926311306]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9968507026853657, -0.007535933251397561, 0.07894229706388789, 0.01116987491665926,
+        0.9988930816827082, -0.04569294541576991, -0.07851057540254579, 0.04643082032931169,
+        0.9958314458147566]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9968818736723837, -0.007231955676720517, 0.07857626079502436, 0.010820830169712525,
+        0.9989128048270013, -0.0453444372232313, -0.07816290410339148, 0.0460533079131486,
+        0.9958763242754497]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.99691280193147, -0.006927702292968921, 0.0782104359154559, 0.010471784104280459,
+        0.9989322846618907, -0.04499591534627089, -0.07781521112751016, 0.04567600684293046,
+        0.9959209282448408]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9969434874475508, -0.006623173374438189, 0.07784482263045746, 0.010122736762893266,
+        0.9989515211778823, -0.04464737995475401, -0.07746749664436317, 0.04529891732533057,
+        0.9959652579547182]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.99697393020567, -0.0063183691955812585, 0.07747942114502425, 0.009773688188081308,
+        0.9989705143656005, -0.044298831218552555, -0.0771197608234223, 0.044922039566742476,
+        0.9960093136370273]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9970041301909905, -0.006013290031008284, 0.07711423166387166, 0.009424638422375092,
+        0.998989264215788, -0.043950269307544955, -0.0767720038341698, 0.04454537377327991,
+        0.9960530955238706]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9970340873887932, -0.005707936155486331, 0.0767492543914351, 0.009075587508305274,
+        0.9990077707193068, -0.043601694391616055, -0.07642422584609818, 0.04416892015077662,
+        0.9960966038475078]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9970638017844771, -0.005402307843939086, 0.07638448953186987, 0.008726535488402652,
+        0.9990260338671368, -0.043253106640657034, -0.07607642702871024, 0.043792678904786296,
+        0.9961398388403545]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9970932733635598, -0.0050964053714465316, 0.07601993728905106, 0.008377482405198151,
+        0.9990440536503769, -0.04290450622456532, -0.07572860755151886, 0.043416650240582354,
+        0.9961828007349831]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9971225021116774, -0.004790229013244665, 0.07565559786657335, 0.008028428301222836,
+        0.9990618300602441, -0.042555893313244525, -0.075380767584047, 0.043040834363157914,
+        0.9962254897641213]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.997151488014584, -0.0044837790447251735, 0.07529147146775109, 0.007679373219007886,
+        0.9990793630880747, -0.042207268076604354, -0.07503290729582772, 0.04266523147722562,
+        0.9962679061606524]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9971802310581522, -0.004177055741435145, 0.07492755829561792, 0.007330317201084606,
+        0.9990966527253232, -0.0418586306845605, -0.07468502685640384, 0.042289841787217536,
+        0.9963100501576155]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9972087312283731, -0.0038700593790767634, 0.07456385855292684, 0.006981260289984412,
+        0.999113698963563, -0.041509981307034594, -0.07433712643532804, 0.04191466549728501,
+        0.9963519219882042]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9972369885113559, -0.003562790233506994, 0.07420037244215001, 0.00663220252823883,
+        0.9991305017944858, -0.041161320113954104, -0.07398920620216282, 0.04153970281129858,
+        0.9963935218857671]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9972650028933285, -0.003255248580737293, 0.07383710016547859, 0.006283143958379489,
+        0.9991470612099023, -0.04081264727525227, -0.07364126632648023, 0.041164953932847845,
+        0.996434850083807]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9972927743606371, -0.002947434696933293, 0.07347404192482278, 0.005934084622938118,
+        0.9991633772017414, -0.040463962960867995, -0.07329330697786197, 0.04079041906524131,
+        0.9964759068159805]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9973203028997462, -0.0026393488584145037, 0.07311119792181141, 0.005585024564446537,
+        0.999179449762051, -0.040115267340745775, -0.07294532832589916, 0.0404160984115063,
+        0.9965166923160987]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9973475884972384, -0.002330991341654002, 0.07274856835779221, 0.0052359638254366545,
+        0.9991952788829976, -0.03976656058483562, -0.07259733054019239, 0.04004199217438883,
+        0.9965572068181254]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9973746311398153, -0.002022362423278141, 0.07238615343383131, 0.004886902448440466,
+        0.9992108645568661, -0.03941784286309295, -0.07224931379035156, 0.03966810055635352,
+        0.9965974505561782]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9974014308142967, -0.0017134623800662261, 0.0720239533507134, 0.004537840475990037,
+        0.9992262067760604, -0.03906911434547858, -0.07190127824599579, 0.03929442375958339,
+        0.9966374237645274]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9974279875076206, -0.0014042914889502264, 0.0716619683089414, 0.004188777950617513,
+        0.9992413055331029, -0.03872037520195853, -0.0715532240767534, 0.038920961985979816,
+        0.9966771266775956]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9974543012068438, -0.0010948500270144615, 0.07130019850873653, 0.0038397149148551033,
+        0.9992561608206346, -0.03837162560250402, -0.07120515145226172, 0.038547715437162414,
+        0.9967165595299579]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9974803718991411, -0.0007851382714952992, 0.07093864415003807, 0.003490651411235079,
+        0.9992707726314151, -0.03802286571709136, -0.07085706054216714, 0.03817468431446883,
+        0.9967557225563414]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9975061995718061, -0.0004751564997808478, 0.0705773054325033, 0.0031415874822897693,
+        0.9992851409583229, -0.03767409571570192, -0.07050895151612498, 0.037801868818954774,
+        0.996794615991625]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9975317842122506, -0.00016490498941065974, 0.07021618255550727, 0.0027925231705515554,
+        0.999299265794355, -0.03732531576832192, -0.0701608245437993, 0.037429269151393746,
+        0.9968332400708387]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.997557125808005, 0.00014561598192458676, 0.06985527571814287, 0.002443458518552865,
+        0.9993131471326272, -0.03697652604494248, -0.06981267979486294, 0.037056885512277024,
+        0.9968715950291642]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9975822243467183, 0.00045640613638338323, 0.06949458511922062, 0.0020943935688261662,
+        0.999326784966374, -0.036627726715559486, -0.0694645174389975, 0.036684718101813486,
+        0.996909681101933]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9976070798161574, 0.0007674651959737012, 0.06913411095726842, 0.0017453283639039642,
+        0.9993401792889479, -0.03627891795017349, -0.06911633764589299, 0.03631276711992956,
+        0.9969474985246278]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9976316922042083, 0.001078792882553291, 0.06877385343053172, 0.0013962629463187958,
+        0.9993533300938214, -0.03593009991878963, -0.06876814058524809, 0.035941032766269,
+        0.9969850475328812]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9976560614988753, 0.0013903889178299954, 0.06841381273697313, 0.0010471973586032232,
+        0.9993662373745847, -0.03558127279141759, -0.06841992642676975, 0.0355695152401929,
+        0.9970223283624762]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9976801876882808, 0.001702253023362055, 0.06805398907427249, 0.0006981316432898291,
+        0.9993789011249469, -0.035232436738071485, -0.06807169534017338, 0.03519821474077949,
+        0.9970593412493443]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9977040707606664, 0.0020143849205584035, 0.06769438263982663, 0.00034906584291121237,
+        0.9993913213387359, -0.03488359192876975, -0.06772344749518254, 0.03482713146682402,
+        0.9970960864295676]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9977277107043913, 0.002326784330678987, 0.06733499363074935, -1.8529301374498042e-17,
+        0.9994034980098981, -0.0345347385335351, -0.06737518306152904, 0.034456265616838705,
+        0.9971325641393763]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9977511075079339, 0.0026394509748350605, 0.06697582224387122, -0.00034906584291124934,
+        0.999415431132499, -0.03418587672239447, -0.06702690220895267, 0.034085617389052546,
+        0.9971687746151494]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.997774261159891, 0.002952384573989499, 0.06661686867573954, -0.0006981316432898662,
+        0.999427120700722, -0.033837006665378845, -0.06667860510720135, 0.03371518698141127,
+        0.9972047180934145]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9977971716489779, 0.003265584848957102, 0.06625813312261819, -0.0010471973586032603,
+        0.9994385667088705, -0.033488128532523274, -0.06633029192603081, 0.03334497459157716,
+        0.9972403948108474]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9978198389640278, 0.003579051520404897, 0.06589961578048757, -0.0013962629463188327,
+        0.9994497691513654, -0.03313924249386669, -0.0659819628352047, 0.032974980416928985,
+        0.9972758050042712]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9978422630939934, 0.0038927843088524526, 0.06554131684504427, -0.001745328363904001,
+        0.9994607280227467, -0.03279034871945194, -0.06563361800449435, 0.032605204654561876,
+        0.9973109489106566]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9978644440279452, 0.004206782934672176, 0.06518323651170135, -0.002094393568826203,
+        0.9994714433176735, -0.03244144737932559, -0.06528525760367884, 0.03223564750128718,
+        0.997345826767122]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9978863817550726, 0.004521047118089625, 0.06482537497558782, -0.002443458518552902,
+        0.999481915030923, -0.03209253864353793, -0.06493688180254474, 0.03186630915363242,
+        0.9973804388109322]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9979080762646834, 0.004835576579183817, 0.06446773243154884, -0.0027925231705515927,
+        0.9994921431573915, -0.031743622682142814, -0.06458849077088624, 0.03149718980784108,
+        0.9974147852794985]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9979295275462038, 0.005150371037887531, 0.06411030907414537, -0.0031415874822898066,
+        0.9995021276920941, -0.03139469966519768, -0.06424008467850488, 0.031128289659872615,
+        0.9974488664103788]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.997950735589179, 0.005465430213987611, 0.06375310509765422, -0.0034906514112351154,
+        0.9995118686301643, -0.031045769762763326, -0.06389166369520953, 0.03075960890540221,
+        0.9974826824412768]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9979717003832722, 0.0057807538271252845, 0.06339612069606787, -0.00383971491485514,
+        0.9995213659668545, -0.03069683314490398, -0.06354322799081637, 0.030391147739820764,
+        0.9975162336100417]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9979924219182656, 0.006096341596796455, 0.06303935606309441, -0.004188777950617549,
+        0.9995306196975358, -0.030347889981687092, -0.06319477773514873, 0.030022906358234753,
+        0.9975495201546687]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9980129001840596, 0.006412193242352026, 0.06268281139215733, -0.004537840475990073,
+        0.999539629817698, -0.029998940443183325, -0.06284631309803702, 0.029654884955466088,
+        0.9975825423132973]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9980331351706737, 0.006728308482998188, 0.06232648687639548, -0.004886902448440502,
+        0.9995483963229498, -0.02964998469946645, -0.062497834249318665, 0.029287083726052057,
+        0.9976153003242121]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9980531268682451, 0.007044687037796742, 0.061970382708662994, -0.005235963825436692,
+        0.9995569192090186, -0.029301022920613255, -0.06214934135883805, 0.028919502864245147,
+        0.9976477944258422]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9980728752670305, 0.007361328625665401, 0.06161449908152911, -0.005585024564446574,
+        0.9995651984717502, -0.028952055276703467, -0.06180083459644636, 0.028552142564013016,
+        0.997680024856761]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9980923803574044, 0.0076782329653780935, 0.061258836187278065, -0.005934084622938155,
+        0.9995732341071095, -0.02860308193781967, -0.06145231413200154, 0.028185003019038302,
+        0.9977119918556852]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9981116421298605, 0.007995399775565275, 0.06090339421790903, -0.0062831439583795265,
+        0.9995810261111799, -0.02825410307404725, -0.06110378013536825, 0.02781808442271858,
+        0.9977436956614755]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998130660575011, 0.008312828774714242, 0.060548173365135974, -0.006632202528238867,
+        0.999588574480164, -0.027905118855474243, -0.06075523277641771, 0.027451386968166198,
+        0.9977751365131361]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9981494356835862, 0.008630519681169424, 0.06019317382038758, -0.006981260289984448,
+        0.9995958792103825, -0.027556129452191335, -0.06040667222502769, 0.027084910848208226,
+        0.9978063146498135]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9981679674464355, 0.008948472213132707, 0.05983839577480709, -0.007330317201084643,
+        0.9996029402982753, -0.02720713503429171, -0.060058098651082366, 0.02671865625538628,
+        0.9978372303107974]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9981862558545268, 0.009266686088663729, 0.05948383941925219, -0.0076793732190079235,
+        0.999609757740401, -0.026858135771871013, -0.05970951222447223, 0.026352623381956482,
+        0.9978678837355195]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9982043008989464, 0.009585161025680194, 0.059129504944295024, -0.008028428301222874,
+        0.9996163315334365, -0.026509131835027233, -0.05936091311509411, 0.025986812419889288,
+        0.9978982751635538]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9982221025708996, 0.009903896741958178, 0.05877539254022192, -0.00837748240519819,
+        0.9996226616741782, -0.026160123393860667, -0.05901230149285096, 0.025621223560869443,
+        0.9979284048346158]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9982396608617098, 0.010222892955132444, 0.0584215023970334, -0.008726535488402689,
+        0.9996287481595408, -0.025811110618473777, -0.05866367752765184, 0.025255856996295824,
+        0.9979582729885625]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9982569757628195, 0.010542149382696741, 0.05806783470444401, -0.00907558750830531,
+        0.9996345909865576, -0.025462093678971152, -0.058315041389411855, 0.024890712917281354,
+        0.9979878798653924]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9982740472657895, 0.010861665742004109, 0.05771438965188226, -0.009424638422375127,
+        0.9996401901523813, -0.025113072745459403, -0.057966393248052014, 0.02452579151465289,
+        0.9980172257052441]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9982908753622994, 0.011181441750267203, 0.057361167428490484, -0.009773688188081343,
+        0.9996455456542823, -0.024764047988047107, -0.057617733273499186, 0.024161092978951144,
+        0.9980463107483973]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9983074600441475, 0.011501477124558587, 0.05700816822312474, -0.0101227367628933,
+        0.999650657489651, -0.024415019576844676, -0.05726906163568601, 0.023796617500430516,
+        0.9980751352352718]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9983238013032506, 0.011821771581811052, 0.05665539222435472, -0.010471784104280495,
+        0.9996555256559957, -0.02406598768196433, -0.05692037850455079, 0.023432365269059056,
+        0.9981036994064275]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998339899131644, 0.012142324838817907, 0.056302839620463646, -0.010820830169712562,
+        0.9996601501509436, -0.023716952473519952, -0.05657168405003747, 0.0230683364745183,
+        0.9981320035025634]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9983557535214818, 0.012463136612233318, 0.055950510599448125, -0.011169874916659299,
+        0.999664530972241, -0.023367914121627087, -0.05622297844209547, 0.02270453130620323,
+        0.9981600477645183]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998371364465037, 0.012784206618572587, 0.05559840534901808, -0.011518918302590662,
+        0.9996686681177525, -0.023018872796402773, -0.05587426185067968, 0.022340949953222104,
+        0.9981878324332697]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998386731954701, 0.013105534574212478, 0.05524652405659667, -0.011867960284976773,
+        0.999672561585462, -0.02266982866796552, -0.05552553444575034, 0.021977592604396384,
+        0.9982153577499341]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9984018559829836, 0.013427120195391516, 0.05489486690932012, -0.012217000821287927,
+        0.9996762113734716, -0.022320781906435185, -0.05517679639727292, 0.021614459448260636,
+        0.9982426239557662]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998416736542514, 0.013748963198210316, 0.05454343409403769, -0.012566039868994593,
+        0.9996796174800027, -0.021971732681932928, -0.054828047875218146, 0.02125155067306242,
+        0.9982696312921591]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998431373626039, 0.014071063298631854, 0.054192225797311484, -0.01291507738556742,
+        0.999682779903395, -0.021622681164581097, -0.05447928904956178, 0.02088886646676217,
+        0.998296380000643]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998445767226425, 0.014393420212481809, 0.05384124220541645, -0.013264113328477248,
+        0.9996856986421072, -0.02127362752450316, -0.05413052009028464, 0.020526407017033114,
+        0.9983228703228861]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9984599173366568, 0.01471603365544887, 0.053490483504340186, -0.013613147655195106,
+        0.9996883736947169, -0.020924571931823625, -0.0537817411673725, 0.020164172511261184,
+        0.9983491025006943]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9984738239498376, 0.015038903343085025, 0.0531399498797829, -0.013962180323192217,
+        0.99969080505992, -0.020575514556667934, -0.05343295245081594, 0.019802163136544856,
+        0.9983750767760093]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9984874870591899, 0.01536202899080589, 0.05278964151715731, -0.014311211289940012,
+        0.9996929927365318, -0.02022645556916243, -0.05308415411061038, 0.01944037907969512,
+        0.99840079339091]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985009066580538, 0.015685410313891004, 0.05243955860158844, -0.014660240512910127,
+        0.9996949367234859, -0.019877395139434206, -0.05273534631675586, 0.01907882052723531,
+        0.9984262525876115]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985140827398892, 0.01600904702748416, 0.05208970131791368, -0.015009267949574407,
+        0.9996966370198349, -0.019528333437611085, -0.05238652923925707, 0.018717487665401072,
+        0.9984514546084652]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985270152982743, 0.016332938846593672, 0.05174006985068255, -0.01535829355740492,
+        0.9996980936247499, -0.019179270633821494, -0.05203770304812322, 0.018356380680140196,
+        0.9984763996959573]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985397043269055, 0.01665708548609275, 0.05139066438415668, -0.015707317293873955,
+        0.999699306537521, -0.018830206898194406, -0.051688867913367964, 0.017995499757112565,
+        0.9985010880927102]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985521498195987, 0.016981486660719733, 0.051041485102309665, -0.016056339116454023,
+        0.9997002757575575, -0.018481142400859244, -0.05134002400500929, 0.01763484508169002,
+        0.9985255200414809]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985643517702881, 0.017306142085078472, 0.05069253218882699, -0.01640535898261788,
+        0.9997010012843865, -0.018132077311945802, -0.0509911714930695, 0.01727441683895629,
+        0.9985496957851614]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985763101730266, 0.01763105147363859, 0.05034380582710591, -0.016754376849838517,
+        0.9997014831176546, -0.017783011801584165, -0.05064231054757506, 0.016914215213706875,
+        0.998573615566778]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985880250219855, 0.017956214540735798, 0.04999530620025539, -0.017103392675589156,
+        0.9997017212571269, -0.017433946039904624, -0.050293441338556566, 0.01655424039044894,
+        0.9985972796294912]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9985994963114557, 0.018281631000572243, 0.04964703349109594, -0.017452406417343285,
+        0.9997017157026874, -0.017084880197037584, -0.04994456403604861, 0.016194492553401236,
+        0.9986206882165956]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986107240358457, 0.018607300567216756, 0.04929898788215958, -0.017801418032574633,
+        0.9997014664543387, -0.0167358144431135, -0.04959567881008978, 0.015834971886493982,
+        0.9986438415715186]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986217081896835, 0.01893322295460522, 0.04895116955568969, -0.018150427478757197,
+        0.9997009735122022, -0.01638674894826278, -0.049246785830722464, 0.015475678573368783,
+        0.9986667399378217]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986324487676155, 0.01925939787654085, 0.04860357869364099, -0.018499434713365237,
+        0.9997002368765184, -0.016037683882615703, -0.048897885267992894, 0.015116612797378515,
+        0.9986893835591987]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986429457644069, 0.01958582504669451, 0.04825621547767935, -0.018848439693873273,
+        0.9996992565476464, -0.015688619416302344, -0.04854897729195094, 0.01475777474158725,
+        0.9987117726794765]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986531991749416, 0.019912504178605017, 0.04790908008918173, -0.019197442377756113,
+        0.9996980325260637, -0.01533955571945248, -0.04820006207265013, 0.014399164588770122,
+        0.9987339075426138]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998663208994222, 0.020239434985679462, 0.04756217270923611, -0.019546442722488837,
+        0.9996965648123669, -0.014990492962195519, -0.047851139780147475, 0.014040782521413274,
+        0.9987557883927017]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986729752173698, 0.020566617181193514, 0.04721549351864135, -0.01989544068554681,
+        0.9996948534072715, -0.014641431314660405, -0.047502210584503504, 0.013682628721713724,
+        0.9987774154739629]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9986824978396248, 0.02089405047829174, 0.04686904269790714, -0.02024443622440569,
+        0.9996928983116115, -0.014292370946975545, -0.047153274655782035, 0.013324703371579294,
+        0.9987987890307515]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.998691776856346, 0.021221734589987905, 0.04652282042725383, -0.02059342929654143,
+        0.9996906995263399, -0.013943312029268724, -0.0468043321640502, 0.012967006652628501,
+        0.9988199093075528]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987008122630107, 0.02154966922916527, 0.046176826886612427, -0.020942419859430284,
+        0.9996882570525283, -0.013594254731667015, -0.04645538327937834, 0.012609538746190458,
+        0.9988407765489824]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987096040552152, 0.021877854108576948, 0.045831062255624444, -0.02129140787054881,
+        0.9996855708913671, -0.013245199224296704, -0.046106428171839915, 0.012252299833304793,
+        0.9988613909997872]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987181522286748, 0.022206288940846156, 0.045485526713641804, -0.021640393287373872,
+        0.9996826410441657, -0.01289614567728321, -0.04575746701151138, 0.011895290094721537,
+        0.9988817529048436]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987264567792226, 0.022534973438466572, 0.04514022043972675, -0.021989376067382663,
+        0.9996794675123517, -0.012547094260750982, -0.04540849996847217, 0.011538509710901042,
+        0.9989018625091579]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987345177028116, 0.022863907313802636, 0.044795143612651786, -0.02233835616805269,
+        0.9996760502974721, -0.012198045144823444, -0.045059527212804595, 0.01118195886201388,
+        0.9989217200578665]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987423349955128, 0.023193090279089838, 0.04445029641089952, -0.022687333546861782,
+        0.9996723894011924, -0.011848998499622895, -0.04471054891459374, 0.010825637727940748,
+        0.9989413257962347]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987499086535162, 0.02352252204643505, 0.044105679012662644, -0.023036308161288103,
+        0.9996684848252969, -0.01149995449527043, -0.04436156524392736, 0.01046954648827238,
+        0.9989606799696565]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987572386731305, 0.02385220232781684, 0.04376129159584375, -0.02338527996881016,
+        0.9996643365716886, -0.011150913301885855, -0.044012576370895874, 0.01011368532230945,
+        0.9989797828236553]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987643250507829, 0.024182130835085767, 0.04341713433805534, -0.02373424892690679,
+        0.9996599446423892, -0.010801875089587605, -0.04366358246559223, 0.009758054409062472,
+        0.9989986346038818]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.99877116778302, 0.02451230727996472, 0.04307320741661962, -0.024083214993057198,
+        0.9996553090395394, -0.010452840028492666, -0.043314583698111794, 0.00940265392725172,
+        0.9990172355561157]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987777668665064, 0.02484273137404918, 0.042729511008568546, -0.024432178124740907,
+        0.9996504297653984, -0.010103808288716487, -0.04296558023855235, 0.009047484055307125,
+        0.999035585926264]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987841222980259, 0.025173402828807596, 0.042386045290643576, -0.024781138279437835,
+        0.9996453068223445, -0.009754780040372895, -0.04261657225701391, 0.008692544971368192,
+        0.9990536859603609]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987902340744811, 0.025504321355581634, 0.042042810439295725, -0.025130095414628236,
+        0.9996399402128745, -0.009405755453574024, -0.04226755992359876, 0.008337836853283896,
+        0.9990715359045682]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9987961021928929, 0.02583548666558655, 0.04169980663068534, -0.02547904948779275,
+        0.9996343299396039, -0.00905673469843021, -0.04191854340841125, 0.007983359878612598,
+        0.9990891360051743]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+  - K1: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    K2: !!opencv-matrix
+      cols: 3
+      data: [640.0000011487338, 0.0, 640.0, 0.0, 640.0000011487338, 360.0, 0.0, 0.0,
+        1.0]
+      dt: d
+      rows: 3
+    R: !!opencv-matrix
+      cols: 3
+      data: [0.9988017266504015, 0.026166898469911434, 0.041357034040682146, -0.025828000456412373,
+        0.9996284760052673, -0.008707717945049933, -0.0415695228815578, 0.007629114224621957,
+        0.999106486508594]
+      dt: d
+      rows: 3
+    t: !!opencv-matrix
+      cols: 1
+      data: [-1.0, -0.2, 0.03747264663660141]
+      dt: d
+      rows: 3
+# Desired image overlap of both stereo images at mid depth (see corrsPerRegionRandInit).
+# Value range: 0.1 to 1.0
+imageOverlap: 8.5000000000000004e-01
+# ---- Options for generating 3D scenes ----
+#
+#
+# Inlier ratio range for all stereo frames.
+inlRatRange:
+   first: 0.3
+   second: 0.8
+# Inlier ratio change rate from pair to pair.
+# If 0, the inlier ratio within the given range is always the same for every image pair (it is selected within the given inlier range in the beginning).
+# If 100.0, the inlier ratio is chosen completely random within the given range for every stereo frame separately.
+# For values between 0 and 100.0, the inlier ratio selected is not allowed to change more than this factor from the inlier ratio of the last stereo frame.
+inlRatChanges: 0
+# Number of true positives (TP) range for all stereo frames.
+truePosRange:
+   first: 20
+   second: 160
+# True positives change rate from pair to pair.
+# If 0, the true positives within the given range are always the same for every image pair (it is selected within the given TP range in the beginning).
+# If 100.0, the true positives are chosen completely random within the given range. For values between 0 and 100.0,
+# the true positives selected are not allowed to change more than this factor from the true positives of the last stereo frame.
+truePosChanges: 0.45
+# Minimum distance between keypoints in the first (left or top) stereo image for every frame
+minKeypDist: 2.
+# Portion of correspondences at depth regions (near, mid, and far). The values are double precision and the values must not sum to 1.0.
+# This is performed internally.
+corrsPerDepth:
+   near: 0.01
+   mid: 0.09
+   far: 0.9
+# List of portions of image correspondences at regions (Matrices must be 3x3 as the image is divided into 9 regions with similar size).
+# Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
+# The values are double precision and the values must not sum to 1.0. This is performed internally.
+# If more than one matrix is provided, corrsPerRegRepRate specifies the number of subsequent frames for which a matrix is valid.
+# After all matrices are used, the first one is used again. If only one matrix is provided, it is used for every frame.
+corrsPerRegion:
+   - !!opencv-matrix
+      rows: 3
+      cols: 3
+      dt: d
+      data: [ 0.6, 0.2,
+          0.05, 0.6,
+          0.2, 0.05,
+          0.6, 0.2,
+          0.05 ]
+# Repeat rate of portion of correspondences at regions (corrsPerRegion). If more than one matrix of portions of correspondences at regions is provided,
+# this number specifies the number of subsequent frames for which such a matrix is valid. After all matrices are used, the first one is used again.
+# If 0 and no matrix of portions of correspondences at regions is provided, as many random matrices as frames are randomly generated.
+corrsPerRegRepRate: 5
+# If 1 and corrsPerRegRepRate=0, corrsPerRegion is initialized randomly for every frame seperately.
+# If 1 and 0 < corrsPerRegRepRate < nrTotalFrames, nrTotalFrames / corrsPerRegRepRate different random corrsPerRegion are calculated.
+# If 0, the values from corrsPerRegion are used.
+corrsPerRegionRandInit: 0
+# Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, the portion of near, mid, and far depths can be specified.
+# Far depth beginning corresponds to mid depth end calculated by f_b = f * b^2 / 0.15 with the focal length f, baseline length b and an approximate correspondence accuracy of 0.15;
+# Far depth end f_e = 20 * f_b; Near depth beginning n_b corresponds to the depth where the views of the 2 stereo cameras start to overlap;
+# Mid depth beginning and near depth end are caluclated by m_b = (f_b + n_b) / 2;
+# The values entered here are double precision and they must not sum to 1.0. This is performed internally.
+# If the overall depth definition (corrsPerDepth) is not met, this tensor is adapted. If this list is left empty ([]), it is initialized randomly.
+# Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
+depthsPerRegion:
+   -
+      near: 0
+      mid: 0.01
+      far: 1.
+   -
+      near: 0
+      mid: 0
+      far: 1.1
+   -
+      near: 0
+      mid: 0
+      far: 1.2
+   -
+      near: 0.01
+      mid: 0.02
+      far: 0.9
+   -
+      near: 0.01
+      mid: 0.015
+      far: 0.9
+   -
+      near: 0
+      mid: 0.007
+      far: 1.
+   -
+      near: 0.05
+      mid: 0.1
+      far: 0.7
+   -
+      near: 0.03
+      mid: 0.0575
+      far: 0.8
+   -
+      near: 0.015
+      mid: 0.03225
+      far: 0.9
+# Min and Max number of connected depth areas (in the image domain (same size as the used image size) where they are generated
+# (each pixel in the image domain holds a depth value)) per region (must be 3x3).
+# The minimum number (first) must be larger 0. The maximum number is bounded by a minimum area with similar depths, which is 16 pixels.
+# The final number of connected depth areas per region is chosen randomly between min and max for every frame.
+# If this list is left empty ([]), it is initialized randomly. If min and max are equal, exactly this number of connected depth areas is used.
+# Maybe this values do not hold: Also depends on back-projected 3D-points from prior frames.
+nrDepthAreasPReg:
+   -
+      first: 3
+      second: 6
+   -
+      first: 5
+      second: 9
+   -
+      first: 6
+      second: 10
+   -
+      first: 4
+      second: 7
+   -
+      first: 8
+      second: 8
+   -
+      first: 8
+      second: 12
+   -
+      first: 5
+      second: 6
+   -
+      first: 7
+      second: 8
+   -
+      first: 8
+      second: 10
+# If 1, an ellipsoid is used as camera track (consecutive positions of the top/left stereo camera center.
+# If 2, a custom track can be entered into camTrack.
+# If 3, a random track will be generated.
+trackOption: 2
+# Ellipsoid parameters:
+# xDirection (either -1 (left) or +1 (right));
+# xzExpansion (value range -100 to +100.0, no 0) describes how much smaller/larger the expansion in x (right) direction is compared to z (foward) -
+# an absolute value below 1.0 stands for a larger x-expansion, a value equal +/-1.0 for an equal expansion (circle) and an absolute value larger 1.0 for a larger y-expansion;
+# xyExpansion (value range -100.0 to +100.0) describes a factor of the mean used height (down; if no flight mode is used the height stays always the same;
+# height = xDirection * xyExpansion * sin(theta)) compared to the expansion in x direction;
+# thetaRange holds the minimum and maximum elevation angle (value range -PI/2 to +PI/2) in y-direction (down).
+# If the values of the range are equal, flight mode is disabled and the height (y) stays the same over the whole track.
+# For the camera positions, loop closing is performed whereas the last camera position is not the same as the first, but near to it.
+# The scale of the generated track is not important as it is changed internally that it fits all stereo frames.
+# maxTrackElements (see next option) specifies how many track segments within the ellipsoid are generated.
+ellipsoidTrack:
+   xDirection: 1
+   xzExpansion: 2.
+   xyExpansion: -3.0000000000000001e-01
+   thetaRange:
+      min: -7.8539816339744828e-01
+      max: 7.8539816339744828e-01
+# maxTrackElements specifies the number of track segments generated within an ellipsoid or during a randomized track generation (max 10000 segments)
+maxTrackElements: 100
+# Parameters for random generation of a track with maxTrackElements segments:
+# xDirection (either -1 (left) or +1 (right));
+# xzDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in x (right) compared to z (forward) direction -
+# an absolute value below 1.0 stands for a direction mainly in x and an absolute value above 1.0 stands for a direction mainly in z;
+# xyDirectionRange (value range -1000.0 to +1000.0) specifies the vector direction in x (right) compared to y (down) direction -
+# an absolute value below 1.0 stands for a direction mainly in x compared to y and an absolute value higher 1.0 for a direction mainly in y compared to x;
+# The direction of a subsequent track element depends on the direction of the track element before -
+# The amount it can change depends on the factor allowedChangeSD (value range 0.05 to 1.0) - it corresponds to the standard deviation centered aground 1.0 (New track sement:
+# tx_new = allowedChange_1 * tx_old,
+# ty_new = (2.0 * allowedChange_2 * ty_old + tx_new * xyDirectionRandInRange_new) / 3.0,
+# tz_new = (2.0 * allowedChange_3 * tz_old + tx_new * xzDirectionRandInRange_new) / 3.0,
+# new_track_position = old_track_position + [tx_new; ty_new; tz_new]).
+# The scale of the generated track is not important as it is changed internally that it fits all stereo frames.
+randomTrack:
+   xDirection: 1
+   xzDirectionRange:
+      first: 2.0000000000000001e-01
+      second: 9.0000000000000002e-01
+   xyDirectionRange:
+      first: -1.0000000000000001e-01
+      second: 1.0000000000000001e-01
+   allowedChangeSD: 2.9999999999999999e-01
+# Movement direction or track of the cameras (manual input). Input a custom track as a list ofcv::Mat with the format [x_pos; y_pos; z_pos].
+# The scale of the generated track is not important as it is changed internally that it fits all stereo frames.
+# If you enter only 1 vector [x_pos; y_pos; z_pos], it is interpreted as a directional vector and the camera center of the left/top stereo camera moves into this direction.
+camTrack:
+   - !!opencv-matrix
+      rows: 3
+      cols: 1
+      dt: d
+      data: [ 0., 0., 1. ]
+# Relative velocity of the camera movement (value between 0 and 10.0; must be larger 0). The velocity is relative to the baseline length between the stereo cameras.
+# Thus, the absolute camera velocity (equals distance between camera centers) along the camera track is relCamVelocity * norm(t_stereo),
+# where t_stereo is the translation vector between the 2 stereo cameras.
+# The total length of a camera track is the absolute camera velocity times the number of frames
+relCamVelocity: 2.
+# Rotation angle about the x-axis (roll in degrees, right handed) of the stereo pair (centered at camera centre of left/top stereo camera) on the track.
+# This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera.
+# The rotation matrix is generated using the notation R_y * R_z * R_x.
+rollCamTrack: -5.
+# Rotation angle about the y-axis (pitch in degrees, right handed) of the stereo pair (centered at camera centre of left/top stereo camera) on the track.
+# This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera.
+# The rotation matrix is generated using the notation R_y * R_z * R_x.
+pitchCamTrack: -90.
+# Rotation angle about the z-axis (yaw in degrees, right handed) of the stereo pair (centered at camera centre of left/top stereo camera) on the track.
+# This rotation can change the camera orientation for which without rotation the z - component of the relative movement vector coincides with the principal axis of the camera.
+# The rotation matrix is generated using the notation R_y * R_z * R_x.
+yawCamTrack: 2.
+# Number of moving objects in the scene at the beginning. If a moving object is visible again in a subsequent frame, it is backprojected to the image plane.
+# If the portion of backprojected correspondences on a moving object compared to the frame where it was generated drops below a user specified threshold (see minMovObjCorrPortion),
+# it is removed from the scene. If too many moving objects were removed and the number of remaining moving objects drops below minNrMovObjs, new moving objects are inserted.
+nrMovObjs: 2
+# Possible starting positions (regions in the image) of moving objects in the image (must be 3x3 boolean (CV_8UC1))
+startPosMovObjs: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: u
+   data: [ 0, 1, 0, 1, 1, 1, 0, 1, 0 ]
+# Relative area range of moving objects.
+# Area range relative to the image area in the beginning. The final occupied area of every moving object in the image is selected randomly within the given range.
+# As moving objects are always put into the foreground it is advisable too use small relative area ranges depending on the number of
+# demanded moving objects to allow static elements to be visible in the image.
+relAreaRangeMovObjs:
+   first: 5.0000000000000003e-02
+   second: 1.0999999999999999e-01
+# Depths of moving objects. Moving objects are always visible and not covered by other static objects.
+# If the number of given depths is 1, this depth is used for every object.
+# If the number of given depths is equal "nrMovObjs", the corresponding depth is used for every moving object.
+# If the number of given depths is smaller and between 2 and 3, the depths for the moving objects are selected uniformly distributed from the given depths.
+# For a number of given depths larger 3 and unequal to "nrMovObjs", a portion for every depth that should be used can be defined
+# (e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid).
+# The following values for different depths can be used: NEAR: 1, MID: 2, FAR: 4
+movObjDepth:
+   - 4
+# Movement direction of moving objects relative to the camera movement (must be 3x1 double cv::Mat).
+# This vector will be normalized and added to the normalized direction vector of the actual camera track segment.
+# Thus, the visibility of moving objects is mainly influenced by their depth of occurrence,
+# this relative direction vector and the rotation of the stereo pair relative to the camera movement direction (see rollCamTrack, pitchCamTrack, yawCamTrack).
+# The movement direction is linear and does not change if the movement direction of the camera changes during the lifetime of a moving object.
+# The moving object is removed, if it is no longer visible in both stereo cameras.
+movObjDir: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -0.1, 0., 0.9 ]
+# Relative velocity range of moving objects based on relative camera velocity (relCamVelocity).
+# The actual relative velocity of every moving object is chosen randomly between the given range.
+# Absolute_moving_object_velocity = chosen_relMovObjVel * absolute_camera_velocity;
+# The absolute moving object velocity is multiplied with the movement direction vector of the moving object to get the positional change from frame to frame.
+# Entered values must be between 0 and 100.0; Must be larger 0;
+relMovObjVelRange:
+   first: 8.0000000000000000e-01
+   second: 1.2
+# Minimal portion of correspondences on moving objects for removing them.
+# If the portion of visible correspondences drops below this value, the whole moving object is removed.
+# Zero means, that the moving object is only removed if there is no visible correspondence in the stereo pair.
+# One means, that a single missing correspondence leads to deletion. Values between 0 and 1.0;
+minMovObjCorrPortion: 2.5000000000000001e-01
+# Relative portion of correspondences on moving object (relative to the full number of correspondences of a stereo frame).
+# The number of correspondences is limited by the size of objects visible in the images and the minimal distance between correspondences.
+# Value range: >0, <1.0
+CorrMovObjPort: 2.0000000000000000e-01
+# Minimum number of moving objects over the whole track.
+# If the number of moving obects drops below this number during camera movement, as many new moving objects are inserted until "nrMovObjs" is reached.
+# If 0, no new moving objects are inserted if every preceding moving object is out of sight.
+minNrMovObjs: 2
+# Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices K1 & K2 based on their initial values
+# (only the focal lengths and image centers are randomly distorted). The distorted camera matrices are only generated for storing
+# them to output. For generating the ground truth (matches, ...), the correct camera matrices are used.
+distortCamMat:
+   first: 0.030
+   second: 0.030
+# Image size of both stereo cameras
+imgSize:
+   width: 1280
+   height: 720
+# If 1, filtering occluded static 3D points during backprojection is enabled.
+# Otherwise, set this option to 0. Enabling this option significantly reduces the speed of calculating 3D scenes.
+filterOccluded3D: 0
+# ---- Options for generating matches ----
+#
+#
+# Name of keypoint detector. The following types are supported:
+# FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD.
+# If non-free code is enabled in the CMAKE project while building the code, SIFT and SURF are also available.
+keyPointType: ORB
+# Name of descriptor extractor. The following types are supported:
+# BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48, RIFF, BOLD.
+# If non-free code is enabled in the CMAKE project while building the code, SIFT and SURF are also available.
+descriptorType: ORB
+# Keypoint detector error (1) or error normal distribution (0).
+# If 1, the position detected by the keypoint detector is used (which typically does not coincide with the GT position.
+# If 0, an normal distributed (parameters from option keypErrDistr) error is added to the GT position.
+keypPosErrType: 0
+# Keypoint error distribution (first=mean, second=standard deviation)
+keypErrDistr:
+   first: 0
+   second: 0.5
+# Noise (first=mean, second=standard deviation) on the image intensity (0-255) applied on the image patches for descriptor calculation.
+imgIntNoise:
+   first: 12.
+   second: 17.
+# If 1, all PCL point clouds and necessary information to load a cam sequence with correspondences are stored to disk.
+# This is useful if you want to load an already generated 3D sequence later on and calculate a different type of descriptor
+# for the correspondences or if you want to use a different keypoint position accuracy, ...
+storePtClouds: 1
+# If 1, the parameters and information are stored and read in XML format. If 0, YAML format is used.
+rwXMLinfo: 0
+# If 1, the stored information and parameters are compressed (appends .gz to the generated files. Otherwise, set this option to 0.
+compressedWrittenInfo: 1
+# If 1 and too less images to extract features are provided (resulting in too less keypoints), only as many frames with GT matches are generated as keypoints are available.
+# Otherwise, set this option to 0.
+takeLessFramesIfLessKeyP: 0
+# Verbosity options (set them to 1 or 0).
+verbosity:
+   SHOW_INIT_CAM_PATH: 0
+   SHOW_BUILD_PROC_MOV_OBJ: 0
+   SHOW_MOV_OBJ_DISTANCES: 0
+   SHOW_MOV_OBJ_3D_PTS: 0
+   SHOW_MOV_OBJ_CORRS_GEN: 0
+   SHOW_BUILD_PROC_STATIC_OBJ: 0
+   SHOW_STATIC_OBJ_DISTANCES: 0
+   SHOW_STATIC_OBJ_CORRS_GEN: 0
+   SHOW_STATIC_OBJ_3D_PTS: 0
+   SHOW_MOV_OBJ_MOVEMENT: 0
+   SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ: 0
+   SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ: 0
+   SHOW_BACKPROJECT_MOV_OBJ_CORRS: 0
+   SHOW_STEREO_INTERSECTION: 0
+   SHOW_COMBINED_CORRESPONDENCES: 0
+   PRINT_WARNING_MESSAGES: 1
+   SHOW_IMGS_AT_ERROR: 0
+   SHOW_PLANES_FOR_HOMOGRAPHY: 0
+   SHOW_WARPED_PATCHES: 0
+   SHOW_PATCHES_WITH_NOISE: 0
+# Verbosity option for calculating the stereo camera configurations. Prints the intermediate error values/results of the Levenberg Marquardt iterations.
+# Results of every LMverbose'th iteration are printed. Value range: 0-100. Use 0 to disable.
+LMverbose: 0
+# If 1, extrinsic stereo parameters are also accepted for further processing if they do not completely fulfill the user specified values (like image overlap area). Otherwise, set this value to 0. In this case, you will be asked if you want to accept the shown stereo parameters in case the LM algorithm was not able to find a good solution.
+acceptBadStereoPars: 1
