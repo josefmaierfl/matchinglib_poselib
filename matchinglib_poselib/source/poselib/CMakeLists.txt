@@ -3,71 +3,9 @@
 # External dependencies
 #
 
-
 find_package(Eigen REQUIRED)
 
-if(WIN32)
-  if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-   message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-  endif()
-  include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-endif()
-
-#if (Eigen_FOUND STREQUAL "YES")
-#  message("Eigen found!")
-#else()
-#  message(FATAL_ERROR "Eigen not found!")
-#endif()
-
-
-# if(WIN32)
-  # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-  # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-# else()
-  # set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
-  # find_package(OpenCV 3.1 REQUIRED)
-# endif()
-
-# if(NOT OpenCV_DIR)
-if("${OpenCV_DIR}" STREQUAL "")
-  message(ERROR " OpenCV_DIR not set!")
-  #if(WIN32)
-  # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-  # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-  #find_package(OpenCV 3.2 REQUIRED)
-  #else()
-  #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
-  #find_package(OpenCV 3.2 REQUIRED)
-  #endif()
-else()
-  #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
-  #find_package(OpenCV 3.2 REQUIRED)
-endif()
-
 find_package(OpenCV 3.2 REQUIRED)
-
-#set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-#find_package(OpenCV 3.0)
-# find_package(OpenCV 2.4.9 REQUIRED)
-# if (OpenCV_FOUND STREQUAL "ON")
-  # message("OpenCV found!")
-# else()
-  # message(FATAL_ERROR "OpenCV not found!")
-# endif()
-
-# find_package(Nanoflann REQUIRED)
-# if (Nanoflann_FOUND STREQUAL "YES")
-  # message("Nanoflann found!")
-# else()
-  # message(FATAL_ERROR "Nanoflann not found!")
-# endif()
-
-# find_package(Flann 1.8.4 REQUIRED)
-# if (FLANN_FOUND STREQUAL "YES")
-  # message("Flann found!")
-# else()
-  # message(FATAL_ERROR "Flann not found!")
-# endif()
 
 find_package(Clapack REQUIRED)
 if (CLAPACK_FOUND STREQUAL "YES")
@@ -83,17 +21,9 @@ else()
   message(FATAL_ERROR "SBA not found!")
 endif()
 
-#find_package(OpenGV REQUIRED)
-#if (OPENGV_FOUND STREQUAL "YES")
-#  message("OpenGV found!")
-#else()
-#  message(FATAL_ERROR "OpenGV not found!")
-#endif()
-
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
 
 add_subdirectory(thirdparty/opengv)
-
 
 #
 # Library name and options

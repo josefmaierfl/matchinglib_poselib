@@ -1,15 +1,18 @@
-if ("$ENV{THIRDPARTYROOT}" STREQUAL "")
-	SET(THIRDPARTYROOT "/home/maierj/work/thirdpartyroot")
-    #message(FATAL_ERROR "THIRDPARTYROOT not set!" )
-else()
-	SET(THIRDPARTYROOT "$ENV{THIRDPARTYROOT}")
-endif()
-
+# if ("$ENV{THIRDPARTYROOT}" STREQUAL "")
+# 	SET(THIRDPARTYROOT "/home/maierj/work/thirdpartyroot")
+#     #message(FATAL_ERROR "THIRDPARTYROOT not set!" )
+# else()
+# 	SET(THIRDPARTYROOT "$ENV{THIRDPARTYROOT}")
+# endif()
+get_filename_component(PARENT_DIR ${CMAKE_SOURCE_DIR} DIRECTORY)
+SET(THIRDPARTYROOT "${PARENT_DIR}/thirdparty")
+EXECUTE_PROCESS( COMMAND bash -c "gcc --version | grep ^gcc | sed 's/^.* //g'" OUTPUT_VARIABLE GCC_VERSION)
+STRING(STRIP GCC_VERSION ${GCC_VERSION})
+string(REGEX REPLACE "\n$" "" GCC_VERSION "${GCC_VERSION}")
 
 SET( CLAPACK_FOUND "YES" )
-SET( CLAPACK_LIBRARY_DIR "${THIRDPARTYROOT}/clapack-3.2.1/lib/linux64gcc74")
+SET( CLAPACK_LIBRARY_DIR "${THIRDPARTYROOT}/clapack-3.2.1/lib/linux64gcc${GCC_VERSION}")
 SET( CLAPACK_INCLUDE_DIR "${THIRDPARTYROOT}/clapack-3.2.1/INCLUDE")
-
 
 SET(CLAPACKlibs "blas" "lapack" "tmglib")
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 xhost +local:
 #nvidia-docker run -v `pwd`:/app -v /home/maierj:/home/maierj -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix:ro git-service.ait.ac.at:8010/maierj/generatevirtualsequence /bin/bash
-docker run -v `pwd`:/app -v /home/maierj:/home/maierj -it -v /tmp/.X11-unix/:/tmp/.X11-unix:ro github.com/josefmaierfl/autocalib_test_package /bin/bash
+#docker run -v `pwd`:/app -v /home/maierj:/home/maierj -it -v /tmp/.X11-unix/:/tmp/.X11-unix:ro ac_test_package:1.0 /bin/bash
+docker run -v /home/maierj:/home/maierj -it -v /tmp/.X11-unix/:/tmp/.X11-unix:ro ac_test_package:1.0 /bin/bash

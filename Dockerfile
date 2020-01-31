@@ -12,8 +12,11 @@ RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnake
 RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python3.7 && apt clean
 
 ADD ci /ci
-RUN cd /ci && ./build_thirdparty.sh && rm -r /ci
+RUN cd /ci && ./build_thirdparty.sh && ./copy_thirdparty.sh
+#COPY --from=ci/tmp /thirdparty /thirdparty
+#RUN rm -r /ci && rm -r ./thirdparty
 
-USER conan
 WORKDIR /app
+RUN cp -r /ci/tmp/thirdparty /app/
+USER conan
 CMD [ "/bin/bash" ]

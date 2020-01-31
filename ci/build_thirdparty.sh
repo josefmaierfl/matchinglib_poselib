@@ -7,24 +7,24 @@ mkdir ${thirdparty_dir}
 # Eigen
 #-----------------------------------
 
-cd ${thirdparty_dir}
-Eigen_VERSION=3.3.7
-wget -q http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
-tar xf ${Eigen_VERSION}.tar.bz2
-rm -rf ${Eigen_VERSION}.tar.bz2
-mv eigen-eigen-* eigen-eigen-${Eigen_VERSION}
-cd eigen-eigen-${Eigen_VERSION}
-mkdir -p build && cd build
-cmake ..  -DCMAKE_BUILD_TYPE=Release
-make -j 8
-make install
+# cd ${thirdparty_dir}
+# Eigen_VERSION=3.3.7
+# wget -q http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
+# tar xf ${Eigen_VERSION}.tar.bz2
+# rm -rf ${Eigen_VERSION}.tar.bz2
+# mv eigen-eigen-* eigen-eigen-${Eigen_VERSION}
+# cd eigen-eigen-${Eigen_VERSION}
+# mkdir -p build && cd build
+# cmake ..  -DCMAKE_BUILD_TYPE=Release
+# make -j 8
+# make install
 
 #-----------------------------------
 # Clapack 3.2.1
 #-----------------------------------
 
-cd ${thirdparty_dir}/clapack-3.2.1/build/generic
-./build.sh
+# cd ${thirdparty_dir}/clapack-3.2.1/build/generic
+# ./build.sh
 
 #-----------------------------------
 # SBA 1.6
@@ -32,6 +32,8 @@ cd ${thirdparty_dir}/clapack-3.2.1/build/generic
 
 cd ${thirdparty_dir}/sba-1.6/build/generic
 ./build.sh
+
+cd ${root_dir} && ./copy_thirdparty.sh
 
 #-----------------------------------
 # PCL
@@ -50,5 +52,5 @@ cd ${thirdparty_dir}/sba-1.6/build/generic
 # OpenCV
 #-----------------------------------
 
-cd ${thirdparty_dir}
-${root_dir}/make_opencv.sh
+# cd ${thirdparty_dir}
+# ${root_dir}/make_opencv.sh

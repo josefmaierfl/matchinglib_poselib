@@ -2,12 +2,13 @@
 #                     http://www.insightsoftwareconsortium.org/wiki/index.php/CMake_Tutorial
 
 PROJECT(SBA)
-CMAKE_MINIMUM_REQUIRED(VERSION 1.4)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
-STRING(REGEX REPLACE "\\\\" "/" THIRDPARTYROOT_DETECTED $ENV{THIRDPARTYROOT})
-set(CMAKE_MODULE_PATH "${THIRDPARTYROOT_DETECTED}/_buildtools/CMakeModules" ${CMAKE_MODULE_PATH})  #must be done after project(*)
-include("TPMacros")
-SETLIBDIRGLOBAL("${CMAKE_SOURCE_DIR}/lib/${THIRDPARTYPREFIX_DETECTED}") #must be done before the first add_executable(*)/add_library(*)/etc...
+EXECUTE_PROCESS( COMMAND bash -c "gcc --version | grep ^gcc | sed 's/^.* //g'" OUTPUT_VARIABLE GCC_VERSION)
+STRING(STRIP GCC_VERSION ${GCC_VERSION})
+string(REGEX REPLACE "\n$" "" GCC_VERSION "${GCC_VERSION}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib/linux64gcc${GCC_VERSION})
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib/linux64gcc${GCC_VERSION})
 #does not have any effect on executables on its own only with
 #   set_target_properties(${PROJ_NAME} PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 #   after the target definition (see end of file)

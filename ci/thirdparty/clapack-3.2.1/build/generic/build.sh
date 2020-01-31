@@ -1,5 +1,4 @@
-#dependencies
-#requires thirdparty environment variable THIRDPARTYROOT
+#!/bin/bash
 
 #packages
 sudo apt-get install cmake build-essential
