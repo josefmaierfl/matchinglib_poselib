@@ -970,8 +970,9 @@ def main():
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
                              'the part from option --store_path_cal is used. Results are only loaded, if option '
                              '--compare_pars is provided.')
-    parser.add_argument('--complete_res_path', type=str, required=False,
-                        help='If provided, the full path structure for storing data is generated at the given '
+    parser.add_argument('--complete_res_path', type=str, required=False, default='default',
+                        help='If provided or a folder \'results\' exists in the parent directory (../), '
+                             'the full path structure for storing data is generated at the given '
                              'location except for parameters that were explicitely provided. Moreover, the input path '
                              'for initial configuration files is expected to be in \'Config_Files\' within the '
                              'directory holding this python file except option \'path\' is provided. '
@@ -1019,6 +1020,14 @@ def main():
     if args.load_path:
         if not os.path.exists(args.load_path):
             raise ValueError("Path for loading sequences does not exist")
+    if args.complete_res_path and args.complete_res_path == 'default':
+        pyfilepath = os.path.dirname(os.path.realpath(__file__))
+        parent = os.path.dirname(pyfilepath)
+        res_folder = os.path.join(parent, 'results')
+        if os.path.exists(res_folder):
+            args.complete_res_path = res_folder
+        else:
+            args.complete_res_path = None
     if not args.complete_res_path and (not args.message_path or not os.path.exists(args.message_path)):
         raise ValueError("Path for storing stdout and stderr does not exist")
     if args.exec_sequ:

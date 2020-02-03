@@ -12,11 +12,22 @@ RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnake
 RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python3.7 && apt clean
 
 ADD ci /ci
-RUN cd /ci && ./build_thirdparty.sh && ./copy_thirdparty.sh
-#COPY --from=ci/tmp /thirdparty /thirdparty
-#RUN rm -r /ci && rm -r ./thirdparty
+RUN cd /ci && ./build_thirdparty.sh
+RUN cd /ci/thirdparty && ./copy_thirdparty.sh
+
+#COPY generateVirtualSequence /ci/tmp/generateVirtualSequence/
+#COPY build_generateVirtualSequence.sh /ci/tmp/
+#RUN cd /ci/tmp && ./build_generateVirtualSequence.sh
+
+#COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
+#COPY build_matchinglib_poselib.sh /ci/tmp/
+#RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
 
 WORKDIR /app
 RUN cp -r /ci/tmp/thirdparty /app/
+#RUN cp -r /ci/tmp/tmp/ /app/
+#RUN rm -r /ci
+
 USER conan
+RUN echo 'alias python=python3' >> ~/.bashrc
 CMD [ "/bin/bash" ]
