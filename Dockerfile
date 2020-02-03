@@ -13,15 +13,15 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
-RUN cd /ci/thirdparty && ./copy_thirdparty.sh
+RUN cd /ci && ./copy_thirdparty.sh
 
 #COPY generateVirtualSequence /ci/tmp/generateVirtualSequence/
 #COPY build_generateVirtualSequence.sh /ci/tmp/
 #RUN cd /ci/tmp && ./build_generateVirtualSequence.sh
 
-#COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
-#COPY build_matchinglib_poselib.sh /ci/tmp/
-#RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
+COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
+COPY build_matchinglib_poselib.sh /ci/tmp/
+RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
 
 WORKDIR /app
 RUN cp -r /ci/tmp/thirdparty /app/
