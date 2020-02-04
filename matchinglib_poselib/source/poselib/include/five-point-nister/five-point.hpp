@@ -60,7 +60,7 @@
 using namespace cv; 
 
 bool findEssentialMat(OutputArray Essential, InputArray points1, InputArray points2, /*double focal = 1.0, Point2d pp = Point2d(0, 0), */
-					int method = CV_RANSAC, 
+					int method = cv::RANSAC,
 					double prob = 0.999, double threshold = 1, OutputArray mask = noArray(), bool lesqu = false, 
 					void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, 
 											cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE, 

@@ -146,7 +146,7 @@ namespace matchinglib
     cv::addWeighted( img_prev, alpha, img_next, beta, 0.0, dst);
 
     cv::Mat cimg;
-    cvtColor(dst, cimg, CV_GRAY2RGB);
+    cvtColor(dst, cimg, cv::COLOR_GRAY2RGB);
 
     // draw keypoints:
     for(unsigned i = 0; i < keypoints_prev.size(); i++)

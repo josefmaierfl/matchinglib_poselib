@@ -172,7 +172,7 @@ bool EssentialMatEstimatorTheia::EstimateModelNonminimal(const std::vector<size_
 	m1.reshape(1);
 	m2.reshape(1);
 
-	E = cv::findFundamentalMat(m1, m2, CV_FM_8POINT);
+	E = cv::findFundamentalMat(m1, m2, cv::FM_8POINT);
 	if(E.empty())
 		return false;
 
@@ -334,7 +334,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 				}
 				else
 				{
-					cv::Mat model_ls = cv::findFundamentalMat(inl_points1, inl_points2, CV_FM_8POINT);
+					cv::Mat model_ls = cv::findFundamentalMat(inl_points1, inl_points2, cv::FM_8POINT);
 					CvMat model_ls2 = model_ls;
 					bestmodel = cvCloneMat(&model_ls2);
 					goodCount = findInliers( m1, m2, bestmodel, err, mask, reprojThreshold );
@@ -360,7 +360,7 @@ bool CvModelEstimator3::runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 			else
 			{
 				//cvleastsquares:
-				cv::Mat model_ls = cv::findFundamentalMat(inl_points1, inl_points2, CV_FM_8POINT);
+				cv::Mat model_ls = cv::findFundamentalMat(inl_points1, inl_points2, cv::FM_8POINT);
 				CvMat model_ls2 = model_ls;
 				bestmodel = cvCloneMat(&model_ls2);
 				goodCount = findInliers( m1, m2, bestmodel, err, mask, reprojThreshold );

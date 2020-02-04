@@ -23,6 +23,7 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "HomographyAlignment.h"
 #include "poselib/pose_helper.h"
+#include "opencv2/calib3d/calib3d_c.h"
 
 using namespace cv;
 using namespace std;
@@ -37,13 +38,13 @@ namespace poselib
 /* --------------------- Function prototypes --------------------- */
 
 //Homography estimation kernel function.
-bool runHomogrophyKernel( const CvMat* m1, const CvMat* m2, CvMat* H );
+bool runHomogrophyKernel( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* H );
 //Calculation of reprojection errors for a given set of correspondences and a homography.
-void computeHomographyReprojError(const CvMat* m1, const CvMat* m2, const CvMat* model, std::vector<double> & err);
+void computeHomographyReprojError(const cv::Mat* m1, const cv::Mat* m2, const cv::Mat* model, std::vector<double> & err);
 //Finds inliers to a given homography.
 void findHomographyInliers(cv::InputArray p1, cv::InputArray p2, cv::InputArray H, double th, cv::OutputArray mask);
 //Refines a given homography
-bool refineHomography( const CvMat* m1, const CvMat* m2, CvMat* model, int maxIters = 10 );
+bool refineHomography( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* model, int maxIters = 10 );
 
 
 /* --------------------------- Classes --------------------------- */
@@ -221,19 +222,19 @@ int estimatePoseHomographies(cv::InputArray p1,
 		else
 			return -2; //Sum of homography strengths too low
 
-		if(planeStrengths != NULL)
+		if(planeStrengths != nullptr)
 		{
 			*planeStrengths = planeStrength;
 		}
-		if(inlier_points != NULL)
+		if(inlier_points != nullptr)
 		{
 			*inlier_points = inl_points;
 		}
-		if(numbersHinliers != NULL)
+		if(numbersHinliers != nullptr)
 		{
 			*numbersHinliers = num_inl;
 		}
-		if(homographies != NULL)
+		if(homographies != nullptr)
 		{
 			*homographies = Hs;
 		}
@@ -465,7 +466,7 @@ bool computeHomographyArrsac(cv::InputArray points1, cv::InputArray points2, cv:
 		return false;
 	else if(n == 4)
 	{
-		CvMat m1 = p1_ = p1, m2 = p2_ = p2, H__;
+		cv::Mat m1 = p1_ = p1, m2 = p2_ = p2, H__;
 		H__ = H_tmp = Mat(3,3,CV_64FC1);
 		if(!runHomogrophyKernel( &m1, &m2, &H__ ))
 			return false;
@@ -481,7 +482,7 @@ bool computeHomographyArrsac(cv::InputArray points1, cv::InputArray points2, cv:
 		theia::Arrsac<size_t,cv::Mat> arrsac_estimator(4,th * th,500,100,12);
 		if(arrsac_estimator.Estimate(input_data, esti, &H_tmp))
 		{
-			CvMat p1__, p2__, H__, H__tmp;
+			cv::Mat p1__, p2__, H__, H__tmp;
 			findHomographyInliers(p1, p2, H_tmp, th, mask_);
 			for(int i = 0; i < n; i++)
 			{
@@ -494,9 +495,11 @@ bool computeHomographyArrsac(cv::InputArray points1, cv::InputArray points2, cv:
 			p1__ = p1_;
 			p2__ = p2_;
 			H__tmp = H_tmp;
-			H__ = *cvCloneMat(&H__tmp);
-			if(refineHomography( &p1__, &p2__, &H__, 10))
-				H_tmp = cv::cvarrToMat(&H__);
+			H__ = H__tmp.clone();
+			if(refineHomography( &p1__, &p2__, &H__, 10)) {
+//                H_tmp = cv::cvarrToMat(&H__);
+                H__.copyTo(H_tmp);
+            }
 		}
 		else
 			return false;
@@ -542,12 +545,12 @@ bool ArrHomogrophyEstimator::EstimateModel(const std::vector<size_t>& data,
 	CV_Assert((points1_.cols == 1) && (points1_.cols == points2_.cols) &&
 			  (points1_.rows == points2_.rows) && (points1_.type() == CV_64FC2) &&
 			  (points2_.type() == CV_64FC2));
-	CvMat* model_;
+	cv::Mat model_;
 	Mat model__;
 	cv::Mat m1((int)data.size(), points1_.cols, points1_.type());
 	cv::Mat m2((int)data.size(), points2_.cols, points2_.type());
-	CvMat cvm1;
-	CvMat cvm2;
+	cv::Mat cvm1;
+	cv::Mat cvm2;
 
 	for(size_t i = 0; i < data.size(); i++)
 	{
@@ -558,14 +561,15 @@ bool ArrHomogrophyEstimator::EstimateModel(const std::vector<size_t>& data,
 	cvm1 = m1;
 	cvm2 = m2;
 
-	model_ = cvCreateMat( 3, 3, CV_64FC1 );
+	model_ = Mat( 3, 3, CV_64FC1 );
 
-	if(!runHomogrophyKernel( &cvm1, &cvm2, model_ ))
+	if(!runHomogrophyKernel( &cvm1, &cvm2, &model_ ))
         return false;
 
-	model__ = cv::cvarrToMat(model_);
+//	model__ = cv::cvarrToMat(model_);
+    model_.copyTo(model__);
 	model->push_back(model__.clone()); //Hopefully there is no memory-problem with that
-	cvReleaseMat(&model_);
+//	cvReleaseMat(&model_);
 
 	return true;
 }
@@ -614,47 +618,51 @@ bool ArrHomogrophyEstimator::EstimateModelNonminimal(const std::vector<size_t>& 
  */
 double ArrHomogrophyEstimator::Error(const size_t& data, const cv::Mat & model) const
 {
-	CvMat m1, m2;
+	cv::Mat m1, m2;
 	cv::Mat mc1, mc2;
 	mc1 = points1_.row(data);
 	mc2 = points2_.row(data);
 	m1 = mc1;
 	m2 = mc2;
 
-	const CvPoint2D64f* M = (const CvPoint2D64f*)m1.data.ptr;
-    const CvPoint2D64f* m = (const CvPoint2D64f*)m2.data.ptr;
-	CvMat model_ = model;
-	const double* H = model_.data.db;
+//	const CvPoint2D64f* M = (const CvPoint2D64f*)m1.data.ptr;
+//    const CvPoint2D64f* m = (const CvPoint2D64f*)m2.data.ptr;
+    const cv::Point2d M = cv::Point2d(m1);
+    const cv::Point2d m = cv::Point2d(m2);
+	cv::Mat model_ = model;
+	const double* H = (double*)model_.data;
 
-    double ww = 1./(H[6]*M[0].x + H[7]*M[0].y + 1.);
-    double dx = (H[0]*M[0].x + H[1]*M[0].y + H[2])*ww - m[0].x;
-    double dy = (H[3]*M[0].x + H[4]*M[0].y + H[5])*ww - m[0].y;
+    double ww = 1./(H[6]*M.x + H[7]*M.y + 1.);
+    double dx = (H[0]*M.x + H[1]*M.y + H[2])*ww - m.x;
+    double dy = (H[3]*M.x + H[4]*M.y + H[5])*ww - m.y;
 
 	return dx*dx + dy*dy;
 }
 
 /* Homography estimation kernel function (extracted from the OpenCV).
  *
- * CvMat* m1							Input  -> Pointer to the corresponding left image projections
- * CvMat* m2							Input  -> Pointer to the corresponding right image projections
- * CvMat* H								Output -> Estimated homography
+ * cv::Mat* m1							Input  -> Pointer to the corresponding left image projections
+ * cv::Mat* m2							Input  -> Pointer to the corresponding right image projections
+ * cv::Mat* H								Output -> Estimated homography
  *
  * Return value:						true:	Everything ok
  *										false:	Estimation failed
  */
-bool runHomogrophyKernel( const CvMat* m1, const CvMat* m2, CvMat* H )
+bool runHomogrophyKernel( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* H )
 {
     int i, count = m1->rows*m1->cols;
-    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
-    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
+//    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
+//    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
+    const std::vector<cv::Point2d> M = (std::vector<cv::Point2d>)(*m1);
+    const std::vector<cv::Point2d> m = (std::vector<cv::Point2d>)(*m2);
 
     double LtL[9][9], W[9][1], V[9][9];
-    CvMat _LtL = cvMat( 9, 9, CV_64F, LtL );
-    CvMat matW = cvMat( 9, 1, CV_64F, W );
-    CvMat matV = cvMat( 9, 9, CV_64F, V );
-    CvMat _H0 = cvMat( 3, 3, CV_64F, V[8] );
-    CvMat _Htemp = cvMat( 3, 3, CV_64F, V[7] );
-    CvPoint2D64f cM={0,0}, cm={0,0}, sM={0,0}, sm={0,0};
+    cv::Mat _LtL = cv::Mat( 9, 9, CV_64F, LtL );
+    cv::Mat matW = cv::Mat( 9, 1, CV_64F, W );
+    cv::Mat matV = cv::Mat( 9, 9, CV_64F, V );
+    cv::Mat _H0 = cv::Mat( 3, 3, CV_64F, V[8] );
+    cv::Mat _Htemp = cv::Mat( 3, 3, CV_64F, V[7] );
+    cv::Point2d cM={0,0}, cm={0,0}, sM={0,0}, sm={0,0};
 
     for( i = 0; i < count; i++ )
     {
@@ -681,10 +689,11 @@ bool runHomogrophyKernel( const CvMat* m1, const CvMat* m2, CvMat* H )
 
     double invHnorm[9] = { 1./sm.x, 0, cm.x, 0, 1./sm.y, cm.y, 0, 0, 1 };
     double Hnorm2[9] = { sM.x, 0, -cM.x*sM.x, 0, sM.y, -cM.y*sM.y, 0, 0, 1 };
-    CvMat _invHnorm = cvMat( 3, 3, CV_64FC1, invHnorm );
-    CvMat _Hnorm2 = cvMat( 3, 3, CV_64FC1, Hnorm2 );
+    cv::Mat _invHnorm = cv::Mat( 3, 3, CV_64FC1, invHnorm );
+    cv::Mat _Hnorm2 = cv::Mat( 3, 3, CV_64FC1, Hnorm2 );
 
-    cvZero( &_LtL );
+//    cvZero( &_LtL );
+    _LtL.setTo(cv::Scalar::all(0));
     for( i = 0; i < count; i++ )
     {
         double x = (m[i].x - cm.x)*sm.x, y = (m[i].y - cm.y)*sm.y;
@@ -696,33 +705,38 @@ bool runHomogrophyKernel( const CvMat* m1, const CvMat* m2, CvMat* H )
             for( k = j; k < 9; k++ )
                 LtL[j][k] += Lx[j]*Lx[k] + Ly[j]*Ly[k];
     }
-    cvCompleteSymm( &_LtL );
+    cv::completeSymm( _LtL );
 
     //cvSVD( &_LtL, &matW, 0, &matV, CV_SVD_MODIFY_A + CV_SVD_V_T );
-    cvEigenVV( &_LtL, &matV, &matW );
-    cvMatMul( &_invHnorm, &_H0, &_Htemp );
-    cvMatMul( &_Htemp, &_Hnorm2, &_H0 );
-    cvConvertScale( &_H0, H, 1./_H0.data.db[8] );
+    cv::eigen( _LtL, matV, matW );
+    _Htemp = _invHnorm * _H0;
+    _H0 = _Htemp * _Hnorm2;
+    _H0.convertTo(*H, 1./_H0.at<double>(3,3));
+//    cvMatMul( &_invHnorm, &_H0, &_Htemp );
+//    cvMatMul( &_Htemp, &_Hnorm2, &_H0 );
+//    cvConvertScale( &_H0, H, 1./_H0.data.db[8] );
 
     return true;
 }
 
 /* Calculation of reprojection errors for a given set of correspondences and a homography.
  *
- * CvMat* m1							Input  -> Pointer to the corresponding left image projections
- * CvMat* m2							Input  -> Pointer to the corresponding right image projections
- * CvMat* model							Input  -> Estimated homography
+ * cv::Mat* m1							Input  -> Pointer to the corresponding left image projections
+ * cv::Mat* m2							Input  -> Pointer to the corresponding right image projections
+ * cv::Mat* model							Input  -> Estimated homography
  * vector<double> err					Output -> Vector of reprojection errors
  *
  *
  * Return value:						none
  */
-void computeHomographyReprojError(const CvMat* m1, const CvMat* m2, const CvMat* model, std::vector<double> & err)
+void computeHomographyReprojError(const cv::Mat* m1, const cv::Mat* m2, const cv::Mat* model, std::vector<double> & err)
 {
     int i, count = m1->rows*m1->cols;
-    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
-    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
-    const double* H = model->data.db;
+    const vector<cv::Point2d> M = (vector<cv::Point2d>)(*m1);
+    const vector<cv::Point2d> m = (vector<cv::Point2d>)(*m2);
+//    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
+//    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
+    const double* H = (double*)model->data;
 
     for( i = 0; i < count; i++ )
     {
@@ -736,8 +750,8 @@ void computeHomographyReprojError(const CvMat* m1, const CvMat* m2, const CvMat*
 /* Finds inliers to a given homography.
  *
  * InputArray p1						Input  -> Corresponding left image projections
- * CvMat* m2							Input  -> Corresponding right image projections
- * CvMat* model							Input  -> Estimated homography
+ * cv::Mat* m2							Input  -> Corresponding right image projections
+ * cv::Mat* model							Input  -> Estimated homography
  * double th							Input  -> Inlier/Outlier treshold
  * OutputArray mask						Output -> Correspondence mask marking inliers/ouliers
  *
@@ -755,7 +769,7 @@ void findHomographyInliers(cv::InputArray p1, cv::InputArray p2, cv::InputArray 
 			  (p2_.type() == CV_64FC2));
 	CV_Assert((H_.cols == 3) && (H_.rows == 3) && (H_.type() == CV_64FC1));
 
-	CvMat m1 = p1_, m2 = p2_, model = H_;
+	cv::Mat m1 = p1_, m2 = p2_, model = H_;
 	vector<double> err;
 
 	computeHomographyReprojError(&m1, &m2, &model, err);
@@ -776,22 +790,27 @@ void findHomographyInliers(cv::InputArray p1, cv::InputArray p2, cv::InputArray 
 
 /* Refines a given homography (extracted from the OpenCV).
  *
- * CvMat* m1							Input  -> Pointer to the corresponding left image projections
- * CvMat* m2							Input  -> Pointer to the corresponding right image projections
- * CvMat* model							Input/Output -> Homography
+ * cv::Mat* m1							Input  -> Pointer to the corresponding left image projections
+ * cv::Mat* m2							Input  -> Pointer to the corresponding right image projections
+ * cv::Mat* model							Input/Output -> Homography
  * int maxIters							Input  -> Maximum number of iterations within Levenberg-Marquardt
  *
  * Return value:						true:	Everything ok
  *										false:	Refinement failed
  */
-bool refineHomography( const CvMat* m1, const CvMat* m2, CvMat* model, int maxIters )
+bool refineHomography( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* model, int maxIters )
 {
-    CvLevMarq solver(8, 0, cvTermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS, maxIters, DBL_EPSILON));
+    CvLevMarq solver(8, 0, cv::TermCriteria(cv::TermCriteria::Type::COUNT + cv::TermCriteria::Type::EPS, maxIters, DBL_EPSILON));
+    //TERMCRIT_ITER+CV_TERMCRIT_EPS
     int i, j, k, count = m1->rows*m1->cols;
-    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
-    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
-    CvMat modelPart = cvMat( solver.param->rows, solver.param->cols, model->type, model->data.ptr );
-    cvCopy( &modelPart, solver.param );
+    const std::vector<cv::Point2d> M = (const std::vector<cv::Point2d>)(*m1);
+    const std::vector<cv::Point2d> m = (const std::vector<cv::Point2d>)(*m2);
+//    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data;
+//    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data;
+    cv::Mat modelPart = cv::Mat( solver.param->rows, solver.param->cols, model->type(), model->data );
+    CvMat tmp = modelPart.clone();
+    solver.param = &tmp;
+//    cvCopy( &modelPart, solver.param );
 
     for(;;)
     {
@@ -831,7 +850,8 @@ bool refineHomography( const CvMat* m1, const CvMat* m2, CvMat* model, int maxIt
         }
     }
 
-    cvCopy( solver.param, &modelPart );
+//    cvCopy( solver.param, &modelPart );
+    memcpy((void *)model->data, (void *)(solver.param->data.db), sizeof(double) * model->rows * model->cols * model->channels());
     return true;
 }
 

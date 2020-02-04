@@ -394,11 +394,16 @@ void robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::I
 	const double minSumSqrErr = th*th/100 * npoints;
 	const unsigned int maxIters = 50;
 
-    CvPoint2D64f m0c = {0,0}, m1c = {0,0};
+    cv::Point2d m0c = cv::Point2d(0, 0);
+    cv::Point2d m1c = cv::Point2d(0, 0);
+//    CvPoint2D64f m0c = {0,0}, m1c = {0,0};
     double t, scale0 = 0, scale1 = 0;
 
-	const CvPoint2D64f* _m1 = (const CvPoint2D64f*)pointsRedu1.data;
-    const CvPoint2D64f* _m2 = (const CvPoint2D64f*)pointsRedu2.data;
+    std::vector<Point2d> _m1, _m2;
+    _m1 = (std::vector<Point2d>) pointsRedu1;
+    _m2 = (std::vector<Point2d>) pointsRedu2;
+//	const CvPoint2D64f* _m1 = (const CvPoint2D64f*)pointsRedu1.data;
+//    const CvPoint2D64f* _m2 = (const CvPoint2D64f*)pointsRedu2.data;
 
     int i;
 
@@ -840,11 +845,11 @@ bool estimateEssentialMat(cv::OutputArray E,
 	}
 	else if(method == "RANSAC")
 	{
-		result = findEssentialMat(E, p1, p2, CV_RANSAC, 0.999, threshold, mask, refine); //RANSAC with possible subsequent least squares solution
+		result = findEssentialMat(E, p1, p2, cv::RANSAC, 0.999, threshold, mask, refine); //RANSAC with possible subsequent least squares solution
 	}
 	else if(method == "LMEDS")//Only LMEDS without least squares solution
 	{
-		result = findEssentialMat(E, p1, p2, CV_LMEDS, 0.999, threshold, mask);
+		result = findEssentialMat(E, p1, p2, cv::LMEDS, 0.999, threshold, mask);
 	}
 	else if (method == "USAC")
 	{

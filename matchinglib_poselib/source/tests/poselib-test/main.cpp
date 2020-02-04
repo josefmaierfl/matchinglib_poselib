@@ -1266,13 +1266,13 @@ void startEvaluation(ArgvParser& cmd)
     {
         if(oneCam)
         {
-            src[0] = cv::imread(filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-            src[1] = cv::imread(filenamesl[i + step],CV_LOAD_IMAGE_GRAYSCALE);
+            src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+            src[1] = cv::imread(filenamesl[i + step],cv::IMREAD_GRAYSCALE);
         }
         else
         {
-            src[0] = cv::imread(filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-            src[1] = cv::imread(filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
+            src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+            src[1] = cv::imread(filenamesr[i],cv::IMREAD_GRAYSCALE);
         }
 
 		if (!stereoRef || (evStepStereoStable_cnt == evStepStereoStable_tmp) || (evStepStereoStable_cnt == 0))

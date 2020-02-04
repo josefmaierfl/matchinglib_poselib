@@ -119,7 +119,7 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
 		Mat tempMask1 = cvarrToMat(tempMask);
 		tempMask1.setTo(true);
     }
-    else if (method == CV_RANSAC)
+    else if (method == cv::RANSAC)
 	{
 		if(!estimator.runRANSAC(&p1, &p2, &_E, tempMask, threshold, prob, 1000,lesqu))
 			return false;

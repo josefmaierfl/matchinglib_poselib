@@ -346,13 +346,13 @@ void startEvaluation(ArgvParser& cmd)
   {
     if(oneCam)
     {
-      src[0] = cv::imread(img_path + "/" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-      src[1] = cv::imread(img_path + "/" + filenamesl[i + 1],CV_LOAD_IMAGE_GRAYSCALE);
+      src[0] = cv::imread(img_path + "/" + filenamesl[i],cv::IMREAD_GRAYSCALE);
+      src[1] = cv::imread(img_path + "/" + filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
     }
     else
     {
-      src[0] = cv::imread(img_path + "/" + filenamesl[i],CV_LOAD_IMAGE_GRAYSCALE);
-      src[1] = cv::imread(img_path + "/" + filenamesr[i],CV_LOAD_IMAGE_GRAYSCALE);
+      src[0] = cv::imread(img_path + "/" + filenamesl[i],cv::IMREAD_GRAYSCALE);
+      src[1] = cv::imread(img_path + "/" + filenamesr[i],cv::IMREAD_GRAYSCALE);
     }
 
     err = matchinglib::getCorrespondences(src[0],

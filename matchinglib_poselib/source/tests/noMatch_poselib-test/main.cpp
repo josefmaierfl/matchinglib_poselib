@@ -2569,7 +2569,7 @@ bool writeResultsOverview(const string &filename,
                 cerr << "Failed to open " << filename << endl;
                 return false;
             }
-            cvWriteComment(*fs, "\n\nNext parameters:\n", 0);
+            fs.writeComment("\n\nNext parameters:\n", 0);
             parSetNr += std::to_string(nrEntries);
         } else {
             fs = FileStorage(filename, FileStorage::WRITE);
@@ -2577,14 +2577,14 @@ bool writeResultsOverview(const string &filename,
                 cerr << "Failed to open " << filename << endl;
                 return false;
             }
-            cvWriteComment(*fs, "This file contains the file name and its corresponding parameters for "
+            fs.writeComment("This file contains the file name and its corresponding parameters for "
                                 "tested calibration runs.\n\n", 0);
             parSetNr += "0";
         }
         fs << parSetNr;
         fs << "{";
 
-        cvWriteComment(*fs, "File name (within the path containing this file) which holds results from testing "
+        fs.writeComment("File name (within the path containing this file) which holds results from testing "
                             "the autocalibration SW.", 0);
         size_t posLastSl = resultsFileName.rfind('/');
         string resDirName = resultsFileName.substr(posLastSl + 1);
