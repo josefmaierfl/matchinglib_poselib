@@ -71,7 +71,7 @@ bool ProcessImagePairs::loadImages()
         return false;
 
     if (image[0].channels() == 3)
-        cvtColor(image[0], image[0], CV_BGR2GRAY);
+        cvtColor(image[0], image[0], cv::COLOR_BGR2GRAY);
 
     snprintf(file, 255, imagePath.c_str(), imageIdx + imageOffset);
     image[1] = imread(string(file));
@@ -79,7 +79,7 @@ bool ProcessImagePairs::loadImages()
         return false;
 
     if (image[1].channels() == 3)
-        cvtColor(image[1], image[1], CV_BGR2GRAY);
+        cvtColor(image[1], image[1], cv::COLOR_BGR2GRAY);
 
     imageIdx++;
 
@@ -108,8 +108,8 @@ void ProcessImagePairs::drawFeatures(DrawType type)
     const int width = image[0].cols + image[1].cols;
 
     Mat output(height, width, CV_8UC3, Scalar(0, 0, 0));
-    cvtColor(image[0], image[0], CV_GRAY2BGR);
-    cvtColor(image[1], image[1], CV_GRAY2BGR);
+    cvtColor(image[0], image[0], cv::COLOR_GRAY2BGR);
+    cvtColor(image[1], image[1], cv::COLOR_GRAY2BGR);
     image[0].copyTo(output(Rect(0, 0, image[0].cols, image[0].rows)));
     image[1].copyTo(output(Rect(image[0].cols, 0, image[1].cols, image[1].rows)));
 

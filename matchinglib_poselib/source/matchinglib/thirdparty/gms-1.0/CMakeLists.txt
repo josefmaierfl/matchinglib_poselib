@@ -5,9 +5,9 @@ project(gms-feature-matching)
 set(USE_GPU FALSE CACHE BOOL "use cuda for feature matching")
 
 if(USE_GPU)
-    find_package(OpenCV 3.1 REQUIRED core imgproc highgui cudafeatures2d)
+    find_package(OpenCV 4.1.1 REQUIRED core imgproc highgui cudafeatures2d)
 else()
-    find_package(OpenCV 3.1 REQUIRED core imgproc highgui features2d)
+    find_package(OpenCV 4.1.1 REQUIRED core imgproc highgui features2d)
 endif()
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
@@ -88,5 +88,3 @@ endif()
 target_link_libraries(${target}
   ${OpenCV_LIBS}
 )
-
-

@@ -9,44 +9,9 @@ option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the libr
 
 find_package(Eigen REQUIRED)
 
-if(WIN32)
-	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-	 message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-	endif()
-	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-endif()
+find_package(OpenCV 4.1.1 REQUIRED)
 
-#if(WIN32)
-#  find_package(Eigen REQUIRED)
-#else()
-#  find_package(PkgConfig)
-#  pkg_search_module(EIGEN REQUIRED eigen3)
-#endif()
-
-#message(WARNING ${CMAKE_MODULE_PATH})
-
-
-if("${OpenCV_DIR}" STREQUAL "")
-    message(ERROR " OpenCV_DIR not set!")
-    if(WIN32)
-      # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-      # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-	  #find_package(OpenCV 3.2 REQUIRED)
-    else()
-      #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
-      #find_package(OpenCV 3.2 REQUIRED)
-    endif()
-else()
-    #set(OpenCV_DIR "/home/martin/vslamfw/platforms/ci/opencv-3.2.0/share/OpenCV")
-    #find_package(OpenCV 3.2 REQUIRED)
-endif()
-
-find_package(OpenCV 3.2 REQUIRED)
-
-#SET( Nanoflann_FOUND "YES" )
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.1.1/include")
-#find_package(Nanoflann REQUIRED)
-#find_package(Flann REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

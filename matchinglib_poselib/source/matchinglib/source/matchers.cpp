@@ -1132,7 +1132,7 @@ namespace matchinglib
       //    break;
       //}
       //if(noLine_idx >= num_results)
-      //  matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
+      //  matchTemplate((img2)(rec2), (img1)(rec1), results, cv::TM_SQDIFF);
       //else
       //{
       //  dx1 = eigkeypts2(ret_indexes[1],0) - eigkeypts2(ret_indexes[0],0);
@@ -1147,7 +1147,7 @@ namespace matchinglib
       //      break;
       //  }
       //  if(noLine_idx >= num_results)
-      //    matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
+      //    matchTemplate((img2)(rec2), (img1)(rec1), results, cv::TM_SQDIFF);
       //  else
       //  {
       //    hp1 = (Mat_<float>(3, 2) << eigkeypts1(ret_indexes[0],0) - rec1.x, eigkeypts1(ret_indexes[0],1) - rec1.y,
@@ -1166,8 +1166,8 @@ namespace matchinglib
       //    imshow("warped", imgpart1_warped );
       //    waitKey(0);
 
-      //    //matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
-      //    matchTemplate((img2)(rec2), imgpart1_warped, results, CV_TM_SQDIFF);
+      //    //matchTemplate((img2)(rec2), (img1)(rec1), results, cv::TM_SQDIFF);
+      //    matchTemplate((img2)(rec2), imgpart1_warped, results, cv::TM_SQDIFF);
       //  }
       //}
 
@@ -1183,11 +1183,11 @@ namespace matchinglib
             rec2_tmp.y += border_size;
             rec1_tmp.x += border_size;
             rec1_tmp.y += border_size;
-            cv::matchTemplate((img_border[1])(rec2_tmp), (img_border[0])(rec1_tmp), results, CV_TM_SQDIFF);
+            cv::matchTemplate((img_border[1])(rec2_tmp), (img_border[0])(rec1_tmp), results, cv::TM_SQDIFF);
       }
       else
       {
-          cv::matchTemplate((img2)(rec2), (img1)(rec1), results, CV_TM_SQDIFF);
+          cv::matchTemplate((img2)(rec2), (img1)(rec1), results, cv::TM_SQDIFF);
       }
       cv::minMaxLoc(results,(double *)0,(double *)0,&minLoc);
 
@@ -1298,7 +1298,7 @@ namespace matchinglib
       minKeySize[1] /= 2.f;
       minKeySize[1] = std::ceil(minKeySize[1]);
 
-      TermCriteria criteria = TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+      TermCriteria criteria = TermCriteria(cv::TermCriteria::Type::EPS + cv::TermCriteria::Type::COUNT, 40, 0.001);
 
       cv::cornerSubPix(img1, p1s, cv::Size((int)minKeySize[0], (int)minKeySize[0]), cv::Size(-1, -1), criteria);
       cv::cornerSubPix(img2, p2s, cv::Size((int)minKeySize[1], (int)minKeySize[1]), cv::Size(-1, -1), criteria);
