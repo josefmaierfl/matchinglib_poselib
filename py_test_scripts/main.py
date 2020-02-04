@@ -8,7 +8,7 @@ import pandas as pd
 
 token = ''
 use_sms = False
-test_main = True
+test_main = False
 test_ret = [0, 0, 0]
 test_raise = [False, False, False]
 

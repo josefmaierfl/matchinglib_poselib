@@ -23,6 +23,7 @@ int main(int argc, char* argv[])
 // ---------------------
 
 #include "opencv2/imgproc/imgproc.hpp"
+#include <opencv2/calib3d.hpp>
 
 #include "argvparser.h"
 #include "io_data.h"
