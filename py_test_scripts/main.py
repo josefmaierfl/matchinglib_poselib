@@ -5,6 +5,7 @@ import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, logging
 import communication as com
 import evaluation_numbers as en
 import pandas as pd
+import shutil
 
 token = ''
 use_sms = False
@@ -860,6 +861,25 @@ def retry_autocalibration(filename, nrCall, store_path, exec_cal, message_path, 
     return ret
 
 
+def compress_res_folder(zip_res_folder, res_path):
+    if not zip_res_folder:
+        return
+    if res_path[-1] == '/':
+        res_path = res_path[:-1]
+    res_path_main = os.path.dirname(res_path)
+    (parent, tail) = os.path.split(res_path_main)
+    cnt = 0
+    base_name = tail + '_%03d' % cnt
+    f_name = os.path.join(parent, base_name)
+    f_name1 = f_name + '.zip'
+    while os.path.exists(f_name1):
+        cnt += 1
+        base_name = tail + '_%03d' % cnt
+        f_name = os.path.join(parent, base_name)
+        f_name1 = f_name + '.zip'
+    shutil.make_archive(f_name, 'zip', parent, tail)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Main script file for executing the whole test procedure for '
                                                  'testing the autocalibration SW')
@@ -983,6 +1003,10 @@ def main():
                              '\'virtualSequenceLib-CMD-interface\'. The executable of the autocalibration SW should '
                              'similarly be located at \'../matchinglib_poselib/build/\' and called '
                              '\'noMatch_poselib-test\'.')
+    parser.add_argument('--zip_res_folder', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='If provided, the whole content within the main results folder is compressed and stored '
+                             'in the parent directory of the results folder. If a zipped file exists, a new filename '
+                             'is created. Thus, it could be used for versioning.')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -1130,17 +1154,21 @@ def main():
     if args.crt_sc_dirs_file and args.crt_sc_cmds_file:
         ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
         ret += retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
+        compress_res_folder(args.zip_res_folder, args.store_path_cal)
         sys.exit(ret)
     if args.crt_sc_dirs_file:
         ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
+        compress_res_folder(args.zip_res_folder, args.store_path_cal)
         sys.exit(ret)
     if args.crt_sc_cmds_file:
         ret = retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
+        compress_res_folder(args.zip_res_folder, args.store_path_cal)
         sys.exit(ret)
 
     if args.cal_retry_file:
         ret = retry_autocalibration(args.cal_retry_file, args.cal_retry_nrCall, args.store_path_cal,
                                     args.exec_cal, args.message_path, cpu_use)
+        compress_res_folder(args.zip_res_folder, args.store_path_cal)
         sys.exit(ret)
 
     try:
@@ -1155,6 +1183,7 @@ def main():
         logging.error('Error in main file', exc_info=True)
         ret = 99
         send_message('Error in main file')
+    compress_res_folder(args.zip_res_folder, args.store_path_cal)
     sys.exit(ret)
 
 
