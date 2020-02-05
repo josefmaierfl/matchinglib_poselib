@@ -1,0 +1,41 @@
+#Connect to instance
+ssh -i keyfile address
+
+#Show devices
+lsblk
+
+#Check if file system exists on device (output data: no file system)
+sudo file -s /dev/name_of_device
+
+#Optional, install package to be able to perform next operation
+sudo yum install xfsprogs
+
+#Create file system
+sudo mkfs -t xfs /dev/name_of_device
+
+#Create a mount point
+sudo mkdir /data
+sudo mount /dev/name_of_device /data
+
+#For automatically mounting see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
+sudo cp /etc/fstab /etc/fstab.orig
+sudo lsblk -o +UUID
+sudo nano /etc/fstab
+
+#Enter: UUID=UUID_value_from_lsblk  /data  xfs  defaults,nofail  0  2
+
+sudo umount /data
+sudo mount -a
+
+scp -i keyfile /home/maierj/work/autocalib_test_package/initial_setup.sh dest:/data
+
+cd /data
+./initial_setup.sh
+cd autocalib_test_package
+./run_docker_base.sh
+
+cd py_test_scripts
+python main.py --nrCPUs -72 --zip_res_folder
+
+#For copying results back
+scp -i keyfile source:/data/results_000.zip /home/maierj/work/results
