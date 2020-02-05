@@ -14,6 +14,10 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
 RUN cd /ci && ./copy_thirdparty.sh
+RUN python3 -m pip install --upgrade pip setuptools wheel
+ADD py_test_scripts/requirements_no_version.txt .
+RUN python3 -m pip install -r requirements_no_version.txt && rm requirements_no_version.txt
+#RUN python3 -m pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 python3 -m pip install -U
 
 COPY generateVirtualSequence /ci/tmp/generateVirtualSequence/
 COPY build_generateVirtualSequence.sh /ci/tmp/
@@ -25,7 +29,7 @@ RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
 
 WORKDIR /app
 RUN cp -r /ci/tmp/thirdparty /app/
-RUN cp -r /ci/tmp/tmp/ /app/
+RUN cp -r /ci/tmp/tmp/. /app/
 #RUN rm -r /ci
 
 USER conan
