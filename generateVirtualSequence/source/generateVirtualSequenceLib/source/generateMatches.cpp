@@ -2955,7 +2955,6 @@ bool genMatchSequ::writeMatchingParameters(){
     try {
         named_mutex mutex(open_or_create, "write_matches_yaml");
         scoped_lock<named_mutex> lock(mutex);
-        lock.lock();
         if (checkFileExists(matchParsFileName)) {
             //Check number of entries first
             if (!getNrEntriesYAML(matchParsFileName, parSetNr, nrEntries)) {
@@ -3019,7 +3018,6 @@ bool genMatchSequ::writeMatchingParameters(){
         fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
 
         fs.release();
-        lock.unlock();
     }catch(interprocess_exception &ex){
         cerr << ex.what() << std::endl;
         return false;
@@ -3059,7 +3057,6 @@ bool genMatchSequ::writeSequenceOverviewPars(){
     try {
         named_mutex mutex(open_or_create, "write_sequence_ov_yaml");
         scoped_lock<named_mutex> lock(mutex);
-        lock.lock();
         if (checkFileExists(filename)) {
             //Check number of entries first
             if (!getNrEntriesYAML(filename, parSetNr, nrEntries)) {
@@ -3095,7 +3092,6 @@ bool genMatchSequ::writeSequenceOverviewPars(){
         fs << "}";
 
         fs.release();
-        lock.unlock();
     }catch(interprocess_exception &ex){
         cerr << ex.what() << std::endl;
         return false;

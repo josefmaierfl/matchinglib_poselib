@@ -23,8 +23,6 @@ sudo usermod -aG docker ${USER}
 #Now log out of bash and in again
 sudo docker run hello-world
 
-echo "UUID=$(lsblk -nr -o UUID,NAME | grep -Po '.*(?= nvme1n1)')  /data  xfs  defaults,nofail  0  2" >> /etc/fstab
-
 #Show devices
 lsblk
 
@@ -43,6 +41,8 @@ sudo mount /dev/name_of_device /data
 
 #For automatically mounting see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
 sudo cp /etc/fstab /etc/fstab.orig
+echo "UUID=$(lsblk -nr -o UUID,NAME | grep -Po '.*(?= nvme1n1)')  /data  xfs  defaults,nofail  0  2" >> /etc/fstab
+#or:
 sudo lsblk -o +UUID
 sudo nano /etc/fstab
 

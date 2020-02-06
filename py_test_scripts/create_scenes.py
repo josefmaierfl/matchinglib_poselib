@@ -446,8 +446,8 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
             continue
         #err_cnt = 0
         #Split entries into tasks for generating initial sequences and matches only
-        c_sequ = cf.loc[cf['scene_exists'] == 0]
-        c_match = cf.loc[cf['scene_exists'] == 1]
+        c_sequ = cf.loc[cf['scene_exists'] == 0].copy(deep=True)
+        c_match = cf.loc[cf['scene_exists'] == 1].copy(deep=True)
         c_match.sort_values('parSetNr', inplace=True)
 
         #Calculate sequences first using multiple CPUs
@@ -771,6 +771,7 @@ def searchParSetNr(ov_file, parSetNr):
 
 
 def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
+    np.random.seed()
     #Check if we have to wait until other sequence generation processes have finished writing into the overview file
     if loaded:
         ov_file = os.path.join(cmd_l[10], 'matchInfos.yaml')
@@ -829,7 +830,7 @@ def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
                 # sys.stdout.flush()
                 # raise BaseException
                 return ['noExe']
-        time.sleep(np.random.randint(1, 20))
+        time.sleep(np.random.uniform(0.5, 20.0))
         # cnt = 0
         # while not data_set and cnt < cnt1max:
         #     time.sleep(10)
