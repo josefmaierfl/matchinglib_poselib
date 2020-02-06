@@ -15,7 +15,7 @@ cmake ../../ -DCMAKE_BUILD_TYPE=Release
 make -j8
 popd
 
-mkdir "../../lib/linux64gcc${GCC_VER}"
+mkdir -p "../../lib/linux64gcc${GCC_VER}"
 find ../linux -name  \*.a -type f -exec cp {} "../../lib/linux64gcc${GCC_VER}" \;
 
 pushd $DIR

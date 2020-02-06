@@ -1,5 +1,5 @@
 #Connect to instance
-ssh -i keyfile address
+ssh -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-3-121-98-109.eu-central-1.compute.amazonaws.com
 
 #Install docker
 sudo apt-get remove docker docker-engine docker.io containerd runc
@@ -18,6 +18,9 @@ sudo add-apt-repository \
    stable"
 sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io
+sudo groupadd docker
+sudo usermod -aG docker ${USER}
+#Now log out of bash and in again
 sudo docker run hello-world
 
 #Show devices
@@ -41,12 +44,13 @@ sudo cp /etc/fstab /etc/fstab.orig
 sudo lsblk -o +UUID
 sudo nano /etc/fstab
 
-#Enter: UUID=UUID_value_from_lsblk  /data  xfs  defaults,nofail  0  2
+#Enter: UUID=feff7a35-c113-4a5f-a9bc-f7c1401e4e25  /data  xfs  defaults,nofail  0  2
 
 sudo umount /data
 sudo mount -a
+sudo chown -R $USER /data
 
-scp -i keyfile /home/maierj/work/autocalib_test_package/initial_setup.sh dest:/data
+scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" /home/maierj/work/autocalib_test_package/initial_setup.sh ubuntu@ec2-3-121-98-109.eu-central-1.compute.amazonaws.com:/data
 
 cd /data
 ./initial_setup.sh
@@ -57,4 +61,4 @@ cd py_test_scripts
 python main.py --nrCPUs -72 --zip_res_folder
 
 #For copying results back
-scp -i keyfile source:/data/results_000.zip /home/maierj/work/results
+scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-3-121-98-109.eu-central-1.compute.amazonaws.com:/data/results_000.zip /home/maierj/work/results
