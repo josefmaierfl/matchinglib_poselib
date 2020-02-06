@@ -33,6 +33,8 @@ RUN cp -r /ci/tmp/thirdparty /app/
 RUN cp -r /ci/tmp/tmp/. /app/
 #RUN rm -r /ci
 
+RUN chown -R conan /app
+
 USER conan
 RUN echo 'alias python=python3' >> ~/.bashrc
 CMD [ "/bin/bash" ]
