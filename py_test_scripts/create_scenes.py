@@ -159,8 +159,7 @@ def genScenes(input_path, executable, nr_cpus, message_path, retry_file=None):
                 cmd_fails_tmp = []
                 for r in cmd_fails:
                     cmd_fails_tmp.append(' '.join(map(str, r)))
-                for r in cmd_fails_tmp:
-                    fo.write('\n'.join(r))
+                fo.write('\n'.join(cmd_fails_tmp))
         if cmd_fails_dir:
             res_file = os.path.join(message_path_new, 'sequ_matches_dirs_error_overview.txt')
             cnt = 1
@@ -172,8 +171,7 @@ def genScenes(input_path, executable, nr_cpus, message_path, retry_file=None):
                 cmd_fails_tmp = []
                 for r in cmd_fails_dir:
                     cmd_fails_tmp.append('\n'.join(r))
-                for r in cmd_fails_tmp:
-                    fo.write('\n\n'.join(r))
+                fo.write('\n\n'.join(cmd_fails_tmp))
         return 1
     return 0
 
@@ -406,8 +404,7 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
                 cmd_fails_tmp = []
                 for r in cmd_fails_dir:
                     cmd_fails_tmp.append('\n'.join(r))
-                for r in cmd_fails_tmp:
-                    fo.write('\n\n'.join(r))
+                fo.write('\n\n'.join(cmd_fails_tmp))
 
     if cmd_fails:
         ret += 1
@@ -421,8 +418,7 @@ def retry_cmds_from_file(file_name, nr_cpus, message_path):
             cmd_fails_tmp = []
             for r in cmd_fails:
                 cmd_fails_tmp.append(' '.join(map(str, r)))
-            for r in cmd_fails_tmp:
-                fo.write('\n'.join(r))
+            fo.write('\n'.join(cmd_fails_tmp))
     return ret
 
 
@@ -833,6 +829,7 @@ def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
                 # sys.stdout.flush()
                 # raise BaseException
                 return ['noExe']
+        time.sleep(np.random.randint(1, 20))
         # cnt = 0
         # while not data_set and cnt < cnt1max:
         #     time.sleep(10)

@@ -10,6 +10,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y texliv
 RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y software-properties-common && apt clean
 RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnakes/ppa
 RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python3.7 && apt clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y nano && apt clean
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh

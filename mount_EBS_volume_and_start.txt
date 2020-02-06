@@ -23,6 +23,8 @@ sudo usermod -aG docker ${USER}
 #Now log out of bash and in again
 sudo docker run hello-world
 
+echo "UUID=$(lsblk -nr -o UUID,NAME | grep -Po '.*(?= nvme1n1)')  /data  xfs  defaults,nofail  0  2" >> /etc/fstab
+
 #Show devices
 lsblk
 
@@ -49,6 +51,8 @@ sudo nano /etc/fstab
 sudo umount /data
 sudo mount -a
 sudo chown -R $USER /data
+
+sudo apt install x11-xserver-utils
 
 scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" /home/maierj/work/autocalib_test_package/initial_setup.sh ubuntu@ec2-3-121-98-109.eu-central-1.compute.amazonaws.com:/data
 
