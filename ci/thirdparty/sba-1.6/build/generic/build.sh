@@ -11,7 +11,7 @@ mkdir linux
 cd linux
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Release
-make -j8
+make -j "$(nproc)"
 popd
 
 cd ../
@@ -19,4 +19,4 @@ mkdir linux_debug
 cd linux_debug
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Debug -DLAPACKBLAS_DIR="${BLAS_P}"
-make -j8
+make -j "$(nproc)"

@@ -12,7 +12,7 @@ mkdir linux
 cd linux
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Release
-make -j8
+make -j "$(nproc)"
 popd
 
 mkdir -p "../../lib/linux64gcc${GCC_VER}"
@@ -25,7 +25,7 @@ mkdir linux_debug
 cd linux_debug
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Debug
-make -j8
+make -j "$(nproc)"
 popd
 
 

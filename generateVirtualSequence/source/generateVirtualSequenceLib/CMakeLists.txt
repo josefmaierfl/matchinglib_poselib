@@ -15,30 +15,9 @@ if(WIN32)
 	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
 endif()
 
-#Eigen is included in PCL:
-#if(WIN32)
-  #find_package(Eigen REQUIRED)
-#else()
-  #find_package(PkgConfig)
-  #pkg_search_module(EIGEN REQUIRED eigen3)
-#endif()
-
 find_package(Eigen REQUIRED)
-#include_directories(SYSTEM ${EIGEN_INCLUDE_DIRS})
 
-if("${OpenCV_DIR}" STREQUAL "")
-    message(STATUS "could not find any opencv dir. Trying fallback")
-    if(WIN32)
-      # set(OpenCV_DIR "C:/work/THIRDPARTY/opencv-3.0.0/build/install")
-      # find_package(OpenCV 3.0 REQUIRED NO_CMAKE_PATH)
-	  find_package(OpenCV 4,0 REQUIRED)
-    else()
-      #set(OpenCV_DIR "/home/jungr/installed/opencv-3.1.0/share/OpenCV/")
-      find_package(OpenCV 4.0 REQUIRED)
-    endif()
-else()
-    find_package(OpenCV 4.0 REQUIRED)
-endif()
+find_package(OpenCV 4.2.0 REQUIRED)
 
 if(WIN32)
 	set(PCL_DIR "C:/work/THIRDPARTY/pcl-1.8.1/pcl-1.8.1-dl/PCL 1.8.1/cmake/")
@@ -53,43 +32,7 @@ if(PCL_FOUND)
 	message(STATUS "PCL Version: ${PCL_VERSION}")
 endif()
 
-#find_package(Nanoflann REQUIRED)
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
-
-#find_package(Flann REQUIRED)
-
-#find_package(OpenMP)
-#if (OPENMP_FOUND)
-    #set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#endif()
-
-# set(MATCHINGLIB_FOUND "YES")
-# set(MATCHINGLIB_ROOT_DIR "C:/work/navigation/matching")
-# set(MATCHINGLIB_INCLUDE_DIR ${MATCHINGLIB_ROOT_DIR}/source/matchinglib/include)
-# set(MATCHINGLIB_INCLUDE_DIRS 
-# ${MATCHINGLIB_INCLUDE_DIR}
-# ${MATCHINGLIB_ROOT_DIR}/buildVS15/source/matchinglib/include
-# )
-# SET(MATCHINGLIB_LIBRARY "${MATCHINGLIB_ROOT_DIR}/buildVS15/RelWithDebInfo/matchinglib.lib")
-# set(MATCHINGLIB_LIBRARY_DEBUG "${MATCHINGLIB_ROOT_DIR}/buildVS15/Debug/matchinglibd.lib")
-# set(MATCHINGLIB_LIBRARIES "debug;${MATCHINGLIB_LIBRARY_DEBUG};optimized;${MATCHINGLIB_LIBRARY}")
-
-#set(matching_DIR  "C:/work/navigation/matching/install")
-#find_package(matching REQUIRED)
-
-
-#set(PFELIB_ROOT_DIR $ENV{PFELIBROOT})
-#set(PFELIB_INCLUDE_DIR ${PFELIB_ROOT_DIR}/include)
-#set(PFELIB_LIBRARY 
-#${PFELIB_ROOT_DIR}/lib/win7x64vs14/pfe_utils_WIN64.lib
-#${PFELIB_ROOT_DIR}/lib/win7x64vs14/pfe_base_gen_WIN64.lib
-#)
-#set(PFELIB_LIBRARY_DEBUG 
-#${PFELIB_ROOT_DIR}/lib/win7x64vs14/pfe_utils_WIN64_D.lib
-#${PFELIB_ROOT_DIR}/lib/win7x64vs14/pfe_base_gen_WIN64_D.lib
-#)
-#set(PFELIB_LIBRARIES "debug;${PFELIB_LIBRARY_DEBUG};optimized;${PFELIB_LIBRARY}")
 
 #
 # Library name and options
@@ -128,14 +71,7 @@ set(headers
 )
 
 set(sources
-    #${source_path}/argvparser.cpp
-    #${source_path}/base_matcher.cpp
-    #${source_path}/eval_start.cpp
     ${source_path}/io_data.cpp
-    #${source_path}/main.cpp
-
-	#${source_path}/loadGTMfiles.cpp
-	
 	${source_path}/getStereoCameraExtr.cpp
 	${source_path}/generateSequence.cpp
 	${source_path}/helper_funcs.cpp
@@ -242,9 +178,7 @@ target_link_libraries(${target}
     #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
 	#${MATCHINGLIB_LIBRARIES}
-	#${PFELIB_LIBRARIES}
-	#matching::matchinglib
-	
+
 	${PCL_LIBRARY_DIRS}
 	${PCL_COMMON_LIBRARIES}
 	${PCL_OCTREE_LIBRARIES}

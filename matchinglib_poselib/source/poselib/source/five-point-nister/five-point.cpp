@@ -53,14 +53,14 @@ class CvEMEstimator : public CvModelEstimator3
 {
 public:
     CvEMEstimator();
-    virtual int runKernel( const CvMat* m1, const CvMat* m2, CvMat* model );
-    virtual int run5Point( const CvMat* _q1, const CvMat* _q2, CvMat* _ematrix );
+    virtual int runKernel( const cv::Mat& m1, const cv::Mat& m2, cv::Mat& model );
+    virtual int run5Point( const cv::Mat& _q1, const cv::Mat& _q2, cv::Mat& _ematrix );
 //protected:
-	bool reliable( const CvMat* m1, const CvMat* m2, const CvMat* model );
+	bool reliable( const cv::Mat& m1, const cv::Mat& m2, const cv::Mat& model );
     virtual void getCoeffMat( double *eet, double* a );
-    void computeReprojError3( const CvMat* m1, const CvMat* m2,
-                                     const CvMat* model, CvMat* error );
-	bool ValidModel(const CvMat* m1, const CvMat* m2, const CvMat* model);
+    void computeReprojError3( const cv::Mat& m1, const cv::Mat& m2,
+                                     const cv::Mat& model, cv::Mat& error );
+	bool ValidModel(const cv::Mat& m1, const cv::Mat& m2, const cv::Mat& model);
 };
 
 
@@ -100,11 +100,7 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
 
 	Mat E(3, 3, CV_64F);
 	CvEMEstimator estimator;
-
-	CvMat p1 = points1;
-	CvMat p2 = points2;
-	CvMat _E = E;
-	CvMat* tempMask = cvCreateMat(1, npoints, CV_8U);
+	cv::Mat tempMask = cv::Mat(1, npoints, CV_8U);
 
 	assert(npoints >= 5);
 	//threshold /= focal;
@@ -112,35 +108,30 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
     if (npoints == 5)
     {
         E.create(3 * 10, 3, CV_64F);
-        _E = E;
-        count = estimator.runKernel(&p1, &p2, &_E);
+        count = estimator.runKernel(points1, points2, E);
         E = E.rowRange(0, 3 * count) * 1.0;
-        //Mat(tempMask).setTo(true);
-		Mat tempMask1 = cvarrToMat(tempMask);
-		tempMask1.setTo(true);
+        tempMask.setTo(true);
     }
     else if (method == cv::RANSAC)
 	{
-		if(!estimator.runRANSAC(&p1, &p2, &_E, tempMask, threshold, prob, 1000,lesqu))
+		if(!estimator.runRANSAC(points1, points2, E, tempMask, threshold, prob, 1000, lesqu))
 			return false;
 	}
 	else if (method == ARRSAC)
 	{
-		if(!estimator.runARRSAC(&p1, &p2, &_E, tempMask, threshold, lesqu, refineEssential))
+		if(!estimator.runARRSAC(points1, points2, E, tempMask, threshold, lesqu, refineEssential))
 			return false;
 	}
 	else
 	{
-		if(!estimator.runLMeDS(&p1, &p2, &_E, tempMask, prob))
+		if(!estimator.runLMeDS(points1, points2, E, tempMask, prob, 2000))
 			return false;
 	}
     if (_mask.needed())
     {
     	_mask.create(1, npoints, CV_8U, -1, true);
     	Mat mask = _mask.getMat();
-		//Mat(tempMask).copyTo(mask);
-		Mat tempMask1 = cvarrToMat(tempMask);
-		tempMask1.copyTo(mask);
+		tempMask.copyTo(mask);
     }
 
 	if(Essential.needed())
@@ -346,8 +337,6 @@ int recoverPose( const Mat & E, InputArray _points1, InputArray _points2, Mat & 
 
 }
 
-
-
 void decomposeEssentialMat( const Mat & E, Mat & R1, Mat & R2, Mat & t )
 {
 	assert(E.cols == 3 && E.rows == 3);
@@ -362,25 +351,24 @@ void decomposeEssentialMat( const Mat & E, Mat & R1, Mat & R2, Mat & t )
 	t = U.col(2) * 1.0;
 }
 
-
 CvEMEstimator::CvEMEstimator()
-: CvModelEstimator3( 5, cvSize(3,3),  10 )
+: CvModelEstimator3( 5, cv::Size(3,3),  10 )
 {
 }
 
-int CvEMEstimator::runKernel( const CvMat* m1, const CvMat* m2, CvMat* model )
+int CvEMEstimator::runKernel( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model )
 {
     return run5Point(m1, m2, model);
 }
 
 // Notice to keep compatibility with opencv ransac, q1 and q2 have
 // to be of 1 row x n col x 2 channel.
-int CvEMEstimator::run5Point( const CvMat* q1, const CvMat* q2, CvMat* ematrix )
+int CvEMEstimator::run5Point( const cv::Mat &q1, const cv::Mat &q2, cv::Mat &ematrix )
 {
 	/*Mat Q1 = Mat(q1).reshape(1, q1->cols);
 	Mat Q2 = Mat(q2).reshape(1, q2->cols);*/
-	Mat Q1 = cvarrToMat(q1).reshape(1, q1->cols);;
-	Mat Q2 = cvarrToMat(q2).reshape(1, q2->cols); ;
+	Mat Q1 = q1.reshape(1, q1.cols);
+	Mat Q2 = q2.reshape(1, q2.cols);
 
 	int n = Q1.rows;
 	Mat Q(n, 9, CV_64F);
@@ -444,7 +432,7 @@ int CvEMEstimator::run5Point( const CvMat* q1, const CvMat* q2, CvMat* ematrix )
 
     std::vector<double> xs, ys, zs;
     int count = 0;
-    double * e = ematrix->data.db;
+    auto e = (double*)ematrix.data;
     for (unsigned int i = 0; i < roots.size(); i++)
     {
         if (fabs(roots[i].imag()) > 1e-10) continue;
@@ -485,35 +473,33 @@ int CvEMEstimator::run5Point( const CvMat* q1, const CvMat* q2, CvMat* ematrix )
 // Same as the runKernel (run5Point), m1 and m2 should be
 // 1 row x n col x 2 channels.
 // And also, error has to be of CV_32FC1.
-void CvEMEstimator::computeReprojError3( const CvMat* m1, const CvMat* m2,
-                                     const CvMat* model, CvMat* error )
+void CvEMEstimator::computeReprojError3( const cv::Mat &m1, const cv::Mat &m2,
+                                     const cv::Mat &model, cv::Mat &error )
 {
     //Mat X1(m1), X2(m2);
-	Mat X1 = cvarrToMat(m1);
-	Mat X2 = cvarrToMat(m2);
-    int n = X1.cols;
-    X1 = X1.reshape(1, n);
-    X2 = X2.reshape(1, n);
+	Mat X1, X2;
+    int n = m1.cols;
+    X1 = m1.reshape(1, n);
+    X2 = m2.reshape(1, n);
 
     X1.convertTo(X1, CV_64F);
     X2.convertTo(X2, CV_64F);
 
     //Mat E(model);
-	Mat E = cvarrToMat(model);
-	Mat Et = E.t();
+	Mat Et = model.t();
     for (int i = 0; i < n; i++)
     {
         Mat x1 = (Mat_<double>(3, 1) << X1.at<double>(i, 0), X1.at<double>(i, 1), 1.0);
         Mat x2 = (Mat_<double>(3, 1) << X2.at<double>(i, 0), X2.at<double>(i, 1), 1.0);
-        double x2tEx1 = x2.dot(E * x1);
-        Mat Ex1 = E * x1;
+        double x2tEx1 = x2.dot(model * x1);
+        Mat Ex1 = model * x1;
         Mat Etx2 = Et * x2;
         double a = Ex1.at<double>(0) * Ex1.at<double>(0);
         double b = Ex1.at<double>(1) * Ex1.at<double>(1);
         double c = Etx2.at<double>(0) * Etx2.at<double>(0);
         double d = Etx2.at<double>(1) * Etx2.at<double>(1);
 
-		error->data.fl[i] = (float)(x2tEx1 * x2tEx1 / (a + b + c + d));
+		error.at<float>(i) = (float)(x2tEx1 * x2tEx1 / (a + b + c + d));
     }
 
 /*	Eigen::MatrixXd X1t, X2t;
@@ -545,21 +531,19 @@ void CvEMEstimator::computeReprojError3( const CvMat* m1, const CvMat* m2,
 */
 }
 
-bool CvEMEstimator::ValidModel(const CvMat* m1, const CvMat* m2, const CvMat* model)
+bool CvEMEstimator::ValidModel(const cv::Mat &m1, const cv::Mat &m2, const cv::Mat &model)
 {
 	Mat /*p1(m1), p2(m2), Ecv(model),*/ _p1, _p2;
-	Mat p1 = cvarrToMat(m1);
-	Mat p2 = cvarrToMat(m2);
-	Mat Ecv = cvarrToMat(model);
+	Mat p1, p2;
 	Eigen::Matrix3d E, V;
 	Eigen::Vector3d e2, x1, x2;
 
 
-	int n = p1.cols;
+	int n = m1.cols;
 	int failCnt = 0;
 	bool emult = false;
-    p1 = p1.reshape(1, n);
-    p2 = p2.reshape(1, n);
+    p1 = m1.reshape(1, n);
+    p2 = m2.reshape(1, n);
 	//_p1 = p1.clone();
 	//_p2 = p2.clone();
 	//_p1 = _p1.t();
@@ -567,7 +551,7 @@ bool CvEMEstimator::ValidModel(const CvMat* m1, const CvMat* m2, const CvMat* mo
 	//_p1 = _p1.reshape(1);
     //_p2 = _p2.reshape(1);
 
-	cv2eigen(Ecv, E);
+	cv2eigen(model, E);
 	Eigen::JacobiSVD<Eigen::Matrix3d > svdE;
 
 	tryocagain:

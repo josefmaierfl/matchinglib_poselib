@@ -653,8 +653,8 @@ bool runHomogrophyKernel( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* H )
     int i, count = m1->rows*m1->cols;
 //    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
 //    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
-    const std::vector<cv::Point2d> M = (std::vector<cv::Point2d>)(*m1);
-    const std::vector<cv::Point2d> m = (std::vector<cv::Point2d>)(*m2);
+    std::vector<cv::Point2d> M = (std::vector<cv::Point2d>)(m1->reshape(2));
+    std::vector<cv::Point2d> m = (std::vector<cv::Point2d>)(m2->reshape(2));
 
     double LtL[9][9], W[9][1], V[9][9];
     cv::Mat _LtL = cv::Mat( 9, 9, CV_64F, LtL );
@@ -732,8 +732,8 @@ bool runHomogrophyKernel( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* H )
 void computeHomographyReprojError(const cv::Mat* m1, const cv::Mat* m2, const cv::Mat* model, std::vector<double> & err)
 {
     int i, count = m1->rows*m1->cols;
-    const vector<cv::Point2d> M = (vector<cv::Point2d>)(*m1);
-    const vector<cv::Point2d> m = (vector<cv::Point2d>)(*m2);
+    vector<cv::Point2d> M = (vector<cv::Point2d>)(m1->reshape(2));
+    vector<cv::Point2d> m = (vector<cv::Point2d>)(m2->reshape(2));
 //    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data.ptr;
 //    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data.ptr;
     const double* H = (double*)model->data;
@@ -800,15 +800,17 @@ void findHomographyInliers(cv::InputArray p1, cv::InputArray p2, cv::InputArray 
  */
 bool refineHomography( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* model, int maxIters )
 {
-    CvLevMarq solver(8, 0, cv::TermCriteria(cv::TermCriteria::Type::COUNT + cv::TermCriteria::Type::EPS, maxIters, DBL_EPSILON));
+    CvLevMarq solver(8, 0, cvTermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, maxIters, DBL_EPSILON));
+//    CvLevMarq solver(8, 0, cv::TermCriteria(cv::TermCriteria::Type::COUNT + cv::TermCriteria::Type::EPS, maxIters, DBL_EPSILON));
     //TERMCRIT_ITER+CV_TERMCRIT_EPS
     int i, j, k, count = m1->rows*m1->cols;
-    const std::vector<cv::Point2d> M = (const std::vector<cv::Point2d>)(*m1);
-    const std::vector<cv::Point2d> m = (const std::vector<cv::Point2d>)(*m2);
+    std::vector<cv::Point2d> M = (const std::vector<cv::Point2d>)(m1->reshape(2));
+    std::vector<cv::Point2d> m = (const std::vector<cv::Point2d>)(m2->reshape(2));
 //    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data;
 //    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data;
     cv::Mat modelPart = cv::Mat( solver.param->rows, solver.param->cols, model->type(), model->data );
-    CvMat tmp = modelPart.clone();
+    cv::Mat tmp1 = modelPart.clone();
+    CvMat tmp = cvMat( tmp1.rows, tmp1.cols, tmp1.type(), tmp1.data);
     solver.param = &tmp;
 //    cvCopy( &modelPart, solver.param );
 

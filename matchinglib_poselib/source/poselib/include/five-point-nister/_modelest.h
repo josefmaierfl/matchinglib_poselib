@@ -51,55 +51,54 @@
 class CvModelEstimator3
 {
 public:
-    CvModelEstimator3(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions);
+    CvModelEstimator3(int _modelPoints, cv::Size _modelSize, int _maxBasicSolutions);
     virtual ~CvModelEstimator3();
 
-    virtual int runKernel( const CvMat* m1, const CvMat* m2, CvMat* model )=0;
-	virtual bool ValidModel(const CvMat* m1, const CvMat* m2, const CvMat* model) {return true;}
-    virtual bool runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model,
-                           CvMat* mask, double confidence=0.99, int maxIters=2000 );
-    virtual bool runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
-                            CvMat* mask0, double reprojThreshold,
-                            double confidence=0.99, int maxIters=2000, bool lesqu=false );
-	virtual bool runARRSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
-							CvMat* mask0, double reprojThreshold,
-							bool lesqu=false,
+    virtual int runKernel( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model )=0;
+	virtual bool ValidModel(const cv::Mat &m1, const cv::Mat &m2, const cv::Mat &model) {return true;}
+    virtual bool runLMeDS( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model,
+                           cv::Mat &mask, double confidence, int maxIters );
+    virtual bool runRANSAC( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model,
+                            cv::Mat &mask0, double reprojThreshold,
+                            double confidence, int maxIters, bool lesqu );
+	virtual bool runARRSAC( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model,
+							cv::Mat &mask0, double reprojThreshold,
+							bool lesqu,
 							void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
 													cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE,
 													double *sumSqrErr_init, double *sumSqrErr,
-													cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs) = NULL);
-    virtual bool refine( const CvMat*, const CvMat*, CvMat*, int ) { return true; }
+													cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs));
+    virtual bool refine( const cv::Mat&, const cv::Mat&, cv::Mat&, int ) { return true; }
     virtual void setSeed( int64 seed );
-	virtual void computeReprojError3( const CvMat* m1, const CvMat* m2,
-                                     const CvMat* model, CvMat* error ) = 0;
+	virtual void computeReprojError3( const cv::Mat &m1, const cv::Mat &m2,
+                                     const cv::Mat &model, cv::Mat &error ) = 0;
 
 	int getModelPoints(){return modelPoints;}
-	CvSize getModelSize(){return modelSize;}
+	cv::Size getModelSize(){return modelSize;}
 	int getMaxBasicSolutions(){return maxBasicSolutions;}
 
 protected:
 
-    virtual int findInliers( const CvMat* m1, const CvMat* m2,
-                             const CvMat* model, CvMat* error,
-                             CvMat* mask, double threshold );
-    virtual bool getSubset( const CvMat* m1, const CvMat* m2,
-                            CvMat* ms1, CvMat* ms2, int maxAttempts=1000 );
-    virtual bool checkSubset( const CvMat* ms1, int count );
+    virtual int findInliers( const cv::Mat &m1, const cv::Mat &m2,
+                             const cv::Mat &model, cv::Mat &error,
+                             cv::Mat &mask, double threshold );
+    virtual bool getSubset( const cv::Mat &m1, const cv::Mat &m2,
+                            cv::Mat &ms1, cv::Mat &ms2, int maxAttempts );
+    virtual bool checkSubset( const cv::Mat &ms1, int count );
 
-    CvRNG rng;
     int modelPoints;
-    CvSize modelSize;
+    cv::Size modelSize;
     int maxBasicSolutions;
     bool checkPartialSubsets;
 
 	friend class EssentialMatEstimatorTheia;
 };
 
-class EssentialMatEstimatorTheia: public theia::Estimator<size_t,CvMat>
+class EssentialMatEstimatorTheia: public theia::Estimator<size_t,cv::Mat>
 {
 public:
 	EssentialMatEstimatorTheia(CvModelEstimator3* modelEstimator,
-						  cv::Mat points1, cv::Mat points2)
+						  const cv::Mat &points1, const cv::Mat &points2)
 		:modelEstimator_(modelEstimator),
 		 points1_(points1),
 		 points2_(points2) {}
@@ -107,12 +106,12 @@ public:
 	~EssentialMatEstimatorTheia() {}
 
 	bool EstimateModel(const std::vector<size_t>& data,
-		std::vector<CvMat>* model) const;
+		std::vector<cv::Mat>* model) const;
 
 	bool EstimateModelNonminimal(const std::vector<size_t>& data,
-		std::vector<CvMat>* model) const;
+		std::vector<cv::Mat>* model) const;
 
-	double Error(const size_t& data, const CvMat& model) const;
+	double Error(const size_t& data, const cv::Mat& model) const;
 
 private:
 	CvModelEstimator3* modelEstimator_;

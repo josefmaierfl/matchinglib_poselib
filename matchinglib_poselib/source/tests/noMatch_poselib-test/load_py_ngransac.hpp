@@ -1,0 +1,9 @@
+//
+// Created by maierj on 07.02.20.
+//
+
+
+#ifndef MATCHING_LOAD_PY_NGRANSAC_HPP
+#define MATCHING_LOAD_PY_NGRANSAC_HPP
+
+#endif //MATCHING_LOAD_PY_NGRANSAC_HPP

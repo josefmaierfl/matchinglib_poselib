@@ -642,7 +642,7 @@ void computeReprojError2(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> 
 void getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & yaw, bool useDegrees)
 {
     Mat m = R.getMat();
-    const double radDegConv = 180 / PI;
+    const double radDegConv = 180.0 / PI;
 
     /** this conversion uses conventions as described on page:
 *   http://www.euclideanspace.com/maths/geometry/rotations/euler/index.htm
@@ -676,6 +676,9 @@ void getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & y
         pitch *= radDegConv;
         roll *= radDegConv;
         yaw *= radDegConv;
+        pitch = round(1e6 * pitch) / 1e6;
+        roll = round(1e6 * roll) / 1e6;
+        yaw = round(1e6 * yaw) / 1e6;
     }
 }
 
@@ -2314,10 +2317,10 @@ void cvUndistortPoints2( const cv::Mat& _src, cv::Mat& _dst, const cv::Mat& _cam
         _RR = _PP * _RR;
     }
 
-    srcf = (std::vector<cv::Point2f>)_src;
-    srcd = (std::vector<cv::Point2d>)_src;
-    dstf = (std::vector<cv::Point2f>)_dst;
-    dstd = (std::vector<cv::Point2d>)_dst;
+    srcf = (std::vector<cv::Point2f>)_src.reshape(2);
+    srcd = (std::vector<cv::Point2d>)_src.reshape(2);
+    dstf = (std::vector<cv::Point2f>)_dst.reshape(2);
+    dstd = (std::vector<cv::Point2d>)_dst.reshape(2);
     stype = _src.type();
     dtype = _dst.type();
     sstep = _src.rows == 1 ? 1 : _src.step/CV_ELEM_SIZE(stype);
@@ -2420,7 +2423,7 @@ void icvGetRectanglesV0( const cv::Mat* cameraMatrix, const cv::Mat* distCoeffs,
     int x, y, k;
 //    cv::Ptr<cv::Mat> _pts = cvCreateMat(1, N*N, CV_32FC2);
     cv::Mat _pts = Mat(1, N*N, CV_32FC2);
-    std::vector<cv::Point2f> pts = (std::vector<cv::Point2f>)(_pts);
+    std::vector<cv::Point2f> pts = (std::vector<cv::Point2f>)(_pts.reshape(2));
 //    CvPoint2D32f* pts = (CvPoint2D32f*)(_pts->data.ptr);
 
     for( y = k = 0; y < N; y++ )
@@ -3032,6 +3035,9 @@ double getAnglesBetwVectors(cv::Mat v1, cv::Mat v2, bool degree)
     CV_Assert((v1.cols == v2.cols) && (v1.rows == v2.rows));
     double angle = v1.dot(v2);// std::acos(v1.dot(v2) / (cv::norm(v1) * cv::norm(v2)));
     angle /= cv::norm(v1) * cv::norm(v2);
+    if(poselib::nearZero(1e3 * (angle - 1.0))){
+        return 0;
+    }
     angle = std::acos(angle);
     if (degree)
         angle *= 180.0 / PI;

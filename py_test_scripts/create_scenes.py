@@ -771,7 +771,7 @@ def searchParSetNr(ov_file, parSetNr):
 
 
 def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
-    np.random.seed()
+    # np.random.seed()
     #Check if we have to wait until other sequence generation processes have finished writing into the overview file
     if loaded:
         ov_file = os.path.join(cmd_l[10], 'matchInfos.yaml')
@@ -830,7 +830,7 @@ def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
                 # sys.stdout.flush()
                 # raise BaseException
                 return ['noExe']
-        time.sleep(np.random.uniform(0.5, 20.0))
+        # time.sleep(np.random.uniform(0.5, 20.0))
         # cnt = 0
         # while not data_set and cnt < cnt1max:
         #     time.sleep(10)

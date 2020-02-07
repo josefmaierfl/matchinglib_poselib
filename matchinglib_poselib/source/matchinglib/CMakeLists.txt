@@ -9,7 +9,7 @@ option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the libr
 
 find_package(Eigen REQUIRED)
 
-find_package(OpenCV 4.1.1 REQUIRED)
+find_package(OpenCV 4.2.0 REQUIRED)
 
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.1.1/include")
 

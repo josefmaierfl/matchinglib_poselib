@@ -16,7 +16,7 @@ set(sources
     main.cpp
 	io_data.cpp
 	argvparser.cpp
-)
+    load_py_ngransac.hpp)
 
 #find_package(Clapack REQUIRED)
 find_package(Boost REQUIRED)

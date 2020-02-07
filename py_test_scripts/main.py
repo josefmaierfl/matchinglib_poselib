@@ -868,14 +868,17 @@ def compress_res_folder(zip_res_folder, res_path):
         res_path = res_path[:-1]
     res_path_main = os.path.dirname(res_path)
     (parent, tail) = os.path.split(res_path_main)
+    save_dir = os.path.join(parent, 'res_save_compressed')
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
     cnt = 0
     base_name = tail + '_%03d' % cnt
-    f_name = os.path.join(parent, base_name)
+    f_name = os.path.join(save_dir, base_name)
     f_name1 = f_name + '.zip'
     while os.path.exists(f_name1):
         cnt += 1
         base_name = tail + '_%03d' % cnt
-        f_name = os.path.join(parent, base_name)
+        f_name = os.path.join(save_dir, base_name)
         f_name1 = f_name + '.zip'
     shutil.make_archive(f_name, 'zip', parent, tail)
 
