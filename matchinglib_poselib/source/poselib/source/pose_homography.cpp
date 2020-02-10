@@ -627,8 +627,8 @@ double ArrHomogrophyEstimator::Error(const size_t& data, const cv::Mat & model) 
 
 //	const CvPoint2D64f* M = (const CvPoint2D64f*)m1.data.ptr;
 //    const CvPoint2D64f* m = (const CvPoint2D64f*)m2.data.ptr;
-    const cv::Point2d M = cv::Point2d(m1);
-    const cv::Point2d m = cv::Point2d(m2);
+    const cv::Point2d M = cv::Point2d(m1.reshape(1));
+    const cv::Point2d m = cv::Point2d(m2.reshape(1));
 	cv::Mat model_ = model;
 	const double* H = (double*)model_.data;
 
@@ -708,10 +708,11 @@ bool runHomogrophyKernel( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* H )
     cv::completeSymm( _LtL );
 
     //cvSVD( &_LtL, &matW, 0, &matV, CV_SVD_MODIFY_A + CV_SVD_V_T );
-    cv::eigen( _LtL, matV, matW );
+    cv::eigen( _LtL, matW, matV );
     _Htemp = _invHnorm * _H0;
     _H0 = _Htemp * _Hnorm2;
-    _H0.convertTo(*H, 1./_H0.at<double>(3,3));
+    _H0.convertTo(_H0, CV_64FC1, 1./_H0.at<double>(2,2));
+    _H0.copyTo(*H);
 //    cvMatMul( &_invHnorm, &_H0, &_Htemp );
 //    cvMatMul( &_Htemp, &_Hnorm2, &_H0 );
 //    cvConvertScale( &_H0, H, 1./_H0.data.db[8] );
@@ -808,10 +809,13 @@ bool refineHomography( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* model, int
     std::vector<cv::Point2d> m = (const std::vector<cv::Point2d>)(m2->reshape(2));
 //    const CvPoint2D64f* M = (const CvPoint2D64f*)m1->data;
 //    const CvPoint2D64f* m = (const CvPoint2D64f*)m2->data;
-    cv::Mat modelPart = cv::Mat( solver.param->rows, solver.param->cols, model->type(), model->data );
-    cv::Mat tmp1 = modelPart.clone();
-    CvMat tmp = cvMat( tmp1.rows, tmp1.cols, tmp1.type(), tmp1.data);
-    solver.param = &tmp;
+//    cv::Mat modelPart = cv::Mat( solver.param->rows, solver.param->cols, model->type(), model->data );
+//    cv::Mat tmp1 = modelPart.clone();
+//    double tmp1_d[9];
+//    CvMat tmp = cvMat( solver.param->rows, solver.param->cols, model->type(), tmp1_d);
+//    memcpy((void *)tmp.data.db, (void *)(model->data), sizeof(double) * 9);
+    memcpy((void *)solver.param->data.db, (void *)(model->data), sizeof(double) * 8);
+//    solver.param = &tmp;
 //    cvCopy( &modelPart, solver.param );
 
     for(;;)
@@ -853,7 +857,7 @@ bool refineHomography( const cv::Mat* m1, const cv::Mat* m2, cv::Mat* model, int
     }
 
 //    cvCopy( solver.param, &modelPart );
-    memcpy((void *)model->data, (void *)(solver.param->data.db), sizeof(double) * model->rows * model->cols * model->channels());
+    memcpy((void *)model->data, (void *)(solver.param->data.db), sizeof(double) * 8);
     return true;
 }
 

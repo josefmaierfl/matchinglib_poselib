@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
 
 #else*/
 
-#define TESTOUT 1
+#define TESTOUT 0
 
 // ideal case
 #include "matchinglib/matchinglib.h"
@@ -2068,7 +2068,7 @@ bool startEvaluation(ArgvParser& cmd)
 					availableRT = true;
 				}
 			}
-			cv::Mat Q;
+			cv::Mat Q, mask_E = mask.clone();
 			if (cp.Halign && ((cp.refineMethod & 0xF) == poselib::RefinePostAlg::PR_NO_REFINEMENT))
 			{
 				if(poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ) <= 0){
@@ -2136,6 +2136,7 @@ bool startEvaluation(ArgvParser& cmd)
                         }
 					}
 				}
+                mask_E = mask.clone();
 
 				if (!availableRT) {
 #if TESTOUT
@@ -2250,7 +2251,8 @@ bool startEvaluation(ArgvParser& cmd)
             ar[i].tm.bundleAdjust = chrono::duration_cast<chrono::microseconds>(t_2 - t_1).count();
             CV_Assert((p1.rows == mask.rows) || (p1.rows == mask.cols));
             CV_Assert((p2.rows == mask.rows) || (p2.rows == mask.cols));
-            ar[i].calcInlRatEstimated(mask);
+            CV_Assert(mask_E.size() == mask.size());
+            ar[i].calcInlRatEstimated(mask_E);
             ar[i].calcRTDiff(R, sm.actR, t, sm.actT, false, !noPoseDiff && compInitPose && (verbose > 0));
 
 			if (verbose > 2)

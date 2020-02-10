@@ -506,7 +506,7 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
 	  else
 	  {
 			// Select n, the number of hypotheses to consider.
-			int n1 = max(1,(int)floor((float)k * pow(2.0, -1.0 * floor((float)(i+1) / (float)block_size_))));
+			int n1 = std::max(1,(int)floor((float)k * pow(2.0, -1.0 * floor((float)(i+1) / (float)block_size_))));
 			//int n = std::min(f_i, static_cast<int>(hypotheses.size() / 2));
 		    if( n1 < static_cast<int>(hypotheses.size()))
 			{
