@@ -883,6 +883,28 @@ def compress_res_folder(zip_res_folder, res_path):
     shutil.make_archive(f_name, 'zip', parent, tail)
 
 
+def compress_mess_folder(zip_mess_folder, mess_path, ret=1):
+    if not zip_mess_folder or not ret:
+        return
+    if mess_path[-1] == '/':
+        mess_path = mess_path[:-1]
+    (res_path_main, tail) = os.path.split(mess_path)
+    parent = os.path.dirname(res_path_main)
+    save_dir = os.path.join(parent, 'res_save_compressed')
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    cnt = 0
+    base_name = 'messages_%03d' % cnt
+    f_name = os.path.join(save_dir, base_name)
+    f_name1 = f_name + '.zip'
+    while os.path.exists(f_name1):
+        cnt += 1
+        base_name = 'messages_%03d' % cnt
+        f_name = os.path.join(save_dir, base_name)
+        f_name1 = f_name + '.zip'
+    shutil.make_archive(f_name, 'zip', res_path_main, tail)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Main script file for executing the whole test procedure for '
                                                  'testing the autocalibration SW')
@@ -1010,6 +1032,10 @@ def main():
                         help='If provided, the whole content within the main results folder is compressed and stored '
                              'in the parent directory of the results folder. If a zipped file exists, a new filename '
                              'is created. Thus, it could be used for versioning.')
+    parser.add_argument('--zip_message_folder', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='If provided, the whole content within the messages folder is compressed and stored '
+                             'in the parent directory of the results folder if an error occured. If a zipped file '
+                             'exists, a new filename is created.')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -1158,20 +1184,24 @@ def main():
         ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
         ret += retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
+        compress_mess_folder(args.zip_message_folder, args.message_path, ret)
         sys.exit(ret)
     if args.crt_sc_dirs_file:
         ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
+        compress_mess_folder(args.zip_message_folder, args.message_path, ret)
         sys.exit(ret)
     if args.crt_sc_cmds_file:
         ret = retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
+        compress_mess_folder(args.zip_message_folder, args.message_path, ret)
         sys.exit(ret)
 
     if args.cal_retry_file:
         ret = retry_autocalibration(args.cal_retry_file, args.cal_retry_nrCall, args.store_path_cal,
                                     args.exec_cal, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
+        compress_mess_folder(args.zip_message_folder, args.message_path, ret)
         sys.exit(ret)
 
     try:
@@ -1187,6 +1217,7 @@ def main():
         ret = 99
         send_message('Error in main file')
     compress_res_folder(args.zip_res_folder, args.store_path_cal)
+    compress_mess_folder(args.zip_message_folder, args.message_path, ret)
     sys.exit(ret)
 
 
