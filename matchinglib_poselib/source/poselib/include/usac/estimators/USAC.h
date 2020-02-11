@@ -978,6 +978,9 @@ unsigned int USAC<ProblemType>::locallyOptimizeSolution(const unsigned int bestI
 			continue;
 		}
 		temp_inliers = findInliers(err_ptr_[0], lo_threshold_multiplier_*usac_inlier_threshold_, &iter_inliers);
+		if (temp_inliers < usac_min_sample_size_){
+		    continue;
+		}
 		refinedModelvalid = true;
 
 		// generate least squares model from all inliers

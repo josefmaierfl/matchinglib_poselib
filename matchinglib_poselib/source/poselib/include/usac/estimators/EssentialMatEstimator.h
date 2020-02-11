@@ -496,6 +496,9 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
     bool weighted,
     double* weights)
 {
+    if (numPoints < usac_min_sample_size_){
+        return false;
+    }
     /*if (posetype == USACConfig::TRANS_ESSENTIAL)
     {*/
         if (refineMethod == USACConfig::REFINE_WEIGHTS)
