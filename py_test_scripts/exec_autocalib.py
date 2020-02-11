@@ -302,7 +302,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
             while 1:
                 sys.stdout.flush()
                 try:
-                    res = r.get(2.0)
+                    res += r.get(2.0)
                     break
                 except multiprocessing.TimeoutError:
                     if cnt_dot >= 90:

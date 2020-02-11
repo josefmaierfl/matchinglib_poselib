@@ -358,7 +358,10 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
         fivept_nister_essentials_denorm.clear();
         fivept_nister_essentials_denorm = opengv::relative_pose::fivept_nister(*adapter_denorm, indices);
         nsols = fivept_nister_essentials_denorm.size();
-        CV_Assert(nsols <= usac_max_solns_per_sample_);
+        if (nsols > usac_max_solns_per_sample_){
+            return 0;
+        }
+//        CV_Assert(nsols <= usac_max_solns_per_sample_);
     }
     else if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
     {
@@ -411,7 +414,10 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
             cv::cv2eigen(E_tmp, E_eigen);
             fivept_nister_essentials_denorm.push_back(E_eigen);
         }
-        CV_Assert(nsols <= usac_max_solns_per_sample_);
+        if (nsols > usac_max_solns_per_sample_){
+            return 0;
+        }
+//        CV_Assert(nsols <= usac_max_solns_per_sample_);
         if (nsols == 0)
             return 0;
     }
@@ -448,14 +454,20 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
         }
 
         nsols = fivept_nister_essentials_denorm.size();
-        CV_Assert(nsols <= usac_max_solns_per_sample_);
+        if (nsols > usac_max_solns_per_sample_){
+            return 0;
+        }
+//        CV_Assert(nsols <= usac_max_solns_per_sample_);
     }
     else
     {
         std::cout << "Estimator not supported! Using Nister." << std::endl;
         fivept_nister_essentials_denorm = opengv::relative_pose::fivept_nister(*adapter_denorm, indices);
         nsols = fivept_nister_essentials_denorm.size();
-        CV_Assert(nsols <= usac_max_solns_per_sample_);
+        if (nsols > usac_max_solns_per_sample_){
+            return 0;
+        }
+//        CV_Assert(nsols <= usac_max_solns_per_sample_);
     }
 
     fivept_nister_essentials.clear();

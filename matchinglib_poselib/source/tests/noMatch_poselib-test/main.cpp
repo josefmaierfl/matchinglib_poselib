@@ -22,6 +22,8 @@ int main(int argc, char* argv[])
 #include "poselib/pose_homography.h"
 #include "poselib/pose_linear_refinement.h"
 #include "poselib/stereo_pose_refinement.h"
+
+#include "load_py_ngransac.hpp"
 // ---------------------
 
 #include "opencv2/imgproc/imgproc.hpp"

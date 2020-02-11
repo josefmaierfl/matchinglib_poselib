@@ -16,10 +16,17 @@ set(sources
     main.cpp
 	io_data.cpp
 	argvparser.cpp
-    load_py_ngransac.hpp)
+    load_py_ngransac.cpp)
 
 #find_package(Clapack REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost COMPONENTS filesystem system date_time python36 REQUIRED)
+message("Include dirs of boost: " ${Boost_INCLUDE_DIRS} )
+message("Libs of boost: " ${Boost_LIBRARIES} )
+
+find_package(PythonLibs REQUIRED)
+message("Include dirs of Python: " ${PYTHON_INCLUDE_DIRS} )
+message("Libs of Python: " ${PYTHON_LIBRARIES} )
+
 #SET( Nanoflann_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/source/poselib/thirdparty/nanoflann-1.3.0/include")
 
 #
@@ -56,6 +63,8 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
+	${Boost_INCLUDE_DIRS}
+	${PYTHON_INCLUDE_DIRS}
 	#${Nanoflann_INCLUDE_DIR}
 )
 
@@ -73,6 +82,8 @@ target_link_libraries(${target}
     gmock-dev
     ${SBA_LIBRARIES}
     ${CLAPACK_LIBRARIES}
+	${Boost_LIBRARIES}
+	${PYTHON_LIBRARIES}
 #    blas
 )
 
