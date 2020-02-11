@@ -5,7 +5,7 @@ import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, logging
 import communication as com
 import evaluation_numbers as en
 import pandas as pd
-import shutil
+import shutil, zipfile
 
 token = ''
 use_sms = False
@@ -17,7 +17,7 @@ test_raise = [False, False, False]
 def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_sc,
                         use_cal_tests, use_evals, img_path, store_path_sequ, load_path, cpu_use,
                         exec_sequ, message_path, exec_cal, store_path_cal, compare_pars,
-                        comp_pars_ev_nr, compare_path):
+                        comp_pars_ev_nr, compare_path, log_new_folders):
     main_tests = en.get_available_main_tests()
     scene_creation = en.get_available_sequences()
     if skip_tests:
@@ -36,7 +36,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
         # Generate configuration files
         if any([b == mt for b in scene_creation]) and \
                 not (skip_gen_sc_conf and any([b == mt for b in skip_gen_sc_conf])):
-            ret = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path)
+            ret = gen_config_files(mt, path, path_confs_out, img_path, store_path_sequ, load_path, log_new_folders)
             if ret:
                 return ret
             print('Finished generating sequence configuration files for ' + mt)
@@ -46,6 +46,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
             pcol = get_confs_path(mt, -1, path, path_confs_out)
             for pco in pcol:
                 ret = gen_scenes(mt, pco, exec_sequ, message_path_new, cpu_use)
+                log_sequ_folders(mt, store_path_sequ, log_new_folders)
                 if ret:
                     return ret
             print('Finished generating scenes and matches for ' + mt)
@@ -66,6 +67,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                     pco = get_confs_path(conf_name, conf_nr, path, path_confs_out)
                     # Run autocalibration
                     ret = start_autocalibration(mt, tn, pco, store_path_cal, exec_cal, message_path_new, cpu_use)
+                    log_autoc_folders(mt, tn, store_path_cal, log_new_folders)
                     if ret:
                         return ret
                     print('Finished testing autocalibration for main test ', mt,
@@ -79,6 +81,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                         ev_nrs = use_evals[mt][str(tn)]
                     ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
                                      compare_pars, comp_pars_ev_nr, compare_path)
+                    log_autoc_folders(mt, tn, store_path_cal, log_new_folders)
                     if ret:
                         return ret
                     print('Finished evaluation for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
@@ -93,6 +96,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                     ev_nrs = use_evals[mt][nr_key]
                 ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
                                  compare_pars, comp_pars_ev_nr, compare_path)
+                log_autoc_folders(mt, tn, store_path_cal, log_new_folders, True)
                 if ret:
                     return ret
                 print('Finished evaluation for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
@@ -296,7 +300,7 @@ def gen_scenes(test_name, gen_dirs_config_f, executable, message_path, cpu_use):
     return ret
 
 
-def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store_path_sequ, load_path):
+def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store_path_sequ, load_path, log_new_folders):
     if not path_init_confs:
         raise ValueError('Path containing initial configuration files must be provided.')
     if not img_path:
@@ -321,6 +325,9 @@ def gen_config_files(test_name, path_init_confs, path_confs_out, img_path, store
             except FileExistsError:
                 pass
             cmdline += ['--path_confs_out', pco]
+            log_new_folders.append(pco)
+        else:
+            log_new_folders.append(sub_path)
         if load_path:
             cmdline += ['--load_path', load_path]
         for key, val in pars.items():
@@ -905,6 +912,128 @@ def compress_mess_folder(zip_mess_folder, mess_path, ret=1):
     shutil.make_archive(f_name, 'zip', res_path_main, tail)
 
 
+def IsPathValid(path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
+    splitted = None
+    is_file = os.path.isfile(path)
+    if is_file:
+        if ignoreExt:
+            _, ext = os.path.splitext(path)
+            if ext in ignoreExt:
+                return False
+        main_dir = os.path.dirname(path)
+        splitted = main_dir.split('\\/')
+    else:
+        main_dir = path
+        splitted = path.split('\\/')
+
+    if useOnlyDir:
+        take_dir = []
+        for uod in useOnlyDir:
+            try:
+                take_dir.append(not os.path.samefile(os.path.commonprefix(main_dir, uod), rootDir))
+            except:
+                pass
+        if not any(take_dir):
+            return False
+
+    if not is_file and not ignoreDir:
+        return True
+
+    for s in splitted:
+        if s in ignoreDir:  # You can also use set.intersection or [x for],
+            return False
+
+    return True
+
+
+def zipDirHelper(path, rootDir, zf, ignoreDir=None, ignoreExt=None, useOnlyDir=None):
+    # zf is zipfile handle
+    if os.path.isfile(path):
+        if IsPathValid(path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
+            relative = os.path.relpath(path, rootDir)
+            zf.write(path, relative)
+        return
+
+    ls = os.listdir(path)
+    for subFileOrDir in ls:
+        if not IsPathValid(subFileOrDir, rootDir, ignoreDir, ignoreExt, useOnlyDir):
+            continue
+
+        joinedPath = os.path.join(path, subFileOrDir)
+        zipDirHelper(joinedPath, rootDir, zf, ignoreDir, ignoreExt, useOnlyDir)
+
+
+def ZipDir(path, zf, ignoreDir=None, ignoreExt=None, useOnlyDir=None):
+    rootDir = path if os.path.isdir(path) else os.path.dirname(path)
+    zipDirHelper(path, rootDir, zf, ignoreDir, ignoreExt, useOnlyDir)
+    # pass
+
+
+def compress_new_dirs(zip_new_folders, res_path, log_new_folders, message_path, ignoreDirs=None, ignoreExts=None):
+    if not zip_new_folders:
+        return
+    log_new_folders.append(message_path)
+    if res_path[-1] == '/':
+        res_path = res_path[:-1]
+    res_path_main = os.path.dirname(res_path)
+    (parent, tail) = os.path.split(res_path_main)
+    save_dir = os.path.join(parent, 'res_save_compressed')
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    cnt = 0
+    base_name = tail + '_new_folders_%03d' % cnt
+    f_name = os.path.join(save_dir, base_name)
+    f_name1 = f_name + '.zip'
+    while os.path.exists(f_name1):
+        cnt += 1
+        base_name = tail + '_new_folders_%03d' % cnt
+        f_name = os.path.join(save_dir, base_name)
+        f_name1 = f_name + '.zip'
+    if log_new_folders:
+        log_new_folders = list(dict.fromkeys(log_new_folders))
+    theZipFile = zipfile.ZipFile(f_name1, 'w')
+    # ZipDir(res_path_main, theZipFile, ignoreDir=[".svn"], ignoreExt=[".zip"], useOnlyDir=log_new_folders)
+    ZipDir(res_path_main, theZipFile, ignoreDirs, ignoreExts, log_new_folders)
+    theZipFile.close()
+
+
+def log_sequ_folders(zip_new_folders, sequ_store_path, log_new_folders):
+    if zip_new_folders:
+        av_sequ = en.get_available_sequences()
+        if zip_new_folders == 'noSpecific':
+            warnings.warn('No specific test name was specified for compressing sequences. '
+                          'Compressing all available.', UserWarning)
+            log_new_folders.append(sequ_store_path)
+        elif zip_new_folders not in av_sequ:
+            raise ValueError('Given main test ' + zip_new_folders +
+                             ' for compressing sequences is not listed.')
+        else:
+            match_str = r'{}_kp-distr-(?:(?:half-img)|(?:1corn)|(?:equ))' \
+                        r'_depth-(?:F|(?:NM)|(?:NMF))_TP-[0-9to]+.*'.format(zip_new_folders)
+            ls = os.listdir(sequ_store_path)
+            for lsi in ls:
+                m_obj = re.match(match_str, lsi)
+                if m_obj:
+                    log_new_folders.append(lsi)
+
+
+def log_autoc_folders(test_name, test_nr, store_path_cal, log_new_folders, is_eval_only=False):
+    path_to_tests = os.path.join(store_path_cal, test_name)
+    if test_nr:
+        path_to_tests = os.path.join(path_to_tests, str(test_nr))
+    if is_eval_only:
+        path_to_tests = os.path.join(path_to_tests, 'evals')
+    if os.path.exists(path_to_tests):
+        log_new_folders.append(path_to_tests)
+
+
+def shut_down(shutdown_afterwards):
+    if shutdown_afterwards == 'exit':
+        sp.call(["exit"])
+    elif shutdown_afterwards == 'shutdown':
+        sp.call(["shutdown", "-h", "now"])
+
+
 def main():
     parser = argparse.ArgumentParser(description='Main script file for executing the whole test procedure for '
                                                  'testing the autocalibration SW')
@@ -1036,6 +1165,15 @@ def main():
                         help='If provided, the whole content within the messages folder is compressed and stored '
                              'in the parent directory of the results folder if an error occured. If a zipped file '
                              'exists, a new filename is created.')
+    parser.add_argument('--zip_new_folders', type=str, nargs='?', required=False, default=None, const='noSpecific',
+                        help='If provided, all folders where new files were created within the main results folder '
+                             'are compressed and stored in the parent directory of the results folder. If a zipped '
+                             'file exists, a new filename is created. Furthermore, a main test name can be provided'
+                             'to take only folders created within this main test (only used when creating sequences).')
+    parser.add_argument('--shutdown_afterwards', type=str, nargs='?', required=False, default='dont', const='exit',
+                        help='If provided, the system will be shut down after finishing. '
+                             'As default, the command \'exit\' is called which stops the docker image. '
+                             'If the value \'shutdown\' is provided \'shutdown -h now\' is executed.')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -1165,6 +1303,7 @@ def main():
             except FileExistsError:
                 pass
 
+    log_new_folders = []
     if args.cal_retry_file or args.cal_retry_nrCall:
         if not (args.cal_retry_file and args.cal_retry_nrCall):
             raise ValueError('Both parameters cal_retry_file and cal_retry_nrCall must be provided')
@@ -1179,7 +1318,8 @@ def main():
         parent = os.path.dirname(args.cal_retry_file)
         (parent_test, test_nr_str) = os.path.split(parent)
         if any(a == test_nr_str for a in main_test_names):
-            args.store_path_cal = os.path.join(args.store_path_cal, test_nr_str)
+            test_name_p = test_nr_str
+            args.store_path_cal = os.path.join(args.store_path_cal, test_name_p)
         else:
             test_name_p = os.path.basename(parent_test)
             if test_name_p not in main_test_names:
@@ -1200,6 +1340,7 @@ def main():
         args.store_path_cal = os.path.join(args.store_path_cal, 'results')
         if not os.path.exists(args.store_path_cal):
             raise ValueError('Directory ' + args.store_path_cal + ' does not exist.')
+        log_new_folders.append(args.store_path_cal)
         message_retry = os.path.join(args.message_path, test_name_p)
         if not os.path.exists(message_retry):
             raise ValueError('Directory ' + message_retry + ' does not exist.')
@@ -1212,16 +1353,25 @@ def main():
         ret += retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
         compress_mess_folder(args.zip_message_folder, args.message_path, ret)
+        log_sequ_folders(args.zip_new_folders, args.store_path_sequ, log_new_folders)
+        compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
+        shut_down(args.shutdown_afterwards)
         sys.exit(ret)
     if args.crt_sc_dirs_file:
         ret = retry_scenes_gen_dir(args.crt_sc_dirs_file, args.exec_sequ, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
         compress_mess_folder(args.zip_message_folder, args.message_path, ret)
+        log_sequ_folders(args.zip_new_folders, args.store_path_sequ, log_new_folders)
+        compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
+        shut_down(args.shutdown_afterwards)
         sys.exit(ret)
     if args.crt_sc_cmds_file:
         ret = retry_scenes_gen_cmds(args.crt_sc_cmds_file, args.message_path, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
         compress_mess_folder(args.zip_message_folder, args.message_path, ret)
+        log_sequ_folders(args.zip_new_folders, args.store_path_sequ, log_new_folders)
+        compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
+        shut_down(args.shutdown_afterwards)
         sys.exit(ret)
 
     if args.cal_retry_file:
@@ -1229,6 +1379,8 @@ def main():
                                     args.exec_cal, message_retry, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
         compress_mess_folder(args.zip_message_folder, args.message_path, ret)
+        compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
+        shut_down(args.shutdown_afterwards)
         sys.exit(ret)
 
     try:
@@ -1238,13 +1390,15 @@ def main():
         ret = start_testing(args.path, args.path_confs_out, args.skip_tests, args.skip_gen_sc_conf, args.skip_crt_sc,
                             use_cal_tests, use_evals, args.img_path, args.store_path_sequ, args.load_path, cpu_use,
                             args.exec_sequ, args.message_path, args.exec_cal, args.store_path_cal, args.compare_pars,
-                            args.comp_pars_ev_nr, args.compare_path)
+                            args.comp_pars_ev_nr, args.compare_path, log_new_folders)
     except Exception:
         logging.error('Error in main file', exc_info=True)
         ret = 99
         send_message('Error in main file')
     compress_res_folder(args.zip_res_folder, args.store_path_cal)
     compress_mess_folder(args.zip_message_folder, args.message_path, ret)
+    compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
+    shut_down(args.shutdown_afterwards)
     sys.exit(ret)
 
 

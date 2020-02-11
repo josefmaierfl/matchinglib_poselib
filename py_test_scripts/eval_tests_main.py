@@ -96,13 +96,13 @@ def load_test_res(load_path):
                         tmp[k] = [tmp[k]]
                     addSequInfo_sep = tmp
             addSequInfo_df = pd.DataFrame(data=addSequInfo_sep)
-            csv_data = pd.concat([csv_data, addSequInfo_df], axis=1, sort=False, join_axes=[csv_data.index])
+            csv_data = pd.concat([csv_data, addSequInfo_df], axis=1, sort=False).reindex(csv_data.index)
             csv_data.drop(columns=['addSequInfo'], inplace=True)
             data_set_tmp = merge_dicts(data_set)
             data_set_tmp = pd.DataFrame(data=data_set_tmp, index=[0])
             data_set_repl = pd.DataFrame(np.repeat(data_set_tmp.values, csv_data.shape[0], axis=0))
             data_set_repl.columns = data_set_tmp.columns
-            csv_new = pd.concat([csv_data, data_set_repl], axis=1, sort=False, join_axes=[csv_data.index])
+            csv_new = pd.concat([csv_data, data_set_repl], axis=1, sort=False).reindex(csv_data.index)
             data_list.append(csv_new)
     data = pd.concat(data_list, ignore_index=True, sort=False, copy=False)
     end = timer()
@@ -199,7 +199,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             os.mkdir(message_path_new)
         except FileExistsError:
             pass
-        cmds = [(data, output_path, test_name, test_nr, a, comp_path, b, message_path_new)
+        cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
                 for a, b in zip(used_evals, comp_pars_list)]
 
         err_trace_base_name = 'evals_except_' + test_name + '_' + str(test_nr)
@@ -253,7 +253,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
 
 
 def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
-    mess_base_name = 'evals_' + test_name + '_' + str(test_nr) + '_' + str(eval_nr)
+    mess_base_name = 'evals_' + test_name + '_' + str(test_nr) + '_' + str(eval_nr[0])
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
     stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
