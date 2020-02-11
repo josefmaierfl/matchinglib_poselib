@@ -1176,6 +1176,33 @@ def main():
             raise ValueError('Argument store_path_cal must be provided')
         if not args.exec_cal:
             raise ValueError('Argument exec_cal must be provided')
+        parent = os.path.dirname(args.cal_retry_file)
+        (parent_test, test_nr_str) = os.path.split(parent)
+        if any(a == test_nr_str for a in main_test_names):
+            args.store_path_cal = os.path.join(args.store_path_cal, test_nr_str)
+        else:
+            test_name_p = os.path.basename(parent_test)
+            if test_name_p not in main_test_names:
+                raise ValueError('Cannot resolve main test name from path. Directory ' + test_name_p +
+                                 ' should be equal to the actual main test name.')
+            try:
+                test_nr_int = int(test_nr_str)
+            except ValueError:
+                raise ValueError('Cannot resolve test number from path. Directory ' + test_nr_str +
+                                 ' should be equal to the actual test number of main test ' + test_name_p)
+            _, sub_test_numbers = en.get_available_tests()
+            test_idx = main_test_names.index(test_name_p)
+            if 0 < test_nr_int > sub_test_numbers[test_idx]:
+                raise ValueError('Cannot resolve test number from path. Directory ' + test_nr_str +
+                                 ' should be equal to the actual test number of main test ' + test_name_p)
+            args.store_path_cal = os.path.join(args.store_path_cal, test_name_p)
+            args.store_path_cal = os.path.join(args.store_path_cal, test_nr_str)
+        args.store_path_cal = os.path.join(args.store_path_cal, 'results')
+        if not os.path.exists(args.store_path_cal):
+            raise ValueError('Directory ' + args.store_path_cal + ' does not exist.')
+        message_retry = os.path.join(args.message_path, test_name_p)
+        if not os.path.exists(message_retry):
+            raise ValueError('Directory ' + message_retry + ' does not exist.')
 
     enable_messaging()
     enable_logging(args.message_path)
@@ -1199,7 +1226,7 @@ def main():
 
     if args.cal_retry_file:
         ret = retry_autocalibration(args.cal_retry_file, args.cal_retry_nrCall, args.store_path_cal,
-                                    args.exec_cal, args.message_path, cpu_use)
+                                    args.exec_cal, message_retry, cpu_use)
         compress_res_folder(args.zip_res_folder, args.store_path_cal)
         compress_mess_folder(args.zip_message_folder, args.message_path, ret)
         sys.exit(ret)

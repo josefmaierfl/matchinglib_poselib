@@ -1,5 +1,5 @@
 #Connect to instance
-ssh -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-3-124-194-251.eu-central-1.compute.amazonaws.com
+ssh -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-18-194-207-60.eu-central-1.compute.amazonaws.com
 
 #Install docker
 sudo apt-get remove docker docker-engine docker.io containerd runc
