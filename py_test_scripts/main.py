@@ -1091,10 +1091,6 @@ def shut_down(shutdown_afterwards):
 
 
 def main():
-    main_folder = '/home/maierj/work/results/results_001/results'
-    log_new_folders = [main_folder + '/messages/usac-testing/evals', main_folder + '/messages/usac-testing/scene_creation/usac_kp-distr-equ_depth-NM_TP-500']
-    compress_new_dirs('compress', main_folder + '/sequences_generated', log_new_folders, main_folder + '/conf_files_generated/USAC/usac_kp-distr-1corn_depth-F_TP-100to1000')
-
     parser = argparse.ArgumentParser(description='Main script file for executing the whole test procedure for '
                                                  'testing the autocalibration SW')
     parser.add_argument('--path', type=str, required=False,
