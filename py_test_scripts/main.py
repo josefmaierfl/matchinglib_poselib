@@ -1081,10 +1081,13 @@ def log_autoc_folders(test_name, test_nr, store_path_cal, log_new_folders, is_ev
 
 
 def shut_down(shutdown_afterwards):
-    if shutdown_afterwards == 'exit':
-        sp.call(["exit"])
-    elif shutdown_afterwards == 'shutdown':
-        sp.call(["shutdown", "-h", "now"])
+    pyfilepath = os.path.dirname(os.path.realpath(__file__))
+    batch_file = os.path.join(pyfilepath, 'py_shutdown.sh')
+    if os.path.isfile(batch_file):
+        if shutdown_afterwards == 'exit':
+            sp.call([batch_file, "exit"])
+        elif shutdown_afterwards == 'shutdown':
+            sp.call([batch_file, "shutdown"])
 
 
 def main():

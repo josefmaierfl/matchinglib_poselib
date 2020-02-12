@@ -18,4 +18,5 @@ if [ $# -ne 0 ]
       then
         echo "Shutting down"
         shutdown -h now
+    fi
 fi
