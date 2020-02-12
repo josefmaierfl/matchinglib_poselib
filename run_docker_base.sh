@@ -14,9 +14,8 @@ docker run -v `pwd`/images:/app/images:ro -v `pwd`/py_test_scripts:/app/py_test_
 if [ $# -ne 0 ]
   then
     ARG_NAME="$1"
-    if [ ${ARG_NAME} -eq "shutdown" ]
-      then
+    if [ ${ARG_NAME} -eq "shutdown" ]; then
         echo "Shutting down"
-        shutdown -h now
+        sudo shutdown -h now
     fi
 fi

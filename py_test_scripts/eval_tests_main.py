@@ -51,6 +51,24 @@ def RepresentsInt(s):
         return False
 
 
+# To allow multiprocessing (children) during multiprocessing
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+
+# To allow multiprocessing (children) during multiprocessing
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
+
+
 def load_test_res(load_path):
     # Load test results
     start = timer()

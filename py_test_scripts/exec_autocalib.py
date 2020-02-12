@@ -44,6 +44,7 @@ def readOpenCVYaml(file, isstr = False):
     return data
 
 
+# To allow multiprocessing (children) during multiprocessing
 class NoDaemonProcess(multiprocessing.Process):
     # make 'daemon' attribute always return False
     def _get_daemon(self):
@@ -53,6 +54,8 @@ class NoDaemonProcess(multiprocessing.Process):
         pass
     daemon = property(_get_daemon, _set_daemon)
 
+
+# To allow multiprocessing (children) during multiprocessing
 # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
 # because the latter is only a wrapper function, not a proper class.
 class MyPool(multiprocessing.pool.Pool):
