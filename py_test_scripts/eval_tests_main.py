@@ -9,6 +9,10 @@ import ruamel.yaml as yaml
 import pandas as pd
 from timeit import default_timer as timer
 import contextlib, logging
+# We must import this explicitly, it is not imported by the top-level
+# multiprocessing module.
+import multiprocessing.pool
+
 
 def opencv_matrix_constructor(loader, node):
     mapping = loader.construct_mapping(node, deep=True)
