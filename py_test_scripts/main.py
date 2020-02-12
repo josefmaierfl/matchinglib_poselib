@@ -912,51 +912,100 @@ def compress_mess_folder(zip_mess_folder, mess_path, ret=1):
     shutil.make_archive(f_name, 'zip', res_path_main, tail)
 
 
-def IsPathValid(path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
+def IsPathValid(parentDir, path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
     splitted = None
-    is_file = os.path.isfile(path)
+    main_dir = os.path.join(parentDir, path)
+    is_file = os.path.isfile(main_dir)
     if is_file:
         if ignoreExt:
             _, ext = os.path.splitext(path)
             if ext in ignoreExt:
                 return False
-        main_dir = os.path.dirname(path)
-        splitted = main_dir.split('\\/')
+        if not parentDir:
+            parentDir = main_dir
+        main_dir = os.path.abspath(os.path.dirname(main_dir))
+        splitted = re.split(r'\\|/', main_dir)
     else:
-        main_dir = path
-        splitted = path.split('\\/')
+        main_dir = os.path.join(parentDir, path)
+        splitted = re.split(r'\\|/', path)
 
     if useOnlyDir:
         take_dir = []
+        sim_dirs = []
         for uod in useOnlyDir:
             try:
-                take_dir.append(not os.path.samefile(os.path.commonprefix(main_dir, uod), rootDir))
+                if os.path.samefile(uod, main_dir):
+                    return True
+                cdp = common_dir_prefix([main_dir, uod])
+                if os.path.samefile(cdp, parentDir):
+                    if os.path.samefile(uod, main_dir):
+                        take_dir.append(True)
+                        sim_dirs.append(uod)
+                    elif main_dir.startswith(os.path.abspath(uod)+os.sep):
+                        return True
+                    else:
+                        take_dir.append(False)  # Is only equal to main path
+                elif cdp.startswith(os.path.abspath(parentDir)+os.sep):
+                    take_dir.append(True)#Is subdir
+                    sim_dirs.append(uod)
+                elif main_dir.startswith(os.path.abspath(uod) + os.sep):
+                    return True
+                else:
+                    take_dir.append(False)#Is not even equal to main path
             except:
                 pass
         if not any(take_dir):
             return False
 
+        if is_file:
+            for i in sim_dirs:
+                try:
+                    if os.path.samefile(main_dir, i) or main_dir.startswith(os.path.abspath(i) + os.sep):
+                        return True
+                except:
+                    pass
+        else:
+            for i in sim_dirs:
+                if main_dir.startswith(os.path.abspath(i) + os.sep):
+                    return True
+                rel_ps = re.split(r'\\|/', os.path.relpath(i, parentDir))
+                if len(rel_ps) == 1:
+                    try:
+                        if not os.path.samefile(i, main_dir):
+                            return False
+                    except:
+                        return False
+
+
     if not is_file and not ignoreDir:
         return True
 
-    for s in splitted:
-        if s in ignoreDir:  # You can also use set.intersection or [x for],
-            return False
+    if ignoreDir:
+        for s in splitted:
+            if s in ignoreDir:  # You can also use set.intersection or [x for],
+                return False
 
     return True
+
+
+def common_dir_prefix(paths):
+    c_pre = os.path.commonprefix(paths)
+    if not os.path.exists(c_pre):
+        c_pre = os.path.dirname(c_pre)
+    return c_pre
 
 
 def zipDirHelper(path, rootDir, zf, ignoreDir=None, ignoreExt=None, useOnlyDir=None):
     # zf is zipfile handle
     if os.path.isfile(path):
-        if IsPathValid(path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
+        if IsPathValid('', path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
             relative = os.path.relpath(path, rootDir)
             zf.write(path, relative)
         return
 
     ls = os.listdir(path)
     for subFileOrDir in ls:
-        if not IsPathValid(subFileOrDir, rootDir, ignoreDir, ignoreExt, useOnlyDir):
+        if not IsPathValid(path, subFileOrDir, rootDir, ignoreDir, ignoreExt, useOnlyDir):
             continue
 
         joinedPath = os.path.join(path, subFileOrDir)
@@ -965,6 +1014,10 @@ def zipDirHelper(path, rootDir, zf, ignoreDir=None, ignoreExt=None, useOnlyDir=N
 
 def ZipDir(path, zf, ignoreDir=None, ignoreExt=None, useOnlyDir=None):
     rootDir = path if os.path.isdir(path) else os.path.dirname(path)
+    if ignoreExt:
+        for idx, i in enumerate(ignoreExt):
+            if i[0] != '.':
+                ignoreExt[idx] = '.' + i
     zipDirHelper(path, rootDir, zf, ignoreDir, ignoreExt, useOnlyDir)
     # pass
 
@@ -1035,6 +1088,10 @@ def shut_down(shutdown_afterwards):
 
 
 def main():
+    main_folder = '/home/maierj/work/results/results_001/results'
+    log_new_folders = [main_folder + '/messages/usac-testing/evals', main_folder + '/messages/usac-testing/scene_creation/usac_kp-distr-equ_depth-NM_TP-500']
+    compress_new_dirs('compress', main_folder + '/sequences_generated', log_new_folders, main_folder + '/conf_files_generated/USAC/usac_kp-distr-1corn_depth-F_TP-100to1000')
+
     parser = argparse.ArgumentParser(description='Main script file for executing the whole test procedure for '
                                                  'testing the autocalibration SW')
     parser.add_argument('--path', type=str, required=False,
