@@ -1084,9 +1084,7 @@ def shut_down(shutdown_afterwards):
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     batch_file = os.path.join(pyfilepath, 'py_shutdown.sh')
     if os.path.isfile(batch_file):
-        if shutdown_afterwards == 'exit':
-            sp.call([batch_file, "exit"])
-        elif shutdown_afterwards == 'shutdown':
+        if shutdown_afterwards == 'shutdown':
             sp.call([batch_file, "shutdown"])
 
 
@@ -1226,10 +1224,8 @@ def main():
                              'are compressed and stored in the parent directory of the results folder. If a zipped '
                              'file exists, a new filename is created. Furthermore, a main test name can be provided'
                              'to take only folders created within this main test (only used when creating sequences).')
-    parser.add_argument('--shutdown_afterwards', type=str, nargs='?', required=False, default='dont', const='exit',
-                        help='If provided, the system will be shut down after finishing. '
-                             'As default, the command \'exit\' is called which stops the docker image. '
-                             'If the value \'shutdown\' is provided \'shutdown -h now\' is executed.')
+    parser.add_argument('--shutdown_afterwards', type=str, nargs='?', required=False, default='dont', const='shutdown',
+                        help='If provided, the system will be shut down after finishing. ')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
