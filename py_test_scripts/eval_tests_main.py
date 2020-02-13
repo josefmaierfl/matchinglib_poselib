@@ -235,7 +235,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         logging.basicConfig(filename=excmess, level=logging.DEBUG)
         ret = 0
         cnt_dot = 0
-        with multiprocessing.Pool(processes=cpu_use) as pool:
+        with MyPool(processes=cpu_use) as pool:
             results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
             res1 = []
             for i, r in enumerate(results):
