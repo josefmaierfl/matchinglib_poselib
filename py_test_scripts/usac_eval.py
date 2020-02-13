@@ -2081,7 +2081,7 @@ def calc_Time_Model(**vars):
     # it_parameters: algorithms
     # xy_axis_columns: nrCorrs_GT, (inlRat_GT)
     # eval_columns: robEstimationAndRef_us
-    # data_separators: inlRatMin, th
+    # data_separators: inlratMin, th
     accum_all = False
     if 'partitions' in vars:
         for key in vars['partitions']:
@@ -2348,17 +2348,21 @@ def calc_Time_Model(**vars):
     eval_columns = ['score', 'fixed_time', 'linear_time']
     eval_cols_lname = ['score $R^{2}$', 'fixed time $t_{f}$', 'time per keypoint $t_{n}$']
     eval_cols_log_scaling = [False]#, True, True]
-    eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['fixed_time'].min())) -
-                                                np.log10(np.abs(data_new['fixed_time'].max()))) > 1 else False)
-    eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['linear_time'].min())) -
-                                                np.log10(np.abs(data_new['linear_time'].max()))) > 1 else False)
+    from statistics_and_plot import use_log_axis
+    eval_cols_log_scaling.append(use_log_axis(data_new['fixed_time'].min(), data_new['fixed_time'].max()))
+    eval_cols_log_scaling.append(use_log_axis(data_new['linear_time'].min(), data_new['linear_time'].max()))
+    # eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['fixed_time'].min())) -
+    #                                             np.log10(np.abs(data_new['fixed_time'].max()))) > 1 else False)
+    # eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['linear_time'].min())) -
+    #                                             np.log10(np.abs(data_new['linear_time'].max()))) > 1 else False)
     units = [('score', ''), ('fixed_time', '/$\\mu s$'), ('linear_time', '/$\\mu s$')]
     if model_type[0]['type'] == 1:
         eval_columns += ['squared_time']
         eval_cols_lname += ['quadratic time coefficient $t_{n^{2}}$']
         #eval_cols_log_scaling += [True]
-        eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['squared_time'].min())) -
-                                                    np.log10(np.abs(data_new['squared_time'].max()))) > 1 else False)
+        eval_cols_log_scaling.append(use_log_axis(data_new['squared_time'].min(), data_new['squared_time'].max()))
+        # eval_cols_log_scaling.append(True if np.abs(np.log10(np.abs(data_new['squared_time'].min())) -
+        #                                             np.log10(np.abs(data_new['squared_time'].max()))) > 1 else False)
         units += [('squared_time', '')]
     ret = {'data': data_new,
            'it_parameters': vars['it_parameters'],
