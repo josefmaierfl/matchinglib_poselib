@@ -123,6 +123,8 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         else:
             raise ValueError('Unknown test name ' + test_name)
         pars_opt = read_pars(output_path, pars_list)
+        print('Read parameters:')
+        print(pars_list)
         for i in pars_opt.keys():
             locals()[i] = pars_opt[i]
     else:
