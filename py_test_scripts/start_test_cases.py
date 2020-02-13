@@ -11,56 +11,57 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
 
     #Set to False when performing actual tests:
     testing_test = False
+    pars = {}
 
     #Set settings based on best results after testing for further testing
     # Change cfgUSAC parameters 5 & 6 based on result of test_nr 1 of usac-testing
-    usac56 = []
+    pars['usac56'] = []
     # Change cfgUSAC parameters 1-3 based on result of test_nr 2 of usac-testing
-    usac123 = []
+    pars['usac123'] = []
     # Change USACInlratFilt parameter based on result of test_nr 2 of usac-testing
-    USACInlratFilt = None
+    pars['USACInlratFilt'] = None
     # Change th parameter based on results of test_nr 1 & 2 of usac-testing
-    th = None
+    pars['th'] = None
     # Change refineRT parameters based on result of test_nr 1 of refinement_ba
-    refineRT = []
+    pars['refineRT'] = []
     # Select robust method for testing VFC, GMS, and SOF: If best USAC solution is without GMS or VFC (for estimating
     # some USAC parameters (cfgUSAC digit 1 >1)), try using them for pre-filtering, otherwise use RANSAC
     # and compare with its original results
-    robMFilt = None
+    pars['robMFilt'] = None
     # Change BART parameter based on results of test_nr 1 & 2 of refinement_ba
-    bart = None
+    pars['bart'] = None
     # Change refineRT_stereo parameters based on result of test_nr 1 of refinement_ba_stereo
-    refineRT_stereo = []
+    pars['refineRT_stereo'] = []
     # Change BART_stereo parameter based on results of test_nr 1 & 2 of refinement_ba_stereo
-    bart_stereo = None
+    pars['bart_stereo'] = None
     # Change minPtsDistance parameter based on result of test_nr 1 of correspondence_pool
-    minPtsDistance = None
+    pars['minPtsDistance'] = None
     # Change maxPoolCorrespondences parameter based on result of test_nr 1 of correspondence_pool
-    maxPoolCorrespondences = None
+    pars['maxPoolCorrespondences'] = None
     # Change maxRat3DPtsFar parameter based on result of test_nr 2 of correspondence_pool
-    maxRat3DPtsFar = None
+    pars['maxRat3DPtsFar'] = None
     # Change maxDist3DPtsZ parameter based on result of test_nr 2 of correspondence_pool
-    maxDist3DPtsZ = None
+    pars['maxDist3DPtsZ'] = None
     # Change relInlRatThLast parameter based on result of test_nr 1 of robustness
-    relInlRatThLast = None
+    pars['relInlRatThLast'] = None
     # Change relInlRatThNew parameter based on result of test_nr 1 of robustness
-    relInlRatThNew = None
+    pars['relInlRatThNew'] = None
     # Change minInlierRatSkip parameter based on result of test_nr 1 of robustness
-    minInlierRatSkip = None
+    pars['minInlierRatSkip'] = None
     # Change relMinInlierRatSkip parameter based on result of test_nr 1 of robustness
-    relMinInlierRatSkip = None
+    pars['relMinInlierRatSkip'] = None
     # Change minInlierRatioReInit parameter based on result of test_nr 1 of robustness
-    minInlierRatioReInit = None
+    pars['minInlierRatioReInit'] = None
     # Change checkPoolPoseRobust parameter based on result of test_nr 2 of robustness
-    checkPoolPoseRobust = None
+    pars['checkPoolPoseRobust'] = None
     # Change minContStablePoses parameter based on result of test_nr 3 of robustness
-    minContStablePoses = None
+    pars['minContStablePoses'] = None
     # Change minNormDistStable parameter based on result of test_nr 3 of robustness
-    minNormDistStable = None
+    pars['minNormDistStable'] = None
     # Change absThRankingStable parameter based on result of test_nr 3 of robustness
-    absThRankingStable = None
+    pars['absThRankingStable'] = None
     # Change useRANSAC_fewMatches to true or false based on result of test_nr 4 of robustness
-    useRANSAC_fewMatches = None
+    pars['useRANSAC_fewMatches'] = None
 
     if test_name != 'usac-testing' or test_nr > 1:
         if test_name == 'usac-testing' and test_nr == 2:
@@ -123,10 +124,8 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         else:
             raise ValueError('Unknown test name ' + test_name)
         pars_opt = read_pars(output_path, pars_list)
-        print('Read parameters:')
-        print(pars_list)
         for i in pars_opt.keys():
-            locals()[i] = pars_opt[i]
+            pars[i] = pars_opt[i]
     else:
         try:
             write_par_file_template(output_path)
@@ -149,9 +148,9 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             # args += ['--depths', 'NMF']
             # args += ['--nr_keypoints', '500']
             # args += ['--kp_pos_distr', 'equ']
-            if not usac56:
+            if not pars['usac56']:
                 raise ValueError('Enter best test results for parameters 5 & 6 of usac-testing')
-            args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, usac56)) + ['1', '1', '1', '0', '0', '0']
+            args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, pars['usac56'])) + ['1', '1', '1', '0', '0', '0']
             args += ['--USACInlratFilt', '2']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for usac-testing')
@@ -160,23 +159,23 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--RobMethod', 'USAC', 'RANSAC']
         args += ['--th', '0.6', '2.0', '0.2']
         args += ['--useGTCamMat']
-        if not usac56 or not usac123:
+        if not pars['usac56'] or not pars['usac123']:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-        if USACInlratFilt is None:
+        args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+        if pars['USACInlratFilt'] is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-        args += ['--USACInlratFilt', str(USACInlratFilt)]
+        args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
     elif test_name == 'refinement_ba':
         args += ['--RobMethod', 'USAC']
-        if not usac56 or not usac123:
+        if not pars['usac56'] or not pars['usac123']:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-        if USACInlratFilt is None:
+        args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+        if pars['USACInlratFilt'] is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-        args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if th is None:
+        args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
+        if pars['th'] is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
-        args += ['--th', str(th)]
+        args += ['--th', str(pars['th'])]
         if not test_nr:
             raise ValueError('test_nr is required for refinement_ba')
         if test_nr == 1:
@@ -184,28 +183,28 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--BART', '0', '1']
             args += ['--useGTCamMat']
         elif test_nr == 2:
-            # if not refineRT:
+            # if not pars['refineRT']:
             #     raise ValueError('Enter best test results for refineRT of refinement_ba')
-            # args += ['--refineRT'] + list(map(str, refineRT))
+            # args += ['--refineRT'] + list(map(str, pars['refineRT']))
             args += ['--refineRT', '0', '0', '1', '1', '1']
             args += ['--BART', '2']
             args += ['--nr_keypoints', '500']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for refinement_ba')
     elif test_name == 'vfc_gms_sof':
-        if robMFilt is None:
+        if pars['robMFilt'] is None:
             raise ValueError('Enter robust method for testing VFC, GMS, and SOF')
-        args += ['--RobMethod', robMFilt]
-        if robMFilt == 'USAC':
-            if not usac56 or not usac123:
+        args += ['--RobMethod', pars['robMFilt']]
+        if pars['robMFilt'] == 'USAC':
+            if not pars['usac56'] or not pars['usac123']:
                 raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-            args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
+            args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
         else:
             args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5']
         args += ['--USACInlratFilt', '0']
-        if th is None:
+        if pars['th'] is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
-        args += ['--th', str(th)]
+        args += ['--th', str(pars['th'])]
         args += ['--refineRT', '0', '0']
         args += ['--useGTCamMat']
         args += ['--refineVFC']
@@ -213,21 +212,21 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
         args += ['--refineGMS']
     elif test_name == 'refinement_ba_stereo':
         args += ['--RobMethod', 'USAC']
-        if not usac56 or not usac123:
+        if not pars['usac56'] or not pars['usac123']:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-        if USACInlratFilt is None:
+        args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+        if pars['USACInlratFilt'] is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-        args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if th is None:
+        args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
+        if pars['th'] is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
-        args += ['--th', str(th)]
-        if not refineRT:
+        args += ['--th', str(pars['th'])]
+        if not pars['refineRT']:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + list(map(str, refineRT))
-        if bart is None:
+        args += ['--refineRT'] + list(map(str, pars['refineRT']))
+        if pars['bart'] is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
-        args += ['--BART', str(bart)]
+        args += ['--BART', str(pars['bart'])]
         args += ['--stereoRef']
         args += ['--minStartAggInlRat', '0.075']
         args += ['--nr_keypoints', '500']
@@ -240,40 +239,40 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--BART_stereo', '0', '1']
             args += ['--useGTCamMat']
         elif test_nr == 2:
-            # if not refineRT_stereo:
+            # if not pars['refineRT_stereo']:
             #     raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-            # args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
+            # args += ['--refineRT_stereo'] + list(map(str, pars['refineRT_stereo']))
             args += ['--refineRT_stereo', '0', '0', '1', '1', '1']
             args += ['--BART_stereo', '2']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for refinement_ba_stereo')
     elif test_name == 'correspondence_pool':
         args += ['--RobMethod', 'USAC']
-        if not usac56 or not usac123:
+        if not pars['usac56'] or not pars['usac123']:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-        if USACInlratFilt is None:
+        args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+        if pars['USACInlratFilt'] is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-        args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if th is None:
+        args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
+        if pars['th'] is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
-        args += ['--th', str(th)]
-        if not refineRT:
+        args += ['--th', str(pars['th'])]
+        if not pars['refineRT']:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + list(map(str, refineRT))
-        if bart is None:
+        args += ['--refineRT'] + list(map(str, pars['refineRT']))
+        if pars['bart'] is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
-        args += ['--BART', str(bart)]
+        args += ['--BART', str(pars['bart'])]
         args += ['--stereoRef']
         args += ['--minStartAggInlRat', '0.075']
         args += ['--minInlierRatSkip', '0.075']
         args += ['--useGTCamMat']
-        if not refineRT_stereo:
+        if not pars['refineRT_stereo']:
             raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-        args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
-        if bart_stereo is None:
+        args += ['--refineRT_stereo'] + list(map(str, pars['refineRT_stereo']))
+        if pars['bart_stereo'] is None:
             raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
-        args += ['--BART_stereo', str(bart_stereo)]
+        args += ['--BART_stereo', str(pars['bart_stereo'])]
         if not test_nr:
             raise ValueError('test_nr is required for correspondence_pool')
         if test_nr == 1:
@@ -281,12 +280,12 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--maxPoolCorrespondences', '300', '1000', '100', '1000', '2000', '200', '2000', '5000', '500',
                      '5000', '10000', '1000', '10000', '20000', '2000', '20000', '30000', '5000']
         elif test_nr == 2:
-            if minPtsDistance is None:
+            if pars['minPtsDistance'] is None:
                 raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
-            args += ['--minPtsDistance', str(minPtsDistance)]
-            if maxPoolCorrespondences is None:
+            args += ['--minPtsDistance', str(pars['minPtsDistance'])]
+            if pars['maxPoolCorrespondences'] is None:
                 raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
-            args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
+            args += ['--maxPoolCorrespondences', str(pars['maxPoolCorrespondences'])]
             args += ['--maxRat3DPtsFar', '0.1', '0.8', '0.1']
             args += ['--maxDist3DPtsZ', '20.0', '300.0', '20.0']
         elif test_nr == 3:
@@ -297,60 +296,60 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--nr_keypoints', '500']
             args += ['--kp_pos_distr', '1corn']
             args += ['--inlier_ratios', '0.6']
-            if minPtsDistance is None:
+            if pars['minPtsDistance'] is None:
                 raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
-            args += ['--minPtsDistance', str(minPtsDistance)]
-            if maxPoolCorrespondences is None:
+            args += ['--minPtsDistance', str(pars['minPtsDistance'])]
+            if pars['maxPoolCorrespondences'] is None:
                 raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
-            args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
-            if maxRat3DPtsFar is None:
+            args += ['--maxPoolCorrespondences', str(pars['maxPoolCorrespondences'])]
+            if pars['maxRat3DPtsFar'] is None:
                 raise ValueError('Enter best test results for maxRat3DPtsFar of correspondence_pool')
-            args += ['--maxRat3DPtsFar', str(maxRat3DPtsFar)]
-            if maxDist3DPtsZ is None:
+            args += ['--maxRat3DPtsFar', str(pars['maxRat3DPtsFar'])]
+            if pars['maxDist3DPtsZ'] is None:
                 raise ValueError('Enter best test results for maxDist3DPtsZ of correspondence_pool')
-            args += ['--maxDist3DPtsZ', str(maxDist3DPtsZ)]
+            args += ['--maxDist3DPtsZ', str(pars['maxDist3DPtsZ'])]
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for correspondence_pool')
     elif test_name == 'robustness':
         args += ['--RobMethod', 'USAC']
-        if not usac56 or not usac123:
+        if not pars['usac56'] or not pars['usac123']:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-        if USACInlratFilt is None:
+        args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+        if pars['USACInlratFilt'] is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-        args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if th is None:
+        args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
+        if pars['th'] is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
-        args += ['--th', str(th)]
-        if not refineRT:
+        args += ['--th', str(pars['th'])]
+        if not pars['refineRT']:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + list(map(str, refineRT))
-        if bart is None:
+        args += ['--refineRT'] + list(map(str, pars['refineRT']))
+        if pars['bart'] is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
-        args += ['--BART', str(bart)]
+        args += ['--BART', str(pars['bart'])]
         args += ['--stereoRef']
         args += ['--useGTCamMat']
-        if not refineRT_stereo:
+        if not pars['refineRT_stereo']:
             raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-        args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
-        if bart_stereo is None:
+        args += ['--refineRT_stereo'] + list(map(str, pars['refineRT_stereo']))
+        if pars['bart_stereo'] is None:
             raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
-        args += ['--BART_stereo', str(bart_stereo)]
-        if minPtsDistance is None:
+        args += ['--BART_stereo', str(pars['bart_stereo'])]
+        if pars['minPtsDistance'] is None:
             raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
-        args += ['--minPtsDistance', str(minPtsDistance)]
-        if maxPoolCorrespondences is None:
+        args += ['--minPtsDistance', str(pars['minPtsDistance'])]
+        if pars['maxPoolCorrespondences'] is None:
             raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
-        args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
+        args += ['--maxPoolCorrespondences', str(pars['maxPoolCorrespondences'])]
         warnings.warn("Warning: Are you sure the selected number of maxPoolCorrespondences is small enough "
                       "to not reach an overall runtime of 0.8s per frame?")
         time.sleep(5.0)
-        if maxRat3DPtsFar is None:
+        if pars['maxRat3DPtsFar'] is None:
             raise ValueError('Enter best test results for maxRat3DPtsFar of correspondence_pool')
-        args += ['--maxRat3DPtsFar', str(maxRat3DPtsFar)]
-        if maxDist3DPtsZ is None:
+        args += ['--maxRat3DPtsFar', str(pars['maxRat3DPtsFar'])]
+        if pars['maxDist3DPtsZ'] is None:
             raise ValueError('Enter best test results for maxDist3DPtsZ of correspondence_pool')
-        args += ['--maxDist3DPtsZ', str(maxDist3DPtsZ)]
+        args += ['--maxDist3DPtsZ', str(pars['maxDist3DPtsZ'])]
         args += ['--minStartAggInlRat', '0.2']
         if not test_nr:
             raise ValueError('test_nr is required for correspondence_pool')
@@ -369,66 +368,66 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             time.sleep(5.0)
             args += ['--absThRankingStable', '0.1']
             args += ['--nr_keypoints', '30to500']
-            if relInlRatThLast is None:
+            if pars['relInlRatThLast'] is None:
                 raise ValueError('Enter best test results for relInlRatThLast of robustness')
-            args += ['--relInlRatThLast', str(relInlRatThLast)]
-            if relInlRatThNew is None:
+            args += ['--relInlRatThLast', str(pars['relInlRatThLast'])]
+            if pars['relInlRatThNew'] is None:
                 raise ValueError('Enter best test results for relInlRatThNew of robustness')
-            args += ['--relInlRatThNew', str(relInlRatThNew)]
-            if minInlierRatSkip is None:
+            args += ['--relInlRatThNew', str(pars['relInlRatThNew'])]
+            if pars['minInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for minInlierRatSkip of robustness')
-            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
-            if relMinInlierRatSkip is None:
+            args += ['--minInlierRatSkip', str(pars['minInlierRatSkip'])]
+            if pars['relMinInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
-            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
-            if minInlierRatioReInit is None:
+            args += ['--relMinInlierRatSkip', str(pars['relMinInlierRatSkip'])]
+            if pars['minInlierRatioReInit'] is None:
                 raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
-            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
+            args += ['--minInlierRatioReInit', str(pars['minInlierRatioReInit'])]
             args += ['--checkPoolPoseRobust', '0', '5', '1']
         elif test_nr == 3:
             warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
             time.sleep(5.0)
             args += ['--nr_keypoints', '30to500']
-            if relInlRatThLast is None:
+            if pars['relInlRatThLast'] is None:
                 raise ValueError('Enter best test results for relInlRatThLast of robustness')
-            args += ['--relInlRatThLast', str(relInlRatThLast)]
-            if relInlRatThNew is None:
+            args += ['--relInlRatThLast', str(pars['relInlRatThLast'])]
+            if pars['relInlRatThNew'] is None:
                 raise ValueError('Enter best test results for relInlRatThNew of robustness')
-            args += ['--relInlRatThNew', str(relInlRatThNew)]
-            if minInlierRatSkip is None:
+            args += ['--relInlRatThNew', str(pars['relInlRatThNew'])]
+            if pars['minInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for minInlierRatSkip of robustness')
-            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
-            if relMinInlierRatSkip is None:
+            args += ['--minInlierRatSkip', str(pars['minInlierRatSkip'])]
+            if pars['relMinInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
-            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
-            if minInlierRatioReInit is None:
+            args += ['--relMinInlierRatSkip', str(pars['relMinInlierRatSkip'])]
+            if pars['minInlierRatioReInit'] is None:
                 raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
-            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
-            if checkPoolPoseRobust is None:
+            args += ['--minInlierRatioReInit', str(pars['minInlierRatioReInit'])]
+            if pars['checkPoolPoseRobust'] is None:
                 raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
-            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+            args += ['--checkPoolPoseRobust', str(pars['checkPoolPoseRobust'])]
         elif test_nr == 4:
             warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
             time.sleep(5.0)
             args += ['--nr_keypoints', '30to500']
-            if relInlRatThLast is None:
+            if pars['relInlRatThLast'] is None:
                 raise ValueError('Enter best test results for relInlRatThLast of robustness')
-            args += ['--relInlRatThLast', str(relInlRatThLast)]
-            if relInlRatThNew is None:
+            args += ['--relInlRatThLast', str(pars['relInlRatThLast'])]
+            if pars['relInlRatThNew'] is None:
                 raise ValueError('Enter best test results for relInlRatThNew of robustness')
-            args += ['--relInlRatThNew', str(relInlRatThNew)]
-            if minInlierRatSkip is None:
+            args += ['--relInlRatThNew', str(pars['relInlRatThNew'])]
+            if pars['minInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for minInlierRatSkip of robustness')
-            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
-            if relMinInlierRatSkip is None:
+            args += ['--minInlierRatSkip', str(pars['minInlierRatSkip'])]
+            if pars['relMinInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
-            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
-            if minInlierRatioReInit is None:
+            args += ['--relMinInlierRatSkip', str(pars['relMinInlierRatSkip'])]
+            if pars['minInlierRatioReInit'] is None:
                 raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
-            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
-            if checkPoolPoseRobust is None:
+            args += ['--minInlierRatioReInit', str(pars['minInlierRatioReInit'])]
+            if pars['checkPoolPoseRobust'] is None:
                 raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
-            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
+            args += ['--checkPoolPoseRobust', str(pars['checkPoolPoseRobust'])]
             args += ['--minContStablePoses', '3', '5', '1']
             args += ['--minNormDistStable', '0.25', '0.75', '0.1']
             args += ['--absThRankingStable', '0.05', '0.5', '0.075']
@@ -436,138 +435,138 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             warnings.warn("Warning: Are you sure you have selected the SMALL dataset for testing?")
             time.sleep(5.0)
             args += ['--nr_keypoints', '20to160']
-            if relInlRatThLast is None:
+            if pars['relInlRatThLast'] is None:
                 raise ValueError('Enter best test results for relInlRatThLast of robustness')
-            args += ['--relInlRatThLast', str(relInlRatThLast)]
-            if relInlRatThNew is None:
+            args += ['--relInlRatThLast', str(pars['relInlRatThLast'])]
+            if pars['relInlRatThNew'] is None:
                 raise ValueError('Enter best test results for relInlRatThNew of robustness')
-            args += ['--relInlRatThNew', str(relInlRatThNew)]
-            if minInlierRatSkip is None:
+            args += ['--relInlRatThNew', str(pars['relInlRatThNew'])]
+            if pars['minInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for minInlierRatSkip of robustness')
-            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
-            if relMinInlierRatSkip is None:
+            args += ['--minInlierRatSkip', str(pars['minInlierRatSkip'])]
+            if pars['relMinInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
-            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
-            if minInlierRatioReInit is None:
+            args += ['--relMinInlierRatSkip', str(pars['relMinInlierRatSkip'])]
+            if pars['minInlierRatioReInit'] is None:
                 raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
-            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
-            if checkPoolPoseRobust is None:
+            args += ['--minInlierRatioReInit', str(pars['minInlierRatioReInit'])]
+            if pars['checkPoolPoseRobust'] is None:
                 raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
-            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
-            if minContStablePoses is None:
+            args += ['--checkPoolPoseRobust', str(pars['checkPoolPoseRobust'])]
+            if pars['minContStablePoses'] is None:
                 raise ValueError('Enter best test results for minContStablePoses of robustness')
-            args += ['--minContStablePoses', str(minContStablePoses)]
-            if minNormDistStable is None:
+            args += ['--minContStablePoses', str(pars['minContStablePoses'])]
+            if pars['minNormDistStable'] is None:
                 raise ValueError('Enter best test results for minNormDistStable of robustness')
-            args += ['--minNormDistStable', str(minNormDistStable)]
-            if absThRankingStable is None:
+            args += ['--minNormDistStable', str(pars['minNormDistStable'])]
+            if pars['absThRankingStable'] is None:
                 raise ValueError('Enter best test results for absThRankingStable of robustness')
-            args += ['--absThRankingStable', str(absThRankingStable)]
+            args += ['--absThRankingStable', str(pars['absThRankingStable'])]
             args += ['--useRANSAC_fewMatches', str(2)]
         elif test_nr == 6:
             warnings.warn("Warning: Are you sure you have selected the LARGE dataset for testing?")
             time.sleep(5.0)
-            if relInlRatThLast is None:
+            if pars['relInlRatThLast'] is None:
                 raise ValueError('Enter best test results for relInlRatThLast of robustness')
-            args += ['--relInlRatThLast', str(relInlRatThLast)]
-            if relInlRatThNew is None:
+            args += ['--relInlRatThLast', str(pars['relInlRatThLast'])]
+            if pars['relInlRatThNew'] is None:
                 raise ValueError('Enter best test results for relInlRatThNew of robustness')
-            args += ['--relInlRatThNew', str(relInlRatThNew)]
-            if minInlierRatSkip is None:
+            args += ['--relInlRatThNew', str(pars['relInlRatThNew'])]
+            if pars['minInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for minInlierRatSkip of robustness')
-            args += ['--minInlierRatSkip', str(minInlierRatSkip)]
-            if relMinInlierRatSkip is None:
+            args += ['--minInlierRatSkip', str(pars['minInlierRatSkip'])]
+            if pars['relMinInlierRatSkip'] is None:
                 raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
-            args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
-            if minInlierRatioReInit is None:
+            args += ['--relMinInlierRatSkip', str(pars['relMinInlierRatSkip'])]
+            if pars['minInlierRatioReInit'] is None:
                 raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
-            args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
-            if checkPoolPoseRobust is None:
+            args += ['--minInlierRatioReInit', str(pars['minInlierRatioReInit'])]
+            if pars['checkPoolPoseRobust'] is None:
                 raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
-            args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
-            if minContStablePoses is None:
+            args += ['--checkPoolPoseRobust', str(pars['checkPoolPoseRobust'])]
+            if pars['minContStablePoses'] is None:
                 raise ValueError('Enter best test results for minContStablePoses of robustness')
-            args += ['--minContStablePoses', str(minContStablePoses)]
-            if minNormDistStable is None:
+            args += ['--minContStablePoses', str(pars['minContStablePoses'])]
+            if pars['minNormDistStable'] is None:
                 raise ValueError('Enter best test results for minNormDistStable of robustness')
-            args += ['--minNormDistStable', str(minNormDistStable)]
-            if absThRankingStable is None:
+            args += ['--minNormDistStable', str(pars['minNormDistStable'])]
+            if pars['absThRankingStable'] is None:
                 raise ValueError('Enter best test results for absThRankingStable of robustness')
-            args += ['--absThRankingStable', str(absThRankingStable)]
-            if useRANSAC_fewMatches is None:
+            args += ['--absThRankingStable', str(pars['absThRankingStable'])]
+            if pars['useRANSAC_fewMatches'] is None:
                 raise ValueError('Enter best test result for useRANSAC_fewMatches of robustness')
-            if useRANSAC_fewMatches:
+            if pars['useRANSAC_fewMatches']:
                 args += ['--useRANSAC_fewMatches']
         else:
             raise ValueError('test_nr ' + str(test_nr) + ' is not supported for robustness')
     elif test_name == 'usac_vs_autocalib':
         args += ['--RobMethod', 'USAC']
-        if not usac56 or not usac123:
+        if not pars['usac56'] or not pars['usac123']:
             raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-        args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-        if USACInlratFilt is None:
+        args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+        if pars['USACInlratFilt'] is None:
             raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-        args += ['--USACInlratFilt', str(USACInlratFilt)]
-        if th is None:
+        args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
+        if pars['th'] is None:
             raise ValueError('Enter best test result for th of usac-testing or usac_vs_ransac')
-        args += ['--th', str(th)]
-        if not refineRT:
+        args += ['--th', str(pars['th'])]
+        if not pars['refineRT']:
             raise ValueError('Enter best test results for refineRT of refinement_ba')
-        args += ['--refineRT'] + list(map(str, refineRT))
-        if bart is None:
+        args += ['--refineRT'] + list(map(str, pars['refineRT']))
+        if pars['bart'] is None:
             raise ValueError('Enter best test results for BART of refinement_ba')
-        args += ['--BART', str(bart)]
+        args += ['--BART', str(pars['bart'])]
         args += ['--stereoRef']
         args += ['--useGTCamMat']
-        if not refineRT_stereo:
+        if not pars['refineRT_stereo']:
             raise ValueError('Enter best test results for refineRT_stereo of refinement_ba_stereo')
-        args += ['--refineRT_stereo'] + list(map(str, refineRT_stereo))
-        if bart_stereo is None:
+        args += ['--refineRT_stereo'] + list(map(str, pars['refineRT_stereo']))
+        if pars['bart_stereo'] is None:
             raise ValueError('Enter best test results for BART_stereo of refinement_ba_stereo')
-        args += ['--BART_stereo', str(bart_stereo)]
-        if minPtsDistance is None:
+        args += ['--BART_stereo', str(pars['bart_stereo'])]
+        if pars['minPtsDistance'] is None:
             raise ValueError('Enter best test results for minPtsDistance of correspondence_pool')
-        args += ['--minPtsDistance', str(minPtsDistance)]
-        if maxPoolCorrespondences is None:
+        args += ['--minPtsDistance', str(pars['minPtsDistance'])]
+        if pars['maxPoolCorrespondences'] is None:
             raise ValueError('Enter best test results for maxPoolCorrespondences of correspondence_pool')
-        args += ['--maxPoolCorrespondences', str(maxPoolCorrespondences)]
-        if maxRat3DPtsFar is None:
+        args += ['--maxPoolCorrespondences', str(pars['maxPoolCorrespondences'])]
+        if pars['maxRat3DPtsFar'] is None:
             raise ValueError('Enter best test results for maxRat3DPtsFar of correspondence_pool')
-        args += ['--maxRat3DPtsFar', str(maxRat3DPtsFar)]
-        if maxDist3DPtsZ is None:
+        args += ['--maxRat3DPtsFar', str(pars['maxRat3DPtsFar'])]
+        if pars['maxDist3DPtsZ'] is None:
             raise ValueError('Enter best test results for maxDist3DPtsZ of correspondence_pool')
-        args += ['--maxDist3DPtsZ', str(maxDist3DPtsZ)]
+        args += ['--maxDist3DPtsZ', str(pars['maxDist3DPtsZ'])]
         args += ['--minStartAggInlRat', '0.07']
-        if relInlRatThLast is None:
+        if pars['relInlRatThLast'] is None:
             raise ValueError('Enter best test results for relInlRatThLast of robustness')
-        args += ['--relInlRatThLast', str(relInlRatThLast)]
-        if relInlRatThNew is None:
+        args += ['--relInlRatThLast', str(pars['relInlRatThLast'])]
+        if pars['relInlRatThNew'] is None:
             raise ValueError('Enter best test results for relInlRatThNew of robustness')
-        args += ['--relInlRatThNew', str(relInlRatThNew)]
-        if minInlierRatSkip is None:
+        args += ['--relInlRatThNew', str(pars['relInlRatThNew'])]
+        if pars['minInlierRatSkip'] is None:
             raise ValueError('Enter best test results for minInlierRatSkip of robustness')
-        args += ['--minInlierRatSkip', str(minInlierRatSkip)]
-        if relMinInlierRatSkip is None:
+        args += ['--minInlierRatSkip', str(pars['minInlierRatSkip'])]
+        if pars['relMinInlierRatSkip'] is None:
             raise ValueError('Enter best test results for relMinInlierRatSkip of robustness')
-        args += ['--relMinInlierRatSkip', str(relMinInlierRatSkip)]
-        if minInlierRatioReInit is None:
+        args += ['--relMinInlierRatSkip', str(pars['relMinInlierRatSkip'])]
+        if pars['minInlierRatioReInit'] is None:
             raise ValueError('Enter best test results for minInlierRatioReInit of robustness')
-        args += ['--minInlierRatioReInit', str(minInlierRatioReInit)]
-        if checkPoolPoseRobust is None:
+        args += ['--minInlierRatioReInit', str(pars['minInlierRatioReInit'])]
+        if pars['checkPoolPoseRobust'] is None:
             raise ValueError('Enter best test results for checkPoolPoseRobust of robustness')
-        args += ['--checkPoolPoseRobust', str(checkPoolPoseRobust)]
-        if minContStablePoses is None:
+        args += ['--checkPoolPoseRobust', str(pars['checkPoolPoseRobust'])]
+        if pars['minContStablePoses'] is None:
             raise ValueError('Enter best test results for minContStablePoses of robustness')
-        args += ['--minContStablePoses', str(minContStablePoses)]
-        if minNormDistStable is None:
+        args += ['--minContStablePoses', str(pars['minContStablePoses'])]
+        if pars['minNormDistStable'] is None:
             raise ValueError('Enter best test results for minNormDistStable of robustness')
-        args += ['--minNormDistStable', str(minNormDistStable)]
-        if absThRankingStable is None:
+        args += ['--minNormDistStable', str(pars['minNormDistStable'])]
+        if pars['absThRankingStable'] is None:
             raise ValueError('Enter best test results for absThRankingStable of robustness')
-        args += ['--absThRankingStable', str(absThRankingStable)]
-        if useRANSAC_fewMatches is None:
+        args += ['--absThRankingStable', str(pars['absThRankingStable'])]
+        if pars['useRANSAC_fewMatches'] is None:
             raise ValueError('Enter best test result for useRANSAC_fewMatches of robustness')
-        if useRANSAC_fewMatches:
+        if pars['useRANSAC_fewMatches']:
             args += ['--useRANSAC_fewMatches']
         args += ['--accumCorrs', '1', '5', '1', '10', '20', '5']
         args += ['--accumCorrsCompare']
@@ -591,25 +590,25 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--depths', 'NMF']
             args += ['--nr_keypoints', '500']
             args += ['--kp_pos_distr', 'equ']
-            usac56 = [2, 5]
-            if not usac56:
+            pars['usac56'] = [2, 5]
+            if not pars['usac56']:
                 raise ValueError('Enter best test results for parameters 5 & 6 of usac-testing')
-            args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, usac56)) + ['1', '1', '1', '0', '0', '0']
+            args += ['--cfgUSAC', '3', '1', '1', '0'] + list(map(str, pars['usac56'])) + ['1', '1', '1', '0', '0', '0']
             args += ['--USACInlratFilt', '2']
         elif test_nr == 3:
             args += ['--refineRT', '0', '0']
             args += ['--RobMethod', 'USAC', 'RANSAC']
             args += ['--th', '0.6', '2.0', '0.2']
             args += ['--useGTCamMat']
-            usac56 = [2, 5]
-            usac123 = [3,1,1]
-            if not usac56 or not usac123:
+            pars['usac56'] = [2, 5]
+            pars['usac123'] = [3,1,1]
+            if not pars['usac56'] or not pars['usac123']:
                 raise ValueError('Enter best test results for parameters 1-3 and 5-6 of usac-testing')
-            args += ['--cfgUSAC'] + list(map(str, usac123)) + ['0'] + list(map(str, usac56))
-            USACInlratFilt = 0
-            if USACInlratFilt is None:
+            args += ['--cfgUSAC'] + list(map(str, pars['usac123'])) + ['0'] + list(map(str, pars['usac56']))
+            pars['USACInlratFilt'] = 0
+            if pars['USACInlratFilt'] is None:
                 raise ValueError('Enter best test result for USACInlratFilt of usac-testing')
-            args += ['--USACInlratFilt', str(USACInlratFilt)]
+            args += ['--USACInlratFilt', str(pars['USACInlratFilt'])]
         elif test_nr == 4:
             args += ['--RobMethod', 'USAC']
             args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5']
@@ -623,8 +622,8 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
             args += ['--cfgUSAC', '3', '1', '1', '0', '2', '5']
             args += ['--USACInlratFilt', '0']
             args += ['--th', '0.85']
-            refineRT = [4,2]
-            args += ['--refineRT'] + list(map(str, refineRT))
+            pars['refineRT'] = [4,2]
+            args += ['--refineRT'] + list(map(str, pars['refineRT']))
             args += ['--BART', '0', '1']
             args += ['--nr_keypoints', '500']
         elif test_nr == 6:
