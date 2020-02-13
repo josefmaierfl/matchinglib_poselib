@@ -31,6 +31,7 @@ RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
 WORKDIR /app
 RUN cp -r /ci/tmp/thirdparty /app/
 RUN cp -r /ci/tmp/tmp/. /app/
+COPY start_testing.sh /app/
 #RUN rm -r /ci
 
 RUN chown -R conan /app
