@@ -12,6 +12,7 @@ int main(int argc, char* argv[])
 #else*/
 
 #define TESTOUT 0
+#define FAIL_SKIP_REST 0
 
 // ideal case
 #include "matchinglib/matchinglib.h"
@@ -1814,7 +1815,9 @@ bool startEvaluation(ArgvParser& cmd)
 				poselib::AutoThEpi Eautoth(pixToCamFact);
 				if (Eautoth.estimateEVarTH(p1, p2, E, mask, &th, &inlierPoints) != 0)
 				{
+#if FAIL_SKIP_REST
 					failNr++;
+#endif
 					if ((float)failNr / (float)filenamesRt.size() < 0.5f)
 					{
 						std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
@@ -1848,7 +1851,9 @@ bool startEvaluation(ArgvParser& cmd)
 				int inliers;
 				if (poselib::estimatePoseHomographies(p1, p2, R, t, E, th, inliers, mask, false, cp.Halign > 1) != 0)
 				{
-					failNr++;
+#if FAIL_SKIP_REST
+                    failNr++;
+#endif
 					if ((float)failNr / (float)filenamesRt.size() < 0.5f)
 					{
 						std::cout << "Homography alignment failed! Trying next pair." << endl;
@@ -1924,7 +1929,9 @@ bool startEvaluation(ArgvParser& cmd)
 					}
 					if (usacerror)
 					{
-						failNr++;
+#if FAIL_SKIP_REST
+                        failNr++;
+#endif
 						if ((float)failNr / (float)filenamesRt.size() < 0.5f)
 						{
 							std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
@@ -1988,7 +1995,9 @@ bool startEvaluation(ArgvParser& cmd)
 				{
 					if (!poselib::estimateEssentialMat(E, p1, p2, cp.RobMethod, th, cp.refineRTold, mask))
 					{
-						failNr++;
+#if FAIL_SKIP_REST
+                        failNr++;
+#endif
 						if ((float)failNr / (float)filenamesRt.size() < 0.5f)
 						{
 							std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;
@@ -2022,7 +2031,9 @@ bool startEvaluation(ArgvParser& cmd)
                 std::cout << "Number of inliers after robust estimation of E: " << nr_inliers << endl;
             }
             if(nr_inliers < 5){
+#if FAIL_SKIP_REST
                 failNr++;
+#endif
                 if ((float)failNr / (float)filenamesRt.size() < 0.5f)
                 {
                     std::cout << "Estimation of essential matrix failed! Trying next pair." << endl;

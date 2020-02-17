@@ -348,9 +348,18 @@ bool USAC<ProblemType>::solve()
 
 	// ------------------------------------------------------------------------
 	// main USAC loop
+    const unsigned int usac_max2_hypotheses = usac_max_hypotheses_ / 2;
+    const unsigned int usac_max3_hypotheses = 2 * usac_max_hypotheses_ / 3;
 	while (usac_results_.hyp_count_ < adaptive_stopping_count && usac_results_.hyp_count_ < usac_max_hypotheses_)
 	{
 		++usac_results_.hyp_count_;
+		if((usac_results_.hyp_count_ == usac_max2_hypotheses) && (usac_results_.best_inlier_count_ == 0)){
+		    //Try a slightly bigger threshold
+            usac_inlier_threshold_ *= 1.33;
+		}else if((usac_results_.hyp_count_ == usac_max3_hypotheses) && (usac_results_.best_inlier_count_ == 0)){
+            //Try a slightly bigger threshold
+            usac_inlier_threshold_ *= 1.13;
+		}
 		//posetype = USACConfig::TRANS_ESSENTIAL;//Reset pose type to an essential matrix (could be rotation only, translation only or no motion before)
 
 		// -----------------------------------------

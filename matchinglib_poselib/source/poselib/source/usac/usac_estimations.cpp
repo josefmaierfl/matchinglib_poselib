@@ -333,7 +333,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	c_com.confThreshold = 0.99; // ransac_conf: 0.0 - 1.0 (must be double), specifies the confidence parameter
 	c_com.minSampleSize = 5; //min_sample_size: int, number of points used to generate models
 	c_com.inlierThreshold = th; //inlier_threshold: double, threshold for inlier classification
-	c_com.maxHypotheses = 25000;// 850000;//--------------> maybe should be changed
+	c_com.maxHypotheses = 50000;//25000;// 850000;//--------------> maybe should be changed
 	if (used_estimator == USACConfig::ESTIM_EIG_KNEIP)
 		c_com.maxSolutionsPerSample = MAX_SOLS_KNEIP;
 	else
