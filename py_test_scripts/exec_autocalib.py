@@ -291,8 +291,9 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
                  'kpAccSd', str(row['kp_acc_sd'])]
         opts += ['--addSequInfo', '_'.join(infos)]
         single_cmd = [executable] + opts
+        mpn1 = os.path.join(message_path_new, str(row['sub_path']))
         mess_base_name = 'out_' + str(int(nr_call)) + '_' + str(index)
-        cmds.append((single_cmd, row, message_path_new, mess_base_name, nr_call))
+        cmds.append((single_cmd, row, mpn1, mess_base_name, nr_call))
 
     lock = multiprocessing.Lock()
     lock2 = multiprocessing.Lock()
@@ -336,6 +337,12 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
                 os.mkdir(odir)
             except FileExistsError:
                 print('Directory for storing results already exists.')
+    if not os.path.exists(message_path):
+        with lock2:
+            try:
+                os.mkdir(message_path)
+            except FileExistsError:
+                pass
     #Calculate timeout
     isUSAC = False
     timeout = 36000
