@@ -212,3 +212,39 @@ def get_load_pars_for_comparison(test_name, test_nr):
                                           '2': ['refineRT']},
                  'correspondence_pool': {'3': ['refineRT', 'bart']}}
     return load_pars[test_name][str(test_nr)]
+
+
+def get_used_eval_cols(test_name, test_nr):
+    test_cols = {'usac-testing': {'1': ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                        't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                        'USAC_parameters_estimator', 'USAC_parameters_refinealg', 'th', 'inlratMin',
+                                        'depthDistr', 'kpAccSd', 'nrCorrs_GT', 'robEstimationAndRef_us', 'nrTP'],
+                                  '2': ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                        't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                        'USAC_parameters_automaticSprtInit', 'inlRat_estimated', 'inlRat_GT',
+                                        'USAC_parameters_automaticProsacParameters', 'nrTP',
+                                        'USAC_parameters_prevalidateSample', 'USAC_parameters_USACInlratFilt', 'th',
+                                        'inlratMin', 'kpAccSd', 'depthDistr', 'robEstimationAndRef_us', 'nrCorrs_GT']
+                                  },
+                 'usac_vs_ransac': ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz', 'RobMethod',
+                                    'th', 'inlratMin', 'inlRat_estimated', 'inlRat_GT', 'depthDistr', 'kpAccSd',
+                                    'robEstimationAndRef_us', 'nrCorrs_GT', 'nrTP'],
+                 'refinement_ba': {'1': ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                         't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                         'refineMethod_algorithm', 'refineMethod_costFunction', 'BART', 'inlratMin',
+                                         'depthDistr', 'kpAccSd', 'linRef_BA_us', 'nrCorrs_GT', 'nrTP',
+                                         'linRefinement_us', 'bundleAdjust_us', 'robEstimationAndRef_us'],
+                                   '2': ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                         't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                         'refineMethod_algorithm', 'refineMethod_costFunction', 'inlratMin',
+                                         'depthDistr', 'kpAccSd', 'K1_cxyfxfyNorm', 'K2_cxyfxfyNorm', 'K1_cxyDiffNorm',
+                                         'K2_cxyDiffNorm', 'K1_fxyDiffNorm', 'K2_fxyDiffNorm', 'K1_fxDiff',
+                                         'K2_fxDiff', 'K1_fyDiff', 'K2_fyDiff', 'K1_cxDiff', 'K2_cxDiff',
+                                         'K1_cyDiff', 'K2_cyDiff', 'nrTP']},
+                 'vfc_gms_sof': ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                 't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                 'matchesFilter_refineGMS', 'matchesFilter_refineVFC', 'matchesFilter_refineSOF',
+                                 'inlratMin', 'inlRat_estimated', 'inlRat_GT', 'kpAccSd', 'kpDistr', 'depthDistr',
+                                 'filtering_us', 'nrCorrs_GT', 'nrTP'
+                                 ]}

@@ -3,7 +3,9 @@ Loads test results and calls specific functions for evaluation as specified in f
 Autocalibration-Parametersweep-Testing.xlsx
 """
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
-import multiprocessing
+# import multiprocessing
+#from pathos import multiprocessing as mp
+from pathos.pools import _ProcessPool as mp
 import ruamel.yaml as yaml
 # import modin.pandas as mpd
 import pandas as pd
@@ -11,7 +13,8 @@ from timeit import default_timer as timer
 import contextlib, logging
 # We must import this explicitly, it is not imported by the top-level
 # multiprocessing module.
-import multiprocessing.pool
+#import multiprocessing.pool
+import time
 
 
 def opencv_matrix_constructor(loader, node):
@@ -56,21 +59,21 @@ def RepresentsInt(s):
 
 
 # To allow multiprocessing (children) during multiprocessing
-class NoDaemonProcess(multiprocessing.Process):
-    # make 'daemon' attribute always return False
-    def _get_daemon(self):
-        return False
-
-    def _set_daemon(self, value):
-        pass
-    daemon = property(_get_daemon, _set_daemon)
+# class NoDaemonProcess(multiprocessing.Process):
+#     # make 'daemon' attribute always return False
+#     def _get_daemon(self):
+#         return False
+#
+#     def _set_daemon(self, value):
+#         pass
+#     daemon = property(_get_daemon, _set_daemon)
 
 
 # To allow multiprocessing (children) during multiprocessing
 # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
 # because the latter is only a wrapper function, not a proper class.
-class MyPool(multiprocessing.pool.Pool):
-    Process = NoDaemonProcess
+# class MyPool(multiprocessing.pool.Pool):
+#     Process = NoDaemonProcess
 
 
 def load_test_res(load_path):
@@ -235,7 +238,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         logging.basicConfig(filename=excmess, level=logging.DEBUG)
         ret = 0
         cnt_dot = 0
-        with MyPool(processes=cpu_use) as pool:
+        with mp(processes=cpu_use) as pool:
             results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
             res1 = []
             for i, r in enumerate(results):
@@ -245,7 +248,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                         res = r.get(2.0)
                         ret += res
                         break
-                    except multiprocessing.TimeoutError:
+                    except TimeoutError:
                         if cnt_dot >= 90:
                             print()
                             cnt_dot = 0
