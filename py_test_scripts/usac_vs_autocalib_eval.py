@@ -39,7 +39,7 @@ def get_accum_corrs_sequs(**keywords):
     else:
         drop_cols = [a for a in needed_cols if a not in individual_grps and a not in keywords['eval_columns']]
     # Split in sequences
-    df_grp = keywords['data'].loc[:, needed_cols].groupby(keywords['data_separators'])
+    df_grp = keywords['data'].loc[:, needed_cols].copy(deep=True).groupby(keywords['data_separators'])
     grp_keys = df_grp.groups.keys()
     df_list = []
     for grp in grp_keys:

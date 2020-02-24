@@ -14,7 +14,10 @@ import contextlib, logging
 # We must import this explicitly, it is not imported by the top-level
 # multiprocessing module.
 #import multiprocessing.pool
-import time
+# import time
+from copy import deepcopy
+
+import evaluation_numbers as en
 
 
 def opencv_matrix_constructor(loader, node):
@@ -74,6 +77,129 @@ def RepresentsInt(s):
 # because the latter is only a wrapper function, not a proper class.
 # class MyPool(multiprocessing.pool.Pool):
 #     Process = NoDaemonProcess
+
+
+def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
+    # Load test results
+    start = timer()
+    res_path = os.path.join(load_path, 'results')
+    if not os.path.exists(res_path):
+        raise ValueError('No results folder found')
+    # Get all folders that contain data
+    sub_dirs = [name for name in os.listdir(res_path) if os.path.isdir(os.path.join(res_path, name))]
+    sub_dirs = [name for name in sub_dirs if RepresentsInt(name)]
+    if len(sub_dirs) == 0:
+        raise ValueError('No subdirectories holding data found')
+    data_list = []
+    for sf in sub_dirs:
+        res_path_it = os.path.join(res_path, sf)
+        ov_file = os.path.join(res_path_it, 'allRunsOverview.yaml')
+        if not os.path.exists(ov_file):
+            raise ValueError('Results overview file allRunsOverview.yaml not found')
+        par_data = readOpenCVYaml(ov_file)
+        parSetNr = 0
+        while True:
+            try:
+                data_set = par_data['parSetNr' + str(int(parSetNr))]
+                parSetNr += 1
+            except:
+                break
+            csvf = os.path.join(res_path_it, data_set['hashTestingPars'])
+            if not os.path.exists(csvf):
+                raise ValueError('Results file ' + csvf + ' not found')
+            data_list.append((deepcopy(data_set), csvf))
+
+    maxd_parallel = int(len(data_list) / nr_cpus)
+    if maxd_parallel == 0:
+        maxd_parallel = 1
+    nr_used_cpus = min(int(len(data_list) / maxd_parallel), nr_cpus)
+    data_list_split = []
+    rest = len(data_list) - nr_used_cpus * maxd_parallel
+    cr = 0
+    rest_sv = rest
+    for i in range(0, len(data_list) - rest_sv, maxd_parallel):
+        if rest > 0:
+            data_list_split.append(data_list[(i + cr):(i + cr + maxd_parallel + 1)])
+            cr = cr + 1
+            rest = rest - 1
+        else:
+            data_list_split.append(data_list[(i + cr):(i + cr + maxd_parallel)])
+    assert len(data_list_split) == nr_used_cpus
+
+    message_path_new = create_message_path(message_path, test_name, test_nr)
+    excmess = configure_logging(message_path_new, 'loading_except_', test_name, test_nr)
+    df_parts = []
+    cnt_dot = 0
+    with mp(processes=nr_used_cpus) as pool:
+        procs = [pool.apply_async(load_data, (t, test_name, test_nr)) for t in data_list_split]
+        for i, r in enumerate(procs):
+            while 1:
+                sys.stdout.flush()
+                try:
+                    res = r.get(1.0)
+                    df_parts.append(res)
+                    break
+                except TimeoutError:
+                    processing_flush(cnt_dot)
+                    cnt_dot += 1
+                except Exception:
+                    logging.error('Fatal error while loading test results for ' + test_name +
+                                  ', Test Nr ' + str(test_nr), exc_info=True)
+                    pool.terminate()
+                    return pd.DataFrame(), 0
+    if os.stat(excmess).st_size == 0:
+        os.remove(excmess)
+
+    data = pd.concat(df_parts, ignore_index=True, sort=False, copy=False)
+    end = timer()
+    load_time = end - start
+    return data, load_time
+
+
+def processing_flush(n, index=5):
+    sys.stdout.write("\rLoading data %s%s" % ((n % index) * ".", (index - 1 - (n % index)) * " "))
+    sys.stdout.write("\rLoading data %s" % ((n % index) * "."))
+    sys.stdout.flush()
+
+
+def load_data(data_list, test_name, test_nr):
+    data_parts = []
+    used_cols = en.get_used_eval_cols(test_name, test_nr)
+    for elem in data_list:
+        csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
+        addSequInfo_sep = None
+        for row in csv_data.itertuples():
+            tmp = row.addSequInfo.split('_')
+            tmp = dict([(tmp[x], tmp[x + 1]) for x in range(0, len(tmp), 2)])
+            if addSequInfo_sep:
+                for k in addSequInfo_sep.keys():
+                    addSequInfo_sep[k].append(tmp[k])
+            else:
+                for k in tmp.keys():
+                    tmp[k] = [tmp[k]]
+                addSequInfo_sep = tmp
+        addSequInfo_df = pd.DataFrame(data=addSequInfo_sep)
+        csv_data = pd.concat([csv_data, addSequInfo_df], axis=1, sort=False).reindex(csv_data.index)
+        csv_data.drop(columns=['addSequInfo'], inplace=True)
+        data_set_tmp = merge_dicts(elem[0])
+        data_set_tmp = pd.DataFrame(data=data_set_tmp, index=[0])
+        data_set_repl = pd.DataFrame(np.repeat(data_set_tmp.values, csv_data.shape[0], axis=0))
+        data_set_repl.columns = data_set_tmp.columns
+        csv_new = pd.concat([csv_data, data_set_repl], axis=1, sort=False).reindex(csv_data.index)
+        # Filter rows by excluding not successful estimations
+        csv_new = csv_new.loc[~((csv_new['R_out(0,0)'] == 0) &
+                          (csv_new['R_out(0,1)'] == 0) &
+                          (csv_new['R_out(0,2)'] == 0) &
+                          (csv_new['R_out(1,0)'] == 0) &
+                          (csv_new['R_out(1,1)'] == 0) &
+                          (csv_new['R_out(1,2)'] == 0) &
+                          (csv_new['R_out(2,0)'] == 0) &
+                          (csv_new['R_out(2,1)'] == 0) &
+                          (csv_new['R_out(2,2)'] == 0))]
+        csv_new = csv_new.loc[:, used_cols]
+        data_parts.append(csv_new)
+    data = pd.concat(data_parts, ignore_index=True, sort=False, copy=False)
+    return data
 
 
 def load_test_res(load_path):
@@ -136,7 +262,10 @@ def load_test_res(load_path):
 
 
 def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path):
-    data, load_time = load_test_res(load_path)
+    # data, load_time = load_test_res(load_path)
+    data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
+    if data.empty:
+        return 1
     print('Finished loading test results after ', load_time, ' seconds.')
     # data = None
     # data_dict = data.to_dict('list')
@@ -144,7 +273,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     # data = mpd.utils.from_pandas(data)
     #print('Finished loading data')
 
-    import evaluation_numbers as en
     main_test_names, sub_test_numbers, sub_sub_test_nr = en.get_available_evals()
     # main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
     #                    'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
@@ -209,33 +337,11 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         #     cmds.append([(data, output_path, test_name, test_nr, a, comp_path, b)
         #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
         #                                  comp_pars_list[(len(used_evals) - rest):])])
-        message_path_new = os.path.join(message_path, 'evals')
-        try:
-            os.mkdir(message_path_new)
-        except FileExistsError:
-            pass
-        message_path_new = os.path.join(message_path_new, test_name)
-        try:
-            os.mkdir(message_path_new)
-        except FileExistsError:
-            pass
-        message_path_new = os.path.join(message_path_new, str(test_nr))
-        try:
-            os.mkdir(message_path_new)
-        except FileExistsError:
-            pass
+        message_path_new = create_message_path(message_path, test_name, test_nr)
         cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
                 for a, b in zip(used_evals, comp_pars_list)]
 
-        err_trace_base_name = 'evals_except_' + test_name + '_' + str(test_nr)
-        base = err_trace_base_name
-        excmess = os.path.join(message_path_new, base + '.txt')
-        cnt = 1
-        while os.path.exists(excmess):
-            base = err_trace_base_name + '_-_' + str(cnt)
-            excmess = os.path.join(message_path_new, base + '.txt')
-            cnt += 1
-        logging.basicConfig(filename=excmess, level=logging.DEBUG)
+        excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr)
         ret = 0
         cnt_dot = 0
         with mp(processes=cpu_use) as pool:
@@ -275,6 +381,38 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                 fo1.write('Failed evaluations:\n')
                 fo1.write('\n'.join(['  '.join(map(str, a)) for a in res1]))
         return ret
+
+
+def create_message_path(message_path, test_name, test_nr):
+    message_path_new = os.path.join(message_path, 'evals')
+    try:
+        os.mkdir(message_path_new)
+    except FileExistsError:
+        pass
+    message_path_new = os.path.join(message_path_new, test_name)
+    try:
+        os.mkdir(message_path_new)
+    except FileExistsError:
+        pass
+    message_path_new = os.path.join(message_path_new, str(test_nr))
+    try:
+        os.mkdir(message_path_new)
+    except FileExistsError:
+        pass
+    return message_path_new
+
+
+def configure_logging(message_path, base_name, test_name, test_nr):
+    err_trace_base_name = base_name + test_name + '_' + str(test_nr)
+    base = err_trace_base_name
+    excmess = os.path.join(message_path, base + '.txt')
+    cnt = 1
+    while os.path.exists(excmess):
+        base = err_trace_base_name + '_-_' + str(cnt)
+        excmess = os.path.join(message_path, base + '.txt')
+        cnt += 1
+    logging.basicConfig(filename=excmess, level=logging.DEBUG)
+    return excmess
 
 
 def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
@@ -345,7 +483,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'USAC_opt_refine_ops_th'}
                     from usac_eval import get_best_comb_and_th_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -382,7 +520,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'USAC_opt_refine_ops_inlrat'}
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -420,7 +558,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_refine_ops_inlrat_th'}
                     from usac_eval import get_best_comb_and_th_for_inlrat_1
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -455,7 +593,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
                     special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
                     from usac_eval import get_best_comb_th_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -491,7 +629,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           't_data_separators': ['inlratMin'],
                                           'res_par_name': 'USAC_opt_refine_min_time'}
                     from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-                    ret += calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -519,7 +657,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     it_parameters = ['USAC_parameters_estimator',
                                      'USAC_parameters_refinealg']
                     from usac_eval import filter_nr_kps, calc_Time_Model
-                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -571,7 +709,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'USAC_opt_search_ops_th'}
                     from usac_eval import get_best_comb_and_th_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -610,7 +748,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'USAC_opt_search_ops_inlrat'}
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -651,7 +789,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'USAC_opt_search_ops_kpAccSd_th',
                                           'func_name': 'get_best_comb_and_th_for_kpacc_1'}
                     from usac_eval import get_best_comb_and_th_for_inlrat_1
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -689,7 +827,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'fig_type': 'surface',
                                           'res_par_name': 'USAC_opt_search_ops_inlrat_th'}
                     from usac_eval import get_best_comb_and_th_for_inlrat_1
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -724,7 +862,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'USAC_opt_search_min_inlrat_diff'}
                     from usac_eval import get_inlrat_diff, get_min_inlrat_diff
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -764,7 +902,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True}
                     from usac_eval import get_best_comb_th_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -801,7 +939,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'nr_target_kps': 1000,
                                           't_data_separators': ['inlratMin']}
                     from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-                    ret += calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_USAC_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -837,7 +975,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'nr_target_kps': 1000,
                                           't_data_separators': ['inlratMin', 'th'],
                                           'res_par_name': 'USAC_opt_search_min_time_inlrat_th'}
-                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -877,7 +1015,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'accum_step_props': ['inlratMin', 'kpAccSd'],
                                           'eval_minmax_for': 'th',
                                           'res_par_name': 'USAC_opt_search_min_time_kpAccSd_inlrat_th'}
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_USAC_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -927,7 +1065,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'use_marks': True,
                                       'res_par_name': 'USAC_vs_RANSAC_th'}
                 from usac_eval import get_best_comb_and_th_1
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -963,7 +1101,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'use_marks': True,
                                       'res_par_name': 'USAC_vs_RANSAC_inlrat'}
                 from usac_eval import get_best_comb_inlrat_1
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1000,7 +1138,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'fig_type': 'surface',
                                       'res_par_name': 'USAC_vs_RANSAC_inlrat_th'}
                 from usac_eval import get_best_comb_and_th_for_inlrat_1
-                ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_3D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1032,7 +1170,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'use_marks': True,
                                       'res_par_name': 'USAC_vs_RANSAC_min_inlrat_diff'}
                 from usac_eval import get_inlrat_diff, get_min_inlrat_diff
-                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1068,7 +1206,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 partitions = ['depthDistr', 'kpAccSd', 'th']#th must be at the end
                 special_calcs_args = {'build_pdf': (True, True), 'use_marks': True}
                 from usac_eval import get_best_comb_th_scenes_1
-                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1103,7 +1241,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       't_data_separators': ['inlratMin'],
                                       'res_par_name': 'USAC_vs_RANSAC_min_time'}
                 from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
-                ret += calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                ret += calcFromFuncAndPlot_3D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1130,7 +1268,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 units = []
                 it_parameters = ['RobMethod']
                 from usac_eval import filter_nr_kps, calc_Time_Model
-                ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                ret += calcFromFuncAndPlot_2D_partitions(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_USAC_vs_RANSAC_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1183,7 +1321,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'refineRT_BA_opts_inlrat'}
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refineRT_BA_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -1224,7 +1362,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'refinement_ba_best_comb_scenes'}
                     from refinement_eval import get_best_comb_scenes_1
                     from usac_eval import filter_nr_kps_stat
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refineRT_BA_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -1259,7 +1397,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'refineRT_BA_min_time'}
                     from usac_eval import calc_Time_Model
                     from refinement_eval import filter_nr_kps_calc_t, estimate_alg_time_fixed_kp_agg
-                    ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_refineRT_BA_opts_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1297,7 +1435,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'func_name': 'get_best_comb_kpAccSd_1',
                                           'res_par_name': 'refineRT_BA_opts_kpAccSd'}
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refineRT_BA_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -1328,7 +1466,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                      'refineMethod_costFunction',
                                      'BART']
                     from refinement_eval import filter_nr_kps_calc_t_all
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_refineRT_BA_opts_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1373,7 +1511,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'refineRT_opts_for_BA2_inlrat'}
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refineRT_BA_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -1413,7 +1551,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'refinement_best_comb_for_BA2_scenes'}
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refineRT_BA_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -1455,7 +1593,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'res_par_name': 'refineRT_opts_for_BA2_K_inlrat'}
                     from refinement_eval import get_best_comb_inlrat_k
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refineRT_BA_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -1504,7 +1642,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'error_col_name': 'ke',
                                           'res_par_name': 'refinement_best_comb_for_BA2_K_scenes'}
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refineRT_BA_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -1556,7 +1694,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'use_marks': True,
                                       'res_par_name': 'vfc_gms_sof_inlrat'}
                 from usac_eval import get_best_comb_inlrat_1
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_vfc_gms_sof_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1587,7 +1725,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                  'matchesFilter_refineVFC',
                                  'matchesFilter_refineSOF']
                 from usac_eval import get_inlrat_diff
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_vfc_gms_sof_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1618,7 +1756,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                  'matchesFilter_refineVFC',
                                  'matchesFilter_refineSOF']
                 from usac_eval import get_inlrat_diff  # , get_min_inlrat_diff
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_vfc_gms_sof_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1651,7 +1789,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                  'matchesFilter_refineVFC',
                                  'matchesFilter_refineSOF']
                 from usac_eval import get_inlrat_diff  # , get_min_inlrat_diff
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_vfc_gms_sof_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -1688,7 +1826,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'mk_no_folder': True}
                 from usac_eval import get_inlrat_diff
                 from vfc_gms_sof_eval import get_min_inlrat_diff_no_fig
-                ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_aggregate(data=data,
                                                      store_path=output_path,
                                                      tex_file_pre_str='plots_vfc_gms_sof_',
                                                      fig_title_pre_str=fig_title_pre_str,
@@ -1726,7 +1864,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'use_marks': True,
                                       'res_par_name': 'vfc_gms_sof_best_comb_for_scenes'}
                 from refinement_eval import get_best_comb_scenes_1
-                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_vfc_gms_sof_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1762,7 +1900,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'res_par_name': 'vfc_gms_sof_min_time'}
                 from usac_eval import calc_Time_Model, filter_nr_kps
                 from refinement_eval import estimate_alg_time_fixed_kp_agg
-                ret += calcFromFuncAndPlot_aggregate(data=data.copy(deep=True),
+                ret += calcFromFuncAndPlot_aggregate(data=data,
                                                      store_path=output_path,
                                                      tex_file_pre_str='plots_vfc_gms_sof_',
                                                      fig_title_pre_str=fig_title_pre_str,
@@ -1816,7 +1954,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -1859,7 +1997,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -1893,7 +2031,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'err_type': 'min_mean_time',
                                           'mk_no_folder': True}
                     from vfc_gms_sof_eval import get_min_inlrat_diff_no_fig
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -1941,7 +2079,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -1984,7 +2122,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2029,7 +2167,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'K-stats', descr)
                     from refinement_eval import get_best_comb_inlrat_k
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2082,7 +2220,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 2, 'K-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_refRT_BA_stereo_opts_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2141,7 +2279,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     #         'multiple stereo frames'
                     # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2183,7 +2321,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     #         'multiple stereo frames'
                     # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2227,7 +2365,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
                     from corr_pool_eval import filter_take_end_frames
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2262,7 +2400,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     it_parameters = ['stereoParameters_minPtsDistance']
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin']}
                     from corr_pool_eval import filter_max_pool_size, calc_rt_diff_frame_to_frame
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2306,7 +2444,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_rt_diff2_frame_to_frame, \
                         eval_corr_pool_converge
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2341,7 +2479,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     it_parameters = ['stereoParameters_minPtsDistance']
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_rt_diff_n_matches
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2375,7 +2513,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     it_parameters = ['stereoParameters_minPtsDistance']
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_rt_diff_n_matches
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2417,7 +2555,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'corrpool_size_converge_mean'}
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_diff_stat_rt_diff_n_matches, eval_corr_pool_converge_vs_x
-                    ret += calcFromFuncAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2445,7 +2583,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     units = [('stereoRefine_us', '/$\\mu s$')]
                     it_parameters = ['stereoParameters_maxPoolCorrespondences',
                                      'stereoParameters_minPtsDistance']
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_corrPool_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -2477,7 +2615,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': False}
                     from corr_pool_eval import filter_take_end_frames, eval_mean_time_poolcorrs
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_corrPool_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -2524,7 +2662,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     #         'multiple stereo frames'
                     # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from usac_eval import get_best_comb_inlrat_1
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2565,7 +2703,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     #         'multiple stereo frames'
                     # compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
                     from refinement_eval import get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2598,7 +2736,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': False}
                     from corr_pool_eval import filter_take_end_frames, eval_mean_time_pool_3D_dist
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_corrPool_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -2643,7 +2781,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     descr = 'Data for comparison from pose refinement without aggregation of correspondences over ' \
                             'multiple stereo frames'
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'RT-stats', descr)
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_corrPool_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -2680,7 +2818,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     compare_source = get_compare_info(comp_pars, comp_path, 'refinement_ba', 1, 'time-agg', descr,
                                                       repl_eval)
                     from usac_eval import filter_nr_kps_stat
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_corrPool_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -2747,7 +2885,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'stereoParameters_relMinInlierRatSkip',
                                                             'inlratCRate']}
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2797,7 +2935,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2847,7 +2985,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd']}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2910,7 +3048,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_delay_jra'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay
-                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -2979,7 +3117,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_delay_jta'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay
-                    ret += calcFromFuncAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_corrPool_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3043,7 +3181,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_ml_1
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3098,7 +3236,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3153,7 +3291,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3211,7 +3349,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate'],
                                         'check_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3245,7 +3383,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'inlratCRate']}
                     from robustness_eval import get_rt_change_type
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -3307,7 +3445,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'filter_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -3360,7 +3498,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'filter_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -3411,7 +3549,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'filter_mostLikely': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -3459,7 +3597,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'filter_mostLikely': True}
                     from robustness_eval import get_rt_change_type
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -3524,7 +3662,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'filter_mostLikely': True}
                     from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3591,7 +3729,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_poseIsStable': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3657,7 +3795,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_poseIsStable': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3722,7 +3860,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_poseIsStable': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3779,7 +3917,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_poseIsStable': True}
                     from robustness_eval import get_rt_change_type
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3838,7 +3976,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr'],
                                         'filter_mostLikely': True}
                     from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3905,7 +4043,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_mostLikelyPose_stable': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -3971,7 +4109,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_mostLikelyPose_stable': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4036,7 +4174,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_mostLikelyPose_stable': True}
                     from robustness_eval import get_rt_change_type, get_ml_acc
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4093,7 +4231,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                         'filter_mostLikely': True,
                                         'filter_mostLikelyPose_stable': True}
                     from robustness_eval import get_rt_change_type
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4145,7 +4283,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
-                    ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4191,7 +4329,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4239,7 +4377,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
-                    ret += calcSatisticAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4268,7 +4406,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     eval_columns = ['stereoRefine_us']
                     units = [('stereoRefine_us', '/$\\mu s$')]
                     it_parameters = ['stereoParameters_useRANSAC_fewMatches']
-                    ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_aggregate(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_robustness_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -4316,7 +4454,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_cRT_stats
-                    ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -4358,7 +4496,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_cRT_stats
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -4398,7 +4536,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr']}
                     from robustness_eval import get_rt_change_type, get_cRT_stats
-                    ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                    ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
                                                   tex_file_pre_str='plots_robustness_',
                                                   fig_title_pre_str=fig_title_pre_str,
@@ -4454,7 +4592,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_mean_frame_delay_rot'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4515,7 +4653,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_mean_frame_delay_trans'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4577,7 +4715,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_mean_frame_delay_rt'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4644,7 +4782,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_mean_frame_delay_rotMl'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4711,7 +4849,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_mean_frame_delay_transMl'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4779,7 +4917,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'res_par_name': 'robustness_mean_frame_delay_rtMl'}
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay_noPar
-                    ret += calcFromFuncAndPlot_3D_partitions(data=data.copy(deep=True),
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
                                                              tex_file_pre_str='plots_robustness_',
                                                              fig_title_pre_str=fig_title_pre_str,
@@ -4847,7 +4985,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 from usac_eval import get_best_comb_inlrat_1
                 from robustness_eval import get_rt_change_type
                 from usac_vs_autocalib_eval import get_accum_corrs_sequs
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_usacVsAuto_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -4893,7 +5031,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'func_name': 'comp_pars_vs_kpAccSd'}
                 from robustness_eval import get_rt_change_type
                 from usac_vs_autocalib_eval import get_mean_y_vs_x_it, get_accum_corrs_sequs
-                ret += calcSatisticAndPlot_3D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_3D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_usacVsAuto_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -4939,7 +5077,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 from usac_eval import get_best_comb_inlrat_1
                 from robustness_eval import get_rt_change_type
                 from usac_vs_autocalib_eval import get_accum_corrs_sequs
-                ret += calcSatisticAndPlot_2D(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_usacVsAuto_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -4989,7 +5127,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 from usac_eval import get_best_comb_inlrat_1
                 from robustness_eval import get_rt_change_type
                 from usac_vs_autocalib_eval import get_accum_corrs_sequs, get_mean_y_vs_x_it
-                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_usacVsAuto_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -5037,7 +5175,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 from usac_eval import get_best_comb_inlrat_1
                 from robustness_eval import get_rt_change_type
                 from usac_vs_autocalib_eval import get_accum_corrs_sequs, get_mean_y_vs_x_it
-                ret += calcSatisticAndPlot_2D_partitions(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                          store_path=output_path,
                                                          tex_file_pre_str='plots_usacVsAuto_',
                                                          fig_title_pre_str=fig_title_pre_str,
@@ -5080,7 +5218,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
                     estimate_alg_time_fixed_kp, \
                     accum_corrs_sequs_time_model
-                ret += calcFromFuncAndPlot_2D(data=data.copy(deep=True),
+                ret += calcFromFuncAndPlot_2D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_usacVsAuto_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -5124,7 +5262,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
                     estimate_alg_time_fixed_kp, \
                     accum_corrs_sequs_time_model
-                ret += calcFromFuncAndPlot_3D(data=data.copy(deep=True),
+                ret += calcFromFuncAndPlot_3D(data=data,
                                               store_path=output_path,
                                               tex_file_pre_str='plots_usacVsAuto_',
                                               fig_title_pre_str=fig_title_pre_str,
@@ -5157,7 +5295,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
                     get_accum_corrs_sequs
-                ret += calcSatisticAndPlot_aggregate(data=data.copy(deep=True),
+                ret += calcSatisticAndPlot_aggregate(data=data,
                                                      store_path=output_path,
                                                      tex_file_pre_str='plots_corrPool_',
                                                      fig_title_pre_str=fig_title_pre_str,

@@ -353,18 +353,6 @@ def calcSatisticAndPlot_2D(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -393,7 +381,7 @@ def calcSatisticAndPlot_2D(data,
         x_axis_column = ret['x_axis_column']
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column
-        df = data[needed_columns]
+        df = data[needed_columns].copy(deep=True)
 
     roundNumericProps(df, it_parameters, x_axis_column, None, None, eval_columns)
 
@@ -704,18 +692,6 @@ def calcSatisticAndPlot_2D_partitions(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -747,7 +723,7 @@ def calcSatisticAndPlot_2D_partitions(data,
         partitions = ret['partitions']
     else:
         needed_columns = eval_columns + it_parameters + x_axis_column + partitions
-        df = data[needed_columns]
+        df = data[needed_columns].copy(deep=True)
 
     roundNumericProps(df, it_parameters, x_axis_column, None, partitions, eval_columns)
 
@@ -1106,18 +1082,6 @@ def calcFromFuncAndPlot_2D(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -1527,18 +1491,6 @@ def calcFromFuncAndPlot_2D_partitions(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -2050,19 +2002,7 @@ def calcSatisticAndPlot_3D(data,
                  'surface', 'contour', 'surface-contour']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
     # startt = time.time()
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -2091,7 +2031,7 @@ def calcSatisticAndPlot_3D(data,
         xy_axis_columns = ret['xy_axis_columns']
     else:
         needed_columns = eval_columns + it_parameters + xy_axis_columns
-        df = data[needed_columns]
+        df = data[needed_columns].copy(deep=True)
 
     roundNumericProps(df, it_parameters, None, xy_axis_columns, None, eval_columns)
 
@@ -2398,16 +2338,6 @@ def calcFromFuncAndPlot_3D(data,
                  'surface', 'contour', 'surface-contour']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -2761,19 +2691,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                  'surface', 'contour', 'surface-contour']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
     # startt = time.time()
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -3192,18 +3110,6 @@ def calcFromFuncAndPlot_3D_partitions(data,
                  'surface', 'contour', 'surface-contour']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -3624,16 +3530,6 @@ def calcFromFuncAndPlot_aggregate(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    #Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}
@@ -3983,18 +3879,6 @@ def calcSatisticAndPlot_aggregate(data,
     fig_types = ['sharp plot', 'smooth', 'const plot', 'ybar', 'xbar']
     if not fig_type in fig_types:
         raise ValueError('Unknown figure type.')
-    # if type(data) is not pd.dataframe.DataFrame:
-    #     data = pd.utils.from_pandas(data)
-    # Filter rows by excluding not successful estimations
-    data = data.loc[~((data['R_out(0,0)'] == 0) &
-                      (data['R_out(0,1)'] == 0) &
-                      (data['R_out(0,2)'] == 0) &
-                      (data['R_out(1,0)'] == 0) &
-                      (data['R_out(1,1)'] == 0) &
-                      (data['R_out(1,2)'] == 0) &
-                      (data['R_out(2,0)'] == 0) &
-                      (data['R_out(2,1)'] == 0) &
-                      (data['R_out(2,2)'] == 0))]
     if filter_func is not None:
         if filter_func_args is None:
             filter_func_args = {'data': data}

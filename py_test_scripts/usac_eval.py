@@ -2106,7 +2106,7 @@ def calc_Time_Model(**vars):
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column
     else:
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
-    df = vars['data'][needed_cols]
+    df = vars['data'][needed_cols].copy(deep=True)
     # Calculate TP
     # df['actNrTP'] = (df[x_axis_column[0]] * df[x_axis_column[1]]).round()
     if accum_all:
@@ -4073,7 +4073,7 @@ def get_inlrat_diff(**vars):
         needed_columns = vars['eval_columns'] + vars['it_parameters'] + vars['xy_axis_columns']
     else:
         needed_columns = vars['eval_columns'] + vars['it_parameters']
-    data = vars['data'].loc[:, needed_columns]
+    data = vars['data'].loc[:, needed_columns].copy(deep=True)
     eval_columns = ['inlRat_diff']
     data['inlRat_diff'] = data[vars['eval_columns'][0]] - data[vars['eval_columns'][1]]
     data.drop(vars['eval_columns'], axis=1, inplace=True)

@@ -124,7 +124,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
         needed_cols = list(dict.fromkeys(vars['eval_columns'] +
                                          vars['it_parameters'] +
                                          vars['data_separators']))
-    df = vars['data'][needed_cols]
+    df = vars['data'][needed_cols].copy(deep=True)
     grpd_cols = [a for a in vars['data_separators'] if a != vars['diff_by']] + vars['it_parameters']
     df_grp = df.groupby(grpd_cols)
     grp_keys = df_grp.groups.keys()
@@ -1149,7 +1149,7 @@ def calc_rt_diff_n_matches(**keywords):
     if 'data_separators' in keywords:
         needed_columns += keywords['data_separators']
         needed_columns = list(dict.fromkeys(needed_columns))
-    data = keywords['data'].loc[:, needed_columns]
+    data = keywords['data'].loc[:, needed_columns].copy(deep=True)
     if 'partitions' in keywords:
         data = data.groupby(keywords['partitions'])
         grp_keys = data.groups.keys()
@@ -1231,7 +1231,7 @@ def calc_diff_stat_rt_diff_n_matches(**keywords):
     else:
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
     needed_cols = list(dict.fromkeys(needed_cols))
-    df = vars['data'][needed_cols]
+    df = vars['data'][needed_cols].copy(deep=True)
     if accum_all:
         grpd_cols = vars['it_parameters']
     else:

@@ -22,7 +22,7 @@ def get_rt_change_type(**keywords):
     change_j_occ = {'jrt': 0, 'jra': 0, 'jta': 0, 'jrx': 0, 'jry': 0, 'jrz': 0, 'jtx': 0, 'jty': 0, 'jtz': 0}
     change_pos = []
     for grp in grp_keys:
-        tmp = df_grp.get_group(grp)
+        tmp = df_grp.get_group(grp).copy(deep=True)
         nr_min = tmp['Nr'].min()
         nr_max = tmp['Nr'].max()
         rng1 = nr_max - nr_min + 1
