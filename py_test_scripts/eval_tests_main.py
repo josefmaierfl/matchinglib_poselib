@@ -119,7 +119,6 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
         procs = [pool.apply_async(read_file_list, (t, res_path)) for t in sub_dirs_split]
         for i, r in enumerate(procs):
             while 1:
-                sys.stdout.flush()
                 try:
                     res = r.get(1.0)
                     if not res:
@@ -161,7 +160,6 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
         procs = [pool.apply_async(load_data, (t, test_name, test_nr)) for t in data_list_split]
         for i, r in enumerate(procs):
             while 1:
-                sys.stdout.flush()
                 try:
                     res = r.get(1.0)
                     df_parts.append(res)
