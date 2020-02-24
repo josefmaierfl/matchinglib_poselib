@@ -16,6 +16,7 @@ import contextlib, logging
 #import multiprocessing.pool
 # import time
 from copy import deepcopy
+import multiprocess.context as mpc
 
 import evaluation_numbers as en
 
@@ -127,7 +128,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                         return pd.DataFrame(), 0
                     data_list += res
                     break
-                except TimeoutError:
+                except mpc.TimeoutError:
                     processing_flush(cnt_dot)
                     cnt_dot += 1
                 except Exception:
@@ -164,7 +165,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                     res = r.get(1.0)
                     df_parts.append(res)
                     break
-                except TimeoutError:
+                except mpc.TimeoutError:
                     processing_flush(cnt_dot)
                     cnt_dot += 1
                 except Exception:
@@ -401,7 +402,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                         res = r.get(2.0)
                         ret += res
                         break
-                    except TimeoutError:
+                    except mpc.TimeoutError:
                         if cnt_dot >= 90:
                             print()
                             cnt_dot = 0
