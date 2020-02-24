@@ -85,30 +85,57 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     res_path = os.path.join(load_path, 'results')
     if not os.path.exists(res_path):
         raise ValueError('No results folder found')
-    print('Reading file list ...')
+    print('Reading file list (this may take some time) ...')
     # Get all folders that contain data
     sub_dirs = [name for name in os.listdir(res_path) if os.path.isdir(os.path.join(res_path, name))]
     sub_dirs = [name for name in sub_dirs if RepresentsInt(name)]
     if len(sub_dirs) == 0:
         raise ValueError('No subdirectories holding data found')
+
+    message_path_new = create_message_path(message_path, test_name, test_nr)
+    excmess = configure_logging(message_path_new, 'loading_except_', test_name, test_nr)
+
+    maxd_parallel = int(len(sub_dirs) / nr_cpus)
+    if maxd_parallel == 0:
+        maxd_parallel = 1
+    nr_used_cpus = min(int(len(sub_dirs) / maxd_parallel), nr_cpus)
+    rest = len(sub_dirs) - nr_used_cpus * maxd_parallel
+    cr = 0
+    rest_sv = rest
+    sub_dirs_split = []
+    for i in range(0, len(sub_dirs) - rest_sv, maxd_parallel):
+        if rest > 0:
+            sub_dirs_split.append(sub_dirs[(i + cr):(i + cr + maxd_parallel + 1)])
+            cr = cr + 1
+            rest = rest - 1
+        else:
+            sub_dirs_split.append(sub_dirs[(i + cr):(i + cr + maxd_parallel)])
+    assert len(sub_dirs_split) == nr_used_cpus
+
+    print('Reading file list using', nr_used_cpus, 'processes')
+    cnt_dot = 0
     data_list = []
-    for sf in sub_dirs:
-        res_path_it = os.path.join(res_path, sf)
-        ov_file = os.path.join(res_path_it, 'allRunsOverview.yaml')
-        if not os.path.exists(ov_file):
-            raise ValueError('Results overview file allRunsOverview.yaml not found')
-        par_data = readOpenCVYaml(ov_file)
-        parSetNr = 0
-        while True:
-            try:
-                data_set = par_data['parSetNr' + str(int(parSetNr))]
-                parSetNr += 1
-            except:
-                break
-            csvf = os.path.join(res_path_it, data_set['hashTestingPars'])
-            if not os.path.exists(csvf):
-                raise ValueError('Results file ' + csvf + ' not found')
-            data_list.append((deepcopy(data_set), csvf))
+    with mp(processes=nr_used_cpus) as pool:
+        procs = [pool.apply_async(read_file_list, (t, res_path)) for t in sub_dirs_split]
+        for i, r in enumerate(procs):
+            while 1:
+                sys.stdout.flush()
+                try:
+                    res = r.get(1.0)
+                    if not res:
+                        print('Got an empty file list!', file=sys.stderr)
+                        pool.terminate()
+                        return pd.DataFrame(), 0
+                    data_list += res
+                    break
+                except TimeoutError:
+                    processing_flush(cnt_dot)
+                    cnt_dot += 1
+                except Exception:
+                    logging.error('Fatal error while reading file list for ' + test_name +
+                                  ', Test Nr ' + str(test_nr), exc_info=True)
+                    pool.terminate()
+                    return pd.DataFrame(), 0
 
     maxd_parallel = int(len(data_list) / nr_cpus)
     if maxd_parallel == 0:
@@ -127,8 +154,6 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
             data_list_split.append(data_list[(i + cr):(i + cr + maxd_parallel)])
     assert len(data_list_split) == nr_used_cpus
 
-    message_path_new = create_message_path(message_path, test_name, test_nr)
-    excmess = configure_logging(message_path_new, 'loading_except_', test_name, test_nr)
     df_parts = []
     cnt_dot = 0
     print('Loading data using', nr_used_cpus, 'processes')
@@ -156,6 +181,28 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     end = timer()
     load_time = end - start
     return data, load_time
+
+
+def read_file_list(sub_dirs, res_path):
+    data_list = []
+    for sf in sub_dirs:
+        res_path_it = os.path.join(res_path, sf)
+        ov_file = os.path.join(res_path_it, 'allRunsOverview.yaml')
+        if not os.path.exists(ov_file):
+            raise ValueError('Results overview file allRunsOverview.yaml not found')
+        par_data = readOpenCVYaml(ov_file)
+        parSetNr = 0
+        while True:
+            try:
+                data_set = par_data['parSetNr' + str(int(parSetNr))]
+                parSetNr += 1
+            except:
+                break
+            csvf = os.path.join(res_path_it, data_set['hashTestingPars'])
+            if not os.path.exists(csvf):
+                raise ValueError('Results file ' + csvf + ' not found')
+            data_list.append((deepcopy(data_set), csvf))
+    return data_list
 
 
 def processing_flush(n, index=5):
