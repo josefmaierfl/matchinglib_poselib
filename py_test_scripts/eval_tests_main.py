@@ -85,6 +85,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     res_path = os.path.join(load_path, 'results')
     if not os.path.exists(res_path):
         raise ValueError('No results folder found')
+    print('Reading file list ...')
     # Get all folders that contain data
     sub_dirs = [name for name in os.listdir(res_path) if os.path.isdir(os.path.join(res_path, name))]
     sub_dirs = [name for name in sub_dirs if RepresentsInt(name)]
@@ -107,7 +108,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
             csvf = os.path.join(res_path_it, data_set['hashTestingPars'])
             if not os.path.exists(csvf):
                 raise ValueError('Results file ' + csvf + ' not found')
-            data_list.append((deepcopy(data_set), csvf, test_name, test_nr))
+            data_list.append((deepcopy(data_set), csvf))
 
     maxd_parallel = int(len(data_list) / nr_cpus)
     if maxd_parallel == 0:
@@ -130,8 +131,9 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     excmess = configure_logging(message_path_new, 'loading_except_', test_name, test_nr)
     df_parts = []
     cnt_dot = 0
+    print('Loading data using', nr_used_cpus, 'processes')
     with mp(processes=nr_used_cpus) as pool:
-        procs = [pool.apply_async(load_data, t) for t in data_list_split]
+        procs = [pool.apply_async(load_data, (t, test_name, test_nr)) for t in data_list_split]
         for i, r in enumerate(procs):
             while 1:
                 sys.stdout.flush()
@@ -162,11 +164,11 @@ def processing_flush(n, index=5):
     sys.stdout.flush()
 
 
-def load_data(data_set, csvf, test_name, test_nr):
+def load_data(data_list, test_name, test_nr):
     data_parts = []
     used_cols = en.get_used_eval_cols(test_name, test_nr)
-    for dy, csvfs in zip(data_set, csvf):
-        csv_data = pd.read_csv(csvfs, delimiter=';', engine='c')
+    for elem in data_list:
+        csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
         addSequInfo_sep = None
         for row in csv_data.itertuples():
             tmp = row.addSequInfo.split('_')
@@ -181,7 +183,7 @@ def load_data(data_set, csvf, test_name, test_nr):
         addSequInfo_df = pd.DataFrame(data=addSequInfo_sep)
         csv_data = pd.concat([csv_data, addSequInfo_df], axis=1, sort=False).reindex(csv_data.index)
         csv_data.drop(columns=['addSequInfo'], inplace=True)
-        data_set_tmp = merge_dicts(dy)
+        data_set_tmp = merge_dicts(elem[0])
         data_set_tmp = pd.DataFrame(data=data_set_tmp, index=[0])
         data_set_repl = pd.DataFrame(np.repeat(data_set_tmp.values, csv_data.shape[0], axis=0))
         data_set_repl.columns = data_set_tmp.columns
