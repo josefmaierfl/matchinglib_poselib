@@ -925,9 +925,9 @@ def processSequences(cmd_l, parSetNr, message_path, used_cpus, loaded = False):
     cerrf.close()
     messf.close()
 
-    if os.stat(fname_cerr).st_size == 0:
+    if os.stat(fname_cerr).st_size < 4:
         os.remove(fname_cerr)
-    if os.stat(fname_mess).st_size == 0:
+    if os.stat(fname_mess).st_size < 4:
         os.remove(fname_mess)
 
     return result

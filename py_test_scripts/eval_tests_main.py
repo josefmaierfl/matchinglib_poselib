@@ -136,6 +136,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                                   ', Test Nr ' + str(test_nr), exc_info=True)
                     pool.terminate()
                     return pd.DataFrame(), 0
+    print()
 
     maxd_parallel = int(len(data_list) / nr_cpus)
     if maxd_parallel == 0:
@@ -173,7 +174,8 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                                   ', Test Nr ' + str(test_nr), exc_info=True)
                     pool.terminate()
                     return pd.DataFrame(), 0
-    if os.stat(excmess).st_size == 0:
+    print()
+    if os.path.exists(excmess) and os.stat(excmess).st_size < 4:
         os.remove(excmess)
 
     data = pd.concat(df_parts, ignore_index=True, sort=False, copy=False)
@@ -388,11 +390,12 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         message_path_new = create_message_path(message_path, test_name, test_nr)
         cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
                 for a, b in zip(used_evals, comp_pars_list)]
+        nr_cpus = min(len(used_evals), cpu_use)
 
         excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr)
         ret = 0
         cnt_dot = 0
-        with mp(processes=cpu_use) as pool:
+        with mp(processes=nr_cpus) as pool:
             results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
             res1 = []
             for i, r in enumerate(results):
@@ -414,7 +417,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                         res1.append(cmds[i][2:5])
                         ret += 1
                         break
-        if os.stat(excmess).st_size == 0:
+        if os.path.exists(excmess) and os.stat(excmess).st_size < 4:
             os.remove(excmess)
         if res1:
             failed_cmds_base_name = 'cmds_evals_failed_' + test_name + '_' + str(test_nr)
@@ -478,9 +481,9 @@ def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp
         with contextlib.redirect_stdout(f_std), contextlib.redirect_stderr(f_err):
             ret = eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
             # ret = test_func(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
-    if os.stat(errmess).st_size == 0:
+    if os.stat(errmess).st_size < 4:
         os.remove(errmess)
-    if os.stat(stdmess).st_size == 0:
+    if os.stat(stdmess).st_size < 4:
         os.remove(stdmess)
     return ret
 

@@ -455,9 +455,9 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
     cerrf.close()
     messf.close()
 
-    if os.stat(errmess).st_size == 0:
+    if os.stat(errmess).st_size < 4:
         os.remove(errmess)
-    if os.stat(stdmess).st_size == 0:
+    if os.stat(stdmess).st_size < 4:
         os.remove(stdmess)
 
     return 0
