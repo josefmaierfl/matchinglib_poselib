@@ -392,7 +392,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                 for a, b in zip(used_evals, comp_pars_list)]
         nr_cpus = min(len(used_evals), cpu_use)
 
-        excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr)
+        excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
         ret = 0
         cnt_dot = 0
         with mp(processes=nr_cpus) as pool:
@@ -412,6 +412,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                         sys.stdout.write('.')
                         cnt_dot = cnt_dot + 1
                     except Exception:
+                        print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
+                              ', Eval Nr', used_evals[i], file=sys.stderr)
                         logging.error('Fatal error within evaluation on ' + test_name +
                                       ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
                         res1.append(cmds[i][2:5])
@@ -453,7 +455,7 @@ def create_message_path(message_path, test_name, test_nr):
     return message_path_new
 
 
-def configure_logging(message_path, base_name, test_name, test_nr):
+def configure_logging(message_path, base_name, test_name, test_nr, already_set=False):
     err_trace_base_name = base_name + test_name + '_' + str(test_nr)
     base = err_trace_base_name
     excmess = os.path.join(message_path, base + '.txt')
@@ -462,7 +464,15 @@ def configure_logging(message_path, base_name, test_name, test_nr):
         base = err_trace_base_name + '_-_' + str(cnt)
         excmess = os.path.join(message_path, base + '.txt')
         cnt += 1
-    logging.basicConfig(filename=excmess, level=logging.DEBUG)
+    if already_set:
+        fileh = logging.FileHandler(excmess, 'a')
+        fileh.setLevel(level=logging.DEBUG)
+        log = logging.getLogger()  # root logger
+        for hdlr in log.handlers[:]:  # remove all old handlers
+            log.removeHandler(hdlr)
+        log.addHandler(fileh)  # set the new handler
+    else:
+        logging.basicConfig(filename=excmess, level=logging.DEBUG)
     return excmess
 
 
