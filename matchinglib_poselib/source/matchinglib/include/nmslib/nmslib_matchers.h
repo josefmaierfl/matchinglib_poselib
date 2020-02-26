@@ -165,7 +165,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			similarity::ToLower(spaceStr);//the used space like "l2", "l1", "bit_hamming", ...
 			similarity::ToLower(methodStr);//name of the matching-method
 
-			similarity::initLibrary(LIB_LOGNONE,'\0');
+			similarity::initLibrary(LIB_LOGNONE,"\0");
 			/*string logfilename = "C:\\work\\nmslib_log.txt";
 			similarity::initLibrary(LIB_LOGFILE, logfilename.c_str());*/
 

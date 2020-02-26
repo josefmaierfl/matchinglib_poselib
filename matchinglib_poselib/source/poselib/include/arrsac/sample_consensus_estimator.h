@@ -95,9 +95,11 @@ template <class Datum, class Model> class SampleConsensusEstimator {
                            int max_iters = 10000)
       : sampler_(sampler), quality_measurement_(quality_measurement),
 	    max_iters_(max_iters), num_iters_(-1) {
-    CHECK_NOTNULL(sampler);
+      assert(sampler != nullptr);
+//    CHECK_NOTNULL(sampler);
     //sampler_.reset(sampler);
-    CHECK_NOTNULL(quality_measurement);
+      assert(quality_measurement != nullptr);
+//    CHECK_NOTNULL(quality_measurement);
     //quality_measurement_.reset(quality_measurement);
   }
 

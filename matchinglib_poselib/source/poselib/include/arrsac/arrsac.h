@@ -96,7 +96,7 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
   //     hypothesis set
   //   block_size: Number of data points a hypothesis is evaluated against
   //     before preemptive ordering is used.
-  //   nonmin_sample_size: Sample size for the inner RANSAC (nonminimal sample set) - 
+  //   nonmin_sample_size: Sample size for the inner RANSAC (nonminimal sample set) -
   //     for epipolar geometry estimation 14 and for homography estimation 12 are optimal
   Arrsac(int min_sample_size, double error_thresh, int max_candidate_hyps = 500,
          int block_size = 100, int nonmin_sample_size = 14, int nonmin_sample_size_min = 0)
@@ -109,7 +109,7 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
         sigma_(0.05),
         epsilon_(0.1),
         inlier_confidence_(0.95),
-		num_models_verified_accum_(0), 
+		num_models_verified_accum_(0),
 		time_compute_model_ratio_(250.0),
 		num_rejected_hypotheses_(0),
 		rejected_accum_inlier_ratio_(0.0),
@@ -182,11 +182,11 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
   int nonmin_sample_size_;
 
   // Set the minimal sample size for non-minimal sampling according to the
-  // minimum sample size accepted by the model estimation algorithm 
+  // minimum sample size accepted by the model estimation algorithm
   // (e.g. 8 for the 8-point-algorithm for E & F)
   int nonmin_sample_size_min_;
 
-  // Time to compute a hypothesis measured in time units necessary for 
+  // Time to compute a hypothesis measured in time units necessary for
   // evaluating one data point
   double time_compute_model_ratio_;// = 250.0;
 
@@ -208,7 +208,7 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
     const Estimator<Datum, Model>& estimator,
     std::vector<ScoredData<Model>>* accepted_hypotheses) {
   //   set parameters for SPRT test, calculate initial value of A
-  
+
   double decision_threshold;
 
   int k = 1; //Number of hypotheses generation iterations
@@ -267,8 +267,8 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
 	//Recalculate the decision threshold depending on inlier ratio, sigma and the
 	//average number of hypotheses per sample (e.g. 1 to 3 solutions for 7-pnt alg)
 	num_models_verified_accum_ += (int)hypotheses.size();
-	decision_threshold = CalculateSPRTDecisionThreshold(sigma_, epsilon_, 
-														time_compute_model_ratio_, 
+	decision_threshold = CalculateSPRTDecisionThreshold(sigma_, epsilon_,
+														time_compute_model_ratio_,
 														num_models_verified_accum_/(k-k2));
 
     for (size_t j = 0; j < hypotheses.size(); j++) {
@@ -277,7 +277,7 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
 	  std::vector<bool> inliers;
       // Evaluate hypothesis h(k) with SPRT.
       bool sprt_test = SequentialProbabilityRatioTest(
-		  &estimator, data_input, hypotheses[j], 
+		  &estimator, data_input, hypotheses[j],
 		  error_thresh_, sigma_, epsilon_, decision_threshold,
           &num_tested_points, &observed_inlier_ratio, inliers,
 		  &observed_num_inliers);
@@ -307,7 +307,7 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
 			// Set parameters to force inner ransac to execute.
 			inner_ransac = true;
 			inner_ransac_its = 0;
-			random_sampler.setSampleSize(max(min(nonmin_sample_size_,
+			random_sampler.setSampleSize(std::max(std::min(nonmin_sample_size_,
 										 (int)floor((float)max_num_inliers/2.0f)),
 										 min_sample_size_));
 
@@ -356,7 +356,7 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
 
   // Generate Initial Hypothesis Test
   std::vector<ScoredData<Model>> hypotheses;
-  const std::vector<Datum> initial_data(data.begin(),data.begin()+min(data.size(),(size_t)block_size_));
+  const std::vector<Datum> initial_data(data.begin(),data.begin() + std::min(data.size(),(size_t)block_size_));
   int k = GenerateInitialHypothesisSet(initial_data, estimator, &hypotheses);
 
   if(k == 0)
@@ -389,7 +389,7 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
   }*/
 
   RandomSampler<Datum> random_sampler(min_sample_size_);
-  
+
   // Preemptive Evaluation
   int n = static_cast<int>(hypotheses.size());
   for (int i = block_size_ /*+ 1*/; i < (int)data.size(); i++) {
@@ -403,7 +403,7 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
       // Use a simple for loop. This should be really fast since the list was
       // recently sorted and the values can only have increased by 1.
       double max_inliers = hypotheses[0].score;
-      
+
       // Estimate best inlier ratio.
       epsilon_ = max_inliers / static_cast<double>(i+1);
 	  if(epsilon_ == 1.0)
@@ -437,8 +437,8 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
 			//Recalculate the decision threshold depending on inlier ratio, sigma and the
 			//average number of hypotheses per sample (e.g. 1 to 3 solutions for 7-pnt alg)
 			num_models_verified_accum_ += (int)estimated_models.size();
-			double decision_threshold = CalculateSPRTDecisionThreshold(sigma_, epsilon_, 
-														time_compute_model_ratio_, 
+			double decision_threshold = CalculateSPRTDecisionThreshold(sigma_, epsilon_,
+														time_compute_model_ratio_,
 														num_models_verified_accum_/
 														(k+j+1-k2));
 
@@ -450,13 +450,13 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
 
 			  // Evaluate hypothesis h(k) with SPRT.
 			  bool sprt_test = SequentialProbabilityRatioTest(
-				  &estimator, data_i, estimated_models[m], 
+				  &estimator, data_i, estimated_models[m],
 				  error_thresh_, sigma_, epsilon_, decision_threshold,
 				  &num_tested_points, &observed_inlier_ratio, inliers,
 				  &observed_num_inliers);
 
 			  // If the model was rejected by the SPRT test.
-			  if (!sprt_test) 
+			  if (!sprt_test)
 			  {
 				// re-estimate params of SPRT (if required)
 				// sigma = average of inlier ratios in bad models
@@ -466,8 +466,8 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
 									static_cast<double>(num_rejected_hypotheses_);
 				if(sigma_temp > 0)
 					sigma_ = sigma_temp;
-			  } 
-			  else if (observed_num_inliers > (int)max_inliers) 
+			  }
+			  else if (observed_num_inliers > (int)max_inliers)
 			  {
 				// Else if hypothesis h(k) is accepted and has the largest support so
 				// far.
