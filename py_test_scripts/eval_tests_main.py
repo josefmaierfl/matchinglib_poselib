@@ -998,7 +998,8 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'use_marks': True,
                                           'fig_type': 'smooth',
                                           'nr_target_kps': 1000,
-                                          't_data_separators': ['inlratMin']}
+                                          't_data_separators': ['inlratMin'],
+                                          'res_par_name': 'USAC_opt_search_min_time'}
                     from usac_eval import filter_nr_kps, calc_Time_Model, estimate_alg_time_fixed_kp
                     ret += calcFromFuncAndPlot_3D(data=data,
                                                   store_path=output_path,

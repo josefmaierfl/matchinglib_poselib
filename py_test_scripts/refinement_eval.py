@@ -62,7 +62,8 @@ def get_best_comb_scenes_1(**keywords):
         get_limits_log_exp, \
         enl_space_title, \
         check_if_neg_values, \
-        handle_nans
+        handle_nans, \
+        short_concat_str
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
                      ' for Parameter Variations of ' + ret['sub_title_it_pars']
@@ -103,11 +104,11 @@ def get_best_comb_scenes_1(**keywords):
 
         if 'file_name_err_part' in keywords:
             b_mean_name_tmp = 'data_mean_' + keywords['file_name_err_part'] + '_over_' + \
-                              '-'.join(map(str, drops[i])) + '_vs_' + str(dp) +\
-                              '_for_opts_' + '-'.join(ret['it_parameters']) + '.csv'
+                              short_concat_str(list(map(str, drops[i]))) + '_vs_' + str(dp) +\
+                              '_for_opts_' + short_concat_str(ret['it_parameters']) + '.csv'
         else:
-            b_mean_name_tmp = 'data_mean_RTerrors_over_' + '-'.join(map(str, drops[i])) + '_vs_' + str(dp) + \
-                              '_for_opts_' + '-'.join(ret['it_parameters']) + '.csv'
+            b_mean_name_tmp = 'data_mean_RTerrors_over_' + short_concat_str(list(map(str, drops[i]))) + '_vs_' + \
+                              str(dp) + '_for_opts_' + short_concat_str(ret['it_parameters']) + '.csv'
         b_mean_name.append(b_mean_name_tmp)
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name[-1])
         with open(fb_mean_name, 'a') as f:
@@ -410,7 +411,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     tmp, col_name = get_time_fixed_kp(**vars)
 
     tmp.set_index(vars['it_parameters'], inplace=True)
-    from statistics_and_plot import glossary_from_list, get_limits_log_exp, enl_space_title
+    from statistics_and_plot import glossary_from_list, get_limits_log_exp, enl_space_title, short_concat_str
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.index for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.index]
@@ -434,7 +435,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     from statistics_and_plot import compile_tex, strToLower, split_large_titles, handle_nans
     t_main_name = 'mean_time_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
-                  '-'.join(map(str, vars['it_parameters']))
+                  short_concat_str(list(map(str, vars['it_parameters'])))
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
     with open(ft_mean_name, 'a') as f:
@@ -559,6 +560,7 @@ def combineK(data):
 
 
 def pars_calc_single_fig_K(**keywords):
+    from statistics_and_plot import short_concat_str
     if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig_K')
     if 'data' not in keywords:
@@ -601,7 +603,7 @@ def pars_calc_single_fig_K(**keywords):
     ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
     ret['grp_names'] = data.index.names
     ret['it_parameters'] = keywords['it_parameters']
-    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + '-'.join(keywords['it_parameters'])
+    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + short_concat_str(keywords['it_parameters'])
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineK(data)
     ret['b'] = ret['b'].T

@@ -405,7 +405,8 @@ def eval_corr_pool_converge(**keywords):
         get_limits_log_exp, \
         check_legend_enlarge, \
         enl_space_title, \
-        handle_nans
+        handle_nans, \
+        short_concat_str
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -518,7 +519,8 @@ def eval_corr_pool_converge(**keywords):
 
         t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
-                                 a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+                                 a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + \
+                       short_concat_str(keywords['it_parameters'])
         t_main_name1 = t_main_name1.replace('.', 'd')
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
@@ -677,7 +679,8 @@ def eval_corr_pool_converge(**keywords):
         data_new2 = data_new2.unstack(level=-1)
         comb_cols = ['-'.join(map(str, a)) for a in data_new2.columns]
         data_new2.columns = comb_cols
-    t_main_name = 'converge_poolSizes_vs_' + itpars_name + '_' + keywords['partition_x_axis']
+    t_main_name = 'converge_poolSizes_vs_' + short_concat_str(keywords['it_parameters']) + '_' + \
+                  keywords['partition_x_axis']
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
     with open(ft_mean_name, 'a') as f:
@@ -1004,7 +1007,8 @@ def eval_corr_pool_converge(**keywords):
 
         t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
-                                 a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + itpars_name
+                                 a[:min(3, len(a))] for i, a in enumerate(map(str, grp))]) + '_for_opts_' + \
+                       short_concat_str(keywords['it_parameters'])
         t_main_name1 = t_main_name1.replace('.', 'd')
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
@@ -1327,7 +1331,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         compile_tex, \
         get_limits_log_exp, \
         enl_space_title, \
-        handle_nans
+        handle_nans, \
+        short_concat_str
 
     base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg', 'poolSize']
 
@@ -1413,7 +1418,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
     comb_cols = ['-'.join(map(str, a)) for a in tmp1.columns]
     tmp1.columns = comb_cols
 
-    t_main_name1 = t_main_name + '_for_opts_' + itpars_name
+    t_main_name1 = t_main_name + '_for_opts_' + short_concat_str(keywords['it_parameters'])
     t_mean_name = 'data_' + t_main_name1 + '.csv'
     ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
     with open(ft_mean_name, 'a') as f:

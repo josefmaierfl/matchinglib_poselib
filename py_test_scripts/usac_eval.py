@@ -376,6 +376,7 @@ def pars_calc_single_fig_partitions(**keywords):
 
 
 def pars_calc_single_fig(**keywords):
+    from statistics_and_plot import short_concat_str
     if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig')
     if 'data' not in keywords:
@@ -418,7 +419,7 @@ def pars_calc_single_fig(**keywords):
     ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
     ret['grp_names'] = data.index.names
     ret['it_parameters'] = keywords['it_parameters']
-    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + '-'.join(keywords['it_parameters'])
+    ret['dataf_name_main'] = str(ret['grp_names'][-1]) + '_for_options_' + short_concat_str(keywords['it_parameters'])
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].T
@@ -539,6 +540,7 @@ def pars_calc_single_fig(**keywords):
 
 
 def pars_calc_multiple_fig(**keywords):
+    from statistics_and_plot import short_concat_str
     if len(keywords) < 4:
         raise ValueError('Wrong number of arguments for function pars_calc_multiple_fig')
     if 'data' not in keywords:
@@ -587,7 +589,7 @@ def pars_calc_multiple_fig(**keywords):
     ret['grp_names'] = data.index.names
     ret['it_parameters'] = keywords['it_parameters']
     ret['dataf_name_main'] = ret['grp_names'][-2] + '_and_' + ret['grp_names'][-1] + \
-                             '_for_options_' + '-'.join(keywords['it_parameters'])
+                             '_for_options_' + short_concat_str(keywords['it_parameters'])
     ret['dataf_name'] = ret['dataf_name_main'] + '.csv'
     ret['b'] = combineRt(data)
     ret['b'] = ret['b'].unstack()
@@ -1064,6 +1066,16 @@ def pars_calc_multiple_fig_partitions(**keywords):
     return ret
 
 
+def fill_nans_with_max(df):
+    from statistics_and_plot import contains_nan
+    if contains_nan(df, df.columns):
+        max_mean = df.select_dtypes(include=[np.number]).abs().max()
+        df1 = df.fillna(max_mean)
+        return df1
+    else:
+        return df
+
+
 def combineRt(data, normalize=True):
     #Get R and t mean and standard deviation values
     if 'R_diffAll' in data.columns and 'R_mostLikely_diffAll' not in data.columns:
@@ -1075,9 +1087,13 @@ def combineRt(data, normalize=True):
     else:
         raise ValueError('Unable to calculate combined Rt error as the necessary column is missing.')
     stat_R_mean = stat_R['mean']
+    stat_R_mean = fill_nans_with_max(stat_R_mean)
     stat_t_mean = stat_t['mean']
+    stat_t_mean = fill_nans_with_max(stat_t_mean)
     stat_R_std = stat_R['std']
+    stat_R_std = fill_nans_with_max(stat_R_std)
     stat_t_std = stat_t['std']
+    stat_t_std = fill_nans_with_max(stat_t_std)
     comb_stat_r = stat_R_mean.abs() + stat_R_std
     comb_stat_t = stat_t_mean.abs() + stat_t_std
     # ma = comb_stat_r.select_dtypes(include=[np.number]).dropna().values.max()
@@ -1432,6 +1448,7 @@ def insert_opt_lbreak(columns):
 
 
 def compile_2D_bar_chart(filen_pre, tex_infos, ret):
+    from statistics_and_plot import short_concat_str
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
@@ -1440,7 +1457,7 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
                                    fill_bar=tex_infos['fill_bar'],
                                    sections=tex_infos['sections'],
                                    abbreviations=tex_infos['abbreviations'])
-    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['it_parameters']))
+    base_out_name = filen_pre + '_options_' + short_concat_str(list(map(str, ret['it_parameters'])))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
@@ -1458,7 +1475,9 @@ def compile_2D_bar_chart(filen_pre, tex_infos, ret):
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret['res']
 
+
 def compile_2D_2y_axis(filen_pre, tex_infos, ret):
+    from statistics_and_plot import short_concat_str
     template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
@@ -1468,7 +1487,7 @@ def compile_2D_2y_axis(filen_pre, tex_infos, ret):
                                    sections=tex_infos['sections'],
                                    fill_bar=True,
                                    abbreviations=tex_infos['abbreviations'])
-    base_out_name = filen_pre + '_options_' + '-'.join(map(str, ret['it_parameters']))
+    base_out_name = filen_pre + '_options_' + short_concat_str(list(map(str, ret['it_parameters'])))
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
     from statistics_and_plot import compile_tex
@@ -1498,6 +1517,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
         b_min_i = tmp.get_group(grp).iloc[:, 2:].idxmin(axis=0)
         rows = []
         for idx, val in enumerate(b_min_i):
+            if np.isnan(val):
+                continue
             rows.append([grp,
                          tmp.get_group(grp).iloc[:, 1].loc[val],
                          tmp.get_group(grp).loc[val, b_min_i.index.values[idx]],
@@ -1752,7 +1773,7 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
     tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
     partitions_ov = '-'.join(ret['partitions'][:-1])
-    from statistics_and_plot import replaceCSVLabels, split_large_titles, handle_nans
+    from statistics_and_plot import replaceCSVLabels, split_large_titles, handle_nans, short_concat_str
     partitions_legend = ' -- '.join([replaceCSVLabels(i) for i in ret['partitions'][:-1]])
     tmp2.index.name = partitions_ov
     tmp2 = tmp2.reset_index().set_index([it_pars_ov, partitions_ov]).unstack(level=0)
@@ -1760,7 +1781,7 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp2.columns = ['-'.join(map(str, a)) for a in tmp2.columns]
 
     b_mean_name = 'data_mean_min_RTerrors_and_corresp_' + ret['partitions'][-1] + '_for_opts_' + \
-                  '-'.join(ret['it_parameters']) + '_and_props_' + ret['dataf_name_partition'] + '.csv'
+                  short_concat_str(ret['it_parameters']) + '_and_props_' + ret['dataf_name_partition'] + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Minimum combined R & t errors (b_min) and corresponding ' + ret['partitions'][-1] +
@@ -1957,7 +1978,7 @@ def get_best_comb_th_scenes_1(**keywords):
 
     base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \
                     str(ret['partitions'][-1]) + '_for_opts_' + \
-                    '-'.join(ret['it_parameters']) + '_and_props_' + \
+                    short_concat_str(ret['it_parameters']) + '_and_props_' + \
                     ret['dataf_name_partition']
     template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
     rendered_tex = template.render(title=tex_infos['title'],
@@ -2042,7 +2063,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                   })
     base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \
                     str(ret['partitions'][-1]) + '_as_meta_for_opts_' + \
-                    '-'.join(ret['it_parameters']) + '_and_props_' + \
+                    short_concat_str(ret['it_parameters']) + '_and_props_' + \
                     ret['dataf_name_partition']
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],
@@ -2445,7 +2466,8 @@ def estimate_alg_time_fixed_kp(**vars):
 
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
-    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, handle_nans
+    from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, handle_nans, \
+        short_concat_str
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
@@ -2463,7 +2485,7 @@ def estimate_alg_time_fixed_kp(**vars):
 
     t_main_name = 'mean_time_over_all_' + str(vars['xy_axis_columns'][1]) + '_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_vs_' + str(vars['xy_axis_columns'][0]) + '_for_opts_' + \
-                  '-'.join(map(str, vars['it_parameters']))
+                  short_concat_str(map(str, vars['it_parameters']))
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
     with open(ft_mean_name, 'a') as f:
@@ -2784,6 +2806,7 @@ def prepare_io(**keywords):
                 keywords['sub_title_it_pars'] += ', and '
     return keywords
 
+
 def estimate_alg_time_fixed_kp_for_props(**vars):
     if 'res_par_name' not in vars:
         raise ValueError('Missing parameter res_par_name')
@@ -2797,7 +2820,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import check_legend_enlarge, handle_nans
+    from statistics_and_plot import check_legend_enlarge, handle_nans, short_concat_str
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new1 = ['-'.join(map(str, a)) for a in tmp1min.index]
@@ -2840,7 +2863,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     vars = prepare_io(**vars)
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_vs_' + str(vars['t_data_separators'][1]) + \
                   '_for_' + str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
-                  '-'.join(map(str, vars['it_parameters']))
+                  short_concat_str(map(str, vars['it_parameters']))
     t_min_name = 'data_min_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
     with open(ft_min_name, 'a') as f:
@@ -3035,7 +3058,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     t_main_name = 'time_over_all_' + str(vars['t_data_separators'][0]) + '_and_' + str(vars['t_data_separators'][1]) + \
                   '_for_' + str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
-                  '-'.join(map(str, vars['it_parameters']))
+                  short_concat_str(map(str, vars['it_parameters']))
     t_min_name = 'data_min_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
     with open(ft_min_name, 'a') as f:
@@ -3250,7 +3273,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         enl_space_title, \
         get_3d_tex_info, \
         check_if_neg_values, \
-        handle_nans
+        handle_nans, \
+        short_concat_str
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
@@ -3293,9 +3317,10 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     vars = prepare_io(**vars)
 
+    it_pars_short = short_concat_str(list(map(str, vars['it_parameters'])))
     t_main_name1 = 'mean_time_over_all_' + str(vars['accum_step_props'][0]) + '_vs_' + \
                   str(first_grp2[0]) + '_and_' + str(first_grp2[1]) + '_for_' + str(int(vars['nr_target_kps'])) + \
-                  'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                  'kpts_for_opts_' + it_pars_short
     t_mean1_name = 'data_' + t_main_name1 + '.csv'
     ft_mean1_name = os.path.join(vars['tdata_folder'], t_mean1_name)
     with open(ft_mean1_name, 'a') as f:
@@ -3306,7 +3331,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     t_main_name2 = 'mean_time_over_all_' + str(vars['accum_step_props'][1]) + '_vs_' + \
                    str(second_grp2[0]) + '_and_' + str(second_grp2[1]) + '_for_' + str(int(vars['nr_target_kps'])) + \
-                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                   'kpts_for_opts_' + it_pars_short
     t_mean2_name = 'data_' + t_main_name2 + '.csv'
     ft_mean2_name = os.path.join(vars['tdata_folder'], t_mean2_name)
     with open(ft_mean2_name, 'a') as f:
@@ -3429,7 +3454,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                   str(vars['accum_step_props'][1]) + '_vs_' + \
                   str([a for a in vars['t_data_separators'] if a not in vars['accum_step_props']][0]) + \
                   '_for_' + str(int(vars['nr_target_kps'])) + \
-                  'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                  'kpts_for_opts_' + it_pars_short
     base_out_name = 'tex_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -3558,7 +3583,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_main_name1 = 'time_on_' + time_on1 +\
                    '_over_accumul_'+ str(vars['accum_step_props'][0]) + '_vs_' + \
                    str(vars['eval_minmax_for']) + '_for_' + str(int(vars['nr_target_kps'])) + \
-                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                   'kpts_for_opts_' + it_pars_short
     fnames4 = []
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
@@ -3581,7 +3606,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_main_name2 = 'time_on_' + time_on2 + \
                    '_over_accumul_' + str(vars['accum_step_props'][1]) + '_vs_' + \
                    str(vars['eval_minmax_for']) + '_for_' + str(int(vars['nr_target_kps'])) + \
-                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                   'kpts_for_opts_' + it_pars_short
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     with open(ft_min2_name, 'a') as f:
@@ -3709,7 +3734,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_main_name = 'time_on_' + time_on1 + '_and_' + time_on2 + \
                   '_over_sep_accumul_' + str(vars['accum_step_props'][0]) + '_and_' + \
                   str(vars['accum_step_props'][1]) + '_vs_' + str(vars['eval_minmax_for']) + '_for_' + \
-                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + it_pars_short
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -3834,7 +3859,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_main_name1 = 'time_on_' + meta_col4[0] + \
                    '_over_accumul_' + str(vars['accum_step_props'][0]) + \
                    '_for_' + str(int(vars['nr_target_kps'])) + \
-                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                   'kpts_for_opts_' + it_pars_short
     fnames4 = []
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
@@ -3859,7 +3884,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_main_name2 = 'time_on_' + meta_col4[2] + \
                    '_over_accumul_' + str(vars['accum_step_props'][1]) + \
                    '_for_' + str(int(vars['nr_target_kps'])) + \
-                   'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                   'kpts_for_opts_' + it_pars_short
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     with open(ft_min2_name, 'a') as f:
@@ -3990,7 +4015,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_main_name = 'time_on_' + meta_col4[0] + '_and_' + meta_col4[2] + \
                   '_combs_over_sep_accumul_' + str(vars['accum_step_props'][0]) + '_and_' + \
                   str(vars['accum_step_props'][1]) + '_for_' + \
-                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + '-'.join(map(str, vars['it_parameters']))
+                  str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + it_pars_short
     base_out_name = 'tex_min_max_' + t_main_name
     texf_name = base_out_name + '.tex'
     pdf_name = base_out_name + '.pdf'
@@ -4106,8 +4131,9 @@ def get_min_inlrat_diff(**keywords):
     it_parameters = grp_names[nr_partitions:-1]
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import get_limits_log_exp, enl_space_title, check_if_neg_values, handle_nans
-    dataf_name_main = str(grp_names[-1]) + '_for_options_' + '-'.join(it_parameters)
+    from statistics_and_plot import get_limits_log_exp, enl_space_title, check_if_neg_values, handle_nans, \
+        short_concat_str
+    dataf_name_main = str(grp_names[-1]) + '_for_options_' + short_concat_str(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
         raise ValueError('Wrong DataFrame format for inlier ratio difference statistics')
