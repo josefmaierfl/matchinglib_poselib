@@ -63,7 +63,8 @@ def get_best_comb_scenes_1(**keywords):
         enl_space_title, \
         check_if_neg_values, \
         handle_nans, \
-        short_concat_str
+        short_concat_str, \
+        check_file_exists_rename
     if 'error_type_text' in keywords:
         title_text = 'Mean ' + keywords['error_type_text'] + ' Over Different Properties ' +\
                      ' for Parameter Variations of ' + ret['sub_title_it_pars']
@@ -111,6 +112,7 @@ def get_best_comb_scenes_1(**keywords):
                               str(dp) + '_for_opts_' + short_concat_str(ret['it_parameters']) + '.csv'
         b_mean_name.append(b_mean_name_tmp)
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name[-1])
+        fb_mean_name = check_file_exists_rename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             if 'error_type_text' in keywords:
                 f.write('# Mean' + strToLower(keywords['error_type_text']) + '(' + err_name + ')' +
@@ -258,6 +260,7 @@ def get_best_comb_scenes_1(**keywords):
         data_parts_min[-1]['tex_it_pars'] = data_parts_min[-1][it_pars_name].apply(lambda x: tex_string_coding_style(x))
         data_f_name = fn.replace('data_mean','data_min_mean')
         fb_mean_name = os.path.join(ret['tdata_folder'], data_f_name)
+        fb_mean_name = check_file_exists_rename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             if 'error_type_text' in keywords:
                 f.write('# Minimum mean' + strToLower(keywords['error_type_text']) + '(' + err_name + ')' +
@@ -432,12 +435,13 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     tmp_min = tmp.loc[[tmp[col_name].idxmin(axis=0)]].reset_index()
 
     vars = prepare_io(**vars)
-    from statistics_and_plot import compile_tex, strToLower, split_large_titles, handle_nans
+    from statistics_and_plot import compile_tex, strToLower, split_large_titles, handle_nans, check_file_exists_rename
     t_main_name = 'mean_time_for_' + \
                   str(int(vars['nr_target_kps'])) + 'kpts_for_opts_' + \
                   short_concat_str(list(map(str, vars['it_parameters'])))
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
+    ft_mean_name = check_file_exists_rename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Mean execution times extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -560,7 +564,7 @@ def combineK(data):
 
 
 def pars_calc_single_fig_K(**keywords):
-    from statistics_and_plot import short_concat_str
+    from statistics_and_plot import short_concat_str, check_file_exists_rename
     if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig_K')
     if 'data' not in keywords:
@@ -623,6 +627,7 @@ def pars_calc_single_fig_K(**keywords):
 
     b_name = 'data_Kerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
+    fb_name = check_file_exists_rename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined camera matrix errors vs ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -720,6 +725,7 @@ def pars_calc_single_fig_K(**keywords):
 
 
 def get_best_comb_inlrat_k(**keywords):
+    from statistics_and_plot import check_file_exists_rename
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_single_fig_K(**keywords)
@@ -739,6 +745,7 @@ def get_best_comb_inlrat_k(**keywords):
             max_txt_rows = txt_rows
     b_mean_name = 'data_mean_Kerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    fb_mean_name = check_file_exists_rename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean combined camera matrix errors over all ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')

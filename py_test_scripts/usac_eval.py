@@ -117,7 +117,8 @@ def pars_calc_single_fig_partitions(**keywords):
         short_concat_str, \
         check_if_series, \
         handle_nans, \
-        is_iterable_no_str
+        is_iterable_no_str, \
+        check_file_exists_rename
     ret['sub_title_it_pars'] = ''
     for i, val in enumerate(ret['it_parameters']):
         ret['sub_title_it_pars'] += replaceCSVLabels(val, True, True, True)
@@ -240,6 +241,7 @@ def pars_calc_single_fig_partitions(**keywords):
                                            'part_name_title': part_name_title,
                                            'dataf_name_main_property': dataf_name_main_property,
                                            'dataf_name': dataf_name})
+        fb_name = check_file_exists_rename(fb_name)
         with open(fb_name, 'a') as f:
             if 'error_type_text' in keywords:
                 from statistics_and_plot import strToLower, capitalizeFirstChar
@@ -376,7 +378,7 @@ def pars_calc_single_fig_partitions(**keywords):
 
 
 def pars_calc_single_fig(**keywords):
-    from statistics_and_plot import short_concat_str
+    from statistics_and_plot import short_concat_str, check_file_exists_rename
     if len(keywords) < 3:
         raise ValueError('Wrong number of arguments for function pars_calc_single_fig')
     if 'data' not in keywords:
@@ -442,6 +444,7 @@ def pars_calc_single_fig(**keywords):
 
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
+    fb_name = check_file_exists_rename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined R & t errors vs ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -540,7 +543,7 @@ def pars_calc_single_fig(**keywords):
 
 
 def pars_calc_multiple_fig(**keywords):
-    from statistics_and_plot import short_concat_str
+    from statistics_and_plot import short_concat_str, check_file_exists_rename
     if len(keywords) < 4:
         raise ValueError('Wrong number of arguments for function pars_calc_multiple_fig')
     if 'data' not in keywords:
@@ -618,6 +621,7 @@ def pars_calc_multiple_fig(**keywords):
                                   keywords['cat_sort'])
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
+    fb_name = check_file_exists_rename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] + '\n')
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -780,7 +784,8 @@ def pars_calc_multiple_fig_partitions(**keywords):
         compile_tex, \
         replaceCSVLabels, \
         check_if_series, \
-        add_to_glossary
+        add_to_glossary, \
+        check_file_exists_rename
     ret['rel_data_path'] = os.path.relpath(ret['tdata_folder'], ret['tex_folder'])
     ret['grp_names'] = data.index.names
     ret['it_parameters'] = keywords['it_parameters']
@@ -926,6 +931,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
                                            'part_name_title': part_name_title,
                                            'dataf_name_main_property': dataf_name_main_property,
                                            'dataf_name': dataf_name})
+        fb_name = check_file_exists_rename(fb_name)
         with open(fb_name, 'a') as f:
             f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] +
                     ' for properties ' + part_name + '\n')
@@ -1125,6 +1131,7 @@ def get_best_comb_and_th_1(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_single_fig(**keywords)
+    from statistics_and_plot import check_file_exists_rename
 
     #Output best and worst b values for every combination
     if len(ret['b'].columns) > 10:
@@ -1144,6 +1151,7 @@ def get_best_comb_and_th_1(**keywords):
             max_txt_rows_best = txt_rows
     b_best_name = 'data_best_RTerrors_and_' + ret['dataf_name']
     fb_best_name = os.path.join(ret['tdata_folder'], b_best_name)
+    fb_best_name = check_file_exists_rename(fb_best_name)
     with open(fb_best_name, 'a') as f:
         f.write('# Best combined R & t errors and their ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1158,6 +1166,7 @@ def get_best_comb_and_th_1(**keywords):
             max_txt_rows_worst = txt_rows
     b_worst_name = 'data_worst_RTerrors_and_' + ret['dataf_name']
     fb_worst_name = os.path.join(ret['tdata_folder'], b_worst_name)
+    fb_worst_name = check_file_exists_rename(fb_worst_name)
     with open(fb_worst_name, 'a') as f:
         f.write('# Best combined R & t errors and their ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1288,6 +1297,7 @@ def get_best_comb_and_th_1(**keywords):
 
 
 def get_best_comb_inlrat_1(**keywords):
+    from statistics_and_plot import check_file_exists_rename
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_single_fig(**keywords)
@@ -1307,6 +1317,7 @@ def get_best_comb_inlrat_1(**keywords):
             max_txt_rows = txt_rows
     b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    fb_mean_name = check_file_exists_rename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean combined R & t errors over all ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1528,7 +1539,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                            ret['grp_names'][-2],
                                                            'b_min',
                                                            ret['b'].columns.name])
-    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, add_to_glossary, handle_nans
+    from statistics_and_plot import replaceCSVLabels, tex_string_coding_style, add_to_glossary, handle_nans, \
+        check_file_exists_rename
     tex_infos = {'title': 'Smallest Combined R \\& t Errors and Their Corresponding ' +
                           replaceCSVLabels(str(ret['grp_names'][-2]), False, True, True) + ' for every ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), False, True, True) +
@@ -1553,6 +1565,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
         data_a = data1.get_group(grp).drop(ret['b'].columns.name, axis=1)
         dataf_name = dataf_name_main + str(grp) + '.csv'
         datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
+        datapf_name = check_file_exists_rename(datapf_name)
         with open(datapf_name, 'a') as f:
             f.write('# Smallest combined R & t errors and their ' + str(ret['grp_names'][-2])
                     + ' for every ' + str(ret['grp_names'][-1]) + '\n')
@@ -1646,6 +1659,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                       ret['grp_names'][-2] + '_and_used_option'
     dataf_name = dataf_name_main + '.csv'
     datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
+    datapf_name = check_file_exists_rename(datapf_name)
     with open(datapf_name, 'a') as f:
         f.write('# Smallest combined R & t errors and their corresponding ' + str(ret['grp_names'][-2])
                 + ' and parameter set for every ' + str(ret['grp_names'][-1]) + '\n')
@@ -1773,7 +1787,8 @@ def get_best_comb_th_scenes_1(**keywords):
     tmp2 = tmp2.reset_index().set_index(ret['partitions'][:-1])
     tmp2.index = ['-'.join(map(str, a)) for a in tmp2.index]
     partitions_ov = '-'.join(ret['partitions'][:-1])
-    from statistics_and_plot import replaceCSVLabels, split_large_titles, handle_nans, short_concat_str
+    from statistics_and_plot import replaceCSVLabels, split_large_titles, handle_nans, short_concat_str, \
+        check_file_exists_rename
     partitions_legend = ' -- '.join([replaceCSVLabels(i) for i in ret['partitions'][:-1]])
     tmp2.index.name = partitions_ov
     tmp2 = tmp2.reset_index().set_index([it_pars_ov, partitions_ov]).unstack(level=0)
@@ -1783,6 +1798,7 @@ def get_best_comb_th_scenes_1(**keywords):
     b_mean_name = 'data_mean_min_RTerrors_and_corresp_' + ret['partitions'][-1] + '_for_opts_' + \
                   short_concat_str(ret['it_parameters']) + '_and_props_' + ret['dataf_name_partition'] + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+    fb_mean_name = check_file_exists_rename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Minimum combined R & t errors (b_min) and corresponding ' + ret['partitions'][-1] +
                 ' over all ' + str(ret['grp_names'][-1]) + ' (mean) for options ' +
@@ -2467,7 +2483,7 @@ def estimate_alg_time_fixed_kp(**vars):
     tmp.set_index(vars['it_parameters'], inplace=True)
     tmp = tmp.T
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, handle_nans, \
-        short_concat_str
+        short_concat_str, check_file_exists_rename
     if len(vars['it_parameters']) > 1:
         gloss = glossary_from_list([str(b) for a in tmp.columns for b in a])
         par_cols = ['-'.join(map(str, a)) for a in tmp.columns]
@@ -2488,6 +2504,7 @@ def estimate_alg_time_fixed_kp(**vars):
                   short_concat_str(map(str, vars['it_parameters']))
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
+    fb_mean_name = check_file_exists_rename(fb_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -2569,6 +2586,7 @@ def estimate_alg_time_fixed_kp(**vars):
                   '-'.join(map(str, vars['it_parameters']))
     t_min_name = 'data_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
+    ft_min_name = check_file_exists_rename(ft_min_name)
     with open(ft_min_name, 'a') as f:
         f.write('# Minimum execution times over parameter variations of ' + '-'.join(vars['it_parameters']) +
                 ' for mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
@@ -2820,7 +2838,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
-    from statistics_and_plot import check_legend_enlarge, handle_nans, short_concat_str
+    from statistics_and_plot import check_legend_enlarge, handle_nans, short_concat_str, check_file_exists_rename
     tmp1min.set_index(vars['it_parameters'], inplace=True)
     if len(vars['it_parameters']) > 1:
         index_new1 = ['-'.join(map(str, a)) for a in tmp1min.index]
@@ -2866,6 +2884,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                   short_concat_str(map(str, vars['it_parameters']))
     t_min_name = 'data_min_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
+    ft_min_name = check_file_exists_rename(ft_min_name)
     with open(ft_min_name, 'a') as f:
         f.write('# Minimum execution times over all ' + str(vars['t_data_separators'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -2874,6 +2893,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     t_max_name = 'data_max_' + t_main_name + '.csv'
     ft_max_name = os.path.join(vars['tdata_folder'], t_max_name)
+    ft_max_name = check_file_exists_rename(ft_max_name)
     with open(ft_max_name, 'a') as f:
         f.write('# Maximum execution times over all ' + str(vars['t_data_separators'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -3061,6 +3081,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
                   short_concat_str(map(str, vars['it_parameters']))
     t_min_name = 'data_min_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
+    ft_min_name = check_file_exists_rename(ft_min_name)
     with open(ft_min_name, 'a') as f:
         f.write('# Minimum execution times over all ' + str(vars['t_data_separators'][0]) + ' and ' +
                 str(vars['t_data_separators'][1]) + ' extrapolated for ' +
@@ -3070,6 +3091,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
 
     t_max_name = 'data_max_' + t_main_name + '.csv'
     ft_max_name = os.path.join(vars['tdata_folder'], t_max_name)
+    ft_max_name = check_file_exists_rename(ft_max_name)
     with open(ft_max_name, 'a') as f:
         f.write('# Maximum execution times over all ' + str(vars['t_data_separators'][0]) + ' and ' +
                 str(vars['t_data_separators'][1]) + ' extrapolated for ' +
@@ -3274,7 +3296,8 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
         get_3d_tex_info, \
         check_if_neg_values, \
         handle_nans, \
-        short_concat_str
+        short_concat_str, \
+        check_file_exists_rename
     tmp1mean.set_index(vars['it_parameters'], inplace=True)
     from statistics_and_plot import glossary_from_list, calc_limits, check_legend_enlarge
     if len(vars['it_parameters']) > 1:
@@ -3323,6 +3346,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                   'kpts_for_opts_' + it_pars_short
     t_mean1_name = 'data_' + t_main_name1 + '.csv'
     ft_mean1_name = os.path.join(vars['tdata_folder'], t_mean1_name)
+    ft_mean1_name = check_file_exists_rename(ft_mean1_name)
     with open(ft_mean1_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['accum_step_props'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -3334,6 +3358,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    'kpts_for_opts_' + it_pars_short
     t_mean2_name = 'data_' + t_main_name2 + '.csv'
     ft_mean2_name = os.path.join(vars['tdata_folder'], t_mean2_name)
+    ft_mean2_name = check_file_exists_rename(ft_mean2_name)
     with open(ft_mean2_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['accum_step_props'][1]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -3587,6 +3612,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4 = []
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_min1_name = check_file_exists_rename(ft_min1_name)
     with open(ft_min1_name, 'a') as f:
         f.write('# Minimum execution times over all ' + time_on1 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
@@ -3596,6 +3622,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     fnames4.append('data_max_' + t_main_name1 + '.csv')
     ft_max1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_max1_name = check_file_exists_rename(ft_max1_name)
     with open(ft_max1_name, 'a') as f:
         f.write('# Maximum execution times over all ' + time_on1 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
@@ -3609,6 +3636,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    'kpts_for_opts_' + it_pars_short
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_min2_name = check_file_exists_rename(ft_min2_name)
     with open(ft_min2_name, 'a') as f:
         f.write('# Minimum execution times over all ' + time_on2 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
@@ -3618,6 +3646,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     fnames4.append('data_max_' + t_main_name2 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_max2_name = check_file_exists_rename(ft_max2_name)
     with open(ft_max2_name, 'a') as f:
         f.write('# Maximum execution times over all ' + time_on2 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
@@ -3863,6 +3892,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4 = []
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_min2_name = check_file_exists_rename(ft_min2_name)
     with open(ft_min2_name, 'a') as f:
         f.write('# Minimum execution times over all ' + meta_col4[0] +
                 ' combinations for accumulated execution times over ' +
@@ -3873,6 +3903,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     fnames4.append('data_max_' + t_main_name1 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_max2_name = check_file_exists_rename(ft_max2_name)
     with open(ft_max2_name, 'a') as f:
         f.write('# Maximum execution times over all ' + meta_col4[0] +
                 ' combinations for accumulated execution times over ' +
@@ -3887,6 +3918,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
                    'kpts_for_opts_' + it_pars_short
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_min2_name = check_file_exists_rename(ft_min2_name)
     with open(ft_min2_name, 'a') as f:
         f.write('# Minimum execution times over all ' + meta_col4[2] +
                 ' combinations for accumulated execution times over ' +
@@ -3897,6 +3929,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
 
     fnames4.append('data_max_' + t_main_name2 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
+    ft_max2_name = check_file_exists_rename(ft_max2_name)
     with open(ft_max2_name, 'a') as f:
         f.write('# Maximum execution times over all ' + meta_col4[2] +
                 ' combinations for accumulated execution times over ' +
@@ -4132,7 +4165,7 @@ def get_min_inlrat_diff(**keywords):
     from statistics_and_plot import tex_string_coding_style, compile_tex, calcNrLegendCols, replaceCSVLabels, strToLower
     from statistics_and_plot import glossary_from_list, add_to_glossary, add_to_glossary_eval, split_large_titles
     from statistics_and_plot import get_limits_log_exp, enl_space_title, check_if_neg_values, handle_nans, \
-        short_concat_str
+        short_concat_str, check_file_exists_rename
     dataf_name_main = str(grp_names[-1]) + '_for_options_' + short_concat_str(it_parameters)
     hlp = [a for a in data.columns.values if 'mean' in a]
     if len(hlp) != 1 or len(hlp[0]) != 2:
@@ -4157,6 +4190,7 @@ def get_min_inlrat_diff(**keywords):
 
     b_name = 'data_mean_inlrat_diff_vs_' + dataf_name_main + '.csv'
     fb_name = os.path.join(keywords['tdata_folder'], b_name)
+    fb_name = check_file_exists_rename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Absolute mean inlier ratio differences vs ' + str(grp_names[-1]) + '\n')
         f.write('# Parameters: ' + it_parameters_name + '\n')
@@ -4241,6 +4275,7 @@ def get_min_inlrat_diff(**keywords):
     gloss = add_to_glossary(min_mean_diff[grp_names[-1]].tolist(), gloss)
     b_name = 'data_min_mean_inlrat_diff_vs_' + dataf_name_main + '.csv'
     fb_name = os.path.join(keywords['tdata_folder'], b_name)
+    fb_name = check_file_exists_rename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Minimum absolute mean inlier ratio differences vs ' + str(grp_names[-1]) +
                 ' for every ' + it_parameters_name + ' combination\n')

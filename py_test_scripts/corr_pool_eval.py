@@ -406,7 +406,8 @@ def eval_corr_pool_converge(**keywords):
         check_legend_enlarge, \
         enl_space_title, \
         handle_nans, \
-        short_concat_str
+        short_concat_str, \
+        check_file_exists_rename
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -524,6 +525,7 @@ def eval_corr_pool_converge(**keywords):
         t_main_name1 = t_main_name1.replace('.', 'd')
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        ft_mean_name = check_file_exists_rename(ft_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Correspondence pool sizes for converging differences from frame to '
                     'frame of R & t errors and their inlier ratio '
@@ -683,6 +685,7 @@ def eval_corr_pool_converge(**keywords):
                   keywords['partition_x_axis']
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    ft_mean_name = check_file_exists_rename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Most likely correspondence pool sizes for converging differences from frame to '
                 'frame of R & t errors vs data partition ' + keywords['partition_x_axis'] + '\n')
@@ -1012,6 +1015,7 @@ def eval_corr_pool_converge(**keywords):
         t_main_name1 = t_main_name1.replace('.', 'd')
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        ft_mean_name = check_file_exists_rename(ft_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Differences from frame to frame for R & t errors vs correspondence pool sizes '
                     'for data partition ' + '_'.join([keywords['partitions'][i] + '-' +
@@ -1332,7 +1336,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         get_limits_log_exp, \
         enl_space_title, \
         handle_nans, \
-        short_concat_str
+        short_concat_str, \
+        check_file_exists_rename
 
     base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg', 'poolSize']
 
@@ -1421,6 +1426,7 @@ def eval_corr_pool_converge_vs_x(**keywords):
     t_main_name1 = t_main_name + '_for_opts_' + short_concat_str(keywords['it_parameters'])
     t_mean_name = 'data_' + t_main_name1 + '.csv'
     ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    ft_mean_name = check_file_exists_rename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Most likely correspondence pool sizes for converging differences from frame to '
                 'frame of mean and median R & t errors ' + '\n')
@@ -1564,7 +1570,8 @@ def eval_mean_time_poolcorrs(**keywords):
         compile_tex, \
         get_limits_log_exp, \
         enl_space_title, \
-        handle_nans
+        handle_nans, \
+        check_file_exists_rename
 
     df_grp = keywords['data'].xs('mean', axis=1, level=1,
                                  drop_level=True).reset_index().drop([a for a in keywords['it_parameters']
@@ -1601,6 +1608,7 @@ def eval_mean_time_poolcorrs(**keywords):
     t_main_name = 'mean_time_for_opt_' + grp_itp
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+    ft_mean_name = check_file_exists_rename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Mean execution times over the last 30 stereo frames out of 150 frames\n')
         f.write('# Different parameters: ' + grp_itp + '\n')
@@ -1681,7 +1689,8 @@ def eval_mean_time_pool_3D_dist(**keywords):
         get_limits_log_exp, \
         enl_space_title, \
         add_to_glossary, \
-        handle_nans
+        handle_nans, \
+        check_file_exists_rename
 
     title = 'Mean Execution Times over the Last 30 Stereo Frames out of 150 Frames for Comparison of Different ' + \
             keywords['sub_title_it_pars']
@@ -1727,6 +1736,7 @@ def eval_mean_time_pool_3D_dist(**keywords):
         t_main_name1 = t_main_name + grp_itp
         t_mean_name = 'data_' + t_main_name1 + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        ft_mean_name = check_file_exists_rename(ft_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Mean execution times over the last 30 stereo frames out of 150 frames\n')
             f.write('# Different parameters: ' + grp_itp + '\n')
@@ -1792,6 +1802,7 @@ def eval_mean_time_pool_3D_dist(**keywords):
     t_main_name1 = 'statistics_over_mean_time_for_opts_' + '-'.join(keywords['it_parameters'])
     t_mean_name = 'data_' + t_main_name1 + '.csv'
     ft_mean_name = os.path.join(keywords['res_folder'], t_mean_name)
+    ft_mean_name = check_file_exists_rename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Statistic over mean execution times over the last 30 stereo frames out of 150 frames\n')
         f.write('# Different parameters: ' + '-'.join(keywords['it_parameters']) + '\n')

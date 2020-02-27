@@ -105,7 +105,8 @@ def get_mean_y_vs_x_it(**keywords):
         check_legend_enlarge, \
         enl_space_title, \
         calcNrLegendCols, \
-        insert_str_option_values
+        insert_str_option_values, \
+        check_file_exists_rename
     if in_type == 0:
         from usac_eval import pars_calc_single_fig
         ret = pars_calc_single_fig(**keywords)
@@ -194,6 +195,7 @@ def get_mean_y_vs_x_it(**keywords):
 
         b_mean_name = 'data_' + base_name1 + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
+        fb_mean_name = check_file_exists_rename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Combined R & t errors vs ' + keywords['used_x_axis'] + '\n')
             if grp is not None:
@@ -366,7 +368,8 @@ def estimate_alg_time_fixed_kp(**keywords):
         enl_space_title, \
         short_concat_str, \
         split_large_str, \
-        check_legend_enlarge
+        check_legend_enlarge, \
+        check_file_exists_rename
     tmp, col_name = get_time_fixed_kp(**keywords)
 
     keywords = prepare_io(**keywords)
@@ -433,6 +436,7 @@ def estimate_alg_time_fixed_kp(**keywords):
                       short_concat_str(keywords['it_parameters'])
         t_mean_name = 'data_' + t_main_name + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
+        ft_mean_name = check_file_exists_rename(ft_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Mean execution times extrapolated for ' +
                     str(int(keywords['nr_target_kps'])) + ' keypoints vs ' + str(col) + '\n')

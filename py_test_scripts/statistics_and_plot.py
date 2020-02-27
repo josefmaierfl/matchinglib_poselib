@@ -554,6 +554,7 @@ def calcSatisticAndPlot_2D(data,
             if cat_sort:
                 categorical_sort(tmp, str(grp_names[-1]))
             fdataf_name = os.path.join(tdata_folder, dataf_name)
+            fdataf_name = check_file_exists_rename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
@@ -948,6 +949,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                 if cat_sort:
                     categorical_sort(tmp2, str(grp_names[-1]))
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
+                fdataf_name = check_file_exists_rename(fdataf_name)
                 with open(fdataf_name, 'a') as f:
                     f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
                             ' and properties ' + part_name + '\n')
@@ -1335,6 +1337,7 @@ def calcFromFuncAndPlot_2D(data,
     if cat_sort:
         categorical_sort(tmp, x_axis_column[0])
     fdataf_name = os.path.join(tdata_folder, dataf_name)
+    fdataf_name = check_file_exists_rename(fdataf_name)
     with open(fdataf_name, 'a') as f:
         if eval_init_input:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -1840,6 +1843,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
         if cat_sort:
             categorical_sort(tmp, x_axis_column[0])
         fdataf_name = os.path.join(tdata_folder, dataf_name)
+        fdataf_name = check_file_exists_rename(fdataf_name)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2155,6 +2159,7 @@ def calcSatisticAndPlot_3D(data,
                        str(grp_names[-2]) + '_and_' + str(grp_names[-1]) + '.csv'
             dataf_name = dataf_name.replace('%', 'perc')
             fdataf_name = os.path.join(tdata_folder, dataf_name)
+            fdataf_name = check_file_exists_rename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
@@ -2524,6 +2529,7 @@ def calcFromFuncAndPlot_3D(data,
         tmp = tmp.drop(it_parameters, axis=1)
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
         env_3d_info, tmp = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
+        fdataf_name = check_file_exists_rename(fdataf_name)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2929,6 +2935,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                              '_for_' + part_name.replace('.', 'd') + '.csv'
                 dataf_name = dataf_name.replace('%', 'perc')
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
+                fdataf_name = check_file_exists_rename(fdataf_name)
                 with open(fdataf_name, 'a') as f:
                     f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
                             ' and properties ' + part_name + '\n')
@@ -3379,6 +3386,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             dataf_name += grp_name.replace('.', 'd')
             dataf_name += '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
             fdataf_name = os.path.join(tdata_folder, dataf_name)
+            fdataf_name = check_file_exists_rename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 if eval_init_input:
                     f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -3760,6 +3768,7 @@ def calcFromFuncAndPlot_aggregate(data,
     else:
         dataf_name = 'data_evals_for_pars_' + it_pars_short + '.csv'
     fdataf_name = os.path.join(tdata_folder, dataf_name)
+    fdataf_name = check_file_exists_rename(fdataf_name)
     with open(fdataf_name, 'a') as f:
         if eval_init_input:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -4084,6 +4093,7 @@ def calcSatisticAndPlot_aggregate(data,
                 cmp_col_name = '-'.join(compare_source['it_parameters'])
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp, None, cmp_col_name)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
+            fdataf_name = check_file_exists_rename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
                 f.write('# Parameters: ' + '-'.join(it_parameters) + '\n')
@@ -4540,18 +4550,7 @@ def check_if_numeric(df, col_name):
 
 
 def contains_nan(df, col_names):
-    mult_cols = True
-    if isinstance(col_names, str):
-        mult_cols = False
-    else:
-        try:
-            oit = iter(col_names)
-        except TypeError as te:
-            mult_cols = False
-    if mult_cols:
-        nr_nans = df[col_names].isnull().stack().sum()
-    else:
-        nr_nans = df[col_names].isnull().sum()
+    nr_nans = count_nans(df, col_names)
     return nr_nans > 0
 
 
@@ -4563,9 +4562,65 @@ def handle_nans(df, col_names, is_string_x, fig_type):
     return int(df.shape[0]) - 1
 
 
+def count_nans(df, col_names):
+    col_names, mult_cols = is_mult_cols(col_names)
+    if mult_cols:
+        nr_nans = df[col_names].isnull().stack().sum()
+    else:
+        nr_nans = df[col_names].isnull().sum()
+    return nr_nans
+
+
+def get_nr_values(df, col_names):
+    col_names, mult_cols = is_mult_cols(col_names)
+    if mult_cols:
+        shape_info = df[col_names].shape
+        nr = int(shape_info[0]) * int(shape_info[1])
+    else:
+        nr = int(df[col_names].shape[0])
+    return nr
+
+
+def is_mult_cols(col_names):
+    mult_cols = True
+    if isinstance(col_names, str):
+        mult_cols = False
+    else:
+        try:
+            oit = iter(col_names)
+            if not isinstance(col_names, list):
+                col_names = list(col_names)
+            if not isinstance(col_names[0], list) and len(col_names) == 1:
+                col_names = col_names[0]
+                mult_cols = False
+        except TypeError as te:
+            mult_cols = False
+    return col_names, mult_cols
+
+
+def get_nr_zeros(df, col_names):
+    col_names, mult_cols = is_mult_cols(col_names)
+    if mult_cols:
+        nr_zeros = (df[col_names] == 0).astype(int).stack().sum()
+    else:
+        nr_zeros = (df[col_names] == 0).astype(int).sum()
+    return nr_zeros
+
+
+def is_data_significant(df, col_names, threshold=0.75):
+    nr_zeros = get_nr_zeros(df, col_names)
+    nr_nans = count_nans(df, col_names)
+    nr_vals = get_nr_values(df, col_names)
+    portion = float(nr_nans + nr_zeros) / float(nr_vals)
+    if portion > threshold:
+        return False
+    return True
+
+
 def too_many_nan(df, col_name):
-    nr_nans = df[col_name].isnull().sum()
-    portion = float(nr_nans) / float(df[col_name].shape[0])
+    nr_nans = count_nans(df, col_name)
+    nr_vals = get_nr_values(df, col_name)
+    portion = float(nr_nans) / float(nr_vals)
     if portion > 0.5:
         return True
     return False
@@ -4580,14 +4635,7 @@ def too_similar(df, col_name):
 
 
 def get_usable_3D_cols(df, col_names):
-    mult_cols = True
-    if isinstance(col_names, str):
-        mult_cols = False
-    else:
-        try:
-            oit = iter(col_names)
-        except TypeError as te:
-            mult_cols = False
+    col_names, mult_cols = is_mult_cols(col_names)
     if mult_cols:
         good_cols = []
         for it in col_names:
@@ -5152,22 +5200,11 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
     is_series = check_if_series(df)
     is_series_filter = False
     if filter_pars:
-        if isinstance(filter_pars, str):
-            is_series_filter = True
-        else:
-            try:
-                oit = iter(filter_pars)
-            except TypeError as te:
-                is_series_filter = True
+        filter_pars, is_series_filter = is_mult_cols(filter_pars)
+        is_series_filter = not is_series_filter
     mult_drops = False
     if drop_cols:
-        if isinstance(drop_cols, str):
-            mult_drops = True
-        else:
-            try:
-                oit = iter(drop_cols)
-            except TypeError as te:
-                mult_drops = True
+        drop_cols, mult_drops = is_mult_cols(drop_cols)
     if filter_pars and drop_cols:
         if is_series:
             if is_series_filter:
@@ -5235,23 +5272,26 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
         is_series_filter = False
     else:
         stats_all = df.stack().reset_index()
-    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).astype(float).describe().T
+    stats_all = stats_all.drop(stats_all.columns[0:-1], axis=1).astype(float)
+    stats_all1 = stats_all.describe().T
     if is_series_filter:
-        min_val = stats_all['min']
-        max_val = stats_all['max']
-        mean_val = stats_all['mean']
-        std_val = stats_all['std']
+        min_val = stats_all1['min']
+        max_val = stats_all1['max']
+        mean_val = stats_all1['mean']
+        std_val = stats_all1['std']
     else:
-        min_val = stats_all['min'][0]
-        max_val = stats_all['max'][0]
-        mean_val = stats_all['mean'][0]
-        std_val = stats_all['std'][0]
+        min_val = stats_all1['min'][0]
+        max_val = stats_all1['max'][0]
+        mean_val = stats_all1['mean'][0]
+        std_val = stats_all1['std'][0]
 
     if check_useless_data:
         if (np.isclose(min_val, 0, atol=1e-06) and
             np.isclose(max_val, 0, atol=1e-06)) or \
                 np.isclose(min_val, max_val):
-            return True, stats_all, use_limits
+            return True, stats_all1, use_limits
+        elif not is_data_significant(stats_all, stats_all.columns):
+            return True, stats_all1, use_limits
     if np.abs(max_val - min_val) < np.abs(max_val / 200):
         if min_val < 0:
             use_limits['miny'] = round(1.01 * min_val, 6)
@@ -5269,7 +5309,7 @@ def calc_limits(df, check_useless_data=False, no_big_limit=False, drop_cols = No
             use_limits['miny'] = round(mean_val - std_val * mult, 6)
         if max_val > (mean_val + std_val * mult):
             use_limits['maxy'] = round(mean_val + std_val * mult, 6)
-    return False, stats_all, use_limits
+    return False, stats_all1, use_limits
 
 
 def roundNumericProps(data,
@@ -5317,14 +5357,7 @@ def check_if_neg_values(df, cols, use_log, use_limits):
     if use_limits and use_limits['miny'] and use_limits['maxy']:
         calc_mm = False
     if calc_mm:
-        is_list = True
-        if isinstance(cols, str):
-            is_list = False
-        else:
-            try:
-                oit = iter(cols)
-            except TypeError as te:
-                is_list = False
+        cols, is_list = is_mult_cols(cols)
         if is_list:
             all_vals = df[cols].stack()
         else:
@@ -5360,13 +5393,8 @@ def get_limits_log_exp(df,
     if stats_all is None:
         return False, use_limits, False, False
     if filter_pars:
-        if isinstance(filter_pars, str):
-            is_series = True
-        else:
-            try:
-                oit = iter(filter_pars)
-            except TypeError as te:
-                is_series = True
+        filter_pars, is_series = is_mult_cols(filter_pars)
+        is_series = not is_series
     # if is_series:
     #     min_val = stats_all['min']
     #     max_val = stats_all['max']
@@ -5382,6 +5410,30 @@ def get_limits_log_exp(df,
                                                       use_limits['miny'],
                                                       use_limits['maxy'])
     return False, use_limits, use_log, exp_value
+
+
+def RepresentsInt(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def check_file_exists_rename(file_name):
+    if not os.path.exists(file_name):
+        return file_name
+    (base, ext) = os.path.splitext(file_name)
+    i = -1
+    while RepresentsInt(base[i]):
+        i -= 1
+    if i == -1:
+        return base + '_1' + ext
+    else:
+        i += 1
+        nr = int(base[i:]) + 1
+        name = base[:i] + str(nr) + ext
+        return check_file_exists_rename(name)
 
 
 def combine_str_for_title(str_list):
