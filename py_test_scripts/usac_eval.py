@@ -2504,7 +2504,7 @@ def estimate_alg_time_fixed_kp(**vars):
                   short_concat_str(map(str, vars['it_parameters']))
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
-    fb_mean_name = check_file_exists_rename(fb_mean_name)
+    ft_mean_name = check_file_exists_rename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
