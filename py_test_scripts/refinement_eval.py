@@ -113,6 +113,7 @@ def get_best_comb_scenes_1(**keywords):
         b_mean_name.append(b_mean_name_tmp)
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name[-1])
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name[-1] = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             if 'error_type_text' in keywords:
                 f.write('# Mean' + strToLower(keywords['error_type_text']) + '(' + err_name + ')' +
@@ -261,6 +262,7 @@ def get_best_comb_scenes_1(**keywords):
         data_f_name = fn.replace('data_mean','data_min_mean')
         fb_mean_name = os.path.join(ret['tdata_folder'], data_f_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        data_f_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             if 'error_type_text' in keywords:
                 f.write('# Minimum mean' + strToLower(keywords['error_type_text']) + '(' + err_name + ')' +
@@ -442,6 +444,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
     ft_mean_name = check_file_exists_rename(ft_mean_name)
+    t_mean_name = os.path.basename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Mean execution times extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -628,6 +631,7 @@ def pars_calc_single_fig_K(**keywords):
     b_name = 'data_Kerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     fb_name = check_file_exists_rename(fb_name)
+    b_name = os.path.basename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined camera matrix errors vs ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -746,6 +750,7 @@ def get_best_comb_inlrat_k(**keywords):
     b_mean_name = 'data_mean_Kerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean combined camera matrix errors over all ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')

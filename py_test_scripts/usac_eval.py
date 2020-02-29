@@ -242,6 +242,7 @@ def pars_calc_single_fig_partitions(**keywords):
                                            'dataf_name_main_property': dataf_name_main_property,
                                            'dataf_name': dataf_name})
         fb_name = check_file_exists_rename(fb_name)
+        b_name = os.path.basename(fb_name)
         with open(fb_name, 'a') as f:
             if 'error_type_text' in keywords:
                 from statistics_and_plot import strToLower, capitalizeFirstChar
@@ -445,6 +446,7 @@ def pars_calc_single_fig(**keywords):
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     fb_name = check_file_exists_rename(fb_name)
+    b_name = os.path.basename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined R & t errors vs ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -622,6 +624,7 @@ def pars_calc_multiple_fig(**keywords):
     b_name = 'data_RTerrors_vs_' + ret['dataf_name']
     fb_name = os.path.join(ret['tdata_folder'], b_name)
     fb_name = check_file_exists_rename(fb_name)
+    b_name = os.path.basename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] + '\n')
         f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -932,6 +935,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
                                            'dataf_name_main_property': dataf_name_main_property,
                                            'dataf_name': dataf_name})
         fb_name = check_file_exists_rename(fb_name)
+        b_name = os.path.basename(fb_name)
         with open(fb_name, 'a') as f:
             f.write('# Combined R & t errors vs ' + ret['grp_names'][-2] + ' and ' + ret['grp_names'][-1] +
                     ' for properties ' + part_name + '\n')
@@ -1152,6 +1156,7 @@ def get_best_comb_and_th_1(**keywords):
     b_best_name = 'data_best_RTerrors_and_' + ret['dataf_name']
     fb_best_name = os.path.join(ret['tdata_folder'], b_best_name)
     fb_best_name = check_file_exists_rename(fb_best_name)
+    b_best_name = os.path.basename(fb_best_name)
     with open(fb_best_name, 'a') as f:
         f.write('# Best combined R & t errors and their ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1167,6 +1172,7 @@ def get_best_comb_and_th_1(**keywords):
     b_worst_name = 'data_worst_RTerrors_and_' + ret['dataf_name']
     fb_worst_name = os.path.join(ret['tdata_folder'], b_worst_name)
     fb_worst_name = check_file_exists_rename(fb_worst_name)
+    b_worst_name = os.path.basename(fb_worst_name)
     with open(fb_worst_name, 'a') as f:
         f.write('# Best combined R & t errors and their ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1318,6 +1324,7 @@ def get_best_comb_inlrat_1(**keywords):
     b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean combined R & t errors over all ' + str(ret['grp_names'][-1]) + '\n')
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -1566,6 +1573,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
         dataf_name = dataf_name_main + str(grp) + '.csv'
         datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
         datapf_name = check_file_exists_rename(datapf_name)
+        dataf_name = os.path.basename(datapf_name)
         with open(datapf_name, 'a') as f:
             f.write('# Smallest combined R & t errors and their ' + str(ret['grp_names'][-2])
                     + ' for every ' + str(ret['grp_names'][-1]) + '\n')
@@ -1660,6 +1668,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
     dataf_name = dataf_name_main + '.csv'
     datapf_name = os.path.join(ret['tdata_folder'], dataf_name)
     datapf_name = check_file_exists_rename(datapf_name)
+    dataf_name = os.path.basename(datapf_name)
     with open(datapf_name, 'a') as f:
         f.write('# Smallest combined R & t errors and their corresponding ' + str(ret['grp_names'][-2])
                 + ' and parameter set for every ' + str(ret['grp_names'][-1]) + '\n')
@@ -1799,6 +1808,7 @@ def get_best_comb_th_scenes_1(**keywords):
                   short_concat_str(ret['it_parameters']) + '_and_props_' + ret['dataf_name_partition'] + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Minimum combined R & t errors (b_min) and corresponding ' + ret['partitions'][-1] +
                 ' over all ' + str(ret['grp_names'][-1]) + ' (mean) for options ' +
@@ -2505,6 +2515,7 @@ def estimate_alg_time_fixed_kp(**vars):
     t_mean_name = 'data_' + t_main_name + '.csv'
     ft_mean_name = os.path.join(vars['tdata_folder'], t_mean_name)
     ft_mean_name = check_file_exists_rename(ft_mean_name)
+    t_mean_name = os.path.basename(ft_mean_name)
     with open(ft_mean_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -2587,6 +2598,7 @@ def estimate_alg_time_fixed_kp(**vars):
     t_min_name = 'data_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
     ft_min_name = check_file_exists_rename(ft_min_name)
+    t_min_name = os.path.basename(ft_min_name)
     with open(ft_min_name, 'a') as f:
         f.write('# Minimum execution times over parameter variations of ' + '-'.join(vars['it_parameters']) +
                 ' for mean execution times over all ' + str(vars['xy_axis_columns'][1]) + ' extrapolated for ' +
@@ -2885,6 +2897,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     t_min_name = 'data_min_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
     ft_min_name = check_file_exists_rename(ft_min_name)
+    t_min_name = os.path.basename(ft_min_name)
     with open(ft_min_name, 'a') as f:
         f.write('# Minimum execution times over all ' + str(vars['t_data_separators'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -2894,6 +2907,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     t_max_name = 'data_max_' + t_main_name + '.csv'
     ft_max_name = os.path.join(vars['tdata_folder'], t_max_name)
     ft_max_name = check_file_exists_rename(ft_max_name)
+    t_max_name = os.path.basename(ft_max_name)
     with open(ft_max_name, 'a') as f:
         f.write('# Maximum execution times over all ' + str(vars['t_data_separators'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -3082,6 +3096,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     t_min_name = 'data_min_' + t_main_name + '.csv'
     ft_min_name = os.path.join(vars['tdata_folder'], t_min_name)
     ft_min_name = check_file_exists_rename(ft_min_name)
+    t_min_name = os.path.basename(ft_min_name)
     with open(ft_min_name, 'a') as f:
         f.write('# Minimum execution times over all ' + str(vars['t_data_separators'][0]) + ' and ' +
                 str(vars['t_data_separators'][1]) + ' extrapolated for ' +
@@ -3092,6 +3107,7 @@ def estimate_alg_time_fixed_kp_for_props(**vars):
     t_max_name = 'data_max_' + t_main_name + '.csv'
     ft_max_name = os.path.join(vars['tdata_folder'], t_max_name)
     ft_max_name = check_file_exists_rename(ft_max_name)
+    t_max_name = os.path.basename(ft_max_name)
     with open(ft_max_name, 'a') as f:
         f.write('# Maximum execution times over all ' + str(vars['t_data_separators'][0]) + ' and ' +
                 str(vars['t_data_separators'][1]) + ' extrapolated for ' +
@@ -3347,6 +3363,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_mean1_name = 'data_' + t_main_name1 + '.csv'
     ft_mean1_name = os.path.join(vars['tdata_folder'], t_mean1_name)
     ft_mean1_name = check_file_exists_rename(ft_mean1_name)
+    t_mean1_name = os.path.basename(ft_mean1_name)
     with open(ft_mean1_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['accum_step_props'][0]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -3359,6 +3376,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     t_mean2_name = 'data_' + t_main_name2 + '.csv'
     ft_mean2_name = os.path.join(vars['tdata_folder'], t_mean2_name)
     ft_mean2_name = check_file_exists_rename(ft_mean2_name)
+    t_mean2_name = os.path.basename(ft_mean2_name)
     with open(ft_mean2_name, 'a') as f:
         f.write('# Mean execution times over all ' + str(vars['accum_step_props'][1]) + ' extrapolated for ' +
                 str(int(vars['nr_target_kps'])) + ' keypoints' + '\n')
@@ -3613,6 +3631,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_min1_name = check_file_exists_rename(ft_min1_name)
+    fnames4[-1] = os.path.basename(ft_min1_name)
     with open(ft_min1_name, 'a') as f:
         f.write('# Minimum execution times over all ' + time_on1 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
@@ -3623,6 +3642,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_max_' + t_main_name1 + '.csv')
     ft_max1_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_max1_name = check_file_exists_rename(ft_max1_name)
+    fnames4[-1] = os.path.basename(ft_max1_name)
     with open(ft_max1_name, 'a') as f:
         f.write('# Maximum execution times over all ' + time_on1 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][0]) + ' values extrapolated for ' +
@@ -3637,6 +3657,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_min2_name = check_file_exists_rename(ft_min2_name)
+    fnames4[-1] = os.path.basename(ft_min2_name)
     with open(ft_min2_name, 'a') as f:
         f.write('# Minimum execution times over all ' + time_on2 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
@@ -3647,6 +3668,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_max_' + t_main_name2 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_max2_name = check_file_exists_rename(ft_max2_name)
+    fnames4[-1] = os.path.basename(ft_max2_name)
     with open(ft_max2_name, 'a') as f:
         f.write('# Maximum execution times over all ' + time_on2 + ' for accumulated execution times over ' +
                 str(vars['accum_step_props'][1]) + ' values extrapolated for ' +
@@ -3893,6 +3915,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_min_' + t_main_name1 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_min2_name = check_file_exists_rename(ft_min2_name)
+    fnames4[-1] = os.path.basename(ft_min2_name)
     with open(ft_min2_name, 'a') as f:
         f.write('# Minimum execution times over all ' + meta_col4[0] +
                 ' combinations for accumulated execution times over ' +
@@ -3904,6 +3927,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_max_' + t_main_name1 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_max2_name = check_file_exists_rename(ft_max2_name)
+    fnames4[-1] = os.path.basename(ft_max2_name)
     with open(ft_max2_name, 'a') as f:
         f.write('# Maximum execution times over all ' + meta_col4[0] +
                 ' combinations for accumulated execution times over ' +
@@ -3919,6 +3943,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_min_' + t_main_name2 + '.csv')
     ft_min2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_min2_name = check_file_exists_rename(ft_min2_name)
+    fnames4[-1] = os.path.basename(ft_min2_name)
     with open(ft_min2_name, 'a') as f:
         f.write('# Minimum execution times over all ' + meta_col4[2] +
                 ' combinations for accumulated execution times over ' +
@@ -3930,6 +3955,7 @@ def estimate_alg_time_fixed_kp_for_3_props(**vars):
     fnames4.append('data_max_' + t_main_name2 + '.csv')
     ft_max2_name = os.path.join(vars['tdata_folder'], fnames4[-1])
     ft_max2_name = check_file_exists_rename(ft_max2_name)
+    fnames4[-1] = os.path.basename(ft_max2_name)
     with open(ft_max2_name, 'a') as f:
         f.write('# Maximum execution times over all ' + meta_col4[2] +
                 ' combinations for accumulated execution times over ' +
@@ -4191,6 +4217,7 @@ def get_min_inlrat_diff(**keywords):
     b_name = 'data_mean_inlrat_diff_vs_' + dataf_name_main + '.csv'
     fb_name = os.path.join(keywords['tdata_folder'], b_name)
     fb_name = check_file_exists_rename(fb_name)
+    b_name = os.path.basename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Absolute mean inlier ratio differences vs ' + str(grp_names[-1]) + '\n')
         f.write('# Parameters: ' + it_parameters_name + '\n')
@@ -4276,6 +4303,7 @@ def get_min_inlrat_diff(**keywords):
     b_name = 'data_min_mean_inlrat_diff_vs_' + dataf_name_main + '.csv'
     fb_name = os.path.join(keywords['tdata_folder'], b_name)
     fb_name = check_file_exists_rename(fb_name)
+    b_name = os.path.basename(fb_name)
     with open(fb_name, 'a') as f:
         f.write('# Minimum absolute mean inlier ratio differences vs ' + str(grp_names[-1]) +
                 ' for every ' + it_parameters_name + ' combination\n')

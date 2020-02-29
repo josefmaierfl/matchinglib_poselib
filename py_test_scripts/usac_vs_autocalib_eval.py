@@ -196,6 +196,7 @@ def get_mean_y_vs_x_it(**keywords):
         b_mean_name = 'data_' + base_name1 + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Combined R & t errors vs ' + keywords['used_x_axis'] + '\n')
             if grp is not None:
@@ -437,6 +438,7 @@ def estimate_alg_time_fixed_kp(**keywords):
         t_mean_name = 'data_' + t_main_name + '.csv'
         ft_mean_name = os.path.join(keywords['tdata_folder'], t_mean_name)
         ft_mean_name = check_file_exists_rename(ft_mean_name)
+        t_mean_name = os.path.basename(ft_mean_name)
         with open(ft_mean_name, 'a') as f:
             f.write('# Mean execution times extrapolated for ' +
                     str(int(keywords['nr_target_kps'])) + ' keypoints vs ' + str(col) + '\n')

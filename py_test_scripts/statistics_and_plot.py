@@ -555,6 +555,7 @@ def calcSatisticAndPlot_2D(data,
                 categorical_sort(tmp, str(grp_names[-1]))
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
+            dataf_name = os.path.basename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
@@ -950,6 +951,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     categorical_sort(tmp2, str(grp_names[-1]))
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 fdataf_name = check_file_exists_rename(fdataf_name)
+                dataf_name = os.path.basename(fdataf_name)
                 with open(fdataf_name, 'a') as f:
                     f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
                             ' and properties ' + part_name + '\n')
@@ -1338,6 +1340,7 @@ def calcFromFuncAndPlot_2D(data,
         categorical_sort(tmp, x_axis_column[0])
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     fdataf_name = check_file_exists_rename(fdataf_name)
+    dataf_name = os.path.basename(fdataf_name)
     with open(fdataf_name, 'a') as f:
         if eval_init_input:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -1844,6 +1847,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
             categorical_sort(tmp, x_axis_column[0])
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         fdataf_name = check_file_exists_rename(fdataf_name)
+        dataf_name = os.path.basename(fdataf_name)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2160,6 +2164,7 @@ def calcSatisticAndPlot_3D(data,
             dataf_name = dataf_name.replace('%', 'perc')
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
+            dataf_name = os.path.basename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it[-1]) + ' values for ' + str(it[0]) + '\n')
                 f.write('# Column parameters: ' + '-'.join(it_parameters) + '\n')
@@ -2530,6 +2535,7 @@ def calcFromFuncAndPlot_3D(data,
         # nr_equal_ss = int(tmp.groupby(xy_axis_columns[0]).size().array[0])
         env_3d_info, tmp = get_3d_tex_info(tmp, xy_axis_columns, cat_sort)
         fdataf_name = check_file_exists_rename(fdataf_name)
+        dataf_name = os.path.basename(fdataf_name)
         with open(fdataf_name, 'a') as f:
             if eval_init_input:
                 f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -2936,6 +2942,7 @@ def calcSatisticAndPlot_3D_partitions(data,
                 dataf_name = dataf_name.replace('%', 'perc')
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 fdataf_name = check_file_exists_rename(fdataf_name)
+                dataf_name = os.path.basename(fdataf_name)
                 with open(fdataf_name, 'a') as f:
                     f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) +
                             ' and properties ' + part_name + '\n')
@@ -3387,6 +3394,7 @@ def calcFromFuncAndPlot_3D_partitions(data,
             dataf_name += '_vs_' + xy_axis_columns[0] + '_and_' + xy_axis_columns[1] + '.csv'
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
+            dataf_name = os.path.basename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 if eval_init_input:
                     f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -3769,6 +3777,7 @@ def calcFromFuncAndPlot_aggregate(data,
         dataf_name = 'data_evals_for_pars_' + it_pars_short + '.csv'
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     fdataf_name = check_file_exists_rename(fdataf_name)
+    dataf_name = os.path.basename(fdataf_name)
     with open(fdataf_name, 'a') as f:
         if eval_init_input:
             f.write('# Evaluations on ' + init_pars_out_name + ' for parameter variations of ' +
@@ -4094,6 +4103,7 @@ def calcSatisticAndPlot_aggregate(data,
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp, None, cmp_col_name)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
+            dataf_name = os.path.basename(fdataf_name)
             with open(fdataf_name, 'a') as f:
                 f.write('# ' + str(it_tmp[-1]) + ' values for ' + str(it_tmp[0]) + '\n')
                 f.write('# Parameters: ' + '-'.join(it_parameters) + '\n')

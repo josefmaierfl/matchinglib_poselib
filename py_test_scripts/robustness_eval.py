@@ -380,6 +380,7 @@ def get_best_comb_scenes_1(**keywords):
                       (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
                 f.write('# Minimum combined R & t errors (Rt_diff) of most likely extrinsics '
@@ -490,6 +491,7 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name  + '.csv'
     fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
             f.write('# Statistic over minimum combined R & t errors of most likely extrinsics (Rt_diff) and statistic '
@@ -538,6 +540,7 @@ def get_best_comb_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
             f.write('# Mean values over minimum combined R & t errors of most likely extrinsics (Rt_diff) '
@@ -781,6 +784,7 @@ def get_best_comb_3d_scenes_1(**keywords):
                       (str(grp) if len(ret['partitions']) == 1 else '-'.join(map(str, grp))) + '.csv'
         fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
                 f.write('# Minimum combined R & t errors of most likely extrinsics (Rt_diff) '
@@ -901,6 +905,7 @@ def get_best_comb_3d_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name  + '.csv'
     fb_mean_name = os.path.join(ret['res_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
             f.write('# Statistic over minimum combined R & t errors of most likely extrinsics (Rt_diff) '
@@ -955,6 +960,7 @@ def get_best_comb_3d_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
             f.write('# Mean values over minimum combined R & t errors of most likely extrinsics (b_min) '
@@ -1098,6 +1104,7 @@ def get_best_comb_3d_scenes_1(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         if 'is_mostLikely' in keywords and keywords['is_mostLikely']:
             f.write('# Mean values over minimum combined R & t errors of most likely extrinsics (b_min) '
@@ -1397,6 +1404,7 @@ def calc_calib_delay(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Histogram on Frame Delays for Reaching a Correct Calibration After an Abrupt '
                     'Change in Extrinsics (' + keywords['scene'] + ')  vs ' + it + ' over data partitions '
@@ -1575,6 +1583,7 @@ def calc_calib_delay(**keywords):
             b_mean_name = 'data_' + base_name1 + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             fb_mean_name = check_file_exists_rename(fb_mean_name)
+            b_mean_name = os.path.basename(fb_mean_name)
             with open(fb_mean_name, 'a') as f:
                 f.write('# ' + replace_stat_names(st, False) + ' values of parameters ' +
                         '-'.join(keywords['it_parameters']) +
@@ -1659,6 +1668,7 @@ def calc_calib_delay(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean parameter values for mean values of partitions ' +
                 '-'.join(map(str, keywords['data_separators'])) + '\n')
@@ -1710,6 +1720,7 @@ def compare_evaluations(**keywords):
             b_mean_name = 'data_mult_evals_stats_opts_' + short_concat_str(keywords['it_parameters']) + '.csv'
             fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
             fb_mean_name = check_file_exists_rename(fb_mean_name)
+            b_mean_name = os.path.basename(fb_mean_name)
             with open(fb_mean_name, 'a') as f:
                 f.write(
                     '# Statistic over parameters from multiple evaluations\n')
@@ -1860,6 +1871,7 @@ def get_ml_acc(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Statistics on ' +
                     (stable_des if stable_t_av else '') +
@@ -1883,6 +1895,7 @@ def get_ml_acc(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Mean ' + (stable_des if stable_t_av else '') +
                     ' differences (Rt_diff2_ml) between most likely and default '
@@ -1957,6 +1970,7 @@ def get_ml_acc(**keywords):
             b_mean_name = 'data_min_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             fb_mean_name = check_file_exists_rename(fb_mean_name)
+            b_mean_name = os.path.basename(fb_mean_name)
             with open(fb_mean_name, 'a') as f:
                 f.write('# Minimum mean ' + (stable_des if stable_t_av else '') +
                         ' differences (Rt_diff2_ml) between most likely and '
@@ -2079,6 +2093,7 @@ def get_ml_acc(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Ratio (rat_defa_high) of higher default R&t errors compared to most likely R&t errors vs ' +
                     str(it) + ((' for ' + stable_des + ' poses') if stable_t_av else '') + '\n')
@@ -2159,6 +2174,7 @@ def get_ml_acc(**keywords):
             b_mean_name = 'data_min_only_larger0_' + base_name + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             fb_mean_name = check_file_exists_rename(fb_mean_name)
+            b_mean_name = os.path.basename(fb_mean_name)
             with open(fb_mean_name, 'a') as f:
                 f.write('# Absolute minimum mean ' + (stable_des if stable_t_av else '')
                         + ' differences (Rt_diff2_ml) between most likely and default R&t errors vs ' + str(it) + '\n')
@@ -2493,6 +2509,7 @@ def get_best_stability_pars(**keywords):
         section_name = capitalizeFirstChar(strToLower(title)) + ' for property ' + \
                        add_val_to_opt_str(replaceCSVLabels(keywords['data_separators'][0], False, False, True), grp)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# ' + section_name + '\n')
             f.write('# Parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
@@ -2909,6 +2926,7 @@ def get_best_robust_pool_pars(**keywords):
     b_mean_name = 'data_' + base_out_name + '.csv'
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Minimum combined R & t errors (Rt_diff) vs ' + '-'.join(keywords['data_separators']) +
                 ' and corresponding parameters\n')
@@ -3103,6 +3121,7 @@ def get_cRT_stats(**keywords):
     b_mean_name = 'data_stats_combRT_vs_' + short_concat_str(keywords['data_separators']) + '.csv'
     fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Statistics on combined R&t errors vs ' + '-'.join(keywords['data_separators']) + '\n')
         df_stat.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
@@ -3261,6 +3280,7 @@ def calc_calib_delay_noPar(**keywords):
         b_mean_name = 'data_' + base_name + '.csv'
         fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
         fb_mean_name = check_file_exists_rename(fb_mean_name)
+        b_mean_name = os.path.basename(fb_mean_name)
         with open(fb_mean_name, 'a') as f:
             f.write('# Histogram on Frame Delays for Reaching a Correct Calibration After an Abrupt '
                     'Change in Extrinsics vs ' + it + ' over data partitions '
@@ -3425,6 +3445,7 @@ def calc_calib_delay_noPar(**keywords):
             b_mean_name = 'data_' + base_name1 + '.csv'
             fb_mean_name = os.path.join(keywords['tdata_folder'], b_mean_name)
             fb_mean_name = check_file_exists_rename(fb_mean_name)
+            b_mean_name = os.path.basename(fb_mean_name)
             with open(fb_mean_name, 'a') as f:
                 f.write('# ' + replace_stat_names(st, False) +
                         ' values of frame delays (fd) of reaching a correct calibration after an abrupt ' +
@@ -3509,6 +3530,7 @@ def calc_calib_delay_noPar(**keywords):
     b_mean_name = 'data_' + base_name + '.csv'
     fb_mean_name = os.path.join(keywords['res_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
+    b_mean_name = os.path.basename(fb_mean_name)
     with open(fb_mean_name, 'a') as f:
         f.write('# Mean frame delays for mean values of partitions ' +
                 '-'.join(map(str, keywords['data_separators'])) + '\n')
