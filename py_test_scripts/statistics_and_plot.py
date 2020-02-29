@@ -4887,17 +4887,27 @@ def get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy):
     if hlp[0]:
         x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
     else:
-        if df[xy_axis_columns[0]].iloc[0] == df[xy_axis_columns[0]].iloc[1]:
-            x_diff = 0
+        if str_is_number(df, xy_axis_columns[0]):
+            df = df.copy(deep=True)
+            df.loc[:, xy_axis_columns[0]] = pd.to_numeric(df.loc[:, xy_axis_columns[0]], errors='coerce').to_numpy()
+            x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
         else:
-            x_diff = 1
+            if df[xy_axis_columns[0]].iloc[0] == df[xy_axis_columns[0]].iloc[1]:
+                x_diff = 0
+            else:
+                x_diff = 1
     if hlp[1]:
         y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
     else:
-        if df[xy_axis_columns[1]].iloc[0] == df[xy_axis_columns[1]].iloc[1]:
-            y_diff = 0
+        if str_is_number(df, xy_axis_columns[1]):
+            df = df.copy(deep=True)
+            df.loc[:, xy_axis_columns[1]] = pd.to_numeric(df.loc[:, xy_axis_columns[1]], errors='coerce').to_numpy()
+            y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
         else:
-            y_diff = 1
+            if df[xy_axis_columns[1]].iloc[0] == df[xy_axis_columns[1]].iloc[1]:
+                y_diff = 0
+            else:
+                y_diff = 1
     if np.isclose(x_diff, 0, atol=1e-06) and not np.isclose(y_diff, 0, atol=1e-06):
         nr_equal_ss = int(df.groupby(xy_axis_columns[0]).size().array[0])
         an = 0
