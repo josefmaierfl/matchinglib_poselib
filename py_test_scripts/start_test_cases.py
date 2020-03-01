@@ -1193,7 +1193,10 @@ def convert_autoc_pars_out_to_in(par_name, par_value):
         elif par_name == 'USAC_parameters_USACInlratFilt':
             if not (par_value == 'GMS' or par_value == 'VFC'):
                 raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
-            return {'USACInlratFilt': par_value}
+            if par_value == 'GMS':
+                return {'USACInlratFilt': 0}
+            else:
+                return {'USACInlratFilt': 1}
         elif par_name == 'BART' or par_name == 'stereoParameters_BART':
             if par_value == 'disabled':
                 return {'bart': 0}
@@ -1429,11 +1432,16 @@ def convert_autoc_pars_in_to_out(par_name, par_value):
             raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
         pars_out = {'RobMethod': par_value}
     elif par_name == 'USACInlratFilt':
-        if not isinstance(par_value, str):
+        if isinstance(par_value, float):
+            par_value = int(par_value)
+        elif not isinstance(par_value, int):
             raise ValueError('Wrong input format for USACInlratFilt')
-        if not (par_value == 'GMS' or par_value == 'VFC'):
-            raise ValueError('Invalid value \'' + par_value + '\' for parameter ' + par_name)
-        pars_out = {'USAC_parameters_USACInlratFilt': par_value}
+        if not (par_value == 0 or par_value == 1):
+            raise ValueError('Invalid value \'' + str(par_value) + '\' for parameter ' + par_name)
+        if par_value == 0:
+            pars_out = {'USAC_parameters_USACInlratFilt': 'GMS'}
+        else:
+            pars_out = {'USAC_parameters_USACInlratFilt': 'VFC'}
     elif par_name == 'bart':
         if isinstance(par_value, float):
             par_value = int(par_value)
