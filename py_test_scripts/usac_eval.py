@@ -2259,7 +2259,7 @@ def calc_Time_Model(**vars):
                 pars_sv = []
                 while ((mean_score1 < 1.1 * mean_score and
                         (mean_par_neg1 > mean_par_neg or mean_score1 < 0.95 * mean_score)) or
-                        ((mean_score1_old < mean_score1 and mean_par_neg1_old > mean_par_neg1))) and degree < 6:
+                        (mean_score1_old < mean_score1 and mean_par_neg1_old > mean_par_neg1)) and degree < 6:
                     mean_score1_old = mean_score1
                     mean_par_neg1_old = mean_par_neg1
                     polynomial_features = PolynomialFeatures(degree=degree, include_bias=False)
@@ -2284,7 +2284,7 @@ def calc_Time_Model(**vars):
                             par_negs.append(par_neg)
                         mean_score1 = sum(scores) / len(scores)
                         mean_par_neg1 = round(sum(par_negs) / len(par_negs))
-                        pars_sv.append([])
+                        pars_sv.append(None)
                     else:
                         x_poly = polynomial_features.fit_transform(X)
                         model.fit(x_poly, Y)
