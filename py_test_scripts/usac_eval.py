@@ -2825,9 +2825,37 @@ def get_time_fixed_kp(**vars):
     df = vars['data'].groupby(individual_grps).mean()
     if drop_cols:
         df.drop(drop_cols, axis=1, inplace=True)
+    if 'quintic_time' in vars['eval_columns']:
+        degree = 5
+    elif 'quartic_time' in vars['eval_columns']:
+        degree = 4
+    elif 'cubic_time' in vars['eval_columns']:
+        degree = 3
+    elif 'squared_time' in vars['eval_columns']:
+        degree = 2
+    else:
+        degree = -1
     if len(vars['eval_columns']) > 3:
-        tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] +\
-              (vars['nr_target_kps'] * vars['nr_target_kps']) * df[vars['eval_columns'][3]]
+        if degree == 2:
+            tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] +\
+                  (vars['nr_target_kps'] * vars['nr_target_kps']) * df[vars['eval_columns'][3]]
+        elif degree == 3:
+            tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] + \
+                  (vars['nr_target_kps'] ** 2) * df[vars['eval_columns'][3]] + \
+                  (vars['nr_target_kps'] ** 3) * df[vars['eval_columns'][4]]
+        elif degree == 4:
+            tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] + \
+                  (vars['nr_target_kps'] ** 2) * df[vars['eval_columns'][3]] + \
+                  (vars['nr_target_kps'] ** 3) * df[vars['eval_columns'][4]] + \
+                  (vars['nr_target_kps'] ** 4) * df[vars['eval_columns'][5]]
+        elif degree == 5:
+            tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]] + \
+                  (vars['nr_target_kps'] ** 2) * df[vars['eval_columns'][3]] + \
+                  (vars['nr_target_kps'] ** 3) * df[vars['eval_columns'][4]] + \
+                  (vars['nr_target_kps'] ** 4) * df[vars['eval_columns'][5]] + \
+                  (vars['nr_target_kps'] ** 5) * df[vars['eval_columns'][6]]
+        else:
+            raise ValueError('Could not determine degree of time model.')
     else:
         tmp = df[vars['eval_columns'][1]] + vars['nr_target_kps'] * df[vars['eval_columns'][2]]
     col_name = 't_' + str(int(vars['nr_target_kps'])) + 'kpts'
