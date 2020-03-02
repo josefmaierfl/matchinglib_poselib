@@ -2358,7 +2358,7 @@ def calc_Time_Model(**vars):
                 poly_df.loc[:, 'score'] /= poly_df.loc[:, 'score'].max()
                 poly_df.loc[:, 'neg_score'] /= poly_df.loc[:, 'neg_score'].max()
                 poly_df['both_scores'] = (poly_df.loc[:, 'score'] + poly_df.loc[:, 'neg_score']).tolist()
-                degree = int(poly_df.loc[poly_df.loc[:, 'both_scores'].idxmin(), 'deg'].tolist()[0])
+                degree = int(poly_df.loc[poly_df.loc[:, 'both_scores'].idxmin(), 'deg'])
                 polynomial_features = PolynomialFeatures(degree=degree + 1, include_bias=False)
                 for i, val in enumerate(model_type):
                     if val['type'] != degree:
