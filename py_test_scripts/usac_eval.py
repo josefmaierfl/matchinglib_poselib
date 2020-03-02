@@ -2250,9 +2250,18 @@ def calc_Time_Model(**vars):
                                    'data': tmp1,
                                    'grp': grp})
             else:
-                mean_score1 = 0
-                mean_par_neg1 = 1.1 * mean_par_neg
-                while mean_score1 < 1.1 * mean_score and (mean_par_neg1 > mean_par_neg or mean_score1 < 0.95 * mean_score) and degree < 6:
+                mean_score1 = 0.94 * mean_score
+                mean_par_neg1 = 1.01 * mean_par_neg
+                mean_score1_old = 0.99 * mean_score1
+                mean_par_neg1_old = 1.01 * mean_par_neg1
+                mean_score1_sv = []
+                mean_par_neg1_sv = []
+                pars_sv = []
+                while ((mean_score1 < 1.1 * mean_score and
+                        (mean_par_neg1 > mean_par_neg or mean_score1 < 0.95 * mean_score)) or
+                        ((mean_score1_old < mean_score1 and mean_par_neg1_old > mean_par_neg1))) and degree < 6:
+                    mean_score1_old = mean_score1
+                    mean_par_neg1_old = mean_par_neg1
                     polynomial_features = PolynomialFeatures(degree=degree, include_bias=False)
                     if X.shape[0] > 150:
                         scores = []
@@ -2275,17 +2284,29 @@ def calc_Time_Model(**vars):
                             par_negs.append(par_neg)
                         mean_score1 = sum(scores) / len(scores)
                         mean_par_neg1 = round(sum(par_negs) / len(par_negs))
+                        pars_sv.append([])
                     else:
                         x_poly = polynomial_features.fit_transform(X)
                         model.fit(x_poly, Y)
                         score = model.score(x_poly, Y)
+                        pars_sv.append(model.intercept_.tolist() + model.coef_[0, :].tolist())
                         par_neg = 0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])
                         for deg in range(0, degree):
                             par_neg += 0 if model.coef_[0, deg] >= 0 else 50 * abs(model.coef_[0, deg]) / \
                                                                           (5 * (deg + 1))
                         mean_score1 = score
                         mean_par_neg1 = round(par_neg)
+                    mean_score1_sv.append(mean_score1)
+                    mean_par_neg1_sv.append(mean_par_neg1)
                     degree += 1
+                if len(mean_score1_sv) > 1 and (mean_score1_sv[-2] > mean_score1_sv[-1] or
+                                                mean_par_neg1_sv[-2] < mean_par_neg1_sv[-1]):
+                    mean_score1 = mean_score1_sv[-2]
+                    mean_par_neg1 = mean_par_neg1_sv[-2]
+                    pars = pars_sv[-2]
+                    degree -= 1
+                else:
+                    pars = pars_sv[-1]
                 if mean_score1 > 1.1 * mean_score or (mean_par_neg1 < mean_par_neg and mean_score1 > 0.95 * mean_score):
                     degree -= 1
                     polynomial_features = PolynomialFeatures(degree=degree, include_bias=False)
@@ -2298,7 +2319,9 @@ def calc_Time_Model(**vars):
                         for deg in range(0, degree):
                             par_neg += 0 if model.coef_[0, deg] >= 0 else 50 * abs(model.coef_[0, deg]) / \
                                                                           (5 * (deg + 1))
-                    parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                        pars = model.intercept_.tolist() + model.coef_[0, :].tolist()
+
+                    parameters = deepcopy(pars)
                     # For HuberRegressor:
                     # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
                     #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0])) + \
@@ -2357,7 +2380,17 @@ def calc_Time_Model(**vars):
                 poly_df = pd.DataFrame({'score': scores2, 'neg_score': par_negs21, 'deg': par_degs2})
                 poly_df.loc[:, 'score'] /= poly_df.loc[:, 'score'].max()
                 poly_df.loc[:, 'neg_score'] /= poly_df.loc[:, 'neg_score'].max()
-                poly_df['both_scores'] = (poly_df.loc[:, 'score'] + poly_df.loc[:, 'neg_score']).tolist()
+                from statistics_and_plot import get_nr_zeros
+                if get_nr_zeros(poly_df, 'neg_score') > 0:
+                    repl_val = poly_df.loc[poly_df['neg_score'] > 0]
+                    if repl_val.empty:
+                        poly_df['both_scores'] = poly_df.loc[:, 'score'].tolist()
+                    else:
+                        repl_val = float(repl_val.min()) / 2
+                        poly_df.loc[:, 'neg_score'] = poly_df.loc[:, 'neg_score'].replace(to_replace=0, value=repl_val)
+                        poly_df['both_scores'] = (poly_df.loc[:, 'score'] / poly_df.loc[:, 'neg_score']).tolist()
+                else:
+                    poly_df['both_scores'] = (poly_df.loc[:, 'score'] / poly_df.loc[:, 'neg_score']).tolist()
                 degree = int(poly_df.loc[poly_df.loc[:, 'both_scores'].idxmin(), 'deg'])
                 polynomial_features = PolynomialFeatures(degree=degree + 1, include_bias=False)
                 for i, val in enumerate(model_type):
