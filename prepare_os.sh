@@ -1,6 +1,17 @@
 #!/bin/bash
 
 # Mount volume
+cd /dev
+FOUND=0
+for x in *; do
+  if [ $x == "nvme1n1" ]; then
+    ${FOUND}=1
+    break
+  fi
+done
+if [ ${FOUND} -ne 1 ]; then
+  exit 1
+fi
 sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 sudo cp /etc/fstab /etc/fstab.orig
