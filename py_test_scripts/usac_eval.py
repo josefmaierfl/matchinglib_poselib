@@ -2120,8 +2120,19 @@ def get_best_comb_th_scenes_1(**keywords):
 def filter_nr_kps(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '100to1000']
 
+
 def filter_nr_kps_stat(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '500']
+
+
+def calc_neg_score(parameters):
+    par_neg = 0 if parameters[0] >= 0 else 50 * abs(parameters[0])
+    mult = 100
+    tmp = 0
+    for deg in range(1, len(parameters)):
+        tmp += parameters[deg] * (mult ** deg)
+    par_neg += 0 if tmp >= 0 else abs(tmp)
+    return par_neg
 
 
 def calc_Time_Model(**vars):
@@ -2153,6 +2164,7 @@ def calc_Time_Model(**vars):
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column
     else:
         needed_cols = vars['eval_columns'] + vars['it_parameters'] + x_axis_column + vars['data_separators']
+    from statistics_and_plot import get_nr_zeros, count_nans
     df = vars['data'][needed_cols].copy(deep=True)
     # Calculate TP
     # df['actNrTP'] = (df[x_axis_column[0]] * df[x_axis_column[1]]).round()
@@ -2214,29 +2226,35 @@ def calc_Time_Model(**vars):
                     score = model.score(X[test], Y[test])
                     scores.append(score)
                     # For LinearRegression:
-                    par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
-                              (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+                    pars = [model.intercept_[0], model.coef_[0, 0]]
+                    par_neg = calc_neg_score(pars)
                     # For HuberRegressor:
                     # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
                     #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
                     par_negs.append(par_neg)
                 mean_score = sum(scores) / len(scores)
+                if np.isnan(mean_score) or np.isclose(mean_score, 0, atol=1.e-3):
+                    mean_score = 0
                 mean_par_neg = round(sum(par_negs) / len(par_negs))
             else:
                 model.fit(X, Y)
                 score = model.score(X, Y)
-                par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
-                          (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+                pars = [model.intercept_[0], model.coef_[0, 0]]
+                par_neg = calc_neg_score(pars)
                 mean_score = score
                 mean_par_neg = round(par_neg)
+            if np.isnan(mean_score) or mean_score < 0:
+                mean_score = 0
+            if np.isnan(mean_par_neg):
+                mean_par_neg = 1e7
             if mean_score > 0.67 and mean_par_neg == 0:
                 # The linear model will fit the data
                 if X.shape[0] > 150:
                     model.fit(X, Y)
                     score = model.score(X, Y)
                     # For LinearRegression:
-                    par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
-                              (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
+                    pars = [model.intercept_[0], model.coef_[0, 0]]
+                    par_neg = calc_neg_score(pars)
                 parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
                 # For HuberRegressor:
                 # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
@@ -2250,8 +2268,8 @@ def calc_Time_Model(**vars):
                                    'data': tmp1,
                                    'grp': grp})
             else:
-                mean_score1 = 0.94 * mean_score
-                mean_par_neg1 = 1.01 * mean_par_neg
+                mean_score1 = 0.94 * max(mean_score, 0.05)
+                mean_par_neg1 = 1.01 * max(mean_par_neg, 0.01)
                 mean_score1_old = 0.99 * mean_score1
                 mean_par_neg1_old = 1.01 * mean_par_neg1
                 mean_score1_sv = []
@@ -2273,10 +2291,8 @@ def calc_Time_Model(**vars):
                             score = model.score(x_poly_test, Y[test])
                             scores.append(score)
                             # For LinearRegression:
-                            par_neg = 0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])
-                            for deg in range(0, degree):
-                                par_neg += 0 if model.coef_[0, deg] >= 0 else 50 * abs(model.coef_[0, deg]) / \
-                                                                             (5 * (deg + 1))
+                            pars = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                            par_neg = calc_neg_score(pars)
                             # For HuberRegressor:
                             # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
                             #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0])) + \
@@ -2289,37 +2305,62 @@ def calc_Time_Model(**vars):
                         x_poly = polynomial_features.fit_transform(X)
                         model.fit(x_poly, Y)
                         score = model.score(x_poly, Y)
-                        pars_sv.append(model.intercept_.tolist() + model.coef_[0, :].tolist())
-                        par_neg = 0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])
-                        for deg in range(0, degree):
-                            par_neg += 0 if model.coef_[0, deg] >= 0 else 50 * abs(model.coef_[0, deg]) / \
-                                                                          (5 * (deg + 1))
+                        pars = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                        par_neg = calc_neg_score(pars)
+                        pars_sv.append(pars)
                         mean_score1 = score
                         mean_par_neg1 = round(par_neg)
                     mean_score1_sv.append(mean_score1)
                     mean_par_neg1_sv.append(mean_par_neg1)
                     degree += 1
-                if len(mean_score1_sv) > 1 and (mean_score1_sv[-2] > mean_score1_sv[-1] or
-                                                mean_par_neg1_sv[-2] < mean_par_neg1_sv[-1]):
-                    mean_score1 = mean_score1_sv[-2]
-                    mean_par_neg1 = mean_par_neg1_sv[-2]
-                    pars = pars_sv[-2]
-                    degree -= 1
+
+                if len(mean_score1_sv) > 1:
+                    for i, val in enumerate(mean_score1_sv):
+                        if val < 0:
+                            mean_score1_sv[i] = 0
+                    weight_df = pd.DataFrame({'score': mean_score1_sv, 'neg_score': mean_par_neg1_sv})
+                    score_max = weight_df.loc[:, 'score'].max()
+                    if np.isnan(score_max) or np.isclose(score_max, 0, atol=1.e-3):
+                        score_max = 0.01
+                    weight_df.loc[:, 'score'] /= score_max
+                    neg_max = weight_df.loc[:, 'neg_score'].max()
+                    if np.isnan(neg_max) or np.isclose(neg_max, 0, atol=1.e-3):
+                        neg_max = 1
+                    weight_df.loc[:, 'neg_score'] /= neg_max
+                    if count_nans(weight_df, weight_df.columns):
+                        if count_nans(weight_df, 'score'):
+                            weight_df['score'].fillna(0, inplace=True)
+                        if count_nans(weight_df, 'neg_score'):
+                            weight_df['neg_score'].fillna(1, inplace=True)
+                    if get_nr_zeros(weight_df, 'neg_score') > 0:
+                        repl_val = weight_df.loc[weight_df['neg_score'] > 0]
+                        if repl_val.empty:
+                            weight_df['both_scores'] = weight_df.loc[:, 'score'].tolist()
+                        else:
+                            repl_val = float(repl_val.loc[:, 'neg_score'].min()) / 2
+                            weight_df.loc[:, 'neg_score'] = weight_df.loc[:, 'neg_score'].replace(to_replace=0,
+                                                                                              value=repl_val)
+                            weight_df['both_scores'] = (weight_df.loc[:, 'score'] / weight_df.loc[:, 'neg_score']).tolist()
+                    else:
+                        weight_df['both_scores'] = (weight_df.loc[:, 'score'] / weight_df.loc[:, 'neg_score']).tolist()
+                    idx = int(weight_df.loc[:, 'both_scores'].idxmax())
+                    mean_score1 = mean_score1_sv[idx]
+                    mean_par_neg1 = mean_par_neg1_sv[idx]
+                    pars = pars_sv[idx]
+                    degree = 2 + idx
                 else:
-                    pars = pars_sv[-1]
+                    pars = pars_sv[0]
+                    degree = 2
+
                 if mean_score1 > 1.1 * mean_score or (mean_par_neg1 < mean_par_neg and mean_score1 > 0.95 * mean_score):
-                    degree -= 1
                     polynomial_features = PolynomialFeatures(degree=degree, include_bias=False)
                     if X.shape[0] > 150:
                         x_poly = polynomial_features.fit_transform(X)
                         model.fit(x_poly, Y)
                         score = model.score(x_poly, Y)
                         # For LinearRegression:
-                        par_neg = 0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])
-                        for deg in range(0, degree):
-                            par_neg += 0 if model.coef_[0, deg] >= 0 else 50 * abs(model.coef_[0, deg]) / \
-                                                                          (5 * (deg + 1))
                         pars = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                        par_neg = calc_neg_score(pars)
 
                     parameters = deepcopy(pars)
                     # For HuberRegressor:
@@ -2338,9 +2379,9 @@ def calc_Time_Model(**vars):
                     model.fit(X, Y)
                     score = model.score(X, Y)
                     # For LinearRegression:
-                    par_neg = (0 if model.intercept_[0] >= 0 else 50 * abs(model.intercept_[0])) + \
-                              (0 if model.coef_[0, 0] >= 0 else 10 * abs(model.coef_[0, 0]))
-                    parameters = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                    pars = model.intercept_.tolist() + model.coef_[0, :].tolist()
+                    par_neg = calc_neg_score(pars)
+                    parameters = pars
                     # For HuberRegressor:
                     # par_neg = (0 if model.intercept_ >= 0 else 50 * abs(model.intercept_)) + \
                     #           (0 if model.coef_[0] >= 0 else 10 * abs(model.coef_[0]))
@@ -2377,21 +2418,34 @@ def calc_Time_Model(**vars):
             if l_rat2 > 0.5 and (scores21 > scores11 or par_negs11 > par_negs21):
                 #Choose degree
                 par_degs2 = [a['type'] for a in model_type if a['type'] >= 1 and a['valid']]
+                for i, val in enumerate(scores2):
+                    if val < 0:
+                        scores2[i] = 0
                 poly_df = pd.DataFrame({'score': scores2, 'neg_score': par_negs21, 'deg': par_degs2})
-                poly_df.loc[:, 'score'] /= poly_df.loc[:, 'score'].max()
-                poly_df.loc[:, 'neg_score'] /= poly_df.loc[:, 'neg_score'].max()
-                from statistics_and_plot import get_nr_zeros
+                score_max = poly_df.loc[:, 'score'].max()
+                if np.isnan(score_max) or np.isclose(score_max, 0, atol=1.e-3):
+                    score_max = 0.01
+                poly_df.loc[:, 'score'] /= score_max
+                neg_max = poly_df.loc[:, 'neg_score'].max()
+                if np.isnan(neg_max) or np.isclose(neg_max, 0, atol=1.e-3):
+                    neg_max = 1
+                poly_df.loc[:, 'neg_score'] /= neg_max
+                if count_nans(poly_df, poly_df.columns):
+                    if count_nans(poly_df, 'score'):
+                        poly_df['score'].fillna(0, inplace=True)
+                    if count_nans(poly_df, 'neg_score'):
+                        poly_df['neg_score'].fillna(1, inplace=True)
                 if get_nr_zeros(poly_df, 'neg_score') > 0:
                     repl_val = poly_df.loc[poly_df['neg_score'] > 0]
                     if repl_val.empty:
                         poly_df['both_scores'] = poly_df.loc[:, 'score'].tolist()
                     else:
-                        repl_val = float(repl_val.min()) / 2
+                        repl_val = float(repl_val.loc[:, 'neg_score'].min()) / 2
                         poly_df.loc[:, 'neg_score'] = poly_df.loc[:, 'neg_score'].replace(to_replace=0, value=repl_val)
                         poly_df['both_scores'] = (poly_df.loc[:, 'score'] / poly_df.loc[:, 'neg_score']).tolist()
                 else:
                     poly_df['both_scores'] = (poly_df.loc[:, 'score'] / poly_df.loc[:, 'neg_score']).tolist()
-                degree = int(poly_df.loc[poly_df.loc[:, 'both_scores'].idxmin(), 'deg'])
+                degree = int(poly_df.loc[poly_df.loc[:, 'both_scores'].idxmax(), 'deg'])
                 polynomial_features = PolynomialFeatures(degree=degree + 1, include_bias=False)
                 for i, val in enumerate(model_type):
                     if val['type'] != degree:
