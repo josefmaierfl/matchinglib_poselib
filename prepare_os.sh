@@ -1,10 +1,15 @@
 #!/bin/bash
 
+if [ $# -eq 0 ]; then
+  echo "Arguments are required"
+  exit 1
+fi
+DRIVE_NAME="$1"
 # Mount volume
 cd /dev
 FOUND=0
 for x in *; do
-  if [ $x == "nvme1n1" ]; then
+  if [ $x == ${DRIVE_NAME} ]; then
     ${FOUND}=1
     break
   fi
@@ -15,7 +20,7 @@ fi
 sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 sudo cp /etc/fstab /etc/fstab.orig
-echo "UUID=$(lsblk -nr -o UUID,NAME | grep -Po '.*(?= nvme1n1)')  /data  xfs  defaults,nofail  0  2" >> /etc/fstab
+echo "UUID=$(lsblk -nr -o UUID,NAME | grep -Po '.*(?= ${DRIVE_NAME})')  /data  xfs  defaults,nofail  0  2" | sudo tee -a /etc/fstab
 sudo umount /data
 sudo mount -a
 sudo chown -R $USER /data
