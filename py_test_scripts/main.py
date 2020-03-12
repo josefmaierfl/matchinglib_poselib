@@ -17,7 +17,7 @@ test_raise = [False, False, False]
 def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_sc,
                         use_cal_tests, use_evals, img_path, store_path_sequ, load_path, cpu_use,
                         exec_sequ, message_path, exec_cal, store_path_cal, compare_pars,
-                        comp_pars_ev_nr, compare_path, log_new_folders):
+                        comp_pars_ev_nr, compare_path, log_new_folders, skip_find_opt_pars):
     main_tests = en.get_available_main_tests()
     scene_creation = en.get_available_sequences()
     if skip_tests:
@@ -80,7 +80,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                     else:
                         ev_nrs = use_evals[mt][str(tn)]
                     ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
-                                     compare_pars, comp_pars_ev_nr, compare_path)
+                                     compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars)
                     log_autoc_folders(mt, tn, store_path_cal, log_new_folders)
                     if ret:
                         return ret
@@ -95,7 +95,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                     tn = int(nr_key)
                     ev_nrs = use_evals[mt][nr_key]
                 ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
-                                 compare_pars, comp_pars_ev_nr, compare_path)
+                                 compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars)
                 log_autoc_folders(mt, tn, store_path_cal, log_new_folders, True)
                 if ret:
                     return ret
@@ -106,7 +106,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
 
 
 def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_path,
-               compare_pars, comp_pars_ev_nr, compare_path):
+               compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars):
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     pyfilename = os.path.join(pyfilepath, 'eval_tests_main.py')
     cmdline = ['python', pyfilename, '--path', store_path_cal, '--nrCPUs', str(cpu_use),
@@ -155,20 +155,21 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
         return ret
 
     # After evals are finished try to find optimal parameters
-    try:
-        ret = find_optimal_parameters(test_name, test_nr, store_path_cal)
-        if ret:
-            ret = 0
-        else:
-            ret = 1
-            send_message('Finding optimal parameters failed. They have to be manually entered. Main test ' + test_name +
+    if not skip_find_opt_pars:
+        try:
+            ret = find_optimal_parameters(test_name, test_nr, store_path_cal)
+            if ret:
+                ret = 0
+            else:
+                ret = 1
+                send_message('Finding optimal parameters failed. They have to be manually entered. Main test ' + test_name +
+                             (' with test nr ' + str(test_nr) if test_nr else ''))
+        except Exception:
+            logging.error('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
+                          (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
+            send_message('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
                          (' with test nr ' + str(test_nr) if test_nr else ''))
-    except Exception:
-        logging.error('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
-                      (' with test nr ' + str(test_nr) if test_nr else ''), exc_info=True)
-        send_message('Finding optimal parameters failed due to error in main script. Main test ' + test_name +
-                     (' with test nr ' + str(test_nr) if test_nr else ''))
-        ret = 99
+            ret = 99
     return ret
 
 
@@ -1226,6 +1227,9 @@ def main():
                              'to take only folders created within this main test (only used when creating sequences).')
     parser.add_argument('--shutdown_afterwards', type=str, nargs='?', required=False, default='dont', const='shutdown',
                         help='If provided, the system will be shut down after finishing. ')
+    parser.add_argument('--skip_find_opt_pars', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='If provided, the functionality for finding optimal parameters based on evaluation '
+                             'results is disabled')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -1442,7 +1446,7 @@ def main():
         ret = start_testing(args.path, args.path_confs_out, args.skip_tests, args.skip_gen_sc_conf, args.skip_crt_sc,
                             use_cal_tests, use_evals, args.img_path, args.store_path_sequ, args.load_path, cpu_use,
                             args.exec_sequ, args.message_path, args.exec_cal, args.store_path_cal, args.compare_pars,
-                            args.comp_pars_ev_nr, args.compare_path, log_new_folders)
+                            args.comp_pars_ev_nr, args.compare_path, log_new_folders, args.skip_find_opt_pars)
     except Exception:
         logging.error('Error in main file', exc_info=True)
         ret = 99
