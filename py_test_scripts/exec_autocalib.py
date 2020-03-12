@@ -22,6 +22,7 @@ yaml.SafeLoader.add_constructor(u"tag:yaml.org,2002:opencv-matrix", opencv_matri
 
 warnings.simplefilter('ignore', yaml.error.UnsafeLoaderWarning)
 
+
 def readOpenCVYaml(file, isstr = False):
     if isstr:
         data = file.split('\n')
@@ -278,6 +279,9 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
         pass
 
     cmds = []
+    sub_paths = cf.loc[:, 'sub_path'].unique().tolist()
+    for idx, sp in enumerate(sub_paths):
+        sub_paths[idx] = os.path.join(output_path, str(sp))
     for index, row in cf.iterrows():
         opts = row['cmd'].split(' ')
         opts += ['--sequ_path', row['sequDir'], '--matchData_idx', str(row['parSetNr']),
@@ -323,6 +327,48 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
                 except:
                     res = 3
                     break
+
+    from usac_eval import NoAliasDumper
+    for sp in sub_paths:
+        parset_path = os.path.join(sp, 'pars')
+        concat_yaml = {}
+        if os.path.exists(parset_path):
+            print()
+            print('Concatenating parameter files...')
+            sub_files = [os.path.join(parset_path, name) for name in os.listdir(parset_path) if is_parset_file(name)]
+            sub_files.sort(key=natural_keys)
+            cnt_dot = 0
+            res1 = 0
+            with multiprocessing.Pool(processes=cpu_cnt) as pool:
+                results = [pool.apply_async(readOpenCVYaml, (t, )) for t in sub_files]
+                for idx, r in enumerate(results):
+                    while 1:
+                        sys.stdout.flush()
+                        try:
+                            concat_yaml['parSetNr' + str(idx)] = r.get(2.0)
+                            break
+                        except multiprocessing.TimeoutError:
+                            if cnt_dot >= 90:
+                                print()
+                                cnt_dot = 0
+                            sys.stdout.write('.')
+                            cnt_dot = cnt_dot + 1
+                        except ChildProcessError:
+                            res1 = 1
+                            pool.terminate()
+                            break
+                        except:
+                            res1 = 2
+                            pool.terminate()
+                            break
+                    if res1:
+                        break
+            if res1:
+                return 10 * res1 + res
+            _, fext = os.path.splitext(sub_files[0])
+            yaml_file = os.path.join(sp, 'allRunsOverview' + fext)
+            with open(yaml_file, 'w') as fo:
+                yaml.dump(concat_yaml, stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
 
     return res
 
@@ -461,6 +507,24 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
         os.remove(stdmess)
 
     return 0
+
+
+def is_parset_file(name):
+    if name.find('parSetNr_', 0, 9) == 0:
+        return True
+    return False
+
+
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+    # alist.sort(key=natural_keys) sorts in human order
+    # http://nedbatchelder.com/blog/200712/human_sorting.html
+    # (See Toothy's implementation in the comments)
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
+
 
 def write_cmd_csv(file, data):
     data = pandas.DataFrame(data=data).T

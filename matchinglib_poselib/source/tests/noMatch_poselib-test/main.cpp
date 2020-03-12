@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
 
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/interprocess/sync/named_mutex.hpp>
+#include <boost/filesystem.hpp>
 /*#if defined(__linux__)
 
 #include "unistd.h"
@@ -597,6 +598,10 @@ FileStorage& operator << (FileStorage& fs, bool &value);
 void writeTestingParameters(cv::FileStorage &fs,
                             const calibPars &cp);
 bool writeResultsDisk(const std::vector<algorithmResult> &ar, const string &filename);
+bool writeResultsOverview(const string &path,
+                          const string &ovf_ext1part,
+                          const calibPars &cp,
+                          const string &resultsFileName);
 
 int SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
@@ -2416,6 +2421,12 @@ bool startEvaluation(ArgvParser& cmd)
         cerr << "Unable to generate output file name." << endl;
         exit(1);
     }
+#if 1
+    if(!writeResultsOverview(output_path, ovf_ext1part, cp, outFileName)){
+        cerr << "Unable to write algorithm parameters to output." << endl;
+        exit(1);
+    }
+#else
     testing::internal::FilePath overviewFNameG =
             testing::internal::FilePath::MakeFileName(testing::internal::FilePath(output_path),
                                                                 testing::internal::FilePath("allRunsOverview"),
@@ -2426,6 +2437,7 @@ bool startEvaluation(ArgvParser& cmd)
         cerr << "Unable to write algorithm parameters to output." << endl;
         exit(1);
     }
+#endif
     if(!writeResultsDisk(ar, outFileName)){
         cerr << "Unable to write results to disk." << endl;
         exit(1);
@@ -2536,6 +2548,73 @@ bool genOutFileName(const std::string &path,
     }
     filename = outFileNameG.string();
 
+    return true;
+}
+
+//Write an parameter overview to file that connects a hash number (in results file name) with the used parameters
+//Only 1 parameter set is written to disk in a seperate folder named 'pars'. The filename is retrieved from a file that
+//holds a counter value (reading and writing is protected by a mutex). The data should be concatunated into a single file
+//after all files were written to disk (from multiple threads)
+bool writeResultsOverview(const string &path,
+                          const string &ovf_ext1part,
+                          const calibPars &cp,
+                          const string &resultsFileName){
+    using namespace boost::interprocess;
+    boost::filesystem::path p(path), p2;
+    p /= "pars";//Concat paths
+    p2 = p;
+    unsigned int file_cnt = 0;
+    try {
+        named_mutex mutex(open_or_create, "write_yaml");
+        scoped_lock<named_mutex> lock(mutex);
+        if (!boost::filesystem::exists(p)) {
+            if (!boost::filesystem::create_directory(p)) {
+                std::cout << "Failed to create directory" << p.string() << std::endl;
+                return false;
+            }
+        }
+        p /= "nr_files.txt";
+        if (!boost::filesystem::exists(p)) {
+            ofstream myfile(p.string(), ios::out);
+            myfile << file_cnt;
+            myfile.close();
+        }else{
+            ifstream infile(p.string());
+            infile >> file_cnt;
+            infile.close();
+            file_cnt++;
+            ofstream myfile(p.string(), ios::out);
+            myfile << file_cnt;
+            myfile.close();
+        }
+    }catch(interprocess_exception &ex){
+        cerr << ex.what() << std::endl;
+        return false;
+    }catch(...){
+        std::cerr << "Unable to get file count." << endl;
+        return false;
+    }
+    p2 /= "parSetNr_" + std::to_string(file_cnt) + "." + ovf_ext1part;
+    if (boost::filesystem::exists(p2)){
+        std::cerr << "File " << p2.string() << "already exists!" << endl;
+        return false;
+    }
+
+    FileStorage fs;
+    fs = FileStorage(p2.string(), FileStorage::WRITE);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << p2.string() << endl;
+        return false;
+    }
+    fs.writeComment("File name (within the path containing this file) which holds results from testing "
+                    "the autocalibration SW.", 0);
+    size_t posLastSl = resultsFileName.rfind('/');
+    string resDirName = resultsFileName.substr(posLastSl + 1);
+    fs << "hashTestingPars" << resDirName;
+
+    writeTestingParameters(fs, cp);
+
+    fs.release();
     return true;
 }
 
