@@ -90,7 +90,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
             for nr_key in use_evals[mt].keys():
                 if nr_key == '0':
                     tn = None
-                    ev_nrs = use_evals[mt]
+                    ev_nrs = use_evals[mt]['0']
                 else:
                     tn = int(nr_key)
                     ev_nrs = use_evals[mt][nr_key]

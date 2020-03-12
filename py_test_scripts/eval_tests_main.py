@@ -747,7 +747,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              build_pdf=True,
                                                              figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(7, 15)) + [36]
@@ -1100,7 +1100,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'usac_vs_ransac':
@@ -1354,7 +1354,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
             else:
-                raise ValueError('Eval nr ' + ev + ' does not exist')
+                raise ValueError('Eval nr ' + str(ev) + ' does not exist')
     elif test_name == 'refinement_ba':
         if not test_nr:
             raise ValueError('test_nr is required refinement_ba')
@@ -1551,7 +1551,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(1, 5))
@@ -1728,7 +1728,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'vfc_gms_sof':
@@ -1985,7 +1985,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                      build_pdf=True,
                                                      figs_externalize=False)
             else:
-                raise ValueError('Eval nr ' + ev + ' does not exist')
+                raise ValueError('Eval nr ' + str(ev) + ' does not exist')
     elif test_name == 'refinement_ba_stereo':
         from statistics_and_plot import calcSatisticAndPlot_2D, \
             calcSatisticAndPlot_2D_partitions, \
@@ -2116,7 +2116,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(1, 5))
@@ -2306,7 +2306,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              build_pdf=True,
                                                              figs_externalize=True)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'correspondence_pool':
@@ -2700,7 +2700,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(11, 14))
@@ -2821,7 +2821,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 3:
             if eval_nr[0] < 0:
                 evals = list(range(14, 16))
@@ -2903,7 +2903,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'robustness':
@@ -3205,7 +3205,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              no_tex=True,
                                                              cat_sort=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
                 evals = list(range(6, 11))
@@ -3471,7 +3471,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   no_tex=False,
                                                   cat_sort=True)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 3:
             if eval_nr[0] < 0:
                 evals = list(range(11, 15))
@@ -3683,7 +3683,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   no_tex=False,
                                                   cat_sort='depthDistr')
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 4:
             if eval_nr[0] < 0:
                 evals = list(range(15, 25))
@@ -4318,7 +4318,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              no_tex=False,
                                                              cat_sort='depthDistr')
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 5:
             if eval_nr[0] < 0:
                 evals = list(range(25, 29))
@@ -4491,7 +4491,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          build_pdf=True,
                                                          figs_externalize=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 6:
             if eval_nr[0] < 0:
                 evals = list(range(29, 38))
@@ -5008,7 +5008,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              no_tex=True,
                                                              cat_sort=False)
                 else:
-                    raise ValueError('Eval nr ' + ev + ' does not exist')
+                    raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         else:
             raise ValueError('Test nr does not exist')
     elif test_name == 'usac_vs_autocalib':
@@ -5380,7 +5380,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                      build_pdf=True,
                                                      figs_externalize=False)
             else:
-                raise ValueError('Eval nr ' + ev + ' does not exist')
+                raise ValueError('Eval nr ' + str(ev) + ' does not exist')
     else:
         raise ValueError('Test ' + test_name + ' does not exist')
 
