@@ -527,7 +527,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
             calcSatisticAndPlot_3D_partitions
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 7))
+                evals = list(range(1, 7)) + list(range(37, 40))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -838,7 +838,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
             if eval_nr[0] < 0:
-                evals = list(range(7, 15)) + [36]
+                evals = list(range(7, 15)) + [36] + list(range(40, 43))
             else:
                 evals = eval_nr
             for ev in evals:
@@ -1292,7 +1292,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
             calcFromFuncAndPlot_2D_partitions, \
             calcSatisticAndPlot_3D_partitions
         if eval_nr[0] < 0:
-            evals = list(range(1, 8))
+            evals = list(range(1, 11))
         else:
             evals = eval_nr
         for ev in evals:
