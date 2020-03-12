@@ -18,7 +18,7 @@ if [ ${FOUND} -ne 1 ]; then
   exit 1
 fi
 sudo mkdir /data
-sudo mount /dev/nvme1n1 /data
+sudo mount /dev/${DRIVE_NAME} /data
 sudo cp /etc/fstab /etc/fstab.orig
 echo "UUID=$(lsblk -nr -o UUID,NAME | grep -Po '.*(?= ${DRIVE_NAME})')  /data  xfs  defaults,nofail  0  2" | sudo tee -a /etc/fstab
 sudo umount /data
@@ -46,3 +46,20 @@ sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io
 sudo groupadd docker
 sudo usermod -aG docker ${USER}
+
+#Install CUDA
+# wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
+# sudo mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
+# wget http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda-repo-ubuntu1804-10-2-local-10.2.89-440.33.01_1.0-1_amd64.deb
+# sudo dpkg -i cuda-repo-ubuntu1804-10-2-local-10.2.89-440.33.01_1.0-1_amd64.deb
+# sudo apt-key add /var/cuda-repo-10-2-local-10.2.89-440.33.01/7fa2af80.pub
+# sudo apt-get update
+# sudo apt-get -y install cuda
+
+# Install NVIDIA Container Toolkit
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
