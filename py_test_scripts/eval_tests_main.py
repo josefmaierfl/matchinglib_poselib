@@ -2226,7 +2226,8 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'use_marks': False,
                                       'nr_target_kps': 1000,
                                       'res_par_name': 'vfc_gms_sof_min_time'}
-                from usac_eval import calc_Time_Model, filter_nr_kps
+                filter_func_args = {'time_col': 'filtering_us'}
+                from usac_eval import calc_Time_Model, filter_nr_kps_time
                 from refinement_eval import estimate_alg_time_fixed_kp_agg
                 ret += calcFromFuncAndPlot_aggregate(data=data,
                                                      store_path=output_path,
@@ -2237,8 +2238,8 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                      units=units,
                                                      it_parameters=it_parameters,
                                                      x_axis_column=['nrCorrs_GT'],
-                                                     filter_func=filter_nr_kps,
-                                                     filter_func_args=None,
+                                                     filter_func=filter_nr_kps_time,
+                                                     filter_func_args=filter_func_args,
                                                      special_calcs_func=estimate_alg_time_fixed_kp_agg,
                                                      special_calcs_args=special_calcs_args,
                                                      calc_func=calc_Time_Model,

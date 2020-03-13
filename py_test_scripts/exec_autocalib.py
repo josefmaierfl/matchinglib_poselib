@@ -336,7 +336,7 @@ def start_autocalib(csv_cmd_file, executable, cpu_cnt, message_path, output_path
             print()
             print('Concatenating parameter files...')
             sub_files = [os.path.join(parset_path, name) for name in os.listdir(parset_path) if is_parset_file(name)]
-            sub_files.sort(key=natural_keys)
+            sub_files = sorted(sub_files, key=natural_keys)
             cnt_dot = 0
             res1 = 0
             with multiprocessing.Pool(processes=cpu_cnt) as pool:

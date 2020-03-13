@@ -2121,6 +2121,10 @@ def filter_nr_kps(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '100to1000']
 
 
+def filter_nr_kps_time(**vars):
+    return vars['data'].loc[(vars['data']['nrTP'] == '100to1000') & (vars['data'][vars['time_col']] > 0)]
+
+
 def filter_nr_kps_stat(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '500']
 
@@ -2188,6 +2192,16 @@ def calc_Time_Model(**vars):
                 ma = tmp[vars['eval_columns'][0]].dropna().values.max()
                 mi = tmp[vars['eval_columns'][0]].dropna().values.min()
                 r_r = ma - mi
+                if np.isclose(0, r_r):
+                    warnings.warn('Time measurements are equal', UserWarning)
+                    model_type.append({'score': 0,
+                                       'par_neg': 0,
+                                       'parameters': [0, 0],
+                                       'valid': False,
+                                       'type': 0,
+                                       'data': tmp,
+                                       'grp': grp})
+                    continue
                 r5 = r_r / 5
                 a = mi
                 parts = []
