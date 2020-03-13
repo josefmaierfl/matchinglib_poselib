@@ -458,7 +458,7 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                  # Builds an index with hyperrefs on the beginning of the pdf
                  'make_index': False,
                  # If True, the figures are adapted to the page height if they are too big
-                 'ctrl_fig_size': False,
+                 'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
                  'figs_externalize': False,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
@@ -472,13 +472,13 @@ def estimate_alg_time_fixed_kp_agg(**vars):
                '\\\\extrapolated for ' + str(int(vars['nr_target_kps'])) + ' keypoints'
     fig_name = split_large_titles(fig_name)
     exp_value = enl_space_title(exp_value, fig_name, tmp, 'pars_tex',
-                                1, 'ybar')
-    x_rows = handle_nans(tmp, col_name, True, 'ybar')
+                                1, 'xbar')
+    x_rows = handle_nans(tmp, col_name, True, 'xbar')
     tex_infos['sections'].append({'file': reltex_name,
                                   'name': fig_name.replace('\\\\', ' '),
                                   'title': fig_name,
                                   'title_rows': fig_name.count('\\\\'),
-                                  'fig_type': 'ybar',
+                                  'fig_type': 'xbar',
                                   'plots': [col_name],
                                   'label_y': 'mean execution time/$\\mu s$',
                                   # Label of the value axis. For xbar it labels the x-axis
