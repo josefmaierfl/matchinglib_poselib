@@ -977,7 +977,6 @@ def IsPathValid(parentDir, path, rootDir, ignoreDir, ignoreExt, useOnlyDir):
                     except:
                         return False
 
-
     if not is_file and not ignoreDir:
         return True
 
