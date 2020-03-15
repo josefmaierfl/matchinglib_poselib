@@ -7627,8 +7627,12 @@ void genStereoSequ::backProjectMovObj() {
                     destroyWindow("Random TN in img2 for backprojected moving object TN of img1");
                 }
 
-                movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
-                movObjCorrsImg2TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
+                if (movObjCorrsImg2TNFromLast[i].empty()){
+                    elemnew.rowRange(0, cnt1).copyTo(movObjCorrsImg2TNFromLast[i]);
+                }else {
+                    movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
+                    movObjCorrsImg2TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
+                }
                 movObjCorrsImg2TNFromLast[i] = movObjCorrsImg2TNFromLast[i].t();
                 missingCImg2[i] -= cnt1;
 //                movObjDistTNtoReal[i] = vector<double>(cnt1, fakeDistTNCorrespondences);
@@ -7694,8 +7698,12 @@ void genStereoSequ::backProjectMovObj() {
                 }
 
 //                movObjLabelsFromLast[i] |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
-                movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
-                movObjCorrsImg1TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
+                if(movObjCorrsImg1TNFromLast[i].empty()){
+                    elemnew.rowRange(0, cnt1).copyTo(movObjCorrsImg1TNFromLast[i]);
+                }else {
+                    movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
+                    movObjCorrsImg1TNFromLast[i].push_back(elemnew.rowRange(0, cnt1));
+                }
                 movObjCorrsImg1TNFromLast[i] = movObjCorrsImg1TNFromLast[i].t();
                 missingCImg1[i] -= cnt1;
 //                movObjDistTNtoReal[i] = vector<double>(cnt1, fakeDistTNCorrespondences);
