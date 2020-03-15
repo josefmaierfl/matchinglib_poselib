@@ -409,7 +409,7 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
             elif int(usacpars[5]) > 1 and int(usacpars[5]) < 4:
                 timeout = 10000
             else:
-                timeout = 2000
+                timeout = 5000
         else:
             timeout = 5000
     base = mess_base_name
