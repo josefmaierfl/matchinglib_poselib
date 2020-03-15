@@ -94,9 +94,63 @@ def recompile(path, pout, cpu_use):
     return ret
 
 
+def inspect_dir(path):
+    ignores = []
+    ign_cnt = 0
+    folder_use = []
+    if os.path.isfile(path):
+        _, ext = os.path.splitext(path)
+        if ext.lower() != '.pdf':
+            ignores = [ext]
+            ign_cnt = 1
+    else:
+        content = os.listdir(path)
+        for i in content:
+            i_folder = os.path.join(path, i)
+            folders, ign, cnt = inspect_dir(i_folder)
+            is_dir = os.path.isdir(i_folder)
+            if is_dir and  cnt == len(os.listdir(i_folder)):
+                ign_cnt += 1
+            elif is_dir:
+                if folders:
+                    folder_use += folders
+                else:
+                    folder_use.append(i_folder)
+            ignores += ign
+    return folder_use, ignores, ign_cnt
+
+
+def copy_pdfs(path, pout):
+    folder_use, ignores, ign_cnt = inspect_dir(path)
+    ignores = list(dict.fromkeys(ignores))
+    ignores = ['*' + ig for ig in ignores]
+    main_folder = os.path.commonpath(folder_use)
+    base = os.path.basename(main_folder)
+    main2 = os.path.join(pout, base)
+    try:
+        os.mkdir(main2)
+    except FileExistsError:
+        pass
+    for fo in folder_use:
+        rel_path = os.path.relpath(fo, start=main_folder)
+        abs2 = os.path.normpath(os.path.join(main2, rel_path))
+        os.makedirs(abs2, exist_ok=True)
+        ign = deepcopy(ignores)
+        ad_ignores = [os.path.join(fo, a) for a in os.listdir(fo)]
+        ad_ignores = [a for a in ad_ignores if os.path.isdir(a)]
+        if ad_ignores:
+            ign += ad_ignores
+        ign = set(ign)
+        shutil.copytree(fo, abs2, symlinks=False, ignore_dangling_symlinks=True,
+                        dirs_exist_ok=True, ignore=shutil.ignore_patterns(*ign))
+
+
 def main():
     parser = argparse.ArgumentParser(description='Loads all tex-files within a given directory including all '
-                                                 'sub-directories, delets author information and builds PDFs.')
+                                                 'sub-directories, deletes author information and builds PDFs. If '
+                                                 'option --copy_only is specified, all and only PDF documents are '
+                                                 'copied to the destination folder while preserving the folder '
+                                                 'structure.')
     parser.add_argument('--path', type=str, required=True,
                         help='Main path for loading tex-files')
     parser.add_argument('--pout', type=str, required=True,
@@ -105,6 +159,9 @@ def main():
                         help='Number of CPU cores for parallel processing. If a negative value is provided, '
                              'the program tries to find the number of available CPUs on the system - if it fails, '
                              'the absolute value of nrCPUs is used. Default: -6')
+    parser.add_argument('--copy_only', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='All and only PDF documents are copied to the destination folder while preserving the '
+                             'folder structure. No compilation of tex-files.')
     args = parser.parse_args()
     if args.nrCPUs > 72 or args.nrCPUs == 0:
         raise ValueError("Unable to use " + str(args.nrCPUs) + " CPU cores.")
@@ -134,8 +191,12 @@ def main():
         if ui != 'y':
             sys.exit(1)
 
-    ret = recompile(args.path, args.pout, cpu_use)
-    sys.exit(ret)
+    if not args.copy_only:
+        ret = recompile(args.path, args.pout, cpu_use)
+        sys.exit(ret)
+    else:
+        copy_pdfs(args.path, args.pout)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
