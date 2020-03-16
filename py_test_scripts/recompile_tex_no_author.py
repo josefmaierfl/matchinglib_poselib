@@ -1,11 +1,11 @@
-import sys, os, subprocess as sp, warnings, math, re, argparse
+import sys, os, warnings, re, argparse
 from copy import deepcopy
 import shutil, tempfile
-import multiprocessing
+import stat
 
 
 def get_tex_folders(path):
-    sub_dirs = os.listdir(path)
+    sub_dirs = [os.path.join(path, a) for a in os.listdir(path)]
     ss_dirs = []
     notex = True
     for i in sub_dirs:
@@ -27,10 +27,9 @@ def recompile(path, pout, cpu_use):
     ret = 0
     for td in tex_dirs:
         tmp_path = tempfile.mkdtemp()
-        dest = shutil.copytree(td, tmp_path,
-                               ignore=shutil.ignore_patterns('*.pdf'),
-                               ignore_dangling_symlinks=True,
-                               dirs_exist_ok=True)
+        dest = copytree(td, tmp_path,
+                        ignore=shutil.ignore_patterns('*.pdf', '*.txt', '*.yaml'),
+                        ignore_dangling_symlinks=True)
         pdf_info = {'tex_dir': dest,
                     'tex_fname': [],
                     'pdf_fname': [],
@@ -46,6 +45,7 @@ def recompile(path, pout, cpu_use):
             pdf_path = os.path.join(outp, 'pdf')
         os.makedirs(pdf_path, exist_ok=True)
         for f in os.listdir(dest):
+            f = os.path.join(dest, f)
             if os.path.isfile(f):
                 (f_name, ext) = os.path.splitext(f)
                 if ext == '.tex':
@@ -60,6 +60,7 @@ def recompile(path, pout, cpu_use):
                                 aobj = re.search(r'\\author\{.*\}', li)
                                 if aobj:
                                     founda = True
+                                    li = fi.readline()
                                     continue
                             if not pdf_info['build_gloss']:
                                 gobj = re.search(r'\\printunsrtglossary', li)
@@ -79,10 +80,10 @@ def recompile(path, pout, cpu_use):
                                     pdf_info['ext'] = True
                             text.append(li)
                             li = fi.readline()
-                    pdf_info['tex_fname'].append(''.join(text))
+                    pdf_info['text'].append(''.join(text))
                     pdf_info['pdf_fname'].append(os.path.join(pdf_path, basename + '.pdf'))
         from statistics_and_plot import compile_tex
-        ret += compile_tex(pdf_info['tex_fname'],
+        ret += compile_tex(pdf_info['text'],
                            pdf_info['tex_dir'],
                            pdf_info['tex_fname'],
                            make_fig_index=pdf_info['mk_idx'],
@@ -94,13 +95,13 @@ def recompile(path, pout, cpu_use):
     return ret
 
 
-def inspect_dir(path):
+def inspect_dir(path, includes):
     ignores = []
     ign_cnt = 0
     folder_use = []
     if os.path.isfile(path):
         _, ext = os.path.splitext(path)
-        if ext.lower() != '.pdf':
+        if all(ext.lower() != a for a in includes):
             ignores = [ext]
             ign_cnt = 1
     else:
@@ -109,7 +110,7 @@ def inspect_dir(path):
             i_folder = os.path.join(path, i)
             folders, ign, cnt = inspect_dir(i_folder)
             is_dir = os.path.isdir(i_folder)
-            if is_dir and  cnt == len(os.listdir(i_folder)):
+            if (is_dir and cnt == len(os.listdir(i_folder))) or (not is_dir and cnt):
                 ign_cnt += 1
             elif is_dir:
                 if folders:
@@ -121,7 +122,7 @@ def inspect_dir(path):
 
 
 def copy_pdfs(path, pout):
-    folder_use, ignores, ign_cnt = inspect_dir(path)
+    folder_use, ignores, ign_cnt = inspect_dir(path, ['.pdf'])
     ignores = list(dict.fromkeys(ignores))
     ignores = ['*' + ig for ig in ignores]
     main_folder = os.path.commonpath(folder_use)
@@ -137,12 +138,58 @@ def copy_pdfs(path, pout):
         os.makedirs(abs2, exist_ok=True)
         ign = deepcopy(ignores)
         ad_ignores = [os.path.join(fo, a) for a in os.listdir(fo)]
-        ad_ignores = [a for a in ad_ignores if os.path.isdir(a)]
+        ad_ignores = [os.path.basename(a) for a in ad_ignores if os.path.isdir(a)]
         if ad_ignores:
             ign += ad_ignores
         ign = set(ign)
-        shutil.copytree(fo, abs2, symlinks=False, ignore_dangling_symlinks=True,
-                        dirs_exist_ok=True, ignore=shutil.ignore_patterns(*ign))
+        copytree(fo, abs2, symlinks=False, ignore_dangling_symlinks=True,
+                 ignore=shutil.ignore_patterns(*ign))
+
+
+def copytree(src, dst, symlinks=False, ignore=None, ignore_dangling_symlinks=False):
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+        shutil.copystat(src, dst)
+    lst = os.listdir(src)
+    if ignore:
+        excl = ignore(src, lst)
+        lst = [x for x in lst if x not in excl]
+    errors = []
+    for item in lst:
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        try:
+            if symlinks and os.path.islink(s):
+                linkto = os.readlink(s)
+                # ignore dangling symlink if the flag is on
+                if not os.path.exists(linkto) and ignore_dangling_symlinks:
+                    continue
+                # otherwise let the copy occurs. copy2 will raise an error
+                if os.path.lexists(d):
+                    os.remove(d)
+                if os.path.isdir(s):
+                    copytree(s, d, symlinks, ignore)
+                else:
+                    shutil.copy2(s, d)
+            elif os.path.isdir(s):
+                copytree(s, d, symlinks, ignore)
+            elif not os.path.exists(d) or os.stat(s).st_mtime - os.stat(d).st_mtime > 1:
+                shutil.copy2(s, d)
+                # catch the Error from the recursive copytree so that we can
+                # continue with other files
+        except shutil.Error as err:
+            errors.extend(err.args[0])
+        except OSError as why:
+            errors.append((s, d, str(why)))
+    try:
+        shutil.copystat(src, dst)
+    except OSError as why:
+        # Copying file access times may fail on Windows
+        if getattr(why, 'winerror', None) is None:
+            errors.append((src, dst, str(why)))
+    if errors:
+        raise shutil.Error(errors)
+    return dst
 
 
 def main():
@@ -152,9 +199,9 @@ def main():
                                                  'copied to the destination folder while preserving the folder '
                                                  'structure.')
     parser.add_argument('--path', type=str, required=True,
-                        help='Main path for loading tex-files')
+                        help='Main path for loading tex-files or copying PDFs')
     parser.add_argument('--pout', type=str, required=True,
-                        help='Main output path for storing generated PDFs')
+                        help='Main output path for storing generated/copied PDFs')
     parser.add_argument('--nrCPUs', type=int, required=False, default=-6,
                         help='Number of CPU cores for parallel processing. If a negative value is provided, '
                              'the program tries to find the number of available CPUs on the system - if it fails, '
