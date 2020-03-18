@@ -412,6 +412,15 @@ def autocalib(cmd, data, message_path, mess_base_name, nr_call):
                 timeout = 5000
         else:
             timeout = 5000
+    if '--BART' in cmd:
+        if int(cmd[cmd.index('--BART') + 1]) > 0:
+            timeout += 800
+    if '--refineRT_stereo' in cmd:
+        if int(cmd[cmd.index('--refineRT_stereo') + 1][0]) > 4:
+            timeout += 2000
+    if '--refineRT' in cmd:
+        if int(cmd[cmd.index('--refineRT') + 1][0]) > 4:
+            timeout += 2000
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
     stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
