@@ -272,10 +272,12 @@ namespace poselib
                 throw;
             }
             //Sort
-            std::sort(result.begin(), result.end(), [](std::pair<size_t, float> const & first, std::pair<size_t, float> const & second)
-            {
-                return first.second < second.second;
-            });
+            if (!result.empty()) {
+                std::sort(result.begin(), result.end(),
+                          [](std::pair<size_t, float> const &first, std::pair<size_t, float> const &second) {
+                              return first.second < second.second;
+                          });
+            }
             return result.size();
         }
     };

@@ -2657,6 +2657,7 @@ namespace poselib
                 erosion_size = (int)ceil(cfg_pose.minPtsDistance) + 1;
             else
                 erosion_size = (int)ceil(cfg_pose.minPtsDistance);
+            int nr_erosions = 0;
 
             do
             {
@@ -2669,7 +2670,7 @@ namespace poselib
                 vector<cv::Point2i> locations;
                 cv::findNonZero(densityImg, locations);
                 size_t n_loc = locations.size();
-                if (n_loc <= n_del)
+                if ((n_loc <= n_del) && (nr_erosions < 100))
                 {
                     for (auto &i : locations)
                     {
@@ -2682,10 +2683,16 @@ namespace poselib
                         cv::bitwise_and(densityImg, densityImg_init, densityImg);
                         densityImg.copyTo(densityImg_init);
                         erosion_size++;
+                        nr_erosions++;
                     }
                 }
                 else
                 {
+                    if (nr_erosions >= 100){
+                        locations.clear();
+                        cv::findNonZero(densityImg_init, locations);
+                        n_loc = locations.size();
+                    }
                     vector<pair<double,size_t>> weightIdx1(n_loc);
                     size_t count = 0;
                     for (auto &i : locations)
