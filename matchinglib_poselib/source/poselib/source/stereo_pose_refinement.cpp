@@ -628,7 +628,7 @@ namespace poselib
 
                 if ((matches.size() + correspondencePool.size()) > cfg_pose.maxPoolCorrespondences)
                 {
-                    size_t maxPoolCorrespondences_tmp = cfg_pose.maxPoolCorrespondences - matches.size();
+                    int64_t maxPoolCorrespondences_tmp = (int64_t)cfg_pose.maxPoolCorrespondences - (int64_t)matches.size();
                     if (checkPoolSize(maxPoolCorrespondences_tmp))
                     {
                         //Failed to remove some old correspondences as an invalid iterator was detected -> reinitialize system
@@ -2074,7 +2074,7 @@ namespace poselib
     * Return value:									0 :	Everything ok
     *												-1:	An invalid iterator within the pool correpondences was detected
     */
-    int StereoRefine::filterNewCorrespondences(std::vector<cv::DMatch> & matches,
+    int StereoRefine:: filterNewCorrespondences(std::vector<cv::DMatch> & matches,
             std::vector<cv::KeyPoint> kp1,
             std::vector<cv::KeyPoint> kp2,
             std::vector<double> error)
@@ -2111,73 +2111,65 @@ namespace poselib
         points2new = points2newnew;
         matches = matchesnew;
 
+        if (!kdTreeLeft)
+        {
+            return -1;
+        }
+
         std::vector<size_t> delete_list_new;
         std::vector<size_t> delete_list_old;
-        for (size_t i = 0; i < nr_inliers_new; i++)
-        {
-            std::vector<std::pair<size_t, float>> result;
-            size_t nr_found = kdTreeLeft->radiusSearch(corrProbsNew[i].pt1, cfg_pose.minPtsDistance, result);
-            if (nr_found)
-            {
-                bool deletionMarked = false;
-                size_t j = 0;
-                for (; j < nr_found; j++)
-                {
-                    CoordinateProps corr_tmp = *correspondencePoolIdx[result[j].first];
-                    //Check, if the new point is equal to the nearest (< sqrt(2) pix difference)
-                    //If this is the case, only replace it (if it is better) and keep all in the surrounding
-                    if (result[j].second < 2.0)
-                    {
-                        cv::Point2f diff = corr_tmp.pt2 - corrProbsNew[i].pt2;
-                        double diff_dist = (double)diff.x * (double)diff.x + (double)diff.y * (double)diff.y;
-                        if (diff_dist < 2.0)
-                        {
-                            if (diff_dist < 0.01 && result[j].second < 0.01f)
-                            {
-                                delete_list_new.push_back(i);
-                                deletionMarked = true;
-                                correspondencePoolIdx[result[j].first]->nrFound++;
-                                break;
-                            }
-                            else
-                            {
-                                if (compareCorrespondences(corrProbsNew[i], corr_tmp)) //new correspondence is better
-                                {
-                                    delete_list_old.push_back(result[j].first);
-                                }
-                                else //old correspondence is better
-                                {
+        if(!correspondencePool.empty()) {
+            for (size_t i = 0; i < nr_inliers_new; i++) {
+                std::vector<std::pair<size_t, float>> result;
+                size_t nr_found = kdTreeLeft->radiusSearch(corrProbsNew[i].pt1, cfg_pose.minPtsDistance, result);
+                if (nr_found) {
+                    bool deletionMarked = false;
+                    size_t j = 0;
+                    for (; j < nr_found; j++) {
+                        CoordinateProps corr_tmp = *correspondencePoolIdx[result[j].first];
+                        //Check, if the new point is equal to the nearest (< sqrt(2) pix difference)
+                        //If this is the case, only replace it (if it is better) and keep all in the surrounding
+                        if (result[j].second < 2.0) {
+                            cv::Point2f diff = corr_tmp.pt2 - corrProbsNew[i].pt2;
+                            double diff_dist = (double) diff.x * (double) diff.x + (double) diff.y * (double) diff.y;
+                            if (diff_dist < 2.0) {
+                                if (diff_dist < 0.01 && result[j].second < 0.01f) {
                                     delete_list_new.push_back(i);
                                     deletionMarked = true;
                                     correspondencePoolIdx[result[j].first]->nrFound++;
                                     break;
+                                } else {
+                                    if (compareCorrespondences(corrProbsNew[i],
+                                                               corr_tmp)) //new correspondence is better
+                                    {
+                                        delete_list_old.push_back(result[j].first);
+                                    } else //old correspondence is better
+                                    {
+                                        delete_list_new.push_back(i);
+                                        deletionMarked = true;
+                                        correspondencePoolIdx[result[j].first]->nrFound++;
+                                        break;
+                                    }
                                 }
                             }
-                        }
-                        // else -> keep both as the second coordinate is different
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                if (!deletionMarked && (j == 0))
-                {
-                    //add the new correspondence only if it is the best within the old neighbors
-                    for (; j < nr_found; j++)
-                    {
-                        //old correspondence is better
-                        if (!compareCorrespondences(corrProbsNew[i], *correspondencePoolIdx[result[j].first]))
-                        {
-                            delete_list_new.push_back(i);
+                            // else -> keep both as the second coordinate is different
+                        } else {
                             break;
                         }
                     }
-                    if (j >= nr_found)
-                    {
-                        for (j = 0; j < nr_found; j++)
-                        {
-                            delete_list_old.push_back(result[j].first);
+                    if (!deletionMarked && (j == 0)) {
+                        //add the new correspondence only if it is the best within the old neighbors
+                        for (; j < nr_found; j++) {
+                            //old correspondence is better
+                            if (!compareCorrespondences(corrProbsNew[i], *correspondencePoolIdx[result[j].first])) {
+                                delete_list_new.push_back(i);
+                                break;
+                            }
+                        }
+                        if (j >= nr_found) {
+                            for (j = 0; j < nr_found; j++) {
+                                delete_list_old.push_back(result[j].first);
+                            }
                         }
                     }
                 }
@@ -2525,13 +2517,30 @@ namespace poselib
     * Return value:									0 :	Everything ok
     *												-1:	An invalid iterator within the pool correpondences was detected
     */
-    int StereoRefine::checkPoolSize(size_t maxPoolSize)
+    int StereoRefine::checkPoolSize(int64_t maxPoolSize)
     {
+        size_t n_del = 0;
         size_t pool_Size = correspondencePool.size();
-        if (pool_Size <= maxPoolSize)
+        if ((maxPoolSize < 0) && (pool_Size > 20)) {
+            n_del = pool_Size / 2;
+        }
+        else if(maxPoolSize < 0){
             return 0;
+        }
+        else if (pool_Size <= (size_t)maxPoolSize)
+            return 0;
+        else{
+            n_del = pool_Size - (size_t)maxPoolSize;
+        }
 
-        size_t n_del = pool_Size - maxPoolSize;
+        if((pool_Size - n_del) < 10){
+            if(pool_Size > 20){
+                n_del = pool_Size / 2;
+            }else{
+                return 0;
+            }
+        }
+
         vector<size_t> delIdx(n_del);
         size_t delIdxIdx = 0;
 

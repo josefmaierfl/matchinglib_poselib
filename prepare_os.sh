@@ -63,3 +63,6 @@ curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.li
 
 sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
 sudo systemctl restart docker
+
+# Install screen to be able to reconnect to same ssh session after connection reset (use 'screen -d -r' after logging in with ssh to re-atach to previous terminal after connection reset)
+sudo apt-get install screen

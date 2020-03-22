@@ -299,7 +299,7 @@ namespace poselib
         int filterNewCorrespondences(std::vector<cv::DMatch> & matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, std::vector<double> error);//Filters the correspondences of the newest image pair and from the pool.
         bool compareCorrespondences(CoordinatePropsNew &newCorr, CoordinateProps &oldCorr);//Compares the properties of correspondences from a new image pair and the pool which are within the search radius "minPtsDistance"
         int poolCorrespondenceDelete(std::vector<size_t> delete_list);//Delets correspondences from the correspondence pool and KD-tree.
-        int checkPoolSize(size_t maxPoolSize);//Check if the number of correspondences within the pool ("correspondencePool") is too large.
+        int checkPoolSize(int64_t maxPoolSize);//Check if the number of correspondences within the pool ("correspondencePool") is too large.
         double computeCorrespondenceWeight(const double &error, const double &descrDist, const double &resp1, const double &resp2, const bool &z3DtooFar = false, const double &zValue3D = 0);//Compute a weight between 0 and 1 for a correspondence given its keypoint responses (left and right img), descriptor distance, and Sampson error
         int getNearToMeanPose();//Function for rating poses.
         int checkPoseStability();//Checks the stability of poses within the history.
