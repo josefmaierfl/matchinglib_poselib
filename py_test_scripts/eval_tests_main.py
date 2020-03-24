@@ -2251,6 +2251,71 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                      make_fig_index=True,
                                                      build_pdf=True,
                                                      figs_externalize=False)
+            elif ev == 8:
+                fig_title_pre_str = 'Absolute Execution Times for Comparison of '
+                eval_columns = ['filtering_us']
+                units = [('filtering_us', '/$\\mu s$')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                filter_func_args = {'time_col': 'filtering_us'}
+                from usac_eval import filter_time
+                ret += calcSatisticAndPlot_aggregate(data=data,
+                                                     store_path=output_path,
+                                                     tex_file_pre_str='plots_vfc_gms_sof_',
+                                                     fig_title_pre_str=fig_title_pre_str,
+                                                     eval_description_path='time',
+                                                     eval_columns=eval_columns,
+                                                     units=units,
+                                                     it_parameters=it_parameters,
+                                                     pdfsplitentry=None,
+                                                     filter_func=filter_time,
+                                                     filter_func_args=filter_func_args,
+                                                     special_calcs_func=None,
+                                                     special_calcs_args=None,
+                                                     calc_func=None,
+                                                     calc_func_args=None,
+                                                     compare_source=None,
+                                                     fig_type='ybar',
+                                                     use_marks=False,
+                                                     ctrl_fig_size=True,
+                                                     make_fig_index=True,
+                                                     build_pdf=True,
+                                                     figs_externalize=False)
+            elif ev == 9:
+                fig_title_pre_str = 'Statistics on Absolute Execution Times for Comparison of '
+                eval_columns = ['filtering_us']
+                units = [('filtering_us', '/$\\mu s$')]
+                it_parameters = ['matchesFilter_refineGMS',
+                                 'matchesFilter_refineVFC',
+                                 'matchesFilter_refineSOF']
+                filter_func_args = {'time_col': 'filtering_us'}
+                from usac_eval import filter_time
+                ret += calcSatisticAndPlot_2D(data=data,
+                                              store_path=output_path,
+                                              tex_file_pre_str='plots_vfc_gms_sof_',
+                                              fig_title_pre_str=fig_title_pre_str,
+                                              eval_description_path='time',
+                                              eval_columns=eval_columns,
+                                              units=units,
+                                              it_parameters=it_parameters,
+                                              x_axis_column=['inlratMin'],
+                                              pdfsplitentry=None,
+                                              filter_func=filter_time,
+                                              filter_func_args=filter_func_args,
+                                              special_calcs_func=None,
+                                              special_calcs_args=None,
+                                              calc_func=None,
+                                              calc_func_args=None,
+                                              compare_source=None,
+                                              fig_type='ybar',
+                                              use_marks=False,
+                                              ctrl_fig_size=True,
+                                              make_fig_index=True,
+                                              build_pdf=True,
+                                              figs_externalize=False,
+                                              no_tex=False,
+                                              cat_sort=False)
             else:
                 raise ValueError('Eval nr ' + str(ev) + ' does not exist')
     elif test_name == 'refinement_ba_stereo':
@@ -2719,7 +2784,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              figs_externalize=True)
                 elif ev == 4:
                     fig_title_pre_str = 'R\\&t Differences from Frame to Frame with a Maximum Correspondence Pool ' \
-                                        'Size of $\\hat{n}_{cp}=40000$ Features for Different '
+                                        'Size of $\\hat{n}_{cp}=30000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -2753,7 +2818,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              figs_externalize=True)
                 elif ev == 5:
                     fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a Maximum ' \
-                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=30000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
                                     'poolSize']
@@ -2797,7 +2862,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                              figs_externalize=True)
                 elif ev == 6:
                     fig_title_pre_str = 'Values on R\\&t Differences from Frame to Frame with a Maximum ' \
-                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=30000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -2831,7 +2896,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   figs_externalize=True)
                 elif ev == 7:
                     fig_title_pre_str = 'Statistics on R\\&t Differences from Frame to Frame with a Maximum ' \
-                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=30000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
@@ -2867,7 +2932,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                   figs_externalize=True)
                 elif ev == 8:
                     fig_title_pre_str = 'Differences on Frame to Frame Statistics of R\\&t Errors with a Maximum ' \
-                                        'Correspondence Pool Size of $\\hat{n}_{cp}=40000$ Features for Different '
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=30000$ Features for Different '
                     eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
                                     't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz']
                     units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),

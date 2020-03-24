@@ -2125,6 +2125,10 @@ def filter_nr_kps_time(**vars):
     return vars['data'].loc[(vars['data']['nrTP'] == '100to1000') & (vars['data'][vars['time_col']] > 0)]
 
 
+def filter_time(**vars):
+    return vars['data'].loc[vars['data'][vars['time_col']] > 0]
+
+
 def filter_nr_kps_stat(**vars):
     return vars['data'].loc[vars['data']['nrTP'] == '500']
 

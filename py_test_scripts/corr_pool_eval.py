@@ -17,7 +17,7 @@ def filter_take_end_frames(**vars):
 
 
 def filter_max_pool_size(**vars):
-    return vars['data'].loc[vars['data']['stereoParameters_maxPoolCorrespondences'] == 40000]
+    return vars['data'].loc[vars['data']['stereoParameters_maxPoolCorrespondences'] == 30000]
 
 
 def calc_rt_diff_frame_to_frame(**vars):

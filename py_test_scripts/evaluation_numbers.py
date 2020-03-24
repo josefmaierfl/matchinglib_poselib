@@ -11,7 +11,7 @@ def get_available_evals():
     sub_sub_test_nr = [[list(range(1, 7)) + list(range(37, 40)), list(range(7, 15)) + [36] + list(range(40, 43))],
                        [list(range(1, 11))],
                        [list(range(1, 6)), list(range(1, 5))],
-                       [list(range(1, 8))],
+                       [list(range(1, 10))],
                        [list(range(1, 4)), list(range(1, 5))],
                        [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
                        [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),

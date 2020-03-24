@@ -1,10 +1,12 @@
 scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-35-158-199-13.eu-central-1.compute.amazonaws.com:/data/work/results/mess1.zip /home/maierj/work/results
 scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-35-158-199-13.eu-central-1.compute.amazonaws.com:/data/work/results/sequ1.zip /home/maierj/work/results
 scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-35-158-199-13.eu-central-1.compute.amazonaws.com:/data/work/res_save_compressed/results_000.zip /home/maierj/work/results
-scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-54-93-248-252.eu-central-1.compute.amazonaws.com:/data/work/res_save_compressed/results_new_folders_030.zip /home/maierj/work/results
+scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-3-126-245-30.eu-central-1.compute.amazonaws.com:/data/work/res_save_compressed/messages_002.zip /home/maierj/work/results
+scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-18-156-6-58.eu-central-1.compute.amazonaws.com:/data/work/res_save_compressed/results_new_folders_030.zip /home/maierj/work/results
 
 screen
-ssh -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-3-120-115-124.eu-central-1.compute.amazonaws.com
+ssh -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-18-156-6-58.eu-central-1.compute.amazonaws.com
+screen -d -r
 
 python main.py --nrCPUs -72 --zip_res_folder --skip_gen_sc_conf usac-testing
 
@@ -30,5 +32,7 @@ python main.py --nrCPUs 6 --skip_use_test_name_nr use ngransac --skip_use_eval_n
 ./run_docker_base.sh shutdown --zip_new_folders --nrCPUs -72 --skip_tests usac-testing usac_vs_ransac refinement_ba vfc_gms_sof
 ./run_docker_base.sh shutdown --zip_new_folders --nrCPUs -72 --skip_tests usac-testing usac_vs_ransac refinement_ba vfc_gms_sof refinement_ba_stereo
 ./run_docker_base.sh shutdown --zip_new_folders --nrCPUs -72 --skip_gen_sc_conf correspondence_pool --skip_tests usac-testing usac_vs_ransac refinement_ba vfc_gms_sof refinement_ba_stereo
+./run_docker_base.sh shutdown --zip_new_folders --nrCPUs -72 --skip_gen_sc_conf correspondence_pool --skip_use_test_name_nr correspondence_pool --skip_tests usac-testing usac_vs_ransac refinement_ba vfc_gms_sof refinement_ba_stereo
 
-./run_docker_base.sh shutdown --nrCPUs -72 --zip_message_folder --cal_retry_file /app/results/testing_results/correspondence_pool/1/commands_and_parameters_unsuccessful_0.csv --cal_retry_nrCall 1
+./run_docker_base.sh shutdown --nrCPUs -72 --zip_message_folder --cal_retry_file /app/results/testing_results/correspondence_pool/1/commands_and_parameters_unsuccessful_2.csv --cal_retry_nrCall 3
+scp -i "/home/maierj/work/aws/ait_calib_frankfurt.pem" ubuntu@ec2-18-156-6-58.eu-central-1.compute.amazonaws.com:/data/work/results/testing_results/corr_pool.zip /home/maierj/work/results
