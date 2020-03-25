@@ -902,7 +902,9 @@ def choose_test(path_ov_file, executable, cpu_cnt, message_path, output_path, te
 def write_par_file_template(path):
     pfile = os.path.join(path, 'optimal_autocalib_pars.yml')
     if os.path.exists(pfile):
-        raise ValueError('Parameter file already exists')
+        warnings.warn('Parameter file already exists', UserWarning)
+        return 0
+        # raise ValueError('Parameter file already exists')
     from usac_eval import NoAliasDumper
 
     usac56 = [None, None] #[2, 5]
