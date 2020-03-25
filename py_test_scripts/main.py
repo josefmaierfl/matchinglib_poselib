@@ -373,6 +373,12 @@ def get_confs_path(test_name, test_nr=-1, path_confs_init=None, path_confs_out=N
         for idx in range(0, 2, len(other_conf)):
             if other_conf[idx] == test_name:
                 dir_name.append(other_conf[idx + 1])
+        if len(dir_name) > 1:
+            raise ValueError('Providing multiple configuration file folders for the same test is currently '
+                             'not supported.')
+        elif len(dir_name) == 1:
+            dir_name = dir_name[0]
+
     if not dir_name:
         if test_nr == -1:
             dir_name = en.get_mult_conf_dirs_per_test(test_name)
