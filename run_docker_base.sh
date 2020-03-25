@@ -1,7 +1,7 @@
 #!/bin/bash
 
 RES_SV_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )/res_save_compressed"
-if [ ! -d RES_DIR ]; then
+if [ ! -d ${RES_SV_DIR} ]; then
   mkdir ${RES_SV_DIR}
 fi
 
@@ -22,8 +22,7 @@ fi
 SECOND_ARG="$2"
 if [ "${SECOND_ARG}" == "RESDIR" ]; then
   RES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )/$3"
-  echo $RES_DIR
-  if [ -d RES_DIR ]; then
+  if [ -d ${RES_DIR} ]; then
     OTHER_ARGS="${@:4}"
   else
     echo "Given directory for storing results does not exist"
@@ -31,7 +30,7 @@ if [ "${SECOND_ARG}" == "RESDIR" ]; then
   fi
 else
   RES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )/results"
-  if [ ! -d RES_DIR ]; then
+  if [ ! -d ${RES_DIR} ]; then
     mkdir ${RES_DIR}
   fi
   OTHER_ARGS="${@:2}"
