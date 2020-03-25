@@ -22,6 +22,7 @@ fi
 SECOND_ARG="$2"
 if [ "${SECOND_ARG}" == "RESDIR" ]; then
   RES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )/$3"
+  echo $RES_DIR
   if [ -d RES_DIR ]; then
     OTHER_ARGS="${@:4}"
   else
