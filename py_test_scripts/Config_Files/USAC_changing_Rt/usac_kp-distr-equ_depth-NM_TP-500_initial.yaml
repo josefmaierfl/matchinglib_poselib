@@ -13,22 +13,22 @@ nrTotalFrames: 50
 nrStereoConfigs: 50
 # Specifies after how many frames the x-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the x-component linearly.
-txChangeFRate: 0
+txChangeFRate: 1
 # Specifies after how many frames the y-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the y-component linearly.
-tyChangeFRate: 0
+tyChangeFRate: 1
 # Specifies after how many frames the z-component for the translation vector between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the z-component linearly.
-tzChangeFRate: 0
+tzChangeFRate: 1
 # Specifies after how many frames the roll angle (angle about x-axis) between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the roll linearly.
-rollChangeFRate: 0
+rollChangeFRate: 1
 # Specifies after how many frames the pitch angle (angle about y-axis) between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the pitch linearly.
-pitchChangeFRate: 0
+pitchChangeFRate: 1
 # Specifies after how many frames the yaw angle (angle about z-axis) between the stereo cameras shall be changed linearly by a given value.
 # Set this value to 0, if you do not want to change the yaw linearly.
-yawChangeFRate: 0
+yawChangeFRate: 1
 # Linear change rate for tx (x-component of the translation vector between the stereo cameras).
 txLinChangeVal: -1.0000000000000000e-02
 # Linear change rate for ty (y-component of the translation vector between the stereo cameras).
