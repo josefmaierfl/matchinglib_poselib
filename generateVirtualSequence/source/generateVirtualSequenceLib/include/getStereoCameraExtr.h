@@ -31,6 +31,15 @@ overlap area ratio between the views and some restrictions on the camera paramet
 
 #define PI 3.14159265
 
+enum variablePars{
+    TXv = 0x1,
+    TYv = 0x2,
+    TZv = 0x4,
+    ROLLv = 0x8,
+    PITCHv = 0x10,
+    YAWv = 0x20
+};
+
 /* --------------------------- Classes --------------------------- */
 
 class InvalidDataStructureException : public std::runtime_error
@@ -51,7 +60,7 @@ public:
 		std::vector<std::vector<double>> roll, 
 		std::vector<std::vector<double>> pitch, 
 		std::vector<std::vector<double>> yaw, 
-		double approxImgOverlap, cv::Size imgSize);
+		double approxImgOverlap, cv::Size imgSize, const uint16_t &variableAllPoses);
 
     GenStereoPars() = default;
 
@@ -256,7 +265,7 @@ private:
 
 private:
 	void checkParameterFormat(std::vector<std::vector<double>> par, const std::string &name);
-	void checkEqualRanges(std::vector<std::vector<double>> par, bool& areEqual);
+	void checkEqualRanges(std::vector<std::vector<double>> par, bool& areEqual, bool varies = false);
 	//Get a random floating point number between 2 ranges
 	inline double getRandDoubleVal(double lowerBound, double upperBound);
 	void initRandPars(std::vector<std::vector<double>>& parIn, bool& rangeEqual, std::vector<double>& parOut);

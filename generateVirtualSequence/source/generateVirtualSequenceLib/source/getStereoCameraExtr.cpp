@@ -37,7 +37,7 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	std::vector<std::vector<double>> roll,
 	std::vector<std::vector<double>> pitch,
 	std::vector<std::vector<double>> yaw,
-	double approxImgOverlap, cv::Size imgSize):
+	double approxImgOverlap, cv::Size imgSize, const uint16_t &variableAllPoses):
 	tx_(move(tx)),
 	ty_(move(ty)),
 	tz_(move(tz)),
@@ -138,12 +138,12 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	}
 
 	//Check if the ranges are equal
-	checkEqualRanges(tx_, txRangeEqual);
-	checkEqualRanges(ty_, tyRangeEqual);
-	checkEqualRanges(tz_, tzRangeEqual);
-	checkEqualRanges(roll_, rollRangeEqual);
-	checkEqualRanges(pitch_, pitchRangeEqual);
-	checkEqualRanges(yaw_, yawRangeEqual);
+	checkEqualRanges(tx_, txRangeEqual, static_cast<bool>(variableAllPoses & variablePars::TXv));
+	checkEqualRanges(ty_, tyRangeEqual, static_cast<bool>(variableAllPoses & variablePars::TYv));
+	checkEqualRanges(tz_, tzRangeEqual, static_cast<bool>(variableAllPoses & variablePars::TZv));
+	checkEqualRanges(roll_, rollRangeEqual, static_cast<bool>(variableAllPoses & variablePars::ROLLv));
+	checkEqualRanges(pitch_, pitchRangeEqual, static_cast<bool>(variableAllPoses & variablePars::PITCHv));
+	checkEqualRanges(yaw_, yawRangeEqual, static_cast<bool>(variableAllPoses & variablePars::YAWv));
 
     iOvLapMult = 1.0 + 15.0 * std::pow(std::log(approxImgOverlap_), 2);
 }
@@ -194,12 +194,16 @@ void GenStereoPars::checkParameterFormat(std::vector<std::vector<double>> par, c
 	}
 }
 
-void GenStereoPars::checkEqualRanges(std::vector<std::vector<double>> par, bool& areEqual)
+void GenStereoPars::checkEqualRanges(std::vector<std::vector<double>> par, bool& areEqual, bool varies)
 {
 	areEqual = true;
 	if (nrConditions == 1)
 	{
 		return;
+	}
+	if (varies){
+        areEqual = false;
+        return;
 	}
 	const bool fixedPar = (par[0].size() == 1);
 	double minPar = par[0][0];

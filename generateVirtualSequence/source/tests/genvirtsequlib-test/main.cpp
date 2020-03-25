@@ -629,7 +629,7 @@ int testStereoCamGeneration(int verbose,
 		cv::Size imgSize = cv::Size(1280, 720);//Select an image size (can be arbitrary)
 
 		//Calculate the extrinsic parameters for all given stereo configurations within the given ranges to achieve an image overlap nearest to the above generated value (in addition to a few other constraints)
-		GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw, approxImgOverlap, imgSize);
+		GenStereoPars newStereoPars(tx, ty, tz, roll, pitch, yaw, approxImgOverlap, imgSize, 0);
 		int err = newStereoPars.optimizeRtf(verbose);
 
 		//Write the results to std out

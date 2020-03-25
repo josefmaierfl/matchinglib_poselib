@@ -869,6 +869,25 @@ bool genStereoConfigurations(const int nrFrames,
                         "absolute values for tx and ty." << endl;
                 return false;
             }
+            uint16_t varPars = 0;
+            if (stereoPars.txVariable){
+                varPars = variablePars::TXv;
+            }
+            if (stereoPars.tyVariable){
+                varPars |= variablePars::TYv;
+            }
+            if (stereoPars.tzVariable){
+                varPars |= variablePars::TZv;
+            }
+            if (stereoPars.rollVariable){
+                varPars |= variablePars::ROLLv;
+            }
+            if (stereoPars.pitchVariable){
+                varPars |= variablePars::PITCHv;
+            }
+            if (stereoPars.yawVariable){
+                varPars |= variablePars::YAWv;
+            }
             vector<cv::Mat> t_new1;
             vector<double> roll_new1, pitch_new1, yaw_new1;
             if(!(stereoPars.txVariable
@@ -883,7 +902,7 @@ bool genStereoConfigurations(const int nrFrames,
                 GenStereoPars newStereoPars;
                 try {
                     newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
-                            stereoPars.imageOverlap, stereoPars.imgSize);
+                            stereoPars.imageOverlap, stereoPars.imgSize, 0);
                 }catch(exception &e){
                     cerr << "Exception: " << e.what() << endl;
                     return false;
@@ -1144,7 +1163,7 @@ bool genStereoConfigurations(const int nrFrames,
             GenStereoPars newStereoPars;
             try {
                 newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                              stereoPars.imageOverlap, stereoPars.imgSize);
+                                              stereoPars.imageOverlap, stereoPars.imgSize, varPars);
             }catch(exception &e){
                 cerr << "Exception: " << e.what() << endl;
                 return false;
@@ -1199,37 +1218,37 @@ bool genStereoConfigurations(const int nrFrames,
             if(isParFixed){
                 //Adapt the camera matrix to get the best result
                 for (int i = 0; i < cnt; ++i) {
-                    if(fixLater[i] & TX){
+                    if(fixLater[i] & keepFixed::TX){
                         tx[i][0] =  tx[i - 1][0];
                     }else{
                         tx[i].resize(1);
                         tx[i][0] =  t_new1[i].at<double>(0);
                     }
-                    if(fixLater[i] & TY){
+                    if(fixLater[i] & keepFixed::TY){
                         ty[i][0] =  ty[i - 1][0];
                     }else{
                         ty[i].resize(1);
                         ty[i][0] =  t_new1[i].at<double>(1);
                     }
-                    if(fixLater[i] & TZ){
+                    if(fixLater[i] & keepFixed::TZ){
                         tz[i][0] =  tz[i - 1][0];
                     }else{
                         tz[i].resize(1);
                         tz[i][0] =  t_new1[i].at<double>(2);
                     }
-                    if(fixLater[i] & ROLL){
+                    if(fixLater[i] & keepFixed::ROLL){
                         roll[i][0] =  roll[i - 1][0];
                     }else{
                         roll[i].resize(1);
                         roll[i][0] =  roll_new1[i];
                     }
-                    if(fixLater[i] & PITCH){
+                    if(fixLater[i] & keepFixed::PITCH){
                         pitch[i][0] =  pitch[i - 1][0];
                     }else{
                         pitch[i].resize(1);
                         pitch[i][0] =  pitch_new1[i];
                     }
-                    if(fixLater[i] & YAW){
+                    if(fixLater[i] & keepFixed::YAW){
                         yaw[i][0] =  yaw[i - 1][0];
                     }else{
                         yaw[i].resize(1);
@@ -1240,7 +1259,7 @@ bool genStereoConfigurations(const int nrFrames,
                 GenStereoPars newStereoPars1;
                 try {
                     newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                                  stereoPars.imageOverlap, stereoPars.imgSize);
+                                                  stereoPars.imageOverlap, stereoPars.imgSize, 0);
                 }catch(exception &e){
                     cerr << "Exception: " << e.what() << endl;
                     return false;
@@ -1447,7 +1466,7 @@ bool genStereoConfigurations(const int nrFrames,
             do {
                 try {
                     newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                                  stereoPars.imageOverlap, stereoPars.imgSize);
+                                                  stereoPars.imageOverlap, stereoPars.imgSize, 0);
                 } catch (exception &e) {
                     cerr << "Exception: " << e.what() << endl;
                     return false;
@@ -1607,7 +1626,7 @@ bool genStereoConfigurations(const int nrFrames,
                     << endl;
                     try {
                         newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
-                                                       stereoPars.imageOverlap, stereoPars.imgSize);
+                                                       stereoPars.imageOverlap, stereoPars.imgSize, 0);
                     } catch (exception &e) {
                         cerr << "Exception: " << e.what() << endl;
                         return false;
