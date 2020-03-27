@@ -8,6 +8,7 @@
 #include "generateSequence.h"
 #include <opencv2/core/types.hpp>
 #include <map>
+#include <tuple>
 
 struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::string mainStorePath;//Path for storing results. If empty and the 3D correspondences are loaded from file, the path for loading these correspondences is also used for storing the matches
@@ -206,6 +207,7 @@ private:
                                              const cv::Mat& x1,
                                              const cv::Mat& x2,
                                              int64_t idx3D,
+                                             int64_t idx3D2,
                                              size_t keyPIdx,
                                              bool visualize);
 
@@ -305,7 +307,7 @@ private:
     std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
     cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
-    std::map<int64_t,std::pair<cv::Mat,size_t>> planeTo3DIdx;//Holds the plane coefficients and keypoint index for every used keypoint in correspondence to the index of the 3D point in the point cloud
+    std::map<int64_t,std::tuple<cv::Mat,size_t,size_t>> planeTo3DIdx;//Holds the plane coefficients, keypoint index, and stereo frame number for every used keypoint in correspondence to the index of the 3D point in the point cloud
     double actNormT = 0;//Norm of the actual translation vector between the stereo cameras
     std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains to most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
     bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame

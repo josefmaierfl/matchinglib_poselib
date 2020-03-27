@@ -24,6 +24,7 @@ a view restrictions like depth ranges, moving objects, ...
 #include "opencv2/highgui/highgui.hpp"
 #include <random>
 #include <exception>
+#include <tuple>
 
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -949,6 +950,7 @@ private:
 	std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorld;//Every vector element (size corresponds to number of existing moving objects) holds the 3D-points from a moving object in world coordinates
 	std::vector<std::vector<int>> actCorrsOnMovObjFromLast_IdxWorld;//Indices to world coordinates of backprojected moving object correspondences
 	std::vector<std::vector<int>> actCorrsOnMovObj_IdxWorld;//Indices to world coordinates of newly generated moving object correspondences
+    std::vector<std::vector<size_t>> movObjImg12TP_InitIdxWorld;//Initial indices to moving object 3D points. Index values keep the same for the lifetime of the object but some indices may be deleted as their positions in the vectors correspond to movObj3DPtsWorld
 	std::vector<cv::Mat> movObjWorldMovement;//Holds the absolute 3x1 movement vector scaled by velocity for every moving object
 	std::vector<std::vector<cv::Point3d>> movObj3DPtsCamNew;//Every vector element (size corresponds to number of new generated moving objects) holds the 3D-points from a moving object in camera coordinates
 	std::vector<depthClass> movObjDepthClass;//Every vector element (size corresponds to number of moving objects) holds the depth class (near, mid, or far) for its corresponding object
@@ -1011,6 +1013,9 @@ protected:
 	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
 	pcl::PointCloud<pcl::PointXYZ>::Ptr staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points
     std::vector<pcl::PointCloud<pcl::PointXYZ>> movObj3DPtsWorldAllFrames;//Every vector element holds the point cloud of a moving object. It also holds theetransformed point clouds of already transformed moving objects from older frames
+    std::vector<unsigned int> nrMovingObjPerFrame;//Holds the number of visible moving objects per frame. Their sum corresponds to the number of elements in movObj3DPtsWorldAllFrames
+    std::vector<std::tuple<size_t, size_t, cv::Mat>> movObjFrameEmerge;//Holds the frame count when the moving object emerged, its initial position in vector combCorrsImg12TPContMovObj_IdxWorld, and its corresponding movObjWorldMovement: e.g. (actFrameCnt, pos, movement_vector)
+    std::vector<int64_t> combCorrsImg12TP_IdxWorld2;//Index to the corresponding world 3D point within movObj3DPtsWorldAllFrames of TP of moving objects in combCorrsImg1TP and combCorrsImg2TP (static correspondences are positive like in combCorrsImg12TP_IdxWorld). Indices on moving objects are negative: The first 32bit hold the last vector index for movObj3DPtsWorldAllFrames plus 1 and the next 24bit hold the frame number when the moving object emerged (The sum of all moving objects before this frame number (use nrMovingObjPerFrame to calculate it) + the moving object number within this frame number which is also included in this index lead to the correct vector index for movObj3DPtsWorldAllFrames). The last 8bit hold the moving object number (index + 1): idx = -1 * ((index_coordinate << 32) | (frame_number << 8) | (nr_mov_obj + 1))
     cv::Mat combCorrsImg1TP, combCorrsImg2TP;//Combined TP correspondences (static and moving objects). Size: 3xn; Last row should be 1.0; Both Mat must have the same size.
     std::vector<cv::Point3d> comb3DPts;//Combined 3D points corresponding to matches combCorrsImg1TP and combCorrsImg2TP
     std::vector<int64_t> combCorrsImg12TP_IdxWorld;//Index to the corresponding world 3D point within staticWorld3DPts and movObj3DPtsWorld of combined TP correspondences (static and moving objects) in combCorrsImg1TP and combCorrsImg2TP. Indices on static objects are positive. Indices on moving objects are negative: The first 32bit hold the vector index for movObj3DPtsWorld plus 1 and the next 31bit hold the 3D world coordinate index of the corresponding within the moving object: idx = -1 * ((nr_mov_obj + 1) | (index_coordinate << 32))

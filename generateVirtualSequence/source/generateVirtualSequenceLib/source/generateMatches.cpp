@@ -454,32 +454,59 @@ cv::Mat genMatchSequ::getHomographyForDistortionTN(const cv::Mat& x1,
 //Checks, if a plane was already calculated for the given 3D coordinate and if yes, adapts the plane.
 //If not, a new plane is calculated.
 cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
-                                                 const cv::Mat& x1,
-                                                 const cv::Mat& x2,
-                                                 int64_t idx3D,
-                                                 size_t keyPIdx,
-                                                 bool visualize){
-if((idx3D >= 0) && !planeTo3DIdx.empty()){
-    if(planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()){
-        Mat trans = Mat::eye(4,4,CV_64FC1);
-        trans.rowRange(0,3).colRange(0,3) = absCamCoordinates[actFrameCnt].R.t();
-        trans.col(3).rowRange(0,3) = -1.0 * absCamCoordinates[actFrameCnt].R.t() * absCamCoordinates[actFrameCnt].t;
-        trans = trans.inv().t();
-        Mat plane = trans * planeTo3DIdx[idx3D].first;
-        try {
-            return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
-        }catch(SequenceException &e){
-            cout << "Exception while recalculating old homography: " << e.what() << endl;
-            throw;
+                                                       const cv::Mat& x1,
+                                                       const cv::Mat& x2,
+                                                       int64_t idx3D,
+                                                       int64_t idx3D2,
+                                                       size_t keyPIdx,
+                                                       bool visualize){
+    if(!planeTo3DIdx.empty()){
+        if (planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()) {
+            Mat trans = Mat::eye(4, 4, CV_64FC1);
+            trans.rowRange(0, 3).colRange(0, 3) = absCamCoordinates[actFrameCnt].R.t();
+            trans.col(3).rowRange(0, 3) =
+                    -1.0 * absCamCoordinates[actFrameCnt].R.t() * absCamCoordinates[actFrameCnt].t;
+            Mat plane;
+            if (idx3D >= 0) {
+                trans = trans.inv().t();
+                plane = trans * get<0>(planeTo3DIdx[idx3D]);
+            } else{
+//                auto frNr_init = static_cast<size_t>((-1 * idx3D) & 0xFFFFFFFF) >> 8;
+//                auto frNr_diff = actFrameCnt - frNr_init;
+//                auto mvObjNr_init = static_cast<size_t>((-1 * idx3D) & 0xFF) - 1;
+//                unsigned int sum_of_elems = 0;
+//                for(size_t i = 0; i < frNr_init; ++i){
+//                    sum_of_elems += nrMovingObjPerFrame[i];
+//                }
+//                sum_of_elems += mvObjNr_init;
+                auto frNr1 = get<2>(planeTo3DIdx[idx3D]);
+                auto frNr_diff = actFrameCnt - frNr1;
+                if (frNr_diff > 0) {
+                    auto mvObjNr_act = static_cast<size_t>((-1 * idx3D2) & 0xFFFFFFFF) - 1;
+                    Mat tdiff = Mat::zeros(3,1,CV_64FC1);
+                    get<2>(movObjFrameEmerge[mvObjNr_act]).copyTo(tdiff);
+                    tdiff *= static_cast<double>(frNr_diff);
+                    Mat trans2 = Mat::eye(4, 4, CV_64FC1);
+                    tdiff.copyTo(trans2.col(3).rowRange(0, 3));
+                    trans = trans * trans2;
+                }
+                trans = trans.inv().t();
+                plane = trans * get<0>(planeTo3DIdx[idx3D]);
+            }
+            try {
+                return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
+            } catch (SequenceException &e) {
+                cout << "Exception while recalculating old homography: " << e.what() << endl;
+                throw;
+            }
         }
     }
-}
-try {
-    return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
-}catch(SequenceException &e){
-    cout << "Exception while calculating new homography: " << e.what() << endl;
-    throw;
-}
+    try {
+        return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
+    }catch(SequenceException &e){
+        cout << "Exception while calculating new homography: " << e.what() << endl;
+        throw;
+    }
 }
 
 /*Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into
@@ -560,8 +587,8 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
          * Point p' is on plane q' when:  p'.q'=0
          * Then: p'.q' = p^t T^t (T^-1)^t q = p^t q = p.q
         */
-        if(idx3D >= 0) {
-            planeTo3DIdx[idx3D] = make_pair(actTransGlobWorldit * p1, keyPIdx);
+        if((idx3D >= 0) || !combCorrsImg12TP_IdxWorld2.empty()) {
+            planeTo3DIdx[idx3D] = make_tuple(actTransGlobWorldit * p1, keyPIdx, actFrameCnt);
         }
     }else{
         p1 = planeNVec.getMat();
@@ -586,7 +613,7 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
         Mat ptwlastc = ptwlast.clone();
         ptwlastc.push_back(1.0);
 
-        Mat planeOld = planeTo3DIdx[idx3D].first.clone();
+        Mat planeOld = get<0>(planeTo3DIdx[idx3D]).clone();
         Mat Pold = Mat::eye(4,4,CV_64FC1);
         Mat c2wRlasti = c2wRlast.t();
         Mat c2wtlasti = -1.0 * c2wRlasti * c2wtlast;
@@ -1335,10 +1362,17 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             H = getHomographyForDistortionTN(combCorrsImg1TN.col(i), visualize);
         }else {
             Mat X = Mat(comb3DPts[i], true).reshape(1);
+            int64_t idx3D;
+            if (combCorrsImg12TP_IdxWorld2.empty()){
+                idx3D = combCorrsImg12TP_IdxWorld[i];
+            }else{
+                idx3D = combCorrsImg12TP_IdxWorld2[i];
+            }
             try {
                 H = getHomographyForDistortionChkOld(X,
                                                      combCorrsImg1TP.col(i),
                                                      combCorrsImg2TP.col(i),
+                                                     idx3D,
                                                      combCorrsImg12TP_IdxWorld[i],
                                                      featureIdx,
                                                      visualize);
@@ -1346,9 +1380,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 cout << "Using random homography." << endl;
                 succ = false;
             }
-            if((combCorrsImg12TP_IdxWorld[i] >= 0) && !planeTo3DIdx.empty()){
-                if(planeTo3DIdx.find(combCorrsImg12TP_IdxWorld[i]) != planeTo3DIdx.end()) {
-                    featureIdx_tmp = planeTo3DIdx[combCorrsImg12TP_IdxWorld[i]].second;
+            if(((idx3D >= 0) || !combCorrsImg12TP_IdxWorld2.empty()) && !planeTo3DIdx.empty()){
+                if(planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()) {
+                    featureIdx_tmp = get<1>(planeTo3DIdx[idx3D]);
                 }
             }
         }
@@ -3871,6 +3905,38 @@ bool genMatchSequ::write3DInfoSingleFrame(const std::string &filename) {
     }
     fs << "]";
 
+    fs.writeComment("Index to the corresponding world 3D point within movObj3DPtsWorldAllFrames of TP of "
+                    "moving objects in combCorrsImg1TP and combCorrsImg2TP (static correspondences are positive "
+                    "like in combCorrsImg12TP_IdxWorld). Indices on moving objects are negative: The first 32bit "
+                    "hold the last vector index for movObj3DPtsWorldAllFrames plus 1 and the next 24bit hold the "
+                    "frame number when the moving object emerged (The sum of all moving objects before this frame "
+                    "number (use nrMovingObjPerFrame to calculate it) + the moving object number within this frame "
+                    "number which is also included in this index lead to the correct vector index for "
+                    "movObj3DPtsWorldAllFrames). The last 8bit hold the moving object number (index + 1): "
+                    "idx = -1 * ((index_coordinate << 32) | (frame_number << 8) | (nr_mov_obj + 1))", 0);
+    fs << "combCorrsImg12TP_IdxWorld2" << "[";
+    for (auto &i : combCorrsImg12TP_IdxWorld2) {
+        fs << i;
+    }
+    fs << "]";
+
+    fs.writeComment("Holds the number of visible moving objects per frame. Their sum corresponds to the number "
+                    "of elements in movObj3DPtsWorldAllFrames.", 0);
+    fs << "nrMovingObjPerFrame" << "[";
+    for (auto &i : nrMovingObjPerFrame) {
+        fs << static_cast<int>(i);
+    }
+    fs << "]";
+
+    fs.writeComment("Holds the frame count when the moving object emerged, its initial position in vector "
+                    "combCorrsImg12TPContMovObj_IdxWorld, and its corresponding movObjWorldMovement: "
+                    "e.g. (actFrameCnt, pos, movement_vector)", 0);
+    fs << "movObjFrameEmerge" << "[";
+    for (auto &i : movObjFrameEmerge) {
+        fs << "{" << "fc" << (int)get<0>(i) << "pos" << (int)get<1>(i) << "move_vect" << get<2>(i) << "}";
+    }
+    fs << "]";
+
     /*fs.writeComment("Similar to combCorrsImg12TP_IdxWorld but the vector indices for moving objects do NOT "
                         "correspond with vector elements in movObj3DPtsWorld but with a consecutive number "
                         "pointing to moving object pointclouds that were saved after they emerged. "
@@ -4044,6 +4110,55 @@ bool genMatchSequ::read3DInfoSingleFrame(const std::string &filename) {
         int64_t val;
         it >> val;
         combCorrsImg12TP_IdxWorld.push_back(val);
+    }
+
+    n = fs["combCorrsImg12TP_IdxWorld2"];
+    if(!n.empty()){
+        if (n.type() != FileNode::SEQ) {
+            cerr << "combCorrsImg12TP_IdxWorld2 is not a sequence! FAIL" << endl;
+            return false;
+        }
+        combCorrsImg12TP_IdxWorld2.clear();
+        it = n.begin(), it_end = n.end();
+        while (it != it_end) {
+            int64_t val;
+            it >> val;
+            combCorrsImg12TP_IdxWorld2.push_back(val);
+        }
+    }
+
+    n = fs["nrMovingObjPerFrame"];
+    if(!n.empty()){
+        if (n.type() != FileNode::SEQ) {
+            cerr << "nrMovingObjPerFrame is not a sequence! FAIL" << endl;
+            return false;
+        }
+        nrMovingObjPerFrame.clear();
+        it = n.begin(), it_end = n.end();
+        while (it != it_end) {
+            int val;
+            it >> val;
+            nrMovingObjPerFrame.push_back(static_cast<unsigned int>(val));
+        }
+    }
+
+    n = fs["movObjFrameEmerge"];
+    if(!n.empty()){
+        if (n.type() != FileNode::SEQ) {
+            cerr << "movObjFrameEmerge is not a sequence! FAIL" << endl;
+            return false;
+        }
+        movObjFrameEmerge.clear();
+        it = n.begin(), it_end = n.end();
+        for (; it != it_end; ++it) {
+            FileNode n1 = *it;
+            Mat move_vect;
+            int fc, pos;
+            n1["fc"] >> fc;
+            n1["pos"] >> pos;
+            n1["move_vect"] >> move_vect;
+            movObjFrameEmerge.emplace_back(make_tuple(static_cast<size_t>(fc), static_cast<size_t>(pos), move_vect.clone()));
+        }
     }
 
     /*n = fs["combCorrsImg12TPContMovObj_IdxWorld_m32bit"];

@@ -7366,6 +7366,8 @@ void genStereoSequ::backProjectMovObj() {
 
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
             movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+            movObjFrameEmerge.erase(movObjFrameEmerge.begin() + delList[i]);
+            movObjImg12TP_InitIdxWorld.erase(movObjImg12TP_InitIdxWorld.begin() + delList[i]);
             actCorrsOnMovObjFromLast_IdxWorld.erase(actCorrsOnMovObjFromLast_IdxWorld.begin() + delList[i]);
             movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
@@ -7467,6 +7469,8 @@ void genStereoSequ::backProjectMovObj() {
 
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
             movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() + delList[i]);
+            movObjFrameEmerge.erase(movObjFrameEmerge.begin() + delList[i]);
+            movObjImg12TP_InitIdxWorld.erase(movObjImg12TP_InitIdxWorld.begin() + delList[i]);
             actCorrsOnMovObjFromLast_IdxWorld.erase(actCorrsOnMovObjFromLast_IdxWorld.begin() + delList[i]);
             movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
@@ -8856,6 +8860,7 @@ void genStereoSequ::combineCorrespondences() {
 
 void genStereoSequ::combineWorldCoordinateIndices(){
     combCorrsImg12TP_IdxWorld.clear();
+    combCorrsImg12TP_IdxWorld2.clear();
 
     //Copy all 3D world coordinate indices
     for (auto& i : actCorrsImg12TPFromLast_Idx) {
@@ -8869,42 +8874,58 @@ void genStereoSequ::combineWorldCoordinateIndices(){
         }
     }
     combCorrsImg12TPContMovObj_IdxWorld = combCorrsImg12TP_IdxWorld;
+    combCorrsImg12TP_IdxWorld2 = combCorrsImg12TP_IdxWorld;
 
     int64_t idxMOAllFrames = static_cast<int64_t>(movObj3DPtsWorldAllFrames.size()) -
             static_cast<int64_t>(movObjCorrsImg12TPFromLast_Idx.size()) -
             static_cast<int64_t>(actCorrsOnMovObj_IdxWorld.size());
+    nrMovingObjPerFrame.push_back(movObjCorrsImg12TPFromLast_Idx.size() + actCorrsOnMovObj_IdxWorld.size());
     for (size_t i = 0; i < movObjCorrsImg12TPFromLast_Idx.size(); i++) {
         combCorrsImg12TP_IdxWorld.reserve(combCorrsImg12TP_IdxWorld.size() + movObjCorrsImg12TPFromLast_Idx[i].size());
+        combCorrsImg12TP_IdxWorld2.reserve(combCorrsImg12TP_IdxWorld2.size() + movObjCorrsImg12TPFromLast_Idx[i].size());
         combCorrsImg12TPContMovObj_IdxWorld.reserve(combCorrsImg12TPContMovObj_IdxWorld.size() +
         movObjCorrsImg12TPFromLast_Idx[i].size());
-        const int64_t idxMO = static_cast<int64_t>(i + 1);
+        const auto idxMO = static_cast<int64_t>(i + 1);
         const int64_t idxMOAll = idxMO + idxMOAllFrames;
+        const auto idx_FrEmerge = static_cast<int64_t>(get<0>(movObjFrameEmerge[i])) << 8;
+        const auto init_idx = static_cast<int64_t>(get<1>(movObjFrameEmerge[i]) + 1);
         for (auto& j : movObjCorrsImg12TPFromLast_Idx[i]) {
-            int64_t idxPts = static_cast<int64_t>(actCorrsOnMovObjFromLast_IdxWorld[i][j]);
+            auto idxPts = static_cast<int64_t>(actCorrsOnMovObjFromLast_IdxWorld[i][j]);
+            auto idx_emerge = static_cast<int64_t>(movObjImg12TP_InitIdxWorld[i][idxPts]);
             CV_Assert(idxPts < static_cast<int64_t>(INT32_MAX));
             idxPts = idxPts << 32;
+            idx_emerge = idx_emerge << 32;
             int64_t idx = -1 * (idxMO | idxPts);
             combCorrsImg12TP_IdxWorld.push_back(idx);
             idx = -1 * (idxMOAll | idxPts);
             combCorrsImg12TPContMovObj_IdxWorld.push_back(idx);
+            const auto idx_id = -1 * (idx_emerge | idx_FrEmerge | init_idx);
+            combCorrsImg12TP_IdxWorld2.push_back(idx_id);
         }
     }
     idxMOAllFrames += static_cast<int64_t>(movObjCorrsImg12TPFromLast_Idx.size());
     for (size_t i = 0; i < actCorrsOnMovObj_IdxWorld.size(); i++) {
         if (!actCorrsOnMovObj_IdxWorld[i].empty()) {
             combCorrsImg12TP_IdxWorld.reserve(combCorrsImg12TP_IdxWorld.size() + actCorrsOnMovObj_IdxWorld[i].size());
+            combCorrsImg12TP_IdxWorld2.reserve(combCorrsImg12TP_IdxWorld2.size() + actCorrsOnMovObj_IdxWorld[i].size());
             combCorrsImg12TPContMovObj_IdxWorld.reserve(combCorrsImg12TPContMovObj_IdxWorld.size() +
             actCorrsOnMovObj_IdxWorld[i].size());
-            const int64_t idxMO = static_cast<int64_t>(i + 1);
+            const auto idxMO = static_cast<int64_t>(i + 1);
             const int64_t idxMOAll = idxMO + idxMOAllFrames;
+            get<1>(movObjFrameEmerge[i]) = i;
+            const auto idx_frCnt = static_cast<int64_t>(actFrameCnt) << 8;
             for (auto& j : actCorrsOnMovObj_IdxWorld[i]) {
-                int64_t idxPts = static_cast<int64_t>(actCorrsOnMovObj_IdxWorld[i][j]);
+                auto idxPts = static_cast<int64_t>(actCorrsOnMovObj_IdxWorld[i][j]);
+                auto idx_emerge = static_cast<int64_t>(movObjImg12TP_InitIdxWorld[i][idxPts]);
                 CV_Assert(idxPts < static_cast<int64_t>(INT32_MAX));
                 idxPts = idxPts << 32;
+                idx_emerge = idx_emerge << 32;
                 int64_t idx = -1 * (idxMO | idxPts);
                 combCorrsImg12TP_IdxWorld.push_back(idx);
                 idx = -1 * (idxMOAll | idxPts);
                 combCorrsImg12TPContMovObj_IdxWorld.push_back(idx);
+                const auto idx_id = -1 * (idx_emerge | idx_frCnt | idxMO);
+                combCorrsImg12TP_IdxWorld2.push_back(idx_id);
             }
         }
     }
@@ -9073,6 +9094,8 @@ void genStereoSequ::transMovObjPtsToWorld() {
     size_t nrOldObjs = movObj3DPtsWorld.size();
     size_t nrSaveObjs = movObj3DPtsWorldAllFrames.size();
     movObj3DPtsWorld.resize(nrOldObjs + nrNewObjs);
+    movObjFrameEmerge.resize(nrOldObjs + nrNewObjs);
+    movObjImg12TP_InitIdxWorld.resize(nrOldObjs + nrNewObjs);
     movObjWorldMovement.resize(nrOldObjs + nrNewObjs);
     movObj3DPtsWorldAllFrames.resize(nrSaveObjs + nrNewObjs);
     //Add new depth classes to existing ones
@@ -9084,6 +9107,8 @@ void genStereoSequ::transMovObjPtsToWorld() {
     for (size_t i = 0; i < nrNewObjs; i++) {
         size_t idx = nrOldObjs + i;
         movObj3DPtsWorld[idx].reserve(movObj3DPtsCamNew[i].size());
+        movObjImg12TP_InitIdxWorld[idx].resize(movObj3DPtsCamNew[i].size());
+        std::iota (movObjImg12TP_InitIdxWorld[idx].begin(), movObjImg12TP_InitIdxWorld[idx].end(), 0);
         for (size_t j = 0; j < movObj3DPtsCamNew[i].size(); j++) {
             Mat pt3 = Mat(movObj3DPtsCamNew[i][j]).reshape(1);
             //X_world  = R * X_cam + t
@@ -9122,6 +9147,7 @@ void genStereoSequ::transMovObjPtsToWorld() {
             tdiff /= tnorm;
         tdiff *= velocity;
         movObjWorldMovement[idx] = tdiff.clone();
+        movObjFrameEmerge[idx] = make_tuple(actFrameCnt, 0, tdiff.clone());
     }
 
     if (verbose & SHOW_MOV_OBJ_3D_PTS) {
@@ -9569,6 +9595,8 @@ void genStereoSequ::getMovObjPtsCam() {
             movObj3DPtsCam.erase(movObj3DPtsCam.begin() + delList[i]);
             movObj3DPtsWorld.erase(movObj3DPtsWorld.begin() +
                                    delList[i]);//at this time, also moving objects that are only occluded are deleted
+            movObjFrameEmerge.erase(movObjFrameEmerge.begin() + delList[i]);
+            movObjImg12TP_InitIdxWorld.erase(movObjImg12TP_InitIdxWorld.begin() + delList[i]);
             movObjDepthClass.erase(movObjDepthClass.begin() + delList[i]);
             movObjWorldMovement.erase(movObjWorldMovement.begin() + delList[i]);
             actCorrsOnMovObjFromLast_IdxWorld.erase(actCorrsOnMovObjFromLast_IdxWorld.begin() + delList[i]);
