@@ -274,6 +274,8 @@ private:
     bool getKazeProperties(cv::Mat& patch,
                            std::vector<cv::KeyPoint> &kp2_v,
                            cv::KeyPoint &kp2);
+    bool check3DToIdxConsisty(const cv::Mat &X, const int64_t &idx3D, const int64_t &idx3D2);
+    bool check2D3DConsistency(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &X, const int64_t &idx3D, const int64_t &idx3D2);
 
 public:
     GenMatchSequParameters parsMtch;

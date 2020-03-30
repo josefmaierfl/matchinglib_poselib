@@ -658,6 +658,8 @@ public:
 
 protected:
 	bool startCalc_internal();
+    double project3DError(const cv::Mat &x, const cv::Mat &X, const cv::Mat &Ki);
+    bool checkCorrespondenceConsisty(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &X);
 
 private:
 	void constructCamPath();
@@ -862,6 +864,7 @@ private:
 	void resetInitVars();
 	void calcDistortedIntrinsics();
 	void calcDisortedK(cv::Mat &Kd);
+    bool checkCorr3DConsistency();
 
 public:
 	uint32_t verbose = 0;

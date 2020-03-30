@@ -1861,6 +1861,9 @@ void genStereoSequ::checkDepthSeeds() {
 
         //Delete correspondences and 3D points that were to near to each other in the image
         if (!delListCorrs.empty()) {
+//            if(!checkCorr3DConsistency()){
+//                throw SequenceException("Correspondences are not projections of 3D points!");
+//            }
             /*std::vector<cv::Point3d> actImgPointCloudFromLast_tmp;
             cv::Mat actCorrsImg1TPFromLast_tmp, actCorrsImg2TPFromLast_tmp;*/
 
@@ -1889,6 +1892,9 @@ void genStereoSequ::checkDepthSeeds() {
             deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_Idx, delListCorrs);
             deleteMatEntriesByIdx(actCorrsImg1TPFromLast, delListCorrs, false);
             deleteMatEntriesByIdx(actCorrsImg2TPFromLast, delListCorrs, false);
+//            if(!checkCorr3DConsistency()){
+//                throw SequenceException("Correspondences are not projections of 3D points!");
+//            }
         }
 
         //Add the seeds to their regions
@@ -2210,6 +2216,9 @@ int genStereoSequ::deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &see
     }
 
     if (!delListCorrs.empty()) {
+//        if(!checkCorr3DConsistency()){
+//            throw SequenceException("Correspondences are not projections of 3D points!");
+//        }
         sort(delList3D.begin(), delList3D.end(),
              [](size_t first, size_t second) { return first < second; });//Ascending order
 
@@ -2230,6 +2239,9 @@ int genStereoSequ::deleteBackProjTPByDepth(std::vector<cv::Point_<int32_t>> &see
         deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_Idx, delListCorrs);
         deleteMatEntriesByIdx(actCorrsImg1TPFromLast, delListCorrs, false);
         deleteMatEntriesByIdx(actCorrsImg2TPFromLast, delListCorrs, false);
+//        if(!checkCorr3DConsistency()){
+//            throw SequenceException("Correspondences are not projections of 3D points!");
+//        }
     }
 
     return actDelNr;
@@ -4167,6 +4179,9 @@ void genStereoSequ::getKeypoints() {
     //Delete correspondences and 3D points that were to near to each other in the 2nd image
     int TPfromLastRedu = 0;
     if (!delListCorrs.empty()) {
+//        if(!checkCorr3DConsistency()){
+//            throw SequenceException("Correspondences are not projections of 3D points!");
+//        }
         TPfromLastRedu = (int)delListCorrs.size();
         sort(delList3D.begin(), delList3D.end(),
              [](size_t first, size_t second) { return first < second; });//Ascending order
@@ -4185,12 +4200,13 @@ void genStereoSequ::getKeypoints() {
 
         sort(delListCorrs.begin(), delListCorrs.end(), [](size_t first, size_t second) { return first < second; });
 
-        TPfromLastRedu -= deletedepthCatsByIdx(seedsNearFromLast, delListCorrs, actCorrsImg1TPFromLast);
+        vector<size_t> delListCorrs_tmp = delListCorrs;
+        TPfromLastRedu -= deletedepthCatsByIdx(seedsNearFromLast, delListCorrs_tmp, actCorrsImg1TPFromLast);
         if(TPfromLastRedu > 0){
-            TPfromLastRedu -= deletedepthCatsByIdx(seedsMidFromLast, delListCorrs, actCorrsImg1TPFromLast);
+            TPfromLastRedu -= deletedepthCatsByIdx(seedsMidFromLast, delListCorrs_tmp, actCorrsImg1TPFromLast);
         }
         if(TPfromLastRedu > 0){
-            TPfromLastRedu -= deletedepthCatsByIdx(seedsFarFromLast, delListCorrs, actCorrsImg1TPFromLast);
+            TPfromLastRedu -= deletedepthCatsByIdx(seedsFarFromLast, delListCorrs_tmp, actCorrsImg1TPFromLast);
         }
         if(TPfromLastRedu > 0){
             cout << "Keypoints from last frames which should be deleted were not found!" << endl;
@@ -4199,6 +4215,9 @@ void genStereoSequ::getKeypoints() {
         deleteVecEntriesbyIdx(actCorrsImg12TPFromLast_Idx, delListCorrs);
         deleteMatEntriesByIdx(actCorrsImg1TPFromLast, delListCorrs, false);
         deleteMatEntriesByIdx(actCorrsImg2TPFromLast, delListCorrs, false);
+//        if(!checkCorr3DConsistency()){
+//            throw SequenceException("Correspondences are not projections of 3D points!");
+//        }
     }
 
     int nrBPTN2 = actCorrsImg2TNFromLast.cols;
@@ -8894,7 +8913,7 @@ void genStereoSequ::combineWorldCoordinateIndices(){
             auto idx_emerge = static_cast<int64_t>(movObjImg12TP_InitIdxWorld[i][idxPts]);
             CV_Assert(idxPts < static_cast<int64_t>(INT32_MAX));
             idxPts = idxPts << 32;
-            idx_emerge = idx_emerge << 32;
+            idx_emerge = (idx_emerge + 1) << 32;
             int64_t idx = -1 * (idxMO | idxPts);
             combCorrsImg12TP_IdxWorld.push_back(idx);
             idx = -1 * (idxMOAll | idxPts);
@@ -8903,7 +8922,8 @@ void genStereoSequ::combineWorldCoordinateIndices(){
             combCorrsImg12TP_IdxWorld2.push_back(idx_id);
         }
     }
-    idxMOAllFrames += static_cast<int64_t>(movObjCorrsImg12TPFromLast_Idx.size());
+    const auto movObjFromLastSi = static_cast<int64_t>(movObjCorrsImg12TPFromLast_Idx.size());
+    idxMOAllFrames += movObjFromLastSi;
     for (size_t i = 0; i < actCorrsOnMovObj_IdxWorld.size(); i++) {
         if (!actCorrsOnMovObj_IdxWorld[i].empty()) {
             combCorrsImg12TP_IdxWorld.reserve(combCorrsImg12TP_IdxWorld.size() + actCorrsOnMovObj_IdxWorld[i].size());
@@ -8911,20 +8931,21 @@ void genStereoSequ::combineWorldCoordinateIndices(){
             combCorrsImg12TPContMovObj_IdxWorld.reserve(combCorrsImg12TPContMovObj_IdxWorld.size() +
             actCorrsOnMovObj_IdxWorld[i].size());
             const auto idxMO = static_cast<int64_t>(i + 1);
+            const auto idx2 = static_cast<size_t>(movObjFromLastSi) + i;
             const int64_t idxMOAll = idxMO + idxMOAllFrames;
             get<1>(movObjFrameEmerge[i]) = i;
             const auto idx_frCnt = static_cast<int64_t>(actFrameCnt) << 8;
             for (auto& j : actCorrsOnMovObj_IdxWorld[i]) {
-                auto idxPts = static_cast<int64_t>(actCorrsOnMovObj_IdxWorld[i][j]);
-                auto idx_emerge = static_cast<int64_t>(movObjImg12TP_InitIdxWorld[i][idxPts]);
+                auto idxPts = static_cast<int64_t>(j);
+                auto idx_emerge = static_cast<int64_t>(movObjImg12TP_InitIdxWorld[idx2][j]);
                 CV_Assert(idxPts < static_cast<int64_t>(INT32_MAX));
                 idxPts = idxPts << 32;
-                idx_emerge = idx_emerge << 32;
+                idx_emerge = (idx_emerge + 1) << 32;
                 int64_t idx = -1 * (idxMO | idxPts);
                 combCorrsImg12TP_IdxWorld.push_back(idx);
                 idx = -1 * (idxMOAll | idxPts);
                 combCorrsImg12TPContMovObj_IdxWorld.push_back(idx);
-                const auto idx_id = -1 * (idx_emerge | idx_frCnt | idxMO);
+                const auto idx_id = -1 * (idx_emerge | idx_frCnt | (idxMO + movObjFromLastSi));
                 combCorrsImg12TP_IdxWorld2.push_back(idx_id);
             }
         }
@@ -10404,6 +10425,39 @@ void genStereoSequ::visualizeOcclusions(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
     setPCLViewerCamPars(viewer, m.matrix(), K1);
 
     startPCLViewer(viewer);
+}
+
+//Check if 2D correspondence is projection of 3D point
+double genStereoSequ::project3DError(const cv::Mat &x, const cv::Mat &X, const cv::Mat &Ki){
+    cv::Mat x1 = Ki * x;
+    if(nearZero(x1.at<double>(2))) return DBL_MAX;
+    x1 *= X.at<double>(2) / x1.at<double>(2);
+    Mat diff = X - x1;
+    return cv::norm(diff);
+}
+
+//Check, if 2D correspondences of both stereo cameras are projections of corresponding 3D point
+bool genStereoSequ::checkCorrespondenceConsisty(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &X){
+    double err1 = project3DError(x1, X, K1i);
+    double err2 = project3DError(x2, actR * X + actT, K2i);
+    double err = err1 + err2;
+    bool test = nearZero(err / 10.0);
+    return test;
+}
+
+//Check, if 3D points are consistent with image projections
+bool genStereoSequ::checkCorr3DConsistency(){
+    CV_Assert((actCorrsImg1TPFromLast.cols == actCorrsImg2TPFromLast.cols) && ((int)actCorrsImg12TPFromLast_Idx.size() == actCorrsImg1TPFromLast.cols));
+    for (int i = 0; i < actCorrsImg1TPFromLast.cols; ++i) {
+        Mat x1 = actCorrsImg1TPFromLast.col(i);
+        Mat x2 = actCorrsImg2TPFromLast.col(i);
+        Mat X = Mat(actImgPointCloudFromLast[actCorrsImg12TPFromLast_Idx[i]], true).reshape(1);
+        const bool check1 = checkCorrespondenceConsisty(x1, x2, X);
+        if (!check1){
+            return false;
+        }
+    }
+    return true;
 }
 
 //Perform the whole procedure of generating correspondences, new static, and dynamic 3D elements

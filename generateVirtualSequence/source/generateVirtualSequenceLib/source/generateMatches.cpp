@@ -451,6 +451,52 @@ cv::Mat genMatchSequ::getHomographyForDistortionTN(const cv::Mat& x1,
     return getHomographyForDistortion(X, x1, x2, -1, 0, cv::noArray(), visualize);
 }
 
+//Check, if used 3D point in the camera coordinate system is the same as pointed by the index (in world coordinates)
+bool genMatchSequ::check3DToIdxConsisty(const cv::Mat &X, const int64_t &idx3D, const int64_t &idx3D2){
+    if(!planeTo3DIdx.empty() && (planeTo3DIdx.find(idx3D) != planeTo3DIdx.end())){
+        cv::Mat X1 = absCamCoordinates[actFrameCnt].R * X + absCamCoordinates[actFrameCnt].t;
+        cv::Mat X2;
+        if (idx3D < 0) {
+            auto frNr_init = static_cast<size_t>((-1 * idx3D) & 0xFFFFFFFF) >> 8;
+            auto idx = static_cast<size_t>(((-1 * idx3D) >> 32) - 1);
+            auto mvObjNr_init = static_cast<size_t>((-1 * idx3D) & 0xFF) - 1;
+            unsigned int sum_of_elems = 0;
+            for (size_t i = 0; i < frNr_init; ++i) {
+                sum_of_elems += nrMovingObjPerFrame[i];
+            }
+            sum_of_elems += mvObjNr_init;
+            pcl::PointXYZ X_tmp = movObj3DPtsWorldAllFrames[sum_of_elems][idx];
+            X2 = (Mat_<double>(3, 1) << (double) X_tmp.x, (double) X_tmp.y, (double) X_tmp.z);
+            auto frNr1 = get<2>(planeTo3DIdx[idx3D]);
+            auto frNr_diff = actFrameCnt - frNr1;
+            Mat tdiff = Mat::zeros(3, 1, CV_64FC1);
+            if (frNr_diff > 0) {
+                auto mvObjNr_act = static_cast<size_t>((-1 * idx3D2) & 0xFFFFFFFF) - 1;
+                get<2>(movObjFrameEmerge[mvObjNr_act]).copyTo(tdiff);
+                tdiff *= static_cast<double>(frNr_diff);
+            }
+            X1 -= tdiff;
+        }else{
+            auto idx = static_cast<size_t>(idx3D);
+            pcl::PointXYZ X_tmp = staticWorld3DPts->at(idx);
+            X2 = (Mat_<double>(3, 1) << (double) X_tmp.x, (double) X_tmp.y, (double) X_tmp.z);
+        }
+        Mat diff = X2 - X1;
+        double dn = cv::norm(diff);
+        bool test = nearZero(dn / 100.0);
+        return test;
+    }else{
+        return true;
+    }
+}
+
+//Check, if 2D correspondences of both stereo cameras are projections of corresponding 3D point and provided 3D point and world 3D point pointed to by index are the same
+bool genMatchSequ::check2D3DConsistency(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &X, const int64_t &idx3D, const int64_t &idx3D2){
+    bool check1 = checkCorrespondenceConsisty(x1, x2, X);
+    bool check2 = check3DToIdxConsisty(X, idx3D, idx3D2);
+    return check1 && check2;
+}
+
 //Checks, if a plane was already calculated for the given 3D coordinate and if yes, adapts the plane.
 //If not, a new plane is calculated.
 cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
@@ -460,7 +506,10 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
                                                        int64_t idx3D2,
                                                        size_t keyPIdx,
                                                        bool visualize){
-    if(!planeTo3DIdx.empty()){
+    if(!check2D3DConsistency(x1, x2, X, idx3D, idx3D2)){
+        throw SequenceException("2D is not consistend with 3D for calculating homographies!");
+    }
+    if(!planeTo3DIdx.empty() && (idx3D != -1)){
         if (planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()) {
             Mat trans = Mat::eye(4, 4, CV_64FC1);
             trans.rowRange(0, 3).colRange(0, 3) = absCamCoordinates[actFrameCnt].R.t();
@@ -486,9 +535,11 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
                     Mat tdiff = Mat::zeros(3,1,CV_64FC1);
                     get<2>(movObjFrameEmerge[mvObjNr_act]).copyTo(tdiff);
                     tdiff *= static_cast<double>(frNr_diff);
-                    Mat trans2 = Mat::eye(4, 4, CV_64FC1);
-                    tdiff.copyTo(trans2.col(3).rowRange(0, 3));
-                    trans = trans * trans2;
+                    tdiff = trans.rowRange(0, 3).colRange(0, 3) * tdiff;
+                    trans.col(3).rowRange(0, 3) += tdiff;
+//                    Mat trans2 = Mat::eye(4, 4, CV_64FC1);
+//                    tdiff.copyTo(trans2.col(3).rowRange(0, 3));
+//                    trans = trans * trans2;
                 }
                 trans = trans.inv().t();
                 plane = trans * get<0>(planeTo3DIdx[idx3D]);
@@ -587,7 +638,10 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
          * Point p' is on plane q' when:  p'.q'=0
          * Then: p'.q' = p^t T^t (T^-1)^t q = p^t q = p.q
         */
-        if((idx3D >= 0) || !combCorrsImg12TP_IdxWorld2.empty()) {
+        if(((idx3D >= 0) || !combCorrsImg12TP_IdxWorld2.empty()) && (idx3D != -1)) {
+            if (!planeTo3DIdx.empty() && (planeTo3DIdx.find(idx3D) != planeTo3DIdx.end())) {
+                throw SequenceException("Used plane to 3D index already exists!");
+            }
             planeTo3DIdx[idx3D] = make_tuple(actTransGlobWorldit * p1, keyPIdx, actFrameCnt);
         }
     }else{
@@ -1437,43 +1491,48 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                 fbCnt++;
                 useFallBack = false;
                 int patchSize = minPatchSize2;//Must be an odd number
-                do {
-                    Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x, (double)kp.pt.y, 1.0);
-                    kpm = H * kpm;
-                    kpm /= kpm.at<double>(2);
-                    Point2i midPt((int) round(kpm.at<double>(0)), (int) round(kpm.at<double>(1)));
+                if(!H.empty()) {
+                    do {
+                        Mat kpm = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
+                        kpm = H * kpm;
+                        kpm /= kpm.at<double>(2);
+                        Point2i midPt((int) round(kpm.at<double>(0)), (int) round(kpm.at<double>(1)));
 
-                    if(!getImgROIs(H,
-                                   midPt,
-                                   patchSize,
-                                   patchROIimg1,
-                                   patchROIimg2,
-                                   patchROIimg21,
-                                   reflectionX,
-                                   reflectionY,
-                                   imgFeatureSize,
-                                   kp,
-                                   maxPatchSizeMult2)){
-                        useFallBack = true;
-                        break;
-                    }
+                        if (!getImgROIs(H,
+                                        midPt,
+                                        patchSize,
+                                        patchROIimg1,
+                                        patchROIimg2,
+                                        patchROIimg21,
+                                        reflectionX,
+                                        reflectionY,
+                                        imgFeatureSize,
+                                        kp,
+                                        maxPatchSizeMult2)) {
+                            useFallBack = true;
+                            break;
+                        }
 
-                    if ((patchROIimg1.width > (double) (maxPatchSizeMult2 * minPatchSize2))
-                        || (patchROIimg1.height > (double) (maxPatchSizeMult2 * minPatchSize2))
-                        || (patchROIimg2.width > (double) (maxPatchSizeMult2 * minPatchSize2))
-                           || (patchROIimg2.height > (double) (maxPatchSizeMult2 * minPatchSize2))) {
-                        useFallBack = true;
-                        break;
-                    }
+                        if ((patchROIimg1.width > (double) (maxPatchSizeMult2 * minPatchSize2))
+                            || (patchROIimg1.height > (double) (maxPatchSizeMult2 * minPatchSize2))
+                            || (patchROIimg2.width > (double) (maxPatchSizeMult2 * minPatchSize2))
+                            || (patchROIimg2.height > (double) (maxPatchSizeMult2 * minPatchSize2))) {
+                            useFallBack = true;
+                            break;
+                        }
 
-                    if((patchROIimg2.width < minPatchSize) ||
-                            (patchROIimg2.height < minPatchSize)){
-                        //Calc a bigger patch size for the warped patch
-                        patchSize = (int) ceil(1.2f * (float) patchSize);
-                        patchSize += (patchSize + 1) % 2;//Must be an odd number
-                    }
+                        if ((patchROIimg2.width < minPatchSize) ||
+                            (patchROIimg2.height < minPatchSize)) {
+                            //Calc a bigger patch size for the warped patch
+                            patchSize = (int) ceil(1.2f * (float) patchSize);
+                            patchSize += (patchSize + 1) % 2;//Must be an odd number
+                        }
 
-                } while (((patchROIimg2.width < minPatchSize) || (patchROIimg2.height < minPatchSize)) && !useFallBack);
+                    } while (((patchROIimg2.width < minPatchSize) || (patchROIimg2.height < minPatchSize)) &&
+                             !useFallBack);
+                }else{
+                    useFallBack = true;
+                }
                 if (useFallBack) {
                     //Construct a random affine homography
                     //Generate the non-isotropic scaling of the deformation (shear)
