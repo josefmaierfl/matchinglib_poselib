@@ -64,8 +64,9 @@ void getTranslationStats(const std::vector<cv::Mat> &ts,
 
 genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            GenMatchSequParameters &parsMtch_,
-                           uint32_t verbose_) :
-        genStereoSequ(false, verbose_),
+                           uint32_t verbose_,
+                           const std::string &writeIntermRes_path_) :
+        genStereoSequ(false, verbose_, writeIntermRes_path_),
         parsMtch(parsMtch_),
         sequParsLoaded(true){
     CV_Assert(parsMtch.parsValid);
@@ -2976,6 +2977,9 @@ size_t genMatchSequ::hashFromMtchPars() {
     ss << parsMtch.mainStorePath;
     ss << parsMtch.storePtClouds;
     ss << parsMtch.takeLessFramesIfLessKeyP;
+    ss << parsMtch.checkDescriptorDist;
+    ss << std::setprecision(3) << parsMtch.repeatPatternPortStereo.first << parsMtch.repeatPatternPortStereo.second;
+    ss << std::setprecision(3) << parsMtch.repeatPatternPortFToF.first << parsMtch.repeatPatternPortFToF.second;
 
     strFromPars = ss.str();
 
@@ -3109,6 +3113,19 @@ bool genMatchSequ::writeMatchingParameters(){
         fs.writeComment("If true and too less images images are provided (resulting in too less keypoints), "
                             "only as many frames with GT matches are provided as keypoints are available.", 0);
         fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
+        fs.writeComment("If true, TP and TN descriptors are only accepted if their descriptor distances between "
+                        "correspondences match the distribution calculated on the given images.", 0);
+        fs << "checkDescriptorDist" << parsMtch.checkDescriptorDist;
+        fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
+                        "between stereo cameras.", 0);
+        fs << "repeatPatternPortStereo";
+        fs << "{" << "first" << parsMtch.repeatPatternPortStereo.first;
+        fs << "second" << parsMtch.repeatPatternPortStereo.second << "}";
+        fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
+                        "from frame to frame.", 0);
+        fs << "repeatPatternPortFToF";
+        fs << "{" << "first" << parsMtch.repeatPatternPortFToF.first;
+        fs << "second" << parsMtch.repeatPatternPortFToF.second << "}";
 
         fs.release();
     }catch(interprocess_exception &ex){

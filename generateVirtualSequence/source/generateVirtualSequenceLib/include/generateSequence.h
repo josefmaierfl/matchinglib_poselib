@@ -495,13 +495,16 @@ public:
 			std::vector<cv::Mat> t_,
 			StereoSequParameters & pars_,
 			bool filter_occluded_points_ = false,
-			uint32_t verbose = 0);
-    genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0):
+			uint32_t verbose = 0,
+            const std::string &writeIntermRes_path_ = "");
+    genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0, const std::string &writeIntermRes_path_ = ""):
     verbose(verbose_),
+    writeIntermRes_path(writeIntermRes_path_),
     filter_occluded_points(filter_occluded_points_),
     pars(StereoSequParameters()){};
     genStereoSequ(const genStereoSequ& gss):
             verbose(gss.verbose),
+            writeIntermRes_path(gss.writeIntermRes_path),
             filter_occluded_points(gss.filter_occluded_points),
             imgSize(gss.imgSize),
             K1(gss.K1),
@@ -578,6 +581,7 @@ public:
 
     genStereoSequ& operator=(const genStereoSequ& gss){
         verbose = gss.verbose;
+        writeIntermRes_path = gss.writeIntermRes_path;
         filter_occluded_points = gss.filter_occluded_points;
         imgSize = gss.imgSize;
         K1 = gss.K1;
@@ -865,9 +869,11 @@ private:
 	void calcDistortedIntrinsics();
 	void calcDisortedK(cv::Mat &Kd);
     bool checkCorr3DConsistency();
+    bool writeIntermediateImg(const cv::Mat &img, const std::string &filename);
 
 public:
 	uint32_t verbose = 0;
+    std::string writeIntermRes_path = "";
     //Enables or disables filtering of occluded points for back-projecting existing 3D-world coorindinates to the image plane
     //As filtering occluded points is very time-consuming it can be disabled
 	bool filter_occluded_points = false;

@@ -24,6 +24,9 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     bool rwXMLinfo;//If true, the parameters and information are stored and read in XML format. Otherwise it is stored or read in YAML format
     bool compressedWrittenInfo;//If true, the stored information and parameters are compressed (appends .gz) and it is assumed that paramter files to be read are aslo compressed
     bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available.
+    bool checkDescriptorDist;//If true, TP and TN descriptors are only accepted if their descriptor distances between correspondences match the distribution calculated on the given images.
+    std::pair<double, double> repeatPatternPortStereo;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) between stereo cameras.
+    std::pair<double, double> repeatPatternPortFToF;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) from frame to frame.
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -38,7 +41,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            bool storePtClouds_ = false,
                            bool rwXMLinfo_ = false,
                            bool compressedWrittenInfo_ = false,
-                           bool takeLessFramesIfLessKeyP_ = false) :
+                           bool takeLessFramesIfLessKeyP_ = false,
+                           bool checkDescriptorDist_ = true,
+                           std::pair<double, double> repeatPatternPortStereo_ = std::make_pair(0, 0),
+                           std::pair<double, double> repeatPatternPortFToF_ = std::make_pair(0, 0)) :
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -52,6 +58,9 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             rwXMLinfo(rwXMLinfo_),
             compressedWrittenInfo(compressedWrittenInfo_),
             takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_),
+            checkDescriptorDist(checkDescriptorDist_),
+            repeatPatternPortStereo(std::move(repeatPatternPortStereo_)),
+            repeatPatternPortFToF(std::move(repeatPatternPortFToF_)),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -78,6 +87,9 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             rwXMLinfo(false),
             compressedWrittenInfo(false),
             takeLessFramesIfLessKeyP(false),
+            checkDescriptorDist(true),
+            repeatPatternPortStereo(std::make_pair(0, 0)),
+            repeatPatternPortFToF(std::make_pair(0, 0)),
             parsValid(false){}
 
     bool checkParameters(){
@@ -90,12 +102,26 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             return false;
         }
         imgIntNoise.second = abs(imgIntNoise.second);
-        if(!((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0))){
+        if(!((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0))){//A minimum sum of mean and std of 25 is advisable
             std::cerr << "Invalid imgIntNoise." << std::endl;
             return false;
         }
         if(imgPath.empty()){
             std::cerr << "imgPath cannot be empty." << std::endl;
+            return false;
+        }
+        repeatPatternPortStereo.first = std::round(abs(repeatPatternPortStereo.first) * 1e4) / 1e4;
+        repeatPatternPortStereo.second = std::round(abs(repeatPatternPortStereo.second) * 1e4) / 1e4;
+        if((repeatPatternPortStereo.first > (1. + DBL_EPSILON)) || (repeatPatternPortStereo.second > (1. + DBL_EPSILON)) ||
+                (repeatPatternPortStereo.first > (repeatPatternPortStereo.second + DBL_EPSILON))){
+            std::cerr << "Invalid repeatPatternPortStereo." << std::endl;
+            return false;
+        }
+        repeatPatternPortFToF.first = std::round(abs(repeatPatternPortFToF.first) * 1e4) / 1e4;
+        repeatPatternPortFToF.second = std::round(abs(repeatPatternPortFToF.second) * 1e4) / 1e4;
+        if((repeatPatternPortFToF.first > (1. + DBL_EPSILON)) || (repeatPatternPortFToF.second > (1. + DBL_EPSILON)) ||
+           (repeatPatternPortFToF.first > (repeatPatternPortFToF.second + DBL_EPSILON))){
+            std::cerr << "Invalid repeatPatternPortFToF." << std::endl;
             return false;
         }
         return true;
@@ -121,8 +147,9 @@ public:
                  StereoSequParameters pars3D_,
                  GenMatchSequParameters &parsMtch_,
                  bool filter_occluded_points_,
-                 uint32_t verbose_ = 0) :
-            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, filter_occluded_points_, verbose_),
+                 uint32_t verbose_ = 0,
+                 const std::string &writeIntermRes_path_ = "") :
+            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, filter_occluded_points_, verbose_, writeIntermRes_path_),
             parsMtch(parsMtch_),
             pars3D(pars3D_),
             imgSize(imgSize_),
@@ -141,7 +168,8 @@ public:
 
     genMatchSequ(const std::string &sequLoadFolder,
                  GenMatchSequParameters &parsMtch_,
-                 uint32_t verboseMatch_ = 0);
+                 uint32_t verboseMatch_ = 0,
+                 const std::string &writeIntermRes_path_ = "");
 
     bool generateMatches();
 

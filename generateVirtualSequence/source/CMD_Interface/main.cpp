@@ -328,7 +328,11 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 					 "\n 3\t XML with compression (.xml.gz)",
 			ArgvParser::OptionRequiresValue);*/
     cmd.defineOption("conf_file", "<Path and filename (.yaml/.xml) for loading parameters for new 3D scenes and matches that should be generated.>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("genConfTempl", "<Path and filename (.yaml/.xml) for generating a template file of parameters for new 3D scenes and matches that should be generated.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("genConfTempl", "<Path and filename (.yaml/.xml) for generating a template file "
+                                     "of parameters for new 3D scenes and matches that should be generated.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("writeIntermRes", "<Optional path for writing intermediate results "
+                                       "like images of generated random object labels, depths... "
+                                       "The type of intermediate results written to disk can be controlled by the configuration file (option conf_file) .>", ArgvParser::OptionRequiresValue);
 
 	
 	/// finally parse and handle return codes (display help etc...)
@@ -452,6 +456,14 @@ int startEvaluation(ArgvParser& cmd)
                 return -3;
             }
 		}else {
+		    string writeIntermRes_path;
+		    if(cmd.foundOption("writeIntermRes")) {
+                writeIntermRes_path = cmd.optionValue("writeIntermRes");
+                if(!checkPathExists(writeIntermRes_path)){
+                    cerr << "Path for writing intermediate results does not exist." << endl;
+                    return -1;
+                }
+            }
             std::vector<cv::Mat> Rv, tv;
             cv::Mat K_1, K_2;
 		    if(!genStereoConfigurations((int)sequPars.nTotalNrFrames,
@@ -485,7 +497,8 @@ int startEvaluation(ArgvParser& cmd)
                                   sequPars,
                                   matchPars,
                                   addPars.filterOccluded3D,
-                                  addPars.verbose);
+                                  addPars.verbose,
+                                  writeIntermRes_path);
                 if(!sequ.generateMatches()){
                     cerr << "Failed to calculate matches!" << endl;
                     return -3;
@@ -2447,11 +2460,31 @@ bool genTemplateFile(const std::string &filename){
     fs << "LMverbose" << 0;
 
     fs.writeComment("If 1, extrinsic stereo parameters are also accepted for further processing if they do "
-                        "not completely fulfill the user specified values (like image overlap area). "
+                        "not completely fulfill the user specified values (like image overlap area). \n"
                         "Otherwise, set this value to 0. In this case, you will be asked if you want to accept the "
                         "shown stereo parameters in case the LM algorithm was not able to find a good "
                         "solution.", 0);
     fs << "acceptBadStereoPars" << 0;
+
+    fs.writeComment("If 1, TP and TN descriptors are only accepted if their descriptor distances between "
+                    "correspondences match the distribution calculated on the given images. \nOtherwise, intensity noise "
+                    "and keypoint repeatability error distributions and as a last option homographies are adapted. \n"
+                    "If 0, every descriptor will be accepted.", 0);
+    fs << "checkDescriptorDist" << 1;
+    fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
+                    "between stereo cameras. \nA random value is selected in the given range. "
+                    "If both values are equal, the specified value is used. \n"
+                    "Repeated patterns are not completely equal but perturbed by intensity noise (see option imgIntNoise).", 0);
+    fs << "repeatPatternPortStereo";
+    fs << "{" << "first" << 0.05;
+    fs << "second" << 0.1 << "}";
+    fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
+                    "from frame to frame. \nA random value is selected in the given range. "
+                    "If both values are equal, the specified value is used. \n"
+                    "Repeated patterns are not completely equal but perturbed by intensity noise (see option imgIntNoise).", 0);
+    fs << "repeatPatternPortFToF";
+    fs << "{" << "first" << 0.05;
+    fs << "second" << 0.1 << "}";
 
     fs.release();
 
@@ -2854,6 +2887,23 @@ bool loadConfigFile(const std::string &filename,
 
     fs["LMverbose"] >> addPars.LMverbose;
     fs["acceptBadStereoPars"] >> addPars.acceptBadStereoPars;
+
+    n = fs["checkDescriptorDist"];
+    if(!n.empty()){
+        n >> matchPars.checkDescriptorDist;
+    }
+    n = fs["repeatPatternPortStereo"];
+    if(!n.empty()){
+        n["first"] >> first_dbl;
+        n["second"] >> second_dbl;
+        matchPars.repeatPatternPortStereo = make_pair(first_dbl, second_dbl);
+    }
+    n = fs["repeatPatternPortFToF"];
+    if(!n.empty()){
+        n["first"] >> first_dbl;
+        n["second"] >> second_dbl;
+        matchPars.repeatPatternPortFToF = make_pair(first_dbl, second_dbl);
+    }
 
     fs.release();
 
