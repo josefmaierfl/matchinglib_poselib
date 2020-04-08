@@ -1557,6 +1557,7 @@ def calcFromFuncAndPlot_2D(data,
         pcnt = 0
         for i1, it in enumerate(nr_plots_i):
             ps = sel_cols[pcnt: pcnt + it]
+            cl = legend[pcnt: pcnt + it]
             pcnt += it
             if nr_plots > 20:
                 sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
@@ -1578,7 +1579,7 @@ def calcFromFuncAndPlot_2D(data,
                                           'plot_x': x_axis_column[0],
                                           'label_x': replaceCSVLabels(x_axis_column[0]),
                                           'limits': use_limits,
-                                          'legend': [tex_string_coding_style(a) for a in legend],
+                                          'legend': [tex_string_coding_style(a) for a in cl],
                                           'legend_cols': None,
                                           'use_marks': use_marks,
                                           'use_log_y_axis': eval_cols_log_scaling[i],
@@ -2085,6 +2086,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
             pcnt = 0
             for i1, it in enumerate(nr_plots_i):
                 ps = sel_cols[pcnt: pcnt + it]
+                cl = legend[pcnt: pcnt + it]
                 pcnt += it
                 if nr_plots > 20:
                     sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
@@ -2106,7 +2108,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
                                               'plot_x': x_axis_column[0],
                                               'label_x': replaceCSVLabels(x_axis_column[0]),
                                               'limits': use_limits,
-                                              'legend': [tex_string_coding_style(a) for a in legend],
+                                              'legend': [tex_string_coding_style(a) for a in cl],
                                               'legend_cols': None,
                                               'use_marks': use_marks,
                                               'use_log_y_axis': eval_cols_log_scaling[i],

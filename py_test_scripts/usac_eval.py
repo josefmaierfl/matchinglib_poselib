@@ -280,7 +280,6 @@ def pars_calc_single_fig_partitions(**keywords):
             label_y = 'Combined R \\& t error $e_{R\\bm{t}}$'
         nr_plots = len(list(tmp2.columns.values))
         exp_value_o = exp_value
-        nr_plots_i = []
         if nr_plots <= 20:
             nr_plots_i = [nr_plots]
         else:
@@ -493,32 +492,54 @@ def pars_calc_single_fig(**keywords):
                    ' for parameter variations of\\\\' + ret['sub_title']
     caption = 'Combined R \\& t errors $e_{R\\bm{t}}$ vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), True) + \
               ' for parameter variations of ' + ret['sub_title']
-    section_name = split_large_titles(section_name)
-    x_rows = handle_nans(ret['b'], list(ret['b'].columns.values), not is_numeric, 'smooth')
-    exp_value = enl_space_title(exp_value, section_name, ret['b'], ret['grp_names'][-1],
-                                len(list(ret['b'].columns.values)), 'smooth')
+
+    nr_plots = len(list(ret['b'].columns.values))
+    exp_value_o = exp_value
+    if nr_plots <= 20:
+        nr_plots_i = [nr_plots]
+    else:
+        pp = math.floor(nr_plots / 20)
+        nr_plots_i = [20] * int(pp)
+        rp = nr_plots - pp * 20
+        if rp > 0:
+            nr_plots_i += [nr_plots - pp * 20]
+    pcnt = 0
     reltex_name = os.path.join(ret['rel_data_path'], b_name)
-    tex_infos['sections'].append({'file': reltex_name,
-                                  'name': section_name,
-                                  # If caption is None, the field name is used
-                                  'caption': caption,
-                                  'fig_type': 'smooth',
-                                  'plots': list(ret['b'].columns.values),
-                                  'label_y': 'Combined R \\& t error $e_{R\\bm{t}}$',
-                                  'plot_x': str(ret['grp_names'][-1]),
-                                  'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
-                                  'limits': use_limits,
-                                  'legend': [tex_string_coding_style(a) for a in list(ret['b'].columns.values)],
-                                  'legend_cols': None,
-                                  'use_marks': ret['use_marks'],
-                                  'use_log_y_axis': use_log,
-                                  'xaxis_txt_rows': 1,
-                                  'nr_x_if_nan': x_rows,
-                                  'enlarge_lbl_dist': None,
-                                  'enlarge_title_space': exp_value,
-                                  'use_string_labels': True if not is_numeric else False
-                                  })
-    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+    for i, it in enumerate(nr_plots_i):
+        ps = list(ret['b'].columns.values)[pcnt: pcnt + it]
+        pcnt += it
+        if nr_plots > 20:
+            sec_name1 = section_name + ' -- part ' + str(i + 1)
+            cap_name1 = caption + ' -- part ' + str(i + 1)
+        else:
+            sec_name1 = section_name
+            cap_name1 = caption
+
+        sec_name1 = split_large_titles(sec_name1)
+        x_rows = handle_nans(ret['b'], ps, not is_numeric, 'smooth')
+        exp_value = enl_space_title(exp_value_o, sec_name1, ret['b'], ret['grp_names'][-1],
+                                    len(ps), 'smooth')
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': sec_name1,
+                                      # If caption is None, the field name is used
+                                      'caption': cap_name1,
+                                      'fig_type': 'smooth',
+                                      'plots': ps,
+                                      'label_y': 'Combined R \\& t error $e_{R\\bm{t}}$',
+                                      'plot_x': str(ret['grp_names'][-1]),
+                                      'label_x': replaceCSVLabels(str(ret['grp_names'][-1])),
+                                      'limits': use_limits,
+                                      'legend': [tex_string_coding_style(a) for a in ps],
+                                      'legend_cols': None,
+                                      'use_marks': ret['use_marks'],
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
+                                      'enlarge_lbl_dist': None,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True if not is_numeric else False
+                                      })
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],

@@ -587,31 +587,52 @@ def eval_corr_pool_converge(**keywords):
                         fig_name += ', '
                     elif i1 < nr_partitions - 1:
                         fig_name += ', and '
-            fig_name = split_large_titles(fig_name)
-            x_rows = handle_nans(tmp1, use_cols, True, 'ybar')
-            exp_value = enl_space_title(exp_value, fig_name, tmp1, 'tex_it_pars',
-                                        len(use_cols), 'ybar')
-            tex_infos['sections'].append({'file': reltex_name,
-                                          'name': fig_name,
-                                          # If caption is None, the field name is used
-                                          'caption': fig_name.replace('\\\\', ' '),
-                                          'fig_type': 'ybar',
-                                          'plots': use_cols,
-                                          'label_y': replaceCSVLabels(ev) + findUnit(str(ev), keywords['units']),
-                                          'plot_x': 'tex_it_pars',
-                                          'label_x': 'Parameter',
-                                          'limits': use_limits,
-                                          'legend': use_cols1,
-                                          'legend_cols': 1,
-                                          'use_marks': False,
-                                          'use_log_y_axis': use_log,
-                                          'xaxis_txt_rows': max_txt_rows,
-                                          'nr_x_if_nan': x_rows,
-                                          'enlarge_lbl_dist': None,
-                                          'enlarge_title_space': exp_value,
-                                          'use_string_labels': True,
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+            nr_plots = len(use_cols)
+            exp_value_o = exp_value
+            if nr_plots <= 20:
+                nr_plots_i = [nr_plots]
+            else:
+                pp = math.floor(nr_plots / 20)
+                nr_plots_i = [20] * int(pp)
+                rp = nr_plots - pp * 20
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * 20]
+            pcnt = 0
+            for i1, it1 in enumerate(nr_plots_i):
+                ps = use_cols[pcnt: pcnt + it1]
+                cl = use_cols1[pcnt: pcnt + it1]
+                pcnt += it1
+                if nr_plots > 20:
+                    sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                else:
+                    sec_name1 = fig_name
+
+                sec_name1 = split_large_titles(sec_name1)
+                x_rows = handle_nans(tmp1, ps, True, 'ybar')
+                exp_value = enl_space_title(exp_value_o, sec_name1, tmp1, 'tex_it_pars',
+                                            len(ps), 'ybar')
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': sec_name1,
+                                              # If caption is None, the field name is used
+                                              'caption': sec_name1.replace('\\\\', ' '),
+                                              'fig_type': 'ybar',
+                                              'plots': ps,
+                                              'label_y': replaceCSVLabels(ev) + findUnit(str(ev), keywords['units']),
+                                              'plot_x': 'tex_it_pars',
+                                              'label_x': 'Parameter',
+                                              'limits': use_limits,
+                                              'legend': cl,
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              'use_log_y_axis': use_log,
+                                              'xaxis_txt_rows': max_txt_rows,
+                                              'nr_x_if_nan': x_rows,
+                                              'enlarge_lbl_dist': None,
+                                              'enlarge_title_space': exp_value,
+                                              'use_string_labels': True,
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
     template = ji_env.get_template('usac-testing_2D_plots.tex')
@@ -714,36 +735,56 @@ def eval_corr_pool_converge(**keywords):
     data_new3 = data_new2[use_plots]
     _, use_limits, use_log, exp_value = get_limits_log_exp(data_new3, True, True)
     is_numeric = pd.to_numeric(data_new3.reset_index()[keywords['partition_x_axis']], errors='coerce').notnull().all()
-    enlarge_lbl_dist = check_legend_enlarge(data_new2, keywords['partition_x_axis'], len(use_plots), 'xbar')
     reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
     fig_name = 'Most likely correspondence pool sizes for converging differences from ' \
                'frame to frame of R \\& t errors\\\\for parameters ' + \
                strToLower(keywords['sub_title_it_pars']) + ' vs property ' + \
                replaceCSVLabels(keywords['partition_x_axis'], False, False, True)
-    fig_name = split_large_titles(fig_name)
-    exp_value = enl_space_title(exp_value, fig_name, data_new3, keywords['partition_x_axis'],
-                                len(use_plots), 'xbar')
-    x_rows = handle_nans(data_new3, use_plots, not is_numeric, 'xbar')
-    tex_infos['sections'].append({'file': reltex_name,
-                                  'name': fig_name,
-                                  # If caption is None, the field name is used
-                                  'caption': fig_name.replace('\\\\', ' '),
-                                  'fig_type': 'xbar',
-                                  'plots': use_plots,
-                                  'label_y': replaceCSVLabels('poolSize') + findUnit('poolSize', keywords['units']),
-                                  'plot_x': keywords['partition_x_axis'],
-                                  'label_x': replaceCSVLabels(keywords['partition_x_axis']),
-                                  'limits': use_limits,
-                                  'legend': [tex_string_coding_style(a) for a in use_plots],
-                                  'legend_cols': 1,
-                                  'use_marks': False,
-                                  'use_log_y_axis': use_log,
-                                  'xaxis_txt_rows': 1,
-                                  'nr_x_if_nan': x_rows,
-                                  'enlarge_lbl_dist': enlarge_lbl_dist,
-                                  'enlarge_title_space': exp_value,
-                                  'use_string_labels': True if not is_numeric else False,
-                                  })
+
+    nr_plots = len(use_plots)
+    exp_value_o = exp_value
+    if nr_plots <= 20:
+        nr_plots_i = [nr_plots]
+    else:
+        pp = math.floor(nr_plots / 20)
+        nr_plots_i = [20] * int(pp)
+        rp = nr_plots - pp * 20
+        if rp > 0:
+            nr_plots_i += [nr_plots - pp * 20]
+    pcnt = 0
+    for i1, it1 in enumerate(nr_plots_i):
+        ps = use_plots[pcnt: pcnt + it1]
+        pcnt += it1
+        if nr_plots > 20:
+            sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+        else:
+            sec_name1 = fig_name
+
+        enlarge_lbl_dist = check_legend_enlarge(data_new2, keywords['partition_x_axis'], len(ps), 'xbar')
+        sec_name1 = split_large_titles(sec_name1)
+        exp_value = enl_space_title(exp_value_o, sec_name1, data_new3, keywords['partition_x_axis'],
+                                    len(ps), 'xbar')
+        x_rows = handle_nans(data_new3, ps, not is_numeric, 'xbar')
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': sec_name1,
+                                      # If caption is None, the field name is used
+                                      'caption': sec_name1.replace('\\\\', ' '),
+                                      'fig_type': 'xbar',
+                                      'plots': ps,
+                                      'label_y': replaceCSVLabels('poolSize') + findUnit('poolSize', keywords['units']),
+                                      'plot_x': keywords['partition_x_axis'],
+                                      'label_x': replaceCSVLabels(keywords['partition_x_axis']),
+                                      'limits': use_limits,
+                                      'legend': [tex_string_coding_style(a) for a in ps],
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True if not is_numeric else False,
+                                      })
     # tex_infos['sections'].append({'file': reltex_name,
     #                               'name': fig_name.replace('\\\\', ' '),
     #                               'title': fig_name,
@@ -1048,34 +1089,54 @@ def eval_corr_pool_converge(**keywords):
                         partition_part += ', '
                     elif i < nr_partitions - 1:
                         partition_part += ', and '
-
-            legend_entries = [a for b in ev for a in itpars_cols if a in b]
-            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name, False, False, True)) +  \
+            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name, False, False, True)) + \
                        ' vs correspondence pool sizes\\\\for parameters ' + \
                        strToLower(keywords['sub_title_it_pars']) + ' and properties ' + \
                        partition_part
-            fig_name = split_large_titles(fig_name)
-            exp_value = enl_space_title(exp_value, fig_name, tmp2, x,
-                                        len(ev), 'sharp plot')
-            tex_infos['sections'].append({'file': reltex_name,
-                                          'name': fig_name,
-                                          # If caption is None, the field name is used
-                                          'caption': fig_name.replace('\\\\', ' '),
-                                          'fig_type': 'sharp plot',
-                                          'plots': ev,
-                                          'label_y': replaceCSVLabels(ev_name) + findUnit(ev_name,
-                                                                                          keywords['units']),
-                                          'plot_x': x,
-                                          'label_x': replaceCSVLabels('poolSize'),
-                                          'limits': use_limits,
-                                          'legend': [tex_string_coding_style(a) for a in legend_entries],
-                                          'legend_cols': 1,
-                                          'use_marks': False,
-                                          'use_log_y_axis': use_log,
-                                          'enlarge_title_space': exp_value,
-                                          'enlarge_lbl_dist': None,
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+            legend_entries = [a for b in ev for a in itpars_cols if a in b]
+
+            nr_plots = len(ev)
+            exp_value_o = exp_value
+            if nr_plots <= 20:
+                nr_plots_i = [nr_plots]
+            else:
+                pp = math.floor(nr_plots / 20)
+                nr_plots_i = [20] * int(pp)
+                rp = nr_plots - pp * 20
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * 20]
+            pcnt = 0
+            for i1, it1 in enumerate(nr_plots_i):
+                ps = ev[pcnt: pcnt + it1]
+                cl = legend_entries[pcnt: pcnt + it1]
+                pcnt += it1
+                if nr_plots > 20:
+                    sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                else:
+                    sec_name1 = fig_name
+
+                sec_name1 = split_large_titles(sec_name1)
+                exp_value = enl_space_title(exp_value_o, sec_name1, tmp2, x,
+                                            len(ps), 'sharp plot')
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': sec_name1,
+                                              # If caption is None, the field name is used
+                                              'caption': sec_name1.replace('\\\\', ' '),
+                                              'fig_type': 'sharp plot',
+                                              'plots': ps,
+                                              'label_y': replaceCSVLabels(ev_name) + findUnit(ev_name,
+                                                                                              keywords['units']),
+                                              'plot_x': x,
+                                              'label_x': replaceCSVLabels('poolSize'),
+                                              'limits': use_limits,
+                                              'legend': [tex_string_coding_style(a) for a in cl],
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              'use_log_y_axis': use_log,
+                                              'enlarge_title_space': exp_value,
+                                              'enlarge_lbl_dist': None,
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     template = ji_env.get_template('usac-testing_2D_plots_mult_x_cols.tex')
     rendered_tex = template.render(title=tex_infos['title'],
                                    make_index=tex_infos['make_index'],
@@ -1467,32 +1528,53 @@ def eval_corr_pool_converge_vs_x(**keywords):
                    ' for converging differences from frame to frame of mean and median R \\& t errors' \
                    '\\\\for parameters ' + \
                    strToLower(keywords['sub_title_it_pars'])
-        fig_name = split_large_titles(fig_name)
-        exp_value = enl_space_title(exp_value, fig_name, tmp1, 'stat_type',
-                                    len(ev), 'ybar')
-        x_rows = handle_nans(tmp1, ev, True, 'ybar')
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': fig_name,
-                                      # If caption is None, the field name is used
-                                      'caption': fig_name.replace('\\\\', ' '),
-                                      'fig_type': 'ybar',
-                                      'plots': ev,
-                                      'label_y': replaceCSVLabels(base_ev[i]) +
-                                                 findUnit(str(base_ev[i]), keywords['units']),
-                                      'plot_x': 'stat_type',
-                                      'label_x': 'Used statistic',
-                                      'limits': use_limits,
-                                      'legend': legend,
-                                      'legend_cols': 1,
-                                      'use_marks': False,
-                                      'use_log_y_axis': use_log,
-                                      'xaxis_txt_rows': 1,
-                                      'nr_x_if_nan': x_rows,
-                                      'enlarge_lbl_dist': None,
-                                      'enlarge_title_space': exp_value,
-                                      'use_string_labels': True,
-                                      })
-        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+        nr_plots = len(ev)
+        exp_value_o = exp_value
+        if nr_plots <= 20:
+            nr_plots_i = [nr_plots]
+        else:
+            pp = math.floor(nr_plots / 20)
+            nr_plots_i = [20] * int(pp)
+            rp = nr_plots - pp * 20
+            if rp > 0:
+                nr_plots_i += [nr_plots - pp * 20]
+        pcnt = 0
+        for i1, it1 in enumerate(nr_plots_i):
+            ps = ev[pcnt: pcnt + it1]
+            cl = legend[pcnt: pcnt + it1]
+            pcnt += it1
+            if nr_plots > 20:
+                sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+            else:
+                sec_name1 = fig_name
+
+            sec_name1 = split_large_titles(sec_name1)
+            exp_value = enl_space_title(exp_value_o, sec_name1, tmp1, 'stat_type',
+                                        len(ps), 'ybar')
+            x_rows = handle_nans(tmp1, ps, True, 'ybar')
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': sec_name1,
+                                          # If caption is None, the field name is used
+                                          'caption': sec_name1.replace('\\\\', ' '),
+                                          'fig_type': 'ybar',
+                                          'plots': ps,
+                                          'label_y': replaceCSVLabels(base_ev[i]) +
+                                                     findUnit(str(base_ev[i]), keywords['units']),
+                                          'plot_x': 'stat_type',
+                                          'label_x': 'Used statistic',
+                                          'limits': use_limits,
+                                          'legend': cl,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
+                                          'enlarge_lbl_dist': None,
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': True,
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
     template = ji_env.get_template('usac-testing_2D_plots.tex')

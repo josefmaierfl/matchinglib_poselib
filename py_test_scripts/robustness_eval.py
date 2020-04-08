@@ -1595,45 +1595,69 @@ def calc_calib_delay(**keywords):
                 p_mean.to_csv(index=True, sep=';', path_or_buf=f, header=True, na_rep='nan')
 
             _, use_limits, use_log, exp_value = get_limits_log_exp(p_mean, True, True, False, ['options_tex'] + fd_cols)
-            x_rows = handle_nans(p_mean, plots, True, 'xbar')
-            section_name = split_large_titles(section_name, 80)
-            enlarge_lbl_dist = check_legend_enlarge(p_mean, 'options_tex', len(plots), 'xbar')
-            exp_value = enl_space_title(exp_value, section_name, p_mean, 'options_tex',
-                                        len(plots), 'xbar')
 
-            tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
-                                          'name': section_name.replace('\\\\', ' '),
-                                          'title': section_name,
-                                          'title_rows': section_name.count('\\\\'),
-                                          'fig_type': 'xbar',
-                                          'plots': plots,
-                                          'label_y': 'Option value',  # Label of the value axis. For xbar it labels the x-axis
-                                          # Label/column name of axis with bars. For xbar it labels the y-axis
-                                          'label_x': 'Option',
-                                          # Column name of axis with bars. For xbar it is the column for the y-axis
-                                          'print_x': 'options_tex',
-                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                          'print_meta': True,
-                                          'plot_meta': fd_cols,
-                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                          'rotate_meta': 0,
-                                          'limits': None,
-                                          # If None, no legend is used, otherwise use a list
-                                          'legend': legend,
-                                          'legend_cols': 1,
-                                          'use_marks': False,
-                                          # The x/y-axis values are given as strings if True
-                                          'use_string_labels': True,
-                                          'use_log_y_axis': use_log,
-                                          'xaxis_txt_rows': max_txt_rows,
-                                          'enlarge_lbl_dist': enlarge_lbl_dist,
-                                          'enlarge_title_space': exp_value,
-                                          'large_meta_space_needed': True,
-                                          'is_neg': False,
-                                          'nr_x_if_nan': x_rows,
-                                          'caption': caption
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+            nr_plots = len(plots)
+            exp_value_o = exp_value
+            if nr_plots <= 20:
+                nr_plots_i = [nr_plots]
+            else:
+                pp = math.floor(nr_plots / 20)
+                nr_plots_i = [20] * int(pp)
+                rp = nr_plots - pp * 20
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * 20]
+            pcnt = 0
+            for i1, it1 in enumerate(nr_plots_i):
+                ps = plots[pcnt: pcnt + it1]
+                cl = legend[pcnt: pcnt + it1]
+                mc = fd_cols[pcnt: pcnt + it1]
+                pcnt += it1
+                if nr_plots > 20:
+                    sec_name1 = section_name + ' -- part ' + str(i + 1)
+                    cap_name1 = caption + ' -- part ' + str(i + 1)
+                else:
+                    sec_name1 = section_name
+                    cap_name1 = caption
+
+                x_rows = handle_nans(p_mean, ps, True, 'xbar')
+                sec_name1 = split_large_titles(sec_name1, 80)
+                enlarge_lbl_dist = check_legend_enlarge(p_mean, 'options_tex', len(ps), 'xbar')
+                exp_value = enl_space_title(exp_value_o, sec_name1, p_mean, 'options_tex',
+                                            len(ps), 'xbar')
+
+                tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
+                                              'name': sec_name1.replace('\\\\', ' '),
+                                              'title': sec_name1,
+                                              'title_rows': sec_name1.count('\\\\'),
+                                              'fig_type': 'xbar',
+                                              'plots': ps,
+                                              'label_y': 'Option value',  # Label of the value axis. For xbar it labels the x-axis
+                                              # Label/column name of axis with bars. For xbar it labels the y-axis
+                                              'label_x': 'Option',
+                                              # Column name of axis with bars. For xbar it is the column for the y-axis
+                                              'print_x': 'options_tex',
+                                              # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                              'print_meta': True,
+                                              'plot_meta': mc,
+                                              # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                              'rotate_meta': 0,
+                                              'limits': None,
+                                              # If None, no legend is used, otherwise use a list
+                                              'legend': cl,
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              # The x/y-axis values are given as strings if True
+                                              'use_string_labels': True,
+                                              'use_log_y_axis': use_log,
+                                              'xaxis_txt_rows': max_txt_rows,
+                                              'enlarge_lbl_dist': enlarge_lbl_dist,
+                                              'enlarge_title_space': exp_value,
+                                              'large_meta_space_needed': True,
+                                              'is_neg': False,
+                                              'nr_x_if_nan': x_rows,
+                                              'caption': cap_name1
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
         base_out_name = 'tex_stats' + base_name
         rendered_tex = template.render(title=tex_infos['title'],
