@@ -1324,7 +1324,7 @@ def get_best_comb_and_th_1(**keywords):
 
 
 def get_best_comb_inlrat_1(**keywords):
-    from statistics_and_plot import check_file_exists_rename
+    from statistics_and_plot import check_file_exists_rename, check_too_many_str_coords
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
     ret = pars_calc_single_fig(**keywords)
@@ -1342,6 +1342,7 @@ def get_best_comb_inlrat_1(**keywords):
         txt_rows = str(val).count('\\\\') + 1
         if txt_rows > max_txt_rows:
             max_txt_rows = txt_rows
+    x_col_name, capt_add = check_too_many_str_coords(b_mean, 'options_tex', False)
     b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
@@ -1361,7 +1362,7 @@ def get_best_comb_inlrat_1(**keywords):
                           ' for Parameter Variations of ' + ret['sub_title'],
                  'sections': [],
                  # Builds an index with hyperrefs on the beginning of the pdf
-                 'make_index': False,
+                 'make_index': True,
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
@@ -1373,6 +1374,10 @@ def get_best_comb_inlrat_1(**keywords):
                  }
     section_name = 'Mean combined R \\& t errors $e_{R\\vect{t}}$ over all ' + \
                    replaceCSVLabels(str(ret['grp_names'][-1]), True, False, True)
+    caption = 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +\
+              replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
+    if capt_add:
+        caption = caption[:-1] + capt_add
     x_rows = handle_nans(b_mean, 'b_mean', True, fig_type)
     tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                   'name': section_name,
@@ -1384,7 +1389,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   # Label/column name of axis with bars. For xbar it labels the y-axis
                                   'label_x': 'Options',
                                   # Column name of axis with bars. For xbar it is the column for the y-axis
-                                  'print_x': 'options_tex',
+                                  'print_x': x_col_name,
                                   # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                   'print_meta': False,
                                   'plot_meta': [],
@@ -1404,8 +1409,7 @@ def get_best_comb_inlrat_1(**keywords):
                                   'large_meta_space_needed': False,
                                   'is_neg': False,
                                   'nr_x_if_nan': x_rows,
-                                  'caption': 'Mean combined R \\& t errors $e_{R\\bm{t}}$ (error bars) over all ' +
-                                             replaceCSVLabels(str(ret['grp_names'][-1]), True) + '.'
+                                  'caption': caption
                                   })
     ret['res'] = compile_2D_bar_chart('tex_mean_RT-errors_' + ret['grp_names'][-1], tex_infos, ret)
 

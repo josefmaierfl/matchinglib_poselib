@@ -555,6 +555,7 @@ def calcSatisticAndPlot_2D(data,
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp)
             if cat_sort:
                 categorical_sort(tmp, str(grp_names[-1]))
+            x_col_name, capt_add = check_too_many_str_coords(tmp, grp_names[-1])
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
             dataf_name = os.path.basename(fdataf_name)
@@ -603,6 +604,8 @@ def calcSatisticAndPlot_2D(data,
 
                 enlarge_lbl_dist = check_legend_enlarge(tmp, grp_names[-1], len(ps), fig_type)
                 caption = sec_name1 + '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
+                if capt_add:
+                    caption += capt_add
                 sec_name1 = split_large_titles(sec_name1)
                 exp_value = enl_space_title(exp_value_o, sec_name1, tmp, grp_names[-1],
                                             len(ps), fig_type)
@@ -614,7 +617,7 @@ def calcSatisticAndPlot_2D(data,
                                               'fig_type': fig_type,
                                               'plots': ps,
                                               'label_y': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
-                                              'plot_x': str(grp_names[-1]),
+                                              'plot_x': x_col_name,
                                               'label_x': replaceCSVLabels(str(grp_names[-1])),
                                               'limits': use_limits,
                                               'legend': [tex_string_coding_style(a) for a in ps],
@@ -1079,6 +1082,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     tmp2, succ = add_comparison_column(compare_source, datafc_name, tmp2)
                 if cat_sort:
                     categorical_sort(tmp2, str(grp_names[-1]))
+                x_col_name, capt_add = check_too_many_str_coords(tmp2, grp_names[-1])
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 fdataf_name = check_file_exists_rename(fdataf_name)
                 dataf_name = os.path.basename(fdataf_name)
@@ -1104,6 +1108,8 @@ def calcSatisticAndPlot_2D_partitions(data,
                 caption = replace_stat_names(it_tmp[-1]) + ' values for ' + replaceCSVLabels(str(it_tmp[0]), True) + \
                           ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) + \
                           ' for properties ' + part_name_title
+                if capt_add:
+                    caption += capt_add
 
                 nr_plots = len(list(tmp2.columns.values))
                 exp_value_o = exp_value
@@ -1139,7 +1145,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                                                   'plots': ps,
                                                   'label_y': replace_stat_names(it_tmp[-1]) +
                                                              findUnit(str(it_tmp[0]), units),
-                                                  'plot_x': str(grp_names[-1]),
+                                                  'plot_x': x_col_name,
                                                   'label_x': replaceCSVLabels(str(grp_names[-1])),
                                                   'limits': use_limits,
                                                   'legend': [tex_string_coding_style(a) for a in ps],
@@ -1489,6 +1495,7 @@ def calcFromFuncAndPlot_2D(data,
 
     if cat_sort:
         categorical_sort(tmp, x_axis_column[0])
+    x_col_name, capt_add = check_too_many_str_coords(tmp, x_axis_column[0])
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     fdataf_name = check_file_exists_rename(fdataf_name)
     dataf_name = os.path.basename(fdataf_name)
@@ -1561,8 +1568,16 @@ def calcFromFuncAndPlot_2D(data,
             pcnt += it
             if nr_plots > 20:
                 sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                if capt_add:
+                    cap_name1 = fig_name.replace('\\\\', ' ') + capt_add + '. -- Part ' + str(i1 + 1)
+                else:
+                    cap_name1 = fig_name.replace('\\\\', ' ') + ' -- part ' + str(i1 + 1)
             else:
                 sec_name1 = fig_name
+                if capt_add:
+                    cap_name1 = fig_name.replace('\\\\', ' ') + capt_add
+                else:
+                    cap_name1 = fig_name.replace('\\\\', ' ')
 
             enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(ps), fig_type)
             sec_name1 = split_large_titles(sec_name1)
@@ -1572,11 +1587,11 @@ def calcFromFuncAndPlot_2D(data,
             tex_infos['sections'].append({'file': reltex_name,
                                           'name': sec_name1,
                                           # If caption is None, the field name is used
-                                          'caption': sec_name1.replace('\\\\', ' '),
+                                          'caption': cap_name1,
                                           'fig_type': fig_type,
                                           'plots': ps,
                                           'label_y': eval_cols_lname[i] + findUnit(ev, units),
-                                          'plot_x': x_axis_column[0],
+                                          'plot_x': x_col_name,
                                           'label_x': replaceCSVLabels(x_axis_column[0]),
                                           'limits': use_limits,
                                           'legend': [tex_string_coding_style(a) for a in cl],
@@ -2017,6 +2032,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
 
         if cat_sort:
             categorical_sort(tmp, x_axis_column[0])
+        x_col_name, capt_add = check_too_many_str_coords(tmp, x_axis_column[0])
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         fdataf_name = check_file_exists_rename(fdataf_name)
         dataf_name = os.path.basename(fdataf_name)
@@ -2090,8 +2106,16 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 pcnt += it
                 if nr_plots > 20:
                     sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                    if capt_add:
+                        cap_name1 = fig_name.replace('\\\\', ' ') + capt_add + '. -- Part ' + str(i1 + 1)
+                    else:
+                        cap_name1 = fig_name.replace('\\\\', ' ') + ' -- part ' + str(i1 + 1)
                 else:
                     sec_name1 = fig_name
+                    if capt_add:
+                        cap_name1 = fig_name.replace('\\\\', ' ') + capt_add
+                    else:
+                        cap_name1 = fig_name.replace('\\\\', ' ')
 
                 enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(ps), fig_type)
                 sec_name1 = split_large_titles(sec_name1)
@@ -2101,11 +2125,11 @@ def calcFromFuncAndPlot_2D_partitions(data,
                 tex_infos['sections'].append({'file': reltex_name,
                                               'name': sec_name1,
                                               # If caption is None, the field name is used
-                                              'caption': sec_name1.replace('\\\\', ' '),
+                                              'caption': cap_name1,
                                               'fig_type': fig_type,
                                               'plots': ps,
                                               'label_y': eval_cols_lname[i] + findUnit(ev, units),
-                                              'plot_x': x_axis_column[0],
+                                              'plot_x': x_col_name,
                                               'label_x': replaceCSVLabels(x_axis_column[0]),
                                               'limits': use_limits,
                                               'legend': [tex_string_coding_style(a) for a in cl],
@@ -3968,6 +3992,7 @@ def calcFromFuncAndPlot_aggregate(data,
         dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_short + '.csv'
     else:
         dataf_name = 'data_evals_for_pars_' + it_pars_short + '.csv'
+    x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', False)
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     fdataf_name = check_file_exists_rename(fdataf_name)
     dataf_name = os.path.basename(fdataf_name)
@@ -4004,6 +4029,10 @@ def calcFromFuncAndPlot_aggregate(data,
         else:
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + \
                        ' for parameter variations of\\\\' + strToLower(title_it_pars)
+        if capt_add:
+            cap_name1 = fig_name.replace('\\\\', ' ') + capt_add
+        else:
+            cap_name1 = fig_name.replace('\\\\', ' ')
         fig_name = split_large_titles(fig_name)
         exp_value = enl_space_title(exp_value, fig_name, df, 'tex_it_pars',
                                     1, fig_type)
@@ -4019,7 +4048,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       # Label/column name of axis with bars. For xbar it labels the y-axis
                                       'label_x': 'Parameter',
                                       # Column name of axis with bars. For xbar it is the column for the y-axis
-                                      'print_x': 'tex_it_pars',
+                                      'print_x': x_col_name,
                                       # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                       'print_meta': False,
                                       'plot_meta': None,
@@ -4039,7 +4068,7 @@ def calcFromFuncAndPlot_aggregate(data,
                                       'large_meta_space_needed': False,
                                       'is_neg': is_neg,
                                       'nr_x_if_nan': x_rows,
-                                      'caption': fig_name.replace('\\\\', ' ')
+                                      'caption': cap_name1
                                       })
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],
@@ -4294,6 +4323,7 @@ def calcSatisticAndPlot_aggregate(data,
                     datafc_name = dataf_name
                 cmp_col_name = '-'.join(compare_source['it_parameters'])
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp, None, cmp_col_name)
+            x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', False)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
             dataf_name = os.path.basename(fdataf_name)
@@ -4318,6 +4348,10 @@ def calcSatisticAndPlot_aggregate(data,
             fig_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
                        replaceCSVLabels(str(it_tmp[0]), True, False, True) + ' comparing parameter variations of\\\\' + \
                        strToLower(title_it_pars)
+            if capt_add:
+                cap_name1 = fig_name.replace('\\\\', ' ') + capt_add
+            else:
+                cap_name1 = fig_name.replace('\\\\', ' ')
             fig_name = split_large_titles(fig_name)
             exp_value = enl_space_title(exp_value, fig_name, tmp, 'tex_it_pars',
                                         1, fig_type)
@@ -4334,7 +4368,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           # Label/column name of axis with bars. For xbar it labels the y-axis
                                           'label_x': 'Parameter',
                                           # Column name of axis with bars. For xbar it is the column for the y-axis
-                                          'print_x': 'tex_it_pars',
+                                          'print_x': x_col_name,
                                           # Set print_meta to True if values from column plot_meta should be printed next to each bar
                                           'print_meta': False,
                                           'plot_meta': None,
@@ -4354,7 +4388,7 @@ def calcSatisticAndPlot_aggregate(data,
                                           'large_meta_space_needed': False,
                                           'is_neg': is_neg,
                                           'nr_x_if_nan': x_rows,
-                                          'caption': fig_name.replace('\\\\', ' '),
+                                          'caption': cap_name1,
                                           'pdf_nr': pdf_nr
                                           })
 
@@ -5282,6 +5316,39 @@ def gen_lbl_col_string_3d(df, col_name, nr_equal_ss):
             cnt = 0
     df[col_name_new] = col_new
     return col_name_new
+
+
+def check_too_many_str_coords(df, axis_name, is_numeric=None, is_x=True):
+    if is_numeric is None:
+        is_numeric = pd.to_numeric(df.reset_index()[axis_name], errors='coerce').notnull().all()
+    if is_numeric:
+        return str(axis_name), None
+    lv = df.shape[0]
+    if lv <= 28:
+        return str(axis_name), None
+    values = df.loc[:, axis_name].tolist()
+    mv = 24
+    rat = lv / mv
+    if 0.5 <= rat < 1.0:
+        mv = math.floor(rat * mv)
+        rat = lv / mv
+        mod = int(round(rat)) + 1
+    elif rat < 0.5:
+        mod = 2
+    else:
+        mod = int(round(rat)) + 1
+    legend = list(map(str, values))
+    val_new = [' '] * lv
+    name_new = str(axis_name) + '_redu'
+    for i in range(0, lv, mod):
+        val_new[i] = deepcopy(legend[i])
+        legend[i] = '\\textbf{' + legend[i] + '}'
+    df[name_new] = val_new
+    if is_x:
+        leg_f = '. Elements on x-axis: ' + ', '.join(legend)
+    else:
+        leg_f = '. Elements on y-axis: ' + ', '.join(legend)
+    return name_new, leg_f
 
 
 def categorical_sort_3d(df, col_name, is_stringx, is_stringy, xy_axis_columns):
