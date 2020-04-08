@@ -505,6 +505,8 @@ def calcSatisticAndPlot_2D(data,
                  # Builds a list of abbrevations of a list of dicts
                  'abbreviations': None}
     pdf_nr = 0
+    stat_names = list(dict.fromkeys([i[-1] for i in errvalnames if i[-1] != 'count']))
+    split_figs = False
     gloss_calced = False
     for it in errvalnames:
         if it[-1] != 'count':
@@ -574,38 +576,60 @@ def calcSatisticAndPlot_2D(data,
                 continue
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
-            enlarge_lbl_dist = check_legend_enlarge(tmp, grp_names[-1], len(list(tmp.columns.values)), fig_type)
             section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
                            replaceCSVLabels(str(it_tmp[0]), True, False, True) +\
                            ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True)
-            caption = section_name + '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
-            section_name = split_large_titles(section_name)
-            exp_value = enl_space_title(exp_value, section_name, tmp, grp_names[-1],
-                                        len(list(tmp.columns.values)), fig_type)
-            x_rows = handle_nans(tmp, list(tmp.columns.values), not is_numeric, fig_type)
+
+            nr_plots = len(list(tmp.columns.values))
+            exp_value_o = exp_value
+            if nr_plots <= 20:
+                nr_plots_i = [nr_plots]
+            else:
+                split_figs = True
+                pp = math.floor(nr_plots / 20)
+                nr_plots_i = [20] * int(pp)
+                rp = nr_plots - pp * 20
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * 20]
+            pcnt = 0
             reltex_name = os.path.join(rel_data_path, dataf_name)
-            tex_infos['sections'].append({'file': reltex_name,
-                                          'name': section_name,
-                                          # If caption is None, the field name is used
-                                          'caption': caption,
-                                          'fig_type': fig_type,
-                                          'plots': list(tmp.columns.values),
-                                          'label_y': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
-                                          'plot_x': str(grp_names[-1]),
-                                          'label_x': replaceCSVLabels(str(grp_names[-1])),
-                                          'limits': use_limits,
-                                          'legend': [tex_string_coding_style(a) for a in list(tmp.columns.values)],
-                                          'legend_cols': None,
-                                          'use_marks': use_marks,
-                                          'use_log_y_axis': use_log,
-                                          'enlarge_title_space': exp_value,
-                                          'use_string_labels': True if not is_numeric else False,
-                                          'xaxis_txt_rows': 1,
-                                          'nr_x_if_nan': x_rows,
-                                          'enlarge_lbl_dist': enlarge_lbl_dist,
-                                          'pdf_nr': pdf_nr
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+            for i, it1 in enumerate(nr_plots_i):
+                ps = list(tmp.columns.values)[pcnt: pcnt + it1]
+                pcnt += it1
+                if nr_plots > 20:
+                    sec_name1 = section_name + ' -- part ' + str(i + 1)
+                else:
+                    sec_name1 = section_name
+
+                enlarge_lbl_dist = check_legend_enlarge(tmp, grp_names[-1], len(ps), fig_type)
+                caption = sec_name1 + '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
+                sec_name1 = split_large_titles(sec_name1)
+                exp_value = enl_space_title(exp_value_o, sec_name1, tmp, grp_names[-1],
+                                            len(ps), fig_type)
+                x_rows = handle_nans(tmp, ps, not is_numeric, fig_type)
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': sec_name1,
+                                              # If caption is None, the field name is used
+                                              'caption': caption,
+                                              'fig_type': fig_type,
+                                              'plots': ps,
+                                              'label_y': replace_stat_names(it_tmp[-1]) + findUnit(str(it_tmp[0]), units),
+                                              'plot_x': str(grp_names[-1]),
+                                              'label_x': replaceCSVLabels(str(grp_names[-1])),
+                                              'limits': use_limits,
+                                              'legend': [tex_string_coding_style(a) for a in ps],
+                                              'legend_cols': None,
+                                              'use_marks': use_marks,
+                                              'use_log_y_axis': use_log,
+                                              'enlarge_title_space': exp_value,
+                                              'use_string_labels': True if not is_numeric else False,
+                                              'xaxis_txt_rows': 1,
+                                              'nr_x_if_nan': x_rows,
+                                              'enlarge_lbl_dist': enlarge_lbl_dist,
+                                              'pdf_nr': pdf_nr,
+                                              'stat_name': it_tmp[-1]
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     if no_tex:
         return 0
@@ -613,54 +637,160 @@ def calcSatisticAndPlot_2D(data,
     #Get number of pdfs to generate
     pdf_nr = tex_infos['sections'][-1]['pdf_nr']
     res = 0
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
     if pdf_nr == 0:
-        rendered_tex = template.render(title=tex_infos['title'],
-                                       make_index=tex_infos['make_index'],
-                                       ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                       figs_externalize=tex_infos['figs_externalize'],
-                                       fill_bar=tex_infos['fill_bar'],
-                                       sections=tex_infos['sections'],
-                                       abbreviations=tex_infos['abbreviations'])
-        texf_name = base_out_name + '.tex'
-        if build_pdf:
-            pdf_name = base_out_name + '.pdf'
-            res += compile_tex(rendered_tex,
-                               tex_folder,
-                               texf_name,
-                               make_fig_index,
-                               os.path.join(pdf_folder, pdf_name),
-                               tex_infos['figs_externalize'])
+        if split_figs:
+            pdfs_info = []
+            title_tmp = ' '.join(tex_infos['title'].split(' ')[1:])
+            for st in stat_names:
+                # Get list of results using the same statistic
+                st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+                if len(st_list) > max_figs_pdf:
+                    st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                                 'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+                else:
+                    st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+                for it in st_list2:
+                    if len(st_list2) == 1:
+                        title = replace_stat_names(st) + ' ' + title_tmp
+                    else:
+                        title = replace_stat_names(st) + ' ' + title_tmp + ' -- Part ' + str(it['pdf_nr'])
+                    pdfs_info.append({'title': title,
+                                      'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                                   '_' + base_out_name + '_' + str(it['pdf_nr']),
+                                      'figs_externalize': figs_externalize,
+                                      'sections': it['figs'],
+                                      'make_index': tex_infos['make_index'],
+                                      'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                                      'fill_bar': True,
+                                      'abbreviations': tex_infos['abbreviations']})
+            pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
+            for it in pdfs_info:
+                rendered_tex = template.render(title=it['title'],
+                                               make_index=it['make_index'],
+                                               ctrl_fig_size=it['ctrl_fig_size'],
+                                               figs_externalize=it['figs_externalize'],
+                                               fill_bar=it['fill_bar'],
+                                               sections=it['sections'],
+                                               abbreviations=it['abbreviations'])
+                texf_name = it['texf_name'] + '.tex'
+                if build_pdf:
+                    pdf_name = it['texf_name'] + '.pdf'
+                    pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+                pdf_l_info['rendered_tex'].append(rendered_tex)
+                pdf_l_info['texf_name'].append(texf_name)
+            res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                              pdf_l_info['pdf_name'], figs_externalize)
         else:
-            res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
-    else:
-        sections = []
-        diff_pdfs = []
-        tmp_nr = 0
-        for it in tex_infos['sections']:
-            if it['pdf_nr'] == tmp_nr:
-                sections.append(it)
-            else:
-                diff_pdfs.append(deepcopy(sections))
-                sections = [it]
-                tmp_nr += 1
-        diff_pdfs.append(sections)
-        pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
-        for it in diff_pdfs:
             rendered_tex = template.render(title=tex_infos['title'],
                                            make_index=tex_infos['make_index'],
                                            ctrl_fig_size=tex_infos['ctrl_fig_size'],
                                            figs_externalize=tex_infos['figs_externalize'],
                                            fill_bar=tex_infos['fill_bar'],
-                                           sections=it,
+                                           sections=tex_infos['sections'],
                                            abbreviations=tex_infos['abbreviations'])
-            pdf_l_info['rendered_tex'].append(rendered_tex)
-            texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
-            pdf_l_info['texf_name'].append(texf_name)
+            texf_name = base_out_name + '.tex'
             if build_pdf:
-                pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
-                pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
-        res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
-                          pdf_l_info['pdf_name'], tex_infos['figs_externalize'])
+                pdf_name = base_out_name + '.pdf'
+                res += compile_tex(rendered_tex,
+                                   tex_folder,
+                                   texf_name,
+                                   make_fig_index,
+                                   os.path.join(pdf_folder, pdf_name),
+                                   tex_infos['figs_externalize'])
+            else:
+                res += compile_tex(rendered_tex, tex_folder, texf_name, make_fig_index)
+    else:
+        if split_figs:
+            sections = []
+            diff_pdfs = []
+            tmp_nr = 0
+            for it in tex_infos['sections']:
+                if it['pdf_nr'] == tmp_nr:
+                    sections.append(it)
+                else:
+                    diff_pdfs.append(deepcopy(sections))
+                    sections = [it]
+                    tmp_nr += 1
+            diff_pdfs.append(sections)
+            for it1 in diff_pdfs:
+                pdfs_info = []
+                title_tmp = ' '.join(tex_infos['title'].split(' ')[1:])
+                for st in stat_names:
+                    # Get list of results using the same statistic
+                    st_list = list(filter(lambda stat: stat['stat_name'] == st, it1))
+                    if len(st_list) > max_figs_pdf:
+                        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+                    else:
+                        st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+                    for it in st_list2:
+                        if len(st_list2) == 1:
+                            title = replace_stat_names(st) + ' ' + title_tmp + \
+                                    ' -- Part ' + str(int(it['figs']['pdf_nr']) + 1)
+                        else:
+                            title = replace_stat_names(st) + ' ' + title_tmp + \
+                                    ' -- Part ' + str(int(it['figs']['pdf_nr']) + 1) + '-' + str(it['pdf_nr'])
+                        pdfs_info.append({'title': title,
+                                          'texf_name': replace_stat_names(st, False).replace(' ', '_') +
+                                                       '_' + base_out_name + '_' +
+                                                       str(int(it['figs']['pdf_nr']) + 1) + '_' + str(it['pdf_nr']),
+                                          'figs_externalize': figs_externalize,
+                                          'sections': it['figs'],
+                                          'make_index': tex_infos['make_index'],
+                                          'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                                          'fill_bar': True,
+                                          'abbreviations': tex_infos['abbreviations']})
+            pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
+            for it in pdfs_info:
+                rendered_tex = template.render(title=it['title'],
+                                               make_index=it['make_index'],
+                                               ctrl_fig_size=it['ctrl_fig_size'],
+                                               figs_externalize=it['figs_externalize'],
+                                               fill_bar=it['fill_bar'],
+                                               sections=it['sections'],
+                                               abbreviations=it['abbreviations'])
+                texf_name = it['texf_name'] + '.tex'
+                if build_pdf:
+                    pdf_name = it['texf_name'] + '.pdf'
+                    pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+                pdf_l_info['rendered_tex'].append(rendered_tex)
+                pdf_l_info['texf_name'].append(texf_name)
+            res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                              pdf_l_info['pdf_name'], figs_externalize)
+        else:
+            sections = []
+            diff_pdfs = []
+            tmp_nr = 0
+            for it in tex_infos['sections']:
+                if it['pdf_nr'] == tmp_nr:
+                    sections.append(it)
+                else:
+                    diff_pdfs.append(deepcopy(sections))
+                    sections = [it]
+                    tmp_nr += 1
+            diff_pdfs.append(sections)
+            pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
+            for it in diff_pdfs:
+                rendered_tex = template.render(title=tex_infos['title'],
+                                               make_index=tex_infos['make_index'],
+                                               ctrl_fig_size=tex_infos['ctrl_fig_size'],
+                                               figs_externalize=tex_infos['figs_externalize'],
+                                               fill_bar=tex_infos['fill_bar'],
+                                               sections=it,
+                                               abbreviations=tex_infos['abbreviations'])
+                pdf_l_info['rendered_tex'].append(rendered_tex)
+                texf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.tex'
+                pdf_l_info['texf_name'].append(texf_name)
+                if build_pdf:
+                    pdf_name = base_out_name + '_' + str(int(it[0]['pdf_nr'])) + '.pdf'
+                    pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+            res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], make_fig_index,
+                              pdf_l_info['pdf_name'], tex_infos['figs_externalize'])
     return res
 
 
@@ -966,43 +1096,64 @@ def calcSatisticAndPlot_2D_partitions(data,
                 if useless:
                     continue
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
-                enlarge_lbl_dist = check_legend_enlarge(tmp2, grp_names[-1], len(list(tmp2.columns.values)), fig_type)
-                x_rows = handle_nans(tmp2, list(tmp2.columns.values), not is_numeric, fig_type)
-                section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
-                               replaceCSVLabels(str(it_tmp[0]), True, False, True) +\
-                               ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) +\
+                section_name = replace_stat_names(it_tmp[-1]) + ' values for ' + \
+                               replaceCSVLabels(str(it_tmp[0]), True, False, True) + \
+                               ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True, False, True) + \
                                '\\\\for properties ' + part_name.replace('_', '\\_')
-                section_name = split_large_titles(section_name)
+                cap_leg = '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
                 caption = replace_stat_names(it_tmp[-1]) + ' values for ' + replaceCSVLabels(str(it_tmp[0]), True) + \
                           ' compared to ' + replaceCSVLabels(str(grp_names[-1]), True) + \
-                          ' for properties ' + part_name_title + \
-                          '. Legend: ' + ' -- '.join([replaceCSVLabels(a) for a in it_parameters])
-                exp_value = enl_space_title(exp_value, section_name, tmp2, grp_names[-1],
-                                            len(list(tmp2.columns.values)), fig_type)
+                          ' for properties ' + part_name_title
+
+                nr_plots = len(list(tmp2.columns.values))
+                exp_value_o = exp_value
+                if nr_plots <= 20:
+                    nr_plots_i = [nr_plots]
+                else:
+                    pp = math.floor(nr_plots / 20)
+                    nr_plots_i = [20] * int(pp)
+                    rp = nr_plots - pp * 20
+                    if rp > 0:
+                        nr_plots_i += [nr_plots - pp * 20]
+                pcnt = 0
                 reltex_name = os.path.join(rel_data_path, dataf_name)
-                tex_infos['sections'].append({'file': reltex_name,
-                                              'name': section_name,
-                                              # If caption is None, the field name is used
-                                              'caption': caption,
-                                              'fig_type': fig_type,
-                                              'plots': list(tmp2.columns.values),
-                                              'label_y': replace_stat_names(it_tmp[-1]) +
-                                                         findUnit(str(it_tmp[0]), units),
-                                              'plot_x': str(grp_names[-1]),
-                                              'label_x': replaceCSVLabels(str(grp_names[-1])),
-                                              'limits': use_limits,
-                                              'legend': [tex_string_coding_style(a) for a in list(tmp2.columns.values)],
-                                              'legend_cols': None,
-                                              'use_marks': use_marks,
-                                              'use_log_y_axis': use_log,
-                                              'enlarge_title_space': exp_value,
-                                              'use_string_labels': True if not is_numeric else False,
-                                              'xaxis_txt_rows': 1,
-                                              'nr_x_if_nan': x_rows,
-                                              'enlarge_lbl_dist': enlarge_lbl_dist,
-                                              'stat_name': it_tmp[-1],
-                                              })
-                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+                for i, it1 in enumerate(nr_plots_i):
+                    ps = list(tmp2.columns.values)[pcnt: pcnt + it1]
+                    pcnt += it1
+                    if nr_plots > 20:
+                        sec_name1 = section_name + ' -- part ' + str(i + 1) + cap_leg
+                        cap_name1 = caption + ' -- part ' + str(i + 1)
+                    else:
+                        sec_name1 = section_name + cap_leg
+                        cap_name1 = caption
+
+                    sec_name1 = split_large_titles(sec_name1)
+                    enlarge_lbl_dist = check_legend_enlarge(tmp2, grp_names[-1], len(ps), fig_type)
+                    x_rows = handle_nans(tmp2, ps, not is_numeric, fig_type)
+                    exp_value = enl_space_title(exp_value_o, sec_name1, tmp2, grp_names[-1], len(ps), fig_type)
+                    tex_infos['sections'].append({'file': reltex_name,
+                                                  'name': sec_name1,
+                                                  # If caption is None, the field name is used
+                                                  'caption': cap_name1,
+                                                  'fig_type': fig_type,
+                                                  'plots': ps,
+                                                  'label_y': replace_stat_names(it_tmp[-1]) +
+                                                             findUnit(str(it_tmp[0]), units),
+                                                  'plot_x': str(grp_names[-1]),
+                                                  'label_x': replaceCSVLabels(str(grp_names[-1])),
+                                                  'limits': use_limits,
+                                                  'legend': [tex_string_coding_style(a) for a in ps],
+                                                  'legend_cols': None,
+                                                  'use_marks': use_marks,
+                                                  'use_log_y_axis': use_log,
+                                                  'enlarge_title_space': exp_value,
+                                                  'use_string_labels': True if not is_numeric else False,
+                                                  'xaxis_txt_rows': 1,
+                                                  'nr_x_if_nan': x_rows,
+                                                  'enlarge_lbl_dist': enlarge_lbl_dist,
+                                                  'stat_name': it_tmp[-1],
+                                                  })
+                    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     if no_tex:
         return 0
@@ -1384,7 +1535,6 @@ def calcFromFuncAndPlot_2D(data,
         else:
             exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], eval_cols_log_scaling[i])
         is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
-        enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(sel_cols), fig_type)
         reltex_name = os.path.join(rel_data_path, dataf_name)
         if eval_init_input:
             fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
@@ -1393,32 +1543,53 @@ def calcFromFuncAndPlot_2D(data,
             fig_name = capitalizeFirstChar(eval_cols_lname[i])
             fig_name += ' for parameter variations of\\\\' + strToLower(it_title_part)
         fig_name += '\\\\compared to ' + replaceCSVLabels(x_axis_column[0], True, False, True)
-        fig_name = split_large_titles(fig_name)
-        exp_value = enl_space_title(exp_value, fig_name, tmp, x_axis_column[0],
-                                    len(sel_cols), fig_type)
-        x_rows = handle_nans(tmp, sel_cols, not is_numeric, fig_type)
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': fig_name,
-                                      # If caption is None, the field name is used
-                                      'caption': fig_name.replace('\\\\', ' '),
-                                      'fig_type': fig_type,
-                                      'plots': sel_cols,
-                                      'label_y': eval_cols_lname[i] + findUnit(ev, units),
-                                      'plot_x': x_axis_column[0],
-                                      'label_x': replaceCSVLabels(x_axis_column[0]),
-                                      'limits': use_limits,
-                                      'legend': [tex_string_coding_style(a) for a in legend],
-                                      'legend_cols': None,
-                                      'use_marks': use_marks,
-                                      'use_log_y_axis': eval_cols_log_scaling[i],
-                                      'enlarge_title_space': exp_value,
-                                      'use_string_labels': True if not is_numeric else False,
-                                      'xaxis_txt_rows': 1,
-                                      'nr_x_if_nan': x_rows,
-                                      'enlarge_lbl_dist': enlarge_lbl_dist,
-                                      'stat_name': ev,
-                                      })
-        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+        nr_plots = len(sel_cols)
+        exp_value_o = exp_value
+        if nr_plots <= 20:
+            nr_plots_i = [nr_plots]
+        else:
+            pp = math.floor(nr_plots / 20)
+            nr_plots_i = [20] * int(pp)
+            rp = nr_plots - pp * 20
+            if rp > 0:
+                nr_plots_i += [nr_plots - pp * 20]
+        pcnt = 0
+        for i1, it in enumerate(nr_plots_i):
+            ps = sel_cols[pcnt: pcnt + it]
+            pcnt += it
+            if nr_plots > 20:
+                sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+            else:
+                sec_name1 = fig_name
+
+            enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(ps), fig_type)
+            sec_name1 = split_large_titles(sec_name1)
+            exp_value = enl_space_title(exp_value_o, sec_name1, tmp, x_axis_column[0],
+                                        len(ps), fig_type)
+            x_rows = handle_nans(tmp, ps, not is_numeric, fig_type)
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': sec_name1,
+                                          # If caption is None, the field name is used
+                                          'caption': sec_name1.replace('\\\\', ' '),
+                                          'fig_type': fig_type,
+                                          'plots': ps,
+                                          'label_y': eval_cols_lname[i] + findUnit(ev, units),
+                                          'plot_x': x_axis_column[0],
+                                          'label_x': replaceCSVLabels(x_axis_column[0]),
+                                          'limits': use_limits,
+                                          'legend': [tex_string_coding_style(a) for a in legend],
+                                          'legend_cols': None,
+                                          'use_marks': use_marks,
+                                          'use_log_y_axis': eval_cols_log_scaling[i],
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': True if not is_numeric else False,
+                                          'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
+                                          'enlarge_lbl_dist': enlarge_lbl_dist,
+                                          'stat_name': ev,
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     pdfs_info = []
     max_figs_pdf = 50
@@ -1890,7 +2061,6 @@ def calcFromFuncAndPlot_2D_partitions(data,
             else:
                 exp_value = is_exp_used(stats_all['min'][0], stats_all['max'][0], eval_cols_log_scaling[i])
             is_numeric = pd.to_numeric(tmp.reset_index()[x_axis_column[0]], errors='coerce').notnull().all()
-            enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(sel_cols), fig_type)
             reltex_name = os.path.join(rel_data_path, dataf_name)
             if eval_init_input:
                 fig_name = capitalizeFirstChar(eval_cols_lname[i]) + ' based on ' + strToLower(init_pars_title)
@@ -1901,32 +2071,53 @@ def calcFromFuncAndPlot_2D_partitions(data,
                         '\\\\parameter variations of ' + strToLower(it_title_part) + \
                         '\\\\compared to ' + \
                         replaceCSVLabels(x_axis_column[0], True, False, True)
-            fig_name = split_large_titles(fig_name)
-            exp_value = enl_space_title(exp_value, fig_name, tmp, x_axis_column[0],
-                                        len(sel_cols), fig_type)
-            x_rows = handle_nans(tmp, sel_cols, not is_numeric, fig_type)
-            tex_infos['sections'].append({'file': reltex_name,
-                                          'name': fig_name,
-                                          # If caption is None, the field name is used
-                                          'caption': fig_name.replace('\\\\', ' '),
-                                          'fig_type': fig_type,
-                                          'plots': sel_cols,
-                                          'label_y': eval_cols_lname[i] + findUnit(ev, units),
-                                          'plot_x': x_axis_column[0],
-                                          'label_x': replaceCSVLabels(x_axis_column[0]),
-                                          'limits': use_limits,
-                                          'legend': [tex_string_coding_style(a) for a in legend],
-                                          'legend_cols': None,
-                                          'use_marks': use_marks,
-                                          'use_log_y_axis': eval_cols_log_scaling[i],
-                                          'enlarge_title_space': exp_value,
-                                          'use_string_labels': True if not is_numeric else False,
-                                          'xaxis_txt_rows': 1,
-                                          'nr_x_if_nan': x_rows,
-                                          'enlarge_lbl_dist': enlarge_lbl_dist,
-                                          'stat_name': ev,
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+            nr_plots = len(sel_cols)
+            exp_value_o = exp_value
+            if nr_plots <= 20:
+                nr_plots_i = [nr_plots]
+            else:
+                pp = math.floor(nr_plots / 20)
+                nr_plots_i = [20] * int(pp)
+                rp = nr_plots - pp * 20
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * 20]
+            pcnt = 0
+            for i1, it in enumerate(nr_plots_i):
+                ps = sel_cols[pcnt: pcnt + it]
+                pcnt += it
+                if nr_plots > 20:
+                    sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                else:
+                    sec_name1 = fig_name
+
+                enlarge_lbl_dist = check_legend_enlarge(tmp, x_axis_column[0], len(ps), fig_type)
+                sec_name1 = split_large_titles(sec_name1)
+                exp_value = enl_space_title(exp_value_o, sec_name1, tmp, x_axis_column[0],
+                                            len(ps), fig_type)
+                x_rows = handle_nans(tmp, ps, not is_numeric, fig_type)
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': sec_name1,
+                                              # If caption is None, the field name is used
+                                              'caption': sec_name1.replace('\\\\', ' '),
+                                              'fig_type': fig_type,
+                                              'plots': ps,
+                                              'label_y': eval_cols_lname[i] + findUnit(ev, units),
+                                              'plot_x': x_axis_column[0],
+                                              'label_x': replaceCSVLabels(x_axis_column[0]),
+                                              'limits': use_limits,
+                                              'legend': [tex_string_coding_style(a) for a in legend],
+                                              'legend_cols': None,
+                                              'use_marks': use_marks,
+                                              'use_log_y_axis': eval_cols_log_scaling[i],
+                                              'enlarge_title_space': exp_value,
+                                              'use_string_labels': True if not is_numeric else False,
+                                              'xaxis_txt_rows': 1,
+                                              'nr_x_if_nan': x_rows,
+                                              'enlarge_lbl_dist': enlarge_lbl_dist,
+                                              'stat_name': ev,
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     if no_tex:
         return 0
