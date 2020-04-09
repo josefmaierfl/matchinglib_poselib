@@ -2021,6 +2021,7 @@ def get_ml_acc(**keywords):
                       strToLower(combine_str_for_title(keywords['meta_it_pars'])) + '.'
             exp_value = enl_space_title(exp_value_l or exp_value_r, section_name, df4, it,
                                         4, 'ybar')
+            row_cnt = df4.shape[0]
             tex_infos1['sections'].append({'file': reltex_name,
                                            # Name of the whole section
                                            'name': section_name.replace('\\\\', ' '),
@@ -2082,7 +2083,8 @@ def get_ml_acc(**keywords):
                                            'nr_x_if_nan': x_rows,
                                            'caption': caption,
                                            'enlarge_lbl_dist': enlarge_lbl_dist,
-                                           'enlarge_title_space': exp_value
+                                           'enlarge_title_space': exp_value,
+                                           'row_cnt': row_cnt
                                            })
             tex_infos1['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
@@ -2232,6 +2234,7 @@ def get_ml_acc(**keywords):
                       strToLower(combine_str_for_title(keywords['meta_it_pars'])) + '.'
             exp_value = enl_space_title(exp_value_l or exp_value_r, section_name, df5, it,
                                         4, 'ybar')
+            row_cnt = df5.shape[0]
             tex_infos1['sections'].append({'file': reltex_name,
                                            # Name of the whole section
                                            'name': section_name.replace('\\\\', ' '),
@@ -2293,7 +2296,8 @@ def get_ml_acc(**keywords):
                                            'nr_x_if_nan': x_rows,
                                            'caption': caption,
                                            'enlarge_lbl_dist': enlarge_lbl_dist,
-                                           'enlarge_title_space': exp_value
+                                           'enlarge_title_space': exp_value,
+                                           'row_cnt': row_cnt
                                            })
             tex_infos1['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
@@ -2556,6 +2560,7 @@ def get_best_stability_pars(**keywords):
         enlarge_lbl_dist = check_legend_enlarge(tmp4, keywords['data_separators'][1], 3, 'xbar',
                                                 label_x.count('\\') + 1, not is_numeric)
         section_name = split_large_titles(section_name, 80)
+        row_cnt = tmp4.shape[0]
         tex_infos['sections'].append({'file': os.path.join(keywords['rel_data_path'], b_mean_name),
                                       # Name of the whole section
                                       'name': section_name.replace('\\\\', ' '),
@@ -2617,7 +2622,8 @@ def get_best_stability_pars(**keywords):
                                       'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
-                                      'enlarge_title_space': False
+                                      'enlarge_title_space': False,
+                                      'row_cnt': row_cnt
                                       })
         section_name = 'Smallest median R \\& t error differences between default and ' \
                        'most likely pose errors based on lowest and highest mean ' + \
@@ -2701,7 +2707,8 @@ def get_best_stability_pars(**keywords):
                                       'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
-                                      'enlarge_title_space': False
+                                      'enlarge_title_space': False,
+                                      'row_cnt': row_cnt
                                       })
         tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
         section_name = 'Smallest combined median R \\& t error differences between default and ' \
@@ -2785,7 +2792,8 @@ def get_best_stability_pars(**keywords):
                                       'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': enlarge_lbl_dist,
-                                      'enlarge_title_space': False
+                                      'enlarge_title_space': False,
+                                      'row_cnt': row_cnt
                                       })
     template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
     rendered_tex = template.render(title=tex_infos['title'],

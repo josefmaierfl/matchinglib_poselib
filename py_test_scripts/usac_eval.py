@@ -1610,6 +1610,7 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                        '\\\\vs ' + replaceCSVLabels(str(ret['grp_names'][-1]), False, False, True) +\
                        ' for parameters ' + tex_string_coding_style(str(grp))
         x_rows = handle_nans(data_a, ['b_min', ret['grp_names'][-2]], False, 'smooth')
+        row_cnt = data_a.shape[0]
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], dataf_name),
                                       # Name of the whole section
                                       'name': section_name.replace('\\\\', ' '),
@@ -1675,7 +1676,8 @@ def get_best_comb_and_th_for_inlrat_1(**keywords):
                                                  ' (right axis) vs ' + replaceCSVLabels(str(ret['grp_names'][-1])) +
                                                  ' for parameters ' + tex_string_coding_style(str(grp)) + '.',
                                       'enlarge_lbl_dist': None,
-                                      'enlarge_title_space': False
+                                      'enlarge_title_space': False,
+                                      'row_cnt': row_cnt
                                       })
     ret['res'] = compile_2D_2y_axis('tex_min_RT-errors_and_corresponding_' + ret['grp_names'][-2] +
                                     '_vs_' + ret['grp_names'][-1] + '_for_', tex_infos, ret)
@@ -1848,7 +1850,10 @@ def get_best_comb_th_scenes_1(**keywords):
     right_legend = [column_legend[i] for i, a in enumerate(tmp2.columns) if ret['partitions'][-1] in a]
     left_legend = [column_legend[i].replace('b_min', 'R\\&t error') for i, a in enumerate(tmp2.columns) if 'b_min' in a]
     # Get data for tex file generation
-    if len(tmp2.columns) > 10:
+    row_cnt = tmp2.shape[0]
+    col_cnt = len(tmp2.columns)
+    bar_cnt = row_cnt * col_cnt
+    if bar_cnt > 20:
         fig_type = 'xbar'
     else:
         fig_type = 'ybar'
@@ -1948,20 +1953,31 @@ def get_best_comb_th_scenes_1(**keywords):
                                   'nr_x_if_nan': x_rows,
                                   'caption': caption,
                                   'enlarge_lbl_dist': None,
-                                  'enlarge_title_space': False
+                                  'enlarge_title_space': False,
+                                  'row_cnt': row_cnt
                                   })
 
+    bar_cnt = row_cnt * 2
+    if bar_cnt > 20:
+        fig_type = 'xbar'
+    else:
+        fig_type = 'ybar'
     for rc, lc, rl, ll in zip(right_cols, left_cols, right_legend, left_legend):
         par_str = [i for i in rl.split(' -- ') if ret['partitions'][-1] not in i][0]
         section_name = 'Smallest combined R \\& t errors $e_{R\\vect{t}}$ and their ' + \
                        replaceCSVLabels(str(ret['partitions'][-1]), True, False, True) + \
                        '\\\\for parameters ' + par_str + \
                        '\\\\and properties ' + ret['sub_title_partitions']
-
-        caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) and their ' + \
-                  replaceCSVLabels(str(ret['partitions'][-1]), True) + \
-                  ' (right axis) for parameters ' + par_str + \
-                  ' and properties ' + ret['sub_title_partitions'] + '.'
+        if fig_type == 'xbar':
+            caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (bottom axis) and their ' + \
+                      replaceCSVLabels(str(ret['partitions'][-1]), True) + \
+                      ' (top axis) for parameters ' + par_str + \
+                      ' and properties ' + ret['sub_title_partitions'] + '.'
+        else:
+            caption = 'Smallest combined R \\& t errors $e_{R\\bm{t}}$ (left axis) and their ' + \
+                      replaceCSVLabels(str(ret['partitions'][-1]), True) + \
+                      ' (right axis) for parameters ' + par_str + \
+                      ' and properties ' + ret['sub_title_partitions'] + '.'
         x_rows = handle_nans(tmp2, [lc, rc], True, 'ybar')
         tex_infos['sections'].append({'file': os.path.join(ret['rel_data_path'], b_mean_name),
                                       # Name of the whole section
@@ -1969,7 +1985,7 @@ def get_best_comb_th_scenes_1(**keywords):
                                       # Title of the figure
                                       'title': section_name,
                                       'title_rows': section_name.count('\\\\'),
-                                      'fig_type': 'ybar',
+                                      'fig_type': fig_type,
                                       # Column name for charts based on the left y-axis
                                       'plots_l': [lc],
                                       # Label of the left y-axis.
@@ -2013,18 +2029,19 @@ def get_best_comb_th_scenes_1(**keywords):
                                       # Maximum and/or minimum y value/s on the left y-axis
                                       'limits_l': None,
                                       # Legend entries for the charts belonging to the left y-axis
-                                      'legend_l': [ll + ' (left axis)'],
+                                      'legend_l': [ll + (' (left axis)' if fig_type == 'ybar' else ' (bottom axis)')],
                                       # Maximum and/or minimum y value/s on the right y-axis
                                       'limits_r': None,
                                       # Legend entries for the charts belonging to the right y-axis
-                                      'legend_r': [rl + ' (right axis)'],
+                                      'legend_r': [rl + (' (right axis)' if fig_type == 'ybar' else ' (top axis)')],
                                       'legend_cols': 1,
                                       'use_marks': True,
                                       'xaxis_txt_rows': 1,
                                       'nr_x_if_nan': x_rows,
                                       'caption': caption,
                                       'enlarge_lbl_dist': None,
-                                      'enlarge_title_space': False
+                                      'enlarge_title_space': False,
+                                      'row_cnt': row_cnt
                                       })
 
     base_out_name = 'tex_min_mean_RTerrors_and_corresp_' + \
