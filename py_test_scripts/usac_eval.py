@@ -1342,7 +1342,11 @@ def get_best_comb_inlrat_1(**keywords):
         txt_rows = str(val).count('\\\\') + 1
         if txt_rows > max_txt_rows:
             max_txt_rows = txt_rows
-    x_col_name, capt_add = check_too_many_str_coords(b_mean, 'options_tex', False)
+    if len(ret['b'].columns) > 10:
+        fig_type = 'xbar'
+    else:
+        fig_type = 'ybar'
+    x_col_name, capt_add = check_too_many_str_coords(b_mean, 'options_tex', fig_type, False)
     b_mean_name = 'data_mean_RTerrors_over_all_' + ret['dataf_name']
     fb_mean_name = os.path.join(ret['tdata_folder'], b_mean_name)
     fb_mean_name = check_file_exists_rename(fb_mean_name)
@@ -1352,10 +1356,6 @@ def get_best_comb_inlrat_1(**keywords):
         f.write('# Row (column options) parameters: ' + '-'.join(keywords['it_parameters']) + '\n')
         b_mean.to_csv(index=False, sep=';', path_or_buf=f, header=True, na_rep='nan')
     # Get data for tex file generation
-    if len(ret['b'].columns) > 10:
-        fig_type = 'xbar'
-    else:
-        fig_type = 'ybar'
     from statistics_and_plot import replaceCSVLabels, handle_nans
     tex_infos = {'title': 'Mean Combined R \\& t Errors over all ' +
                           replaceCSVLabels(str(ret['grp_names'][-1]), True, True, True) +

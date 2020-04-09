@@ -555,7 +555,7 @@ def calcSatisticAndPlot_2D(data,
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp)
             if cat_sort:
                 categorical_sort(tmp, str(grp_names[-1]))
-            x_col_name, capt_add = check_too_many_str_coords(tmp, grp_names[-1])
+            x_col_name, capt_add = check_too_many_str_coords(tmp, grp_names[-1], fig_type)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
             dataf_name = os.path.basename(fdataf_name)
@@ -733,10 +733,10 @@ def calcSatisticAndPlot_2D(data,
                     for it in st_list2:
                         if len(st_list2) == 1:
                             title = replace_stat_names(st) + ' ' + title_tmp + \
-                                    ' -- Part ' + str(int(it['figs']['pdf_nr']) + 1)
+                                    ' -- Part ' + str(int(it['figs'][0]['pdf_nr']) + 1)
                         else:
                             title = replace_stat_names(st) + ' ' + title_tmp + \
-                                    ' -- Part ' + str(int(it['figs']['pdf_nr']) + 1) + '-' + str(it['pdf_nr'])
+                                    ' -- Part ' + str(int(it['figs'][0]['pdf_nr']) + 1) + '-' + str(it['pdf_nr'])
                         pdfs_info.append({'title': title,
                                           'texf_name': replace_stat_names(st, False).replace(' ', '_') +
                                                        '_' + base_out_name + '_' +
@@ -1082,7 +1082,7 @@ def calcSatisticAndPlot_2D_partitions(data,
                     tmp2, succ = add_comparison_column(compare_source, datafc_name, tmp2)
                 if cat_sort:
                     categorical_sort(tmp2, str(grp_names[-1]))
-                x_col_name, capt_add = check_too_many_str_coords(tmp2, grp_names[-1])
+                x_col_name, capt_add = check_too_many_str_coords(tmp2, grp_names[-1], fig_type)
                 fdataf_name = os.path.join(tdata_folder, dataf_name)
                 fdataf_name = check_file_exists_rename(fdataf_name)
                 dataf_name = os.path.basename(fdataf_name)
@@ -1495,7 +1495,7 @@ def calcFromFuncAndPlot_2D(data,
 
     if cat_sort:
         categorical_sort(tmp, x_axis_column[0])
-    x_col_name, capt_add = check_too_many_str_coords(tmp, x_axis_column[0])
+    x_col_name, capt_add = check_too_many_str_coords(tmp, x_axis_column[0], fig_type)
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     fdataf_name = check_file_exists_rename(fdataf_name)
     dataf_name = os.path.basename(fdataf_name)
@@ -2032,7 +2032,7 @@ def calcFromFuncAndPlot_2D_partitions(data,
 
         if cat_sort:
             categorical_sort(tmp, x_axis_column[0])
-        x_col_name, capt_add = check_too_many_str_coords(tmp, x_axis_column[0])
+        x_col_name, capt_add = check_too_many_str_coords(tmp, x_axis_column[0], fig_type)
         fdataf_name = os.path.join(tdata_folder, dataf_name)
         fdataf_name = check_file_exists_rename(fdataf_name)
         dataf_name = os.path.basename(fdataf_name)
@@ -3992,7 +3992,7 @@ def calcFromFuncAndPlot_aggregate(data,
         dataf_name = 'data_evals_' + init_pars_out_name + '_for_pars_' + it_pars_short + '.csv'
     else:
         dataf_name = 'data_evals_for_pars_' + it_pars_short + '.csv'
-    x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', False)
+    x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', fig_type, False)
     fdataf_name = os.path.join(tdata_folder, dataf_name)
     fdataf_name = check_file_exists_rename(fdataf_name)
     dataf_name = os.path.basename(fdataf_name)
@@ -4323,7 +4323,7 @@ def calcSatisticAndPlot_aggregate(data,
                     datafc_name = dataf_name
                 cmp_col_name = '-'.join(compare_source['it_parameters'])
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp, None, cmp_col_name)
-            x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', False)
+            x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', fig_type, False)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
             dataf_name = os.path.basename(fdataf_name)
@@ -5318,11 +5318,15 @@ def gen_lbl_col_string_3d(df, col_name, nr_equal_ss):
     return col_name_new
 
 
-def check_too_many_str_coords(df, axis_name, is_numeric=None, is_x=True):
+def check_too_many_str_coords(df, axis_name, fig_type, is_numeric=None, is_x=True):
     if is_numeric is None:
         is_numeric = pd.to_numeric(df.reset_index()[axis_name], errors='coerce').notnull().all()
     if is_numeric:
         return str(axis_name), None
+    if fig_type == 'xbar':
+        axis = not is_x
+    else:
+        axis = is_x
     lv = df.shape[0]
     if lv <= 28:
         return str(axis_name), None
@@ -5342,12 +5346,15 @@ def check_too_many_str_coords(df, axis_name, is_numeric=None, is_x=True):
     name_new = str(axis_name) + '_redu'
     for i in range(0, lv, mod):
         val_new[i] = deepcopy(legend[i])
-        legend[i] = '\\textbf{' + legend[i] + '}'
+        if 'texttt' in legend[i]:
+            legend[i] = legend[i].replace('texttt', 'textbf')
+        else:
+            legend[i] = '\\textbf{' + legend[i] + '}'
     df[name_new] = val_new
-    if is_x:
-        leg_f = '. Elements on x-axis: ' + ', '.join(legend)
+    if axis:
+        leg_f = '. Elements on x-axis: \\parbox{\\textwidth}{\\linespread{0.5}\\tiny ' + ', '.join(legend) + '}'
     else:
-        leg_f = '. Elements on y-axis: ' + ', '.join(legend)
+        leg_f = '. Elements on y-axis: \\parbox{\\textwidth}{\\linespread{0.5}\\tiny ' + ', '.join(legend) + '}'
     return name_new, leg_f
 
 
