@@ -740,7 +740,7 @@ def calcSatisticAndPlot_2D(data,
                         pdfs_info.append({'title': title,
                                           'texf_name': replace_stat_names(st, False).replace(' ', '_') +
                                                        '_' + base_out_name + '_' +
-                                                       str(int(it['figs']['pdf_nr']) + 1) + '_' + str(it['pdf_nr']),
+                                                       str(int(it['figs'][0]['pdf_nr']) + 1) + '_' + str(it['pdf_nr']),
                                           'figs_externalize': figs_externalize,
                                           'sections': it['figs'],
                                           'make_index': tex_infos['make_index'],
@@ -4323,7 +4323,7 @@ def calcSatisticAndPlot_aggregate(data,
                     datafc_name = dataf_name
                 cmp_col_name = '-'.join(compare_source['it_parameters'])
                 tmp, succ = add_comparison_column(compare_source, datafc_name, tmp, None, cmp_col_name)
-            x_col_name, capt_add = check_too_many_str_coords(df, 'tex_it_pars', fig_type, False)
+            x_col_name, capt_add = check_too_many_str_coords(tmp, 'tex_it_pars', fig_type, False)
             fdataf_name = os.path.join(tdata_folder, dataf_name)
             fdataf_name = check_file_exists_rename(fdataf_name)
             dataf_name = os.path.basename(fdataf_name)
