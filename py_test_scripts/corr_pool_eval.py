@@ -67,7 +67,7 @@ def calc_rt_diff_frame_to_frame(**vars):
             raise ValueError('Data is not consistent!')
         df = pd.concat(mean_list, axis=0, ignore_index=True)
     for eval in vars['eval_columns']:
-        if any(eval_log[eval]):
+        if all(eval_log[eval]):
             eval_cols_log_scaling.append(True)
         else:
             eval_cols_log_scaling.append(False)
@@ -470,7 +470,7 @@ def eval_corr_pool_converge(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
+                 'figs_externalize': True,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True,
                  # Builds a list of abbrevations from a list of dicts
@@ -729,7 +729,7 @@ def eval_corr_pool_converge(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
+                 'figs_externalize': True,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True,
                  # Builds a list of abbrevations from a list of dicts
@@ -923,7 +923,7 @@ def eval_corr_pool_converge(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
+                 'figs_externalize': True,
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
@@ -1010,8 +1010,12 @@ def eval_corr_pool_converge(**keywords):
                 break_it = False
                 for d in itpars_cols:
                     if d in c:
+                        if not any([e == d for e in c.split('-')]):
+                            continue
                         for b in col_names:
                             if d in b and 'poolSize' in b and 'poolSize_diff' not in b:
+                                if not any([e == d for e in b.split('-')]):
+                                    continue
                                 hlp.append(b)
                                 break_it = True
                                 break
@@ -1032,6 +1036,8 @@ def eval_corr_pool_converge(**keywords):
             for i, ev in enumerate(sections):
                 for i1, ev1 in enumerate(ev):
                     if it in ev1:
+                        if not any([e == it for e in ev1.split('-')]):
+                            continue
                         evals1.append(ev1)
                         it_split_x1.append(x_axis[i][i1])
             it_split.append(evals1)
