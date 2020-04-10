@@ -5358,6 +5358,140 @@ def check_too_many_str_coords(df, axis_name, fig_type, is_numeric=None, is_x=Tru
     return name_new, leg_f
 
 
+def split_and_compile_pdf(tex_infos, template_type, tex_folder, tex_name, pdf_folder, build_pdf,
+                          categories=None, cat_names=None):
+    if template_type == 'usac-testing_2D_plots_2y_axis':#nonnumeric_x, fill_bar?
+        if 'fill_bar' not in tex_infos:
+            tex_infos['fill_bar'] = True
+        template = ji_env.get_template('usac-testing_2D_plots_2y_axis.tex')
+    elif template_type == 'usac-testing_2D_bar_chart_and_meta':#fill_bar
+        if 'fill_bar' not in tex_infos:
+            tex_infos['fill_bar'] = True
+        template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
+    elif template_type == 'usac-testing_2D_plots':#fill_bar
+        if 'fill_bar' not in tex_infos:
+            tex_infos['fill_bar'] = True
+        template = ji_env.get_template('usac-testing_2D_plots.tex')
+    elif template_type == 'usac-testing_2D_plots_mult_x_cols':
+        template = ji_env.get_template('usac-testing_2D_plots_mult_x_cols.tex')
+    elif template_type == 'usac-testing_3D_plots': #use_fixed_caption
+        if 'use_fixed_caption' not in tex_infos:
+            tex_infos['use_fixed_caption'] = True
+        template = ji_env.get_template('usac-testing_3D_plots.tex')
+    else:
+        raise ValueError('Tex template type ' + template_type + ' not supported')
+    pdfs_info = []
+    max_figs_pdf = 50
+    if tex_infos['ctrl_fig_size']:  # and not figs_externalize:
+        max_figs_pdf = 30
+    if categories and 'stat_name' in tex_infos['sections'][0]:
+        for i, st in enumerate(categories):
+            # Get list of results using the same statistic
+            st_list = list(filter(lambda stat: stat['stat_name'] == st, tex_infos['sections']))
+            if len(st_list) > max_figs_pdf:
+                st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                             'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+            else:
+                st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+            for it in st_list2:
+                if len(st_list2) == 1:
+                    if cat_names:
+                        title = tex_infos['title'] + ': ' + capitalizeStr(cat_names[i])
+                    else:
+                        title = tex_infos['title']
+                else:
+                    if cat_names:
+                        title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr']) + \
+                                ' for ' + capitalizeStr(cat_names[i])
+                    else:
+                        title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+                pdfs_info.append({'title': title,
+                                  'texf_name': tex_name + '_' + str(st) + '_' + str(it['pdf_nr']),
+                                  'figs_externalize': tex_infos['figs_externalize'],
+                                  'sections': it['figs'],
+                                  'make_index': tex_infos['make_index'],
+                                  'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                                  'abbreviations': tex_infos['abbreviations']})
+                if template_type == 'usac-testing_2D_plots_2y_axis':
+                    pdfs_info[-1]['nonnumeric_x'] = tex_infos['nonnumeric_x']
+                    pdfs_info[-1]['fill_bar'] = tex_infos['fill_bar']
+                elif template_type == 'usac-testing_2D_bar_chart_and_meta' or template_type == 'usac-testing_2D_plots':
+                    pdfs_info[-1]['fill_bar'] = tex_infos['fill_bar']
+                elif template_type == 'usac-testing_3D_plots':
+                    pdfs_info[-1]['use_fixed_caption'] = tex_infos['use_fixed_caption']
+    else:
+        st_list = tex_infos['sections']
+        if len(st_list) > max_figs_pdf:
+            st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+                         'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+        else:
+            st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+        for it in st_list2:
+            if len(st_list2) == 1:
+                title = tex_infos['title']
+            else:
+                title = tex_infos['title'] + ' -- Part ' + str(it['pdf_nr'])
+            pdfs_info.append({'title': title,
+                              'texf_name': tex_name + '_' + str(it['pdf_nr']),
+                              'figs_externalize': tex_infos['figs_externalize'],
+                              'sections': it['figs'],
+                              'make_index': tex_infos['make_index'],
+                              'ctrl_fig_size': tex_infos['ctrl_fig_size'],
+                              'abbreviations': tex_infos['abbreviations']})
+            if template_type == 'usac-testing_2D_plots_2y_axis':
+                pdfs_info[-1]['nonnumeric_x'] = tex_infos['nonnumeric_x']
+                pdfs_info[-1]['fill_bar'] = tex_infos['fill_bar']
+            elif template_type == 'usac-testing_2D_bar_chart_and_meta' or template_type == 'usac-testing_2D_plots':
+                pdfs_info[-1]['fill_bar'] = tex_infos['fill_bar']
+            elif template_type == 'usac-testing_3D_plots':
+                pdfs_info[-1]['use_fixed_caption'] = tex_infos['use_fixed_caption']
+    pdf_l_info = {'rendered_tex': [], 'texf_name': [], 'pdf_name': [] if build_pdf else None}
+    for it in pdfs_info:
+        if template_type == 'usac-testing_2D_plots_2y_axis':
+            rendered_tex = template.render(title=it['title'],
+                                           make_index=it['make_index'],
+                                           nonnumeric_x=it['nonnumeric_x'],
+                                           fill_bar=it['fill_bar'],
+                                           ctrl_fig_size=it['ctrl_fig_size'],
+                                           figs_externalize=it['figs_externalize'],
+                                           sections=it['sections'],
+                                           abbreviations=it['abbreviations'])
+        elif template_type == 'usac-testing_2D_bar_chart_and_meta' or template_type == 'usac-testing_2D_plots':
+            rendered_tex = template.render(title=it['title'],
+                                           make_index=it['make_index'],
+                                           fill_bar=it['fill_bar'],
+                                           ctrl_fig_size=it['ctrl_fig_size'],
+                                           figs_externalize=it['figs_externalize'],
+                                           sections=it['sections'],
+                                           abbreviations=it['abbreviations'])
+        elif template_type == 'usac-testing_3D_plots':
+            rendered_tex = template.render(title=it['title'],
+                                           make_index=it['make_index'],
+                                           use_fixed_caption=it['use_fixed_caption'],
+                                           ctrl_fig_size=it['ctrl_fig_size'],
+                                           figs_externalize=it['figs_externalize'],
+                                           sections=it['sections'],
+                                           abbreviations=it['abbreviations'])
+        elif template_type == 'usac-testing_2D_plots_mult_x_cols':
+            rendered_tex = template.render(title=it['title'],
+                                           make_index=it['make_index'],
+                                           ctrl_fig_size=it['ctrl_fig_size'],
+                                           figs_externalize=it['figs_externalize'],
+                                           sections=it['sections'],
+                                           abbreviations=it['abbreviations'])
+        texf_name = it['texf_name'] + '.tex'
+        if build_pdf:
+            pdf_name = it['texf_name'] + '.pdf'
+            pdf_l_info['pdf_name'].append(os.path.join(pdf_folder, pdf_name))
+
+        pdf_l_info['rendered_tex'].append(rendered_tex)
+        pdf_l_info['texf_name'].append(texf_name)
+    res = compile_tex(pdf_l_info['rendered_tex'], tex_folder, pdf_l_info['texf_name'], tex_infos['make_index'],
+                      pdf_l_info['pdf_name'], tex_infos['figs_externalize'])
+
+    return res
+
+
 def categorical_sort_3d(df, col_name, is_stringx, is_stringy, xy_axis_columns):
     if col_name:
         if col_name in xy_axis_columns:

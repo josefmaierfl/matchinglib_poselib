@@ -31,6 +31,7 @@ def calc_rt_diff_frame_to_frame(**vars):
     if len(vars['data_separators']) != (len(vars['partitions']) + 2):
         raise ValueError('Wrong number of data separators.')
 
+    from statistics_and_plot import use_log_axis
     needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']
     df = vars['data'][needed_cols]
     grpd_cols = vars['data_separators'] + vars['it_parameters']
@@ -60,8 +61,7 @@ def calc_rt_diff_frame_to_frame(**vars):
             elif mean_vals_used:
                 mean_list.append(tmp)
         for eval in vars['eval_columns']:
-            eval_log[eval].append(True if np.abs(np.log10(np.abs(tmp[eval].min())) -
-                                                 np.log10(np.abs(tmp[eval].max()))) > 1 else False)
+            eval_log[eval].append(use_log_axis(tmp[eval].min(), tmp[eval].max()))
     if mean_vals_used:
         if len(mean_list) != len(grp_keys):
             raise ValueError('Data is not consistent!')
@@ -407,7 +407,8 @@ def eval_corr_pool_converge(**keywords):
         enl_space_title, \
         handle_nans, \
         short_concat_str, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -635,26 +636,13 @@ def eval_corr_pool_converge(**keywords):
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
@@ -667,7 +655,15 @@ def eval_corr_pool_converge(**keywords):
         if tmp1.shape[0] < 4:
             if tmp1.shape[0] > 2:
                 poolsize_med = tmp1['poolSize'].median()
-                data_list.append(tmp1.loc[tmp1['poolSize'] == poolsize_med])
+                if tmp1.shape[0] % 2 == 0:
+                    tmp2 = tmp1.iloc[(tmp1['poolSize'] - poolsize_med).abs().argsort()[:2]]
+                else:
+                    tmp2 = tmp1.loc[tmp1['poolSize'] == poolsize_med]
+                if tmp2.shape[0] > 1:
+                    poolsize_mean = mean_with_strings(tmp2)
+                    data_list.append(poolsize_mean)
+                else:
+                    data_list.append(tmp2)
             else:
                 poolsize_mean = mean_with_strings(tmp1)
                 data_list.append(poolsize_mean)
@@ -678,7 +674,15 @@ def eval_corr_pool_converge(**keywords):
             tmp2 = tmp1.loc[((tmp1['poolSize'] >= take_edges.item(0)) & (tmp1['poolSize'] <= take_edges.item(1)))]
             if tmp2.shape[0] > 2:
                 poolsize_med = tmp2['poolSize'].median()
-                data_list.append(tmp2.loc[tmp2['poolSize'] == poolsize_med])
+                if tmp2.shape[0] % 2 == 0:
+                    tmp2 = tmp2.iloc[(tmp2['poolSize'] - poolsize_med).abs().argsort()[:2]]
+                else:
+                    tmp2 = tmp2.loc[tmp2['poolSize'] == poolsize_med]
+                if tmp2.shape[0] > 1:
+                    poolsize_mean = mean_with_strings(tmp2)
+                    data_list.append(poolsize_mean)
+                else:
+                    data_list.append(tmp2)
             elif tmp2.shape[0] > 1:
                 poolsize_mean = mean_with_strings(tmp2)
                 data_list.append(poolsize_mean)
@@ -816,26 +820,14 @@ def eval_corr_pool_converge(**keywords):
     #                               'large_meta_space_needed': False,
     #                               'caption': fig_name.replace('\\\\', ' ')
     #                               })
-    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][1]:
-        pdf_name = base_out_name + '.pdf'
-        res1 = abs(compile_tex(rendered_tex,
-                               keywords['tex_folder'],
-                               texf_name,
-                               tex_infos['make_index'],
-                               os.path.join(keywords['pdf_folder'], pdf_name),
-                               tex_infos['figs_externalize']))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                         keywords['pdf_folder'], True))
     else:
-        res1 = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                         None, False))
     if res1 != 0:
         res += res1
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
@@ -1137,25 +1129,14 @@ def eval_corr_pool_converge(**keywords):
                                               'enlarge_lbl_dist': None,
                                               })
                 tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-    template = ji_env.get_template('usac-testing_2D_plots_mult_x_cols.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
+
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][2]:
-        pdf_name = base_out_name + '.pdf'
-        res1 = abs(compile_tex(rendered_tex,
-                               keywords['tex_folder'],
-                               texf_name,
-                               tex_infos['make_index'],
-                               os.path.join(keywords['pdf_folder'], pdf_name),
-                               tex_infos['figs_externalize']))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots_mult_x_cols', keywords['tex_folder'],
+                                         base_out_name, keywords['pdf_folder'], True))
     else:
-        res1 = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots_mult_x_cols', keywords['tex_folder'], base_out_name,
+                                         None, False))
     if res1 != 0:
         res += res1
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
@@ -1401,7 +1382,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         enl_space_title, \
         handle_nans, \
         short_concat_str, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
 
     base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg', 'poolSize']
 
@@ -1577,26 +1559,13 @@ def eval_corr_pool_converge_vs_x(**keywords):
             tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'],
+                                        base_out_name, keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
@@ -1657,7 +1626,8 @@ def eval_mean_time_poolcorrs(**keywords):
         get_limits_log_exp, \
         enl_space_title, \
         handle_nans, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
 
     df_grp = keywords['data'].xs('mean', axis=1, level=1,
                                  drop_level=True).reset_index().drop([a for a in keywords['it_parameters']
@@ -1733,26 +1703,13 @@ def eval_mean_time_poolcorrs(**keywords):
                                       'use_string_labels': True,
                                       })
 
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'],
+                                        base_out_name, keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return res
@@ -1777,7 +1734,8 @@ def eval_mean_time_pool_3D_dist(**keywords):
         enl_space_title, \
         add_to_glossary, \
         handle_nans, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
 
     title = 'Mean Execution Times over the Last 30 Stereo Frames out of 150 Frames for Comparison of Different ' + \
             keywords['sub_title_it_pars']
@@ -1863,26 +1821,13 @@ def eval_mean_time_pool_3D_dist(**keywords):
                                           'use_string_labels': True,
                                           })
     tex_infos['abbreviations'] = gloss
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name + '-'.join(keywords['it_parameters'])
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'],
+                                        base_out_name, keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 

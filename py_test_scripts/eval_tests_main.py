@@ -346,6 +346,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         used_evals = sub_sub_test_nr[test_idx][tn_idx]
     else:
         used_evals = eval_nr
+    nr_evals =len(used_evals)
     comp_pars_list = []
     if any(test_name == a for a in evcn):
         for i in evals_w_compare:
@@ -361,11 +362,11 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             else:
                 comp_pars_list.append(None)
     else:
-        comp_pars_list = [None] * len(used_evals)
+        comp_pars_list = [None] * nr_evals
 
-    if cpu_use == 1 and not comp_pars:
+    if (cpu_use == 1 or nr_evals == 1) and not comp_pars:
         return eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
-    elif cpu_use == 1:
+    elif cpu_use == 1 or nr_evals == 1:
         evs_no_cmp = [a for i, a in enumerate(used_evals) if not comp_pars_list[i]]
         evs_cmp = [[i, a] for i, a in enumerate(used_evals) if comp_pars_list[i]]
         ret = eval_test_exec(data, output_path, test_name, test_nr, evs_no_cmp, None, None)
