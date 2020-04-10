@@ -572,7 +572,9 @@ def calcSatisticAndPlot_2D(data,
                 if pdf_nr < len(pdfsplitentry):
                     if pdfsplitentry[pdf_nr] == str(it_tmp[0]):
                         pdf_nr += 1
-            useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, False, False, True)
+            useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, False, False, True,
+                                                                         x_col_name if x_col_name != str(
+                                                                             grp_names[-1]) else None)
             if useless:
                 continue
 
@@ -1096,7 +1098,9 @@ def calcSatisticAndPlot_2D_partitions(data,
                     continue
 
                 #Construct tex-file
-                useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp2, False, False, True)
+                useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp2, False, False, True,
+                                                                             x_col_name if x_col_name != str(
+                                                                                 grp_names[-1]) else None)
                 if useless:
                     continue
                 is_numeric = pd.to_numeric(tmp2.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
@@ -4340,7 +4344,8 @@ def calcSatisticAndPlot_aggregate(data,
                 if pdf_nr < len(pdfsplitentry):
                     if pdfsplitentry[pdf_nr] == str(it_tmp[0]):
                         pdf_nr += 1
-            useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, True, 'tex_it_pars')
+            useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, True, True, True,
+                                                                         ['tex_it_pars', x_col_name])
             if useless:
                 continue
             is_neg = check_if_neg_values(tmp, col_name, use_log, use_limits)
