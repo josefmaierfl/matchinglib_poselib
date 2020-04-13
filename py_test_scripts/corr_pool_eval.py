@@ -377,6 +377,50 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02, key_name='Rt_di
         return get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3, key_name)
 
 
+def smooth_data(df, col_exclude=None):
+    from statistics_and_plot import is_mult_cols
+    if col_exclude is not None:
+        col_names, mult_cols = is_mult_cols(col_exclude)
+        if mult_cols:
+            incl_cols = [a for a in df.columns if not any(a == b for b in col_names)]
+        else:
+            incl_cols = [a for a in df.columns if a != col_names]
+        smooth_data(df.loc[:, incl_cols])
+    else:
+        incl_cols = list(df.columns)
+        for col in incl_cols:
+            first_idx = df.loc[:, col].first_valid_index()
+            last_idx = df.loc[:, col].last_valid_index()
+            nr_rows = df.loc[first_idx:last_idx, col].shape[0]
+            ws = nr_rows / 50
+            if ws < 10:
+                n = nr_rows / 10
+                if n < 5:
+                    return
+                elif n < 10:
+                    n = 5
+                else:
+                    n = 10
+            else:
+                n = int(round(nr_rows / ws))
+            tmp = df.loc[first_idx:last_idx, col]
+            tmp_pos = tmp.where(tmp >= 0)
+            tmp_neg = tmp.where(tmp <= 0)
+            nr_nans = max(tmp_pos.isnull().sum(), tmp_neg.isnull().sum())
+            if nr_nans / nr_rows < 0.8:
+                tmp_mean_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
+                tmp_mean_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
+                tmp_median_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).median()
+                tmp_median_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).median()
+                tmp_mean = tmp_mean_pos.fillna(0) + tmp_mean_neg.fillna(0)
+                tmp_median = tmp_median_pos.fillna(0) + tmp_median_neg.fillna(0)
+            else:
+                tmp_mean = tmp.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
+                tmp_median = tmp.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).median()
+            tmp1 = (3 * tmp_median + tmp_mean) / 4
+            df.loc[first_idx:last_idx, col] = tmp1.to_numpy()
+
+
 def eval_corr_pool_converge(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
@@ -389,6 +433,10 @@ def eval_corr_pool_converge(**keywords):
     needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
     if not all([a in keywords['eval_columns'] for a in needed_evals]):
         raise ValueError('Some specific entries within parameter eval_columns is missing')
+    if 'smooth' not in keywords:
+        keywords['smooth'] = False
+    if 'nr_plots_ddiff' not in keywords:
+        keywords['nr_plots_ddiff'] = 20
 
     keywords = prepare_io(**keywords)
     from statistics_and_plot import replaceCSVLabels, \
@@ -456,6 +504,8 @@ def eval_corr_pool_converge(**keywords):
     #         mult -= 1
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
+        if keywords['smooth']:
+            smooth_data(tmp1, 'Nr')
         tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05)
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
@@ -572,7 +622,7 @@ def eval_corr_pool_converge(**keywords):
             use_cols1 = [round(float(b), 6) for a in use_cols1 for b in a.split('/') if ev not in b]
             use_cols1 = [side_eval + str(a) + '$' if close_equ else side_eval + str(a) for a in use_cols1]
 
-            _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, use_cols)
+            _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, False, False, False, None, use_cols)
             # is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
             fig_name = capitalizeFirstChar(replaceCSVLabels(ev, True, False, True)) + \
@@ -747,19 +797,20 @@ def eval_corr_pool_converge(**keywords):
 
     nr_plots = len(use_plots)
     exp_value_o = exp_value
-    if nr_plots <= 20:
+    func_max = 6
+    if nr_plots <= func_max:
         nr_plots_i = [nr_plots]
     else:
-        pp = math.floor(nr_plots / 20)
-        nr_plots_i = [20] * int(pp)
-        rp = nr_plots - pp * 20
+        pp = math.floor(nr_plots / func_max)
+        nr_plots_i = [func_max] * int(pp)
+        rp = nr_plots - pp * func_max
         if rp > 0:
-            nr_plots_i += [nr_plots - pp * 20]
+            nr_plots_i += [nr_plots - pp * func_max]
     pcnt = 0
     for i1, it1 in enumerate(nr_plots_i):
         ps = use_plots[pcnt: pcnt + it1]
         pcnt += it1
-        if nr_plots > 20:
+        if nr_plots > func_max:
             sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
         else:
             sec_name1 = fig_name
@@ -1048,6 +1099,8 @@ def eval_corr_pool_converge(**keywords):
             tmpi = tmpi.sort_values(by=it_x).reset_index(drop=True)
             cols_list.append(tmpi)
         tmp1 = pd.concat(cols_list, axis=1, ignore_index=False)
+        if keywords['smooth']:
+            smooth_data(tmp1)
 
         t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
@@ -1091,24 +1144,25 @@ def eval_corr_pool_converge(**keywords):
                        ' vs correspondence pool sizes\\\\for parameters ' + \
                        strToLower(keywords['sub_title_it_pars']) + ' and properties ' + \
                        partition_part
-            legend_entries = [a for b in ev for a in itpars_cols if a in b]
+            legend_entries = [a for b in ev for a in itpars_cols if a in b and any([a == e for e in b.split('-')])]
 
             nr_plots = len(ev)
             exp_value_o = exp_value
-            if nr_plots <= 20:
+            func_max = keywords['nr_plots_ddiff']
+            if nr_plots <= func_max:
                 nr_plots_i = [nr_plots]
             else:
-                pp = math.floor(nr_plots / 20)
-                nr_plots_i = [20] * int(pp)
-                rp = nr_plots - pp * 20
+                pp = math.floor(nr_plots / func_max)
+                nr_plots_i = [func_max] * int(pp)
+                rp = nr_plots - pp * func_max
                 if rp > 0:
-                    nr_plots_i += [nr_plots - pp * 20]
+                    nr_plots_i += [nr_plots - pp * func_max]
             pcnt = 0
             for i1, it1 in enumerate(nr_plots_i):
                 ps = ev[pcnt: pcnt + it1]
                 cl = legend_entries[pcnt: pcnt + it1]
                 pcnt += it1
-                if nr_plots > 20:
+                if nr_plots > func_max:
                     sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
                 else:
                     sec_name1 = fig_name
@@ -1508,6 +1562,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         for a in ev:
             for b in it_idxs:
                 if b in a:
+                    if not any([e == b for e in a.split('-')]):
+                        continue
                     legend.append(tex_string_coding_style(b))
                     break
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, ev)

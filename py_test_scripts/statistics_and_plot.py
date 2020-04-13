@@ -568,15 +568,16 @@ def calcSatisticAndPlot_2D(data,
                 continue
 
             #Construct tex-file
-            if pdfsplitentry:
-                if pdf_nr < len(pdfsplitentry):
-                    if pdfsplitentry[pdf_nr] == str(it_tmp[0]):
-                        pdf_nr += 1
             useless, use_limits, use_log, exp_value = get_limits_log_exp(tmp, False, False, True,
                                                                          x_col_name if x_col_name != str(
                                                                              grp_names[-1]) else None)
             if useless:
                 continue
+
+            if pdfsplitentry:
+                if pdf_nr < len(pdfsplitentry):
+                    if pdfsplitentry[pdf_nr] == str(it_tmp[0]):
+                        pdf_nr += 1
 
             is_numeric = pd.to_numeric(tmp.reset_index()[grp_names[-1]], errors='coerce').notnull().all()
             section_name = replace_stat_names(it_tmp[-1]) + ' values for ' +\
@@ -721,8 +722,8 @@ def calcSatisticAndPlot_2D(data,
                     sections = [it]
                     tmp_nr += 1
             diff_pdfs.append(sections)
+            pdfs_info = []
             for it1 in diff_pdfs:
-                pdfs_info = []
                 title_tmp = ' '.join(tex_infos['title'].split(' ')[1:])
                 for st in stat_names:
                     # Get list of results using the same statistic

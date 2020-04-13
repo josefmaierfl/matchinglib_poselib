@@ -2653,7 +2653,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
             raise ValueError('test_nr is required correspondence_pool')
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 11))
+                evals = list(range(1, 11)) + [16]
             else:
                 evals = eval_nr
             for ev in evals:
@@ -2835,6 +2835,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'partition_x_axis': 'kpAccSd',
+                                          'nr_plots_ddiff': 2,
                                           'res_par_name': 'corrpool_size_converge'}
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_rt_diff2_frame_to_frame, \
@@ -3032,6 +3033,54 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          make_fig_index=True,
                                                          build_pdf=True,
                                                          figs_externalize=False)
+                elif ev == 16:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a Maximum ' \
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=30000$ Features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'poolSize']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''), ('poolSize', '')]
+                    it_parameters = ['stereoParameters_minPtsDistance']
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin'],
+                                      'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg'],
+                                      'eval_on': ['poolSize'],
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'partition_x_axis': 'kpAccSd',
+                                          'smooth': True,
+                                          'nr_plots_ddiff': 4,
+                                          'func_name': 'eval_corr_pool_converge_smooth',
+                                          'res_par_name': 'corrpool_size_converge_smooth'}
+                    from corr_pool_eval import filter_max_pool_size, \
+                        calc_rt_diff2_frame_to_frame, \
+                        eval_corr_pool_converge
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd'],  # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=filter_max_pool_size,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=eval_corr_pool_converge,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True)
                 else:
                     raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
