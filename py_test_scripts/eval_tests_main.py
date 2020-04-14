@@ -119,6 +119,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     with mp(processes=nr_used_cpus) as pool:
         procs = [pool.apply_async(read_file_list, (t, res_path)) for t in sub_dirs_split]
         for i, r in enumerate(procs):
+            t_cnt = 0
             while 1:
                 try:
                     res = r.get(1.0)
@@ -131,6 +132,12 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                 except mpc.TimeoutError:
                     processing_flush(cnt_dot)
                     cnt_dot += 1
+                    t_cnt += 1
+                    if t_cnt > 7200:
+                        logging.error('Timeout while reading file list for ' + test_name +
+                                      ', Test Nr ' + str(test_nr), exc_info=True)
+                        pool.terminate()
+                        return pd.DataFrame(), 0
                 except Exception:
                     logging.error('Fatal error while reading file list for ' + test_name +
                                   ', Test Nr ' + str(test_nr), exc_info=True)
@@ -161,6 +168,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     with mp(processes=nr_used_cpus) as pool:
         procs = [pool.apply_async(load_data, (t, test_name, test_nr)) for t in data_list_split]
         for i, r in enumerate(procs):
+            t_cnt = 0
             while 1:
                 try:
                     res = r.get(1.0)
@@ -169,6 +177,12 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                 except mpc.TimeoutError:
                     processing_flush(cnt_dot)
                     cnt_dot += 1
+                    t_cnt += 1
+                    if t_cnt > 7200:
+                        logging.error('Timeout while loading test results for ' + test_name +
+                                      ', Test Nr ' + str(test_nr), exc_info=True)
+                        pool.terminate()
+                        return pd.DataFrame(), 0
                 except Exception:
                     logging.error('Fatal error while loading test results for ' + test_name +
                                   ', Test Nr ' + str(test_nr), exc_info=True)
@@ -216,7 +230,7 @@ def load_data(data_list, test_name, test_nr):
     data_parts = []
     used_cols = en.get_used_eval_cols(test_name, test_nr)
     for elem in data_list:
-        csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
+        csv_data = pd.read_csv(elem[1], delimiter=';', engine='python')
         addSequInfo_sep = None
         for row in csv_data.itertuples():
             tmp = row.addSequInfo.split('_')
