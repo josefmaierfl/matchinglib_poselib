@@ -1916,7 +1916,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                         useFallBack = true;
                     }
                 }else {
-                    if (descrDist > ThTp) {
+                    if (parsMtch.checkDescriptorDist && (descrDist > ThTp)) {
                         useFallBack = true;
                     }
                 }
@@ -1982,7 +1982,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
             const int saltPepMinHighMax = 35, saltPepMaxHighMin = 220;
             do{
                 Mat patchwgn;
-                if((!useTN && (descrDist > ThTp))
+                if((!useTN && parsMtch.checkDescriptorDist && (descrDist > ThTp))
                 || (useTN && (descrDist > badDescrTH.maxVal))
                 || (!useTN && (descrDist < 0))){
                     if(!noPosChange) {
@@ -2097,12 +2097,12 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
                     descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp), descr21);
                 }
                 itCnt++;
-            }while(((!useTN && ((descrDist < minDescrDistTP) || (descrDist > ThTp)))
+            }while(((!useTN && ((descrDist < minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > ThTp))))
             || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear))
             || (descrDist > badDescrTH.maxVal))))
                && (itCnt < 25));
             if(itCnt >= 25){
-                if((!useTN && ((descrDist < 0.75 * minDescrDistTP) || (descrDist > 1.25 * ThTp)))
+                if((!useTN && ((descrDist < 0.75 * minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > 1.25 * ThTp))))
                    || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < 0.75 * ThTn))
                    || (descrDist < 0.75 * ThTnNear))
                                  || (descrDist > 1.2 * badDescrTH.maxVal)))) {
