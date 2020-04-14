@@ -240,7 +240,10 @@ def load_data(data_list, test_name, test_nr):
     data_parts = []
     used_cols = en.get_used_eval_cols(test_name, test_nr)
     for elem in data_list:
-        with lock:
+        if multproc:
+            with lock:
+                csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
+        else:
             csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
         addSequInfo_sep = None
         for row in csv_data.itertuples():
