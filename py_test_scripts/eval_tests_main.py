@@ -230,7 +230,7 @@ def load_data(data_list, test_name, test_nr):
     data_parts = []
     used_cols = en.get_used_eval_cols(test_name, test_nr)
     for elem in data_list:
-        csv_data = pd.read_csv(elem[1], delimiter=';', engine='python')
+        csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
         addSequInfo_sep = None
         for row in csv_data.itertuples():
             tmp = row.addSequInfo.split('_')
