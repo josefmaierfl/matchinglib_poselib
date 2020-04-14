@@ -17,6 +17,7 @@ import contextlib, logging
 # import time
 from copy import deepcopy
 import multiprocess.context as mpc
+from multiprocessing import Semaphore
 
 import evaluation_numbers as en
 
@@ -78,6 +79,11 @@ def RepresentsInt(s):
 # because the latter is only a wrapper function, not a proper class.
 # class MyPool(multiprocessing.pool.Pool):
 #     Process = NoDaemonProcess
+
+
+def init_load_csv(lock_):
+    global lock
+    lock = lock_
 
 
 def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
@@ -165,7 +171,8 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     df_parts = []
     cnt_dot = 0
     print('Loading data using', nr_used_cpus, 'processes')
-    with mp(processes=nr_used_cpus) as pool:
+    sem = Semaphore(32)
+    with mp(processes=nr_used_cpus, initializer=init_load_csv, initargs=(sem, )) as pool:
         procs = [pool.apply_async(load_data, (t, test_name, test_nr)) for t in data_list_split]
         for i, r in enumerate(procs):
             t_cnt = 0
@@ -227,10 +234,14 @@ def processing_flush(n, index=5):
 
 
 def load_data(data_list, test_name, test_nr):
+    multproc = False
+    if 'lock' in locals() or 'lock' in globals():
+        multproc = True
     data_parts = []
     used_cols = en.get_used_eval_cols(test_name, test_nr)
     for elem in data_list:
-        csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
+        with lock:
+            csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
         addSequInfo_sep = None
         for row in csv_data.itertuples():
             tmp = row.addSequInfo.split('_')
