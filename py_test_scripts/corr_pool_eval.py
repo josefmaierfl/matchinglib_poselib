@@ -385,7 +385,8 @@ def smooth_data(df, col_exclude=None):
             incl_cols = [a for a in df.columns if not any(a == b for b in col_names)]
         else:
             incl_cols = [a for a in df.columns if a != col_names]
-        smooth_data(df.loc[:, incl_cols])
+        df.loc[:, incl_cols] = smooth_data(df.loc[:, incl_cols]).to_numpy()
+        return df
     else:
         incl_cols = list(df.columns)
         for col in incl_cols:
@@ -396,7 +397,7 @@ def smooth_data(df, col_exclude=None):
             if ws < 10:
                 n = nr_rows / 10
                 if n < 5:
-                    return
+                    return df
                 elif n < 10:
                     n = 5
                 else:
@@ -419,6 +420,7 @@ def smooth_data(df, col_exclude=None):
                 tmp_median = tmp.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
             tmp1 = (3 * tmp_median + tmp_mean) / 4
             df.loc[first_idx:last_idx, col] = tmp1.to_numpy()
+            return df
 
 
 def eval_corr_pool_converge(**keywords):
@@ -505,7 +507,7 @@ def eval_corr_pool_converge(**keywords):
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         if keywords['smooth']:
-            smooth_data(tmp1, ['Nr', 'depthDistr', 'inlratMin', 'kpAccSd', 'stereoParameters_minPtsDistance'])
+            tmp1 = smooth_data(tmp1, ['Nr', 'depthDistr', 'inlratMin', 'kpAccSd', 'stereoParameters_minPtsDistance'])
         tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05)
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
@@ -1100,7 +1102,7 @@ def eval_corr_pool_converge(**keywords):
             cols_list.append(tmpi)
         tmp1 = pd.concat(cols_list, axis=1, ignore_index=False)
         if keywords['smooth']:
-            smooth_data(tmp1)
+            tmp1 = smooth_data(tmp1)
 
         t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
