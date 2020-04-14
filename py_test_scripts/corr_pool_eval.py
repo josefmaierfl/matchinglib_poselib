@@ -505,7 +505,7 @@ def eval_corr_pool_converge(**keywords):
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
         if keywords['smooth']:
-            smooth_data(tmp1, 'Nr')
+            smooth_data(tmp1, ['Nr', 'depthDistr', 'inlratMin', 'kpAccSd', 'stereoParameters_minPtsDistance'])
         tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05)
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
