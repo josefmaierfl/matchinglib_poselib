@@ -410,13 +410,13 @@ def smooth_data(df, col_exclude=None):
             if nr_nans / nr_rows < 0.8:
                 tmp_mean_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
                 tmp_mean_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
-                tmp_median_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type='boxcar', axis=0).median()
-                tmp_median_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type='boxcar', axis=0).median()
+                tmp_median_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
+                tmp_median_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
                 tmp_mean = tmp_mean_pos.fillna(0) + tmp_mean_neg.fillna(0)
                 tmp_median = tmp_median_pos.fillna(0) + tmp_median_neg.fillna(0)
             else:
                 tmp_mean = tmp.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
-                tmp_median = tmp.rolling(window=n, min_periods=3, center=True, win_type='boxcar', axis=0).median()
+                tmp_median = tmp.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
             tmp1 = (3 * tmp_median + tmp_mean) / 4
             df.loc[first_idx:last_idx, col] = tmp1.to_numpy()
 
