@@ -420,7 +420,7 @@ def smooth_data(df, col_exclude=None):
                 tmp_median = tmp.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
             tmp1 = (3 * tmp_median + tmp_mean) / 4
             df.loc[first_idx:last_idx, col] = tmp1.to_numpy()
-            return df
+        return df
 
 
 def eval_corr_pool_converge(**keywords):
