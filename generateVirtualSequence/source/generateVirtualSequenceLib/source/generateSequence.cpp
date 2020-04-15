@@ -10635,6 +10635,14 @@ bool genStereoSequ::checkCorrespondenceConsisty(const cv::Mat &x1, const cv::Mat
     return test;
 }
 
+//Set camera matrices from outside to be able to use function checkCorrespondenceConsisty
+void genStereoSequ::setCamMats(const cv::Mat &K1_, const cv::Mat &K2_){
+    K1 = K1_.clone();
+    K2 = K2_.clone();
+    K1i = K1.inv();
+    K2i = K2.inv();
+}
+
 //Check, if 3D points are consistent with image projections
 bool genStereoSequ::checkCorr3DConsistency(){
     CV_Assert((actCorrsImg1TPFromLast.cols == actCorrsImg2TPFromLast.cols) && ((int)actCorrsImg12TPFromLast_Idx.size() == actCorrsImg1TPFromLast.cols));

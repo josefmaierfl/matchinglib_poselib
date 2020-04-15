@@ -263,7 +263,7 @@ private:
     //Generates features and matches for correspondences of a given stereo frame (TN and TP) and stores them to disk
     bool generateCorrespondingFeatures();
     //Generates features and matches based on image patches and calculated homographies for either TN or TP
-    void generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
+    void generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                            bool useTN,
                                            std::vector<cv::KeyPoint> &frameKPs1,
                                            std::vector<cv::KeyPoint> &frameKPs2,
@@ -314,6 +314,7 @@ private:
     const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
     size_t featureIdxBegin = 0;//Index for features at the beginning of every calculated frame
+    std::vector<size_t> featureIdxRepPatt;//Index to keypoints, descriptors, and featureImgIdx with possible duplicates to simulate repeated patterns
     std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
     size_t nrCorrsFullSequ = 0;//Number of predicted overall correspondences (TP+TN) for all frames

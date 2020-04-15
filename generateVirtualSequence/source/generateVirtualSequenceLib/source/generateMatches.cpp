@@ -113,6 +113,7 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
 
     K1i = K1.inv();
     K2i = K2.inv();
+    setCamMats(K1, K2);
     kpErrors.clear();
     featureIdxBegin = 0;
     adaptPatchSize();
@@ -1349,7 +1350,7 @@ void shuffleVector(std::vector<T> &idxs, size_t si){
     std::shuffle(idxs.begin(), idxs.end(), std::mt19937{std::random_device{}()});
 }
 
-void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
+void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      bool useTN,
                                                      std::vector<cv::KeyPoint> &frameKPs1,
                                                      std::vector<cv::KeyPoint> &frameKPs2,
@@ -1361,7 +1362,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
     //Generate feature for every TP or TN
     int show_cnt = 0;
     const int show_interval = 50;
-    size_t featureIdx = featureIdxBegin;
+    size_t featureIdx = featureIdxBegin_;
 
     //Calculate image intensity noise distribution for TNs
     double stdNoiseTN = getRandDoubleValRng(2.0, 10.0);
@@ -4413,7 +4414,7 @@ bool genMatchSequ::readPointClouds(const std::string &path, const std::string &b
         movObj3DPtsWorldAllFrames.resize(nrMovObjAllFrames);
         for (size_t i = 0; i < nrMovObjAllFrames; ++i) {
             string fname = filename + "_movObj3DPts_" + std::to_string(i) + ".pcd";
-            if (pcl::io::loadPCDFile(staticWorld3DPtsFileName, movObj3DPtsWorldAllFrames[i]) == -1) {
+            if (pcl::io::loadPCDFile(fname, movObj3DPtsWorldAllFrames[i]) == -1) {
                 cerr << "Could not read PCL point cloud " << staticWorld3DPtsFileName << endl;
                 return false;
             }

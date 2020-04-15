@@ -664,6 +664,7 @@ protected:
 	bool startCalc_internal();
     double project3DError(const cv::Mat &x, const cv::Mat &X, const cv::Mat &Ki);
     bool checkCorrespondenceConsisty(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &X);
+    void setCamMats(const cv::Mat &K1, const cv::Mat &K2);
 
 private:
 	void constructCamPath();
