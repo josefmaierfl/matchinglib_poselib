@@ -981,6 +981,193 @@ bool genMatchSequ::getFeatures() {
     }
     descriptors1_tmp.copyTo(descriptors1);
 
+    //Init index to keypoints, descriptors and featureImgIdx with optionally containing duplicates
+    bool repStereo = !(nearZero(parsMtch.repeatPatternPortStereo.first) && nearZero(parsMtch.repeatPatternPortStereo.second));
+    bool repFrame = !(nearZero(parsMtch.repeatPatternPortFToF.first) && nearZero(parsMtch.repeatPatternPortFToF.second));
+    if(!repFrame && !repStereo) {
+        featureIdxRepPatt = vector<size_t>(featureImgIdx.size());
+        std::iota(featureIdxRepPatt.begin(), featureIdxRepPatt.end(), 0);
+    }else{
+        size_t kpCnt2 = 0, sum_idxs = 0;
+        vector<size_t> kpPtr(featureImgIdx.size());
+        std::iota(kpPtr.begin(), kpPtr.end(), 0);
+        double repPortF = 0;
+        if(repFrame){
+            if(nearZero(parsMtch.repeatPatternPortFToF.first - parsMtch.repeatPatternPortFToF.second)){
+                repPortF = parsMtch.repeatPatternPortFToF.first;
+            }else{
+                repPortF = getRandDoubleValRng(parsMtch.repeatPatternPortFToF.first, parsMtch.repeatPatternPortFToF.second);
+            }
+        }
+        for(size_t i = 0; i < totalNrFrames; ++i){
+            double repPortS = 0;
+            vector<size_t> kpPtr_tmp;
+            size_t repsF_size = 0;
+            if(!repStereo && repFrame && (i == 0)){
+                if(nrCorrs[0] > kpCnt){
+                    return false;
+                }
+                featureIdxRepPatt = vector<size_t>(nrCorrs[0]);
+                std::iota(featureIdxRepPatt.begin(), featureIdxRepPatt.end(), 0);
+                kpCnt2 = nrCorrs[0];
+                continue;
+            }
+            //Get indices for repeated patterns from frame to frame
+            if(repFrame){
+                if(i == 0){
+                    kpPtr_tmp = vector<size_t>(nrCorrs[0]);
+                    std::iota(kpPtr_tmp.begin(), kpPtr_tmp.end(), 0);
+                    kpCnt2 = nrCorrs[0];
+                    repsF_size = 0;
+                    sum_idxs = nrCorrs[0];
+                }else{
+                    vector<size_t> uniquesF, repsF;
+                    auto uniqueKpF = static_cast<size_t>(std::round(static_cast<double>(nrCorrs[i]) * (1.0 - repPortF)));
+                    size_t repKpF = nrCorrs[i] - uniqueKpF;
+                    if((kpCnt2 + uniqueKpF) > kpCnt){
+                        kpCnt = kpCnt2;
+                        break;
+                    }
+                    size_t uniEndF = kpCnt2 + uniqueKpF;
+                    uniquesF.insert(uniquesF.end(), kpPtr.begin() + kpCnt2, kpPtr.begin() + uniEndF);
+                    kpCnt2 = uniEndF;
+                    if(repKpF < 6){
+                        kpPtr_tmp.resize(kpPtr_tmp.size() + repKpF,
+                                featureIdxRepPatt[featureIdxRepPatt.size() - nrCorrs[i - 1] + (rand2() % (nrCorrs[i - 1]))]);
+                        kpPtr_tmp.insert(kpPtr_tmp.end(), uniquesF.begin(), uniquesF.end());
+                        repsF_size = repKpF;
+                    }else{
+                        size_t maxSimilarF = std::max(static_cast<size_t>(rand2() % (repKpF / 3)), static_cast<size_t>(1));
+                        std::uniform_int_distribution<size_t> distributionF;
+                        if(maxSimilarF > 1) {
+                            distributionF = std::uniform_int_distribution<size_t>(1, maxSimilarF);
+                        }
+                        const size_t idxF_max = nrCorrs[i - 1];
+                        size_t rep_cntF = 0, idxF = 0;
+                        vector<size_t> idx_tmp(nrCorrs[i - 1]);
+                        std::iota(idx_tmp.begin(), idx_tmp.end(), featureIdxRepPatt.size() - nrCorrs[i - 1]);
+                        std::shuffle(idx_tmp.begin(), idx_tmp.end(), rand2);
+                        while(rep_cntF < repKpF){
+                            idxF++;
+                            if(idxF == idxF_max){
+                                repsF.resize(repsF.size() + repKpF - rep_cntF, featureIdxRepPatt[idx_tmp[idxF - 1]]);
+                                break;
+                            }
+                            size_t nrReps = 1;
+                            if(maxSimilarF > 1) {
+                                nrReps = distributionF(rand_gen);
+                            }
+                            if((rep_cntF + nrReps) > repKpF){
+                                nrReps = repKpF - rep_cntF;
+                            }
+                            repsF.resize(repsF.size() + nrReps, featureIdxRepPatt[idx_tmp[idxF - 1]]);
+                            rep_cntF += nrReps;
+                        }
+                        kpPtr_tmp.insert(kpPtr_tmp.end(), repsF.begin(), repsF.end());
+                        kpPtr_tmp.insert(kpPtr_tmp.end(), uniquesF.begin(), uniquesF.end());
+                        repsF_size = repsF.size();
+                    }
+                    sum_idxs += nrCorrs[i];
+                }
+            }else{
+                kpPtr_tmp = vector<size_t>(nrCorrs[i]);
+                std::iota(kpPtr_tmp.begin(), kpPtr_tmp.end(), kpCnt2);
+            }
+
+            //Get indices for repeated patterns inbetween stereo frames
+            if(repStereo) {
+                if (nearZero(parsMtch.repeatPatternPortStereo.first - parsMtch.repeatPatternPortStereo.second)) {
+                    repPortS = parsMtch.repeatPatternPortStereo.first;
+                } else {
+                    repPortS = getRandDoubleValRng(parsMtch.repeatPatternPortStereo.first,
+                                                   parsMtch.repeatPatternPortStereo.second);
+                }
+
+                auto uniqueKpS = static_cast<size_t>(std::round(static_cast<double>(nrCorrs[i]) * (1.0 - repPortS)));
+                size_t repKpS = nrCorrs[i] - uniqueKpS;
+                if (!repFrame && ((kpCnt2 + uniqueKpS + repKpS / 2) >= kpCnt)) {
+                    kpCnt = kpCnt2;
+                    break;
+                }
+                //size_t kpCnt2S = 0;
+                //size_t uniEndS = kpCnt2 + uniqueKpS;
+                vector<size_t> uniquesS;
+                vector<size_t> repsS;
+                uniquesS.insert(uniquesS.end(), kpPtr_tmp.begin(), kpPtr_tmp.begin() + uniqueKpS);
+                if (repKpS == 0) {
+                    featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                    if(!repFrame) {
+                        kpCnt2 += nrCorrs[i];
+                        sum_idxs += nrCorrs[i];
+                    }
+                    continue;
+                } else if (repKpS == 1) {
+                    uniquesS.push_back(kpPtr_tmp[uniqueKpS]);
+                    featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                    if(!repFrame) {
+                        kpCnt2 += nrCorrs[i];
+                        sum_idxs += nrCorrs[i];
+                    }
+                    continue;
+                } else if (repKpS < 9) {
+                    featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                    featureIdxRepPatt.resize(featureIdxRepPatt.size() + repKpS, kpPtr_tmp[uniqueKpS]);
+                    if(!repFrame) {
+                        std::shuffle(featureIdxRepPatt.begin() + sum_idxs, featureIdxRepPatt.end(), rand2);
+                        kpCnt2 += uniqueKpS + 1;
+                        sum_idxs += nrCorrs[i];
+                    }else{
+                        std::shuffle(featureIdxRepPatt.begin() + sum_idxs - nrCorrs[i], featureIdxRepPatt.end(), rand2);
+                    }
+                    continue;
+                }
+                size_t maxSimilarS = std::max(static_cast<size_t>(rand2() % (repKpS / 3)), static_cast<size_t>(3));
+                if(repsF_size > 0){
+                    if( nrCorrs[i] / maxSimilarS < repsF_size){
+                        maxSimilarS = max(nrCorrs[i] / repsF_size, static_cast<size_t>(2));
+                    }
+                }
+                std::uniform_int_distribution<size_t> distributionS;
+                if(maxSimilarS > 2){
+                    distributionS = std::uniform_int_distribution<size_t>(2, maxSimilarS);
+                }
+                size_t rep_cntS = 0, idxS = uniqueKpS;
+                while (rep_cntS < repKpS) {
+                    idxS++;
+                    if (idxS == nrCorrs[i]) {
+                        repsS.resize(repsS.size() + repKpS - rep_cntS, kpPtr_tmp[idxS - 1]);
+                        break;
+                    }
+                    size_t nrReps = 2;
+                    if(maxSimilarS > 2){
+                        nrReps = distributionS(rand_gen);
+                    }
+                    if ((rep_cntS + nrReps) > repKpS) {
+                        nrReps = repKpS - rep_cntS;
+                    }
+                    repsS.resize(repsS.size() + nrReps, kpPtr_tmp[idxS - 1]);
+                    rep_cntS += nrReps;
+                }
+                featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                featureIdxRepPatt.insert(featureIdxRepPatt.end(), repsS.begin(), repsS.end());
+                if(!repFrame) {
+                    std::shuffle(featureIdxRepPatt.begin() + sum_idxs, featureIdxRepPatt.end(), rand2);
+                    kpCnt2 += idxS;
+                    sum_idxs += nrCorrs[i];
+                }else{
+                    std::shuffle(featureIdxRepPatt.begin() + sum_idxs - nrCorrs[i], featureIdxRepPatt.end(), rand2);
+                    if(idxS <= repsF_size){
+                        kpCnt2 -= nrCorrs[i] - repsF_size;
+                    }else{
+                        kpCnt2 -= nrCorrs[i] - repsF_size - idxS;
+                    }
+                }
+            }
+        }
+        if(featureImgIdx.size() > sum_idxs){
+            featureIdxRepPatt.insert(featureIdxRepPatt.end(), kpPtr.begin() + kpCnt2, kpPtr.end());
+        }
+    }
 
     if (kpCnt < nrCorrsFullSequ) {
         cout << "Too less keypoints - please provide additional images! "
@@ -1022,16 +1209,16 @@ bool genMatchSequ::getFeatures() {
         for(size_t i = 0; i < nrFramesGenMatches; ++i){
             vector<pair<size_t,size_t>> imgUsageFrequ;
             map<size_t,size_t> imgIdx;
-            imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdx], 1));
-            imgIdx[featureImgIdx[featureIdx]] = 0;
+            imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[featureIdx]], 1));
+            imgIdx[featureImgIdx[featureIdxRepPatt[featureIdx]]] = 0;
             featureIdx++;
             size_t idx = 1;
             for (size_t j = 1; j < nrCorrs[i]; ++j) {
-                if(imgIdx.find(featureImgIdx[featureIdx]) != imgIdx.end()){
-                    imgUsageFrequ[imgIdx[featureImgIdx[featureIdx]]].second++;
+                if(imgIdx.find(featureImgIdx[featureIdxRepPatt[featureIdx]]) != imgIdx.end()){
+                    imgUsageFrequ[imgIdx[featureImgIdx[featureIdxRepPatt[featureIdx]]]].second++;
                 }else{
-                    imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdx], 1));
-                    imgIdx[featureImgIdx[featureIdx]] = idx;
+                    imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[featureIdx]], 1));
+                    imgIdx[featureImgIdx[featureIdxRepPatt[featureIdx]]] = idx;
                     idx++;
                 }
                 featureIdx++;
@@ -1370,9 +1557,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
     meanIntTNNoise *= pow(-1.0, (double)(rand2() % 2));
 
     //Check if we need to calculate a keypoint position in the warped patch
-    bool kpCalcNeeded = !nearZero((double)keypoints1[featureIdx].angle + 1.0)
-            || (keypoints1[featureIdx].octave != 0)
-            || (keypoints1[featureIdx].class_id != -1);
+    bool kpCalcNeeded = !nearZero((double)keypoints1[featureIdxRepPatt[featureIdx]].angle + 1.0)
+            || (keypoints1[featureIdxRepPatt[featureIdx]].octave != 0)
+            || (keypoints1[featureIdxRepPatt[featureIdx]].class_id != -1);
 
     //Maximum descriptor distance for TP
     double ThTp = badDescrTH.median + (badDescrTH.maxVal - badDescrTH.median) / 3.0;
@@ -1446,19 +1633,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         //Get image (check if already in memory)
         Mat img;
         if(loadImgsEveryFrame){
-            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdx_tmp]) != imgFrameIdxMap[actFrameCnt].first.end()){
-                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdx_tmp]]];
+            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]) != imgFrameIdxMap[actFrameCnt].first.end()){
+                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]]];
             }
             else{
-                img = cv::imread(imageList[featureImgIdx[featureIdx_tmp]], IMREAD_GRAYSCALE);
+                img = cv::imread(imageList[featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]], IMREAD_GRAYSCALE);
             }
         } else{
-            img = imgs[featureImgIdx[featureIdx_tmp]];
+            img = imgs[featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]];
         }
 
         //Extract image patch
-        KeyPoint kp = keypoints1[featureIdx_tmp];
-        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdx_tmp], keypoints1[featureIdx_tmp]));
+        KeyPoint kp = keypoints1[featureIdxRepPatt[featureIdx_tmp]];
+        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[featureIdx_tmp]], keypoints1[featureIdxRepPatt[featureIdx_tmp]]));
 
         //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
         // to estimate the minimal necessary patch size
@@ -1911,7 +2098,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                 useFallBack = true;
             }else{
                 //Check matchability
-                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp), descr21);
+                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]), descr21);
                 if(useTN){
                     if (((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear)) {
                         useFallBack = true;
@@ -2072,7 +2259,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                             cerr << "Unable to calculate a matching descriptor! Using the original one - "
                                     "this will result in a descriptor distance of 0 for this particular correspondence!"
                                  << endl;
-                            descr21 = descriptors1.row((int)featureIdx_tmp).clone();
+                            descr21 = descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]).clone();
                             break;
                         }else{
                             noPosChange = true;
@@ -2095,7 +2282,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                 }
                 if((err == 0) && !itFI){
                     //Check matchability
-                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdx_tmp), descr21);
+                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]), descr21);
                 }
                 itCnt++;
             }while(((!useTN && ((descrDist < minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > ThTp))))
@@ -2136,7 +2323,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                         desrc_tmp,
                                                         parsMtch.keyPointType) == 0) {
                             if (!pkp21.empty()) {
-                                double descrDist_tmp = getDescriptorDistance(descriptors1.row((int) featureIdx_tmp),
+                                double descrDist_tmp = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]),
                                                                              desrc_tmp);
                                 if (!nearZero(descrDist_tmp)) {
                                     cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
@@ -2169,7 +2356,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                     }
 #endif
 
-                    descr21 = descriptors1.row((int) featureIdx_tmp).clone();
+                    descr21 = descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]).clone();
                     kp2 = kp;
                     kp2err = Point2f(0, 0);
                     descrDist = 0;
@@ -2206,7 +2393,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         }
         frameKPs1[i] = kp;
         frameKPs2[i] = kp2;
-        frameDescr1.push_back(descriptors1.row((int)featureIdx_tmp).clone());
+        frameDescr1.push_back(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]).clone());
         frameDescr2.push_back(descr21.clone());
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 

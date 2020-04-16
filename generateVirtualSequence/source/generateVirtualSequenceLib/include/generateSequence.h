@@ -501,7 +501,10 @@ public:
     verbose(verbose_),
     writeIntermRes_path(writeIntermRes_path_),
     filter_occluded_points(filter_occluded_points_),
-    pars(StereoSequParameters()){};
+    pars(StereoSequParameters()){
+        long int seed = randSeed(rand_gen);
+        randSeed(rand2, seed);
+    };
     genStereoSequ(const genStereoSequ& gss):
             verbose(gss.verbose),
             writeIntermRes_path(gss.writeIntermRes_path),
