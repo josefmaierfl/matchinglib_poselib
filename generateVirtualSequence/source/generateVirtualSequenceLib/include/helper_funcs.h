@@ -131,6 +131,9 @@ double quatAngle(Eigen::Vector4d & Q);
 //Round every entry of a matrix to its nearest integer
 cv::Mat roundMat(const cv::Mat& m);
 
+//Checks if the given matrix is an identity matrix
+bool isIdentityMat(const cv::Mat& m);
+
 /* -------------------------- Functions -------------------------- */
 
 //Checks, if determinants, etc. are too close to 0

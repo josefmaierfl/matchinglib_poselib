@@ -507,7 +507,8 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
                                                        int64_t idx3D,
                                                        int64_t idx3D2,
                                                        size_t keyPIdx,
-                                                       bool visualize){
+                                                       bool visualize,
+                                                       bool forCam1){
     if(!check2D3DConsistency(x1, x2, X, idx3D, idx3D2)){
         throw SequenceException("2D is not consistend with 3D for calculating homographies!");
     }
@@ -547,7 +548,7 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
                 plane = trans * get<0>(planeTo3DIdx[idx3D]);
             }
             try {
-                return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize);
+                return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, plane, visualize, forCam1);
             } catch (SequenceException &e) {
                 cout << "Exception while recalculating old homography: " << e.what() << endl;
                 throw;
@@ -576,14 +577,19 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
                                                  int64_t idx3D,
                                                  size_t keyPIdx,
                                                  cv::InputArray planeNVec,
-                                                 bool visualize){
+                                                 bool visualize,
+                                                 bool forCam1){
     CV_Assert((X.rows == 3) && (X.cols == 1));
     CV_Assert((x1.rows == 3) && (x1.cols == 1));
     CV_Assert((x2.rows == 3) && (x2.cols == 1));
 
     Mat pn, bn, p1;
     double d;
+    Mat Xl1;
     if(planeNVec.empty()) {
+        if(forCam1){
+            return cv::Mat::eye(3, 3, CV_64FC1);
+        }
         //Get the ray to X from cam 1
         Mat b1 = K1i * x1;
         //Get the ray direction to X from cam 2
@@ -725,11 +731,27 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     }
 
     //Project the 3 3D points into the second image
-    Mat x22 = K2 * (actR * X2 + actT);
+    Mat x21, x22, x23, x24;
+    if(forCam1 && !planeNVec.empty()){
+        Mat t21 = absCamCoordinates[actFrameCnt - 1].R.t() * (absCamCoordinates[actFrameCnt].t - absCamCoordinates[actFrameCnt - 1].t);
+        Mat R21 = absCamCoordinates[actFrameCnt - 1].R.t() * absCamCoordinates[actFrameCnt].R;
+        Mat X1 = R21 * X + t21;
+        X2 = R21 * X2 + t21;
+        X3 = R21 * X3 + t21;
+        X4 = R21 * X4 + t21;
+        x21 = K1 * X1;
+        x21 /= x21.at<double>(2);
+        x22 = K1 * X2;
+        x23 = K1 * X3;
+        x24 = K1 * X4;
+    }else{
+        x21 = x2;
+        x22 = K2 * (actR * X2 + actT);
+        x23 = K2 * (actR * X3 + actT);
+        x24 = K2 * (actR * X4 + actT);
+    }
     x22 /= x22.at<double>(2);
-    Mat x23 = K2 * (actR * X3 + actT);
     x23 /= x23.at<double>(2);
-    Mat x24 = K2 * (actR * X4 + actT);
     x24 /= x24.at<double>(2);
 
     //Calculate projective/perspective homography
@@ -740,7 +762,7 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     x1all.row(3) = x14.rowRange(0,2).t();
     x1all.convertTo(x1all, CV_32FC1);
     Mat x2all = Mat::ones(4,2, CV_64FC1);
-    x2all.row(0) = x2.rowRange(0,2).t();
+    x2all.row(0) = x21.rowRange(0,2).t();
     x2all.row(1) = x22.rowRange(0,2).t();
     x2all.row(2) = x23.rowRange(0,2).t();
     x2all.row(3) = x24.rowRange(0,2).t();
@@ -754,6 +776,9 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
     tback.at<double>(0,2) = tm.at<double>(0);
     tback.at<double>(1,2) = tm.at<double>(1);
     H = tback * H;
+    if(forCam1 && !planeNVec.empty()){
+        H = H.inv();
+    }
     return H.clone();
 }
 
@@ -1565,8 +1590,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      std::vector<cv::Mat> &homo,
                                                      std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp){
     //Generate feature for every TP or TN
-    int show_cnt = 0;
-    const int show_interval = 50;
+//    int show_cnt = 0;
+//    const int show_interval = 50;
     size_t featureIdx = featureIdxBegin_;
 
     //Calculate image intensity noise distribution for TNs
@@ -1589,38 +1614,42 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
     //Minimum descriptor distance for TN which are near to their correct position
     double ThTnNear = (minDescrDistTP + ThTn) / 2.0;
 
-    std::normal_distribution<double> distr;
+    PatchCInfo patchInfos(minDescrDistTP, useTN, stdNoiseTN, meanIntTNNoise, kpCalcNeeded, ThTp, ThTn, ThTnNear);
+
+    //std::normal_distribution<double> distr;
     int nrcombCorrs;
     if(useTN){
         nrcombCorrs = combNrCorrsTN;
         double posMeanErr = getRandDoubleValRng(0, 5.0);
         double maxErr = getRandDoubleValRng(posMeanErr + 1.0, 10.0);
         double posStdErr = getRandDoubleValRng(0, (maxErr - posMeanErr) / 3.5);
-        distr = std::normal_distribution<double>(posMeanErr, posStdErr);
+        patchInfos.distr = std::normal_distribution<double>(posMeanErr, posStdErr);
     }else{
         nrcombCorrs = combNrCorrsTP;
-        distr = std::normal_distribution<double>(parsMtch.keypErrDistr.first, parsMtch.keypErrDistr.second);
+        patchInfos.distr = std::normal_distribution<double>(parsMtch.keypErrDistr.first, parsMtch.keypErrDistr.second);
     }
 
     for (int i = 0; i < nrcombCorrs; ++i) {
-        size_t featureIdx_tmp = featureIdx;
+        patchInfos.featureIdx_tmp = featureIdx;
+        patchInfos.i = i;
         //Check if the feature index is higher than the available nr of features
-        if (featureIdx_tmp >= featureImgIdx.size()){
+        if (patchInfos.featureIdx_tmp >= featureImgIdx.size()){
             //Set the index to a random number in the allowed range
             cerr << "Feature index out of range for a few correspondences. Using new random index which "
                     "will point to an already used feature." << endl;
-            featureIdx_tmp = (size_t)rand2() % featureImgIdx.size();
+            patchInfos.featureIdx_tmp = (size_t)rand2() % featureImgIdx.size();
         }
-        bool visualize = false;
-        if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((show_cnt % show_interval) == 0)){
-            visualize = true;
+        patchInfos.visualize = false;
+        if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((patchInfos.show_cnt % patchInfos.show_interval) == 0)){
+            patchInfos.visualize = true;
         }
-        show_cnt++;
+        patchInfos.show_cnt++;
         //Calculate homography
-        Mat H;
+        Mat H, H1_dist;
         bool succ = true;
+        bool succCam1 = true;
         if(useTN){
-            H = getHomographyForDistortionTN(combCorrsImg1TN.col(i), visualize);
+            H = getHomographyForDistortionTN(combCorrsImg1TN.col(i), patchInfos.visualize);
         }else {
             Mat X = Mat(comb3DPts[i], true).reshape(1);
             int64_t idx3D;
@@ -1636,14 +1665,29 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      idx3D,
                                                      combCorrsImg12TP_IdxWorld[i],
                                                      featureIdx,
-                                                     visualize);
+                                                     patchInfos.visualize);
             }catch(SequenceException &e){
                 cout << "Using random homography." << endl;
                 succ = false;
             }
+            if(parsMtch.distortPatchCam1){
+                try {
+                    H1_dist = getHomographyForDistortionChkOld(X,
+                                                               combCorrsImg1TP.col(i),
+                                                               combCorrsImg1TP.col(i),
+                                                               idx3D,
+                                                               combCorrsImg12TP_IdxWorld[i],
+                                                               featureIdx,
+                                                               patchInfos.visualize,
+                                                               true);
+                }catch(SequenceException &e){
+                    cout << "Using random homography for distorting patches in first camera." << endl;
+                    succCam1 = false;
+                }
+            }
             if(((idx3D >= 0) || !combCorrsImg12TP_IdxWorld2.empty()) && !planeTo3DIdx.empty()){
                 if(planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()) {
-                    featureIdx_tmp = get<1>(planeTo3DIdx[idx3D]);
+                    patchInfos.featureIdx_tmp = get<1>(planeTo3DIdx[idx3D]);
                 }
             }
         }
@@ -1651,736 +1695,25 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         //Get image (check if already in memory)
         Mat img;
         if(loadImgsEveryFrame){
-            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]) != imgFrameIdxMap[actFrameCnt].first.end()){
-                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]]];
+            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]) != imgFrameIdxMap[actFrameCnt].first.end()){
+                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]]];
             }
             else{
-                img = cv::imread(imageList[featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]], IMREAD_GRAYSCALE);
+                img = cv::imread(imageList[featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]], IMREAD_GRAYSCALE);
             }
         } else{
-            img = imgs[featureImgIdx[featureIdxRepPatt[featureIdx_tmp]]];
+            img = imgs[featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]];
         }
 
         //Extract image patch
-        KeyPoint kp = keypoints1[featureIdxRepPatt[featureIdx_tmp]];
-        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[featureIdx_tmp]], keypoints1[featureIdxRepPatt[featureIdx_tmp]]));
+        KeyPoint kp = keypoints1[featureIdxRepPatt[patchInfos.featureIdx_tmp]];
+        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]],
+                keypoints1[featureIdxRepPatt[patchInfos.featureIdx_tmp]]));
 
-        //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
-        // to estimate the minimal necessary patch size
-        cv::Rect patchROIimg1(0,0,3,3), patchROIimg2(0,0,3,3), patchROIimg21(0,0,3,3);
-        cv::Point2d ellipseCenter;
-        double ellipseRot = 0;
-        cv::Size2d axes;
-        bool useFallBack = false;
-        bool noEllipse = false;
-        bool reflectionX = false;
-        bool reflectionY = false;
-        const double minPatchSize = 41.0;
-        cv::Size imgFeatureSize = img.size();
-        if(succ) {
-            succ = getRectFitsInEllipse(H,
-                                        kp,
-                                        patchROIimg1,
-                                        patchROIimg2,
-                                        patchROIimg21,
-                                        ellipseCenter,
-                                        ellipseRot,
-                                        axes,
-                                        reflectionX,
-                                        reflectionY,
-                                        imgFeatureSize);
-        }
-        if(!succ){
-            //If the calculation of the necessary patch size failed, calculate a standard patch
-            noEllipse = true;
-            int fbCnt = 0;
-            do {
-                fbCnt++;
-                useFallBack = false;
-                int patchSize = minPatchSize2;//Must be an odd number
-                if(!H.empty()) {
-                    do {
-                        Mat kpm = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
-                        kpm = H * kpm;
-                        kpm /= kpm.at<double>(2);
-                        Point2i midPt((int) round(kpm.at<double>(0)), (int) round(kpm.at<double>(1)));
-
-                        if (!getImgROIs(H,
-                                        midPt,
-                                        patchSize,
-                                        patchROIimg1,
-                                        patchROIimg2,
-                                        patchROIimg21,
-                                        reflectionX,
-                                        reflectionY,
-                                        imgFeatureSize,
-                                        kp,
-                                        maxPatchSizeMult2)) {
-                            useFallBack = true;
-                            break;
-                        }
-
-                        if ((patchROIimg1.width > (double) (maxPatchSizeMult2 * minPatchSize2))
-                            || (patchROIimg1.height > (double) (maxPatchSizeMult2 * minPatchSize2))
-                            || (patchROIimg2.width > (double) (maxPatchSizeMult2 * minPatchSize2))
-                            || (patchROIimg2.height > (double) (maxPatchSizeMult2 * minPatchSize2))) {
-                            useFallBack = true;
-                            break;
-                        }
-
-                        if ((patchROIimg2.width < minPatchSize) ||
-                            (patchROIimg2.height < minPatchSize)) {
-                            //Calc a bigger patch size for the warped patch
-                            patchSize = (int) ceil(1.2f * (float) patchSize);
-                            patchSize += (patchSize + 1) % 2;//Must be an odd number
-                        }
-
-                    } while (((patchROIimg2.width < minPatchSize) || (patchROIimg2.height < minPatchSize)) &&
-                             !useFallBack);
-                }else{
-                    useFallBack = true;
-                }
-                if (useFallBack) {
-                    //Construct a random affine homography
-                    //Generate the non-isotropic scaling of the deformation (shear)
-                    double d1, d2;
-                    d1 = getRandDoubleValRng(0.8, 1.0);
-                    d2 = getRandDoubleValRng(0.8, 1.0);
-                    size_t sign1 = rand2() % 6;
-                    if (sign1 == 0) {
-                        d1 *= -1.0;
-                    }
-                    sign1 = rand2() % 6;
-                    if (sign1 == 0) {
-                        d2 *= -1.0;
-                    }
-                    Mat D = Mat::eye(2, 2, CV_64FC1);
-                    D.at<double>(0, 0) = d1;
-                    D.at<double>(1, 1) = d2;
-                    //Generate a rotation for the deformation (shear)
-                    double angle_rot = getRandDoubleValRng(0, M_PI_4);
-                    Mat Rdeform = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
-                            std::sin(angle_rot), std::cos(angle_rot));
-                    //Generate a rotation
-                    angle_rot = getRandDoubleValRng(0, M_PI_2);
-                    Mat Rrot = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
-                            std::sin(angle_rot), std::cos(angle_rot));
-                    double scale = getRandDoubleValRng(0.65, 1.35);
-                    if(fbCnt > 5){
-                        scale *= (double)fbCnt / 3.5;
-                    }
-                    //Calculate the new affine homography (without translation)
-                    Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
-                    H = Mat::eye(3, 3, CV_64FC1);
-                    Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
-                }
-            }while(useFallBack && (fbCnt < 21));
-        }
-
-        //Extract and warp the patch if the patch size is valid
-
-        //Adapt H to eliminate wrong translation inside the patch
-        //Translation to start at (0,0) in the warped image for the selected ROI arround the original image
-        // (with coordinates in the original image based on the full image)
-        Mat wiTo0 = Mat::eye(3,3,CV_64FC1);
-        wiTo0.at<double>(0,2) = -1.0 * (double)patchROIimg21.x;
-        wiTo0.at<double>(1,2) = -1.0 * (double)patchROIimg21.y;
-        Mat H1 = wiTo0 * H;
-        //Translation for the original image to ensure that points starting (left upper corner) at (0,0)
-        // are mapped to the image ROI of the warped image
-
-        //Check for reflection
-        Mat x2;
-        if(reflectionX && reflectionY){
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x + (double)patchROIimg21.width - 1.0,
-                    (double)patchROIimg21.y + (double)patchROIimg21.height - 1.0, 1.0);
-        }else if(reflectionX){
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x,
-                    (double)patchROIimg21.y + (double)patchROIimg21.height - 1.0, 1.0);
-        }else if(reflectionY){
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x + (double)patchROIimg21.width - 1.0,
-                    (double)patchROIimg21.y, 1.0);
-        }else{
-            x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x,
-                    (double)patchROIimg21.y, 1.0);
-        }
-
-        Mat Hi = H.inv();
-        Mat tm = Hi * x2;
-        tm /= tm.at<double>(2);
-        Mat tback = Mat::eye(3,3,CV_64FC1);
-        tback.at<double>(0,2) = tm.at<double>(0);
-        tback.at<double>(1,2) = tm.at<double>(1);
-        Mat H2 = H1 * tback;
-        Mat patchw;
-        if (!useFallBack) {
-            warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg21.size(), INTER_LINEAR, BORDER_REPLICATE);
-        }
-        homo.push_back(H.clone());
-        //Extract warped patch ROI with only valid pixels
-        if (!useFallBack) {
-            patchROIimg2.x = patchROIimg2.x - patchROIimg21.x;
-            patchROIimg2.y = patchROIimg2.y - patchROIimg21.y;
-            patchw = patchw(patchROIimg2);
-        }
-
-        //Adapt center of ellipse
-        if(!noEllipse){
-            Mat xe = (Mat_<double>(3,1) << ellipseCenter.x,
-                    ellipseCenter.y, 1.0);
-            xe = Hi * xe;
-            xe /= xe.at<double>(2);
-            xe.at<double>(0) -= (double)patchROIimg1.x;
-            xe.at<double>(1) -= (double)patchROIimg1.y;
-            xe = H2 * xe;
-            xe /= xe.at<double>(2);
-            ellipseCenter.x = xe.at<double>(0) - (double)patchROIimg2.x;
-            ellipseCenter.y = xe.at<double>(1) - (double)patchROIimg2.y;
-            if((ellipseCenter.x < 0) || (ellipseCenter.y < 0)){
-                useFallBack = true;
-                noEllipse = true;
-            }
-        }
-
-        //Show the patches
-        if(!useFallBack && (verbose & SHOW_WARPED_PATCHES) && (((show_cnt - 1) % show_interval) == 0)){
-            //Show the warped patch with/without warped keypoint size (ellipse)
-            int border1x = 0, border1y = 0, border2x = 0, border2y = 0;
-            if(patchROIimg1.width > patchROIimg2.width){
-                border2x = patchROIimg1.width - patchROIimg2.width;
-            }else{
-                border1x =  patchROIimg2.width - patchROIimg1.width;
-            }
-            if(patchROIimg1.height > patchROIimg2.height){
-                border2y = patchROIimg1.height - patchROIimg2.height;
-            }else{
-                border1y =  patchROIimg2.height - patchROIimg1.height;
-            }
-            if(noEllipse){
-                Mat patchwc, patchc;
-                if(border2x || border2y) {
-                    cv::copyMakeBorder(patchw, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
-                }else{
-                    patchwc = patchw;
-                }
-                if(border1x || border1y) {
-                    cv::copyMakeBorder(img(patchROIimg1), patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
-                }else{
-                    patchc = img(patchROIimg1);
-                }
-                Mat bothPathes;
-                cv::hconcat(patchc, patchwc, bothPathes);
-                namedWindow("Original and warped patch", WINDOW_AUTOSIZE);
-                imshow("Original and warped patch", bothPathes);
-
-                waitKey(0);
-                destroyWindow("Original and warped patch");
-            }else{
-                //Transform the ellipse center position
-                cv::Point2d ellipseCenter1 = ellipseCenter;
-                /*ellipseCenter1.x -= patchROIimg21.x + patchROIimg2.x;
-                ellipseCenter1.y -= patchROIimg21.y + patchROIimg2.y;*/
-                cv::Point c((int)round(ellipseCenter1.x), (int)round(ellipseCenter1.y));
-                CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
-                && (ellipseCenter1.x < (double)patchROIimg2.width)
-                && (ellipseCenter1.y < (double)patchROIimg2.height));
-                cv::Size si((int)round(axes.width), (int)round(axes.height));
-                Mat patchwc;
-                cvtColor(patchw, patchwc, cv::COLOR_GRAY2BGR);
-                cv::ellipse(patchwc, c, si, ellipseRot, 0, 360.0, Scalar(0,0,255));
-                //Draw exact correspondence location
-                Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x - (double)patchROIimg1.x,
-                        (double)kp.pt.y - (double)patchROIimg1.y, 1.0);
-                kpm = H2 * kpm;
-                kpm /= kpm.at<double>(2);
-                c = Point((int)round(kpm.at<double>(0)) - patchROIimg2.x, (int)round(kpm.at<double>(1)) - patchROIimg2.y);
-                cv::circle(patchwc, c, 1, Scalar(0,255,0));
-                if(border2x || border2y) {
-                    cv::copyMakeBorder(patchwc, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
-                }
-                Mat patchc;
-                cvtColor(img(patchROIimg1), patchc, cv::COLOR_GRAY2BGR);
-                c = Point((int)round(kp.pt.x) - patchROIimg1.x, (int)round(kp.pt.y) - patchROIimg1.y);
-                cv::circle(patchc, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
-                //Draw exact correspondence location
-                cv::circle(patchc, c, 1, Scalar(0,255,0));
-                if(border1x || border1y) {
-                    cv::copyMakeBorder(patchc, patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
-                }
-                Mat bothPathes;
-                cv::hconcat(patchc, patchwc, bothPathes);
-
-                //Show correspondence in original image
-                /*Mat fullimg;
-                cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
-                c = Point((int)round(kp.pt.x), (int)round(kp.pt.y));
-                cv::circle(fullimg, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
-                //Draw exact correspondence location
-                cv::circle(fullimg, c, 1, Scalar(0,255,0));
-                namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
-                imshow("Original image with keypoint", fullimg);*/
-
-                namedWindow("Original and warped patch with keypoint", WINDOW_AUTOSIZE);
-                imshow("Original and warped patch with keypoint", bothPathes);
-
-                waitKey(0);
-                destroyWindow("Original and warped patch with keypoint");
-//                destroyWindow("Original image with keypoint");
-            }
-        }
-
-        //Get the exact position of the keypoint in the patch
-        Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x - (double)patchROIimg1.x,
-                (double)kp.pt.y - (double)patchROIimg1.y, 1.0);
-        kpm = H2 * kpm;
-        kpm /= kpm.at<double>(2);
-        kpm.at<double>(0) -= (double)patchROIimg2.x;
-        kpm.at<double>(1) -= (double)patchROIimg2.y;
-        Point2f ptm = Point2f((float)kpm.at<double>(0), (float)kpm.at<double>(1));
-
-        //Get the difference of the ellipse center and the warped keypoint location
-        if(!noEllipse) {
-            double diffxKpEx = abs(ellipseCenter.x - kpm.at<double>(0));
-            double diffxKpEy = abs(ellipseCenter.y - kpm.at<double>(1));
-            double diffxKpEc = sqrt(diffxKpEx * diffxKpEx + diffxKpEy * diffxKpEy);
-            if(diffxKpEc > 5.0){
-                useFallBack = true;
-                noEllipse = true;
-            }
-        }
-
-        //Check if the used keypoint location is too near to the border of the patch
-        const double minPatchSize12 = (double)(minPatchSize - 1) / 2.0;
-        const double distKpBx = (double)patchROIimg2.width - kpm.at<double>(0);
-        const double distKpBy = (double)patchROIimg2.height - kpm.at<double>(1);
-        if((kpm.at<double>(0) < minPatchSize12)
-        || (kpm.at<double>(1) < minPatchSize12)
-        || (distKpBx < minPatchSize12)
-           || (distKpBy < minPatchSize12)){
-            useFallBack = true;
-            noEllipse = true;
-        }
-
-        //Check if we have to use a keypoint detector
-        bool keypDetNeed = (noEllipse || kpCalcNeeded);
         cv::KeyPoint kp2;
-        Point2f kp2err;
-        if(!useFallBack && ((!useTN && parsMtch.keypPosErrType) || keypDetNeed)){
-            vector<KeyPoint> kps2;
-            if (matchinglib::getKeypoints(patchw, kps2, parsMtch.keyPointType, false) != 0) {
-                if(kps2.empty()){
-                    useFallBack = true;
-                }
-            }
-            if(!useFallBack){
-                vector<pair<size_t,float>> dists(kps2.size());
-                for (size_t j = 0; j < kps2.size(); ++j) {
-                    float diffx = kps2[j].pt.x - ptm.x;
-                    float diffy = kps2[j].pt.y - ptm.y;
-                    dists[j] = make_pair(j, sqrt(diffx * diffx + diffy * diffy));
-                }
-                sort(dists.begin(), dists.end(),
-                        [](pair<size_t,float> &first, pair<size_t,float> &second){return first.second < second.second;});
-                if(dists[0].second > 5.f){
-                    useFallBack = true;
-                }else if(noEllipse){
-                    kp2 = kps2[dists[0].first];
-                    kp2err.x = kp2.pt.x - ptm.x;
-                    kp2err.y = kp2.pt.y - ptm.y;
-                } else{
-                    size_t j = 0;
-                    for (; j < dists.size(); ++j) {
-                        if(dists[j].second > 5.f){
-                            break;
-                        }
-                    }
-                    if(j > 1) {
-                        //Calculate the overlap area between the found keypoints and the ellipse
-                        cv::Point2d ellipseCenter1 = ellipseCenter;
-                        /*ellipseCenter1.x -= patchROIimg21.x + patchROIimg2.x;
-                        ellipseCenter1.y -= patchROIimg21.y + patchROIimg2.y;*/
-                        cv::Point c((int) round(ellipseCenter1.x), (int) round(ellipseCenter1.y));
-                        CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
-                                  && (ellipseCenter1.x < (double) patchROIimg2.width)
-                                  && (ellipseCenter1.y < (double) patchROIimg2.height));
-                        cv::Size si((int) round(axes.width), (int) round(axes.height));
-                        Mat patchmask = Mat::zeros(patchw.size(), patchw.type());
-                        cv::ellipse(patchmask, c, si, ellipseRot, 0, 360.0, Scalar::all(255), -1);
-                        vector<pair<size_t, int>> overlapareas(j);
-                        for (size_t k = 0; k < j; ++k) {
-                            Mat patchmask1 = Mat::zeros(patchw.size(), patchw.type());
-                            Point c1 = Point((int) round(kps2[dists[k].first].pt.x),
-                                             (int) round(kps2[dists[k].first].pt.y));
-                            cv::circle(patchmask1, c1, (int) round(kps2[dists[k].first].size / 2.f), Scalar::all(255),
-                                       -1);
-                            Mat resmask = patchmask & patchmask1;
-                            int ovlap = cv::countNonZero(resmask);
-                            overlapareas[k] = make_pair(dists[k].first, ovlap);
-                        }
-                        sort(overlapareas.begin(), overlapareas.end(),
-                             [](pair<size_t,int> &first, pair<size_t,int> &second){return first.second > second.second;});
-                        //Take the highest overlap areas that are equal
-                        int k = 1;
-                        for(;k < (int)j; k++){
-                            if(overlapareas[0].second != overlapareas[k].second){
-                                break;
-                            }
-                        }
-                        if(k > 1){
-                            //Get the keypoint with the smallest distance to the exact location
-                            vector<size_t> kpIdxSm;
-                            for (int l = 0; l < k; ++l) {
-                                for (size_t m = 0; m < j; ++m) {
-                                    if(overlapareas[l].first == dists[m].first){
-                                        kpIdxSm.push_back(m);
-                                        break;
-                                    }
-                                }
-                            }
-                            size_t kpSingleIdx = *min_element(kpIdxSm.begin(), kpIdxSm.end());
-                            //Take the keypoint with the smallest distance and largest overlap
-                            kp2 = kps2[dists[kpSingleIdx].first];
-                        }
-                        else{
-                            //Take the keypoint with the largest overlap
-                            kp2 = kps2[overlapareas[0].first];
-                        }
-                    }else{
-                        kp2 = kps2[dists[0].first];
-                    }
-                    kp2err.x = kp2.pt.x - ptm.x;
-                    kp2err.y = kp2.pt.y - ptm.y;
-                }
-                if((!parsMtch.keypPosErrType || useTN) && !useFallBack){
-                    //Correct the keypoint position to the exact location
-                    kp2.pt = ptm;
-                    //Change to keypoint position based on the given error range
-                    distortKeyPointPosition(kp2, patchROIimg2, distr);
-                    kp2err.x = kp2.pt.x - ptm.x;
-                    kp2err.y = kp2.pt.y - ptm.y;
-                }
-            }
-        } else if(!noEllipse){
-            //Use the dimension of the ellipse to get the scale/size of the keypoint
-            kp2 = kp;
-            kp2.pt = ptm;
-            kp2.size = 2.f * (float)axes.width;
-            //Change to keypoint position based on the given error range
-            distortKeyPointPosition(kp2, patchROIimg2, distr);
-            kp2err.x = kp2.pt.x - ptm.x;
-            kp2err.y = kp2.pt.y - ptm.y;
-        }
-
-        //Calculate the descriptor
-        Mat patchwn;
-        Mat descr21;
-        double descrDist = -1.0;
-        bool visPatchNoise = false;
-        if((verbose & SHOW_PATCHES_WITH_NOISE) && (((show_cnt - 1) % show_interval) == 0)){
-            visPatchNoise = true;
-        }
-        if(!useFallBack){
-            //Apply noise
-            if(useTN){
-                Mat patchwnsp;
-                if(combDistTNtoReal[i] < 10.0){
-                    double stdNoiseTNNear = 2.0 * max(2.0, stdNoiseTN / (1.0 + (10.0 - combDistTNtoReal[i]) / 10.0));
-                    double meanIntTNNoiseNear = meanIntTNNoise / (1.0 + (10.0 - combDistTNtoReal[i]) / 10.0);
-                    addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoiseNear, stdNoiseTNNear,
-                                     visPatchNoise);
-                    if(combDistTNtoReal[i] > 5.0) {
-                        addImgNoiseSaltAndPepper(patchwnsp, patchwn, 28, 227, visPatchNoise);
-                    }else{
-                        patchwnsp.copyTo(patchwn);
-                    }
-                }else {
-                    addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoise, 2.0 * stdNoiseTN,
-                                     visPatchNoise);
-                    addImgNoiseSaltAndPepper(patchwnsp, patchwn, 32, 223, visPatchNoise);
-                }
-            }else {
-                if (!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)) {
-                    addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second,
-                                     visPatchNoise);
-                }
-            }
-
-            //Get descriptor
-            vector<KeyPoint> pkp21(1, kp2);
-//            pkp21[0] = kp2;
-            if (matchinglib::getDescriptors(patchwn,
-                                            pkp21,
-                                            parsMtch.descriptorType,
-                                            descr21,
-                                            parsMtch.keyPointType) != 0) {
-                useFallBack = true;
-            }else{
-                //Check matchability
-                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]), descr21);
-                if(useTN){
-                    if (((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear)) {
-                        useFallBack = true;
-                    }
-                }else {
-                    if (parsMtch.checkDescriptorDist && (descrDist > ThTp)) {
-                        useFallBack = true;
-                    }
-                }
-            }
-        }
-
-        if(useFallBack){
-            //Only add gaussian noise and salt and pepper noise to the original patch
-            homo.back() = Mat::eye(3,3, CV_64FC1);
-            double meang, stdg;
-            meang = getRandDoubleValRng(-10.0, 10.0);
-            stdg = getRandDoubleValRng(-10.0, 10.0);
-            bool fullImgUsed = false;
-            Mat patchfb;
-            Point2i kp_ri = Point2i((int)round(kp.pt.x), (int)round(kp.pt.y));
-            if((patchROIimg1.width < minPatchSize) ||
-                    (patchROIimg1.height < minPatchSize) ||
-                    (patchROIimg1.x < 0) ||
-                    (patchROIimg1.y < 0) ||
-                    (kp_ri.x < (patchROIimg1.x + 10)) ||
-                    (kp_ri.x > (patchROIimg1.x + patchROIimg1.width - 10)) ||
-                    (kp_ri.y < (patchROIimg1.y + 10)) ||
-                    (kp_ri.y > (patchROIimg1.y + patchROIimg1.height - 10))){
-                int ps21 = (minPatchSize2 - 1) / 2;
-                patchROIimg1 = Rect((int)round(kp.pt.x) - ps21,
-                                    (int)round(kp.pt.y) - ps21,
-                                    minPatchSize2,
-                                    minPatchSize2);
-                if(patchROIimg1.x < 0){
-                    patchROIimg1.width -= patchROIimg1.x;
-                    patchROIimg1.x = 0;
-                }else if((patchROIimg1.x + patchROIimg1.width) > img.size().width){
-                    int wdiff = patchROIimg1.x + patchROIimg1.width - img.size().width;
-                    patchROIimg1.x -= wdiff;
-                }
-                if(patchROIimg1.y < 0){
-                    patchROIimg1.height -= patchROIimg1.y;
-                    patchROIimg1.y = 0;
-                }else if((patchROIimg1.y + patchROIimg1.height) > img.size().height){
-                    int wdiff = patchROIimg1.y + patchROIimg1.height - img.size().height;
-                    patchROIimg1.y -= wdiff;
-                }
-            }
-            patchfb = img(patchROIimg1);
-            patchwn = patchfb.clone();
-            descrDist = -1.0;
-            kp2 = kp;
-            kp2.pt.x -= (float)patchROIimg1.x;
-            kp2.pt.y -= (float)patchROIimg1.y;
-
-            //Change to keypoint position based on the given error range
-//            if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
-                distortKeyPointPosition(kp2, patchROIimg1, distr);
-//            }
-            kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
-            kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
-
-            int itCnt = 0;
-            bool noPosChange = false;
-            int saltPepMinLow = 17, saltPepMaxLow = 238;
-            const int saltPepMinLowMin = 5, saltPepMaxLowMax = 250;
-            int saltPepMinHigh = 25, saltPepMaxHigh = 230;
-            const int saltPepMinHighMax = 35, saltPepMaxHighMin = 220;
-            do{
-                Mat patchwgn;
-                if((!useTN && parsMtch.checkDescriptorDist && (descrDist > ThTp))
-                || (useTN && (descrDist > badDescrTH.maxVal))
-                || (!useTN && (descrDist < 0))){
-                    if(!noPosChange) {
-                        kp2 = kp;
-                        if(!fullImgUsed) {
-                            kp2.pt.x -= (float) patchROIimg1.x;
-                            kp2.pt.y -= (float) patchROIimg1.y;
-                        }
-//                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
-                            distortKeyPointPosition(kp2, patchROIimg1, distr);
-//                        }
-                        kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
-                        kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
-                    }
-
-                    meang = getRandDoubleValRng(-10.0, 10.0);
-                    stdg = getRandDoubleValRng(-12.0, 12.0);
-                    patchwn = patchfb.clone();
-                    addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
-                    addImgNoiseSaltAndPepper(patchwgn, patchwn, saltPepMinLow, saltPepMaxLow, visPatchNoise);
-                    saltPepMinLow--;
-                    saltPepMinLow = max(saltPepMinLow, saltPepMinLowMin);
-                    saltPepMaxLow++;
-                    saltPepMaxLow = min(saltPepMaxLow, saltPepMaxLowMax);
-                }else {
-                    addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
-                    addImgNoiseSaltAndPepper(patchwgn, patchwn, 25, 230, visPatchNoise);
-                    saltPepMinHigh++;
-                    saltPepMinHigh = min(saltPepMinHigh, saltPepMinHighMax);
-                    saltPepMaxHigh--;
-                    saltPepMaxHigh = max(saltPepMaxHigh, saltPepMaxHighMin);
-                }
-                //Get descriptor
-                vector<KeyPoint> pkp21(1, kp2);
-                //pkp21[0] = kp2;
-                bool kaze_noFail = true;
-                if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
-                    kaze_noFail = getKazeProperties(patchwn, pkp21, kp2);
-                }
-                int err = 0;
-                if(kaze_noFail) {
-                    err = matchinglib::getDescriptors(patchwn,
-                                                      pkp21,
-                                                      parsMtch.descriptorType,
-                                                      descr21,
-                                                      parsMtch.keyPointType);
-                }else{
-                    err = -1;
-                }
-                bool itFI = false;
-                if ((err != 0) || (itCnt == 15) || (itCnt == 20)) {
-                    if(err == 0){
-                        itFI = true;
-                    }
-                    if(fullImgUsed && ((err != 0) || (itCnt == 20))){
-                        //Try using the original keypoint position without location change
-                        kp2 = kp;
-                        kp2err = Point2f(0,0);
-                        pkp21 = vector<KeyPoint>(1, kp2);
-
-                        /*Mat imgcol;
-                        cvtColor(patchwn, imgcol, cv::COLOR_GRAY2BGR);
-                        Point c((int)round(kp2.pt.x), (int)round(kp2.pt.y));
-                        cv::circle(imgcol, c, (int)round(kp2.size / 2.f), Scalar(0,0,255));
-                        namedWindow("Full image", WINDOW_AUTOSIZE);
-                        imshow("Full image", imgcol);
-
-                        waitKey(0);
-                        destroyWindow("Full image");*/
-
-                        kaze_noFail = true;
-                        if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
-                            kaze_noFail = getKazeProperties(patchwn, pkp21, kp2);
-                        }
-                        if(kaze_noFail) {
-                            err = matchinglib::getDescriptors(patchwn,
-                                                              pkp21,
-                                                              parsMtch.descriptorType,
-                                                              descr21,
-                                                              parsMtch.keyPointType);
-                        }else{
-                            err = -1;
-                        }
-                        if (err != 0) {
-                            //Use the original descriptor
-                            cerr << "Unable to calculate a matching descriptor! Using the original one - "
-                                    "this will result in a descriptor distance of 0 for this particular correspondence!"
-                                 << endl;
-                            descr21 = descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]).clone();
-                            break;
-                        }else{
-                            noPosChange = true;
-                            itFI = false;
-                        }
-                    }else {
-                        //Use the full image instead of a patch
-                        patchfb = img;
-                        patchwn = patchfb.clone();
-                        patchROIimg1 = Rect(Point(0,0), patchfb.size());
-                        descrDist = -1.0;
-                        kp2 = kp;
-//                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
-                            distortKeyPointPosition(kp2, patchROIimg1, distr);
-//                        }
-                        kp2err.x = kp2.pt.x - kp.pt.x;
-                        kp2err.y = kp2.pt.y - kp.pt.y;
-                        fullImgUsed = true;
-                    }
-                }
-                if((err == 0) && !itFI){
-                    //Check matchability
-                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]), descr21);
-                }
-                itCnt++;
-            }while(((!useTN && ((descrDist < minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > ThTp))))
-            || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < ThTn)) || (descrDist < ThTnNear))
-            || (descrDist > badDescrTH.maxVal))))
-               && (itCnt < 25));
-            if(itCnt >= 25){
-                if((!useTN && ((descrDist < 0.75 * minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > 1.25 * ThTp))))
-                   || (useTN && ((((combDistTNtoReal[i] >= 10.0) && (descrDist < 0.75 * ThTn))
-                   || (descrDist < 0.75 * ThTnNear))
-                                 || (descrDist > 1.2 * badDescrTH.maxVal)))) {
-                    //Use the original descriptor
-                    cerr << "Unable to calculate a matching descriptor! Using the original one - "
-                            "this will result in a descriptor distance of 0 for this particular correspondence!"
-                         << endl;
-#if 1
-                    //Check if the descriptor extracted again without changes on the patch is the same
-                    vector<KeyPoint> pkp21;
-                    Mat desrc_tmp;
-                    if(fullImgUsed){
-                        pkp21 = vector<KeyPoint>(1, kp);
-                    }else{
-                        KeyPoint kp2_tmp = kp;
-                        kp2_tmp.pt.x -= (float) patchROIimg1.x;
-                        kp2_tmp.pt.y -= (float) patchROIimg1.y;
-                        pkp21 = vector<KeyPoint>(1, kp2_tmp);
-                    }
-                    bool kaze_noFail = true;
-                    if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
-                        KeyPoint kz_tmp = pkp21[0];
-                        kaze_noFail = getKazeProperties(patchfb, pkp21, kz_tmp);
-                    }
-                    int err = 0;
-                    if(kaze_noFail) {
-                        if (matchinglib::getDescriptors(patchfb,
-                                                        pkp21,
-                                                        parsMtch.descriptorType,
-                                                        desrc_tmp,
-                                                        parsMtch.keyPointType) == 0) {
-                            if (!pkp21.empty()) {
-                                double descrDist_tmp = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]),
-                                                                             desrc_tmp);
-                                if (!nearZero(descrDist_tmp)) {
-                                    cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
-                                            "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
-                                    if (verbose & SHOW_IMGS_AT_ERROR) {
-                                        //Show correspondence in original image
-                                        Mat fullimg, patchCol;
-                                        cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
-                                        Point c = kp_ri;
-                                        cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
-                                        //Draw exact correspondence location
-                                        cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
-
-                                        cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
-                                        c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
-                                        cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
-                                        //Draw exact correspondence location
-                                        cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
-                                        namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
-                                        imshow("Original image with keypoint", fullimg);
-                                        namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
-                                        imshow("Patch with keypoint", patchCol);
-                                        waitKey(0);
-                                        destroyWindow("Original image with keypoint");
-                                        destroyWindow("Patch with keypoint");
-                                    }
-                                }
-                            }
-                        }
-                    }
-#endif
-
-                    descr21 = descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]).clone();
-                    kp2 = kp;
-                    kp2err = Point2f(0, 0);
-                    descrDist = 0;
-                }
-            }
-        }
+        cv::Point2f kp2err;
+        double descrDist;
+        cv::Mat descr21 = calculateDescriptorWarped(img, kp, H, homo, patchInfos, kp2, kp2err, descrDist, false);
 
         //Store the keypoints and descriptors
         if(useTN){
@@ -2411,12 +1744,741 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         }
         frameKPs1[i] = kp;
         frameKPs2[i] = kp2;
-        frameDescr1.push_back(descriptors1.row((int)featureIdxRepPatt[featureIdx_tmp]).clone());
+        frameDescr1.push_back(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone());
         frameDescr2.push_back(descr21.clone());
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 
         featureIdx++;
     }
+}
+
+cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
+                                                const cv::KeyPoint &kp,
+                                                cv::Mat &H,
+                                                std::vector<cv::Mat> &homo,
+                                                PatchCInfo &patchInfos,
+                                                cv::KeyPoint &kp2,
+                                                cv::Point2f &kp2err,
+                                                double &descrDist,
+                                                bool forCam1){
+    //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
+    // to estimate the minimal necessary patch size
+    cv::Rect patchROIimg1(0,0,3,3), patchROIimg2(0,0,3,3), patchROIimg21(0,0,3,3);
+    cv::Point2d ellipseCenter;
+    double ellipseRot = 0;
+    cv::Size2d axes;
+    bool useFallBack = false;
+    bool noEllipse = false;
+    bool reflectionX = false;
+    bool reflectionY = false;
+    const double minPatchSize = 41.0;
+    cv::Size imgFeatureSize = img.size();
+    if(patchInfos.succ) {
+        patchInfos.succ = getRectFitsInEllipse(H,
+                                               kp,
+                                               patchROIimg1,
+                                               patchROIimg2,
+                                               patchROIimg21,
+                                               ellipseCenter,
+                                               ellipseRot,
+                                               axes,
+                                               reflectionX,
+                                               reflectionY,
+                                               imgFeatureSize);
+    }
+    if(!patchInfos.succ){
+        //If the calculation of the necessary patch size failed, calculate a standard patch
+        noEllipse = true;
+        int fbCnt = 0;
+        do {
+            fbCnt++;
+            useFallBack = false;
+            int patchSize = minPatchSize2;//Must be an odd number
+            if(!H.empty()) {
+                do {
+                    Mat kpm = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
+                    kpm = H * kpm;
+                    kpm /= kpm.at<double>(2);
+                    Point2i midPt((int) round(kpm.at<double>(0)), (int) round(kpm.at<double>(1)));
+
+                    if (!getImgROIs(H,
+                                    midPt,
+                                    patchSize,
+                                    patchROIimg1,
+                                    patchROIimg2,
+                                    patchROIimg21,
+                                    reflectionX,
+                                    reflectionY,
+                                    imgFeatureSize,
+                                    kp,
+                                    maxPatchSizeMult2)) {
+                        useFallBack = true;
+                        break;
+                    }
+
+                    if ((patchROIimg1.width > (double) (maxPatchSizeMult2 * minPatchSize2))
+                        || (patchROIimg1.height > (double) (maxPatchSizeMult2 * minPatchSize2))
+                        || (patchROIimg2.width > (double) (maxPatchSizeMult2 * minPatchSize2))
+                        || (patchROIimg2.height > (double) (maxPatchSizeMult2 * minPatchSize2))) {
+                        useFallBack = true;
+                        break;
+                    }
+
+                    if ((patchROIimg2.width < minPatchSize) ||
+                        (patchROIimg2.height < minPatchSize)) {
+                        //Calc a bigger patch size for the warped patch
+                        patchSize = (int) ceil(1.2f * (float) patchSize);
+                        patchSize += (patchSize + 1) % 2;//Must be an odd number
+                    }
+
+                } while (((patchROIimg2.width < minPatchSize) || (patchROIimg2.height < minPatchSize)) &&
+                         !useFallBack);
+            }else{
+                useFallBack = true;
+            }
+            if (useFallBack) {
+                //Construct a random affine homography
+                //Generate the non-isotropic scaling of the deformation (shear)
+                double d1, d2;
+                d1 = getRandDoubleValRng(0.8, 1.0);
+                d2 = getRandDoubleValRng(0.8, 1.0);
+                size_t sign1 = rand2() % 6;
+                if (sign1 == 0) {
+                    d1 *= -1.0;
+                }
+                sign1 = rand2() % 6;
+                if (sign1 == 0) {
+                    d2 *= -1.0;
+                }
+                Mat D = Mat::eye(2, 2, CV_64FC1);
+                D.at<double>(0, 0) = d1;
+                D.at<double>(1, 1) = d2;
+                //Generate a rotation for the deformation (shear)
+                double angle_rot = getRandDoubleValRng(0, M_PI_4);
+                Mat Rdeform = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
+                        std::sin(angle_rot), std::cos(angle_rot));
+                //Generate a rotation
+                angle_rot = getRandDoubleValRng(0, M_PI_2);
+                Mat Rrot = (Mat_<double>(2, 2) << std::cos(angle_rot), (-1. * std::sin(angle_rot)),
+                        std::sin(angle_rot), std::cos(angle_rot));
+                double scale = getRandDoubleValRng(0.65, 1.35);
+                if(fbCnt > 5){
+                    scale *= (double)fbCnt / 3.5;
+                }
+                //Calculate the new affine homography (without translation)
+                Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
+                H = Mat::eye(3, 3, CV_64FC1);
+                Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
+            }
+        }while(useFallBack && (fbCnt < 21));
+    }
+
+    //Extract and warp the patch if the patch size is valid
+
+    //Adapt H to eliminate wrong translation inside the patch
+    //Translation to start at (0,0) in the warped image for the selected ROI arround the original image
+    // (with coordinates in the original image based on the full image)
+    Mat wiTo0 = Mat::eye(3,3,CV_64FC1);
+    wiTo0.at<double>(0,2) = -1.0 * (double)patchROIimg21.x;
+    wiTo0.at<double>(1,2) = -1.0 * (double)patchROIimg21.y;
+    Mat H1 = wiTo0 * H;
+    //Translation for the original image to ensure that points starting (left upper corner) at (0,0)
+    // are mapped to the image ROI of the warped image
+
+    //Check for reflection
+    Mat x2;
+    if(reflectionX && reflectionY){
+        x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x + (double)patchROIimg21.width - 1.0,
+                (double)patchROIimg21.y + (double)patchROIimg21.height - 1.0, 1.0);
+    }else if(reflectionX){
+        x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x,
+                (double)patchROIimg21.y + (double)patchROIimg21.height - 1.0, 1.0);
+    }else if(reflectionY){
+        x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x + (double)patchROIimg21.width - 1.0,
+                (double)patchROIimg21.y, 1.0);
+    }else{
+        x2 = (Mat_<double>(3,1) << (double)patchROIimg21.x,
+                (double)patchROIimg21.y, 1.0);
+    }
+
+    Mat Hi = H.inv();
+    Mat tm = Hi * x2;
+    tm /= tm.at<double>(2);
+    Mat tback = Mat::eye(3,3,CV_64FC1);
+    tback.at<double>(0,2) = tm.at<double>(0);
+    tback.at<double>(1,2) = tm.at<double>(1);
+    Mat H2 = H1 * tback;
+    Mat patchw;
+    if (!useFallBack) {
+        warpPerspective(img(patchROIimg1), patchw, H2, patchROIimg21.size(), INTER_LINEAR, BORDER_REPLICATE);
+    }
+    homo.push_back(H.clone());
+    //Extract warped patch ROI with only valid pixels
+    if (!useFallBack) {
+        patchROIimg2.x = patchROIimg2.x - patchROIimg21.x;
+        patchROIimg2.y = patchROIimg2.y - patchROIimg21.y;
+        patchw = patchw(patchROIimg2);
+    }
+
+    //Adapt center of ellipse
+    if(!noEllipse){
+        Mat xe = (Mat_<double>(3,1) << ellipseCenter.x,
+                ellipseCenter.y, 1.0);
+        xe = Hi * xe;
+        xe /= xe.at<double>(2);
+        xe.at<double>(0) -= (double)patchROIimg1.x;
+        xe.at<double>(1) -= (double)patchROIimg1.y;
+        xe = H2 * xe;
+        xe /= xe.at<double>(2);
+        ellipseCenter.x = xe.at<double>(0) - (double)patchROIimg2.x;
+        ellipseCenter.y = xe.at<double>(1) - (double)patchROIimg2.y;
+        if((ellipseCenter.x < 0) || (ellipseCenter.y < 0)){
+            useFallBack = true;
+            noEllipse = true;
+        }
+    }
+
+    //Show the patches
+    if(!useFallBack && (verbose & SHOW_WARPED_PATCHES) && (((patchInfos.show_cnt - 1) % patchInfos.show_interval) == 0)){
+        //Show the warped patch with/without warped keypoint size (ellipse)
+        int border1x = 0, border1y = 0, border2x = 0, border2y = 0;
+        if(patchROIimg1.width > patchROIimg2.width){
+            border2x = patchROIimg1.width - patchROIimg2.width;
+        }else{
+            border1x =  patchROIimg2.width - patchROIimg1.width;
+        }
+        if(patchROIimg1.height > patchROIimg2.height){
+            border2y = patchROIimg1.height - patchROIimg2.height;
+        }else{
+            border1y =  patchROIimg2.height - patchROIimg1.height;
+        }
+        if(noEllipse){
+            Mat patchwc, patchc;
+            if(border2x || border2y) {
+                cv::copyMakeBorder(patchw, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
+            }else{
+                patchwc = patchw;
+            }
+            if(border1x || border1y) {
+                cv::copyMakeBorder(img(patchROIimg1), patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
+            }else{
+                patchc = img(patchROIimg1);
+            }
+            Mat bothPathes;
+            cv::hconcat(patchc, patchwc, bothPathes);
+            namedWindow("Original and warped patch", WINDOW_AUTOSIZE);
+            imshow("Original and warped patch", bothPathes);
+
+            waitKey(0);
+            destroyWindow("Original and warped patch");
+        }else{
+            //Transform the ellipse center position
+            cv::Point2d ellipseCenter1 = ellipseCenter;
+            /*ellipseCenter1.x -= patchROIimg21.x + patchROIimg2.x;
+            ellipseCenter1.y -= patchROIimg21.y + patchROIimg2.y;*/
+            cv::Point c((int)round(ellipseCenter1.x), (int)round(ellipseCenter1.y));
+            CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
+                      && (ellipseCenter1.x < (double)patchROIimg2.width)
+                      && (ellipseCenter1.y < (double)patchROIimg2.height));
+            cv::Size si((int)round(axes.width), (int)round(axes.height));
+            Mat patchwc;
+            cvtColor(patchw, patchwc, cv::COLOR_GRAY2BGR);
+            cv::ellipse(patchwc, c, si, ellipseRot, 0, 360.0, Scalar(0,0,255));
+            //Draw exact correspondence location
+            Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x - (double)patchROIimg1.x,
+                    (double)kp.pt.y - (double)patchROIimg1.y, 1.0);
+            kpm = H2 * kpm;
+            kpm /= kpm.at<double>(2);
+            c = Point((int)round(kpm.at<double>(0)) - patchROIimg2.x, (int)round(kpm.at<double>(1)) - patchROIimg2.y);
+            cv::circle(patchwc, c, 1, Scalar(0,255,0));
+            if(border2x || border2y) {
+                cv::copyMakeBorder(patchwc, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
+            }
+            Mat patchc;
+            cvtColor(img(patchROIimg1), patchc, cv::COLOR_GRAY2BGR);
+            c = Point((int)round(kp.pt.x) - patchROIimg1.x, (int)round(kp.pt.y) - patchROIimg1.y);
+            cv::circle(patchc, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
+            //Draw exact correspondence location
+            cv::circle(patchc, c, 1, Scalar(0,255,0));
+            if(border1x || border1y) {
+                cv::copyMakeBorder(patchc, patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
+            }
+            Mat bothPathes;
+            cv::hconcat(patchc, patchwc, bothPathes);
+
+            //Show correspondence in original image
+            /*Mat fullimg;
+            cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
+            c = Point((int)round(kp.pt.x), (int)round(kp.pt.y));
+            cv::circle(fullimg, c, (int)round(kp.size / 2.f), Scalar(0,0,255));
+            //Draw exact correspondence location
+            cv::circle(fullimg, c, 1, Scalar(0,255,0));
+            namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
+            imshow("Original image with keypoint", fullimg);*/
+
+            namedWindow("Original and warped patch with keypoint", WINDOW_AUTOSIZE);
+            imshow("Original and warped patch with keypoint", bothPathes);
+
+            waitKey(0);
+            destroyWindow("Original and warped patch with keypoint");
+//                destroyWindow("Original image with keypoint");
+        }
+    }
+
+    //Get the exact position of the keypoint in the patch
+    Mat kpm = (Mat_<double>(3,1) << (double)kp.pt.x - (double)patchROIimg1.x,
+            (double)kp.pt.y - (double)patchROIimg1.y, 1.0);
+    kpm = H2 * kpm;
+    kpm /= kpm.at<double>(2);
+    kpm.at<double>(0) -= (double)patchROIimg2.x;
+    kpm.at<double>(1) -= (double)patchROIimg2.y;
+    Point2f ptm = Point2f((float)kpm.at<double>(0), (float)kpm.at<double>(1));
+
+    //Get the difference of the ellipse center and the warped keypoint location
+    if(!noEllipse) {
+        double diffxKpEx = abs(ellipseCenter.x - kpm.at<double>(0));
+        double diffxKpEy = abs(ellipseCenter.y - kpm.at<double>(1));
+        double diffxKpEc = sqrt(diffxKpEx * diffxKpEx + diffxKpEy * diffxKpEy);
+        if(diffxKpEc > 5.0){
+            useFallBack = true;
+            noEllipse = true;
+        }
+    }
+
+    //Check if the used keypoint location is too near to the border of the patch
+    const double minPatchSize12 = (double)(minPatchSize - 1) / 2.0;
+    const double distKpBx = (double)patchROIimg2.width - kpm.at<double>(0);
+    const double distKpBy = (double)patchROIimg2.height - kpm.at<double>(1);
+    if((kpm.at<double>(0) < minPatchSize12)
+       || (kpm.at<double>(1) < minPatchSize12)
+       || (distKpBx < minPatchSize12)
+       || (distKpBy < minPatchSize12)){
+        useFallBack = true;
+        noEllipse = true;
+    }
+
+    //Check if we have to use a keypoint detector
+    bool keypDetNeed = (noEllipse || patchInfos.kpCalcNeeded);
+//    cv::KeyPoint kp2;
+//    Point2f kp2err;
+    if(!useFallBack && ((!patchInfos.useTN && parsMtch.keypPosErrType) || keypDetNeed)){
+        vector<KeyPoint> kps2;
+        if (matchinglib::getKeypoints(patchw, kps2, parsMtch.keyPointType, false) != 0) {
+            if(kps2.empty()){
+                useFallBack = true;
+            }
+        }
+        if(!useFallBack){
+            vector<pair<size_t,float>> dists(kps2.size());
+            for (size_t j = 0; j < kps2.size(); ++j) {
+                float diffx = kps2[j].pt.x - ptm.x;
+                float diffy = kps2[j].pt.y - ptm.y;
+                dists[j] = make_pair(j, sqrt(diffx * diffx + diffy * diffy));
+            }
+            sort(dists.begin(), dists.end(),
+                 [](pair<size_t,float> &first, pair<size_t,float> &second){return first.second < second.second;});
+            if(dists[0].second > 5.f){
+                useFallBack = true;
+            }else if(noEllipse){
+                kp2 = kps2[dists[0].first];
+                kp2err.x = kp2.pt.x - ptm.x;
+                kp2err.y = kp2.pt.y - ptm.y;
+            } else{
+                size_t j = 0;
+                for (; j < dists.size(); ++j) {
+                    if(dists[j].second > 5.f){
+                        break;
+                    }
+                }
+                if(j > 1) {
+                    //Calculate the overlap area between the found keypoints and the ellipse
+                    cv::Point2d ellipseCenter1 = ellipseCenter;
+                    /*ellipseCenter1.x -= patchROIimg21.x + patchROIimg2.x;
+                    ellipseCenter1.y -= patchROIimg21.y + patchROIimg2.y;*/
+                    cv::Point c((int) round(ellipseCenter1.x), (int) round(ellipseCenter1.y));
+                    CV_Assert((ellipseCenter1.x >= 0) && (ellipseCenter1.y >= 0)
+                              && (ellipseCenter1.x < (double) patchROIimg2.width)
+                              && (ellipseCenter1.y < (double) patchROIimg2.height));
+                    cv::Size si((int) round(axes.width), (int) round(axes.height));
+                    Mat patchmask = Mat::zeros(patchw.size(), patchw.type());
+                    cv::ellipse(patchmask, c, si, ellipseRot, 0, 360.0, Scalar::all(255), -1);
+                    vector<pair<size_t, int>> overlapareas(j);
+                    for (size_t k = 0; k < j; ++k) {
+                        Mat patchmask1 = Mat::zeros(patchw.size(), patchw.type());
+                        Point c1 = Point((int) round(kps2[dists[k].first].pt.x),
+                                         (int) round(kps2[dists[k].first].pt.y));
+                        cv::circle(patchmask1, c1, (int) round(kps2[dists[k].first].size / 2.f), Scalar::all(255),
+                                   -1);
+                        Mat resmask = patchmask & patchmask1;
+                        int ovlap = cv::countNonZero(resmask);
+                        overlapareas[k] = make_pair(dists[k].first, ovlap);
+                    }
+                    sort(overlapareas.begin(), overlapareas.end(),
+                         [](pair<size_t,int> &first, pair<size_t,int> &second){return first.second > second.second;});
+                    //Take the highest overlap areas that are equal
+                    int k = 1;
+                    for(;k < (int)j; k++){
+                        if(overlapareas[0].second != overlapareas[k].second){
+                            break;
+                        }
+                    }
+                    if(k > 1){
+                        //Get the keypoint with the smallest distance to the exact location
+                        vector<size_t> kpIdxSm;
+                        for (int l = 0; l < k; ++l) {
+                            for (size_t m = 0; m < j; ++m) {
+                                if(overlapareas[l].first == dists[m].first){
+                                    kpIdxSm.push_back(m);
+                                    break;
+                                }
+                            }
+                        }
+                        size_t kpSingleIdx = *min_element(kpIdxSm.begin(), kpIdxSm.end());
+                        //Take the keypoint with the smallest distance and largest overlap
+                        kp2 = kps2[dists[kpSingleIdx].first];
+                    }
+                    else{
+                        //Take the keypoint with the largest overlap
+                        kp2 = kps2[overlapareas[0].first];
+                    }
+                }else{
+                    kp2 = kps2[dists[0].first];
+                }
+                kp2err.x = kp2.pt.x - ptm.x;
+                kp2err.y = kp2.pt.y - ptm.y;
+            }
+            if((!parsMtch.keypPosErrType || patchInfos.useTN) && !useFallBack){
+                //Correct the keypoint position to the exact location
+                kp2.pt = ptm;
+                //Change to keypoint position based on the given error range
+                distortKeyPointPosition(kp2, patchROIimg2, patchInfos.distr);
+                kp2err.x = kp2.pt.x - ptm.x;
+                kp2err.y = kp2.pt.y - ptm.y;
+            }
+        }
+    } else if(!noEllipse){
+        //Use the dimension of the ellipse to get the scale/size of the keypoint
+        kp2 = kp;
+        kp2.pt = ptm;
+        kp2.size = 2.f * (float)axes.width;
+        //Change to keypoint position based on the given error range
+        distortKeyPointPosition(kp2, patchROIimg2, patchInfos.distr);
+        kp2err.x = kp2.pt.x - ptm.x;
+        kp2err.y = kp2.pt.y - ptm.y;
+    }
+
+    //Calculate the descriptor
+    Mat patchwn;
+    Mat descr21;
+    descrDist = -1.0;
+    bool visPatchNoise = false;
+    if((verbose & SHOW_PATCHES_WITH_NOISE) && (((patchInfos.show_cnt - 1) % patchInfos.show_interval) == 0)){
+        visPatchNoise = true;
+    }
+    if(!useFallBack){
+        //Apply noise
+        if(patchInfos.useTN){
+            Mat patchwnsp;
+            if(combDistTNtoReal[patchInfos.i] < 10.0){
+                double stdNoiseTNNear = 2.0 * max(2.0, patchInfos.stdNoiseTN / (1.0 + (10.0 - combDistTNtoReal[patchInfos.i]) / 10.0));
+                double meanIntTNNoiseNear = patchInfos.meanIntTNNoise / (1.0 + (10.0 - combDistTNtoReal[patchInfos.i]) / 10.0);
+                addImgNoiseGauss(patchw, patchwnsp, meanIntTNNoiseNear, stdNoiseTNNear,
+                                 visPatchNoise);
+                if(combDistTNtoReal[patchInfos.i] > 5.0) {
+                    addImgNoiseSaltAndPepper(patchwnsp, patchwn, 28, 227, visPatchNoise);
+                }else{
+                    patchwnsp.copyTo(patchwn);
+                }
+            }else {
+                addImgNoiseGauss(patchw, patchwnsp, patchInfos.meanIntTNNoise, 2.0 * patchInfos.stdNoiseTN,
+                                 visPatchNoise);
+                addImgNoiseSaltAndPepper(patchwnsp, patchwn, 32, 223, visPatchNoise);
+            }
+        }else {
+            if (!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)) {
+                addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second,
+                                 visPatchNoise);
+            }
+        }
+
+        //Get descriptor
+        vector<KeyPoint> pkp21(1, kp2);
+//            pkp21[0] = kp2;
+        if (matchinglib::getDescriptors(patchwn,
+                                        pkp21,
+                                        parsMtch.descriptorType,
+                                        descr21,
+                                        parsMtch.keyPointType) != 0) {
+            useFallBack = true;
+        }else{
+            //Check matchability
+            descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+            if(patchInfos.useTN){
+                if (((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) || (descrDist < patchInfos.ThTnNear)) {
+                    useFallBack = true;
+                }
+            }else {
+                if (parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp)) {
+                    useFallBack = true;
+                }
+            }
+        }
+    }
+
+    if(useFallBack){
+        //Only add gaussian noise and salt and pepper noise to the original patch
+        homo.back() = Mat::eye(3,3, CV_64FC1);
+        double meang, stdg;
+        meang = getRandDoubleValRng(-10.0, 10.0);
+        stdg = getRandDoubleValRng(-10.0, 10.0);
+        bool fullImgUsed = false;
+        Mat patchfb;
+        Point2i kp_ri = Point2i((int)round(kp.pt.x), (int)round(kp.pt.y));
+        if((patchROIimg1.width < minPatchSize) ||
+           (patchROIimg1.height < minPatchSize) ||
+           (patchROIimg1.x < 0) ||
+           (patchROIimg1.y < 0) ||
+           (kp_ri.x < (patchROIimg1.x + 10)) ||
+           (kp_ri.x > (patchROIimg1.x + patchROIimg1.width - 10)) ||
+           (kp_ri.y < (patchROIimg1.y + 10)) ||
+           (kp_ri.y > (patchROIimg1.y + patchROIimg1.height - 10))){
+            int ps21 = (minPatchSize2 - 1) / 2;
+            patchROIimg1 = Rect((int)round(kp.pt.x) - ps21,
+                                (int)round(kp.pt.y) - ps21,
+                                minPatchSize2,
+                                minPatchSize2);
+            if(patchROIimg1.x < 0){
+                patchROIimg1.width -= patchROIimg1.x;
+                patchROIimg1.x = 0;
+            }else if((patchROIimg1.x + patchROIimg1.width) > img.size().width){
+                int wdiff = patchROIimg1.x + patchROIimg1.width - img.size().width;
+                patchROIimg1.x -= wdiff;
+            }
+            if(patchROIimg1.y < 0){
+                patchROIimg1.height -= patchROIimg1.y;
+                patchROIimg1.y = 0;
+            }else if((patchROIimg1.y + patchROIimg1.height) > img.size().height){
+                int wdiff = patchROIimg1.y + patchROIimg1.height - img.size().height;
+                patchROIimg1.y -= wdiff;
+            }
+        }
+        patchfb = img(patchROIimg1);
+        patchwn = patchfb.clone();
+        descrDist = -1.0;
+        kp2 = kp;
+        kp2.pt.x -= (float)patchROIimg1.x;
+        kp2.pt.y -= (float)patchROIimg1.y;
+
+        //Change to keypoint position based on the given error range
+//            if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+        distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+//            }
+        kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
+        kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
+
+        int itCnt = 0;
+        bool noPosChange = false;
+        int saltPepMinLow = 17, saltPepMaxLow = 238;
+        const int saltPepMinLowMin = 5, saltPepMaxLowMax = 250;
+        int saltPepMinHigh = 25, saltPepMaxHigh = 230;
+        const int saltPepMinHighMax = 35, saltPepMaxHighMin = 220;
+        do{
+            Mat patchwgn;
+            if((!patchInfos.useTN && parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp))
+               || (patchInfos.useTN && (descrDist > badDescrTH.maxVal))
+               || (!patchInfos.useTN && (descrDist < 0))){
+                if(!noPosChange) {
+                    kp2 = kp;
+                    if(!fullImgUsed) {
+                        kp2.pt.x -= (float) patchROIimg1.x;
+                        kp2.pt.y -= (float) patchROIimg1.y;
+                    }
+//                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+                    distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+//                        }
+                    kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
+                    kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
+                }
+
+                meang = getRandDoubleValRng(-10.0, 10.0);
+                stdg = getRandDoubleValRng(-12.0, 12.0);
+                patchwn = patchfb.clone();
+                addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
+                addImgNoiseSaltAndPepper(patchwgn, patchwn, saltPepMinLow, saltPepMaxLow, visPatchNoise);
+                saltPepMinLow--;
+                saltPepMinLow = max(saltPepMinLow, saltPepMinLowMin);
+                saltPepMaxLow++;
+                saltPepMaxLow = min(saltPepMaxLow, saltPepMaxLowMax);
+            }else {
+                addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
+                addImgNoiseSaltAndPepper(patchwgn, patchwn, 25, 230, visPatchNoise);
+                saltPepMinHigh++;
+                saltPepMinHigh = min(saltPepMinHigh, saltPepMinHighMax);
+                saltPepMaxHigh--;
+                saltPepMaxHigh = max(saltPepMaxHigh, saltPepMaxHighMin);
+            }
+            //Get descriptor
+            vector<KeyPoint> pkp21(1, kp2);
+            //pkp21[0] = kp2;
+            bool kaze_noFail = true;
+            if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
+                kaze_noFail = getKazeProperties(patchwn, pkp21, kp2);
+            }
+            int err = 0;
+            if(kaze_noFail) {
+                err = matchinglib::getDescriptors(patchwn,
+                                                  pkp21,
+                                                  parsMtch.descriptorType,
+                                                  descr21,
+                                                  parsMtch.keyPointType);
+            }else{
+                err = -1;
+            }
+            bool itFI = false;
+            if ((err != 0) || (itCnt == 15) || (itCnt == 20)) {
+                if(err == 0){
+                    itFI = true;
+                }
+                if(fullImgUsed && ((err != 0) || (itCnt == 20))){
+                    //Try using the original keypoint position without location change
+                    kp2 = kp;
+                    kp2err = Point2f(0,0);
+                    pkp21 = vector<KeyPoint>(1, kp2);
+
+                    /*Mat imgcol;
+                    cvtColor(patchwn, imgcol, cv::COLOR_GRAY2BGR);
+                    Point c((int)round(kp2.pt.x), (int)round(kp2.pt.y));
+                    cv::circle(imgcol, c, (int)round(kp2.size / 2.f), Scalar(0,0,255));
+                    namedWindow("Full image", WINDOW_AUTOSIZE);
+                    imshow("Full image", imgcol);
+
+                    waitKey(0);
+                    destroyWindow("Full image");*/
+
+                    kaze_noFail = true;
+                    if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
+                        kaze_noFail = getKazeProperties(patchwn, pkp21, kp2);
+                    }
+                    if(kaze_noFail) {
+                        err = matchinglib::getDescriptors(patchwn,
+                                                          pkp21,
+                                                          parsMtch.descriptorType,
+                                                          descr21,
+                                                          parsMtch.keyPointType);
+                    }else{
+                        err = -1;
+                    }
+                    if (err != 0) {
+                        //Use the original descriptor
+                        cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                                "this will result in a descriptor distance of 0 for this particular correspondence!"
+                             << endl;
+                        descr21 = descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone();
+                        break;
+                    }else{
+                        noPosChange = true;
+                        itFI = false;
+                    }
+                }else {
+                    //Use the full image instead of a patch
+                    patchfb = img;
+                    patchwn = patchfb.clone();
+                    patchROIimg1 = Rect(Point(0,0), patchfb.size());
+                    descrDist = -1.0;
+                    kp2 = kp;
+//                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
+                    distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+//                        }
+                    kp2err.x = kp2.pt.x - kp.pt.x;
+                    kp2err.y = kp2.pt.y - kp.pt.y;
+                    fullImgUsed = true;
+                }
+            }
+            if((err == 0) && !itFI){
+                //Check matchability
+                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+            }
+            itCnt++;
+        }while(((!patchInfos.useTN && ((descrDist < patchInfos.minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp))))
+                || (patchInfos.useTN && ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) || (descrDist < patchInfos.ThTnNear))
+                                         || (descrDist > badDescrTH.maxVal))))
+               && (itCnt < 25));
+        if(itCnt >= 25){
+            if((!patchInfos.useTN && ((descrDist < 0.75 * patchInfos.minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > 1.25 * patchInfos.ThTp))))
+               || (patchInfos.useTN && ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < 0.75 * patchInfos.ThTn))
+                                         || (descrDist < 0.75 * patchInfos.ThTnNear))
+                                        || (descrDist > 1.2 * badDescrTH.maxVal)))) {
+                //Use the original descriptor
+                cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                        "this will result in a descriptor distance of 0 for this particular correspondence!"
+                     << endl;
+#if 1
+                //Check if the descriptor extracted again without changes on the patch is the same
+                vector<KeyPoint> pkp21;
+                Mat desrc_tmp;
+                if(fullImgUsed){
+                    pkp21 = vector<KeyPoint>(1, kp);
+                }else{
+                    KeyPoint kp2_tmp = kp;
+                    kp2_tmp.pt.x -= (float) patchROIimg1.x;
+                    kp2_tmp.pt.y -= (float) patchROIimg1.y;
+                    pkp21 = vector<KeyPoint>(1, kp2_tmp);
+                }
+                bool kaze_noFail = true;
+                if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
+                    KeyPoint kz_tmp = pkp21[0];
+                    kaze_noFail = getKazeProperties(patchfb, pkp21, kz_tmp);
+                }
+                int err = 0;
+                if(kaze_noFail) {
+                    if (matchinglib::getDescriptors(patchfb,
+                                                    pkp21,
+                                                    parsMtch.descriptorType,
+                                                    desrc_tmp,
+                                                    parsMtch.keyPointType) == 0) {
+                        if (!pkp21.empty()) {
+                            double descrDist_tmp = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]),
+                                                                         desrc_tmp);
+                            if (!nearZero(descrDist_tmp)) {
+                                cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
+                                        "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
+                                if (verbose & SHOW_IMGS_AT_ERROR) {
+                                    //Show correspondence in original image
+                                    Mat fullimg, patchCol;
+                                    cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
+                                    Point c = kp_ri;
+                                    cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                    //Draw exact correspondence location
+                                    cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
+
+                                    cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
+                                    c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
+                                    cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                    //Draw exact correspondence location
+                                    cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
+                                    namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
+                                    imshow("Original image with keypoint", fullimg);
+                                    namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
+                                    imshow("Patch with keypoint", patchCol);
+                                    waitKey(0);
+                                    destroyWindow("Original image with keypoint");
+                                    destroyWindow("Patch with keypoint");
+                                }
+                            }
+                        }
+                    }
+                }
+#endif
+
+                descr21 = descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone();
+                kp2 = kp;
+                kp2err = Point2f(0, 0);
+                descrDist = 0;
+            }
+        }
+    }
+
+    return descr21.clone();
 }
 
 void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
@@ -3186,6 +3248,7 @@ size_t genMatchSequ::hashFromMtchPars() {
     ss << parsMtch.checkDescriptorDist;
     ss << std::setprecision(3) << parsMtch.repeatPatternPortStereo.first << parsMtch.repeatPatternPortStereo.second;
     ss << std::setprecision(3) << parsMtch.repeatPatternPortFToF.first << parsMtch.repeatPatternPortFToF.second;
+    ss << parsMtch.distortPatchCam1;
 
     strFromPars = ss.str();
 
@@ -3319,7 +3382,7 @@ bool genMatchSequ::writeMatchingParameters(){
         fs.writeComment("If true and too less images images are provided (resulting in too less keypoints), "
                             "only as many frames with GT matches are provided as keypoints are available.", 0);
         fs << "takeLessFramesIfLessKeyP" << parsMtch.takeLessFramesIfLessKeyP;
-        fs.writeComment("If true, TP and TN descriptors are only accepted if their descriptor distances between "
+        fs.writeComment("If 1, TP and TN descriptors are only accepted if their descriptor distances between "
                         "correspondences match the distribution calculated on the given images.", 0);
         fs << "checkDescriptorDist" << parsMtch.checkDescriptorDist;
         fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
@@ -3332,6 +3395,8 @@ bool genMatchSequ::writeMatchingParameters(){
         fs << "repeatPatternPortFToF";
         fs << "{" << "first" << parsMtch.repeatPatternPortFToF.first;
         fs << "second" << parsMtch.repeatPatternPortFToF.second << "}";
+        fs.writeComment("Enables/disables distorting a tracked image patch in the first stereo image.", 0);
+        fs << "distortPatchCam1" << parsMtch.distortPatchCam1;
 
         fs.release();
     }catch(interprocess_exception &ex){

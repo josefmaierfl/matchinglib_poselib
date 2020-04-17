@@ -2485,6 +2485,10 @@ bool genTemplateFile(const std::string &filename){
     fs << "repeatPatternPortFToF";
     fs << "{" << "first" << 0.05;
     fs << "second" << 0.1 << "}";
+    fs.writeComment("Enables/disables distorting a tracked image patch in the first stereo image. \n"
+                    "This is useful e.g. for testing mono cam SLAM algorithms to get non-zero descriptor distances for "
+                    "matching features in the first stereo frame.", 0);
+    fs << "distortPatchCam1" << 1;
 
     fs.release();
 
@@ -2903,6 +2907,10 @@ bool loadConfigFile(const std::string &filename,
         n["first"] >> first_dbl;
         n["second"] >> second_dbl;
         matchPars.repeatPatternPortFToF = make_pair(first_dbl, second_dbl);
+    }
+    n = fs["distortPatchCam1"];
+    if(!n.empty()){
+        n >> matchPars.distortPatchCam1;
     }
 
     fs.release();

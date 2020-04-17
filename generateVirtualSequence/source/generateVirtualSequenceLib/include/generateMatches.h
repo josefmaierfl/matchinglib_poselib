@@ -27,6 +27,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     bool checkDescriptorDist;//If true, TP and TN descriptors are only accepted if their descriptor distances between correspondences match the distribution calculated on the given images.
     std::pair<double, double> repeatPatternPortStereo;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) between stereo cameras.
     std::pair<double, double> repeatPatternPortFToF;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) from frame to frame.
+    bool distortPatchCam1;//If true, tracked image patch in the first stereo image are distorted
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -44,7 +45,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            bool takeLessFramesIfLessKeyP_ = false,
                            bool checkDescriptorDist_ = true,
                            std::pair<double, double> repeatPatternPortStereo_ = std::make_pair(0, 0),
-                           std::pair<double, double> repeatPatternPortFToF_ = std::make_pair(0, 0)) :
+                           std::pair<double, double> repeatPatternPortFToF_ = std::make_pair(0, 0),
+                           bool distortPatchCam1_ = false):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -61,6 +63,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             checkDescriptorDist(checkDescriptorDist_),
             repeatPatternPortStereo(std::move(repeatPatternPortStereo_)),
             repeatPatternPortFToF(std::move(repeatPatternPortFToF_)),
+            distortPatchCam1(distortPatchCam1_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -90,6 +93,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             checkDescriptorDist(true),
             repeatPatternPortStereo(std::make_pair(0, 0)),
             repeatPatternPortFToF(std::make_pair(0, 0)),
+            distortPatchCam1(false),
             parsValid(false){}
 
     bool checkParameters(){
@@ -136,6 +140,47 @@ struct stats{
     double maxVal;
 };
 
+struct PatchCInfo{
+    int show_cnt;
+    const int show_interval;
+    size_t featureIdx_tmp;
+    double stdNoiseTN;
+    double meanIntTNNoise;
+    bool kpCalcNeeded;
+    double ThTp;
+    const double minDescrDistTP;
+    double ThTn;
+    double ThTnNear;
+    std::normal_distribution<double> distr;
+    bool visualize;
+    bool useTN;
+    bool succ;
+    int i;
+
+    PatchCInfo(const double &minDescrDistTP_,
+               bool &useTN_,
+               double &stdNoiseTN_,
+               double &meanIntTNNoise_,
+               bool &kpCalcNeeded_,
+               double &ThTp_,
+               double &ThTn_,
+               double &ThTnNear_,
+               bool visualize_ = false,
+               const int show_interval_ = 50):
+            show_cnt(0),
+            show_interval(show_interval_),
+            featureIdx_tmp(0),
+            stdNoiseTN(stdNoiseTN_),
+            meanIntTNNoise(meanIntTNNoise_),
+            kpCalcNeeded(kpCalcNeeded_),
+            ThTp(ThTp_),
+            minDescrDistTP(minDescrDistTP_),
+            ThTn(ThTn_),
+            ThTnNear(ThTnNear_),
+            visualize(visualize_),
+            useTN(useTN_),
+            succ(true){};
+};
 
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
 public:
@@ -229,7 +274,8 @@ private:
                                        int64_t idx3D,
                                        size_t keyPIdx,
                                        cv::InputArray planeNVec,
-                                       bool visualize);
+                                       bool visualize,
+                                       bool forCam1 = false);
     //Checks if the 3D point of the given correspondence was already used before in a different stereo frame to calculate a homography (in this case the same 3D plane is used to calculate a homography) and if not, calculates a new homography
     cv::Mat getHomographyForDistortionChkOld(const cv::Mat& X,
                                              const cv::Mat& x1,
@@ -237,7 +283,8 @@ private:
                                              int64_t idx3D,
                                              int64_t idx3D2,
                                              size_t keyPIdx,
-                                             bool visualize);
+                                             bool visualize,
+                                             bool forCam1 = false);
 
     //Create a homography for a TN correspondence
     cv::Mat getHomographyForDistortionTN(const cv::Mat& x1,
@@ -272,6 +319,16 @@ private:
                                            std::vector<cv::DMatch> &frameMatches,
                                            std::vector<cv::Mat> &homo,
                                            std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp);
+    //Calculate warped patches and corresponding descriptors
+    cv::Mat calculateDescriptorWarped(const cv::Mat &img,
+                                      const cv::KeyPoint &kp,
+                                      cv::Mat &H,
+                                      std::vector<cv::Mat> &homo,
+                                      PatchCInfo &patchInfos,
+                                      cv::KeyPoint &kp2,
+                                      cv::Point2f &kp2err,
+                                      double &descrDist,
+                                      bool forCam1);
     //Calculates the size of a patch that should be extracted from the source image to get a minimum square patch size after warping with the given homography based on the shape of the ellipse which emerges after warping a circle with the given keypoint diameter
     bool getRectFitsInEllipse(const cv::Mat &H,
                               const cv::KeyPoint &kp,

@@ -512,3 +512,10 @@ cv::Mat roundMat(const cv::Mat& m)
 
 	return tmp1;
 }
+
+//Checks if the given matrix is an identity matrix
+bool isIdentityMat(const cv::Mat& m){
+    Mat diff = m - Mat::eye(m.size(), m.type());
+    double sum = cv::sum(diff)[0];
+    return nearZero(sum);
+}
