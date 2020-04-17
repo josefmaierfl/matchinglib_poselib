@@ -1029,12 +1029,19 @@ bool genMatchSequ::getFeatures() {
                         break;
                     }
                     size_t uniEndF = kpCnt2 + uniqueKpF;
-                    uniquesF.insert(uniquesF.end(), kpPtr.begin() + kpCnt2, kpPtr.begin() + uniEndF);
+                    if(uniqueKpF > 0) {
+                        uniquesF.insert(uniquesF.end(), kpPtr.begin() + kpCnt2, kpPtr.begin() + uniEndF);
+                    }
                     kpCnt2 = uniEndF;
-                    if(repKpF < 6){
+                    if(repKpF == 0){
+                        kpPtr_tmp = uniquesF;
+                        repsF_size = 0;
+                    }else if(repKpF < 6){
                         kpPtr_tmp.resize(kpPtr_tmp.size() + repKpF,
                                 featureIdxRepPatt[featureIdxRepPatt.size() - nrCorrs[i - 1] + (rand2() % (nrCorrs[i - 1]))]);
-                        kpPtr_tmp.insert(kpPtr_tmp.end(), uniquesF.begin(), uniquesF.end());
+                        if(uniqueKpF > 0) {
+                            kpPtr_tmp.insert(kpPtr_tmp.end(), uniquesF.begin(), uniquesF.end());
+                        }
                         repsF_size = repKpF;
                     }else{
                         size_t maxSimilarF = std::max(static_cast<size_t>(rand2() % (repKpF / 3)), static_cast<size_t>(1));
@@ -1064,7 +1071,9 @@ bool genMatchSequ::getFeatures() {
                             rep_cntF += nrReps;
                         }
                         kpPtr_tmp.insert(kpPtr_tmp.end(), repsF.begin(), repsF.end());
-                        kpPtr_tmp.insert(kpPtr_tmp.end(), uniquesF.begin(), uniquesF.end());
+                        if(uniqueKpF > 0) {
+                            kpPtr_tmp.insert(kpPtr_tmp.end(), uniquesF.begin(), uniquesF.end());
+                        }
                         repsF_size = repsF.size();
                     }
                     sum_idxs += nrCorrs[i];
@@ -1093,7 +1102,9 @@ bool genMatchSequ::getFeatures() {
                 //size_t uniEndS = kpCnt2 + uniqueKpS;
                 vector<size_t> uniquesS;
                 vector<size_t> repsS;
-                uniquesS.insert(uniquesS.end(), kpPtr_tmp.begin(), kpPtr_tmp.begin() + uniqueKpS);
+                if(uniqueKpS > 0) {
+                    uniquesS.insert(uniquesS.end(), kpPtr_tmp.begin(), kpPtr_tmp.begin() + uniqueKpS);
+                }
                 if (repKpS == 0) {
                     featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
                     if(!repFrame) {
@@ -1110,7 +1121,9 @@ bool genMatchSequ::getFeatures() {
                     }
                     continue;
                 } else if (repKpS < 9) {
-                    featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                    if(uniqueKpS > 0) {
+                        featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                    }
                     featureIdxRepPatt.resize(featureIdxRepPatt.size() + repKpS, kpPtr_tmp[uniqueKpS]);
                     if(!repFrame) {
                         std::shuffle(featureIdxRepPatt.begin() + sum_idxs, featureIdxRepPatt.end(), rand2);
@@ -1148,7 +1161,9 @@ bool genMatchSequ::getFeatures() {
                     repsS.resize(repsS.size() + nrReps, kpPtr_tmp[idxS - 1]);
                     rep_cntS += nrReps;
                 }
-                featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                if(uniqueKpS > 0) {
+                    featureIdxRepPatt.insert(featureIdxRepPatt.end(), uniquesS.begin(), uniquesS.end());
+                }
                 featureIdxRepPatt.insert(featureIdxRepPatt.end(), repsS.begin(), repsS.end());
                 if(!repFrame) {
                     std::shuffle(featureIdxRepPatt.begin() + sum_idxs, featureIdxRepPatt.end(), rand2);
@@ -1162,11 +1177,14 @@ bool genMatchSequ::getFeatures() {
                         kpCnt2 -= nrCorrs[i] - repsF_size - idxS;
                     }
                 }
+            }else{
+                featureIdxRepPatt.insert(featureIdxRepPatt.end(), kpPtr_tmp.begin(), kpPtr_tmp.end());
             }
         }
         if(featureImgIdx.size() > sum_idxs){
             featureIdxRepPatt.insert(featureIdxRepPatt.end(), kpPtr.begin() + kpCnt2, kpPtr.end());
         }
+        kpCnt = featureIdxRepPatt.size();
     }
 
     if (kpCnt < nrCorrsFullSequ) {
