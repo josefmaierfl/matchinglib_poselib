@@ -54,7 +54,7 @@ def RepresentsInt(s):
 
 
 def concat_files(path, cpu_cnt):
-    sub_paths = [a for a in os.listdir(path) if RepresentsInt(a) and not os.path.isfile(a)]
+    sub_paths = [os.path.join(path, a) for a in os.listdir(path) if RepresentsInt(a) and not os.path.isfile(os.path.join(path, a))]
 
     from usac_eval import NoAliasDumper
     for sp in sub_paths:
