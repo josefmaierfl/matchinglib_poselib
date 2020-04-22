@@ -5,7 +5,10 @@ Autocalibration-Parametersweep-Testing.xlsx
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
 # import multiprocessing
 #from pathos import multiprocessing as mp
-from pathos.pools import _ProcessPool as mp
+import dill
+dill.detect.trace(True)
+#from pathos.pools import _ProcessPool as mp
+from pathos.pools import ProcessPool as mp
 import ruamel.yaml as yaml
 # import modin.pandas as mpd
 import pandas as pd
