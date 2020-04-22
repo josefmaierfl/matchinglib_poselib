@@ -38,7 +38,8 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<bool> &inliers,
                         std::vector<cv::Mat> &homos,
                         std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
-                        std::vector<int> &corrType);
+                        std::vector<int> &corrType,
+                        std::vector<cv::Mat> &homosCam1);
 bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries);
 bool getImgROIs(const cv::Mat &H,
                 const cv::Point2i &midPt,
@@ -1299,6 +1300,7 @@ bool genMatchSequ::generateCorrespondingFeatures(){
     frameDescriptors2.release();
     frameMatches.clear();
     frameHomographies.clear();
+    frameHomographiesCam1.clear();
     srcImgPatchIdxAndKp.clear();
     frameKeypoints2NoErr.clear();
     corrType.clear();
@@ -1310,11 +1312,13 @@ bool genMatchSequ::generateCorrespondingFeatures(){
                                       frameDescriptors2,
                                       frameMatches,
                                       frameHomographies,
-                                      srcImgPatchIdxAndKp);
+                                      srcImgPatchIdxAndKp,
+                                      &frameHomographiesCam1);
     CV_Assert((frameDescriptors1.rows == frameDescriptors2.rows)
     && (frameDescriptors1.rows == combNrCorrsTP)
     && (frameMatches.size() == (size_t)combNrCorrsTP)
     && (frameHomographies.size() == (size_t)combNrCorrsTP)
+    && (frameHomographiesCam1.size() == (size_t)combNrCorrsTP)
     && (srcImgPatchIdxAndKp.size() == (size_t)combNrCorrsTP));
     frameInliers = vector<bool>((size_t)combNrCorrsTP, true);
     getErrorFreeKeypoints(frameKeypoints2, frameKeypoints2NoErr);
@@ -1359,6 +1363,8 @@ bool genMatchSequ::generateCorrespondingFeatures(){
         frameMatches.insert(frameMatches.end(), frameMatchesTN.begin(), frameMatchesTN.end());
         frameInliers.insert(frameInliers.end(), (size_t)combNrCorrsTN, false);
         frameHomographies.insert(frameHomographies.end(), frameHomosTN.begin(), frameHomosTN.end());
+        vector<Mat> frameHomosTNCam1 = vector<Mat>(combNrCorrsTN, Mat::eye(3, 3, CV_64FC1));
+        frameHomographiesCam1.insert(frameHomographiesCam1.end(), frameHomosTNCam1.begin(), frameHomosTNCam1.end());
         srcImgPatchIdxAndKp.insert(srcImgPatchIdxAndKp.end(), srcImgPatchIdxAndKpTN.begin(), srcImgPatchIdxAndKpTN.end());
         CV_Assert(combNrCorrsTN == (finalNrTNStatCorrs + finalNrTNMovCorrs));
         if(combCorrsImg12TNstatFirst){
@@ -1379,7 +1385,8 @@ bool genMatchSequ::generateCorrespondingFeatures(){
                        frameInliers,
                        frameHomographies,
                        srcImgPatchIdxAndKp,
-                       corrType);
+                       corrType,
+                       frameHomographiesCam1);
 
     //Write matches to disk
     if(!writeMatchesToDisk()){
@@ -1468,9 +1475,18 @@ bool genMatchSequ::writeMatchesToDisk(){
 
     fs.writeComment("Holds the homographies for all patches arround keypoints for warping the patch which is "
                         "then used to calculate the matching descriptor. Homographies corresponding to the same "
-                        "static 3D point (not for moving objects) in different stereo frames are similar", 0);
+                        "static 3D point in different stereo frames are similar", 0);
     fs << "frameHomographies" << "[";
     for (auto &i : frameHomographies) {
+        fs << i;
+    }
+    fs << "]";
+
+    fs.writeComment("Holds homographies for all patches arround keypoints in the first camera (for tracked features) "
+                    "for warping the patch which is then used to calculate the matching descriptor. "
+                    "Homographies corresponding to the same static 3D point in different stereo frames are similar", 0);
+    fs << "frameHomographiesCam1" << "[";
+    for (auto &i : frameHomographiesCam1) {
         fs << i;
     }
     fs << "]";
@@ -1515,7 +1531,8 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<bool> &inliers,
                         std::vector<cv::Mat> &homos,
                         std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
-                        std::vector<int> &corrType){
+                        std::vector<int> &corrType,
+                        std::vector<cv::Mat> &homosCam1){
     CV_Assert((descriptor1.rows == descriptor2.rows)
     && (descriptor1.rows == (int)kp1.size())
     && (kp1.size() == kp2.size())
@@ -1537,6 +1554,7 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
     reOrderVector(kp1, idxs1);
     reOrderVector(inliers, idxs1);
     reOrderVector(homos, idxs1);
+    reOrderVector(homosCam1, idxs1);
     reOrderVector(srcImgIdxAndKp, idxs1);
     reOrderVector(corrType, idxs1);
 
@@ -1588,7 +1606,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      cv::Mat &frameDescr2,
                                                      std::vector<cv::DMatch> &frameMatches,
                                                      std::vector<cv::Mat> &homo,
-                                                     std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp){
+                                                     std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                                                     std::vector<cv::Mat> *homoCam1){
     //Generate feature for every TP or TN
 //    int show_cnt = 0;
 //    const int show_interval = 50;
@@ -1645,7 +1664,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         }
         patchInfos.show_cnt++;
         //Calculate homography
-        Mat H, H1_dist;
+        Mat H, H1_dist = Mat::eye(3, 3, CV_64FC1);
         bool succ = true;
         bool succCam1 = true;
         if(useTN){
@@ -1710,10 +1729,25 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]],
                 keypoints1[featureIdxRepPatt[patchInfos.featureIdx_tmp]]));
 
+        cv::KeyPoint kp21;
+        cv::Point2f kp2err1 = cv::Point2f(0, 0);
+        double descrDist1;
+        cv::Mat descr11;
+        bool c1_distort = false;
+        if(!isIdentityMat(H1_dist)){
+            patchInfos.succ = succCam1;
+            descr11 = calculateDescriptorWarped(img, kp, H1_dist, *homoCam1, patchInfos, kp21, kp2err1, descrDist1, true);
+            H = H1_dist * H;
+            c1_distort = true;
+        }else if(!useTN && (homoCam1 != nullptr)){
+            homoCam1->emplace_back(Mat::eye(3, 3, CV_64FC1));
+        }
+
         cv::KeyPoint kp2;
-        cv::Point2f kp2err;
+        cv::Point2f kp2err = cv::Point2f(0, 0);
         double descrDist;
-        cv::Mat descr21 = calculateDescriptorWarped(img, kp, H, homo, patchInfos, kp2, kp2err, descrDist, false);
+        patchInfos.succ = succ;
+        cv::Mat descr21 = calculateDescriptorWarped(img, kp, H, homo, patchInfos, kp2, kp2err, descrDist, false, H1_dist, descr11);
 
         //Store the keypoints and descriptors
         if(useTN){
@@ -1722,6 +1756,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             kp2.pt.x = (float) combCorrsImg2TN.at<double>(0, i);
             kp2.pt.y = (float) combCorrsImg2TN.at<double>(1, i);
         }else {
+            if(c1_distort){
+                kp = kp21;
+            }
             kp.pt.x = (float) combCorrsImg1TP.at<double>(0, i);
             kp.pt.y = (float) combCorrsImg1TP.at<double>(1, i);
             kp2.pt.x = (float) combCorrsImg2TP.at<double>(0, i) + kp2err.x;
@@ -1744,7 +1781,11 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         }
         frameKPs1[i] = kp;
         frameKPs2[i] = kp2;
-        frameDescr1.push_back(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone());
+        if(c1_distort){
+            frameDescr1.push_back(descr11.clone());
+        }else {
+            frameDescr1.push_back(descriptors1.row((int) featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone());
+        }
         frameDescr2.push_back(descr21.clone());
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 
@@ -1760,7 +1801,9 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                                                 cv::KeyPoint &kp2,
                                                 cv::Point2f &kp2err,
                                                 double &descrDist,
-                                                bool forCam1){
+                                                bool forCam1,
+                                                cv::InputArray H_cam1,
+                                                cv::InputArray descr_cam1){
     //Calculate the rotated ellipse from the keypoint size (circle) after applying the homography to the circle
     // to estimate the minimal necessary patch size
     cv::Rect patchROIimg1(0,0,3,3), patchROIimg2(0,0,3,3), patchROIimg21(0,0,3,3);
@@ -2061,7 +2104,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
     bool keypDetNeed = (noEllipse || patchInfos.kpCalcNeeded);
 //    cv::KeyPoint kp2;
 //    Point2f kp2err;
-    if(!useFallBack && ((!patchInfos.useTN && parsMtch.keypPosErrType) || keypDetNeed)){
+    if(!useFallBack && ((!patchInfos.useTN && parsMtch.keypPosErrType && !forCam1) || keypDetNeed)){
         vector<KeyPoint> kps2;
         if (matchinglib::getKeypoints(patchw, kps2, parsMtch.keyPointType, false) != 0) {
             if(kps2.empty()){
@@ -2147,7 +2190,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 kp2err.x = kp2.pt.x - ptm.x;
                 kp2err.y = kp2.pt.y - ptm.y;
             }
-            if((!parsMtch.keypPosErrType || patchInfos.useTN) && !useFallBack){
+            if(((!parsMtch.keypPosErrType && !forCam1) || patchInfos.useTN) && !useFallBack){
                 //Correct the keypoint position to the exact location
                 kp2.pt = ptm;
                 //Change to keypoint position based on the given error range
@@ -2162,7 +2205,9 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
         kp2.pt = ptm;
         kp2.size = 2.f * (float)axes.width;
         //Change to keypoint position based on the given error range
-        distortKeyPointPosition(kp2, patchROIimg2, patchInfos.distr);
+        if(!forCam1) {
+            distortKeyPointPosition(kp2, patchROIimg2, patchInfos.distr);
+        }
         kp2err.x = kp2.pt.x - ptm.x;
         kp2err.y = kp2.pt.y - ptm.y;
     }
@@ -2212,7 +2257,18 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             useFallBack = true;
         }else{
             //Check matchability
-            descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+            if(!forCam1 && !descr_cam1.empty()){
+                Mat descr1 = descr_cam1.getMat();
+                if(!descr1.empty()){
+                    descrDist = getDescriptorDistance(descr1, descr21);
+                }
+                else{
+                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                }
+            }else {
+                descrDist = getDescriptorDistance(descriptors1.row((int) featureIdxRepPatt[patchInfos.featureIdx_tmp]),
+                                                  descr21);
+            }
             if(patchInfos.useTN){
                 if (((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) || (descrDist < patchInfos.ThTnNear)) {
                     useFallBack = true;
@@ -2227,7 +2283,19 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
 
     if(useFallBack){
         //Only add gaussian noise and salt and pepper noise to the original patch
-        homo.back() = Mat::eye(3,3, CV_64FC1);
+        if(!forCam1) {
+            Mat H_cam1m;
+            if(!H_cam1.empty()){
+                H_cam1m = H_cam1.getMat();
+            }
+            if(H_cam1m.empty()) {
+                homo.back() = Mat::eye(3, 3, CV_64FC1);
+            }else{
+                homo.back() = H_cam1m.inv();
+            }
+        }else{
+            homo.back() = Mat::eye(3, 3, CV_64FC1);
+        }
         double meang, stdg;
         meang = getRandDoubleValRng(-10.0, 10.0);
         stdg = getRandDoubleValRng(-10.0, 10.0);
@@ -2271,7 +2339,9 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
 
         //Change to keypoint position based on the given error range
 //            if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
-        distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+        if(!forCam1) {
+            distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+        }
 //            }
         kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
         kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
@@ -2294,7 +2364,9 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                         kp2.pt.y -= (float) patchROIimg1.y;
                     }
 //                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
-                    distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+                    if(!forCam1) {
+                        distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+                    }
 //                        }
                     kp2err.x = kp2.pt.x + (float)patchROIimg1.x - kp.pt.x;
                     kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
@@ -2387,7 +2459,9 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     descrDist = -1.0;
                     kp2 = kp;
 //                        if((parsMtch.descriptorType != "AKAZE") && (parsMtch.descriptorType != "KAZE")) {
-                    distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+                    if(!forCam1) {
+                        distortKeyPointPosition(kp2, patchROIimg1, patchInfos.distr);
+                    }
 //                        }
                     kp2err.x = kp2.pt.x - kp.pt.x;
                     kp2err.y = kp2.pt.y - kp.pt.y;
@@ -2396,7 +2470,18 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             }
             if((err == 0) && !itFI){
                 //Check matchability
-                descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                if(!forCam1 && !descr_cam1.empty()){
+                    Mat descr1 = descr_cam1.getMat();
+                    if(!descr1.empty()){
+                        descrDist = getDescriptorDistance(descr1, descr21);
+                    }
+                    else{
+                        descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                    }
+                }else {
+                    descrDist = getDescriptorDistance(
+                            descriptors1.row((int) featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                }
             }
             itCnt++;
         }while(((!patchInfos.useTN && ((descrDist < patchInfos.minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp))))

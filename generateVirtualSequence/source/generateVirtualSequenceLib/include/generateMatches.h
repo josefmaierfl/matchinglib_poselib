@@ -318,7 +318,8 @@ private:
                                            cv::Mat &frameDescr2,
                                            std::vector<cv::DMatch> &frameMatches,
                                            std::vector<cv::Mat> &homo,
-                                           std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp);
+                                           std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                                           std::vector<cv::Mat> *homoCam1 = nullptr);
     //Calculate warped patches and corresponding descriptors
     cv::Mat calculateDescriptorWarped(const cv::Mat &img,
                                       const cv::KeyPoint &kp,
@@ -328,7 +329,9 @@ private:
                                       cv::KeyPoint &kp2,
                                       cv::Point2f &kp2err,
                                       double &descrDist,
-                                      bool forCam1);
+                                      bool forCam1,
+                                      cv::InputArray H_cam1 = cv::noArray(),
+                                      cv::InputArray descr_cam1 = cv::noArray());
     //Calculates the size of a patch that should be extracted from the source image to get a minimum square patch size after warping with the given homography based on the shape of the ellipse which emerges after warping a circle with the given keypoint diameter
     bool getRectFitsInEllipse(const cv::Mat &H,
                               const cv::KeyPoint &kp,
@@ -405,7 +408,8 @@ private:
     cv::Mat frameDescriptors1, frameDescriptors2;//Descriptors for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the descriptor order of each of them is the same as in their corresponding keypoint vector). Descriptors corresponding to the same static 3D point (not for moving objects) in different stereo frames are similar
     std::vector<cv::DMatch> frameMatches;//Matches between features of a single stereo frame. They are sorted based on the descriptor distance (smallest first)
     std::vector<bool> frameInliers;//Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) is an inlier.
-    std::vector<cv::Mat> frameHomographies;//Holds the homographies for all patches arround keypoints for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point (not for moving objects) in different stereo frames are similar
+    std::vector<cv::Mat> frameHomographies;//Holds the homographies for all patches arround keypoints for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point in different stereo frames are similar
+    std::vector<cv::Mat> frameHomographiesCam1;//Holds homographies for all patches arround keypoints in the first camera (for tracked features) for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point in different stereo frames are similar
     std::vector<std::pair<size_t,cv::KeyPoint>> srcImgPatchIdxAndKp; //Holds the keypoint and image index of the image used to extract patches
     std::vector<int> corrType;//Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object, or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3) object (old means,that the corresponding 3D point emerged before this stereo frame and also has one or more correspondences in a different stereo frame))
     std::vector<double> kpErrors;//Holds distances from the original to the distorted keypoint locations for every correspondence of the whole sequence
