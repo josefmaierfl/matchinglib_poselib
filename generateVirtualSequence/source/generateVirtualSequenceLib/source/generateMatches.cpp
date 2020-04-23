@@ -510,11 +510,13 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
                                                        size_t keyPIdx,
                                                        bool visualize,
                                                        bool forCam1){
-    if(!check2D3DConsistency(x1, x2, X, idx3D, idx3D2)){
-        throw SequenceException("2D is not consistend with 3D for calculating homographies!");
+    if(!forCam1) {
+        if (!check2D3DConsistency(x1, x2, X, idx3D, idx3D2)) {
+            throw SequenceException("2D is not consistend with 3D for calculating homographies!");
+        }
     }
     if(!planeTo3DIdx.empty() && (idx3D != -1)){
-        if (planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()) {
+        if ((planeTo3DIdx.find(idx3D) != planeTo3DIdx.end()) && (get<2>(planeTo3DIdx[idx3D]) != actFrameCnt)) {
             Mat trans = Mat::eye(4, 4, CV_64FC1);
             trans.rowRange(0, 3).colRange(0, 3) = absCamCoordinates[actFrameCnt].R.t();
             trans.col(3).rowRange(0, 3) =
@@ -557,7 +559,7 @@ cv::Mat genMatchSequ::getHomographyForDistortionChkOld(const cv::Mat& X,
         }
     }
     try {
-        return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize);
+        return getHomographyForDistortion(X, x1, x2, idx3D, keyPIdx, cv::noArray(), visualize, forCam1);
     }catch(SequenceException &e){
         cout << "Exception while calculating new homography: " << e.what() << endl;
         throw;
@@ -2190,11 +2192,13 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 kp2err.x = kp2.pt.x - ptm.x;
                 kp2err.y = kp2.pt.y - ptm.y;
             }
-            if(((!parsMtch.keypPosErrType && !forCam1) || patchInfos.useTN) && !useFallBack){
+            if((!parsMtch.keypPosErrType || patchInfos.useTN) && !useFallBack){
                 //Correct the keypoint position to the exact location
                 kp2.pt = ptm;
                 //Change to keypoint position based on the given error range
-                distortKeyPointPosition(kp2, patchROIimg2, patchInfos.distr);
+                if(!forCam1) {
+                    distortKeyPointPosition(kp2, patchROIimg2, patchInfos.distr);
+                }
                 kp2err.x = kp2.pt.x - ptm.x;
                 kp2err.y = kp2.pt.y - ptm.y;
             }
@@ -2291,7 +2295,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             if(H_cam1m.empty()) {
                 homo.back() = Mat::eye(3, 3, CV_64FC1);
             }else{
-                homo.back() = H_cam1m.inv();
+                H_cam1m.copyTo(homo.back());
             }
         }else{
             homo.back() = Mat::eye(3, 3, CV_64FC1);
