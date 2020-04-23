@@ -438,6 +438,10 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         ret = 0
         cnt_dot = 0
         port = 5000
+        from DataServer import start_server
+        print('Starting data server...')
+        start_server(data, port)
+        print('Data server started')
         with mp(processes=nr_cpus, initializer=init_eval_procs, initargs=(port, )) as pool:
             results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
             res1 = []
