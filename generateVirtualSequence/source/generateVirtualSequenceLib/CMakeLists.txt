@@ -80,7 +80,10 @@ set(sources
 	${source_path}/generateMatches.cpp
 	${source_path}/imgFeatures.cpp
 	${source_path}/descriptor-RIFF/riff.cpp
-	${source_path}/descriptor-BOLD/bold.cpp)
+	${source_path}/descriptor-BOLD/bold.cpp
+	${source_path}/GTM/base_matcher.cpp
+	${source_path}/GTM/inscribeRectangle.cpp
+	${source_path}/GTM/loadGTMfiles.cpp)
 
 # Group source files
 set(header_group "Header Files (API)")
