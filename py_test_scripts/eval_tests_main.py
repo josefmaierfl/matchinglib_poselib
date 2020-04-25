@@ -20,6 +20,8 @@ import multiprocess.context as mpc
 from multiprocessing import Semaphore
 
 import evaluation_numbers as en
+import psutil
+import tempfile, shutil
 
 
 def opencv_matrix_constructor(loader, node):
@@ -61,6 +63,17 @@ def RepresentsInt(s):
         return True
     except ValueError:
         return False
+
+
+def get_nr_procs_memory(df_mem, cpus_max):
+    disk = psutil.disk_usage('/').free
+    if 1.25 * df_mem > disk:
+        return 1
+    ram_available = psutil.virtual_memory().available
+    swap = psutil.swap_memory().free
+    usable = 0.75 * ram_available + swap / 3
+    cpus = max(min(math.ceil(usable / df_mem), cpus_max), 1)
+    return cpus
 
 
 # To allow multiprocessing (children) during multiprocessing
@@ -339,9 +352,30 @@ def load_test_res(load_path):
     return data, load_time
 
 
-def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path):
+def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path, pickle_df):
     # data, load_time = load_test_res(load_path)
-    data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
+    if pickle_df:
+        pickle_file = os.path.join(output_path, test_name + '_' + str(test_nr) + '.pkl')
+        if os.path.exists(pickle_file):
+            start = timer()
+            data = pd.read_pickle(pickle_file)
+            end = timer()
+            load_time = end - start
+        else:
+            data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
+            try:
+                data.to_pickle(pickle_file)
+            except Exception:
+                print('Exception while trying to pickle dataframe', file=sys.stderr)
+                logging.error('Exception while trying to pickle dataframe of ' + test_name +
+                              ', Test Nr ' + str(test_nr), exc_info=True)
+                try:
+                    os.remove(pickle_file)
+                except:
+                    pass
+                return 10
+    else:
+        data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
     if data.empty:
         return 1
     print('Finished loading test results after ', load_time, ' seconds.')
@@ -392,9 +426,18 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     else:
         comp_pars_list = [None] * nr_evals
 
-    if (cpu_use == 1 or nr_evals == 1) and not comp_pars:
+    df_mem = data.memory_usage(index=True, deep=True).sum()
+    no_mult_proc = 0
+    if df_mem >= 4294967295:
+        cpu_use = get_nr_procs_memory(df_mem, cpu_use)
+        if cpu_use > 1:
+            no_mult_proc = 2
+        else:
+            no_mult_proc = 1
+
+    if (cpu_use == 1 or nr_evals == 1 or no_mult_proc == 1) and not comp_pars:
         return eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
-    elif cpu_use == 1 or nr_evals == 1:
+    elif cpu_use == 1 or nr_evals == 1 or no_mult_proc == 1:
         evs_no_cmp = [a for i, a in enumerate(used_evals) if not comp_pars_list[i]]
         evs_cmp = [[i, a] for i, a in enumerate(used_evals) if comp_pars_list[i]]
         ret = eval_test_exec(data, output_path, test_name, test_nr, evs_no_cmp, None, None)
@@ -417,11 +460,29 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
         #                                  comp_pars_list[(len(used_evals) - rest):])])
         message_path_new = create_message_path(message_path, test_name, test_nr)
-        cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
-                for a, b in zip(used_evals, comp_pars_list)]
+        excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
+        if no_mult_proc == 2:
+            if not pickle_df:
+                dirpath = tempfile.mkdtemp()
+                fname = test_name + '_' + str(test_nr) + '.pkl'
+                pickle_file = os.path.join(dirpath, fname)
+                try:
+                    data.to_pickle(pickle_file)
+                except Exception:
+                    print('Exception while trying to pickle dataframe', file=sys.stderr)
+                    logging.error('Exception while trying to pickle dataframe of ' + test_name +
+                                  ', Test Nr ' + str(test_nr), exc_info=True)
+                    shutil.rmtree(dirpath)
+                    return 10
+
+            cmds = [(pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        else:
+            cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+
         nr_cpus = min(len(used_evals), cpu_use)
 
-        excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
         ret = 0
         cnt_dot = 0
         with mp(processes=nr_cpus) as pool:
@@ -448,6 +509,8 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                         res1.append(cmds[i][2:5])
                         ret += 1
                         break
+        if no_mult_proc == 2 and not pickle_df:
+            shutil.rmtree(dirpath)
         if os.path.exists(excmess) and os.stat(excmess).st_size < 4:
             os.remove(excmess)
         if res1:
@@ -506,6 +569,8 @@ def configure_logging(message_path, base_name, test_name, test_nr, already_set=F
 
 
 def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
+    if type(data) is str:
+        data = pd.read_pickle(data)
     mess_base_name = 'evals_' + test_name + '_' + str(test_nr) + '_' + str(eval_nr[0])
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
@@ -5890,6 +5955,10 @@ def main():
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
                              'the part from option --path is used. Results are only loaded, if option '
                              '--compare_pars is provided.')
+    parser.add_argument('--pickle_df', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='If provided, the loaded data for evaluation is pickled and stored to disk if not already'
+                             'done before. Thus, only the pickled data has to be read from file in future evaluations '
+                             'on the same data.')
     args = parser.parse_args()
 
     if not os.path.exists(args.path):
@@ -5957,7 +6026,7 @@ def main():
             comp_path = args.path
 
     ret = eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars, cpu_use,
-                    args.message_path)
+                    args.message_path, args.pickle_df)
     sys.exit(ret)
 
 
