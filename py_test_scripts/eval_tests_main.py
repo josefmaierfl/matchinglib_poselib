@@ -5,10 +5,7 @@ Autocalibration-Parametersweep-Testing.xlsx
 import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, math
 # import multiprocessing
 #from pathos import multiprocessing as mp
-# import dill
-# dill.detect.trace(True)
 from pathos.pools import _ProcessPool as mp
-# from pathos.pools import ProcessPool as mp
 import ruamel.yaml as yaml
 # import modin.pandas as mpd
 import pandas as pd
@@ -23,11 +20,6 @@ import multiprocess.context as mpc
 from multiprocessing import Semaphore
 
 import evaluation_numbers as en
-from DataClient import *
-
-# Confusing, but the "proxy" will be global to each subprocess,
-# it's not shared across all processes.
-gProxy = None
 
 
 def opencv_matrix_constructor(loader, node):
@@ -92,11 +84,6 @@ def RepresentsInt(s):
 def init_load_csv(lock_):
     global lock
     lock = lock_
-
-
-def init_eval_procs(port=5000):
-    global gProxy
-    gProxy = DataClient(port).proxy
 
 
 def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
@@ -430,19 +417,14 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
         #                                  comp_pars_list[(len(used_evals) - rest):])])
         message_path_new = create_message_path(message_path, test_name, test_nr)
-        cmds = [(output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+        cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
                 for a, b in zip(used_evals, comp_pars_list)]
         nr_cpus = min(len(used_evals), cpu_use)
 
         excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
         ret = 0
         cnt_dot = 0
-        port = 5000
-        from DataServer import start_server
-        print('Starting data server...')
-        start_server(data, port)
-        print('Data server started')
-        with mp(processes=nr_cpus, initializer=init_eval_procs, initargs=(port, )) as pool:
+        with mp(processes=nr_cpus) as pool:
             results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
             res1 = []
             for i, r in enumerate(results):
@@ -523,7 +505,7 @@ def configure_logging(message_path, base_name, test_name, test_nr, already_set=F
     return excmess
 
 
-def eval_test_exec_std_wrap(output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
+def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
     mess_base_name = 'evals_' + test_name + '_' + str(test_nr) + '_' + str(eval_nr[0])
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
@@ -534,8 +516,6 @@ def eval_test_exec_std_wrap(output_path, test_name, test_nr, eval_nr, comp_path,
         errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
         stdmess = os.path.join(message_path, 'stdout_' + base + '.txt')
         cnt += 1
-    global gProxy
-    data = gProxy.getData()
     with open(stdmess, 'a') as f_std, open(errmess, 'a') as f_err:
         with contextlib.redirect_stdout(f_std), contextlib.redirect_stderr(f_err):
             ret = eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
