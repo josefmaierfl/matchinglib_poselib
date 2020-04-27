@@ -72,8 +72,12 @@ def RepresentsInt(s):
         return False
 
 
-def get_nr_procs_memory(df_mem, cpus_max, in_mem):
-    disk = psutil.disk_usage('/').free
+def get_nr_procs_memory(df_mem, cpus_max, in_mem, pickle_file):
+    if pickle_file is not None:
+        folder = os.path.dirname(pickle_file)
+        disk = psutil.disk_usage(folder).free
+    else:
+        disk = psutil.disk_usage('/').free
     if 1.25 * df_mem > disk:
         return 1
     ram_available = psutil.virtual_memory().available
@@ -380,6 +384,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         used_evals = eval_nr
     nr_evals = len(used_evals)
     use_pickle_str = False
+    pickle_file = None
     if pickle_df:
         pickle_file = os.path.join(output_path, test_name + '_' + str(test_nr) + '.pkl')
         if os.path.exists(pickle_file):
@@ -452,7 +457,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     else:
         df_mem = os.stat(pickle_file).st_size
     no_mult_proc = 0
-    if df_mem >= 4294967295:
+    if df_mem >= 4294967295 and not (cpu_use == 1 or nr_evals == 1):
         cpu_use = get_nr_procs_memory(df_mem, cpu_use, not use_pickle_str)
         if cpu_use > 1:
             no_mult_proc = 2
@@ -460,8 +465,24 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             no_mult_proc = 1
 
     if (cpu_use == 1 or nr_evals == 1 or no_mult_proc == 1) and not comp_pars:
+        if use_pickle_str and no_mult_proc == 1:
+            start = timer()
+            data = pd.read_pickle(pickle_file)
+            end = timer()
+            load_time = end - start
+            if data.empty:
+                return 1
+            print('Finished loading test results after ', load_time, ' seconds.')
         return eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
     elif cpu_use == 1 or nr_evals == 1 or no_mult_proc == 1:
+        if use_pickle_str and no_mult_proc == 1:
+            start = timer()
+            data = pd.read_pickle(pickle_file)
+            end = timer()
+            load_time = end - start
+            if data.empty:
+                return 1
+            print('Finished loading test results after ', load_time, ' seconds.')
         evs_no_cmp = [a for i, a in enumerate(used_evals) if not comp_pars_list[i]]
         evs_cmp = [[i, a] for i, a in enumerate(used_evals) if comp_pars_list[i]]
         ret = eval_test_exec(data, output_path, test_name, test_nr, evs_no_cmp, None, None)
