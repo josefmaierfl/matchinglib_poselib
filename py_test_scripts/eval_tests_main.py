@@ -455,7 +455,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
     if not use_pickle_str:
         df_mem = data.memory_usage(index=True, deep=True).sum()
     else:
-        df_mem = 2 * os.stat(pickle_file).st_size
+        df_mem = 4 * os.stat(pickle_file).st_size
     no_mult_proc = 0
     if df_mem >= 4294967295 and not (cpu_use == 1 or nr_evals == 1):
         cpu_use = get_nr_procs_memory(df_mem, cpu_use, not use_pickle_str, pickle_file)
