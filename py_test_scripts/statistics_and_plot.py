@@ -17,21 +17,21 @@ from difflib import SequenceMatcher
 
 
 # To allow multiprocessing (children) during multiprocessing
-# class NoDaemonProcess(multiprocessing.Process):
-#     # make 'daemon' attribute always return False
-#     def _get_daemon(self):
-#         return False
-#
-#     def _set_daemon(self, value):
-#         pass
-#     daemon = property(_get_daemon, _set_daemon)
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
 
 
 # To allow multiprocessing (children) during multiprocessing
 # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
 # because the latter is only a wrapper function, not a proper class.
-# class MyPool(multiprocessing.pool.Pool):
-#     Process = NoDaemonProcess
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
 
 
 ji_env = ji.Environment(
@@ -178,7 +178,7 @@ def compile_tex(rendered_tex,
                       out_tex_dir)
                      for it in range(0, len(pdf_info['pdfpath']))]
             retcode_mp = []
-            with multiprocessing.Pool(processes=cpu_use) as pool:
+            with MyPool(processes=cpu_use) as pool:
                 results = [pool.apply_async(compile_pdf_base, t) for t in tasks]
                 for r in results:
                     cnt_dot = 0

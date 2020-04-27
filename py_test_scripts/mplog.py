@@ -24,15 +24,21 @@ THE SOFTWARE.
 '''
 
 import contextlib
-import multiprocessing
+# import multiprocessing
 import logging
 import threading
+import queue
+import time
 
 
 def daemon(log_queue):
     while True:
         try:
-            record_data = log_queue.get()
+            try:
+                record_data = log_queue.get()
+            except queue.Empty:
+                time.sleep(0.1)
+                continue
             if record_data is None:
                 break
             record = logging.makeLogRecord(record_data)
@@ -74,16 +80,20 @@ def logged_call(log_queue, func, *args, **kwargs):
     for logger in logging.Logger.manager.loggerDict.values():
         if not isinstance(logger, logging.PlaceHolder):
             logger.__class__ = MPLogger
-    func(*args, **kwargs)
+    return func(*args, **kwargs)
 
 
 @contextlib.contextmanager
-def open_queue(ctx=None):
+def open_queue(is_pathos=True, ctx=None):
+    if is_pathos:
+        from pathos.helpers import mp
+    else:
+        import multiprocessing as mp
     if ctx:
         mgr = ctx.Manager()
         log_queue = mgr.Queue()
     else:
-        mgr = multiprocessing.Manager()
+        mgr = mp.Manager()
         log_queue = mgr.Queue()
     daemon_thread = threading.Thread(target=daemon, args=(log_queue,))
     daemon_thread.start()

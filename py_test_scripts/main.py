@@ -156,7 +156,6 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
         send_message('Evaluation failed. Main test ' + test_name +
                      (' with test nr ' + str(test_nr) if test_nr else ''))
         return ret
-
     # After evals are finished try to find optimal parameters
     if not skip_find_opt_pars:
         try:

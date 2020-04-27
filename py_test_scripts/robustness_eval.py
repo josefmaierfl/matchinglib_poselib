@@ -12,9 +12,14 @@ from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 from statistics_and_plot import compile_tex
 from copy import deepcopy
 
+
 def get_rt_change_type(**keywords):
     if 'data_seperators' not in keywords:
         raise ValueError('data_seperators missing!')
+    if 'data_file' in keywords:
+        if os.path.exists(keywords['data_file']):
+            df_new = pd.read_pickle(keywords['data_file'])
+            return df_new
 
     df_grp = keywords['data'].groupby(keywords['data_seperators'])
     grp_keys = df_grp.groups.keys()
@@ -267,6 +272,8 @@ def get_rt_change_type(**keywords):
         df_new = df_new.loc[(df_new['poseIsStable'] != 0)]
     if 'filter_mostLikelyPose_stable' in keywords and keywords['filter_mostLikelyPose_stable']:
         df_new = df_new.loc[(df_new['mostLikelyPose_stable'] != 0)]
+    if 'data_file' in keywords:
+        df_new.to_pickle(keywords['data_file'])
     return df_new
 
 
