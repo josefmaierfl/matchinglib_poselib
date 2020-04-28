@@ -2632,14 +2632,6 @@ void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
     }
 }
 
-double genMatchSequ::getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2){
-    if(descriptor1.type() == CV_8U){
-        return norm(descriptor1, descriptor2, NORM_HAMMING);
-    }
-
-    return norm(descriptor1, descriptor2, NORM_L2);
-}
-
 void genMatchSequ::calcGoodBadDescriptorTH(){
     const int typicalNr = 150;
     int compareNr = min(typicalNr, (int)keypoints1.size());

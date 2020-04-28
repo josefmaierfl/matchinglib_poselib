@@ -134,6 +134,9 @@ cv::Mat roundMat(const cv::Mat& m);
 //Checks if the given matrix is an identity matrix
 bool isIdentityMat(const cv::Mat& m);
 
+//Calculate the descriptor distance between 2 descriptors
+double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2);
+
 /* -------------------------- Functions -------------------------- */
 
 //Checks, if determinants, etc. are too close to 0

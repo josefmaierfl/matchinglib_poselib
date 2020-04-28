@@ -519,3 +519,12 @@ bool isIdentityMat(const cv::Mat& m){
     double sum = cv::sum(diff)[0];
     return nearZero(sum);
 }
+
+//Calculate the descriptor distance between 2 descriptors
+double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2){
+    if(descriptor1.type() == CV_8U){
+        return norm(descriptor1, descriptor2, NORM_HAMMING);
+    }
+
+    return norm(descriptor1, descriptor2, NORM_L2);
+}

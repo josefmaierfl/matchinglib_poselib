@@ -229,8 +229,6 @@ private:
     void totalNrCorrs();
     //Loads images and extracts keypoints and descriptors from them to generate matches later on
     bool getFeatures();
-    //Calculates the descriptor distance between 2 descriptors
-    double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2);
     //Writes the parameters used to generate 3D scenes to disk
     bool writeSequenceParameters(const std::string &filename);
     //Writes a subset of parameters used to generate a 3D scene to disk (used within an overview file which holds basic information about all sub-folders that contain parameters and different 3D scenes)

@@ -5131,9 +5131,11 @@ def get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy):
         x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
     else:
         if str_is_number(df, xy_axis_columns[0]):
-            df = df.copy(deep=True)
-            df.loc[:, xy_axis_columns[0]] = pd.to_numeric(df.loc[:, xy_axis_columns[0]], errors='coerce').to_numpy()
-            x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
+            # df = df.copy(deep=True)
+            # df.loc[:, xy_axis_columns[0]] = pd.to_numeric(df.loc[:, xy_axis_columns[0]], errors='coerce').to_numpy()
+            # x_diff = float(df[xy_axis_columns[0]].iloc[0]) - float(df[xy_axis_columns[0]].iloc[1])
+            df1 = pd.to_numeric(df.loc[:, xy_axis_columns[0]], errors='coerce')
+            x_diff = float(df1.iloc[0]) - float(df1.iloc[1])
         else:
             if df[xy_axis_columns[0]].iloc[0] == df[xy_axis_columns[0]].iloc[1]:
                 x_diff = 0
@@ -5143,9 +5145,11 @@ def get_block_length_3D(df, xy_axis_columns, is_numericx, is_numericy):
         y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
     else:
         if str_is_number(df, xy_axis_columns[1]):
-            df = df.copy(deep=True)
-            df.loc[:, xy_axis_columns[1]] = pd.to_numeric(df.loc[:, xy_axis_columns[1]], errors='coerce').to_numpy()
-            y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
+            # df = df.copy(deep=True)
+            # df.loc[:, xy_axis_columns[1]] = pd.to_numeric(df.loc[:, xy_axis_columns[1]], errors='coerce').to_numpy()
+            # y_diff = float(df[xy_axis_columns[1]].iloc[0]) - float(df[xy_axis_columns[1]].iloc[1])
+            df1 = pd.to_numeric(df.loc[:, xy_axis_columns[1]], errors='coerce')
+            y_diff = float(df1.iloc[0]) - float(df1.iloc[1])
         else:
             if df[xy_axis_columns[1]].iloc[0] == df[xy_axis_columns[1]].iloc[1]:
                 y_diff = 0
