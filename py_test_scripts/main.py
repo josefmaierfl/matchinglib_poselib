@@ -1505,6 +1505,7 @@ def main():
     compress_mess_folder(args.zip_message_folder, args.message_path, ret)
     compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
     shut_down(args.shutdown_afterwards)
+    logging.shutdown()
     sys.exit(ret)
 
 

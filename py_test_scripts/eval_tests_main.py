@@ -397,6 +397,7 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                     return 1
                 print('Finished loading test results after ', load_time, ' seconds.')
             else:
+                data = None
                 use_pickle_str = True
         else:
             data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
@@ -416,24 +417,6 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         if data.empty:
             return 1
         print('Finished loading test results after ', load_time, ' seconds.')
-    # data = None
-    # data_dict = data.to_dict('list')
-    # data = mpd.DataFrame(data_dict)
-    # data = mpd.utils.from_pandas(data)
-    #print('Finished loading data')
-
-    # main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
-    #                    'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
-    # sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
-    # sub_sub_test_nr = [[list(range(1, 7)), list(range(7, 15)) + [36]],
-    #                    [list(range(1, 8))],
-    #                    [list(range(1, 6)), list(range(1, 5))],
-    #                    [list(range(1, 8))],
-    #                    [list(range(1, 4)), list(range(1, 5))],
-    #                    [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
-    #                    [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
-    #                     list(range(25, 29)), list(range(29, 38))],
-    #                    [list(range(1, 9))]]
 
     comp_pars_list = []
     if any(test_name == a for a in evcn):
@@ -490,98 +473,28 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             ret += eval_test_exec(data, output_path, test_name, test_nr, [i[1]], comp_path, comp_pars_list[i[0]])
         return ret
     else:
-        # parts = 1
-        # rest = 0
-        # if cpu_use > len(used_evals):
-        #     cpu_use = len(used_evals)
-        # elif cpu_use < len(used_evals):
-        #     parts = int(float(len(used_evals)) / float(cpu_use))
-        #     rest = len(used_evals) % cpu_use
-        # cmds = [[(data, output_path, test_name, test_nr, a, comp_path, b)
-        #          for a, b in zip(used_evals[(p * cpu_use):(p * (cpu_use + 1))],
-        #                          comp_pars_list[(p * cpu_use):(p * (cpu_use + 1))])] for p in range(0, parts)]
-        # if rest:
-        #     cmds.append([(data, output_path, test_name, test_nr, a, comp_path, b)
-        #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
-        #                                  comp_pars_list[(len(used_evals) - rest):])])
         message_path_new = create_message_path(message_path, test_name, test_nr)
         excmess, log = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
 
         nr_cpus = min(len(used_evals), cpu_use)
-
-        ret = 0
-        cnt_dot = 0
         if no_mult_proc == 2 or use_pickle_str:
-            ctx = MyBaseContext().get_context('spawn')
+            ret, res1 = subprocesses(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data,
+                                     pickle_file, use_pickle_str, output_path, comp_path, message_path_new,
+                                     used_evals, comp_pars_list)
         else:
-            ctx = None
-        # mpc._force_start_method('spawn') #['spawn']#get_context('spawn')
-        with mplog.open_queue(ctx is None, ctx) as log_queue:
-            if no_mult_proc == 2:
-                if not pickle_df:
-                    dirpath = tempfile.mkdtemp()
-                    fname = test_name + '_' + str(test_nr) + '.pkl'
-                    pickle_file = os.path.join(dirpath, fname)
-                    try:
-                        data.to_pickle(pickle_file)
-                    except Exception:
-                        print('Exception while trying to pickle dataframe', file=sys.stderr)
-                        log.error('Exception while trying to pickle dataframe of ' + test_name +
-                                  ', Test Nr ' + str(test_nr), exc_info=True)
-                        shutil.rmtree(dirpath)
-                        return 10
-                    del data
-                elif not use_pickle_str:
-                    del data
+            ret, res1 = subprocesses_pathos(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data,
+                                            pickle_file, use_pickle_str, output_path, comp_path, message_path_new,
+                                            used_evals, comp_pars_list)
 
-                cmds = [(log_queue, eval_test_exec_std_wrap, pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
-                        for a, b in zip(used_evals, comp_pars_list)]
-            elif use_pickle_str:
-                cmds = [(log_queue, eval_test_exec_std_wrap, pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
-                        for a, b in zip(used_evals, comp_pars_list)]
-            else:
-                cmds = [(log_queue, eval_test_exec_std_wrap, data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
-                        for a, b in zip(used_evals, comp_pars_list)]
-            # used_pool = None
-            # if no_mult_proc == 2 or use_pickle_str:
-            #     used_pool = MyPool(processes=nr_cpus)
-            # else:
-            #     used_pool = mp(processes=nr_cpus)
-            with (MyPool(processes=nr_cpus) if no_mult_proc == 2 or use_pickle_str else mp(processes=nr_cpus)) as pool:
-                results = [pool.apply_async(mplog.logged_call, t) for t in cmds]
-                res1 = []
-                for i, r in enumerate(results):
-                    while 1:
-                        sys.stdout.flush()
-                        try:
-                            res = r.get(2.0)
-                            ret += res
-                            break
-                        except mpc.TimeoutError:
-                            if cnt_dot >= 90:
-                                print()
-                                cnt_dot = 0
-                            sys.stdout.write('.')
-                            cnt_dot = cnt_dot + 1
-                        except mTimeoutError:
-                            if cnt_dot >= 90:
-                                print()
-                                cnt_dot = 0
-                            sys.stdout.write('.')
-                            cnt_dot = cnt_dot + 1
-                        except Exception:
-                            print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
-                                  ', Eval Nr', used_evals[i], file=sys.stderr)
-                            log.error('Fatal error within evaluation on ' + test_name +
-                                      ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
-                            res1.append(cmds[i][2:5])
-                            ret += 1
-                            break
-        if no_mult_proc == 2 and not pickle_df:
-            shutil.rmtree(dirpath)
-        remove_log_handlers()
         if os.path.exists(excmess) and os.stat(excmess).st_size < 4:
-            os.remove(excmess)
+            if no_mult_proc == 2 or use_pickle_str:
+                tmp = open(excmess, 'a')
+                tmp.flush()
+                tmp.close()
+                if os.stat(excmess).st_size < 4:
+                    os.remove(excmess)
+            else:
+                os.remove(excmess)
         if res1:
             failed_cmds_base_name = 'cmds_evals_failed_' + test_name + '_' + str(test_nr)
             base = failed_cmds_base_name
@@ -595,6 +508,131 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                 fo1.write('Failed evaluations:\n')
                 fo1.write('\n'.join(['  '.join(map(str, a)) for a in res1]))
         return ret
+
+
+def subprocesses(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data, pickle_file, use_pickle_str,
+                 output_path, comp_path, message_path_new, used_evals, comp_pars_list):
+    ret = 0
+    res1 = []
+    cnt_dot = 0
+    ctx = MyBaseContext().get_context('spawn')
+    with mplog.open_queue(False, ctx) as log_queue:
+        if no_mult_proc == 2:
+            if not pickle_df:
+                dirpath = tempfile.mkdtemp()
+                fname = test_name + '_' + str(test_nr) + '.pkl'
+                pickle_file = os.path.join(dirpath, fname)
+                try:
+                    data.to_pickle(pickle_file)
+                except Exception:
+                    print('Exception while trying to pickle dataframe', file=sys.stderr)
+                    log.error('Exception while trying to pickle dataframe of ' + test_name +
+                              ', Test Nr ' + str(test_nr), exc_info=True)
+                    shutil.rmtree(dirpath)
+                    return 10
+                del data
+            elif not use_pickle_str:
+                del data
+
+            cmds = [(log_queue, eval_test_exec_std_wrap, pickle_file, output_path, test_name, test_nr, [a], comp_path, b,
+                     message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        elif use_pickle_str:
+            cmds = [(log_queue, eval_test_exec_std_wrap, pickle_file, output_path, test_name, test_nr, [a], comp_path, b,
+                     message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        else:
+            cmds = [(log_queue, eval_test_exec_std_wrap, data, output_path, test_name, test_nr, [a], comp_path, b,
+                     message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        with MyPool(processes=nr_cpus) as pool:
+            results = [pool.apply_async(mplog.logged_call, t) for t in cmds]
+            for i, r in enumerate(results):
+                while 1:
+                    sys.stdout.flush()
+                    try:
+                        res = r.get(2.0)
+                        ret += res
+                        break
+                    except mTimeoutError:
+                        if cnt_dot >= 90:
+                            print()
+                            cnt_dot = 0
+                        sys.stdout.write('.')
+                        cnt_dot = cnt_dot + 1
+                    except Exception:
+                        print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
+                              ', Eval Nr', used_evals[i], file=sys.stderr)
+                        log.error('Fatal error within evaluation on ' + test_name +
+                                  ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
+                        res1.append(cmds[i][2:5])
+                        ret += 1
+                        break
+
+    if no_mult_proc == 2 and not pickle_df:
+        shutil.rmtree(dirpath)
+    remove_log_handlers()
+    return ret, res1
+
+
+def subprocesses_pathos(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data, pickle_file, use_pickle_str,
+                 output_path, comp_path, message_path_new, used_evals, comp_pars_list):
+    ret = 0
+    res1 = []
+    cnt_dot = 0
+    if no_mult_proc == 2:
+        if not pickle_df:
+            dirpath = tempfile.mkdtemp()
+            fname = test_name + '_' + str(test_nr) + '.pkl'
+            pickle_file = os.path.join(dirpath, fname)
+            try:
+                data.to_pickle(pickle_file)
+            except Exception:
+                print('Exception while trying to pickle dataframe', file=sys.stderr)
+                log.error('Exception while trying to pickle dataframe of ' + test_name +
+                          ', Test Nr ' + str(test_nr), exc_info=True)
+                shutil.rmtree(dirpath)
+                return 10
+            del data
+        elif not use_pickle_str:
+            del data
+
+        cmds = [(pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+    elif use_pickle_str:
+        cmds = [(pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+    else:
+        cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+    with mp(processes=nr_cpus) as pool:
+        results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
+        for i, r in enumerate(results):
+            while 1:
+                sys.stdout.flush()
+                try:
+                    res = r.get(2.0)
+                    ret += res
+                    break
+                except mpc.TimeoutError:
+                    if cnt_dot >= 90:
+                        print()
+                        cnt_dot = 0
+                    sys.stdout.write('.')
+                    cnt_dot = cnt_dot + 1
+                except Exception:
+                    print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
+                          ', Eval Nr', used_evals[i], file=sys.stderr)
+                    log.error('Fatal error within evaluation on ' + test_name +
+                              ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
+                    res1.append(cmds[i][2:5])
+                    ret += 1
+                    break
+
+    if no_mult_proc == 2 and not pickle_df:
+        shutil.rmtree(dirpath)
+    remove_log_handlers()
+    return ret, res1
 
 
 def create_message_path(message_path, test_name, test_nr):
