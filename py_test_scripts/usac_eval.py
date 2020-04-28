@@ -1056,11 +1056,11 @@ def pars_calc_multiple_fig_partitions(**keywords):
                 act_figs = 0
     if (i_new + 1) != i_old:
         st_list2.append({'figs': st_list[i_old:(i_new + 1)], 'pdf_nr': cnt})
-    if len(st_list) > max_figs_pdf:
-        st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
-                     'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
-    else:
-        st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
+    # if len(st_list) > max_figs_pdf:
+    #     st_list2 = [{'figs': st_list[i:i + max_figs_pdf],
+    #                  'pdf_nr': i1 + 1} for i1, i in enumerate(range(0, len(st_list), max_figs_pdf))]
+    # else:
+    #     st_list2 = [{'figs': st_list, 'pdf_nr': 1}]
     for it in st_list2:
         if len(st_list2) == 1:
             title = tex_infos['title']
@@ -1091,7 +1091,7 @@ def pars_calc_multiple_fig_partitions(**keywords):
         pdf_l_info['rendered_tex'].append(rendered_tex)
         pdf_l_info['texf_name'].append(texf_name)
     ret['res'] = abs(compile_tex(pdf_l_info['rendered_tex'], ret['tex_folder'], pdf_l_info['texf_name'],
-                                 tex_infos['make_index'], pdf_l_info['pdf_name'], tex_infos['figs_externalize']))
+                                 tex_infos['make_index'], pdf_l_info['pdf_name'], tex_infos['figs_externalize'], True))
     if ret['res'] != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return ret
