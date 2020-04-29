@@ -3585,7 +3585,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                      'stereoParameters_minInlierRatioReInit',
                                      'stereoParameters_relMinInlierRatSkip']
                     partitions = ['rt_change_type']
-                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                    special_calcs_args = {'build_pdf': (False, True, True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'robustness_best_comb_scenes_inlc_depth'}
@@ -3637,7 +3637,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                      'stereoParameters_minInlierRatioReInit',
                                      'stereoParameters_relMinInlierRatSkip']
                     partitions = ['rt_change_type']
-                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                    special_calcs_args = {'build_pdf': (False, True, True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'robustness_best_comb_scenes_inlc_kpAccSd'}
