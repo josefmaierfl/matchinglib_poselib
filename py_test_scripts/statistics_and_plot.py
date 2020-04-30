@@ -234,6 +234,7 @@ def compile_pdf_base(pdfpath, pdfname, cmdline, stdoutf, erroutf, rep_make_in, o
             retcode = sp.run(cmdline,
                              shell=False,
                              check=True,
+                             timeout=4000,
                              cwd=out_tex_dir,
                              stdout=stdoutfh,
                              stderr=erroutfh).returncode
@@ -242,6 +243,9 @@ def compile_pdf_base(pdfpath, pdfname, cmdline, stdoutf, erroutf, rep_make_in, o
                 retcode = 1
             else:
                 print("PDF generation successful with code", retcode)
+        except sp.TimeoutExpired:
+            print('Timeout for compiling tex file expired')
+            retcode = 2
         except OSError as e:
             print("Execution of pdflatex failed:", e, file=sys.stderr)
             retcode = 1
