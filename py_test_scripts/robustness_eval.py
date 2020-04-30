@@ -79,7 +79,8 @@ def get_rt_change_type(**keywords):
 
         for first, last in zip(indexes['first'], indexes['last']):
             tmp1 = tmp.iloc[((tmp.index >= first) & (tmp.index < last))].copy(deep=True)
-            hlp = (tmp1['R_GT_n_diffAll'] + tmp1['t_GT_n_angDiff']).fillna(0).round(decimals=6)
+            hlp = (tmp1['R_GT_n_diffAll'] + tmp1['t_GT_n_elemDiff_tx'] + tmp1['t_GT_n_elemDiff_ty'] +
+                   tmp1['t_GT_n_elemDiff_tz']).fillna(0).round(decimals=4)
             cnt = float(np.count_nonzero(hlp.to_numpy()))
             frac = cnt / float(tmp1.shape[0])
             if frac > 0.5:

@@ -3,29 +3,20 @@
 # External dependencies
 #
 
-option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." ON)
-
-if(WIN32)
-	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-	  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-	endif()
-	#if("$ENV{PFELIBROOT}" STREQUAL "")
-		#message(ERROR "Not able to build lib: Root of pfelib not found! set PFELIBROOT")
-	#endif()
-	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-endif()
+option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the OpenCV library." ON)
+option(USE_MANUAL_ANNOTATION "Manual annotate GTM for detected inaccuracies."         OFF)
 
 find_package(Eigen REQUIRED)
 
 find_package(OpenCV 4.2.0 REQUIRED)
 
-if(WIN32)
-	set(PCL_DIR "C:/work/THIRDPARTY/pcl-1.8.1/pcl-1.8.1-dl/PCL 1.8.1/cmake/")
-	find_package(PCL 1.8 REQUIRED)# COMPONENTS common filters)
-	#find_package(PCL 1.8 REQUIRED COMPONENTS common filters visualization)
-else()
-	find_package(PCL 1.9.1 REQUIRED)
+if(USE_MANUAL_ANNOTATION)
+	if(UNIX)
+		find_package(Qt5 COMPONENTS Widgets REQUIRED)
+	endif()
 endif()
+
+find_package(PCL 1.9.1 REQUIRED)
 #message(STATUS ${PCL_VERSION})
 if(PCL_FOUND)
 	message(STATUS "Found PCL lib!")
@@ -197,8 +188,14 @@ target_link_libraries(${target}
 
     INTERFACE
 )
-
-
+if(USE_MANUAL_ANNOTATION)
+	if(UNIX)
+		target_link_libraries(${target}
+			PUBLIC
+			Qt5::Widgets
+		)
+	endif()
+endif()
 #
 # Compile definitions
 #
