@@ -603,3 +603,85 @@ std::string concatPath(const std::string &mainPath, const std::string &subPath){
 
 	return filedir1 + '/' + filedir2;
 }
+
+/* This function reads all homography file names from a given directory and stores their names into a vector.
+ *
+ * string filepath				Input  -> Path to the directory
+ * string fileprefl				Input  -> File prefix for the left or first images (for the dataset of
+ *										  www.robots.ox.ac.uk/~vgg/research/affine/ this must be H1to because
+ *										  the file names look like H1to2, H1to3, ...)
+ * vector<string> filenamesl	Output -> Vector with sorted filenames of the images in the given directory
+ */
+bool readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl)
+{
+    DIR *dir;
+    struct dirent *ent;
+    if((dir = opendir(filepath.c_str())) != nullptr)
+    {
+        while ((ent = readdir(dir)) != nullptr)
+        {
+            string filename;
+            filename = string(ent->d_name);
+            if(filename.compare(0,fileprefl.size(),fileprefl) == 0)
+                filenamesl.push_back(filename);
+        }
+        closedir(dir);
+
+        if(filenamesl.empty())
+        {
+            std::cerr << "No homography files available" << endl;
+            return false;
+        }
+
+        sort(filenamesl.begin(),filenamesl.end(),
+             [](string const &first, string const &second){return stoi(first.substr(first.find_last_of('o')+1)) <
+                     stoi(second.substr(second.find_last_of('o')+1));});
+    }
+    else
+    {
+        std::cerr << "Could not open directory" << endl;
+        return false;
+    }
+
+    return true;
+}
+
+/* This function reads a homography from a given file.
+ *
+ * string filepath				Input  -> Path to the directory
+ * string filename				Input  -> Filename of a stored homography (from www.robots.ox.ac.uk/~vgg/research/affine/ )
+ * Mat* H						Output -> Pointer to the homography
+ */
+bool readHomographyFromFile(const std::string& filepath, const std::string& filename, cv::OutputArray H)
+{
+    ifstream ifs;
+    char stringline[100];
+    char* pEnd;
+    Mat H_ = Mat(3,3,CV_64FC1);
+    size_t i = 0, j;
+    ifs.open(filepath + "\\" + filename, ifstream::in);
+
+    while(ifs.getline(stringline,100) && (i < 3))
+    {
+        H_.at<double>(i,0) = strtod(stringline, &pEnd);
+        for(j = 1; j < 3; j++)
+        {
+            H_.at<double>(i,j) = strtod(pEnd, &pEnd);
+        }
+        i++;
+    }
+    ifs.close();
+
+    if((i < 3) || (j < 3))
+        return false; //Reading homography failed
+    if (H.needed())
+    {
+        if (H.empty())
+            H.create(3, 3, CV_64F);
+        H_.copyTo(H.getMat());
+    }else{
+        return false;
+    }
+
+    return true;
+}

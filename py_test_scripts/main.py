@@ -5,7 +5,7 @@ import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, logging
 import communication as com
 import evaluation_numbers as en
 import pandas as pd
-import shutil, zipfile
+import shutil, zipfile, math
 
 token = ''
 use_sms = False
@@ -132,7 +132,8 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
     if pickle_df:
         cmdline.append('--pickle_df')
 
-    tout = len(use_evals) * 4 * 3600
+    procs = int(min(max(math.ceil(1.33 * len(use_evals) / cpu_use), 1), len(use_evals)))
+    tout = procs * 4 * 3600
     try:
         if test_main:
             ret = test_ret[2]

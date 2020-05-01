@@ -58,6 +58,12 @@ bool GENERATEVIRTUALSEQUENCELIB_API createDirectory(const std::string &path);
 //Concatenate a main and a sub-path
 std::string GENERATEVIRTUALSEQUENCELIB_API concatPath(const std::string &mainPath, const std::string &subPath);
 
+//Reads all homography file names (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/) from a given directory and stores their names into a vector.
+bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl);
+
+//Reads a homography from a given file (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/)
+bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFromFile(const std::string& filepath, const std::string& filename, cv::OutputArray H);
+
 /*!***************************************************************************
 * PURPOSE: returns cv::Mat datastructure with PfePixImgStruct data
 *
