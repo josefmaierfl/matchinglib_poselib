@@ -28,6 +28,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::pair<double, double> repeatPatternPortStereo;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) between stereo cameras.
     std::pair<double, double> repeatPatternPortFToF;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) from frame to frame.
     bool distortPatchCam1;//If true, tracked image patch in the first stereo image are distorted
+    double oxfordGTMportion;//Portion of GT matches from Oxford dataset (GT = homographies)
+    double kittiGTMportion;//Portion of GT matches from KITTI dataset (GT = flow, disparity)
+    double megadepthGTMportion;//Portion of GT matches from MegaDepth dataset (GT = depth)
+    double GTMportion;//Portion of GT matches (GTM) compared to warped patch correspondences if multiple datasets are used as source (Oxford, KITTI, MegaDepth)
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -46,7 +50,11 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            bool checkDescriptorDist_ = true,
                            std::pair<double, double> repeatPatternPortStereo_ = std::make_pair(0, 0),
                            std::pair<double, double> repeatPatternPortFToF_ = std::make_pair(0, 0),
-                           bool distortPatchCam1_ = false):
+                           bool distortPatchCam1_ = false,
+                           double oxfordGTMportion_ = 0,
+                           double kittiGTMportion_ = 0,
+                           double megadepthGTMportion_ = 0,
+                           double GTMportion_ = 0):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -64,6 +72,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             repeatPatternPortStereo(std::move(repeatPatternPortStereo_)),
             repeatPatternPortFToF(std::move(repeatPatternPortFToF_)),
             distortPatchCam1(distortPatchCam1_),
+            oxfordGTMportion(oxfordGTMportion_),
+            kittiGTMportion(kittiGTMportion_),
+            megadepthGTMportion(megadepthGTMportion_),
+            GTMportion(GTMportion_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -94,6 +106,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             repeatPatternPortStereo(std::make_pair(0, 0)),
             repeatPatternPortFToF(std::make_pair(0, 0)),
             distortPatchCam1(false),
+            oxfordGTMportion(0),
+            kittiGTMportion(0),
+            megadepthGTMportion(0),
+            GTMportion(0),
             parsValid(false){}
 
     bool checkParameters(){
@@ -126,6 +142,26 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
         if((repeatPatternPortFToF.first > (1. + DBL_EPSILON)) || (repeatPatternPortFToF.second > (1. + DBL_EPSILON)) ||
            (repeatPatternPortFToF.first > (repeatPatternPortFToF.second + DBL_EPSILON))){
             std::cerr << "Invalid repeatPatternPortFToF." << std::endl;
+            return false;
+        }
+        oxfordGTMportion = std::round(abs(oxfordGTMportion) * 1e4) / 1e4;
+        if(oxfordGTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid oxfordGTMportion." << std::endl;
+            return false;
+        }
+        kittiGTMportion = std::round(abs(kittiGTMportion) * 1e4) / 1e4;
+        if(kittiGTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid kittiGTMportion." << std::endl;
+            return false;
+        }
+        megadepthGTMportion = std::round(abs(megadepthGTMportion) * 1e4) / 1e4;
+        if(megadepthGTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid megadepthGTMportion." << std::endl;
+            return false;
+        }
+        GTMportion = std::round(abs(GTMportion) * 1e4) / 1e4;
+        if(GTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid oxfordGTMportion." << std::endl;
             return false;
         }
         return true;

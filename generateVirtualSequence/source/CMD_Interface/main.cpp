@@ -1802,97 +1802,97 @@ bool genTemplateFile(const std::string &filename){
     std::mt19937 rand2(seed);
 
     fs.writeComment("This file contains user specific parameters used to generate "
-                        "multiple consecutive stereo frames with correspondences.\n\n", 0);
+                        "multiple consecutive stereo frames with correspondences.\n\n");
 
-    fs.writeComment("Number of total frames. Max. 10000", 0);
+    fs.writeComment("Number of total frames. Max. 10000");
     fs << "nrTotalFrames" << 100;
 
-    fs.writeComment("---- Options for stereo extrinsics ----\n\n", 0);
+    fs.writeComment("---- Options for stereo extrinsics ----\n\n");
 
     fs.writeComment("Number of different stereo configurations (max. 1000). \n"
                         "The number of frames per camera configuration is controlled by the smallest number of "
-                        "the change rates (e.g. txChangeFRate) for tx, ty, tz, roll, pitch, and yaw.", 0);
+                        "the change rates (e.g. txChangeFRate) for tx, ty, tz, roll, pitch, and yaw.");
     fs << "nrStereoConfigs" << 10;
 
     fs.writeComment("Specifies after how many frames the x-component for the translation vector between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
-                        "Set this value to 0, if you do not want to change the x-component linearly.", 0);
+                        "Set this value to 0, if you do not want to change the x-component linearly.");
     fs << "txChangeFRate" << 20;
 
     fs.writeComment("Specifies after how many frames the y-component for the translation vector between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
-                        "Set this value to 0, if you do not want to change the y-component linearly.", 0);
+                        "Set this value to 0, if you do not want to change the y-component linearly.");
     fs << "tyChangeFRate" << 10;
 
     fs.writeComment("Specifies after how many frames the z-component for the translation vector between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
-                        "Set this value to 0, if you do not want to change the z-component linearly.", 0);
+                        "Set this value to 0, if you do not want to change the z-component linearly.");
     fs << "tzChangeFRate" << 60;
 
     fs.writeComment("Specifies after how many frames the roll angle (angle about x-axis) between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
-                        "Set this value to 0, if you do not want to change the roll linearly.", 0);
+                        "Set this value to 0, if you do not want to change the roll linearly.");
     fs << "rollChangeFRate" << 20;
 
     fs.writeComment("Specifies after how many frames the pitch angle (angle about y-axis) between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
-                        "Set this value to 0, if you do not want to change the pitch linearly.", 0);
+                        "Set this value to 0, if you do not want to change the pitch linearly.");
     fs << "pitchChangeFRate" << 30;
 
     fs.writeComment("Specifies after how many frames the yaw angle (angle about z-axis) between "
                         "the stereo cameras shall be changed linearly by a given value. \n"
-                        "Set this value to 0, if you do not want to change the yaw linearly.", 0);
+                        "Set this value to 0, if you do not want to change the yaw linearly.");
     fs << "yawChangeFRate" << 0;
 
     fs.writeComment("Linear change rate for tx (x-component of the translation vector "
-                        "between the stereo cameras).", 0);
+                        "between the stereo cameras).");
     fs << "txLinChangeVal" << -0.01;
 
     fs.writeComment("Linear change rate for ty (y-component of the translation vector "
-                        "between the stereo cameras).", 0);
+                        "between the stereo cameras).");
     fs << "tyLinChangeVal" << 0.001;
 
     fs.writeComment("Linear change rate for tz (z-component of the translation vector "
-                        "between the stereo cameras).", 0);
+                        "between the stereo cameras).");
     fs << "tzLinChangeVal" << 0.0005;
 
     fs.writeComment("Linear change rate for the roll angle (angle in degrees about x-axis) "
-                        "between the stereo cameras.", 0);
+                        "between the stereo cameras.");
     fs << "rollLinChangeVal" << 0.5;
 
     fs.writeComment("Linear change rate for the pitch angle (angle in degrees about y-axis) "
-                        "between the stereo cameras.", 0);
+                        "between the stereo cameras.");
     fs << "pitchLinChangeVal" << 0.1;
 
     fs.writeComment("Linear change rate for the yaw angle (angle in degrees about z-axis) "
-                        "between the stereo cameras.", 0);
+                        "between the stereo cameras.");
     fs << "yawLinChangeVal" << 0;
 
     fs.writeComment("Start value for tx (x-component (right) of the translation vector "
-                        "between the stereo cameras). \nOnly used if the specified range is 0.", 0);
+                        "between the stereo cameras). \nOnly used if the specified range is 0.");
     fs << "txStartVal" << -1.0;
 
     fs.writeComment("Start value for ty (y-component (down) of the translation vector "
-                        "between the stereo cameras). \nOnly used if the specified range is 0.", 0);
+                        "between the stereo cameras). \nOnly used if the specified range is 0.");
     fs << "tyStartVal" << 0.1;
 
     fs.writeComment("Start value for tz (z-component (forward) of the translation vector "
-                        "between the stereo cameras). \nOnly used if the specified range is 0.", 0);
+                        "between the stereo cameras). \nOnly used if the specified range is 0.");
     fs << "tzStartVal" << 0.01;
 
     fs.writeComment("Start value for the roll angle (angle in degrees about x-axis, "
                         "right handed coordinate system, R = R_y * R_z * R_x) "
-                        "between the stereo cameras. \nOnly used if the specified range is 0.", 0);
+                        "between the stereo cameras. \nOnly used if the specified range is 0.");
     fs << "rollStartVal" << 2.0;
 
     fs.writeComment("Start value for the pitch angle (angle in degrees about y-axis, "
                         "right handed coordinate system, R = R_y * R_z * R_x) "
-                        "between the stereo cameras. \nOnly used if the specified range is 0.", 0);
+                        "between the stereo cameras. \nOnly used if the specified range is 0.");
     fs << "pitchStartVal" << -8.2;
 
     fs.writeComment("Start value for the yaw angle (angle in degrees about z-axis, "
                         "right handed coordinate system, R = R_y * R_z * R_x) "
-                        "between the stereo cameras. \nOnly used if the specified range is 0.", 0);
+                        "between the stereo cameras. \nOnly used if the specified range is 0.");
     fs << "yawStartVal" << 0.3;
 
     fs.writeComment("Possible range of the initial tx (x-component (right) of the translation vector "
@@ -1900,7 +1900,7 @@ bool genTemplateFile(const std::string &filename){
                         "The optimal tx starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by txVariable, the range is used for every new "
                         "configuration. \nIf the range (difference between both values) is 0, "
-                        "tx will be kept fixed at the given start value for tx.", 0);
+                        "tx will be kept fixed at the given start value for tx.");
     fs << "txRange";
     fs << "{" << "first" << 0;
     fs << "second" << 0 << "}";
@@ -1910,7 +1910,7 @@ bool genTemplateFile(const std::string &filename){
                         "The optimal ty starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by tyVariable, the range is used for every new "
                         "configuration. \nIf the range (difference between both values) is 0, "
-                        "ty will be kept fixed at the given start value for ty.", 0);
+                        "ty will be kept fixed at the given start value for ty.");
     fs << "tyRange";
     fs << "{" << "first" << -0.1;
     fs << "second" << 0.1 << "}";
@@ -1920,7 +1920,7 @@ bool genTemplateFile(const std::string &filename){
                         "The optimal tz starting-value is by default only estimated for the "
                         "first stereo configuration. If specified by tzVariable, the range is used for every new "
                         "configuration. \nIf the range (difference between both values) is 0, "
-                        "tz will be kept fixed at the given start value for tz.", 0);
+                        "tz will be kept fixed at the given start value for tz.");
     fs << "tzRange";
     fs << "{" << "first" << 0;
     fs << "second" << 0 << "}";
@@ -1931,7 +1931,7 @@ bool genTemplateFile(const std::string &filename){
                         "The optimal roll starting-value is by default only estimated for the \n"
                         "first stereo configuration. If specified by rollVariable, the range is used for every new "
                         "configuration. \nIf the range (difference between both values) is 0, "
-                        "the roll angle will be kept fixed at the given start value for roll.", 0);
+                        "the roll angle will be kept fixed at the given start value for roll.");
     fs << "rollRange";
     fs << "{" << "first" << -5.0;
     fs << "second" << 7.0 << "}";
@@ -1942,7 +1942,7 @@ bool genTemplateFile(const std::string &filename){
                         "The optimal pitch starting-value is by default only estimated for the \n"
                         "first stereo configuration. If specified by pitchVariable, the range is used for every new "
                         "configuration. \nIf the range (difference between both values) is 0, "
-                        "the pitch angle will be kept fixed at the given start value for pitch.", 0);
+                        "the pitch angle will be kept fixed at the given start value for pitch.");
     fs << "pitchRange";
     fs << "{" << "first" << -15.0;
     fs << "second" << 10.0 << "}";
@@ -1953,7 +1953,7 @@ bool genTemplateFile(const std::string &filename){
                         "The optimal yaw starting-value is by default only estimated for the \n"
                         "first stereo configuration. If specified by yawVariable, the range is used for every new "
                         "configuration. \nIf the range (difference between both values) is 0, "
-                        "the yaw angle will be kept fixed at the given start value for yaw.", 0);
+                        "the yaw angle will be kept fixed at the given start value for yaw.");
     fs << "yawRange";
     fs << "{" << "first" << 0;
     fs << "second" << 0 << "}";
@@ -1962,46 +1962,46 @@ bool genTemplateFile(const std::string &filename){
                         "where tx should change (depends on txChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
-                        "Otherwise set the value to 0.", 0);
+                        "Otherwise set the value to 0.");
     fs << "txVariable" << 0;
 
     fs.writeComment("Use the specified ty-range for every new stereo configuration (not only for the first) "
                         "where ty should change (depends on tyChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
-                        "Otherwise set the value to 0.", 0);
+                        "Otherwise set the value to 0.");
     fs << "tyVariable" << 0;
 
     fs.writeComment("Use the specified tz-range for every new stereo configuration (not only for the first) "
                         "where tz should change (depends on tzChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
-                        "Otherwise set the value to 0.", 0);
+                        "Otherwise set the value to 0.");
     fs << "tzVariable" << 0;
 
     fs.writeComment("Use the specified roll-range for every new stereo configuration (not only for the first) "
                         "where the roll angle should change (depends on rollChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
-                        "Otherwise set the value to 0.", 0);
+                        "Otherwise set the value to 0.");
     fs << "rollVariable" << 0;
 
     fs.writeComment("Use the specified pitch-range for every new stereo configuration (not only for the first) "
                         "where the pitch angle should change (depends on pitchChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
-                        "Otherwise set the value to 0.", 0);
+                        "Otherwise set the value to 0.");
     fs << "pitchVariable" << 0;
 
     fs.writeComment("Use the specified yaw-range for every new stereo configuration (not only for the first) "
                         "where the yaw angle should change (depends on yawChangeFRate). \n"
                         "If this value is 1, an optimal value is selected within the given range for every new changed "
                         "stereo configuration to meet a \nspecific image overlap between the 2 stereo cameras. "
-                        "Otherwise set the value to 0.", 0);
+                        "Otherwise set the value to 0.");
     fs << "yawVariable" << 0;
 
     fs.writeComment("Set this variable to 1 if you want to use your own extrinsic and intrinsic camera "
-                        "parameters (set them in specificCamPars). \nOtherwise, set this value to 0.", 0);
+                        "parameters (set them in specificCamPars). \nOtherwise, set this value to 0.");
     fs << "useSpecificCamPars" << 0;
     fs.writeComment("Input for specific extrinsic and intrinsic stereo camera parameters. The "
                         "translation vectors must include the scale factor. \nRotation matrices must be "
@@ -2015,7 +2015,7 @@ bool genTemplateFile(const std::string &filename){
                         "The update frequence (in frames) is calculated by nrTotalFrames devided by "
                         "the number of entered stereo configurations (here) or nrStereoConfigs "
                         "(whatever value is smaller; nrStereoConfigs is not allowed to be larger than the "
-                        "number of entries entered here).", 0);
+                        "number of entries entered here).");
     vector<Mat> Rsu(2), tsu(2), K1su(2), K2su(2);
     Rsu[0] = eulerAnglesToRotationMatrix(2.0 * M_PI / 180.0,
                                          -4.0 * M_PI / 180.0,
@@ -2048,12 +2048,12 @@ bool genTemplateFile(const std::string &filename){
     fs << "]";
 
     fs.writeComment("Desired image overlap of both stereo images at mid depth (see corrsPerRegionRandInit). \n"
-                        "Value range: 0.1 to 1.0", 0);
+                        "Value range: 0.1 to 1.0");
     fs << "imageOverlap" << 0.8;
 
-    fs.writeComment("---- Options for generating 3D scenes ----\n\n", 0);
+    fs.writeComment("---- Options for generating 3D scenes ----\n\n");
 
-    fs.writeComment("Inlier ratio range for all stereo frames.", 0);
+    fs.writeComment("Inlier ratio range for all stereo frames.");
     fs << "inlRatRange";
     fs << "{" << "first" << 0.4;
     fs << "second" << 0.95 << "}";
@@ -2066,9 +2066,9 @@ bool genTemplateFile(const std::string &filename){
                         "of the last stereo frame \n"
                         "( inlRat_new_range = [max(inlRat_old - inlRatChanges * inlRat_old, "
                         "inlRatRange.first), "
-                        "min(inlRat_old + inlRatChanges * inlRat_old, inlRatRange.second)] ).", 0);
+                        "min(inlRat_old + inlRatChanges * inlRat_old, inlRatRange.second)] ).");
     fs << "inlRatChanges" << 20.0;
-    fs.writeComment("Number of true positives (TP) range for all stereo frames.", 0);
+    fs.writeComment("Number of true positives (TP) range for all stereo frames.");
     fs << "truePosRange";
     fs << "{" << "first" << 30;
     fs << "second" << 1000 << "}";
@@ -2079,14 +2079,14 @@ bool genTemplateFile(const std::string &filename){
                         "For values between 0 and 100.0, \nthe true positives selected are not allowed to "
                         "change more than this factor from the true positives of the last stereo frame \n"
                         "( TP_new_range = [max(TP_old - truePosChanges * TP_old, truePosRange.first), "
-                        "min(TP_old + truePosChanges * TP_old, truePosRange.second)] ).", 0);
+                        "min(TP_old + truePosChanges * TP_old, truePosRange.second)] ).");
     fs << "truePosChanges" << 40.0;
     fs.writeComment("Minimum distance between keypoints in the first (left or top) "
-                        "stereo image for every frame", 0);
+                        "stereo image for every frame");
     fs << "minKeypDist" << 4.0;
     fs.writeComment("Portion of correspondences at depth regions (near, mid, and far). "
                         "The values are double precision and the values must not sum to 1.0. \n"
-                        "This is performed internally.", 0);
+                        "This is performed internally.");
     fs << "corrsPerDepth";
     fs << "{" << "near" << 0.3;
     fs << "mid" << 0.1;
@@ -2099,7 +2099,7 @@ bool genTemplateFile(const std::string &filename){
                         "\nIf more than one matrix is provided, corrsPerRegRepRate specifies the number of "
                         "subsequent frames for which a matrix is valid. \n"
                         "After all matrices are used, the first one is used again. "
-                        "If only one matrix is provided, it is used for every frame.", 0);
+                        "If only one matrix is provided, it is used for every frame.");
     std::vector<cv::Mat> corrsPerRegion;
     for (int i = 0; i < 3; i++) {
         cv::Mat corrsPReg(3, 3, CV_64FC1);
@@ -2117,13 +2117,13 @@ bool genTemplateFile(const std::string &filename){
                         "this number specifies the number of subsequent frames for which such a matrix is valid. "
                         "After all matrices are used, the first one is used again. \n"
                         "If 0 and no matrix of portions of correspondences at regions is provided, "
-                        "as many random matrices as frames are randomly generated.", 0);
+                        "as many random matrices as frames are randomly generated.");
     fs << "corrsPerRegRepRate" << 5;
     fs.writeComment("If 1 and corrsPerRegRepRate=0, corrsPerRegion is initialized randomly "
                         "for every frame seperately. \n"
                         "If 1 and 0 < corrsPerRegRepRate < nrTotalFrames, "
                         "nrTotalFrames / corrsPerRegRepRate different random corrsPerRegion are calculated. \n"
-                        "If 0, the values from corrsPerRegion are used.", 0);
+                        "If 0, the values from corrsPerRegion are used.");
     fs << "corrsPerRegionRandInit" << 0;
     fs.writeComment("Portion of depths per region (must be 3x3). For each of the 3x3=9 image regions, "
                         "the portion of near, mid, and far depths can be specified. \n"
@@ -2136,7 +2136,7 @@ bool genTemplateFile(const std::string &filename){
                         "internally. \nIf the overall depth definition (corrsPerDepth) is not met, this tensor "
                         "is adapted. If this list is left empty ([]), it is initialized randomly. \n"
                         "Maybe this values do not hold: Also depends on back-projected 3D-points "
-                        "from prior frames.", 0);
+                        "from prior frames.");
     std::vector<std::vector<depthPortion>> depthsPerRegion;
     depthsPerRegion.resize(3, std::vector<depthPortion>(3));
     for (size_t y = 0; y < 3; y++) {
@@ -2165,7 +2165,7 @@ bool genTemplateFile(const std::string &filename){
                         "If this list is left empty ([]), it is initialized randomly. "
                         "If min and max are equal, exactly this number of connected depth areas is used. \n"
                         "Maybe this values do not hold: Also depends on back-projected 3D-points "
-                        "from prior frames.", 0);
+                        "from prior frames.");
     std::vector<std::vector<std::pair<size_t, size_t>>> nrDepthAreasPReg;
     nrDepthAreasPReg.resize(3, std::vector<std::pair<size_t, size_t>>(3));
     for (size_t y = 0; y < 3; y++) {
@@ -2189,7 +2189,7 @@ bool genTemplateFile(const std::string &filename){
     fs.writeComment("If 1, an ellipsoid is used as camera track (consecutive positions of the "
                         "top/left stereo camera center. \n"
                         "If 2, a custom track can be entered into camTrack. \n"
-                        "If 3, a random track will be generated.", 0);
+                        "If 3, a random track will be generated.");
     fs << "trackOption" << 1;
     fs.writeComment("Ellipsoid parameters: \nxDirection (either -1 (left) or +1 (right)); \n"
                         "xzExpansion (value range -100 to +100.0, no 0) describes how much "
@@ -2206,7 +2206,7 @@ bool genTemplateFile(const std::string &filename){
                         "is not the same as the first, but near to it. \nThe scale of the generated track is not "
                         "important as it is changed internally that it fits all stereo frames. \n"
                         "maxTrackElements (see next option) specifies how many track segments within the "
-                        "ellipsoid are generated.", 0);
+                        "ellipsoid are generated.");
     fs << "ellipsoidTrack";
     fs << "{" << "xDirection" << 1;
     fs << "xzExpansion" << 0.3;
@@ -2216,7 +2216,7 @@ bool genTemplateFile(const std::string &filename){
     fs << "max" << M_PI_4 << "}" << "}";
 
     fs.writeComment("maxTrackElements specifies the number of track segments generated within an ellipsoid or "
-                        "during a randomized track generation (max 10000 segments)", 0);
+                        "during a randomized track generation (max 10000 segments)");
     fs << "maxTrackElements" << 100;
 
     fs.writeComment("Parameters for random generation of a track with maxTrackElements segments: \n"
@@ -2235,7 +2235,7 @@ bool genTemplateFile(const std::string &filename){
                         "tz_new = (2.0 * allowedChange_3 * tz_old + tx_new * xzDirectionRandInRange_new) / 3.0, \n"
                         "new_track_position = old_track_position + [tx_new; ty_new; tz_new]). \n"
                         "The scale of the generated track is not important as it is changed internally that it "
-                        "fits all stereo frames.", 0);
+                        "fits all stereo frames.");
     fs << "randomTrack";
     fs << "{" << "xDirection" << 1;
     fs << "xzDirectionRange";
@@ -2250,7 +2250,7 @@ bool genTemplateFile(const std::string &filename){
                         "cv::Mat with the format [x_pos; y_pos; z_pos]. \nThe scale of the generated track is not "
                         "important as it is changed internally that it fits all stereo frames. \nIf you enter only "
                         "1 vector [x_pos; y_pos; z_pos], it is interpreted as a directional vector and the "
-                        "camera center of the left/top stereo camera moves into this direction.", 0);
+                        "camera center of the left/top stereo camera moves into this direction.");
     vector<Mat> camTrack;
     Mat singlePos = (Mat_<double>(3,1) << 2.0, 0, 1.0);
     camTrack.emplace_back(singlePos.clone());
@@ -2270,35 +2270,35 @@ bool genTemplateFile(const std::string &filename){
                         "along the camera track is relCamVelocity * norm(t_stereo), \nwhere t_stereo is "
                         "the translation vector between the 2 stereo cameras. \n"
                         "The total length of a camera track is the absolute camera velocity times the "
-                        "number of frames", 0);
+                        "number of frames");
     fs << "relCamVelocity" << 2.0;
     fs.writeComment("Rotation angle about the x-axis (roll in degrees, right handed) of the stereo pair (centered "
                         "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
                         "orientation for which without rotation the z - component of the relative movement "
                         "vector coincides with the principal axis of the camera. \n"
-                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.");
     fs << "rollCamTrack" << 0;
     fs.writeComment("Rotation angle about the y-axis (pitch in degrees, right handed) of the stereo pair (centered "
                         "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
                         "orientation for which without rotation the z - component of the relative movement "
                         "vector coincides with the principal axis of the camera. \n"
-                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.");
     fs << "pitchCamTrack" << -90.0;
     fs.writeComment("Rotation angle about the z-axis (yaw in degrees, right handed) of the stereo pair (centered "
                         "at camera centre of left/top stereo camera) on the track. \nThis rotation can change the camera "
                         "orientation for which without rotation the z - component of the relative movement "
                         "vector coincides with the principal axis of the camera. \n"
-                        "The rotation matrix is generated using the notation R_y * R_z * R_x.", 0);
+                        "The rotation matrix is generated using the notation R_y * R_z * R_x.");
     fs << "yawCamTrack" << 1.0;
     fs.writeComment("Number of moving objects in the scene at the beginning. If a moving object is visible again "
                         "in a subsequent frame, it is backprojected to the image plane. \nIf the portion of "
                         "backprojected correspondences on a moving object compared to the frame where it was "
                         "generated drops below a user specified threshold (see minMovObjCorrPortion), \n"
                         "it is removed from the scene. If too many moving objects were removed and the number of "
-                        "remaining moving objects drops below minNrMovObjs, new moving objects are inserted.", 0);
+                        "remaining moving objects drops below minNrMovObjs, new moving objects are inserted.");
     fs << "nrMovObjs" << 4;
     fs.writeComment("Possible starting positions (regions in the image) of moving objects in the image "
-                        "(must be 3x3 boolean (CV_8UC1))", 0);
+                        "(must be 3x3 boolean (CV_8UC1))");
     Mat startPosMovObjs = (Mat_<bool>(3,3) <<
             true, true, false,
             true, false, false,
@@ -2308,7 +2308,7 @@ bool genTemplateFile(const std::string &filename){
                         "the beginning. The final occupied area of every moving object in the image is selected "
                         "randomly within the given range. \nAs moving objects are always put into the foreground "
                         "it is advisable too use small relative area ranges depending on the number of \n"
-                        "demanded moving objects to allow static elements to be visible in the image.", 0);
+                        "demanded moving objects to allow static elements to be visible in the image.");
     fs << "relAreaRangeMovObjs";
     fs << "{" << "first" << 0.05;
     fs << "second" << 0.15 << "}";
@@ -2321,7 +2321,7 @@ bool genTemplateFile(const std::string &filename){
                         "to \"nrMovObjs\", a portion for every depth that should be used can be defined \n"
                         "(e.g. 3 x far, 2 x near, 1 x mid -> 3 / 6 x far, 2 / 6 x near, 1 / 6 x mid). \n"
                         "The following values for different depths can be used: "
-                        "NEAR: 1, MID: 2, FAR: 4", 0);
+                        "NEAR: 1, MID: 2, FAR: 4");
     std::vector<depthClass> movObjDepth(3);
     movObjDepth[0] = depthClass::NEAR;
     movObjDepth[1] = depthClass::MID;
@@ -2339,7 +2339,7 @@ bool genTemplateFile(const std::string &filename){
                         "(see rollCamTrack, pitchCamTrack, yawCamTrack). \n"
                         "The movement direction is linear and does not change if the movement direction "
                         "of the camera changes during the lifetime of a moving object. \nThe moving object is removed, "
-                        "if it is no longer visible in both stereo cameras.", 0);
+                        "if it is no longer visible in both stereo cameras.");
     Mat movObjDir = (Mat_<double>(3,1) << 0.6, 0, 0.4);
     fs << "movObjDir" << movObjDir;
     fs.writeComment("Relative velocity range of moving objects based on relative camera "
@@ -2348,7 +2348,7 @@ bool genTemplateFile(const std::string &filename){
                         "Absolute_moving_object_velocity = chosen_relMovObjVel * absolute_camera_velocity; \nThe "
                         "absolute moving object velocity is multiplied with the movement direction vector "
                         "of the moving object to get the positional change from frame to frame. \n"
-                        "Entered values must be between 0 and 100.0; Must be larger 0;", 0);
+                        "Entered values must be between 0 and 100.0; Must be larger 0;");
     fs << "relMovObjVelRange";
     fs << "{" << "first" << 0.5;
     fs << "second" << 2.0 << "}";
@@ -2356,40 +2356,40 @@ bool genTemplateFile(const std::string &filename){
                         "If the portion of visible correspondences drops below this value, the whole moving "
                         "object is removed. \nZero means, that the moving object is only removed if there is no "
                         "visible correspondence in the stereo pair. \nOne means, that a single missing correspondence "
-                        "leads to deletion. Values between 0 and 1.0;", 0);
+                        "leads to deletion. Values between 0 and 1.0;");
     fs << "minMovObjCorrPortion" << 0.2;
     fs.writeComment("Relative portion of correspondences on moving object (relative to the full number of "
                         "correspondences of a stereo frame). \nThe number of correspondences is limited by "
                         "the size of objects visible in the images and the minimal distance between "
-                        "correspondences. \nValue range: >0, <1.0", 0);
+                        "correspondences. \nValue range: >0, <1.0");
     fs << "CorrMovObjPort" << 0.16;
     fs.writeComment("Minimum number of moving objects over the whole track. \nIf the number of moving "
                         "obects drops below this number during camera movement, as many new moving objects are "
                         "inserted until \"nrMovObjs\" is reached. \nIf 0, no new moving objects are inserted "
-                        "if every preceding moving object is out of sight.", 0);
+                        "if every preceding moving object is out of sight.");
     fs << "minNrMovObjs" << 1;
     fs.writeComment("Minimal and maximal percentage (0 to 1.0) of random distortion of the camera matrices "
                         "K1 & K2 based on their initial values \n(only the focal lengths and image centers are "
                         "randomly distorted). The distorted camera matrices are only generated for storing \n"
                         "them to output. For generating the ground truth (matches, ...), the correct "
-                        "camera matrices are used.", 0);
+                        "camera matrices are used.");
     fs << "distortCamMat";
     fs << "{" << "first" << 0.02;
     fs << "second" << 0.1 << "}";
-    fs.writeComment("Image size of both stereo cameras", 0);
+    fs.writeComment("Image size of both stereo cameras");
     fs << "imgSize";
     fs << "{" << "width" << 1280;
     fs << "height" << 720 << "}";
     fs.writeComment("If 1, filtering occluded static 3D points during backprojection is enabled. \nOtherwise, "
                         "set this option to 0. Enabling this option significantly reduces the speed of calculating "
-                        "3D scenes.", 0);
+                        "3D scenes.");
     fs << "filterOccluded3D" << 0;
 
-    fs.writeComment("---- Options for generating matches ----\n\n", 0);
+    fs.writeComment("---- Options for generating matches ----\n\n");
 
     fs.writeComment("Name of keypoint detector. The following types are supported: \n"
                         "FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD. \nIf non-free code is enabled "
-                        "in the CMAKE project while building the code, SIFT and SURF are also available.", 0);
+                        "in the CMAKE project while building the code, SIFT and SURF are also available.");
     fs << "keyPointType" << "BRISK";
     fs.writeComment("Name of descriptor extractor. The following types are supported: \n"
                         "BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, "
@@ -2397,19 +2397,19 @@ bool genTemplateFile(const std::string &filename){
                         "If non-free code is enabled in the CMAKE project while building the code, SIFT and SURF "
                         "are also available. AKAZE and KAZE descriptors might violate the used keypErrDistr "
                         "as they store specific information in the class_id "
-                        "field of the keypoint which is not valid for a shifted keypoint position.", 0);
+                        "field of the keypoint which is not valid for a shifted keypoint position.");
     fs << "descriptorType" << "FREAK";
     fs.writeComment("Keypoint detector error (1) or error normal distribution (0). \nIf 1, the position "
                         "detected by the keypoint detector is used (which typically does not coincide with the "
                         "GT position. \nIf 0, an normal distributed (parameters from option keypErrDistr) "
-                        "error is added to the GT position.", 0);
+                        "error is added to the GT position.");
     fs << "keypPosErrType" << 0;
-    fs.writeComment("Keypoint error distribution (first=mean, second=standard deviation)", 0);
+    fs.writeComment("Keypoint error distribution (first=mean, second=standard deviation)");
     fs << "keypErrDistr";
     fs << "{" << "first" << 0.1;
     fs << "second" << 1.2 << "}";
     fs.writeComment("Noise (first=mean, second=standard deviation) on the image intensity (0-255) applied "
-                        "on the image patches for descriptor calculation.", 0);
+                        "on the image patches for descriptor calculation.");
     fs << "imgIntNoise";
     fs << "{" << "first" << 10.0;
     fs << "second" << 15.0 << "}";
@@ -2417,20 +2417,20 @@ bool genTemplateFile(const std::string &filename){
                         "with correspondences are stored to disk. \nThis is useful if you want to load an "
                         "already generated 3D sequence later on and calculate a different type of descriptor \n"
                         "for the correspondences or if you want to use a different keypoint position "
-                        "accuracy, ...", 0);
+                        "accuracy, ...");
     fs << "storePtClouds" << 1;
     fs.writeComment("If 1, the parameters and information are stored and read in XML format. "
-                        "If 0, YAML format is used.", 0);
+                        "If 0, YAML format is used.");
     fs << "rwXMLinfo" << 0;
     fs.writeComment("If 1, the stored information and parameters are compressed (appends .gz to the "
-                        "generated files. Otherwise, set this option to 0.", 0);
+                        "generated files. Otherwise, set this option to 0.");
     fs << "compressedWrittenInfo" << 1;
     fs.writeComment("If 1 and too less images to extract features are provided (resulting in too less keypoints), "
                         "only as many frames with GT matches are generated as keypoints are available. \n"
-                        "Otherwise, set this option to 0.", 0);
+                        "Otherwise, set this option to 0.");
     fs << "takeLessFramesIfLessKeyP" << 0;
 
-    fs.writeComment("Verbosity options (set them to 1 or 0).", 0);
+    fs.writeComment("Verbosity options (set them to 1 or 0).");
     fs << "verbosity";
     fs << "{" << "SHOW_INIT_CAM_PATH" << 0;
     fs << "SHOW_BUILD_PROC_MOV_OBJ" << 0;
@@ -2456,39 +2456,94 @@ bool genTemplateFile(const std::string &filename){
     fs.writeComment("Verbosity option for calculating the stereo camera configurations. "
                         "Prints the intermediate error values/results of the Levenberg Marquardt iterations. \n"
                         "Results of every LMverbose'th iteration are printed. Value range: 0-100. "
-                        "Use 0 to disable.", 0);
+                        "Use 0 to disable.");
     fs << "LMverbose" << 0;
 
     fs.writeComment("If 1, extrinsic stereo parameters are also accepted for further processing if they do "
                         "not completely fulfill the user specified values (like image overlap area). \n"
                         "Otherwise, set this value to 0. In this case, you will be asked if you want to accept the "
                         "shown stereo parameters in case the LM algorithm was not able to find a good "
-                        "solution.", 0);
+                        "solution.");
     fs << "acceptBadStereoPars" << 0;
 
     fs.writeComment("If 1, TP and TN descriptors are only accepted if their descriptor distances between "
                     "correspondences match the distribution calculated on the given images. \nOtherwise, intensity noise "
                     "and keypoint repeatability error distributions and as a last option homographies are adapted. \n"
-                    "If 0, every descriptor will be accepted.", 0);
+                    "If 0, every descriptor will be accepted.");
     fs << "checkDescriptorDist" << 1;
     fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
                     "between stereo cameras. \nA random value is selected in the given range. "
                     "If both values are equal, the specified value is used. \n"
-                    "Repeated patterns are not completely equal but perturbed by intensity noise (see option imgIntNoise).", 0);
+                    "Repeated patterns are not completely equal but perturbed by intensity noise (see option imgIntNoise).");
     fs << "repeatPatternPortStereo";
     fs << "{" << "first" << 0.05;
     fs << "second" << 0.1 << "}";
     fs.writeComment("Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) "
                     "from frame to frame. \nA random value is selected in the given range. "
                     "If both values are equal, the specified value is used. \n"
-                    "Repeated patterns are not completely equal but perturbed by intensity noise (see option imgIntNoise).", 0);
+                    "Repeated patterns are not completely equal but perturbed by intensity noise (see option imgIntNoise).");
     fs << "repeatPatternPortFToF";
     fs << "{" << "first" << 0.05;
     fs << "second" << 0.1 << "}";
     fs.writeComment("Enables/disables distorting a tracked image patch in the first stereo image. \n"
                     "This is useful e.g. for testing mono cam SLAM algorithms to get non-zero descriptor distances for "
-                    "matching features in the first stereo frame.", 0);
+                    "matching features in the first stereo frame.");
     fs << "distortPatchCam1" << 1;
+    fs.writeComment("Portion (0 - 1.0) of GT feature matches used within the framework extracted from the "
+                    "Oxford dataset (www.robots.ox.ac.uk/~vgg/research/affine/).\n"
+                    "If multiple GT datasets (Oxford, KITTI, MegaDepth) are used, this portion specifies only the relative "
+                    "portion of GT from this dataset. In this case, the overall ratio of used GT datasets is specified by key \'GTMportion\'.\n"
+                    "If enabled, data should be available in folder \'Oxford\' (subfolders bikes, trees, graffiti, wall, "
+                    "bark, boat, light, jpeg; sub-subfolders must correspond to Oxford folder structure) \n"
+                    "within the given image folder provided in the function arguments of the executable. If not available, the dataset "
+                    "is downloaded. If it fails, no data from this dataset is used. \nFrom downloaded data, "
+                    "Ground Truth Matches (GTM) are calculated and validated. \nValidation is performed automatically but if "
+                    "the flag \'USE_MANUAL_ANNOTATION\' is set to \'ON\' in /generateVirtualSequenceLib/CMakeLists.txt, manual annotation "
+                    "can be performed for uncertain matches. \nGTM are stored to disk for future use. If available, they are loaded without "
+                    "additional computational overhead. \nAs only as many GTM are calculated to fit the given portion of "
+                    "correspondences and images are selected randomly, additional GTM might be calculated in future runs. \n"
+                    "Keypoint positions of found GTM are used to extract corresponding patches "
+                    "which in turn are used within the framework instead of warped patch features. \nTracked GTM features are warped "
+                    "(seperately for both correspondences).");
+    fs << "oxfordGTMportion" << 0;
+    fs.writeComment("Portion (0 - 1.0) of GT feature matches used within the framework extracted from the "
+                    "KITTI flow and stereo (2012 and 2015) datasets (e.g. http://www.cvlibs.net/datasets/kitti/eval_stereo_flow.php?benchmark=flow).\n"
+                    "If multiple GT datasets (Oxford, KITTI, MegaDepth) are used, this portion specifies only the relative "
+                    "portion of GT from this dataset. In this case, the overall ratio of used GT datasets is specified by key \'GTMportion\'.\n"
+                    "If enabled, data should be available in folders \'KITTI/flow\' and \'KITTI/stereo\' "
+                    "(subfolders 2012 and 2015, sub-subfolders must correspond to KITTI folder structure) "
+                    "within the given image folder provided in the function arguments of the executable. \n"
+                    "If not available, no data from this dataset is used. \nFrom KITTI GT data, "
+                    "Ground Truth Matches (GTM) are calculated and validated. To generate dense GT, the function "
+                    "calcOpticalFlowDenseRLOF() from OpenCV is used.\nValidation is performed automatically but if "
+                    "the flag \'USE_MANUAL_ANNOTATION\' is set to \'ON\' in /generateVirtualSequenceLib/CMakeLists.txt, manual annotation "
+                    "can be performed for uncertain matches. \nGTM are stored to disk for future use. If available, they are loaded without "
+                    "additional computational overhead. \nAs only as many GTM are calculated to fit the given portion of "
+                    "correspondences and images are selected randomly, additional GTM might be calculated in future runs. \n"
+                    "Keypoint positions of found GTM are used to extract corresponding patches "
+                    "which in turn are used within the framework instead of warped patch features. \nTracked GTM features are warped "
+                    "(seperately for both correspondences).");
+    fs << "kittiGTMportion" << 0;
+    fs.writeComment("Portion (0 - 1.0) of GT feature matches used within the framework extracted from the "
+                    "MegaDepth v1 dataset (https://research.cs.cornell.edu/megadepth/).\n"
+                    "If multiple GT datasets (Oxford, KITTI, MegaDepth) are used, this portion specifies only the relative "
+                    "portion of GT from this dataset. In this case, the overall ratio of used GT datasets is specified by key \'GTMportion\'.\n"
+                    "If enabled, data should be available in folder \'MegaDepth\' (subfolders must correspond to MegaDepth folder structure) "
+                    "within the given image folder provided in the function arguments of the executable. \nIf not available, the dataset "
+                    "is downloaded. As the dataset is nearly 200GB in size this might take very long. "
+                    "If it fails (after multiple attempts to resume), no data from this dataset is used. \nFrom downloaded data, "
+                    "Ground Truth Matches (GTM) are calculated and validated. \nValidation is performed automatically but if "
+                    "the flag \'USE_MANUAL_ANNOTATION\' is set to \'ON\' in /generateVirtualSequenceLib/CMakeLists.txt, manual annotation "
+                    "can be performed for uncertain matches. \nGTM are stored to disk for future use. If available, they are loaded without "
+                    "additional computational overhead. \nAs only as many GTM are calculated to fit the given portion of "
+                    "correspondences and images are selected randomly, additional GTM might be calculated in future runs. \n"
+                    "Keypoint positions of found GTM are used to extract corresponding patches "
+                    "which in turn are used within the framework instead of warped patch features. \nTracked GTM features are warped "
+                    "(seperately for both correspondences).");
+    fs << "megadepthGTMportion" << 0;
+    fs.writeComment("If multiple GT datasets (Oxford, KITTI, MegaDepth) are used, this portion (0 - 1.0) specifies "
+                    "the overall ratio of used GT datasets compared to warped patch feature matches.");
+    fs << "GTMportion" << 0;
 
     fs.release();
 
@@ -2911,6 +2966,22 @@ bool loadConfigFile(const std::string &filename,
     n = fs["distortPatchCam1"];
     if(!n.empty()){
         n >> matchPars.distortPatchCam1;
+    }
+    n = fs["oxfordGTMportion"];
+    if(!n.empty()){
+        n >> matchPars.oxfordGTMportion;
+    }
+    n = fs["kittiGTMportion"];
+    if(!n.empty()){
+        n >> matchPars.kittiGTMportion;
+    }
+    n = fs["megadepthGTMportion"];
+    if(!n.empty()){
+        n >> matchPars.megadepthGTMportion;
+    }
+    n = fs["GTMportion"];
+    if(!n.empty()){
+        n >> matchPars.GTMportion;
     }
 
     fs.release();
