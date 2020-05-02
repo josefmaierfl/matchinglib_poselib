@@ -79,46 +79,8 @@ def compile_tex(rendered_tex,
         with open(texdf[-1], 'w') as outfile:
             outfile.write(rt)
     if out_pdf_filen is not None:
-        av_cpus = os.cpu_count()
-        if av_cpus:
-            if nr_cpus < 1:
-                cpu_use = av_cpus
-            elif nr_cpus > av_cpus:
-                print('Demanded ' + str(nr_cpus) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
-                      + str(av_cpus) + ' CPUs.')
-                cpu_use = av_cpus
-            else:
-                cpu_use = nr_cpus
-            if mult_proc:
-                time.sleep(.5)
-                cpu_per = psutil.cpu_percent()
-                if cpu_per > 10:
-                    nr_tasks = len(rendered_tex)
-                    if nr_tasks >= cpu_use:
-                        cpu_rat = 100
-                    else:
-                        cpu_rat = nr_tasks / cpu_use
-                    cpu_rem = 100 - cpu_per
-                    if cpu_rem < cpu_rat:
-                        if cpu_rem >= (cpu_rat / 2):
-                            cpu_use = int(math.ceil(cpu_use * cpu_rem / 100))
-                        else:
-                            wcnt = 0
-                            while cpu_rem < (cpu_rat / 2) and wcnt < 600:
-                                time.sleep(.5)
-                                cpu_rem = 100 - psutil.cpu_percent()
-                                wcnt += 1
-                            if wcnt >= 600:
-                                if nr_tasks > 50:
-                                    cpu_use = max(int(math.ceil(cpu_use * cpu_rem / 100)),
-                                                  int(math.ceil(0.25 * cpu_use)),
-                                                  int(min(4, cpu_use)))
-                                else:
-                                    cpu_use = max(int(math.ceil(cpu_use * cpu_rem / 100)),
-                                                  int(math.ceil(0.1 * cpu_use)),
-                                                  int(min(2, cpu_use)))
-                            else:
-                                cpu_use = int(math.ceil(cpu_use * cpu_rem / 100))
+        nr_tasks = len(rendered_tex)
+        cpu_use = estimate_available_cpus(nr_tasks, nr_cpus, mult_proc)
 
         rep_make = 1
         if make_fig_index or figs_externalize:
@@ -325,6 +287,53 @@ def compile_pdf_base(pdfpath, pdfname, cmdline, stdoutf, erroutf, rep_make_in, o
         except:
             print('Unable to remove output log file')
     return retcode
+
+
+def estimate_available_cpus(nr_tasks, nr_cpus=-1, mult_proc=True):
+    av_cpus = os.cpu_count()
+    if av_cpus:
+        if nr_cpus < 1:
+            cpu_use = av_cpus
+        elif nr_cpus > av_cpus:
+            print('Demanded ' + str(nr_cpus) + ' but only ' + str(av_cpus) + ' CPUs are available. Using '
+                  + str(av_cpus) + ' CPUs.')
+            cpu_use = av_cpus
+        else:
+            cpu_use = nr_cpus
+        if mult_proc:
+            time.sleep(.5)
+            cpu_per = psutil.cpu_percent()
+            if cpu_per > 10:
+                if nr_tasks >= cpu_use:
+                    cpu_rat = 100
+                else:
+                    cpu_rat = nr_tasks / cpu_use
+                cpu_rem = 100 - cpu_per
+                if cpu_rem < cpu_rat:
+                    if cpu_rem >= (cpu_rat / 2):
+                        cpu_use = int(math.ceil(cpu_use * cpu_rem / 100))
+                    else:
+                        wcnt = 0
+                        while cpu_rem < (cpu_rat / 2) and wcnt < 600:
+                            time.sleep(.5)
+                            cpu_rem = 100 - psutil.cpu_percent()
+                            wcnt += 1
+                        if wcnt >= 600:
+                            if nr_tasks > 50:
+                                cpu_use = max(int(math.ceil(cpu_use * cpu_rem / 100)),
+                                              int(math.ceil(0.25 * cpu_use)),
+                                              int(min(4, cpu_use)))
+                            else:
+                                cpu_use = max(int(math.ceil(cpu_use * cpu_rem / 100)),
+                                              int(math.ceil(0.1 * cpu_use)),
+                                              int(min(2, cpu_use)))
+                        else:
+                            cpu_use = int(math.ceil(cpu_use * cpu_rem / 100))
+        else:
+            cpu_use = 1
+    else:
+        cpu_use = max(nr_cpus, 1)
+    return cpu_use
 
 
 def calcSatisticAndPlot_2D(data,

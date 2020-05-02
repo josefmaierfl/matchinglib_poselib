@@ -11,6 +11,27 @@ import ruamel.yaml as yaml
 from pandas.api.types import is_numeric_dtype
 from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 import inspect
+import multiprocessing.pool
+import tempfile, shutil, pickle
+
+
+# To allow multiprocessing (children) during multiprocessing
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+
+# To allow multiprocessing (children) during multiprocessing
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
+
 
 def filter_take_end_frames(**vars):
     return vars['data'].loc[vars['data']['Nr'] > 119]
@@ -89,6 +110,15 @@ def calc_rt_diff_frame_to_frame(**vars):
 
 
 def calc_rt_diff2_frame_to_frame(**vars):
+    if 'data_file' in vars:
+        df_filen = vars['data_file'] + '.gz'
+        vars_filen = vars['data_file'] + '.pkl'
+        if os.path.exists(df_filen) and os.path.exists(vars_filen):
+            df_new = pd.read_pickle(df_filen)
+            with open(vars_filen, "rb") as pf:
+                ret = pickle.load(pf)
+            ret['data'] = df_new
+            return ret
     if 'data_separators' not in vars:
         raise ValueError('data_separators are necessary.')
     if ('lname_pre' in vars) != ('eval_pre' in vars):
@@ -147,53 +177,112 @@ def calc_rt_diff2_frame_to_frame(**vars):
     for evalv in eval_columns_diff1:
         eval_log[evalv] = []
         eval_log_glob[evalv] = []
-    for grp in grp_keys:
-        tmp = df_grp.get_group(grp)
-        data_types = {vars['diff_by']: tmp[vars['diff_by']].dtype}
-        data_types.update([(a, tmp[vars['eval_columns'][i]].dtype) for i, a in enumerate(eval_columns_diff)])
+    if 'mult_cpus' in vars and vars['mult_cpus']:
+        nr_tasks = len(grpd_cols)
+        from statistics_and_plot import estimate_available_cpus
+        cpu_use = int(estimate_available_cpus(nr_tasks) / 2)
+        dirpath = tempfile.mkdtemp()
+        cmds = []
         if 'keepEval' in vars and vars['keepEval']:
-            for i1 in vars['keepEval']:
-                if 'eval_pre' in vars:
-                    data_types[vars['eval_pre'] + i1] = tmp[i1].dtype
-                else:
-                    data_types[i1] = tmp[i1].dtype
+            keepEval = vars['keepEval']
+        else:
+            keepEval = None
+        if 'eval_pre' in vars:
+            eval_pre = vars['eval_pre']
+        else:
+            eval_pre = None
         if 'additional_data' in vars and vars['additional_data']:
-            for i1 in vars['additional_data']:
-                data_types[i1] = tmp[i1].dtype
-        data_types[vars['diff_by']] = tmp[vars['diff_by']].dtype
-        add_cols = [a for a in grpd_cols if a != vars['diff_by']]
-        data_types.update([(a, tmp[a].dtype) for a in add_cols])
-        tmp.set_index(vars['diff_by'], inplace=True)
-        row_iterator = tmp.iterrows()
-        i_last, last = next(row_iterator)
-        tmp1 = []
-        for i, row in row_iterator:
-            if i < i_last:
-                warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
-                              'Skipping data.', UserWarning)
-                break
-            tmp1.append(row[vars['eval_columns']] - last[vars['eval_columns']])
-            tmp1[-1].index = eval_columns_diff
+            additional_data = vars['additional_data']
+        else:
+            additional_data = None
+        for i, grp in enumerate(grp_keys):
+            tmp = df_grp.get_group(grp)
+            filen = os.path.join(dirpath, 'df_calc_rt_diff2_ftof_' + str(i) + '.gz')
+            try:
+                tmp.to_pickle(filen)
+            except Exception:
+                print('Exception while trying to pickle dataframe on property', grp, file=sys.stderr)
+                shutil.rmtree(dirpath)
+                raise
+            cmds.append((filen, vars['diff_by'], vars['eval_columns'], eval_columns_diff, eval_columns_diff1,
+                                          eval_log_glob, eval_log, grpd_cols, keepEval, eval_pre, additional_data))
+
+        res_log = []
+        with MyPool(processes=cpu_use) as pool:
+            results = [pool.apply_async(calc_rt_diff2_frame_to_frame_parallel, t) for t in cmds]
+            for i, r in enumerate(results):
+                try:
+                    res = r.get(5400)
+                    if res['ret']:
+                        pool.terminate()
+                        shutil.rmtree(dirpath)
+                        raise ValueError('Error in function calc_rt_diff2_frame_to_frame_parallel with code ' +
+                                         str(res['ret']))
+                    res_log.append(res)
+                except multiprocessing.TimeoutError:
+                    print('Timeout reached in function calc_rt_diff2_frame_to_frame_parallel', file=sys.stderr)
+                    pool.terminate()
+                    shutil.rmtree(dirpath)
+                    raise
+                except Exception:
+                    print('Exception in function calc_rt_diff2_frame_to_frame_parallel', file=sys.stderr)
+                    pool.terminate()
+                    raise
+
+        for val in res_log:
+            data_list.append(pd.read_pickle(val['filen']))
+            for evalv in eval_columns_diff1:
+                eval_log_glob[evalv] += val['eval_log_glob']
+                eval_log[evalv] += val['eval_log']
+        shutil.rmtree(dirpath)
+    else:
+        for grp in grp_keys:
+            tmp = df_grp.get_group(grp)
+            data_types = {vars['diff_by']: tmp[vars['diff_by']].dtype}
+            data_types.update([(a, tmp[vars['eval_columns'][i]].dtype) for i, a in enumerate(eval_columns_diff)])
             if 'keepEval' in vars and vars['keepEval']:
                 for i1 in vars['keepEval']:
                     if 'eval_pre' in vars:
-                        tmp1[-1][vars['eval_pre'] + i1] = row[i1]
+                        data_types[vars['eval_pre'] + i1] = tmp[i1].dtype
                     else:
-                        tmp1[-1][i1] = row[i1]
+                        data_types[i1] = tmp[i1].dtype
             if 'additional_data' in vars and vars['additional_data']:
                 for i1 in vars['additional_data']:
-                    tmp1[-1][i1] = row[i1]
-            tmp1[-1][vars['diff_by']] = i
-            tmp1[-1] = tmp1[-1].append(row[add_cols])
-            last = row
-            i_last = i
-        data_list.append(pd.concat(tmp1, axis=1).T)
-        data_list[-1] = data_list[-1].astype(data_types, copy=False)
+                    data_types[i1] = tmp[i1].dtype
+            data_types[vars['diff_by']] = tmp[vars['diff_by']].dtype
+            add_cols = [a for a in grpd_cols if a != vars['diff_by']]
+            data_types.update([(a, tmp[a].dtype) for a in add_cols])
+            tmp.set_index(vars['diff_by'], inplace=True)
+            row_iterator = tmp.iterrows()
+            i_last, last = next(row_iterator)
+            tmp1 = []
+            for i, row in row_iterator:
+                if i < i_last:
+                    warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
+                                  'Skipping data.', UserWarning)
+                    break
+                tmp1.append(row[vars['eval_columns']] - last[vars['eval_columns']])
+                tmp1[-1].index = eval_columns_diff
+                if 'keepEval' in vars and vars['keepEval']:
+                    for i1 in vars['keepEval']:
+                        if 'eval_pre' in vars:
+                            tmp1[-1][vars['eval_pre'] + i1] = row[i1]
+                        else:
+                            tmp1[-1][i1] = row[i1]
+                if 'additional_data' in vars and vars['additional_data']:
+                    for i1 in vars['additional_data']:
+                        tmp1[-1][i1] = row[i1]
+                tmp1[-1][vars['diff_by']] = i
+                tmp1[-1] = tmp1[-1].append(row[add_cols])
+                last = row
+                i_last = i
+            data_list.append(pd.concat(tmp1, axis=1).T)
+            data_list[-1] = data_list[-1].astype(data_types, copy=False)
 
-        for evalv in eval_columns_diff1:
-            ev_min = data_list[-1][evalv].min()
-            eval_log_glob[evalv].append(True if ev_min > 0 else False)
-            eval_log[evalv].append(use_log_axis(ev_min, data_list[-1][evalv].max()))
+            for evalv in eval_columns_diff1:
+                ev_min = data_list[-1][evalv].min()
+                eval_log_glob[evalv].append(True if ev_min > 0 else False)
+                eval_log[evalv].append(use_log_axis(ev_min, data_list[-1][evalv].max()))
     data_new = pd.concat(data_list, ignore_index=True)
     for evalv in eval_columns_diff1:
         if any(eval_log[evalv]) and all(eval_log_glob):
@@ -220,8 +309,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
     else:
         eval_cols_lname = [replaceCSVLabels(a, False, False, True) for a in eval_columns_diff1]
 
-    ret = {'data': data_new,
-           'it_parameters': vars['it_parameters'],
+    ret = {'it_parameters': vars['it_parameters'],
            'eval_columns': eval_columns_diff1,
            'eval_cols_lname': eval_cols_lname,
            'eval_cols_log_scaling': eval_cols_log_scaling,
@@ -244,7 +332,83 @@ def calc_rt_diff2_frame_to_frame(**vars):
             ret['x_axis_column'] = vars['x_axis_column']
         elif 'xy_axis_columns' in vars:
             ret['xy_axis_columns'] = vars['xy_axis_columns']
+    if 'data_file' in vars:
+        data_new.to_pickle(df_filen)
+        with open(vars_filen, "wb") as vo:
+            pickle.dump(ret, vo, pickle.HIGHEST_PROTOCOL)
+    ret['data'] = data_new
 
+    return ret
+
+
+def calc_rt_diff2_frame_to_frame_parallel(filen, diff_by, eval_columns, eval_columns_diff, eval_columns_diff1,
+                                          eval_log_glob, eval_log, grpd_cols, keepEval=None, eval_pre=None,
+                                          additional_data=None):
+    from statistics_and_plot import use_log_axis
+    folder = os.path.dirname(filen)
+    match = re.search(r'df_calc_rt_diff2_ftof_(\d+)', filen)
+    if match:
+        nr = match.group(1)
+    else:
+        return {'ret': 1}
+    tmp = pd.read_pickle(filen)
+    data_types = {diff_by: tmp[diff_by].dtype}
+    data_types.update([(a, tmp[eval_columns[i]].dtype) for i, a in enumerate(eval_columns_diff)])
+    if keepEval:
+        for i1 in keepEval:
+            if eval_pre:
+                data_types[eval_pre + i1] = tmp[i1].dtype
+            else:
+                data_types[i1] = tmp[i1].dtype
+    if additional_data:
+        for i1 in additional_data:
+            data_types[i1] = tmp[i1].dtype
+    data_types[diff_by] = tmp[diff_by].dtype
+    add_cols = [a for a in grpd_cols if a != diff_by]
+    data_types.update([(a, tmp[a].dtype) for a in add_cols])
+    tmp.set_index(diff_by, inplace=True)
+    row_iterator = tmp.iterrows()
+    i_last, last = next(row_iterator)
+    tmp1 = []
+    for i, row in row_iterator:
+        if i < i_last:
+            warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
+                          'Skipping data.', UserWarning)
+            break
+        tmp1.append(row[eval_columns] - last[eval_columns])
+        tmp1[-1].index = eval_columns_diff
+        if keepEval:
+            for i1 in keepEval:
+                if eval_pre:
+                    tmp1[-1][eval_pre + i1] = row[i1]
+                else:
+                    tmp1[-1][i1] = row[i1]
+        if additional_data:
+            for i1 in additional_data:
+                tmp1[-1][i1] = row[i1]
+        tmp1[-1][diff_by] = i
+        tmp1[-1] = tmp1[-1].append(row[add_cols])
+        last = row
+        i_last = i
+    df = pd.concat(tmp1, axis=1).T
+    df = df.astype(data_types, copy=False)
+
+    for evalv in eval_columns_diff1:
+        ev_min = df[evalv].min()
+        eval_log_glob[evalv].append(True if ev_min > 0 else False)
+        eval_log[evalv].append(use_log_axis(ev_min, df[evalv].max()))
+    filen1 = os.path.join(folder, 'df_calc_rt_diff2_ftof_res_' + nr + '.gz')
+    ret1 = 0
+    try:
+        df.to_pickle(filen1)
+    except Exception:
+        print('Exception while trying to pickle dataframe ', filen1, file=sys.stderr)
+        ret1 = 2
+
+    ret = {'eval_log_glob': eval_log_glob,
+           'eval_log': eval_log,
+           'filen': filen1,
+           'ret': ret1}
     return ret
 
 

@@ -3705,7 +3705,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos', 'rt_change_type'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -3772,7 +3776,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos', 'rt_change_type'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5329,7 +5337,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5393,7 +5405,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5457,7 +5473,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5528,7 +5548,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5598,7 +5622,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5668,7 +5696,11 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                       'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
