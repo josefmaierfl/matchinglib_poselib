@@ -168,6 +168,12 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     }
 };
 
+enum GT_DATASETS{
+    OXFORD = 0x1,
+    KITTI = 0x2,
+    MEGADEPTH = 0x4
+};
+
 struct stats{
     double median;
     double mean;
@@ -257,6 +263,8 @@ public:
 private:
     //Loads the image names (including folders) of all specified images (used to generate matches) within a given folder
     bool getImageList();
+    //Check if feature matches should be used from a 3rd party GT dataset
+    bool check_3rdPty_GT();
     //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
     size_t hashFromSequPars();
     //Generates a hash value from the parameters used to generate matches from 3D correspondences
@@ -452,6 +460,7 @@ private:
     std::vector<std::pair<double,double>> timePerFrameMatch;//Holds time measurements for every frame in microseconds. The first value corresponds to the time for loading or calculating 3D information of one stereo frame. The second value holds the time for calculating the matches.
     qualityParm timeMatchStats = qualityParm();//Statistics for the execution time in microseconds for calculating matches based on all frames
     qualityParm time3DStats = qualityParm();//Statistics for the execution time in microseconds for calculating 3D correspondences based on all frames
+    uint8_t use_3dPrtyGT = false;//Indicates if feature matches from 3rd party GT datasets should be used. The first 3 bits indicate which datasets should be used.
 };
 
 GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);

@@ -180,7 +180,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
     if 'mult_cpus' in vars and vars['mult_cpus']:
         nr_tasks = len(grpd_cols)
         from statistics_and_plot import estimate_available_cpus
-        cpu_use = int(estimate_available_cpus(nr_tasks) / 2)
+        cpu_use = max(int(estimate_available_cpus(nr_tasks) / 2), 1)
         dirpath = tempfile.mkdtemp()
         cmds = []
         if 'keepEval' in vars and vars['keepEval']:
@@ -227,6 +227,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
                 except Exception:
                     print('Exception in function calc_rt_diff2_frame_to_frame_parallel', file=sys.stderr)
                     pool.terminate()
+                    shutil.rmtree(dirpath)
                     raise
 
         for val in res_log:

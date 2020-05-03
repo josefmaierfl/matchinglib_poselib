@@ -1311,9 +1311,12 @@ def calc_calib_delay(**keywords):
         tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
         min_val = tmp1[keywords['eval_on'][0]].min()
         max_val = tmp1[keywords['eval_on'][0]].max()
-        rng80 = 0.8 * (max_val - min_val) + min_val
-        p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
-        th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
+        if np.isclose(0, max_val - min_val):
+            th = min_val
+        else:
+            rng80 = 0.8 * (max_val - min_val) + min_val
+            p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
+            th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
         test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
                             (tmp['Nr'] >= keywords['change_Nr']) &
                             (tmp['Nr'] < (keywords['change_Nr'] + 2)))]
@@ -1323,7 +1326,10 @@ def calc_calib_delay(**keywords):
         else:
             tmp2 = tmp.loc[((tmp[keywords['eval_on'][0]] <= th) &
                             (tmp['Nr'] >= keywords['change_Nr']))]
-            if check_if_series(tmp2):
+            if tmp2.empty:
+                fpos = tmp['Nr'].max()
+                fd = fpos - keywords['change_Nr']
+            elif check_if_series(tmp2):
                 fpos = tmp2['Nr']
                 fd = fpos - keywords['change_Nr']
             elif tmp2.shape[0] == 1:

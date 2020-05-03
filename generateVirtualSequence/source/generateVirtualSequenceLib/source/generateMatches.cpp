@@ -909,6 +909,45 @@ void genMatchSequ::totalNrCorrs() {
     }
 }
 
+bool genMatchSequ::check_3rdPty_GT(){
+    use_3dPrtyGT = ((parsMtch.oxfordGTMportion > 0) ? GT_DATASETS::OXFORD:0) |
+            ((parsMtch.kittiGTMportion > 0) ? GT_DATASETS::KITTI:0) |
+            ((parsMtch.megadepthGTMportion > 0) ? GT_DATASETS::MEGADEPTH:0);
+    if (use_3dPrtyGT){
+        if(use_3dPrtyGT > 2 && use_3dPrtyGT != 4){
+            if(nearZero(parsMtch.GTMportion)){
+                cerr << "Overall portion of GT feature matches from 3rd party datasets must be set "
+                        "if more than 1 dataset is used!. Disabling use of 3rd party datasets." << endl;
+                use_3dPrtyGT = 0;
+                return false;
+            }else{
+                double sumpor = parsMtch.oxfordGTMportion + parsMtch.kittiGTMportion + parsMtch.megadepthGTMportion;
+                parsMtch.oxfordGTMportion = parsMtch.GTMportion * parsMtch.oxfordGTMportion / sumpor;
+                parsMtch.kittiGTMportion = parsMtch.GTMportion * parsMtch.kittiGTMportion / sumpor;
+                parsMtch.megadepthGTMportion = parsMtch.GTMportion * parsMtch.megadepthGTMportion / sumpor;
+                return true;
+            }
+        }else{
+            switch (use_3dPrtyGT) {
+                case GT_DATASETS::OXFORD:
+                    parsMtch.GTMportion = parsMtch.oxfordGTMportion;
+                    break;
+                case GT_DATASETS::KITTI:
+                    parsMtch.GTMportion = parsMtch.kittiGTMportion;
+                    break;
+                case GT_DATASETS::MEGADEPTH:
+                    parsMtch.GTMportion = parsMtch.megadepthGTMportion;
+                    break;
+                default:
+                    parsMtch.GTMportion = 0;
+                    use_3dPrtyGT = 0;
+                    return false;
+            }
+        }
+    }
+    return false;
+}
+
 //Extracts the necessary number of keypoints from the set of images
 bool genMatchSequ::getFeatures() {
     minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
