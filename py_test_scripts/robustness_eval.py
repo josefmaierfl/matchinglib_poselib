@@ -11,6 +11,7 @@ import ruamel.yaml as yaml
 from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 from statistics_and_plot import compile_tex
 from copy import deepcopy
+import pickle
 
 
 def get_rt_change_type(**keywords):
@@ -662,6 +663,7 @@ def get_best_comb_scenes_1(**keywords):
         # Write parameters
         alg_comb_bestl = b_mmean[ret['it_parameters']].to_numpy()
         if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            em.release_lock()
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
@@ -1233,6 +1235,7 @@ def get_best_comb_3d_scenes_1(**keywords):
         # Write parameters
         alg_comb_bestl = b_mmmean[ret['it_parameters']].to_numpy()
         if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            em.release_lock()
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
@@ -1262,11 +1265,29 @@ def calc_calib_delay(**keywords):
         raise ValueError('scene must be specified')
     if not isinstance(keywords['scene'], str):
         raise ValueError('Currently, only an evaluation on a single scene is supported')
-    if 'comb_rt' in keywords and keywords['comb_rt']:
-        from corr_pool_eval import combine_rt_diff2
-        data, keywords = combine_rt_diff2(keywords['data'], keywords)
-    else:
-        data = keywords['data']
+    is_calced = False
+    if 'data_file' in keywords:
+        df_filen = keywords['data_file'] + '.gz'
+        vars_filen = keywords['data_file'] + '.pkl'
+        if os.path.exists(df_filen) and os.path.exists(vars_filen):
+            is_calced = True
+            df_new = pd.read_pickle(df_filen)
+            with open(vars_filen, "rb") as pf:
+                keywords = pickle.load(pf)
+    if not is_calced:
+        if 'comb_rt' in keywords and keywords['comb_rt']:
+            from corr_pool_eval import combine_rt_diff2
+            data, keywords = combine_rt_diff2(keywords['data'], keywords)
+        else:
+            data = keywords['data']
+        if 'data_file' in keywords:
+            keywords1 = {}
+            for key in keywords:
+                if key != 'data':
+                    keywords1[key] = keywords[key]
+            with open(vars_filen, "wb") as vo:
+                pickle.dump(keywords1, vo, pickle.HIGHEST_PROTOCOL)
+
     keywords = prepare_io(**keywords)
     from statistics_and_plot import check_if_series, \
         short_concat_str, \
@@ -1290,69 +1311,72 @@ def calc_calib_delay(**keywords):
         split_large_labels, \
         handle_nans, \
         check_file_exists_rename
-    needed_cols = list(dict.fromkeys(keywords['data_separators'] +
-                                     keywords['it_parameters'] +
-                                     keywords['eval_on'] +
-                                     keywords['additional_data'] +
-                                     keywords['x_axis_column']))
-    df = data[needed_cols]
-    grpd_cols = keywords['data_separators'] + keywords['it_parameters']
-    df_grp = df.groupby(grpd_cols)
-    grp_keys = df_grp.groups.keys()
-    df_list = []
-    for grp in grp_keys:
-        tmp = df_grp.get_group(grp).copy(deep=True)
-        tmp.loc[:, keywords['eval_on'][0]] = tmp.loc[:, keywords['eval_on'][0]].abs()
-        #Check for the correctness of the change number
-        if int(tmp['rt_change_pos'].iloc[0]) != keywords['change_Nr']:
-            warnings.warn('Given frame number when extrinsics change doesnt match the estimated number. '
-                          'Taking estimated number.', UserWarning)
-            keywords['change_Nr'] = int(tmp['rt_change_pos'].iloc[0])
-        tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
-        min_val = tmp1[keywords['eval_on'][0]].min()
-        max_val = tmp1[keywords['eval_on'][0]].max()
-        if np.isclose(0, max_val - min_val):
-            th = min_val
-        else:
-            rng80 = 0.8 * (max_val - min_val) + min_val
-            p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
-            th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
-        test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
-                            (tmp['Nr'] >= keywords['change_Nr']) &
-                            (tmp['Nr'] < (keywords['change_Nr'] + 2)))]
-        if test_rise.empty:
-            fd = 0
-            fpos = keywords['change_Nr']
-        else:
-            tmp2 = tmp.loc[((tmp[keywords['eval_on'][0]] <= th) &
-                            (tmp['Nr'] >= keywords['change_Nr']))]
-            if tmp2.empty:
-                fpos = tmp['Nr'].max()
-                fd = fpos - keywords['change_Nr']
-            elif check_if_series(tmp2):
-                fpos = tmp2['Nr']
-                fd = fpos - keywords['change_Nr']
-            elif tmp2.shape[0] == 1:
-                fpos = tmp2['Nr'].iloc[0]
-                fd = fpos - keywords['change_Nr']
+    if not is_calced:
+        needed_cols = list(dict.fromkeys(keywords['data_separators'] +
+                                         keywords['it_parameters'] +
+                                         keywords['eval_on'] +
+                                         keywords['additional_data'] +
+                                         keywords['x_axis_column']))
+        df = data[needed_cols]
+        grpd_cols = keywords['data_separators'] + keywords['it_parameters']
+        df_grp = df.groupby(grpd_cols)
+        grp_keys = df_grp.groups.keys()
+        df_list = []
+        for grp in grp_keys:
+            tmp = df_grp.get_group(grp).copy(deep=True)
+            tmp.loc[:, keywords['eval_on'][0]] = tmp.loc[:, keywords['eval_on'][0]].abs()
+            #Check for the correctness of the change number
+            if int(tmp['rt_change_pos'].iloc[0]) != keywords['change_Nr']:
+                warnings.warn('Given frame number when extrinsics change doesnt match the estimated number. '
+                              'Taking estimated number.', UserWarning)
+                keywords['change_Nr'] = int(tmp['rt_change_pos'].iloc[0])
+            tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
+            min_val = tmp1[keywords['eval_on'][0]].min()
+            max_val = tmp1[keywords['eval_on'][0]].max()
+            if np.isclose(0, max_val - min_val):
+                th = min_val
             else:
-                tmp2.set_index('Nr', inplace=True)
-                tmp_iter = tmp2.iterrows()
-                idx_old, _ = next(tmp_iter)
-                fpos = 0
-                for idx, _ in tmp_iter:
-                    if idx == idx_old + 1:
-                        fpos = idx_old
-                        break
-                if fpos > 0:
+                rng80 = 0.8 * (max_val - min_val) + min_val
+                p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
+                th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
+            test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
+                                (tmp['Nr'] >= keywords['change_Nr']) &
+                                (tmp['Nr'] < (keywords['change_Nr'] + 2)))]
+            if test_rise.empty:
+                fd = 0
+                fpos = keywords['change_Nr']
+            else:
+                tmp2 = tmp.loc[((tmp[keywords['eval_on'][0]] <= th) &
+                                (tmp['Nr'] >= keywords['change_Nr']))]
+                if tmp2.empty:
+                    fpos = tmp['Nr'].max()
+                    fd = fpos - keywords['change_Nr']
+                elif check_if_series(tmp2):
+                    fpos = tmp2['Nr']
+                    fd = fpos - keywords['change_Nr']
+                elif tmp2.shape[0] == 1:
+                    fpos = tmp2['Nr'].iloc[0]
                     fd = fpos - keywords['change_Nr']
                 else:
-                    fpos = tmp2.index[0]
-                    fd = fpos - keywords['change_Nr']
-        tmp['fd'] = [np.NaN] * int(tmp.shape[0])
-        tmp.loc[(tmp['Nr'] == fpos), 'fd'] = fd
-        df_list.append(tmp)
-    df_new = pd.concat(df_list, axis=0, ignore_index=False)
+                    tmp2.set_index('Nr', inplace=True)
+                    tmp_iter = tmp2.iterrows()
+                    idx_old, _ = next(tmp_iter)
+                    fpos = 0
+                    for idx, _ in tmp_iter:
+                        if idx == idx_old + 1:
+                            fpos = idx_old
+                            break
+                    if fpos > 0:
+                        fd = fpos - keywords['change_Nr']
+                    else:
+                        fpos = tmp2.index[0]
+                        fd = fpos - keywords['change_Nr']
+            tmp['fd'] = [np.NaN] * int(tmp.shape[0])
+            tmp.loc[(tmp['Nr'] == fpos), 'fd'] = fd
+            df_list.append(tmp)
+        df_new = pd.concat(df_list, axis=0, ignore_index=False)
+        if 'data_file' in keywords:
+            df_new.to_pickle(df_filen)
 
     gloss = add_to_glossary_eval(keywords['eval_on'])
     n_gloss_calced = True
@@ -1379,11 +1403,20 @@ def calc_calib_delay(**keywords):
             hist, bin_edges = np.histogram(tmp['fd'].dropna().values,
                                            bins=list(range(0, nr_max - keywords['change_Nr'] + 2)), density=False)
             fd_good = int(bin_edges[np.nonzero(hist >= possis1)[0][0]])
+            if fd_good == 0:
+                fd_good1 = 2
+            elif fd_good == nr_max:
+                fd_good = nr_max - 2
+                fd_good1 = nr_max
+            else:
+                fd_good1 = fd_good + 1
+                fd_good -= 1
             possis2 = max(1, int(round(0.005 * float(possis))))
             hist1 = hist[hist >= possis2]
             edges1 = bin_edges[np.nonzero(hist >= possis2)]
             hist_list.append(pd.DataFrame(data={'fd': edges1, 'count': hist1}, columns=['fd', 'count']).set_index('fd'))
-            par_stats_list.append(tmp.loc[tmp['fd'] == fd_good, keywords['it_parameters'] + ['fd']].describe())
+            par_stats_list.append(tmp.loc[((tmp['fd'] >= fd_good) &
+                                           (tmp['fd'] <= fd_good1)), keywords['it_parameters'] + ['fd']].describe())
 
         df_hist = pd.concat(hist_list, axis=1, keys=grp_keys, ignore_index=False)
         keywords['units'].append(('fd', '/\\# of frames',))
@@ -1725,6 +1758,7 @@ def calc_calib_delay(**keywords):
         # Write parameters
         alg_comb_bestl = df_mmean.to_numpy()
         if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            em.release_lock()
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
@@ -2357,6 +2391,7 @@ def get_ml_acc(**keywords):
                 # Write parameters
                 alg_comb_bestl = df6[keywords['it_parameters']].to_numpy()
                 if len(keywords['it_parameters']) != len(alg_comb_bestl):
+                    em.release_lock()
                     raise ValueError('Nr of refine algorithms does not match')
                 alg_w = {}
                 for i, val in enumerate(keywords['it_parameters']):
@@ -2845,6 +2880,7 @@ def get_best_stability_pars(**keywords):
         # Write parameters
         alg_comb_bestl = mean_pars.to_numpy()
         if len(keywords['it_parameters']) != len(alg_comb_bestl):
+            em.release_lock()
             raise ValueError('Nr of refine algorithms does not match')
         alg_w = {}
         for i, val in enumerate(keywords['it_parameters']):
@@ -3071,6 +3107,7 @@ def get_best_robust_pool_pars(**keywords):
             # Write parameters
             alg_comb_bestl = [val_max]
             if len(keywords['it_parameters']) != len(alg_comb_bestl):
+                em.release_lock()
                 raise ValueError('Nr of refine algorithms does not match')
             alg_w = {}
             for i, val in enumerate(keywords['it_parameters']):
@@ -3107,6 +3144,7 @@ def get_best_robust_pool_pars(**keywords):
                     # Write parameters
                     alg_comb_bestl = [alg_counts_sort[0][0]]
                     if len(keywords['it_parameters']) != len(alg_comb_bestl):
+                        em.release_lock()
                         raise ValueError('Nr of refine algorithms does not match')
                     alg_w = {}
                     for i, val in enumerate(keywords['it_parameters']):

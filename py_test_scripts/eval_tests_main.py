@@ -3719,7 +3719,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'change_Nr': 25,
                                           'additional_data': ['rt_change_pos', 'rt_change_type'],
                                           'scene': 'jra',
-                                          'res_par_name': 'robustness_delay_jra'}
+                                          'res_par_name': 'robustness_delay_jra',
+                                          'data_file': os.path.join(output_path, 'df_robustness_frameDelays_' +
+                                                                    str(test_nr) + '_' + str(ev))
+                                          }
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay
                     ret += calcFromFuncAndPlot_2D_partitions(data=data,
@@ -3795,7 +3798,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                        'robustness_best_comb_scenes_inlc_kpAccSd',
                                                        'robustness_delay_jra',
                                                        'robustness_delay_jta'],
-                                          'res_par_name': 'robustness_delay_jta'}
+                                          'res_par_name': 'robustness_delay_jta',
+                                          'data_file': os.path.join(output_path, 'df_robustness_frameDelays_' +
+                                                                    str(test_nr) + '_' + str(ev))
+                                          }
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay
                     ret += calcFromFuncAndPlot_2D_partitions(data=data,
