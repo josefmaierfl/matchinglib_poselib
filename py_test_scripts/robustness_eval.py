@@ -1416,7 +1416,8 @@ def calc_calib_delay(**keywords):
             edges1 = bin_edges[np.nonzero(hist >= possis2)]
             hist_list.append(pd.DataFrame(data={'fd': edges1, 'count': hist1}, columns=['fd', 'count']).set_index('fd'))
             par_stats_list.append(tmp.loc[((tmp['fd'] >= fd_good) &
-                                           (tmp['fd'] <= fd_good1)), keywords['it_parameters'] + ['fd']].describe())
+                                           (tmp['fd'] <= fd_good1)), keywords['it_parameters'] +
+                                          ['fd']].astype(float, errors='ignore').describe())
 
         df_hist = pd.concat(hist_list, axis=1, keys=grp_keys, ignore_index=False)
         keywords['units'].append(('fd', '/\\# of frames',))
