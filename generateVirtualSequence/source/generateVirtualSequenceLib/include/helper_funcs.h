@@ -137,6 +137,12 @@ bool isIdentityMat(const cv::Mat& m);
 //Calculate the descriptor distance between 2 descriptors
 double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2);
 
+GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
+void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, bool& value);
+void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, int64_t& value);
+GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
+GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
+
 /* -------------------------- Functions -------------------------- */
 
 //Checks, if determinants, etc. are too close to 0

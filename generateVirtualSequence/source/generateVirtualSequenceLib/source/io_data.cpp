@@ -147,12 +147,8 @@ int loadStereoSequence(std::string filepath, std::string fileprefl, std::string 
  * string fileprefl				Input  -> File prefix for the left or first images (last character must be "_" which is the
  *										  last character in the filename before the image number)
  * vector<string> filenamesl	Output -> Vector with sorted filenames of the images in the given directory
- *
- * Return value:				 0:		  Everything ok
- *								-1:		  Could not open directory
- *								-2:		  No images available
  */
-int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl)
+bool loadImageSequence(const std::string &filepath, const std::string &fileprefl, std::vector<std::string> &filenamesl)
 {
 	DIR *dir;
 	struct dirent *ent;
@@ -169,8 +165,8 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 
 		if(filenamesl.empty())
 		{
-			perror("No images available");
-			return -2;
+            std::cerr << "No images available" << endl;
+			return false;
 		}
 
 		sort(filenamesl.begin(),filenamesl.end(),
@@ -179,11 +175,11 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 	}
 	else
 	{
-		perror("Could not open directory");
-		return -1;
+		std::cerr << "Could not open directory" << endl;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 /* This function reads all stereo or 2 subsequent images from a given directory and stores their names into two vectors.
@@ -585,8 +581,23 @@ bool createDirectory(const std::string &path){
 	return boost::filesystem::create_directories(path);
 }
 
+bool deleteDirectory(const std::string &path){
+    return boost::filesystem::remove_all(path) > 0;
+}
+
 bool deleteFile(const std::string &filename){
 	return boost::filesystem::remove(filename);
+}
+
+std::string remFileExt(const std::string &name){
+    size_t lastindex = name.find_last_of('.');
+    string fname_new;
+    if(lastindex == std::string::npos){
+        fname_new = name;
+    }else {
+        fname_new = name.substr(0, lastindex);
+    }
+    return fname_new;
 }
 
 std::string concatPath(const std::string &mainPath, const std::string &subPath){
@@ -659,7 +670,8 @@ bool readHomographyFromFile(const std::string& filepath, const std::string& file
     char* pEnd;
     Mat H_ = Mat(3,3,CV_64FC1);
     size_t i = 0, j;
-    ifs.open(filepath + "\\" + filename, ifstream::in);
+    string fpn = concatPath(filepath, filename);
+    ifs.open(fpn, ifstream::in);
 
     while(ifs.getline(stringline,100) && (i < 3))
     {
@@ -684,4 +696,8 @@ bool readHomographyFromFile(const std::string& filepath, const std::string& file
     }
 
     return true;
+}
+
+std::string getFilenameFromPath(const std::string &name){
+    return boost::filesystem::path(name).filename().string();
 }

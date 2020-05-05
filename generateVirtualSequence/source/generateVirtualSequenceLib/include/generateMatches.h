@@ -265,6 +265,8 @@ private:
     bool getImageList();
     //Check if feature matches should be used from a 3rd party GT dataset
     bool check_3rdPty_GT();
+    //Generate GTM from 3rd party datasets
+    bool calcGTM();
     //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
     size_t hashFromSequPars();
     //Generates a hash value from the parameters used to generate matches from 3D correspondences
@@ -463,10 +465,10 @@ private:
     uint8_t use_3dPrtyGT = false;//Indicates if feature matches from 3rd party GT datasets should be used. The first 3 bits indicate which datasets should be used.
 };
 
-GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
-//void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, bool& value);
-void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, int64_t& value);
-GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
-GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
+//GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
+////void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, bool& value);
+//void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, int64_t& value);
+//GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
+//GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

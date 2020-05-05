@@ -528,3 +528,42 @@ double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descript
 
     return norm(descriptor1, descriptor2, NORM_L2);
 }
+
+FileStorage& operator << (FileStorage& fs, bool &value)
+{
+    if(value){
+        return (fs << 1);
+    }
+
+    return (fs << 0);
+}
+
+void operator >> (const FileNode& n, bool& value)
+{
+    int bVal;
+    n >> bVal;
+    if(bVal){
+        value = true;
+    }else{
+        value = false;
+    }
+}
+
+FileStorage& operator << (FileStorage& fs, int64_t &value)
+{
+    string strVal = std::to_string(value);
+    return (fs << strVal);
+}
+
+void operator >> (const FileNode& n, int64_t& value)
+{
+    string strVal;
+    n >> strVal;
+    value = std::stoll(strVal);
+}
+
+FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value)
+{
+    *it >> value;
+    return ++it;
+}

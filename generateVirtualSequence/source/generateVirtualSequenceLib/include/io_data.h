@@ -32,7 +32,7 @@
 int GENERATEVIRTUALSEQUENCELIB_API loadStereoSequence(std::string filepath, std::string fileprefl, std::string fileprefr,
 					   std::vector<std::string> & filenamesl, std::vector<std::string> & filenamesr);
 //This function reads all images from a given directory and stores their names into a vector.
-int GENERATEVIRTUALSEQUENCELIB_API loadImageSequence(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl);
+bool GENERATEVIRTUALSEQUENCELIB_API loadImageSequence(const std::string &filepath, const std::string &fileprefl, std::vector<std::string> &filenamesl);
 //This function reads all stereo or 2 subsequent images from a given directory and stores their names into two vectors. Search patterns can be used.
 int GENERATEVIRTUALSEQUENCELIB_API loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::string fileprefr,
 	std::vector<std::string> & filenamesl, std::vector<std::string> & filenamesr);
@@ -55,8 +55,17 @@ bool GENERATEVIRTUALSEQUENCELIB_API deleteFile(const std::string &filename);
 //Create a new directory
 bool GENERATEVIRTUALSEQUENCELIB_API createDirectory(const std::string &path);
 
+//Delete directory tree
+bool GENERATEVIRTUALSEQUENCELIB_API deleteDirectory(const std::string &path);
+
 //Concatenate a main and a sub-path
 std::string GENERATEVIRTUALSEQUENCELIB_API concatPath(const std::string &mainPath, const std::string &subPath);
+
+//Return only the filename with extension from a string made of path + filename
+std::string getFilenameFromPath(const std::string &name);
+
+//Remove extension from filename
+std::string remFileExt(const std::string &name);
 
 //Reads all homography file names (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/) from a given directory and stores their names into a vector.
 bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl);
