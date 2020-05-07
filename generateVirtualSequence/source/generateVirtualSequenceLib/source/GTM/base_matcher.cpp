@@ -26,6 +26,7 @@
 //#include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/video/tracking.hpp"
+#include <opencv2/ximgproc/sparse_match_interpolator.hpp>
 #include "helper_funcs.h"
 #include "io_data.h"
 
@@ -5135,6 +5136,109 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
 }
 
 //Prepare GTM from Oxford dataset
+bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
+    string path = concatPath(imgsPath, "KITTI");
+    if(!checkPathExists(path)){
+        cerr << "No folder named KITTI found in " << imgsPath << endl;
+        cerr << "Skipping GTM for KITTI" << endl;
+        return false;
+    }
+    for(auto &i: GetKITTISubDirs()){
+        string img1_path = concatPath(path, i.img1.sub_folder);
+        if(!checkPathExists(img1_path)){
+            cerr << "No folder " << img1_path << " found" << endl;
+            continue;
+        }
+        string img2_path = concatPath(path, i.img2.sub_folder);
+        if(!checkPathExists(img2_path)){
+            cerr << "No folder " << img2_path << " found" << endl;
+            continue;
+        }
+        string gt_path = concatPath(path, i.gt12.sub_folder);
+        if(!checkPathExists(gt_path)){
+            cerr << "No folder " << gt_path << " found" << endl;
+            continue;
+        }
+        std::vector<std::tuple<std::string, std::string, std::string>> fileNames;
+        if(!loadKittiImageGtFnames(path, i, fileNames)){
+            continue;
+        }
+    }
+}
+
+bool baseMatcher::calculateGTM_KITTI(std::vector<std::tuple<std::string, std::string, std::string>> &fileNames, bool is_flow){
+    flowGtIsUsed = true;
+    for(auto &i: fileNames){
+        imgs[0] = imread(get<0>(i), cv::IMREAD_GRAYSCALE);
+        imgs[1] = imread(get<1>(i), cv::IMREAD_GRAYSCALE);
+        vector<cv::Point2f> pts1, pts2;
+        if(is_flow){
+            if(!convertImageFlowFile(get<2>(i), pts1, pts2)){
+                continue;
+            }
+        }else{
+            if(!convertImageDisparityFile(get<2>(i), pts1, pts2)){
+                continue;
+            }
+        }
+        //Interpolate missing values
+        Mat dense_flow(imgs[0].rows, imgs[0].cols, CV_32FC2);
+        Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
+        gd->setK(128);
+        gd->setSigma(0.05f);
+        gd->setLambda(999.f);
+        gd->setFGSLambda(500.0f);
+        gd->setFGSSigma(1.5f);
+        gd->setUsePostProcessing(false);
+        gd->interpolate(imgs[0], pts1, imgs[1], pts2, dense_flow);
+        CV_Assert(dense_flow.type() == CV_32FC2);
+        std::vector<Mat> vecMats;
+        cv::split(dense_flow, vecMats);
+        cv::Mat validity(vecMats.back().size(), vecMats.back().type(), 2.f);
+        for(auto &pos: pts1){
+            validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
+        }
+        vecMats.emplace_back(move(validity));
+        cv::merge(vecMats, flowGT);
+        if(!detectFeatures()){
+            return false;
+        }
+        int err = filterInitFeaturesGT();
+        return err == 0;
+    }
+}
+
+bool baseMatcher::loadKittiImageGtFnames(const std::string &mainPath, kittiFolders &info,
+                                         std::vector<std::tuple<std::string, std::string, std::string>> &fileNames){
+    string fileprefl = concatPath(info.img1.sub_folder, "*" + info.img1.postfix);
+    string fileprefr = concatPath(info.img2.sub_folder, "*" + info.img2.postfix);
+    std::vector<std::string> filenamesl, filenamesr, filenamesgt;
+    int res = loadStereoSequenceNew(mainPath, fileprefl, fileprefr, filenamesl, filenamesr);
+    if(res){
+        return false;
+    }
+    size_t nr_files = filenamesl.size();
+    if(nr_files != filenamesr.size()){
+        cerr << "Number of corresponding image files does not match" << endl;
+        return false;
+    }
+    string gt_path = concatPath(mainPath, info.gt12.sub_folder);
+    fileprefl = "*" + info.gt12.postfix;
+    res = loadImageSequenceNew(gt_path, fileprefl, filenamesgt);
+    if(res){
+        return false;
+    }
+    if(nr_files != filenamesgt.size()){
+        cerr << "Number of corresponding image and GT files does not match" << endl;
+        return false;
+    }
+    for (size_t i = 0; i < nr_files; ++i) {
+        fileNames.emplace_back(move(filenamesl[i]), move(filenamesr[i]), move(filenamesgt[i]));
+    }
+    return true;
+}
+
+//Prepare GTM from Oxford dataset
 bool baseMatcher::calcGTM_Oxford(size_t &min_nrTP) {
     string path = concatPath(imgsPath, "Oxford");
     if(checkPathExists(path)){
@@ -5153,6 +5257,8 @@ bool baseMatcher::calcGTM_Oxford(size_t &min_nrTP) {
 }
 
 bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
+    gtmdata.sum_TP_Oxford = 0;
+    gtmdata.sum_TN_Oxford = 0;
     for(auto &sub: GetOxfordSubDirs()){
         const string sub_path = concatPath(path, sub);
         const string gtm_path = concatPath(sub_path, gtm_sub_folder);
@@ -5172,6 +5278,8 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
                     }
                 }
                 addGTMdataToPool();
+                gtmdata.sum_TP_Oxford += positivesGT;
+                gtmdata.sum_TN_Oxford += negativesGT;
                 imgNames_tmp.push_back(imgNames[i]);
             }
             if(imgNames_tmp.empty()){
@@ -5179,6 +5287,7 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
                 return false;
             }
             gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
+            gtmdata.sourceGT.emplace_back('O');
         }else{
             bool save_it = true;
             if(!createDirectory(gtm_path)){
@@ -5190,6 +5299,8 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
                     continue;
                 }
                 addGTMdataToPool();
+                gtmdata.sum_TP_Oxford += positivesGT;
+                gtmdata.sum_TN_Oxford += negativesGT;
                 imgNames_tmp.push_back(imgNames[i]);
             }
             if(imgNames_tmp.empty()){
@@ -5197,8 +5308,9 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
                 return false;
             }
             gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
+            gtmdata.sourceGT.emplace_back('O');
         }
-        if(gtmdata.sum_TP >= min_nrTP){
+        if(gtmdata.sum_TP_Oxford >= min_nrTP){
             break;
         }
     }
@@ -5479,6 +5591,15 @@ std::vector<std::string> baseMatcher::GetOxfordSubDirs()
     };
     return std::vector<std::string>(types, types + nrSupportedTypes);
 }
+
+std::vector<kittiFolders> baseMatcher::GetKITTISubDirs(){
+    static kittiFolders dispflow [] = {{{"2012/image_0", "_10"}, {"2012/image_1", "_10"}, {"2012/disp_occ", "_10"}, false},
+                                       {{"2012/image_0", "_10"}, {"2012/image_0", "_11"}, {"2012/flow_occ", "_10"}, true},
+                                       {{"2015/image_2", "_10"}, {"2015/image_3", "_10"}, {"2015/disp_occ_0", "_10"}, false},
+                                       {{"2015/image_2", "_10"}, {"2015/image_2", "_11"}, {"2015/flow_occ", "_10"}, true}};
+    return std::vector<kittiFolders>(dispflow, dispflow + 4);
+}
+
 
 #if defined(USE_MANUAL_ANNOTATION)
 void on_mouse_click(int event, int x, int y, int flags, void* param){

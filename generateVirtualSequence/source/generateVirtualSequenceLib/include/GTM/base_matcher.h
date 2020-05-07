@@ -24,6 +24,7 @@
 #include "glob_includes.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/features2d/features2d.hpp"
+#include <tuple>
 
 /* --------------------------- Defines --------------------------- */
 
@@ -88,23 +89,42 @@ struct annotImgPars{
 };
 
 struct GTMdata{
-    size_t sum_TP = 0;//Number of GT TP loaded/computed so far over the whole dataset
-    size_t sum_TN = 0;//Number of GT TN loaded/computed so far over the whole dataset
+    size_t sum_TP = 0;//Number of GT TP loaded/computed so far over all datasets
+    size_t sum_TN = 0;//Number of GT TN loaded/computed so far over all datasets
+    size_t sum_TP_Oxford = 0;//Number of GT TP loaded/computed so far over the Oxford dataset
+    size_t sum_TN_Oxford = 0;//Number of GT TN loaded/computed so far over the Oxford dataset
+    size_t sum_TP_KITTI = 0;//Number of GT TP loaded/computed so far over the KITTI dataset
+    size_t sum_TN_KITTI = 0;//Number of GT TN loaded/computed so far over the KITTI dataset
+    size_t sum_TP_MegaDepth = 0;//Number of GT TP loaded/computed so far over the MegaDepth dataset
+    size_t sum_TN_MegaDepth = 0;//Number of GT TN loaded/computed so far over the MegaDepth dataset
     std::vector<std::vector<cv::KeyPoint>> keypLAll;//Left GT keypoints loaded/computed so far over the whole dataset
     std::vector<std::vector<cv::KeyPoint>> keypRAll;//Right GT keypoints loaded/computed so far over the whole dataset
     std::vector<std::vector<bool>> leftInlierAll;// Left inlier/outlier mask loaded/computed so far over the whole dataset
     std::vector<std::vector<bool>> rightInlierAll;//Right inlier/outlier mask loaded/computed so far over the whole dataset
     std::vector<std::vector<cv::DMatch>> matchesGTAll;//Ground truth matches loaded/computed so far over the whole dataset
     std::vector<std::vector<std::pair<std::string, std::string>>> imgNamesAll;//Image names including paths of first and second source images corresponding to indices of keypLAll, keypRAll, leftInlierAll, rightInlierAll, matchesGTAll
+    std::vector<char> sourceGT;//Indicates from which dataset GTM were calculated (O ... Oxford, K ... KITTI, M ... MegaDepth)
 
     GTMdata(){
         sum_TP = 0;
         sum_TN = 0;
+        sum_TP_Oxford = 0;
+        sum_TN_Oxford = 0;
+        sum_TP_KITTI = 0;
+        sum_TN_KITTI = 0;
+        sum_TP_MegaDepth = 0;
+        sum_TN_MegaDepth = 0;
     }
 
     void clear(){
         sum_TP = 0;
         sum_TN = 0;
+        sum_TP_Oxford = 0;
+        sum_TN_Oxford = 0;
+        sum_TP_KITTI = 0;
+        sum_TN_KITTI = 0;
+        sum_TP_MegaDepth = 0;
+        sum_TN_MegaDepth = 0;
         keypLAll.clear();
         keypRAll.clear();
         leftInlierAll.clear();
@@ -112,6 +132,17 @@ struct GTMdata{
         matchesGTAll.clear();
         imgNamesAll.clear();
     }
+};
+
+struct kittiFolders{
+    struct folderPostF{
+        std::string sub_folder;
+        std::string postfix;
+    };
+    folderPostF img1;
+    folderPostF img2;
+    folderPostF gt12;
+    bool isFlow;
 };
 
 /* --------------------------- Classes --------------------------- */
@@ -128,6 +159,8 @@ public:
 
     //Prepare GTM from Oxford dataset
     bool calcGTM_Oxford(size_t &min_nrTP);
+    //Prepare GTM from KITTI dataset
+    bool calcGTM_KITTI(size_t &min_nrTP);
 
 private:
     const std::string base_url_oxford = "http://www.robots.ox.ac.uk/~vgg/research/affine/det_eval_files/";
@@ -188,8 +221,15 @@ private:
     static bool loadOxfordImagesHomographies(const std::string &path,
                                              std::vector<std::pair<std::string, std::string>> &imgNames,
                                              std::vector<cv::Mat> &homographies);
+    //Load corresponding image and GT file names for a KITTI sub-dataset
+    static bool loadKittiImageGtFnames(const std::string &mainPath, kittiFolders &info,
+                                std::vector<std::tuple<std::string, std::string, std::string>> &fileNames);
+    //Loads KITTI GT, interpolates flow/disparity, and calculates GTM
+    bool calculateGTM_KITTI(std::vector<std::tuple<std::string, std::string, std::string>> &fileNames, bool is_flow);
     //Holds sub-directory names for the Oxford dataset
     static std::vector<std::string> GetOxfordSubDirs();
+
+    static std::vector<kittiFolders> GetKITTISubDirs();
 
     //Initial detection of all features without filtering
     bool detectFeatures();
