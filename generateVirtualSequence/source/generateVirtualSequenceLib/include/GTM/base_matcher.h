@@ -225,7 +225,11 @@ private:
     static bool loadKittiImageGtFnames(const std::string &mainPath, kittiFolders &info,
                                 std::vector<std::tuple<std::string, std::string, std::string>> &fileNames);
     //Loads KITTI GT, interpolates flow/disparity, and calculates GTM
-    bool calculateGTM_KITTI(std::vector<std::tuple<std::string, std::string, std::string>> &fileNames, bool is_flow);
+    bool getKittiGTM(const std::string &img1f, const std::string &img2f, const std::string &gt, bool is_flow);
+    //Calculates, refines, and stores GTM of an KITTI image pair
+    bool calcRefineStoreGTM_KITTI(const std::tuple<std::string, std::string, std::string> &fileNames,
+                                  bool is_flow, const std::string &gtm_path, const std::string &sub,
+                                  const int &remainingImgs, bool save_it);
     //Holds sub-directory names for the Oxford dataset
     static std::vector<std::string> GetOxfordSubDirs();
 

@@ -5143,6 +5143,9 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
         cerr << "Skipping GTM for KITTI" << endl;
         return false;
     }
+    gtmdata.sum_TP_KITTI = 0;
+    gtmdata.sum_TN_KITTI = 0;
+    flowGtIsUsed = true;
     for(auto &i: GetKITTISubDirs()){
         string img1_path = concatPath(path, i.img1.sub_folder);
         if(!checkPathExists(img1_path)){
@@ -5163,49 +5166,107 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
         if(!loadKittiImageGtFnames(path, i, fileNames)){
             continue;
         }
+        const string gtm_path = concatPath(gt_path, gtm_sub_folder);
+        size_t nrGts = fileNames.size();
+        std::vector<std::pair<std::string, std::string>> imgNames_tmp;
+        if(checkPathExists(gtm_path)){
+            for (size_t j = 0; j < nrGts; ++j){
+                std::pair<std::string, std::string> imageNames = make_pair(get<0>(fileNames[j]), get<1>(fileNames[j]));
+                if(!loadGTM(gtm_path, imageNames)){
+                    if(!calcRefineStoreGTM_KITTI(fileNames[j], i.isFlow, gtm_path, i.gt12.sub_folder,
+                                                 static_cast<int>(nrGts - j), true)){
+                        continue;
+                    }
+                }
+                addGTMdataToPool();
+                gtmdata.sum_TP_KITTI += positivesGT;
+                gtmdata.sum_TN_KITTI += negativesGT;
+                imgNames_tmp.emplace_back(move(imageNames));
+            }
+            if(imgNames_tmp.empty()){
+                cerr << "Unable to load/calculate GTM for KITTI subset " << i.gt12.sub_folder << endl;
+                return false;
+            }
+            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
+            gtmdata.sourceGT.emplace_back('K');
+        }else{
+            bool save_it = true;
+            if(!createDirectory(gtm_path)){
+                cerr << "Unable to create GTM directory" << endl;
+                save_it = false;
+            }
+            for (size_t j = 0; j < nrGts; ++j) {
+                std::pair<std::string, std::string> imageNames = make_pair(get<0>(fileNames[j]), get<1>(fileNames[j]));
+                if(!calcRefineStoreGTM_KITTI(fileNames[j], i.isFlow, gtm_path, i.gt12.sub_folder,
+                                             static_cast<int>(nrGts - j), save_it)){
+                    continue;
+                }
+                addGTMdataToPool();
+                gtmdata.sum_TP_KITTI += positivesGT;
+                gtmdata.sum_TN_KITTI += negativesGT;
+                imgNames_tmp.emplace_back(move(imageNames));
+            }
+            if(imgNames_tmp.empty()){
+                cerr << "Unable to calculate GTM for KITTI subset " << i.gt12.sub_folder << endl;
+                return false;
+            }
+            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
+            gtmdata.sourceGT.emplace_back('K');
+        }
+        if(gtmdata.sum_TP_KITTI >= min_nrTP){
+            break;
+        }
     }
+    return true;
 }
 
-bool baseMatcher::calculateGTM_KITTI(std::vector<std::tuple<std::string, std::string, std::string>> &fileNames, bool is_flow){
-    flowGtIsUsed = true;
-    for(auto &i: fileNames){
-        imgs[0] = imread(get<0>(i), cv::IMREAD_GRAYSCALE);
-        imgs[1] = imread(get<1>(i), cv::IMREAD_GRAYSCALE);
-        vector<cv::Point2f> pts1, pts2;
-        if(is_flow){
-            if(!convertImageFlowFile(get<2>(i), pts1, pts2)){
-                continue;
-            }
-        }else{
-            if(!convertImageDisparityFile(get<2>(i), pts1, pts2)){
-                continue;
-            }
-        }
-        //Interpolate missing values
-        Mat dense_flow(imgs[0].rows, imgs[0].cols, CV_32FC2);
-        Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
-        gd->setK(128);
-        gd->setSigma(0.05f);
-        gd->setLambda(999.f);
-        gd->setFGSLambda(500.0f);
-        gd->setFGSSigma(1.5f);
-        gd->setUsePostProcessing(false);
-        gd->interpolate(imgs[0], pts1, imgs[1], pts2, dense_flow);
-        CV_Assert(dense_flow.type() == CV_32FC2);
-        std::vector<Mat> vecMats;
-        cv::split(dense_flow, vecMats);
-        cv::Mat validity(vecMats.back().size(), vecMats.back().type(), 2.f);
-        for(auto &pos: pts1){
-            validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
-        }
-        vecMats.emplace_back(move(validity));
-        cv::merge(vecMats, flowGT);
-        if(!detectFeatures()){
+bool baseMatcher::getKittiGTM(const std::string &img1f, const std::string &img2f, const std::string &gt, bool is_flow){
+    imgs[0] = imread(img1f, cv::IMREAD_GRAYSCALE);
+    imgs[1] = imread(img2f, cv::IMREAD_GRAYSCALE);
+    vector<cv::Point2f> pts1, pts2;
+    if(is_flow){
+        if(!convertImageFlowFile(gt, pts1, pts2)){
             return false;
         }
-        int err = filterInitFeaturesGT();
-        return err == 0;
+    }else{
+        if(!convertImageDisparityFile(gt, pts1, pts2)){
+            return false;
+        }
     }
+    //Interpolate missing values
+    Mat dense_flow(imgs[0].rows, imgs[0].cols, CV_32FC2);
+    Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
+    gd->setK(128);
+    gd->setSigma(0.05f);
+    gd->setLambda(999.f);
+    gd->setFGSLambda(500.0f);
+    gd->setFGSSigma(1.5f);
+    gd->setUsePostProcessing(false);
+    gd->interpolate(imgs[0], pts1, imgs[1], pts2, dense_flow);
+    CV_Assert(dense_flow.type() == CV_32FC2);
+    std::vector<Mat> vecMats;
+    cv::split(dense_flow, vecMats);
+    cv::Mat validity(vecMats.back().size(), vecMats.back().type(), 2.f);
+    for(auto &pos: pts1){
+        validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
+    }
+    vecMats.emplace_back(move(validity));
+#if 1
+    namedWindow( "Channel 1", WINDOW_AUTOSIZE );// Create a window for display.
+    imshow( "Channel 1", vecMats[0] );
+    namedWindow( "Channel 2", WINDOW_AUTOSIZE );// Create a window for display.
+    imshow( "Channel 2", vecMats[1] );
+    namedWindow( "Channel 3", WINDOW_AUTOSIZE );// Create a window for display.
+    imshow( "Channel 3", vecMats[2] );
+    cv::waitKey(0);
+    cv::destroyAllWindows();
+#endif
+    cv::merge(vecMats, flowGT);
+    if(!detectFeatures()){
+        return false;
+    }
+    int err = filterInitFeaturesGT();
+    return err == 0;
 }
 
 bool baseMatcher::loadKittiImageGtFnames(const std::string &mainPath, kittiFolders &info,
@@ -5265,7 +5326,6 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
         std::vector<std::pair<std::string, std::string>> imgNames, imgNames_tmp;
         std::vector<cv::Mat> homographies;
         flowGtIsUsed = false;
-        string GT_filename;
         if(!loadOxfordImagesHomographies(sub_path, imgNames, homographies)){
             return false;
         }
@@ -5353,6 +5413,38 @@ bool baseMatcher::calcRefineStoreGTM_Oxford(const std::pair<std::string, std::st
     if(refineGTM){
         if(refineFoundGTM(remainingImgs)) {
             quality.id = "Oxford-" + sub + "-" + concatImgNames(imageNames);
+            is_refined = true;
+        }else{
+            cout << "Unable to refine GTM" << endl;
+        }
+    }
+    if(save_it) {
+        string GT_filename = prepareFileNameGT(imageNames, gtm_path);
+        if (!writeGTMatchesDisk(GT_filename, is_refined)) {
+            cerr << "Unable to store GTM for images " << imageNames.first << " --> " << imageNames.second
+                 << endl;
+        }
+    }
+    if(is_refined){
+        switchToRefinedGTM();
+    }
+    return true;
+}
+
+bool baseMatcher::calcRefineStoreGTM_KITTI(const std::tuple<std::string, std::string, std::string> &fileNames,
+                                           bool is_flow, const std::string &gtm_path, const std::string &sub,
+                                           const int &remainingImgs, bool save_it) {
+    if(!getKittiGTM(get<0>(fileNames), get<1>(fileNames), get<2>(fileNames), is_flow)){
+        cout << "Unable to calculate GTM for images " << get<0>(fileNames) << " --> " << get<1>(fileNames) << endl;
+        return false;
+    }
+    std::pair<std::string, std::string> imageNames = make_pair(get<0>(fileNames), get<1>(fileNames));
+    bool is_refined = false;
+    if(refineGTM){
+        if(refineFoundGTM(remainingImgs)) {
+            string sub1 = sub;
+            std::replace(sub1.begin(), sub1.end(), '/', '_');
+            quality.id = "KITTI-" + sub1 + "-" + concatImgNames(imageNames);
             is_refined = true;
         }else{
             cout << "Unable to refine GTM" << endl;
