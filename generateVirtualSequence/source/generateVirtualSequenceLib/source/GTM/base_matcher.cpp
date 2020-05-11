@@ -37,6 +37,8 @@
 
 #include "nanoflann.hpp"
 
+#include "GTM/prepareMegaDepth.h"
+
 //#include "vfc.h"
 
 #include <bitset>
@@ -68,6 +70,14 @@ using namespace std;
 typedef Eigen::Matrix<float,Eigen::Dynamic,2, Eigen::RowMajor> EMatFloat2;
 typedef nanoflann::KDTreeEigenMatrixAdaptor< EMatFloat2, nanoflann::metric_L2_Simple>  KDTree_D2float;
 
+//#ifndef EIGEN_ALIGNED_ALLOCATOR
+//#define EIGEN_ALIGNED_ALLOCATOR Eigen::aligned_allocator
+//#endif
+//#define EIGEN_STL_UMAP(KEY, VALUE)                                   \
+//  std::unordered_map<KEY, VALUE, std::hash<KEY>, std::equal_to<KEY>, \
+//                     Eigen::aligned_allocator<std::pair<KEY const, VALUE>>>
+#define EIGEN_STL_UMAP(KEY, VALUE) std::unordered_map<KEY, VALUE, std::hash<KEY>, std::equal_to<KEY>, Eigen::aligned_allocator<std::pair<KEY const, VALUE>>>
+
 #if defined(USE_MANUAL_ANNOTATION)
 enum SpecialKeyCode{
         NONE, SPACE, BACKSPACE, ESCAPE, CARRIAGE_RETURN, ARROW_UP, ARROW_RIGHT, ARROW_DOWN, ARROW_LEFT, PAGE_UP, PAGE_DOWN, POS1, END_KEY ,INSERT, DELETE_KEY
@@ -75,6 +85,8 @@ enum SpecialKeyCode{
 #endif
 
 /* --------------------- Function prototypes --------------------- */
+
+
 
 bool readDoubleVal(ifstream & gtFromFile, const std::string& keyWord, double *value);
 void getSubPixPatchDiff(const cv::Mat& patch, const cv::Mat& image, cv::Point2f &diff);
@@ -1972,42 +1984,32 @@ int baseMatcher::filterInitFeaturesGT()
     if(outlDiff > 0)
     {
         //Delete all outliers from the right image so that it is equal to the number of outliers in the left image
-        for(int i = 0; i < outlDiff; i++)
-        {
+        for(int i = 0; i < outlDiff; i++){
             int delOutlIdx = rand() % rightOutlSize;
             size_t rKeyPIdx = outlR[delOutlIdx];
-            for(auto &k1: nearest_dist)
-            {
-                if(k1.first > rKeyPIdx)
-                {
+            for(auto &k1: nearest_dist){
+                if(k1.first > rKeyPIdx){
                     k1.first--;
                 }
             }
             keypR.erase(keypR.begin() + rKeyPIdx);
-            for(size_t k1 = 0; k1 < rightOutlSize; k1++)
-            {
-                if(outlR[k1] > rKeyPIdx)
-                {
+            for(size_t k1 = 0; k1 < rightOutlSize; k1++){
+                if(outlR[k1] > rKeyPIdx){
                     outlR[k1]--;
                 }
             }
             outlR.erase(outlR.begin() + delOutlIdx);
             rightOutlSize--;
         }
-    }
-    else if(outlDiff < 0)
-    {
+    }else if(outlDiff < 0){
         outlDiff *= -1;
         //Delete as many outliers from the left image so that it is equal to the number of outliers in the right image
-        for(int i = 0; i < outlDiff; i++)
-        {
+        for(int i = 0; i < outlDiff; i++){
             int delOutlIdx = rand() % leftOutlSize;
             keypL.erase(keypL.begin() + outlL[delOutlIdx]);
             leftInlier.erase(leftInlier.begin() + outlL[delOutlIdx]);
-            for(size_t k1 = 0; k1 < leftOutlSize; k1++)
-            {
-                if(outlL[k1] > outlL[delOutlIdx])
-                {
+            for(size_t k1 = 0; k1 < leftOutlSize; k1++){
+                if(outlL[k1] > outlL[delOutlIdx]){
                     outlL[k1]--;
                 }
             }
@@ -2015,7 +2017,7 @@ int baseMatcher::filterInitFeaturesGT()
             leftOutlSize--;
         }
     }
-    CV_Assert(keypR.size() == keypL.size())
+    CV_Assert(keypR.size() == keypL.size());
 
 
 #if showfeatures
@@ -2399,9 +2401,9 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
-            char v = 0;
+            string v;
             it >> v;
-            quality.autoManualAnnot.push_back(v);
+            quality.autoManualAnnot.push_back(*v.c_str());
         }
     }
 
@@ -2419,14 +2421,6 @@ void baseMatcher::clearGTvars()
 	matchesGT.clear();
 	keypL.clear();
 	keypR.clear();
-    sum_TP = 0;
-    sum_TN = 0;
-    keypLAll.clear();
-    keypRAll.clear();
-    leftInlierAll.clear();
-    rightInlierAll.clear();
-    matchesGTAll.clear();
-    imgNamesAll.clear();
 }
 
 /* Reads a line from the stream, checks if the first word corresponds to the given keyword and if true, reads the value after the keyword.
@@ -2623,7 +2617,7 @@ bool baseMatcher::writeGTMatchesDisk(const std::string &filenameGT, bool writeQu
             fs.writeComment("Distances of the annotated positions to an estimated model (Homography or Fundamental matrix) from the annotated positions");
             fs << "autoManualAnnot" << "[";
             for (auto &i : quality.autoManualAnnot) {
-                fs << i;
+                fs << string(1, i);
             }
             fs << "]";
         }
@@ -5224,12 +5218,13 @@ bool baseMatcher::getKittiGTM(const std::string &img1f, const std::string &img2f
     imgs[0] = imread(img1f, cv::IMREAD_GRAYSCALE);
     imgs[1] = imread(img2f, cv::IMREAD_GRAYSCALE);
     vector<cv::Point2f> pts1, pts2;
+    Mat flow_img;
     if(is_flow){
-        if(!convertImageFlowFile(gt, pts1, pts2)){
+        if(!convertImageFlowFile(gt, &pts1, &pts2, flow_img)){
             return false;
         }
     }else{
-        if(!convertImageDisparityFile(gt, pts1, pts2)){
+        if(!convertImageDisparityFile(gt, &pts1, &pts2, flow_img)){
             return false;
         }
     }
@@ -5244,14 +5239,30 @@ bool baseMatcher::getKittiGTM(const std::string &img1f, const std::string &img2f
     gd->setUsePostProcessing(false);
     gd->interpolate(imgs[0], pts1, imgs[1], pts2, dense_flow);
     CV_Assert(dense_flow.type() == CV_32FC2);
+
+#define SHOWINTERIM 1
+    std::vector<Mat> flow_ch;
+    cv::split(flow_img, flow_ch);
+    Mat mask = cv::abs(flow_ch[0]) + cv::abs(flow_ch[1]);
+    cv::threshold(mask, mask, 0, 255.0, cv::THRESH_BINARY);
+    mask.convertTo(mask, CV_8UC1);
+    Mat structElem = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
+    cv::morphologyEx(mask, mask, MORPH_CLOSE, structElem);
+#if SHOWINTERIM
+    namedWindow( "Mask", WINDOW_AUTOSIZE );// Create a window for display.
+    imshow( "Mask", mask );
+    cv::waitKey(0);
+#endif
     std::vector<Mat> vecMats;
     cv::split(dense_flow, vecMats);
-    cv::Mat validity(vecMats.back().size(), vecMats.back().type(), 2.f);
+    cv::Mat validity(vecMats.back().size(), CV_8UC1, 2);
+    validity &= mask;
+    validity.convertTo(validity, vecMats.back().type());
     for(auto &pos: pts1){
         validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
     }
     vecMats.emplace_back(move(validity));
-#if 1
+#if SHOWINTERIM
     namedWindow( "Channel 1", WINDOW_AUTOSIZE );// Create a window for display.
     imshow( "Channel 1", vecMats[0] );
     namedWindow( "Channel 2", WINDOW_AUTOSIZE );// Create a window for display.
@@ -5603,6 +5614,7 @@ bool baseMatcher::getOxfordDatasets(const std::string &path){
             return false;
         }
     }
+    return true;
 }
 
 //Check if GT data is available for an Oxford sub-set. If not, download it

@@ -25,6 +25,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/features2d/features2d.hpp"
 #include <tuple>
+#include <utility>
 
 /* --------------------------- Defines --------------------------- */
 
@@ -138,11 +139,61 @@ struct kittiFolders{
     struct folderPostF{
         std::string sub_folder;
         std::string postfix;
+
+        folderPostF(std::string sub_folder_, std::string postfix_):sub_folder(std::move(sub_folder_)), postfix(std::move(postfix_)){}
+        folderPostF(std::string &&sub_folder_, std::string &&postfix_):sub_folder(move(sub_folder_)), postfix(move(postfix_)){}
+        folderPostF() = default;
+        folderPostF(folderPostF &&kf) noexcept :sub_folder(move(kf.sub_folder)), postfix(move(kf.postfix)){}
+        folderPostF(std::initializer_list<std::string> kf):sub_folder(*kf.begin()), postfix(*(kf.begin() + 1)){}
+        folderPostF(const folderPostF &kf) = default;
+        folderPostF& operator=(const folderPostF & kf){
+            sub_folder = kf.sub_folder;
+            postfix = kf.postfix;
+        }
     };
     folderPostF img1;
     folderPostF img2;
     folderPostF gt12;
     bool isFlow;
+
+    kittiFolders(){
+        isFlow = false;
+    }
+
+    kittiFolders(const kittiFolders &kf){
+        img1 = kf.img1;
+        img2 = kf.img2;
+        gt12 = kf.gt12;
+        isFlow = kf.isFlow;
+    }
+
+    kittiFolders(const std::string &sf1, const std::string &pf1,
+                 const std::string &sf2, const std::string &pf2,
+                 const std::string &sf3, const std::string &pf3,
+                 bool if1){
+        img1.sub_folder = sf1;
+        img1.postfix = pf1;
+        img2.sub_folder = sf2;
+        img2.postfix = pf2;
+        gt12.sub_folder = sf3;
+        gt12.postfix = pf3;
+        isFlow = if1;
+    }
+
+    kittiFolders(std::initializer_list<std::string> const img1_,
+                 std::initializer_list<std::string> const img2_,
+                 std::initializer_list<std::string> const gt12_,
+                 bool if1){
+        std::copy(img1_.begin(), img1_.end(), img1);
+        std::copy(img2_.begin(), img2_.end(), img2);
+        std::copy(gt12_.begin(), gt12_.end(), gt12);
+        isFlow = if1;
+    }
+
+//    kittiFolders(std::initializer_list<std::string> &&img1_,
+//                 std::initializer_list<std::string> &&img2_,
+//                 std::initializer_list<std::string> &&gt12_,
+//                 bool &&if1):img1(img1_), img2(img2_), gt12(gt12_), isFlow(if1){}
 };
 
 /* --------------------------- Classes --------------------------- */
@@ -257,8 +308,6 @@ private:
 	std::string prepareFileNameGT(const std::pair<std::string, std::string> &filenamesImg, const std::string &GTM_path);
     std::string getGTMbasename() const;
     static std::string concatImgNames(const std::pair<std::string, std::string> &filenamesImg);
-
-	//bool testGT;
 };
 
 /* --------------------- Function prototypes --------------------- */

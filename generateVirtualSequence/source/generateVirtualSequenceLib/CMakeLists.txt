@@ -74,7 +74,22 @@ set(sources
 	${source_path}/descriptor-BOLD/bold.cpp
 	${source_path}/GTM/base_matcher.cpp
 	${source_path}/GTM/inscribeRectangle.cpp
-	${source_path}/GTM/loadGTMfiles.cpp)
+	${source_path}/GTM/colmap/camera.cc
+	${source_path}/GTM/colmap/camera_models.cc
+	${source_path}/GTM/colmap/essential_matrix.cc
+	${source_path}/GTM/colmap/image.cc
+	${source_path}/GTM/colmap/logging.cc
+	${source_path}/GTM/colmap/math.cc
+	${source_path}/GTM/colmap/point2d.cc
+	${source_path}/GTM/colmap/pose.cc
+	${source_path}/GTM/colmap/projection.cc
+	${source_path}/GTM/colmap/string.cc
+	${source_path}/GTM/colmap/triangulation.cc
+	${source_path}/GTM/colmap/visibility_pyramid.cc
+	${source_path}/GTM/colmap/misc.cc
+	${source_path}/GTM/colmap/point3d.cc
+	${source_path}/GTM/colmap/track.cc
+	${source_path}/GTM/prepareMegaDepth.cpp)
 
 # Group source files
 set(header_group "Header Files (API)")

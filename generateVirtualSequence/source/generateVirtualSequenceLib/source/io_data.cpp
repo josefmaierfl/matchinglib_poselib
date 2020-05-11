@@ -721,8 +721,8 @@ std::string getFilenameFromPath(const std::string &name){
  *										  if a flow value is marked as valid or invalid (for validities between 0 and 1).
  *										  [Default = 1.0]
  */
-bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> &positionI1, std::vector<cv::Point2f> &positionI2, cv::OutputArray flow3,
-                          const float precision, bool useBoolValidity, const float validityPrecision, const float minConfidence)
+bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> *positionI1, std::vector<cv::Point2f> *positionI2, cv::OutputArray flow3,
+                          float precision, bool useBoolValidity, float validityPrecision, float minConfidence)
 {
     Mat intflow = imread(filename, cv::IMREAD_UNCHANGED);
 
@@ -763,9 +763,10 @@ bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> 
                     }
                 }
             }
-        }else{
-            positionI1 = std::vector<cv::Point2f>(nr_elems);
-            positionI2 = std::vector<cv::Point2f>(nr_elems);
+        }
+        if((positionI1 != nullptr) && (positionI2 != nullptr)){
+            *positionI1 = std::vector<cv::Point2f>(nr_elems);
+            *positionI2 = std::vector<cv::Point2f>(nr_elems);
             size_t used = 0;
             cv::Point2f flow;
             for (int u = 0; u < intflow.rows; u++) {
@@ -773,15 +774,15 @@ bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> 
                     if (channels[2].at<uint16_t>(u, v) > 0) {
                         flow.x = (static_cast<float>(channels[0].at<uint16_t>(u, v)) - 32768.0f) / precision;
                         flow.y = (static_cast<float>(channels[1].at<uint16_t>(u, v)) - 32768.0f) / precision;
-                        positionI1[used].x = static_cast<float>(v);
-                        positionI1[used].y = static_cast<float>(u);
-                        positionI2[used].x = static_cast<float>(v) + flow.x;
-                        positionI2[used++].y = static_cast<float>(u) + flow.y;
+                        (*positionI1)[used].x = static_cast<float>(v);
+                        (*positionI1)[used].y = static_cast<float>(u);
+                        (*positionI2)[used].x = static_cast<float>(v) + flow.x;
+                        (*positionI2)[used++].y = static_cast<float>(u) + flow.y;
                     }
                 }
             }
-            positionI1.erase(positionI1.begin() + used, positionI1.end());
-            positionI2.erase(positionI2.begin() + used, positionI2.end());
+            positionI1->erase(positionI1->begin() + used, positionI1->end());
+            positionI2->erase(positionI2->begin() + used, positionI2->end());
         }
     }else{
         if(flow3.needed()) {
@@ -807,9 +808,10 @@ bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> 
                     }
                 }
             }
-        }else{
-            positionI1 = std::vector<cv::Point2f>(nr_elems);
-            positionI2 = std::vector<cv::Point2f>(nr_elems);
+        }
+        if((positionI1 != nullptr) && (positionI2 != nullptr)){
+            *positionI1 = std::vector<cv::Point2f>(nr_elems);
+            *positionI2 = std::vector<cv::Point2f>(nr_elems);
             size_t used = 0;
             cv::Point2f flow;
             for (int u = 0; u < intflow.rows; u++) {
@@ -819,16 +821,16 @@ bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> 
                         if (conf >= minConfidence) {
                             flow.x = (static_cast<float>(channels[0].at<uint16_t>(u, v)) - 32768.0f) / precision;
                             flow.y = (static_cast<float>(channels[1].at<uint16_t>(u, v)) - 32768.0f) / precision;
-                            positionI1[used].x = static_cast<float>(v);
-                            positionI1[used].y = static_cast<float>(u);
-                            positionI2[used].x = static_cast<float>(v) + flow.x;
-                            positionI2[used++].y = static_cast<float>(u) + flow.y;
+                            (*positionI1)[used].x = static_cast<float>(v);
+                            (*positionI1)[used].y = static_cast<float>(u);
+                            (*positionI2)[used].x = static_cast<float>(v) + flow.x;
+                            (*positionI2)[used++].y = static_cast<float>(u) + flow.y;
                         }
                     }
                 }
             }
-            positionI1.erase(positionI1.begin() + used, positionI1.end());
-            positionI2.erase(positionI2.begin() + used, positionI2.end());
+            positionI1->erase(positionI1->begin() + used, positionI1->end());
+            positionI2->erase(positionI2->begin() + used, positionI2->end());
         }
     }
 
@@ -859,7 +861,7 @@ bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> 
  *										  (0 = invalid) as e.g. used within the KITTI database. Otherwise it is asumed that
  *										  invalid disparities have the value 0xFFFF. [Default = true]
  */
-bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> &positionI1, std::vector<cv::Point2f> &positionI2,
+bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> *positionI1, std::vector<cv::Point2f> *positionI2,
                                cv::OutputArray flow3, const bool useFLowStyle, const float precision, const bool use0Invalid)
 {
     Mat intflow = imread(filename, cv::IMREAD_UNCHANGED);
@@ -908,24 +910,25 @@ bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Poin
                     }
                 }
             }
-        }else{
-            positionI1 = std::vector<cv::Point2f>(nr_elems);
-            positionI2 = std::vector<cv::Point2f>(nr_elems);
+        }
+        if((positionI1 != nullptr) && (positionI2 != nullptr)){
+            *positionI1 = std::vector<cv::Point2f>(nr_elems);
+            *positionI2 = std::vector<cv::Point2f>(nr_elems);
             size_t used = 0;
             float disp = 0;
             for (int u = 0; u < intflow.rows; u++) {
                 for (int v = 0; v < intflow.cols; v++) {
                     if (channels[2].at<uint16_t>(u, v) > 0) {
                         disp = -1.0f * static_cast<float>(channels[0].at<uint16_t>(u, v)) / precision;
-                        positionI1[used].x = static_cast<float>(v);
-                        positionI1[used].y = static_cast<float>(u);
-                        positionI2[used].x = static_cast<float>(v) + disp;
-                        positionI2[used++].y = static_cast<float>(u);
+                        (*positionI1)[used].x = static_cast<float>(v);
+                        (*positionI1)[used].y = static_cast<float>(u);
+                        (*positionI2)[used].x = static_cast<float>(v) + disp;
+                        (*positionI2)[used++].y = static_cast<float>(u);
                     }
                 }
             }
-            positionI1.erase(positionI1.begin() + used, positionI1.end());
-            positionI2.erase(positionI2.begin() + used, positionI2.end());
+            positionI1->erase(positionI1->begin() + used, positionI1->end());
+            positionI2->erase(positionI2->begin() + used, positionI2->end());
         }
     }else{
         if(use0Invalid){
@@ -943,24 +946,25 @@ bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Poin
                         }
                     }
                 }
-            } else{
-                positionI1 = std::vector<cv::Point2f>(nr_elems);
-                positionI2 = std::vector<cv::Point2f>(nr_elems);
+            }
+            if((positionI1 != nullptr) && (positionI2 != nullptr)){
+                *positionI1 = std::vector<cv::Point2f>(nr_elems);
+                *positionI2 = std::vector<cv::Point2f>(nr_elems);
                 size_t used = 0;
                 float disp = 0;
                 for (int u = 0; u < intflow.rows; u++) {
                     for (int v = 0; v < intflow.cols; v++) {
                         if (intflow.at<uint16_t>(u, v) > 0) {
                             disp = -1.0f * static_cast<float>(intflow.at<uint16_t>(u, v)) / precision;
-                            positionI1[used].x = static_cast<float>(v);
-                            positionI1[used].y = static_cast<float>(u);
-                            positionI2[used].x = static_cast<float>(v) + disp;
-                            positionI2[used++].y = static_cast<float>(u);
+                            (*positionI1)[used].x = static_cast<float>(v);
+                            (*positionI1)[used].y = static_cast<float>(u);
+                            (*positionI2)[used].x = static_cast<float>(v) + disp;
+                            (*positionI2)[used++].y = static_cast<float>(u);
                         }
                     }
                 }
-                positionI1.erase(positionI1.begin() + used, positionI1.end());
-                positionI2.erase(positionI2.begin() + used, positionI2.end());
+                positionI1->erase(positionI1->begin() + used, positionI1->end());
+                positionI2->erase(positionI2->begin() + used, positionI2->end());
             }
         }else{
             if(flow3.needed()) {
@@ -977,24 +981,25 @@ bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Poin
                         }
                     }
                 }
-            }else{
-                positionI1 = std::vector<cv::Point2f>(nr_elems);
-                positionI2 = std::vector<cv::Point2f>(nr_elems);
+            }
+            if((positionI1 != nullptr) && (positionI2 != nullptr)){
+                *positionI1 = std::vector<cv::Point2f>(nr_elems);
+                *positionI2 = std::vector<cv::Point2f>(nr_elems);
                 size_t used = 0;
                 float disp = 0;
                 for (int u = 0; u < intflow.rows; u++) {
                     for (int v = 0; v < intflow.cols; v++) {
                         if (intflow.at<uint16_t>(u, v) != 0xFFFF) {
                             disp = -1.0f * static_cast<float>(intflow.at<uint16_t>(u, v)) / precision;
-                            positionI1[used].x = static_cast<float>(v);
-                            positionI1[used].y = static_cast<float>(u);
-                            positionI2[used].x = static_cast<float>(v) + disp;
-                            positionI2[used++].y = static_cast<float>(u);
+                            (*positionI1)[used].x = static_cast<float>(v);
+                            (*positionI1)[used].y = static_cast<float>(u);
+                            (*positionI2)[used].x = static_cast<float>(v) + disp;
+                            (*positionI2)[used++].y = static_cast<float>(u);
                         }
                     }
                 }
-                positionI1.erase(positionI1.begin() + used, positionI1.end());
-                positionI2.erase(positionI2.begin() + used, positionI2.end());
+                positionI1->erase(positionI1->begin() + used, positionI1->end());
+                positionI2->erase(positionI2->begin() + used, positionI2->end());
             }
         }
     }

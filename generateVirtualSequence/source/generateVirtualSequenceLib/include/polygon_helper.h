@@ -66,7 +66,7 @@ typedef struct
   polygon_vertex_list     *contour;
 } polygon_contour;
 
-void add_contour_from_array(double * pStart, int numVerts, polygon_contour *pRet);
+void add_contour_from_array(const double * pStart, int numVerts, polygon_contour *pRet);
 void free_polygon(polygon_contour *p);
 void calc_polygon_clipping(polygon_op op, polygon_contour *poly_a, polygon_contour *poly_b, polygon_contour *result);
 

@@ -74,13 +74,13 @@ bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFiles(const std::string& filep
 bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFromFile(const std::string& filepath, const std::string& filename, cv::OutputArray H);
 
 //Read a 3-channel uint16 image and convert to flow
-bool GENERATEVIRTUALSEQUENCELIB_API convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> &positionI1,
-                                                         std::vector<cv::Point2f> &positionI2, cv::OutputArray flow3 = cv::noArray(), float precision = 64.f,
+bool GENERATEVIRTUALSEQUENCELIB_API convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> *positionI1 = nullptr,
+                                                         std::vector<cv::Point2f> *positionI2 = nullptr, cv::OutputArray flow3 = cv::noArray(), float precision = 64.f,
                                                          bool useBoolValidity = true, float validityPrecision = 64.f, float minConfidence = 1.f);
 
 //Read a 1- or 3-channel uint16 image and convert to disparity using the same output format as for flow
-bool GENERATEVIRTUALSEQUENCELIB_API convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> &positionI1,
-                                                              std::vector<cv::Point2f> &positionI2, cv::OutputArray flow3 = cv::noArray(),
+bool GENERATEVIRTUALSEQUENCELIB_API convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> *positionI1 = nullptr,
+                                                              std::vector<cv::Point2f> *positionI2 = nullptr, cv::OutputArray flow3 = cv::noArray(),
                                                               bool useFLowStyle = false, float precision = 256.f, bool use0Invalid = true);
 
 /*!***************************************************************************

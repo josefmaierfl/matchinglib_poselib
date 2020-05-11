@@ -8,7 +8,7 @@ using namespace cv;
 using namespace std;
 
 
-bool seqDetExpandRectAxis(std::vector<cv::Point2d> &pts_rect, cv::Point2d centralPnt, double lenInters, cv::Point2d &lt, cv::Point2d &rb);
+bool seqDetExpandRectAxis(std::vector<cv::Point2d> &pts_rect, const cv::Point2d& centralPnt, double lenInters, cv::Point2d &lt, cv::Point2d &rb);
 //getPolylineIntersection return values:
 // -1: if there is no intersection of poly with the line segment p0-p1 (lies completely inside or outside of poly)
 //  0: if p0 was outside, p1 inside; p0 is replaced by the intersection of the line segment and the polygon
@@ -18,14 +18,14 @@ static int getPolylineIntersection(std::vector<cv::Point2d>  &poly, cv::Point2d 
 bool seqDetExpandRectDiagonals(std::vector<cv::Point2d> &pts_rect, cv::Point2d &lt, cv::Point2d &rb, double lenInters);
 bool seqDetExpandSides(std::vector<cv::Point2d> &pts_rect, cv::Point2d &lt, cv::Point2d &rb, double dStepRed);
 bool seqDetCorrectCollisions(cv::Point2d &LT, cv::Point2d &RB, std::vector<cv::Point2d> &pts_rect, bool bTryFix=true);
-double seqDetCalcIntersectionStrict(Point2d o1, Point2d p1, Point2d o2, Point2d p2, Point2d &r);
-double seqDetMySimpleExtrEuclidianSquared(cv::Point2d pt);
+double seqDetCalcIntersectionStrict(const Point2d& o1, const Point2d& p1, const Point2d& o2, const Point2d& p2, Point2d &r);
+double seqDetMySimpleExtrEuclidianSquared(const cv::Point2d& pt);
 double seqDetArea(cv::Point2d &lt, cv::Point2d &rb);
 
 
-void intersectPolys(std::vector<cv::Point2d> pntsPoly1, std::vector<cv::Point2d> pntsPoly2, std::vector<cv::Point2d> &pntsRes)
+void intersectPolys(const std::vector<cv::Point2d> &pntsPoly1, const std::vector<cv::Point2d> &pntsPoly2, std::vector<cv::Point2d> &pntsRes)
 {
-  polygon_contour c1={0}, c2={0}, res={0};
+  polygon_contour c1={0, nullptr, nullptr}, c2={0, nullptr, nullptr}, res={0, nullptr, nullptr};
   add_contour_from_array((double*)&pntsPoly1[0].x, (int)pntsPoly1.size(), &c1);
   add_contour_from_array((double*)&pntsPoly2[0].x, (int)pntsPoly2.size(), &c2);
   calc_polygon_clipping(POLYGON_OP_INTERSECT, &c1, &c2, &res);
@@ -36,7 +36,7 @@ void intersectPolys(std::vector<cv::Point2d> pntsPoly1, std::vector<cv::Point2d>
     for(int c = 0; c < res.num_contours; ++c)
     {
       for(int v = 0; v < res.contour[c].num_vertices; ++v)
-        pntsRes.push_back(cv::Point2d(res.contour[c].vertex[v].x,res.contour[c].vertex[v].y));
+        pntsRes.emplace_back(res.contour[c].vertex[v].x,res.contour[c].vertex[v].y);
         
       /*double areaRes1 = cv::contourArea(pntsRes);
       areaRes += areaRes1;*/
@@ -63,7 +63,7 @@ bool maxInscribedRect(std::vector<cv::Point2d> &pts_rect, cv::Point2d &retLT, cv
   std::vector<cv::Point2d> diffPrev;
 
   double minX = DBL_MAX, maxX = -DBL_MAX, minY = DBL_MAX, maxY = -DBL_MAX;
-  for(int j = 0; j< pts_rect.size(); j++)
+  for(size_t j = 0; j < pts_rect.size(); j++)
   {
     minX = min(minX,pts_rect[j].x);
     maxX = max(maxX,pts_rect[j].x);
@@ -109,10 +109,10 @@ bool maxInscribedRect(std::vector<cv::Point2d> &pts_rect, cv::Point2d &retLT, cv
     tryPnts.push_back(medianPnt);
   }
   tryPnts.push_back(meanPnt);
-  tryPnts.push_back(cv::Point2d(minX + polyW/2, minY + polyH/2));
+  tryPnts.emplace_back(minX + polyW/2, minY + polyH/2);
 
   cv::Point2d bestLT(0,0), bestRB(0,0);
-  for(int i=0; i<tryPnts.size();++i)
+  for(size_t i=0; i<tryPnts.size();++i)
   {
     cv::Point2d lt,rb;
     bool bUpdatedRc = false;
@@ -147,10 +147,10 @@ bool maxInscribedRect(std::vector<cv::Point2d> &pts_rect, cv::Point2d &retLT, cv
     if(bUpdatedRc &&(tryPnts.size() < maxNumPntsTry))
     {
       double bestW = bestRB.x-bestLT.x, bestH = bestRB.y-bestLT.y;
-      tryPnts.push_back(cv::Point2d(bestLT.x+bestW/4,bestLT.y+bestH/4));
-      tryPnts.push_back(cv::Point2d(bestLT.x+bestW*3/4,bestLT.y+bestH/4));
-      tryPnts.push_back(cv::Point2d(bestLT.x+bestW/4,bestLT.y+bestH*3/4));
-      tryPnts.push_back(cv::Point2d(bestLT.x+bestW*3/4,bestLT.y+bestH*3/4));
+      tryPnts.emplace_back(bestLT.x+bestW/4,bestLT.y+bestH/4);
+      tryPnts.emplace_back(bestLT.x+bestW*3/4,bestLT.y+bestH/4);
+      tryPnts.emplace_back(bestLT.x+bestW/4,bestLT.y+bestH*3/4);
+      tryPnts.emplace_back(bestLT.x+bestW*3/4,bestLT.y+bestH*3/4);
     }
   }
   
@@ -163,16 +163,16 @@ bool maxInscribedRect(std::vector<cv::Point2d> &pts_rect, cv::Point2d &retLT, cv
   return true;
 }
 
-bool seqDetExpandRectAxis(std::vector<cv::Point2d> &pts_rect, cv::Point2d centralPnt, double lenInters, cv::Point2d &lt, cv::Point2d &rb)
+bool seqDetExpandRectAxis(std::vector<cv::Point2d> &pts_rect, const cv::Point2d& centralPnt, double lenInters, cv::Point2d &lt, cv::Point2d &rb)
 {
   cv::Point2d offsPnts[4]={cv::Point2d(0,-lenInters),
                           cv::Point2d(0,lenInters),
                           cv::Point2d(-lenInters,0),
                           cv::Point2d(lenInters,0)};
   std::vector<cv::Point2d> resPnts;
-  for(int j=0; j<4; ++j)
+  for(auto & offsPnt : offsPnts)
   {
-    cv::Point2d checkPnt = centralPnt+offsPnts[j], cntrPnt = centralPnt;
+    cv::Point2d checkPnt = centralPnt+offsPnt, cntrPnt = centralPnt;
     int retIdx = getPolylineIntersection(pts_rect, cntrPnt, checkPnt);
     if(retIdx == 0)
       resPnts.push_back(cntrPnt);
@@ -193,7 +193,7 @@ int getPolylineIntersection(std::vector<cv::Point2d>  &poly, cv::Point2d &p0, cv
   int numElems = (int)poly.size();
   int i= 0;
   int iPrev = numElems-1;
-  double dIntersect0 = DBL_MAX, dIntersect1 = DBL_MAX;
+  auto dIntersect0 = DBL_MAX, dIntersect1 = DBL_MAX;
   cv::Point2d pRepl0 = p0, pRepl1 = p1;
   do
   {
@@ -256,9 +256,9 @@ bool seqDetExpandRectDiagonals(std::vector<cv::Point2d> &pts_rect, cv::Point2d &
                           cv::Point2d(-lenIntersX,lenIntersY),
                           cv::Point2d(lenIntersX,lenIntersY)};
   std::vector<cv::Point2d> resPnts;
-  for(int j=0; j<4; ++j)
+  for(auto & offsPnt : offsPnts)
   {
-    cv::Point2d checkPnt = centralPnt+offsPnts[j], cntrPnt = centralPnt;
+    cv::Point2d checkPnt = centralPnt+offsPnt, cntrPnt = centralPnt;
     int retIdx = getPolylineIntersection(pts_rect, cntrPnt, checkPnt);
     if(retIdx == 0)
       resPnts.push_back(cntrPnt);
@@ -294,9 +294,9 @@ bool seqDetExpandSides(std::vector<cv::Point2d> &pts_rect, cv::Point2d &lt, cv::
   if(cW <= 0 || cH <= 0)
     return false;
   std::vector<cv::Point2d> cornerPnts; //ordered by Quadrant -> RT,LT,LB,RB
-  cornerPnts.push_back(cv::Point2d(rb.x,lt.y));
+  cornerPnts.emplace_back(rb.x,lt.y);
   cornerPnts.push_back(lt); 
-  cornerPnts.push_back(cv::Point2d(lt.x,rb.y));
+  cornerPnts.emplace_back(lt.x,rb.y);
   cornerPnts.push_back(rb);
 
   for(int i = 0; i < max_itters; ++i)
@@ -370,9 +370,9 @@ bool seqDetCorrectCollisions(cv::Point2d &LT, cv::Point2d &RB, std::vector<cv::P
   const int maxItter = 128;
   const int maxPartCorrect = 3;
   std::vector<cv::Point2d> cornerPnts; //ordered by Quadrant -> RT,LT,LB,RB
-  cornerPnts.push_back(cv::Point2d(RB.x,LT.y));
+  cornerPnts.emplace_back(RB.x,LT.y);
   cornerPnts.push_back(LT); 
-  cornerPnts.push_back(cv::Point2d(LT.x,RB.y));
+  cornerPnts.emplace_back(LT.x,RB.y);
   cornerPnts.push_back(RB);
 
   cv::Point2d cntrPntOrig((LT.x+RB.x)/2,(LT.y+RB.y)/2);
@@ -464,7 +464,7 @@ bool seqDetCorrectCollisions(cv::Point2d &LT, cv::Point2d &RB, std::vector<cv::P
 }
 
 //adapted from http://stackoverflow.com/questions/7446126/opencv-2d-line-intersection-helper-function/7448287#7448287
-double seqDetCalcIntersectionStrict(Point2d o1, Point2d p1, Point2d o2, Point2d p2, Point2d &r)
+double seqDetCalcIntersectionStrict(const Point2d& o1, const Point2d& p1, const Point2d& o2, const Point2d& p2, Point2d &r)
 {
   //const double eps_neg = 0.001;
   Point2d x = o2 - o1;
@@ -485,7 +485,7 @@ double seqDetCalcIntersectionStrict(Point2d o1, Point2d p1, Point2d o2, Point2d 
   return t1;
 }
 
-double seqDetMySimpleExtrEuclidianSquared(cv::Point2d pt)
+double seqDetMySimpleExtrEuclidianSquared(const cv::Point2d& pt)
 {
 	return pt.x*pt.x+pt.y*pt.y;
 }
