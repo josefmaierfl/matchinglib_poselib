@@ -58,6 +58,12 @@ bool GENERATEVIRTUALSEQUENCELIB_API createDirectory(const std::string &path);
 //Delete directory tree
 bool GENERATEVIRTUALSEQUENCELIB_API deleteDirectory(const std::string &path);
 
+//Get all directoies within a folder
+std::vector<std::string> GENERATEVIRTUALSEQUENCELIB_API getDirs(const std::string &path);
+
+//Count the number of files in the folder
+size_t GENERATEVIRTUALSEQUENCELIB_API getNumberFilesInFolder(const std::string &path);
+
 //Concatenate a main and a sub-path
 std::string GENERATEVIRTUALSEQUENCELIB_API concatPath(const std::string &mainPath, const std::string &subPath);
 

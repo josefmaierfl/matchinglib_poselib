@@ -16,11 +16,37 @@
 using namespace colmap;
 using namespace std;
 
+struct corrStats{
+    image_t imgID;//Image ID of matching image
+    size_t nrCorresp3D;//Number of 3D coordinates found equal by SfM for both images
+    double scale;//Scale between image used within SfM and image with corresponding dense depth maps
+    Eigen::Vector2d shift;//Shift between image used within SfM and image with corresponding dense depth maps
+    string depthImg1;//Path and name of the depth map of img1
+    string depthImg2;//Path and name of the depth map of img2
+    string imgOrig1;//Original first image used in SfM
+    string imgOrig2;//Original second image used in SfM
+    string img1;//Scaled and shifted image of imgOrig1
+    string img2;//Scaled and shifted image of imgOrig2
+
+    corrStats(){
+        imgID = 0;
+        nrCorresp3D = 0;
+        scale = 1.;
+        shift = Eigen::Vector2d(0, 0);
+    }
+
+    corrStats(image_t &imgID_, size_t nrCorresp3D_): imgID(imgID_), nrCorresp3D(nrCorresp3D_){}
+};
+
 class colmapBase{
 public:
+    bool prepareColMapData(const std::string& path);
+    bool filterExistingDepth(const megaDepthFolders& folders);
+    colmapBase(): num_added_points3D_(0), min_num_points3D_Img_(100){}
+private:
     void ReadText(const std::string& path);
     void filterInterestingImgs();
-private:
+    bool getCorrespondingImgs();
     void ReadCamerasText(const std::string& path);
     void ReadImagesText(const std::string& path);
     void ReadPoints3DText(const std::string& path);
@@ -36,6 +62,7 @@ private:
     EIGEN_STL_UMAP(camera_t, class Camera) cameras_;
     EIGEN_STL_UMAP(image_t, class Image) images_;
     EIGEN_STL_UMAP(point3D_t, class Point3D) points3D_;
+    EIGEN_STL_UMAP(image_t, struct corrStats) correspImgs_;
     std::vector<image_t> reg_image_ids_;
     // Total number of added 3D points, used to generate unique identifiers.
     point3D_t num_added_points3D_;
@@ -58,8 +85,87 @@ class Image& colmapBase::Image(const image_t image_id) {
     return images_.at(image_id);
 }
 
-bool readColmapData(){
+bool convertMegaDepthData(const megaDepthFolders& folders){
+    colmapBase cb;
+    if(!cb.prepareColMapData(folders.sfmF)){
+        return false;
+    }
+    if(!cb.filterExistingDepth(folders)){
+        return false;
+    }
+}
 
+bool colmapBase::prepareColMapData(const std::string& path){
+    try{
+        ReadText(path);
+    } catch (colmapException &e) {
+        cerr << e.what() << endl;
+        return false;
+    }
+    filterInterestingImgs();
+    return getCorrespondingImgs();
+}
+
+bool colmapBase::filterExistingDepth(const megaDepthFolders& folders){
+    vector<point2D_t> del_ids;
+    for(auto &i: correspImgs_){
+        string imgName = images_.at(i.first).Name();
+        std::string root, ext;
+        SplitFileExtension(imgName, &root, &ext);
+        i.second.depthImg1 = JoinPaths(folders.mdDepth, root + folders.depthExt);
+        i.second.img1 = JoinPaths(folders.mdImgF, imgName);
+        i.second.imgOrig1 = JoinPaths(folders.sfmImgF, imgName);
+        imgName = images_.at(i.second.imgID).Name();
+        SplitFileExtension(imgName, &root, &ext);
+        i.second.depthImg2 = JoinPaths(folders.mdDepth, root + folders.depthExt);
+        i.second.img2 = JoinPaths(folders.mdImgF, imgName);
+        i.second.imgOrig2 = JoinPaths(folders.sfmImgF, imgName);
+        if(!ExistsFile(i.second.depthImg1) || !ExistsFile(i.second.img1) || !ExistsFile(i.second.imgOrig1) ||
+                !ExistsFile(i.second.depthImg2) || !ExistsFile(i.second.img2) || !ExistsFile(i.second.imgOrig2)){
+            del_ids.push_back(i.first);
+            continue;
+        }
+    }
+    if(!del_ids.empty()){
+        for(auto &id: del_ids){
+            correspImgs_.erase(id);
+        }
+    }
+    return !correspImgs_.empty();
+}
+
+bool colmapBase::getCorrespondingImgs(){
+    for(auto &i: images_){
+        EIGEN_STL_UMAP(image_t, struct corrStats) corresp;
+        EIGEN_STL_UMAP(image_t, struct corrStats)::iterator it, it1;
+        image_t bestId = kInvalidImageId;
+        size_t maxCnt = 0;
+        for(auto &pt2d: i.second.Points2D()){
+            if(pt2d.HasPoint3D()){
+                for(auto &img: points3D_[pt2d.Point3DId()].Track().Elements()){
+                    if(img.image_id == i.second.ImageId()){
+                        continue;
+                    }
+                    it = corresp.find(img.image_id);
+                    if(it != corresp.end()){
+                        if(++(it->second.nrCorresp3D) > maxCnt){
+                            it1 = correspImgs_.find(img.image_id);
+                            if(it1 == correspImgs_.end()) {
+                                bestId = img.image_id;
+                                maxCnt = it->second.nrCorresp3D;
+                            }
+                        }
+                    }else{
+                        corresp.emplace(img.image_id, corrStats(img.image_id, 1));
+                    }
+                }
+            }
+        }
+        if((bestId != kInvalidImageId) && (maxCnt > 16)) {
+            correspImgs_.emplace(i.second.ImageId(), corrStats(bestId, maxCnt));
+        }
+    }
+    return !correspImgs_.empty();
 }
 
 void colmapBase::filterInterestingImgs(){
@@ -70,13 +176,11 @@ void colmapBase::filterInterestingImgs(){
     }
     double mean = Mean(num3D);
     double sd = StdDev(num3D);
-    int th1 = 0;
+    int th1 = 100;
     if(mean > 500.){
         th1 = 400;
     }else if(mean > 250.){
         th1 = 150;
-    }else{
-        th1 = 100;
     }
     min_num_points3D_Img_ = static_cast<point2D_t>(std::max(std::min(static_cast<int>(round(mean - sd)), th1), 32));
     vector<point2D_t> del_ids;
@@ -106,8 +210,17 @@ void colmapBase::filterInterestingImgs(){
         }
     }
     del_ids.clear();
+    vector<size_t> scores;
+    std::size_t min_score = images_.begin()->second.Point3DVisibilityScoreMax() / 3;
     for(auto &i: images_){
-        const std::size_t min_score = (5 * i.second.Point3DVisibilityScoreMax()) / 12;
+        scores.emplace_back(i.second.Point3DVisibilityScore());
+    }
+    size_t max_score = *max_element(scores.begin(), scores.end());
+    if(max_score <= min_score){
+        min_score = static_cast<size_t>(round((Mean(scores) + Median(scores)) / 2.));
+    }
+    for(auto &i: images_){
+        const std::size_t min_score = i.second.Point3DVisibilityScoreMax() / 3;
         if(i.second.Point3DVisibilityScore() < min_score){
             point2D_t idx1 = 0;
             for(auto &pt2d: i.second.Points2D()){

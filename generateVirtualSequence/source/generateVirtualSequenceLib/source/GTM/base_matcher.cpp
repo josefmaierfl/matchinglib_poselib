@@ -37,8 +37,6 @@
 
 #include "nanoflann.hpp"
 
-#include "GTM/prepareMegaDepth.h"
-
 //#include "vfc.h"
 
 #include <bitset>
@@ -87,7 +85,8 @@ enum SpecialKeyCode{
 /* --------------------- Function prototypes --------------------- */
 
 
-
+//Checks if a string contains only numbers
+bool isdigits(const std::string & s);
 bool readDoubleVal(ifstream & gtFromFile, const std::string& keyWord, double *value);
 void getSubPixPatchDiff(const cv::Mat& patch, const cv::Mat& image, cv::Point2f &diff);
 void iterativeTemplMatch(cv::InputArray patch, cv::InputArray img, int maxPatchSize, cv::Point2f & minDiff, int maxiters = INT_MAX);
@@ -5129,7 +5128,28 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
 		winPos = winPos2;
 }
 
-//Prepare GTM from Oxford dataset
+//Prepare GTM from MegaDepth dataset
+bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
+    string path = concatPath(imgsPath, mdFolders.mainFolder);
+    if(!checkPathExists(path)){
+        cerr << "No folder named MegaDepth found in " << imgsPath << endl;
+        cerr << "Skipping GTM for MegaDepth" << endl;
+        return false;
+    }
+    gtmdata.sum_TP_MegaDepth = 0;
+    gtmdata.sum_TN_MegaDepth = 0;
+    flowGtIsUsed = true;
+    std::vector<megaDepthFolders> all_folders = GetMegaDepthSubDirs(path);
+    if(all_folders.empty()){
+        cerr << "No MegaDepth data found" << endl;
+        return false;
+    }
+    for(auto &i: all_folders){
+
+    }
+}
+
+//Prepare GTM from KITTI dataset
 bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
     string path = concatPath(imgsPath, "KITTI");
     if(!checkPathExists(path)){
@@ -5697,11 +5717,93 @@ std::vector<std::string> baseMatcher::GetOxfordSubDirs()
 }
 
 std::vector<kittiFolders> baseMatcher::GetKITTISubDirs(){
-    static kittiFolders dispflow [] = {{{"2012/image_0", "_10"}, {"2012/image_1", "_10"}, {"2012/disp_occ", "_10"}, false},
-                                       {{"2012/image_0", "_10"}, {"2012/image_0", "_11"}, {"2012/flow_occ", "_10"}, true},
-                                       {{"2015/image_2", "_10"}, {"2015/image_3", "_10"}, {"2015/disp_occ_0", "_10"}, false},
-                                       {{"2015/image_2", "_10"}, {"2015/image_2", "_11"}, {"2015/flow_occ", "_10"}, true}};
+    static kittiFolders dispflow [] = {{{"2012/image_0", "_10"}, {"2012/image_1", "_10"}, {"2012/disp_noc", "_10"}, false},
+                                       {{"2012/image_0", "_10"}, {"2012/image_0", "_11"}, {"2012/flow_noc", "_10"}, true},
+                                       {{"2015/image_2", "_10"}, {"2015/image_3", "_10"}, {"2015/disp_noc_0", "_10"}, false},
+                                       {{"2015/image_2", "_10"}, {"2015/image_2", "_11"}, {"2015/flow_noc", "_10"}, true}};
     return std::vector<kittiFolders>(dispflow, dispflow + 4);
+}
+
+std::vector<megaDepthFolders> baseMatcher::GetMegaDepthSubDirs(const std::string &path){
+
+    string mdfolder = concatPath(path, mdFolders.depthImgSubF);
+    if(!checkPathExists(path)){
+        cerr << "No folder " << mdfolder << " found" << endl;
+        cerr << "Skipping GTM for MegaDepth" << endl;
+        return std::vector<megaDepthFolders>();
+    }
+    string sfmfolder = concatPath(path, mdFolders.sfmSubF);
+    if(!checkPathExists(sfmfolder)){
+        cerr << "No folder " << sfmfolder << " found" << endl;
+        cerr << "Skipping GTM for MegaDepth" << endl;
+        return std::vector<megaDepthFolders>();
+    }
+    std::vector<std::string> main_dirs = getDirs(mdfolder);
+    //Check if directory name is a number
+    std::vector<std::string> main_dirs_tmp;
+    for(auto &&i: main_dirs){
+        if(isdigits(i)){
+            main_dirs_tmp.emplace_back(move(i));
+        }
+    }
+    main_dirs = move(main_dirs_tmp);
+    std::vector<megaDepthFolders> all_Dirs;
+    for(auto &i: main_dirs){
+        string sfm_main_dir = concatPath(sfmfolder, i);
+        if(!checkPathExists(sfm_main_dir)){
+            continue;
+        }
+        string sfm_img_dir = concatPath(sfm_main_dir, mdFolders.sfmImgF);
+        if(!checkPathExists(sfm_img_dir)){
+            continue;
+        }
+        sfm_main_dir = concatPath(sfm_main_dir, mdFolders.sfmSubSub);
+        if(!checkPathExists(sfm_main_dir)){
+            continue;
+        }
+        string sub_dir = concatPath(mdfolder, i);
+        std::vector<std::string> sub_dirs_tmp = getDirs(sub_dir);
+        for(auto &j: sub_dirs_tmp){
+            size_t pos = j.find(mdFolders.depthImgPart);
+            if(pos != std::string::npos){
+                string nr = j.substr(pos);
+                if(!isdigits(nr)){
+                    continue;
+                }
+                string sfm_part_dir = concatPath(sfm_main_dir, nr);
+                if(!checkPathExists(sfm_part_dir)){
+                    continue;
+                }
+                if(getNumberFilesInFolder(sfm_part_dir) < 5){
+                    continue;
+                }
+                string part_dir = concatPath(sub_dir, j);
+                string img_dir = concatPath(part_dir, mdFolders.imgSubF);
+                if(!checkPathExists(img_dir)){
+                    continue;
+                }
+                if(getNumberFilesInFolder(img_dir) < 5){
+                    continue;
+                }
+                string depth_dir = concatPath(part_dir, mdFolders.depthSubF);
+                if(!checkPathExists(depth_dir)){
+                    continue;
+                }
+                if(getNumberFilesInFolder(depth_dir) < 5){
+                    continue;
+                }
+                all_Dirs.emplace_back(megaDepthFolders(move(img_dir), move(depth_dir), move(sfm_part_dir), sfm_img_dir, mdFolders.depthExt));
+            }
+        }
+    }
+    return all_Dirs;
+}
+
+//Checks if a string contains only numbers
+bool isdigits(const std::string & s)
+{
+    for (char c : s) if (!isdigit(c)) return false;
+    return true;
 }
 
 

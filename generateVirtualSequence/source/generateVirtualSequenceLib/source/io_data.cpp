@@ -27,6 +27,8 @@
 #include "dirent.h"
 #include <algorithm>
 #include <functional>
+#include <boost/range/iterator_range.hpp>
+#include <boost/lambda/bind.hpp>
 
 #define OLDVERSIONCHECKDIR 0
 #if OLDVERSIONCHECKDIR
@@ -700,6 +702,32 @@ bool readHomographyFromFile(const std::string& filepath, const std::string& file
 
 std::string getFilenameFromPath(const std::string &name){
     return boost::filesystem::path(name).filename().string();
+}
+
+//Get all directoies within a folder
+std::vector<std::string> getDirs(const std::string &path){
+    boost::filesystem::path p(path);
+    if(!boost::filesystem::is_directory(p)){
+        return std::vector<std::string>();
+    }
+    std::vector<std::string> dirs;
+    for(auto& entry : boost::make_iterator_range(boost::filesystem::directory_iterator(p), {})){
+        if(!boost::filesystem::is_directory(entry)){
+            dirs.emplace_back(entry.path().string());
+        }
+    }
+    return dirs;
+}
+
+//Count the number of files in the folder
+size_t getNumberFilesInFolder(const std::string &path){
+    boost::filesystem::path p(path);
+
+    size_t cnt = std::count_if(
+            boost::filesystem::directory_iterator(p),
+            boost::filesystem::directory_iterator(),
+            static_cast<bool(*)(const boost::filesystem::path&)>(boost::filesystem::is_regular_file) );
+    return cnt;
 }
 
 /* This function takes an 16Bit RGB integer image and converts it to a 3-channel float flow matrix where R specifies the

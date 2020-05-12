@@ -26,6 +26,7 @@
 #include "opencv2/features2d/features2d.hpp"
 #include <tuple>
 #include <utility>
+#include "GTM/prepareMegaDepth.h"
 
 /* --------------------------- Defines --------------------------- */
 
@@ -212,10 +213,24 @@ public:
     bool calcGTM_Oxford(size_t &min_nrTP);
     //Prepare GTM from KITTI dataset
     bool calcGTM_KITTI(size_t &min_nrTP);
+    //Prepare GTM from MegaDepth dataset
+    bool calcGTM_MegaDepth(size_t &min_nrTP);
 
 private:
     const std::string base_url_oxford = "http://www.robots.ox.ac.uk/~vgg/research/affine/det_eval_files/";
     const std::string gtm_sub_folder = "GTM";
+    static const struct megaDepthFStruct{
+        std::string mainFolder = "MegaDepth";//MegaDepth
+        std::string depthImgSubF = "MegaDepth_v1";//MegaDepth_v1 -> followed by numbered (zero padded) folder
+        std::string depthImgPart = "dense";//dense* -> * corresponds to number
+        std::string depthSubF = "depths";//depths
+        std::string depthExt = ".h5";//*.h5
+        std::string imgSubF = "imgs";//imgs
+        std::string sfmSubF = "SfM";//SfM -> followed by numbered (zero padded) folder
+        std::string sfmSubSub = "sparse/manhattan";//sparse/manhattan -> followed by numbered folder corresponding to number in depthImgPart
+        std::string sfmImgF = "images";
+        std::string flowSub = "flow";//flow -> in depthImgPart
+    } mdFolders;
     bool refineGTM = true;
     annotImgPars quality;
     bool refinedGTMAvailable = false;
@@ -285,6 +300,8 @@ private:
     static std::vector<std::string> GetOxfordSubDirs();
 
     static std::vector<kittiFolders> GetKITTISubDirs();
+
+    static std::vector<megaDepthFolders> GetMegaDepthSubDirs(const std::string &path);
 
     //Initial detection of all features without filtering
     bool detectFeatures();
