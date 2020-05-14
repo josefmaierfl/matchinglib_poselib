@@ -6,6 +6,12 @@
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the OpenCV library." ON)
 option(USE_MANUAL_ANNOTATION "Manual annotate GTM for detected inaccuracies."         OFF)
 
+if(OPENMP_ENABLED)
+	find_package(OpenMP QUIET)
+endif()
+
+find_package(Ceres REQUIRED)
+
 find_package(Eigen REQUIRED)
 
 find_package(OpenCV 4.2.0 REQUIRED)
@@ -89,6 +95,8 @@ set(sources
 	${source_path}/GTM/colmap/misc.cc
 	${source_path}/GTM/colmap/point3d.cc
 	${source_path}/GTM/colmap/track.cc
+	${source_path}/GTM/colmap/bundle_adjustment.cc
+	${source_path}/GTM/colmapBase.cpp
 	${source_path}/GTM/prepareMegaDepth.cpp)
 
 # Group source files
