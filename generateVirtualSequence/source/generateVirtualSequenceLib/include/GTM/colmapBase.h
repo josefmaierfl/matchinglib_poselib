@@ -17,6 +17,7 @@
 #include <fstream>
 #include "opencv2/highgui/highgui.hpp"
 #include "GTM/prepareMegaDepth.h"
+#include "helper_funcs.h"
 
 using namespace colmap;
 using namespace std;
@@ -24,6 +25,9 @@ using namespace std;
 struct corrStats{
     image_t imgID;//Image ID of matching image
     size_t nrCorresp3D;//Number of 3D coordinates found equal by SfM for both images
+    double viewAngle;//View angle in radians between the 2 images
+    double tvecNorm;//Length of relative translation vector between images
+    double weight;//(nrCorresp3D / 10)^2 * viewAngle * tvecNorm
     double scale;//Scale between image used within SfM and image with corresponding dense depth maps
     Eigen::Vector2d shift;//Shift between image used within SfM and image with corresponding dense depth maps
     string depthImg1;//Path and name of the depth map of img1
@@ -36,15 +40,41 @@ struct corrStats{
     cv::Size imgSize2;//Dimensions of img1
     Camera undistortedCam1;//Camera parameters for the undistorted and scaled camera of img1
     Camera undistortedCam2;//Camera parameters for the undistorted and scaled camera of img2
+    Eigen::Matrix3d R_rel;//Relative rotation matrix  between images
+    Eigen::Vector3d t_rel;//Relative translation vector between images
 
     corrStats(){
         imgID = 0;
         nrCorresp3D = 0;
         scale = 1.;
         shift = Eigen::Vector2d(0, 0);
+        viewAngle = 0;
+        tvecNorm = 0;
+        weight = 0;
     }
 
-    corrStats(image_t &imgID_, size_t nrCorresp3D_): imgID(imgID_), nrCorresp3D(nrCorresp3D_), scale(1.), shift(0,0){}
+    corrStats(image_t &imgID_, size_t nrCorresp3D_, double &viewAngle_, double &tvecNorm_, Eigen::Matrix3d R_rel_, Eigen::Vector3d t_rel_):
+            imgID(imgID_),
+            nrCorresp3D(nrCorresp3D_),
+            viewAngle(viewAngle_),
+            tvecNorm(tvecNorm_),
+            weight(0),
+            scale(1.),
+            shift(0,0),
+            R_rel(move(R_rel_)),
+            t_rel(move(t_rel_)){}
+
+    corrStats(image_t &imgID_, size_t &nrCorresp3D_, double &viewAngle_, double &tvecNorm_,
+            double &weight_, Eigen::Matrix3d R_rel_, Eigen::Vector3d t_rel_):
+            imgID(imgID_),
+            nrCorresp3D(nrCorresp3D_),
+            viewAngle(viewAngle_),
+            tvecNorm(tvecNorm_),
+            weight(weight_),
+            scale(1.),
+            shift(0,0),
+            R_rel(move(R_rel_)),
+            t_rel(move(t_rel_)){}
 };
 
 struct UndistortCameraOptions {

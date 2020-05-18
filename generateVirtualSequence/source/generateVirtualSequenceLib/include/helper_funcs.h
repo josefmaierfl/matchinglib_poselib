@@ -92,6 +92,38 @@ void getLineCam2(const cv::Mat& R, const cv::Mat& t, const cv::Mat& K, const cv:
 //Calculate the z - distance of the intersection of 2 3D lines or the mean z - distance at the shortest perpendicular between 2 skew lines in 3D.
 double getLineIntersect(const cv::Mat& b1, const cv::Mat& a2, const cv::Mat& b2);
 
+//Calculates the angle between 2 directional vectors b0 = (a, b, c) and b1 of skew lines
+double getAngleSkewLines(const cv::Mat& b0, const cv::Mat& b1, bool useDegrees = true);
+
+/*
+ * Calculates the angle between viewing rays of 2 cameras using principal points p0 and p1, camera matrices K0 and K1,
+ * and relative pose R, t
+ */
+double getViewAngleRelativeCams(const cv::Mat& R, const cv::Mat& t,
+                                const cv::Mat& K1, bool useDegrees = true);
+
+//Calculates a relative pose [R, t] between cameras given two absolute poses [R0, t0] and [R1, t1] in the same world frame
+void getRelativeFromAbsPoses(const cv::Mat& R0, const cv::Mat& t0, const cv::Mat& R1, const cv::Mat& t1,
+                             cv::Mat& R, cv::Mat& t);
+
+//Calculates a relative pose [R, t] between cameras given two absolute poses [R0, t0] and [R1, t1] in the same world frame
+void getRelativeFromAbsPoses(const Eigen::Matrix3d& R0, const Eigen::Vector3d& t0, const Eigen::Matrix3d& R1, const Eigen::Vector3d& t1,
+                             Eigen::Matrix3d& R, Eigen::Vector3d& t);
+
+/*
+ * Calculates the angle between viewing rays of 2 cameras using principal points p0 and p1, camera matrices K0 and K1,
+ * and absolute camera poses [R0, t0] and [R1, t1]
+ */
+double getViewAngleAbsoluteCams(const cv::Mat& R0, const cv::Mat& t0,
+                                const cv::Mat& K1, const cv::Mat& R1, const cv::Mat& t1, bool useDegrees = true);
+
+/*
+ * Calculates the angle between viewing rays of 2 cameras using principal points p0 and p1, camera matrices K0 and K1,
+ * and absolute camera poses [R0, t0] and [R1, t1]
+ */
+double getViewAngleAbsoluteCams(const Eigen::Matrix3d& R0, const Eigen::Vector3d& t0,
+                                const Eigen::Matrix3d& K1, const Eigen::Matrix3d& R1, const Eigen::Vector3d& t1, bool useDegrees = true);
+
 //Solves a linear equation of th form Ax=b
 bool solveLinEqu(const cv::Mat& A, const cv::Mat& b, cv::Mat& x);
 

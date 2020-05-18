@@ -267,6 +267,63 @@ class RelativePoseCostFunction {
   const double y2_;
 };
 
+// Cost function for refining two-view geometry based on the Sampson-Error.
+//
+// First pose is assumed to be located at the origin with 0 rotation. Second
+// pose is assumed to be on the unit sphere around the first pose, i.e. the
+// pose of the second camera is parameterized by a 3D rotation and a
+// 3D translation with unit norm. `tvec` is therefore over-parameterized as is
+// and should be down-projected using `HomogeneousVectorParameterization`.
+    template <typename CameraModel>
+    class RelativePoseFixedDepthCostFunction {
+    public:
+        explicit RelativePoseFixedDepthCostFunction(const Eigen::Vector2i& x1, const Eigen::Vector2i& x2, const double &depth1, const double &depth2)
+                : x1_(x1(0)), y1_(x1(1)), x2_(x2(0)), y2_(x2(1)), depth1_(depth1), depth2_(depth2) {}
+
+        static ceres::CostFunction* Create(const Eigen::Vector2i& x1,
+                const Eigen::Vector2i& x2,
+                const double &depth1,
+                const double &depth2) {
+            return (new ceres::AutoDiffCostFunction<RelativePoseFixedDepthCostFunction<CameraModel>, 3, 4, 3,
+                    CameraModel::kNumParams, CameraModel::kNumParams>(
+                    new RelativePoseFixedDepthCostFunction(x1, x2, depth1, depth2)));
+        }
+
+        template <typename T>
+        bool operator()(const T* const qvec, const T* const tvec, const T* const camera_params1, const T* const camera_params2,
+                        T* residuals) const {
+            Eigen::Matrix<T, 3, 3, Eigen::RowMajor> R;
+            ceres::QuaternionToRotation(qvec, R.data());
+            Eigen::Vector3d t(tvec[0], tvec[1], tvec[2]);
+
+            // Undistort and transform to world space.
+            T x1w, y1w, x2w, y2w;
+            CameraModel::ImageToWorld(camera_params1, T(x1_), (y1_),
+                                      &x1w, &y1w);
+            CameraModel::ImageToWorld(camera_params2, T(x2_), T(y2_),
+                                      &x2w, &y2w);
+            Eigen::Matrix<T, 3, 1> p1(x1w, y1w, T(depth1_));
+            p1 = R * p1 + t;
+            const Eigen::Matrix<T, 3, 1> p2(x2w, y2w, T(depth2_));
+            const Eigen::Matrix<T, 3, 1> diff = p1 - p2;
+
+
+            residuals[0] = diff(0);
+            residuals[1] = diff(1);
+            residuals[2] = diff(2);
+
+            return true;
+        }
+
+    private:
+        const double x1_;
+        const double y1_;
+        const double x2_;
+        const double y2_;
+        const double depth1_;
+        const double depth2_;
+    };
+
 }  // namespace colmap
 
 #endif  // COLMAP_SRC_BASE_COST_FUNCTIONS_H_

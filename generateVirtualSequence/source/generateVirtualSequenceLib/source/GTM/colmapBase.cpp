@@ -2,6 +2,7 @@
 // Created by maierj on 5/14/20.
 //
 #include "GTM/colmapBase.h"
+//#include <opencv2/core/eigen.hpp>
 
 using namespace colmap;
 using namespace std;
@@ -297,6 +298,7 @@ bool colmapBase::getCorrespondingImgs(){
         EIGEN_STL_UMAP(image_t, struct corrStats)::iterator it, it1;
         image_t bestId = kInvalidImageId;
         size_t maxCnt = 0;
+        double maxWeight = 0;
         for(auto &pt2d: i.second.Points2D()){
             if(pt2d.HasPoint3D()){
                 for(auto &img: points3D_[pt2d.Point3DId()].Track().Elements()){
@@ -305,21 +307,39 @@ bool colmapBase::getCorrespondingImgs(){
                     }
                     it = corresp.find(img.image_id);
                     if(it != corresp.end()){
-                        if(++(it->second.nrCorresp3D) > maxCnt){
+                        it->second.nrCorresp3D++;
+                        double nrCorresp3Dw = static_cast<double>(it->second.nrCorresp3D) / 10.;
+                        nrCorresp3Dw *= nrCorresp3Dw;
+                        it->second.weight = nrCorresp3Dw * it->second.viewAngle * it->second.tvecNorm;
+                        if(it->second.weight > maxWeight){
                             it1 = correspImgs_.find(img.image_id);
                             if(it1 == correspImgs_.end()) {
                                 bestId = img.image_id;
                                 maxCnt = it->second.nrCorresp3D;
+                                maxWeight = it->second.weight;
                             }
                         }
                     }else{
-                        corresp.emplace(img.image_id, corrStats(img.image_id, 1));
+                        Eigen::Matrix3d K1, R0, R1, Rrel;
+                        Eigen::Vector3d t0, t1, trel;
+                        R0 = i.second.RotationMatrix();
+                        t0 = i.second.Tvec();
+                        colmap::Image &img2 = images_.at(img.image_id);
+                        K1 = cameras_.at(img2.CameraId()).CalibrationMatrix();
+                        R1 = img2.RotationMatrix();
+                        t1 = img2.Tvec();
+                        double angle = getViewAngleAbsoluteCams(R0, t0, K1, R1, t1, false);
+                        getRelativeFromAbsPoses(R0, t0, R1, t1, Rrel, trel);
+                        double tvec_norm = trel.norm();
+                        corresp.emplace(img.image_id, corrStats(img.image_id, 1, angle, tvec_norm, Rrel, trel));
                     }
                 }
             }
         }
-        if((bestId != kInvalidImageId) && (maxCnt > 16)) {
-            correspImgs_.emplace(i.second.ImageId(), corrStats(bestId, maxCnt));
+        if((bestId != kInvalidImageId) && (maxCnt > 12)) {
+            corrStats &bestStats = corresp.at(bestId);
+            correspImgs_.emplace(i.second.ImageId(), corrStats(bestId, maxCnt, bestStats.viewAngle,
+                    bestStats.tvecNorm, maxWeight, bestStats.R_rel, bestStats.t_rel));
         }
     }
     return !correspImgs_.empty();

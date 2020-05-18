@@ -96,6 +96,8 @@ set(sources
 	${source_path}/GTM/colmap/point3d.cc
 	${source_path}/GTM/colmap/track.cc
 	${source_path}/GTM/colmap/bundle_adjustment.cc
+	${source_path}/GTM/colmap/reconstruction.cc
+	${source_path}/GTM/colmap/camera_rig.cc
 	${source_path}/GTM/colmapBase.cpp
 	${source_path}/GTM/prepareMegaDepth.cpp)
 

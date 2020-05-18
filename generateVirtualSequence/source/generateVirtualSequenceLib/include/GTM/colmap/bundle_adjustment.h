@@ -40,8 +40,8 @@
 #include <ceres/ceres.h>
 
 //#include "PBA/pba.h"
-//#include "base/camera_rig.h"
-//#include "base/reconstruction.h"
+#include "GTM/colmap/camera_rig.h"
+#include "GTM/colmap/reconstruction.h"
 #include "GTM/colmap/alignment.h"
 #include "GTM/colmap/image.h"
 #include <unordered_map>
@@ -327,6 +327,65 @@ class RigBundleAdjuster : public BundleAdjuster {
   // parameterization once after setting up the problem.
   std::unordered_set<double*> parameterized_qvec_data_;
 };
+
+    class RigFixedDepthBundleAdjuster : public BundleAdjuster {
+    public:
+        struct Options {
+            // Whether to optimize the relative poses of the camera rigs.
+            bool refine_relative_poses = true;
+
+            // The maximum allowed reprojection error for an observation to be
+            // considered in the bundle adjustment. Some observations might have large
+            // reprojection errors due to the concatenation of the absolute and relative
+            // rig poses, which might be different from the absolute pose of the image
+            // in the reconstruction.
+            double max_reproj_error = 1000.0;
+        };
+
+        RigFixedDepthBundleAdjuster(const BundleAdjustmentOptions& options,
+                          const Options& rig_options,
+                          const BundleAdjustmentConfig& config);
+
+        bool Solve(Reconstruction* reconstruction,
+                   std::vector<CameraRig>* camera_rigs);
+
+    private:
+        void SetUp(Reconstruction* reconstruction,
+                   std::vector<CameraRig>* camera_rigs,
+                   ceres::LossFunction* loss_function);
+        void TearDown(Reconstruction* reconstruction,
+                      const std::vector<CameraRig>& camera_rigs);
+
+        void AddImageToProblem(const image_t image_id, Reconstruction* reconstruction,
+                               std::vector<CameraRig>* camera_rigs,
+                               ceres::LossFunction* loss_function);
+
+        void AddPointToProblem(const point3D_t point3D_id,
+                               Reconstruction* reconstruction,
+                               ceres::LossFunction* loss_function);
+
+//        void ComputeCameraRigPoses(const Reconstruction& reconstruction,
+//                                   const std::vector<CameraRig>& camera_rigs);
+
+        void ParameterizeCameraRigs(Reconstruction* reconstruction);
+
+        const Options rig_options_;
+
+        // Mapping from images to camera rigs.
+        std::unordered_map<image_t, CameraRig*> image_id_to_camera_rig_;
+
+        // Mapping from images to the absolute camera rig poses.
+        std::unordered_map<image_t, Eigen::Vector4d*> image_id_to_rig_qvec_;
+        std::unordered_map<image_t, Eigen::Vector3d*> image_id_to_rig_tvec_;
+
+        // For each camera rig, the absolute camera rig poses.
+        std::vector<std::vector<Eigen::Vector4d>> camera_rig_qvecs_;
+        std::vector<std::vector<Eigen::Vector3d>> camera_rig_tvecs_;
+
+        // The Quaternions added to the problem, used to set the local
+        // parameterization once after setting up the problem.
+        std::unordered_set<double*> parameterized_qvec_data_;
+    };
 
 // Return the number of logical CPU cores if num_threads <= 0,
 // otherwise return the input value of num_threads.

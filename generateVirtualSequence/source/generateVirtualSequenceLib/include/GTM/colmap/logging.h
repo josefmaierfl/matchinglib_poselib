@@ -73,6 +73,7 @@
 #define CHECK_EQ(val1, val2) CHECK_OPTION_OP_RAISE(_EQ, ==, val1, val2)
 #define CHECK_NE(val1, val2) CHECK_OPTION_OP_RAISE(_NE, !=, val1, val2)
 #define CHECK_LT(val1, val2) CHECK_OPTION_OP_RAISE(_LT, <, val1, val2)
+#define CHECK_NOTNULL(val1) CHECK_OPTION_OP_RAISE(_NE, !=, val1, nullptr)
 
 #define FATAL 1
 #define CHECK(condition)                                                                                    \
