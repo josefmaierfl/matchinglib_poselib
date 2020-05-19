@@ -18,6 +18,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "GTM/prepareMegaDepth.h"
 #include "helper_funcs.h"
+#include "opencv2/hdf5"
 
 using namespace colmap;
 using namespace std;
@@ -42,6 +43,8 @@ struct corrStats{
     Camera undistortedCam2;//Camera parameters for the undistorted and scaled camera of img2
     Eigen::Matrix3d R_rel;//Relative rotation matrix  between images
     Eigen::Vector3d t_rel;//Relative translation vector between images
+    Eigen::MatrixXd depthMap2;//Depth map of the second image
+    std::vector<std::pair<Eigen::Vector2i, double>> keypDepth1;//Keypoints and corresponding depth values in the first image
 
     corrStats(){
         imgID = 0;
@@ -75,6 +78,10 @@ struct corrStats{
             shift(0,0),
             R_rel(move(R_rel_)),
             t_rel(move(t_rel_)){}
+
+    bool readDepthMap(){
+
+    }
 };
 
 struct UndistortCameraOptions {
@@ -116,7 +123,9 @@ private:
     void ReadPoints3DText(const std::string& path);
     Camera UndistortCamera(const UndistortCameraOptions& options,
                            const Camera& camera);
+    bool refineRelPoses();
     bool checkCorrectDimensions();
+    static bool checkScale(const size_t &dimWsrc, const int &dimWdest, const size_t &dimHsrc, const int &dimHdest);
 
     // Get const objects.
     inline const class Camera& Camera(const camera_t camera_id) const;

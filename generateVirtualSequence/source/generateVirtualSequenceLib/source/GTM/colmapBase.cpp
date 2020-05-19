@@ -19,6 +19,13 @@ bool colmapBase::prepareColMapData(const megaDepthFolders& folders){
     return getCorrespondingImgs();
 }
 
+bool colmapBase::refineRelPoses(){
+    getUndistortedScaledDims();
+    if(!checkCorrectDimensions()){
+        return false;
+    }
+}
+
 void colmapBase::getMaxDepthImgDim(){
     vector<int> imgSizes;
     for(auto &i: correspImgs_){
@@ -43,16 +50,46 @@ void colmapBase::getUndistortedScaledDims(){
 }
 
 bool colmapBase::checkCorrectDimensions(){
+    int cnt = 0;
+    vector<image_t> delIdx;
     for(auto &i: correspImgs_){
-        int diff = static_cast<int>(i.second.undistortedCam1.Width()) - i.second.imgSize1.width;
-        diff += static_cast<int>(i.second.undistortedCam1.Height()) - i.second.imgSize1.height;
-        diff += static_cast<int>(i.second.undistortedCam2.Width()) - i.second.imgSize2.width;
-        diff += static_cast<int>(i.second.undistortedCam2.Height()) - i.second.imgSize2.height;
+        int diff = abs(static_cast<int>(i.second.undistortedCam1.Width()) - i.second.imgSize1.width);
+        diff += abs(static_cast<int>(i.second.undistortedCam1.Height()) - i.second.imgSize1.height);
+        diff += abs(static_cast<int>(i.second.undistortedCam2.Width()) - i.second.imgSize2.width);
+        diff += abs(static_cast<int>(i.second.undistortedCam2.Height()) - i.second.imgSize2.height);
         if(diff){
-            return false;
+            if(diff > 1 && diff <= 16){
+                if(checkScale(i.second.undistortedCam1.Width(), i.second.imgSize1.width,
+                              i.second.undistortedCam1.Height(), i.second.imgSize1.height)){
+                    i.second.undistortedCam1.Rescale(static_cast<std::size_t>(i.second.imgSize1.width),
+                            static_cast<std::size_t>(i.second.imgSize1.height));
+                }
+                if(checkScale(i.second.undistortedCam2.Width(), i.second.imgSize2.width,
+                              i.second.undistortedCam2.Height(), i.second.imgSize2.height)){
+                    i.second.undistortedCam2.Rescale(static_cast<std::size_t>(i.second.imgSize2.width),
+                                                     static_cast<std::size_t>(i.second.imgSize2.height));
+                }
+            }else if(diff > 16){
+                delIdx.push_back(i.first);
+            }
+        }
+    }
+    if(2 * delIdx.size() > correspImgs_.size()){
+        return false;
+    }else if(!delIdx.empty()){
+        for(auto &i: delIdx){
+            correspImgs_.erase(i);
         }
     }
     return true;
+}
+
+bool colmapBase::checkScale(const size_t &dimWsrc, const int &dimWdest, const size_t &dimHsrc, const int &dimHdest){
+    double scale1 = static_cast<double>(dimWdest) / static_cast<double>(dimWsrc);
+    double scale2 = static_cast<double>(dimHdest) / static_cast<double>(dimHsrc);
+    double scaleD1 = abs(scale1 - 1.);
+    double scaleD2 = abs(scale2 - 1.);
+    return (scaleD1 > 5e-3) || (scaleD2 > 5e-3);
 }
 
 Camera colmapBase::UndistortCamera(const UndistortCameraOptions& options,

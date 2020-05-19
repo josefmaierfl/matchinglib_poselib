@@ -267,26 +267,22 @@ class RelativePoseCostFunction {
   const double y2_;
 };
 
-// Cost function for refining two-view geometry based on the Sampson-Error.
+// Cost function for refining two-view geometry based on fixed depth maps of image 1 and image 2.
 //
 // First pose is assumed to be located at the origin with 0 rotation. Second
-// pose is assumed to be on the unit sphere around the first pose, i.e. the
-// pose of the second camera is parameterized by a 3D rotation and a
-// 3D translation with unit norm. `tvec` is therefore over-parameterized as is
-// and should be down-projected using `HomogeneousVectorParameterization`.
+// pose is assumed to be rotated and translated by a relative pose including scaling
     template <typename CameraModel>
     class RelativePoseFixedDepthCostFunction {
     public:
-        explicit RelativePoseFixedDepthCostFunction(const Eigen::Vector2i& x1, const Eigen::Vector2i& x2, const double &depth1, const double &depth2)
-                : x1_(x1(0)), y1_(x1(1)), x2_(x2(0)), y2_(x2(1)), depth1_(depth1), depth2_(depth2) {}
+        explicit RelativePoseFixedDepthCostFunction(const Eigen::Vector2i& x1, const double &depth1, const Eigen::Ref<const Eigen::MatrixXd>& depthMap2)
+                : x1_(x1(0)), y1_(x1(1)), depth1_(depth1), depthMap2_(depthMap2) {}
 
         static ceres::CostFunction* Create(const Eigen::Vector2i& x1,
-                const Eigen::Vector2i& x2,
-                const double &depth1,
-                const double &depth2) {
+                                           const double &depth1,
+                                           const Eigen::Ref<const Eigen::MatrixXd>& depthMap2) {
             return (new ceres::AutoDiffCostFunction<RelativePoseFixedDepthCostFunction<CameraModel>, 3, 4, 3,
                     CameraModel::kNumParams, CameraModel::kNumParams>(
-                    new RelativePoseFixedDepthCostFunction(x1, x2, depth1, depth2)));
+                    new RelativePoseFixedDepthCostFunction(x1, depth1, depthMap2)));
         }
 
         template <typename T>
@@ -297,20 +293,66 @@ class RelativePoseCostFunction {
             Eigen::Vector3d t(tvec[0], tvec[1], tvec[2]);
 
             // Undistort and transform to world space.
-            T x1w, y1w, x2w, y2w;
+            T x1w, y1w, x2i, y2i;
             CameraModel::ImageToWorld(camera_params1, T(x1_), (y1_),
                                       &x1w, &y1w);
-            CameraModel::ImageToWorld(camera_params2, T(x2_), T(y2_),
-                                      &x2w, &y2w);
-            Eigen::Matrix<T, 3, 1> p1(x1w, y1w, T(depth1_));
+            Eigen::Matrix<T, 3, 1> p1(x1w, y1w, 1.);
+            p1 *= T(depth1_);
             p1 = R * p1 + t;
-            const Eigen::Matrix<T, 3, 1> p2(x2w, y2w, T(depth2_));
-            const Eigen::Matrix<T, 3, 1> diff = p1 - p2;
 
+            residuals[0] = p1(0);
+            residuals[1] = p1(1);
+            residuals[2] = p1(2);
 
-            residuals[0] = diff(0);
-            residuals[1] = diff(1);
-            residuals[2] = diff(2);
+            p1 /= p1(2);
+
+            // Distort and transform to pixel space.
+            CameraModel::WorldToImage(camera_params2, p1(0), p1(1),
+                                      &x2i, &y2i);
+
+            // Bilinear interpolation of depth in 2nd image
+            double dtl, dtr, dbl, dbr;
+            double xl = std::floor(x2i);
+            double xr = std::ceil(std::abs(x2i));
+            double yt = std::floor(y2i);
+            double yb = std::ceil(std::abs(y2i));
+            int xli = static_cast<int>(xl);
+            int xri = static_cast<int>(xr);
+            int yti = static_cast<int>(yt);
+            int ybi = static_cast<int>(yb);
+            if((xli < 0) || (xri >= depthMap2_.cols()) || (yti < 0) || (ybi >= depthMap2_.rows())){
+                residuals[0] = 0;
+                residuals[1] = 0;
+                residuals[2] = 0;
+                return true;
+            }
+            dtl = depthMap2_(yti, xli);
+            dtr = depthMap2_(yti, xri);
+            dbl = depthMap2_(ybi, xli);
+            dbr = depthMap2_(ybi, xri);
+            double xdiff = xr - xl;
+            double dt, db, d2;
+            if(xdiff < 1e-4){
+                dt = dtl;
+                db = dbl;
+            }else {
+                double xrDiff = xr - x2i;
+                double xlDiff = x2i - xl;
+                dt = ((dtl * xrDiff + dtr * xlDiff)) / xdiff;
+                db = ((dbl * xrDiff + dbr * xlDiff)) / xdiff;
+            }
+            double ydiff = yb - yt;
+            if(ydiff < 1e-4){
+                d2 = dt;
+            }else {
+                d2 = ((dt * (yb - y2i) + db * (y2i - yt))) / ydiff;
+            }
+
+            p1 *= T(d2);
+
+            residuals[0] -= p1(0);
+            residuals[1] -= p1(1);
+            residuals[2] -= p1(2);
 
             return true;
         }
@@ -318,10 +360,8 @@ class RelativePoseCostFunction {
     private:
         const double x1_;
         const double y1_;
-        const double x2_;
-        const double y2_;
         const double depth1_;
-        const double depth2_;
+        const Eigen::Ref<const Eigen::MatrixXd> depthMap2_;
     };
 
 }  // namespace colmap
