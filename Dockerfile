@@ -11,6 +11,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y softwa
 RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnakes/ppa
 RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python3.7 && apt clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y nano && apt clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y libhdf5-dev libhdf5-serial-dev && apt clean
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
