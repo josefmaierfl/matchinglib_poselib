@@ -5,7 +5,7 @@ import sys, re, argparse, os, subprocess as sp, warnings, numpy as np, logging
 import communication as com
 import evaluation_numbers as en
 import pandas as pd
-import shutil, zipfile
+import shutil, zipfile, math
 
 token = ''
 use_sms = False
@@ -17,7 +17,7 @@ test_raise = [False, False, False]
 def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_sc,
                         use_cal_tests, use_evals, img_path, store_path_sequ, load_path, cpu_use,
                         exec_sequ, message_path, exec_cal, store_path_cal, compare_pars,
-                        comp_pars_ev_nr, compare_path, log_new_folders, skip_find_opt_pars, other_conf):
+                        comp_pars_ev_nr, compare_path, log_new_folders, skip_find_opt_pars, other_conf, pickle_df):
     main_tests = en.get_available_main_tests()
     scene_creation = en.get_available_sequences()
     if skip_tests:
@@ -81,8 +81,8 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                     else:
                         ev_nrs = use_evals[mt][str(tn)]
                     ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
-                                     compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars)
-                    log_autoc_folders(mt, tn, store_path_cal, log_new_folders)
+                                     compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars, pickle_df)
+                    log_autoc_folders(mt, tn, store_path_cal, log_new_folders, True)
                     if ret:
                         return ret
                     print('Finished evaluation for main test ', mt, (' and test nr ' + str(tn) if tn else ''))
@@ -96,7 +96,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
                     tn = int(nr_key)
                     ev_nrs = use_evals[mt][nr_key]
                 ret = start_eval(mt, tn, ev_nrs, store_path_cal, cpu_use, message_path_new,
-                                 compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars)
+                                 compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars, pickle_df)
                 log_autoc_folders(mt, tn, store_path_cal, log_new_folders, True)
                 if ret:
                     return ret
@@ -107,7 +107,7 @@ def start_testing(path, path_confs_out, skip_tests, skip_gen_sc_conf, skip_crt_s
 
 
 def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_path,
-               compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars):
+               compare_pars, comp_pars_ev_nr, compare_path, skip_find_opt_pars, pickle_df):
     pyfilepath = os.path.dirname(os.path.realpath(__file__))
     pyfilename = os.path.join(pyfilepath, 'eval_tests_main.py')
     cmdline = ['python', pyfilename, '--path', store_path_cal, '--nrCPUs', str(cpu_use),
@@ -129,8 +129,11 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
     elif en.check_if_eval_needs_compare_data(test_name, test_nr, use_evals):
         comp_pars_ev_nr, compare_pars = get_compare_data(test_name, test_nr, use_evals, store_path_cal)
         cmdline += ['--comp_pars_ev_nr'] + list(map(str, comp_pars_ev_nr)) + ['--compare_pars'] + compare_pars
+    if pickle_df:
+        cmdline.append('--pickle_df')
 
-    tout = len(use_evals) * 4 * 3600
+    procs = int(min(max(math.ceil(1.33 * len(use_evals) / cpu_use), 1), len(use_evals)))
+    tout = procs * 4 * 3600
     try:
         if test_main:
             ret = test_ret[2]
@@ -154,7 +157,6 @@ def start_eval(test_name, test_nr, use_evals, store_path_cal, cpu_use, message_p
         send_message('Evaluation failed. Main test ' + test_name +
                      (' with test nr ' + str(test_nr) if test_nr else ''))
         return ret
-
     # After evals are finished try to find optimal parameters
     if not skip_find_opt_pars:
         try:
@@ -1256,6 +1258,10 @@ def main():
                              'test. The given \'new_name\' for configuration files to use must be equal to the folder '
                              'name holding the configuration files and this folder must be within the main folder '
                              'holding all other configuration file folders.')
+    parser.add_argument('--pickle_df', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='If provided, the loaded data for evaluation is pickled and stored to disk if not already'
+                             'done before. Thus, only the pickled data has to be read from file in future evaluations '
+                             'on the same data.')
     args = parser.parse_args()
     if args.path and not os.path.exists(args.path):
         raise ValueError('Directory ' + args.path + ' holding directories with template scene '
@@ -1491,7 +1497,7 @@ def main():
                             use_cal_tests, use_evals, args.img_path, args.store_path_sequ, args.load_path, cpu_use,
                             args.exec_sequ, args.message_path, args.exec_cal, args.store_path_cal, args.compare_pars,
                             args.comp_pars_ev_nr, args.compare_path, log_new_folders, args.skip_find_opt_pars,
-                            args.other_conf)
+                            args.other_conf, args.pickle_df)
     except Exception:
         logging.error('Error in main file', exc_info=True)
         ret = 99
@@ -1500,6 +1506,7 @@ def main():
     compress_mess_folder(args.zip_message_folder, args.message_path, ret)
     compress_new_dirs(args.zip_new_folders, args.store_path_cal, log_new_folders, args.message_path)
     shut_down(args.shutdown_afterwards)
+    logging.shutdown()
     sys.exit(ret)
 
 

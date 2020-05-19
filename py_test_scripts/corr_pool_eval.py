@@ -11,6 +11,27 @@ import ruamel.yaml as yaml
 from pandas.api.types import is_numeric_dtype
 from usac_eval import ji_env, get_time_fixed_kp, insert_opt_lbreak, prepare_io
 import inspect
+import multiprocessing.pool
+import tempfile, shutil, pickle
+
+
+# To allow multiprocessing (children) during multiprocessing
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+
+# To allow multiprocessing (children) during multiprocessing
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
+
 
 def filter_take_end_frames(**vars):
     return vars['data'].loc[vars['data']['Nr'] > 119]
@@ -31,6 +52,7 @@ def calc_rt_diff_frame_to_frame(**vars):
     if len(vars['data_separators']) != (len(vars['partitions']) + 2):
         raise ValueError('Wrong number of data separators.')
 
+    from statistics_and_plot import use_log_axis
     needed_cols = vars['eval_columns'] + vars['it_parameters'] + vars['data_separators']
     df = vars['data'][needed_cols]
     grpd_cols = vars['data_separators'] + vars['it_parameters']
@@ -60,14 +82,13 @@ def calc_rt_diff_frame_to_frame(**vars):
             elif mean_vals_used:
                 mean_list.append(tmp)
         for eval in vars['eval_columns']:
-            eval_log[eval].append(True if np.abs(np.log10(np.abs(tmp[eval].min())) -
-                                                 np.log10(np.abs(tmp[eval].max()))) > 1 else False)
+            eval_log[eval].append(use_log_axis(tmp[eval].min(), tmp[eval].max()))
     if mean_vals_used:
         if len(mean_list) != len(grp_keys):
             raise ValueError('Data is not consistent!')
         df = pd.concat(mean_list, axis=0, ignore_index=True)
     for eval in vars['eval_columns']:
-        if any(eval_log[eval]):
+        if all(eval_log[eval]):
             eval_cols_log_scaling.append(True)
         else:
             eval_cols_log_scaling.append(False)
@@ -89,6 +110,15 @@ def calc_rt_diff_frame_to_frame(**vars):
 
 
 def calc_rt_diff2_frame_to_frame(**vars):
+    if 'data_file' in vars:
+        df_filen = vars['data_file'] + '.gz'
+        vars_filen = vars['data_file'] + '.pkl'
+        if os.path.exists(df_filen) and os.path.exists(vars_filen):
+            df_new = pd.read_pickle(df_filen)
+            with open(vars_filen, "rb") as pf:
+                ret = pickle.load(pf)
+            ret['data'] = df_new
+            return ret
     if 'data_separators' not in vars:
         raise ValueError('data_separators are necessary.')
     if ('lname_pre' in vars) != ('eval_pre' in vars):
@@ -147,53 +177,113 @@ def calc_rt_diff2_frame_to_frame(**vars):
     for evalv in eval_columns_diff1:
         eval_log[evalv] = []
         eval_log_glob[evalv] = []
-    for grp in grp_keys:
-        tmp = df_grp.get_group(grp)
-        data_types = {vars['diff_by']: tmp[vars['diff_by']].dtype}
-        data_types.update([(a, tmp[vars['eval_columns'][i]].dtype) for i, a in enumerate(eval_columns_diff)])
+    if 'mult_cpus' in vars and vars['mult_cpus']:
+        nr_tasks = len(grpd_cols)
+        from statistics_and_plot import estimate_available_cpus
+        cpu_use = max(int(estimate_available_cpus(nr_tasks) / 2), 1)
+        dirpath = tempfile.mkdtemp()
+        cmds = []
         if 'keepEval' in vars and vars['keepEval']:
-            for i1 in vars['keepEval']:
-                if 'eval_pre' in vars:
-                    data_types[vars['eval_pre'] + i1] = tmp[i1].dtype
-                else:
-                    data_types[i1] = tmp[i1].dtype
+            keepEval = vars['keepEval']
+        else:
+            keepEval = None
+        if 'eval_pre' in vars:
+            eval_pre = vars['eval_pre']
+        else:
+            eval_pre = None
         if 'additional_data' in vars and vars['additional_data']:
-            for i1 in vars['additional_data']:
-                data_types[i1] = tmp[i1].dtype
-        data_types[vars['diff_by']] = tmp[vars['diff_by']].dtype
-        add_cols = [a for a in grpd_cols if a != vars['diff_by']]
-        data_types.update([(a, tmp[a].dtype) for a in add_cols])
-        tmp.set_index(vars['diff_by'], inplace=True)
-        row_iterator = tmp.iterrows()
-        i_last, last = next(row_iterator)
-        tmp1 = []
-        for i, row in row_iterator:
-            if i < i_last:
-                warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
-                              'Skipping data.', UserWarning)
-                break
-            tmp1.append(row[vars['eval_columns']] - last[vars['eval_columns']])
-            tmp1[-1].index = eval_columns_diff
+            additional_data = vars['additional_data']
+        else:
+            additional_data = None
+        for i, grp in enumerate(grp_keys):
+            tmp = df_grp.get_group(grp)
+            filen = os.path.join(dirpath, 'df_calc_rt_diff2_ftof_' + str(i) + '.gz')
+            try:
+                tmp.to_pickle(filen)
+            except Exception:
+                print('Exception while trying to pickle dataframe on property', grp, file=sys.stderr)
+                shutil.rmtree(dirpath)
+                raise
+            cmds.append((filen, vars['diff_by'], vars['eval_columns'], eval_columns_diff, eval_columns_diff1,
+                                          eval_log_glob, eval_log, grpd_cols, keepEval, eval_pre, additional_data))
+
+        res_log = []
+        with MyPool(processes=cpu_use) as pool:
+            results = [pool.apply_async(calc_rt_diff2_frame_to_frame_parallel, t) for t in cmds]
+            for i, r in enumerate(results):
+                try:
+                    res = r.get(5400)
+                    if res['ret']:
+                        pool.terminate()
+                        shutil.rmtree(dirpath)
+                        raise ValueError('Error in function calc_rt_diff2_frame_to_frame_parallel with code ' +
+                                         str(res['ret']))
+                    res_log.append(res)
+                except multiprocessing.TimeoutError:
+                    print('Timeout reached in function calc_rt_diff2_frame_to_frame_parallel', file=sys.stderr)
+                    pool.terminate()
+                    shutil.rmtree(dirpath)
+                    raise
+                except Exception:
+                    print('Exception in function calc_rt_diff2_frame_to_frame_parallel', file=sys.stderr)
+                    pool.terminate()
+                    shutil.rmtree(dirpath)
+                    raise
+
+        for val in res_log:
+            data_list.append(pd.read_pickle(val['filen']))
+            for evalv in eval_columns_diff1:
+                eval_log_glob[evalv] += val['eval_log_glob']
+                eval_log[evalv] += val['eval_log']
+        shutil.rmtree(dirpath)
+    else:
+        for grp in grp_keys:
+            tmp = df_grp.get_group(grp)
+            data_types = {vars['diff_by']: tmp[vars['diff_by']].dtype}
+            data_types.update([(a, tmp[vars['eval_columns'][i]].dtype) for i, a in enumerate(eval_columns_diff)])
             if 'keepEval' in vars and vars['keepEval']:
                 for i1 in vars['keepEval']:
                     if 'eval_pre' in vars:
-                        tmp1[-1][vars['eval_pre'] + i1] = row[i1]
+                        data_types[vars['eval_pre'] + i1] = tmp[i1].dtype
                     else:
-                        tmp1[-1][i1] = row[i1]
+                        data_types[i1] = tmp[i1].dtype
             if 'additional_data' in vars and vars['additional_data']:
                 for i1 in vars['additional_data']:
-                    tmp1[-1][i1] = row[i1]
-            tmp1[-1][vars['diff_by']] = i
-            tmp1[-1] = tmp1[-1].append(row[add_cols])
-            last = row
-            i_last = i
-        data_list.append(pd.concat(tmp1, axis=1).T)
-        data_list[-1] = data_list[-1].astype(data_types, copy=False)
+                    data_types[i1] = tmp[i1].dtype
+            data_types[vars['diff_by']] = tmp[vars['diff_by']].dtype
+            add_cols = [a for a in grpd_cols if a != vars['diff_by']]
+            data_types.update([(a, tmp[a].dtype) for a in add_cols])
+            tmp.set_index(vars['diff_by'], inplace=True)
+            row_iterator = tmp.iterrows()
+            i_last, last = next(row_iterator)
+            tmp1 = []
+            for i, row in row_iterator:
+                if i < i_last:
+                    warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
+                                  'Skipping data.', UserWarning)
+                    break
+                tmp1.append(row[vars['eval_columns']] - last[vars['eval_columns']])
+                tmp1[-1].index = eval_columns_diff
+                if 'keepEval' in vars and vars['keepEval']:
+                    for i1 in vars['keepEval']:
+                        if 'eval_pre' in vars:
+                            tmp1[-1][vars['eval_pre'] + i1] = row[i1]
+                        else:
+                            tmp1[-1][i1] = row[i1]
+                if 'additional_data' in vars and vars['additional_data']:
+                    for i1 in vars['additional_data']:
+                        tmp1[-1][i1] = row[i1]
+                tmp1[-1][vars['diff_by']] = i
+                tmp1[-1] = tmp1[-1].append(row[add_cols])
+                last = row
+                i_last = i
+            data_list.append(pd.concat(tmp1, axis=1).T)
+            data_list[-1] = data_list[-1].astype(data_types, copy=False)
 
-        for evalv in eval_columns_diff1:
-            ev_min = data_list[-1][evalv].min()
-            eval_log_glob[evalv].append(True if ev_min > 0 else False)
-            eval_log[evalv].append(use_log_axis(ev_min, data_list[-1][evalv].max()))
+            for evalv in eval_columns_diff1:
+                ev_min = data_list[-1][evalv].min()
+                eval_log_glob[evalv].append(True if ev_min > 0 else False)
+                eval_log[evalv].append(use_log_axis(ev_min, data_list[-1][evalv].max()))
     data_new = pd.concat(data_list, ignore_index=True)
     for evalv in eval_columns_diff1:
         if any(eval_log[evalv]) and all(eval_log_glob):
@@ -220,8 +310,7 @@ def calc_rt_diff2_frame_to_frame(**vars):
     else:
         eval_cols_lname = [replaceCSVLabels(a, False, False, True) for a in eval_columns_diff1]
 
-    ret = {'data': data_new,
-           'it_parameters': vars['it_parameters'],
+    ret = {'it_parameters': vars['it_parameters'],
            'eval_columns': eval_columns_diff1,
            'eval_cols_lname': eval_cols_lname,
            'eval_cols_log_scaling': eval_cols_log_scaling,
@@ -244,7 +333,83 @@ def calc_rt_diff2_frame_to_frame(**vars):
             ret['x_axis_column'] = vars['x_axis_column']
         elif 'xy_axis_columns' in vars:
             ret['xy_axis_columns'] = vars['xy_axis_columns']
+    if 'data_file' in vars:
+        data_new.to_pickle(df_filen)
+        with open(vars_filen, "wb") as vo:
+            pickle.dump(ret, vo, pickle.HIGHEST_PROTOCOL)
+    ret['data'] = data_new
 
+    return ret
+
+
+def calc_rt_diff2_frame_to_frame_parallel(filen, diff_by, eval_columns, eval_columns_diff, eval_columns_diff1,
+                                          eval_log_glob, eval_log, grpd_cols, keepEval=None, eval_pre=None,
+                                          additional_data=None):
+    from statistics_and_plot import use_log_axis
+    folder = os.path.dirname(filen)
+    match = re.search(r'df_calc_rt_diff2_ftof_(\d+)', filen)
+    if match:
+        nr = match.group(1)
+    else:
+        return {'ret': 1}
+    tmp = pd.read_pickle(filen)
+    data_types = {diff_by: tmp[diff_by].dtype}
+    data_types.update([(a, tmp[eval_columns[i]].dtype) for i, a in enumerate(eval_columns_diff)])
+    if keepEval:
+        for i1 in keepEval:
+            if eval_pre:
+                data_types[eval_pre + i1] = tmp[i1].dtype
+            else:
+                data_types[i1] = tmp[i1].dtype
+    if additional_data:
+        for i1 in additional_data:
+            data_types[i1] = tmp[i1].dtype
+    data_types[diff_by] = tmp[diff_by].dtype
+    add_cols = [a for a in grpd_cols if a != diff_by]
+    data_types.update([(a, tmp[a].dtype) for a in add_cols])
+    tmp.set_index(diff_by, inplace=True)
+    row_iterator = tmp.iterrows()
+    i_last, last = next(row_iterator)
+    tmp1 = []
+    for i, row in row_iterator:
+        if i < i_last:
+            warnings.warn('Groupings for calculating frame to frame diffs are not unique! '
+                          'Skipping data.', UserWarning)
+            break
+        tmp1.append(row[eval_columns] - last[eval_columns])
+        tmp1[-1].index = eval_columns_diff
+        if keepEval:
+            for i1 in keepEval:
+                if eval_pre:
+                    tmp1[-1][eval_pre + i1] = row[i1]
+                else:
+                    tmp1[-1][i1] = row[i1]
+        if additional_data:
+            for i1 in additional_data:
+                tmp1[-1][i1] = row[i1]
+        tmp1[-1][diff_by] = i
+        tmp1[-1] = tmp1[-1].append(row[add_cols])
+        last = row
+        i_last = i
+    df = pd.concat(tmp1, axis=1).T
+    df = df.astype(data_types, copy=False)
+
+    for evalv in eval_columns_diff1:
+        ev_min = df[evalv].min()
+        eval_log_glob[evalv].append(True if ev_min > 0 else False)
+        eval_log[evalv].append(use_log_axis(ev_min, df[evalv].max()))
+    filen1 = os.path.join(folder, 'df_calc_rt_diff2_ftof_res_' + nr + '.gz')
+    ret1 = 0
+    try:
+        df.to_pickle(filen1)
+    except Exception:
+        print('Exception while trying to pickle dataframe ', filen1, file=sys.stderr)
+        ret1 = 2
+
+    ret = {'eval_log_glob': eval_log_glob,
+           'eval_log': eval_log,
+           'filen': filen1,
+           'ret': ret1}
     return ret
 
 
@@ -377,6 +542,52 @@ def get_converge_img(df, nr_parts, th_diff2=0.33, th_diff3=0.02, key_name='Rt_di
         return get_converge_img(data_parts[0], nr_parts, th_diff2, th_diff3, key_name)
 
 
+def smooth_data(df, col_exclude=None):
+    from statistics_and_plot import is_mult_cols
+    if col_exclude is not None:
+        col_names, mult_cols = is_mult_cols(col_exclude)
+        if mult_cols:
+            incl_cols = [a for a in df.columns if not any(a == b for b in col_names)]
+        else:
+            incl_cols = [a for a in df.columns if a != col_names]
+        df.loc[:, incl_cols] = smooth_data(df.loc[:, incl_cols]).to_numpy()
+        return df
+    else:
+        incl_cols = list(df.columns)
+        for col in incl_cols:
+            first_idx = df.loc[:, col].first_valid_index()
+            last_idx = df.loc[:, col].last_valid_index()
+            nr_rows = df.loc[first_idx:last_idx, col].shape[0]
+            ws = nr_rows / 50
+            if ws < 10:
+                n = nr_rows / 10
+                if n < 5:
+                    return df
+                elif n < 10:
+                    n = 5
+                else:
+                    n = 10
+            else:
+                n = int(round(nr_rows / ws))
+            tmp = df.loc[first_idx:last_idx, col]
+            tmp_pos = tmp.where(tmp >= 0)
+            tmp_neg = tmp.where(tmp <= 0)
+            nr_nans = max(tmp_pos.isnull().sum(), tmp_neg.isnull().sum())
+            if nr_nans / nr_rows < 0.8:
+                tmp_mean_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
+                tmp_mean_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
+                tmp_median_pos = tmp_pos.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
+                tmp_median_neg = tmp_neg.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
+                tmp_mean = tmp_mean_pos.fillna(0) + tmp_mean_neg.fillna(0)
+                tmp_median = tmp_median_pos.fillna(0) + tmp_median_neg.fillna(0)
+            else:
+                tmp_mean = tmp.rolling(window=n, min_periods=3, center=True, win_type='blackman', axis=0).mean()
+                tmp_median = tmp.rolling(window=n, min_periods=3, center=True, win_type=None, axis=0).median()
+            tmp1 = (3 * tmp_median + tmp_mean) / 4
+            df.loc[first_idx:last_idx, col] = tmp1.to_numpy()
+        return df
+
+
 def eval_corr_pool_converge(**keywords):
     if 'res_par_name' not in keywords:
         raise ValueError('Missing parameter res_par_name')
@@ -389,6 +600,10 @@ def eval_corr_pool_converge(**keywords):
     needed_evals = ['poolSize', 'poolSize_diff', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg']
     if not all([a in keywords['eval_columns'] for a in needed_evals]):
         raise ValueError('Some specific entries within parameter eval_columns is missing')
+    if 'smooth' not in keywords:
+        keywords['smooth'] = False
+    if 'nr_plots_ddiff' not in keywords:
+        keywords['nr_plots_ddiff'] = 20
 
     keywords = prepare_io(**keywords)
     from statistics_and_plot import replaceCSVLabels, \
@@ -407,7 +622,8 @@ def eval_corr_pool_converge(**keywords):
         enl_space_title, \
         handle_nans, \
         short_concat_str, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
     partition_title = ''
     nr_partitions = len(keywords['partitions'])
     for i, val in enumerate(keywords['partitions']):
@@ -455,6 +671,8 @@ def eval_corr_pool_converge(**keywords):
     #         mult -= 1
     for grp in grp_keys:
         tmp1 = df_grp.get_group(grp)
+        if keywords['smooth']:
+            tmp1 = smooth_data(tmp1, ['Nr', 'depthDistr', 'inlratMin', 'kpAccSd', 'stereoParameters_minPtsDistance'])
         tmp2, succ = get_converge_img(tmp1, 3, 0.33, 0.05)
         data_list.append(tmp2)
     data_new = pd.concat(data_list, ignore_index=True)
@@ -469,7 +687,7 @@ def eval_corr_pool_converge(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
+                 'figs_externalize': True,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True,
                  # Builds a list of abbrevations from a list of dicts
@@ -571,7 +789,7 @@ def eval_corr_pool_converge(**keywords):
             use_cols1 = [round(float(b), 6) for a in use_cols1 for b in a.split('/') if ev not in b]
             use_cols1 = [side_eval + str(a) + '$' if close_equ else side_eval + str(a) for a in use_cols1]
 
-            _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, use_cols)
+            _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, False, False, False, None, use_cols)
             # is_numeric = pd.to_numeric(tmp.reset_index()[keywords['xy_axis_columns'][0]], errors='coerce').notnull().all()
             reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
             fig_name = capitalizeFirstChar(replaceCSVLabels(ev, True, False, True)) + \
@@ -587,53 +805,61 @@ def eval_corr_pool_converge(**keywords):
                         fig_name += ', '
                     elif i1 < nr_partitions - 1:
                         fig_name += ', and '
-            fig_name = split_large_titles(fig_name)
-            x_rows = handle_nans(tmp1, use_cols, True, 'ybar')
-            exp_value = enl_space_title(exp_value, fig_name, tmp1, 'tex_it_pars',
-                                        len(use_cols), 'ybar')
-            tex_infos['sections'].append({'file': reltex_name,
-                                          'name': fig_name,
-                                          # If caption is None, the field name is used
-                                          'caption': fig_name.replace('\\\\', ' '),
-                                          'fig_type': 'ybar',
-                                          'plots': use_cols,
-                                          'label_y': replaceCSVLabels(ev) + findUnit(str(ev), keywords['units']),
-                                          'plot_x': 'tex_it_pars',
-                                          'label_x': 'Parameter',
-                                          'limits': use_limits,
-                                          'legend': use_cols1,
-                                          'legend_cols': 1,
-                                          'use_marks': False,
-                                          'use_log_y_axis': use_log,
-                                          'xaxis_txt_rows': max_txt_rows,
-                                          'nr_x_if_nan': x_rows,
-                                          'enlarge_lbl_dist': None,
-                                          'enlarge_title_space': exp_value,
-                                          'use_string_labels': True,
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+            nr_plots = len(use_cols)
+            exp_value_o = exp_value
+            if nr_plots <= 20:
+                nr_plots_i = [nr_plots]
+            else:
+                pp = math.floor(nr_plots / 20)
+                nr_plots_i = [20] * int(pp)
+                rp = nr_plots - pp * 20
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * 20]
+            pcnt = 0
+            for i1, it1 in enumerate(nr_plots_i):
+                ps = use_cols[pcnt: pcnt + it1]
+                cl = use_cols1[pcnt: pcnt + it1]
+                pcnt += it1
+                if nr_plots > 20:
+                    sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                else:
+                    sec_name1 = fig_name
+
+                sec_name1 = split_large_titles(sec_name1)
+                x_rows = handle_nans(tmp1, ps, True, 'ybar')
+                exp_value = enl_space_title(exp_value_o, sec_name1, tmp1, 'tex_it_pars',
+                                            len(ps), 'ybar')
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': sec_name1,
+                                              # If caption is None, the field name is used
+                                              'caption': sec_name1.replace('\\\\', ' '),
+                                              'fig_type': 'ybar',
+                                              'plots': ps,
+                                              'label_y': replaceCSVLabels(ev) + findUnit(str(ev), keywords['units']),
+                                              'plot_x': 'tex_it_pars',
+                                              'label_x': 'Parameter',
+                                              'limits': use_limits,
+                                              'legend': cl,
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              'use_log_y_axis': use_log,
+                                              'xaxis_txt_rows': max_txt_rows,
+                                              'nr_x_if_nan': x_rows,
+                                              'enlarge_lbl_dist': None,
+                                              'enlarge_title_space': exp_value,
+                                              'use_string_labels': True,
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
@@ -646,7 +872,15 @@ def eval_corr_pool_converge(**keywords):
         if tmp1.shape[0] < 4:
             if tmp1.shape[0] > 2:
                 poolsize_med = tmp1['poolSize'].median()
-                data_list.append(tmp1.loc[tmp1['poolSize'] == poolsize_med])
+                if tmp1.shape[0] % 2 == 0:
+                    tmp2 = tmp1.iloc[(tmp1['poolSize'] - poolsize_med).abs().argsort()[:2]]
+                else:
+                    tmp2 = tmp1.loc[tmp1['poolSize'] == poolsize_med]
+                if tmp2.shape[0] > 1:
+                    poolsize_mean = mean_with_strings(tmp2)
+                    data_list.append(poolsize_mean)
+                else:
+                    data_list.append(tmp2)
             else:
                 poolsize_mean = mean_with_strings(tmp1)
                 data_list.append(poolsize_mean)
@@ -657,7 +891,15 @@ def eval_corr_pool_converge(**keywords):
             tmp2 = tmp1.loc[((tmp1['poolSize'] >= take_edges.item(0)) & (tmp1['poolSize'] <= take_edges.item(1)))]
             if tmp2.shape[0] > 2:
                 poolsize_med = tmp2['poolSize'].median()
-                data_list.append(tmp2.loc[tmp2['poolSize'] == poolsize_med])
+                if tmp2.shape[0] % 2 == 0:
+                    tmp2 = tmp2.iloc[(tmp2['poolSize'] - poolsize_med).abs().argsort()[:2]]
+                else:
+                    tmp2 = tmp2.loc[tmp2['poolSize'] == poolsize_med]
+                if tmp2.shape[0] > 1:
+                    poolsize_mean = mean_with_strings(tmp2)
+                    data_list.append(poolsize_mean)
+                else:
+                    data_list.append(tmp2)
             elif tmp2.shape[0] > 1:
                 poolsize_mean = mean_with_strings(tmp2)
                 data_list.append(poolsize_mean)
@@ -704,7 +946,7 @@ def eval_corr_pool_converge(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
+                 'figs_externalize': True,
                  # If true and a bar chart is chosen, the bars a filled with color and markers are turned off
                  'fill_bar': True,
                  # Builds a list of abbrevations from a list of dicts
@@ -714,36 +956,57 @@ def eval_corr_pool_converge(**keywords):
     data_new3 = data_new2[use_plots]
     _, use_limits, use_log, exp_value = get_limits_log_exp(data_new3, True, True)
     is_numeric = pd.to_numeric(data_new3.reset_index()[keywords['partition_x_axis']], errors='coerce').notnull().all()
-    enlarge_lbl_dist = check_legend_enlarge(data_new2, keywords['partition_x_axis'], len(use_plots), 'xbar')
     reltex_name = os.path.join(keywords['rel_data_path'], t_mean_name)
     fig_name = 'Most likely correspondence pool sizes for converging differences from ' \
                'frame to frame of R \\& t errors\\\\for parameters ' + \
                strToLower(keywords['sub_title_it_pars']) + ' vs property ' + \
                replaceCSVLabels(keywords['partition_x_axis'], False, False, True)
-    fig_name = split_large_titles(fig_name)
-    exp_value = enl_space_title(exp_value, fig_name, data_new3, keywords['partition_x_axis'],
-                                len(use_plots), 'xbar')
-    x_rows = handle_nans(data_new3, use_plots, not is_numeric, 'xbar')
-    tex_infos['sections'].append({'file': reltex_name,
-                                  'name': fig_name,
-                                  # If caption is None, the field name is used
-                                  'caption': fig_name.replace('\\\\', ' '),
-                                  'fig_type': 'xbar',
-                                  'plots': use_plots,
-                                  'label_y': replaceCSVLabels('poolSize') + findUnit('poolSize', keywords['units']),
-                                  'plot_x': keywords['partition_x_axis'],
-                                  'label_x': replaceCSVLabels(keywords['partition_x_axis']),
-                                  'limits': use_limits,
-                                  'legend': [tex_string_coding_style(a) for a in use_plots],
-                                  'legend_cols': 1,
-                                  'use_marks': False,
-                                  'use_log_y_axis': use_log,
-                                  'xaxis_txt_rows': 1,
-                                  'nr_x_if_nan': x_rows,
-                                  'enlarge_lbl_dist': enlarge_lbl_dist,
-                                  'enlarge_title_space': exp_value,
-                                  'use_string_labels': True if not is_numeric else False,
-                                  })
+
+    nr_plots = len(use_plots)
+    exp_value_o = exp_value
+    func_max = 6
+    if nr_plots <= func_max:
+        nr_plots_i = [nr_plots]
+    else:
+        pp = math.floor(nr_plots / func_max)
+        nr_plots_i = [func_max] * int(pp)
+        rp = nr_plots - pp * func_max
+        if rp > 0:
+            nr_plots_i += [nr_plots - pp * func_max]
+    pcnt = 0
+    for i1, it1 in enumerate(nr_plots_i):
+        ps = use_plots[pcnt: pcnt + it1]
+        pcnt += it1
+        if nr_plots > func_max:
+            sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+        else:
+            sec_name1 = fig_name
+
+        enlarge_lbl_dist = check_legend_enlarge(data_new2, keywords['partition_x_axis'], len(ps), 'xbar')
+        sec_name1 = split_large_titles(sec_name1)
+        exp_value = enl_space_title(exp_value_o, sec_name1, data_new3, keywords['partition_x_axis'],
+                                    len(ps), 'xbar')
+        x_rows = handle_nans(data_new3, ps, not is_numeric, 'xbar')
+        tex_infos['sections'].append({'file': reltex_name,
+                                      'name': sec_name1,
+                                      # If caption is None, the field name is used
+                                      'caption': sec_name1.replace('\\\\', ' '),
+                                      'fig_type': 'xbar',
+                                      'plots': ps,
+                                      'label_y': replaceCSVLabels('poolSize') + findUnit('poolSize', keywords['units']),
+                                      'plot_x': keywords['partition_x_axis'],
+                                      'label_x': replaceCSVLabels(keywords['partition_x_axis']),
+                                      'limits': use_limits,
+                                      'legend': [tex_string_coding_style(a) for a in ps],
+                                      'legend_cols': 1,
+                                      'use_marks': False,
+                                      'use_log_y_axis': use_log,
+                                      'xaxis_txt_rows': 1,
+                                      'nr_x_if_nan': x_rows,
+                                      'enlarge_lbl_dist': enlarge_lbl_dist,
+                                      'enlarge_title_space': exp_value,
+                                      'use_string_labels': True if not is_numeric else False,
+                                      })
     # tex_infos['sections'].append({'file': reltex_name,
     #                               'name': fig_name.replace('\\\\', ' '),
     #                               'title': fig_name,
@@ -775,26 +1038,14 @@ def eval_corr_pool_converge(**keywords):
     #                               'large_meta_space_needed': False,
     #                               'caption': fig_name.replace('\\\\', ' ')
     #                               })
-    tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
+        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][1]:
-        pdf_name = base_out_name + '.pdf'
-        res1 = abs(compile_tex(rendered_tex,
-                               keywords['tex_folder'],
-                               texf_name,
-                               tex_infos['make_index'],
-                               os.path.join(keywords['pdf_folder'], pdf_name),
-                               tex_infos['figs_externalize']))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                         keywords['pdf_folder'], True))
     else:
-        res1 = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                         None, False))
     if res1 != 0:
         res += res1
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
@@ -890,7 +1141,7 @@ def eval_corr_pool_converge(**keywords):
                  # If True, the figures are adapted to the page height if they are too big
                  'ctrl_fig_size': True,
                  # If true, a pdf is generated for every figure and inserted as image in a second run
-                 'figs_externalize': False,
+                 'figs_externalize': True,
                  # Builds a list of abbrevations from a list of dicts
                  'abbreviations': gloss
                  }
@@ -977,8 +1228,12 @@ def eval_corr_pool_converge(**keywords):
                 break_it = False
                 for d in itpars_cols:
                     if d in c:
+                        if not any([e == d for e in c.split('-')]):
+                            continue
                         for b in col_names:
                             if d in b and 'poolSize' in b and 'poolSize_diff' not in b:
+                                if not any([e == d for e in b.split('-')]):
+                                    continue
                                 hlp.append(b)
                                 break_it = True
                                 break
@@ -999,6 +1254,8 @@ def eval_corr_pool_converge(**keywords):
             for i, ev in enumerate(sections):
                 for i1, ev1 in enumerate(ev):
                     if it in ev1:
+                        if not any([e == it for e in ev1.split('-')]):
+                            continue
                         evals1.append(ev1)
                         it_split_x1.append(x_axis[i][i1])
             it_split.append(evals1)
@@ -1009,6 +1266,8 @@ def eval_corr_pool_converge(**keywords):
             tmpi = tmpi.sort_values(by=it_x).reset_index(drop=True)
             cols_list.append(tmpi)
         tmp1 = pd.concat(cols_list, axis=1, ignore_index=False)
+        if keywords['smooth']:
+            tmp1 = smooth_data(tmp1)
 
         t_main_name1 = t_main_name + '_part_' + \
                        '_'.join([keywords['partitions'][i][:min(4, len(keywords['partitions'][i]))] + '-' +
@@ -1048,53 +1307,63 @@ def eval_corr_pool_converge(**keywords):
                         partition_part += ', '
                     elif i < nr_partitions - 1:
                         partition_part += ', and '
-
-            legend_entries = [a for b in ev for a in itpars_cols if a in b]
-            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name, False, False, True)) +  \
+            fig_name = capitalizeFirstChar(replaceCSVLabels(ev_name, False, False, True)) + \
                        ' vs correspondence pool sizes\\\\for parameters ' + \
                        strToLower(keywords['sub_title_it_pars']) + ' and properties ' + \
                        partition_part
-            fig_name = split_large_titles(fig_name)
-            exp_value = enl_space_title(exp_value, fig_name, tmp2, x,
-                                        len(ev), 'sharp plot')
-            tex_infos['sections'].append({'file': reltex_name,
-                                          'name': fig_name,
-                                          # If caption is None, the field name is used
-                                          'caption': fig_name.replace('\\\\', ' '),
-                                          'fig_type': 'sharp plot',
-                                          'plots': ev,
-                                          'label_y': replaceCSVLabels(ev_name) + findUnit(ev_name,
-                                                                                          keywords['units']),
-                                          'plot_x': x,
-                                          'label_x': replaceCSVLabels('poolSize'),
-                                          'limits': use_limits,
-                                          'legend': [tex_string_coding_style(a) for a in legend_entries],
-                                          'legend_cols': 1,
-                                          'use_marks': False,
-                                          'use_log_y_axis': use_log,
-                                          'enlarge_title_space': exp_value,
-                                          'enlarge_lbl_dist': None,
-                                          })
-            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
-    template = ji_env.get_template('usac-testing_2D_plots_mult_x_cols.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
+            legend_entries = [a for b in ev for a in itpars_cols if a in b and any([a == e for e in b.split('-')])]
+
+            nr_plots = len(ev)
+            exp_value_o = exp_value
+            func_max = keywords['nr_plots_ddiff']
+            if nr_plots <= func_max:
+                nr_plots_i = [nr_plots]
+            else:
+                pp = math.floor(nr_plots / func_max)
+                nr_plots_i = [func_max] * int(pp)
+                rp = nr_plots - pp * func_max
+                if rp > 0:
+                    nr_plots_i += [nr_plots - pp * func_max]
+            pcnt = 0
+            for i1, it1 in enumerate(nr_plots_i):
+                ps = ev[pcnt: pcnt + it1]
+                cl = legend_entries[pcnt: pcnt + it1]
+                pcnt += it1
+                if nr_plots > func_max:
+                    sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+                else:
+                    sec_name1 = fig_name
+
+                sec_name1 = split_large_titles(sec_name1)
+                exp_value = enl_space_title(exp_value_o, sec_name1, tmp2, x,
+                                            len(ps), 'sharp plot')
+                tex_infos['sections'].append({'file': reltex_name,
+                                              'name': sec_name1,
+                                              # If caption is None, the field name is used
+                                              'caption': sec_name1.replace('\\\\', ' '),
+                                              'fig_type': 'sharp plot',
+                                              'plots': ps,
+                                              'label_y': replaceCSVLabels(ev_name) + findUnit(ev_name,
+                                                                                              keywords['units']),
+                                              'plot_x': x,
+                                              'label_x': replaceCSVLabels('poolSize'),
+                                              'limits': use_limits,
+                                              'legend': [tex_string_coding_style(a) for a in cl],
+                                              'legend_cols': 1,
+                                              'use_marks': False,
+                                              'use_log_y_axis': use_log,
+                                              'enlarge_title_space': exp_value,
+                                              'enlarge_lbl_dist': None,
+                                              })
+                tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][2]:
-        pdf_name = base_out_name + '.pdf'
-        res1 = abs(compile_tex(rendered_tex,
-                               keywords['tex_folder'],
-                               texf_name,
-                               tex_infos['make_index'],
-                               os.path.join(keywords['pdf_folder'], pdf_name),
-                               tex_infos['figs_externalize']))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots_mult_x_cols', keywords['tex_folder'],
+                                         base_out_name, keywords['pdf_folder'], True))
     else:
-        res1 = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res1 = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots_mult_x_cols', keywords['tex_folder'], base_out_name,
+                                         None, False))
     if res1 != 0:
         res += res1
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
@@ -1340,7 +1609,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         enl_space_title, \
         handle_nans, \
         short_concat_str, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
 
     base_ev = ['Rt_diff2', 'R_diffAll_diff', 't_angDiff_deg_diff', 'R_diffAll', 't_angDiff_deg', 'poolSize']
 
@@ -1459,6 +1729,8 @@ def eval_corr_pool_converge_vs_x(**keywords):
         for a in ev:
             for b in it_idxs:
                 if b in a:
+                    if not any([e == b for e in a.split('-')]):
+                        continue
                     legend.append(tex_string_coding_style(b))
                     break
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp1, True, True, False, None, ev)
@@ -1467,54 +1739,62 @@ def eval_corr_pool_converge_vs_x(**keywords):
                    ' for converging differences from frame to frame of mean and median R \\& t errors' \
                    '\\\\for parameters ' + \
                    strToLower(keywords['sub_title_it_pars'])
-        fig_name = split_large_titles(fig_name)
-        exp_value = enl_space_title(exp_value, fig_name, tmp1, 'stat_type',
-                                    len(ev), 'ybar')
-        x_rows = handle_nans(tmp1, ev, True, 'ybar')
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': fig_name,
-                                      # If caption is None, the field name is used
-                                      'caption': fig_name.replace('\\\\', ' '),
-                                      'fig_type': 'ybar',
-                                      'plots': ev,
-                                      'label_y': replaceCSVLabels(base_ev[i]) +
-                                                 findUnit(str(base_ev[i]), keywords['units']),
-                                      'plot_x': 'stat_type',
-                                      'label_x': 'Used statistic',
-                                      'limits': use_limits,
-                                      'legend': legend,
-                                      'legend_cols': 1,
-                                      'use_marks': False,
-                                      'use_log_y_axis': use_log,
-                                      'xaxis_txt_rows': 1,
-                                      'nr_x_if_nan': x_rows,
-                                      'enlarge_lbl_dist': None,
-                                      'enlarge_title_space': exp_value,
-                                      'use_string_labels': True,
-                                      })
-        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+        nr_plots = len(ev)
+        exp_value_o = exp_value
+        if nr_plots <= 20:
+            nr_plots_i = [nr_plots]
+        else:
+            pp = math.floor(nr_plots / 20)
+            nr_plots_i = [20] * int(pp)
+            rp = nr_plots - pp * 20
+            if rp > 0:
+                nr_plots_i += [nr_plots - pp * 20]
+        pcnt = 0
+        for i1, it1 in enumerate(nr_plots_i):
+            ps = ev[pcnt: pcnt + it1]
+            cl = legend[pcnt: pcnt + it1]
+            pcnt += it1
+            if nr_plots > 20:
+                sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+            else:
+                sec_name1 = fig_name
+
+            sec_name1 = split_large_titles(sec_name1)
+            exp_value = enl_space_title(exp_value_o, sec_name1, tmp1, 'stat_type',
+                                        len(ps), 'ybar')
+            x_rows = handle_nans(tmp1, ps, True, 'ybar')
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': sec_name1,
+                                          # If caption is None, the field name is used
+                                          'caption': sec_name1.replace('\\\\', ' '),
+                                          'fig_type': 'ybar',
+                                          'plots': ps,
+                                          'label_y': replaceCSVLabels(base_ev[i]) +
+                                                     findUnit(str(base_ev[i]), keywords['units']),
+                                          'plot_x': 'stat_type',
+                                          'label_x': 'Used statistic',
+                                          'limits': use_limits,
+                                          'legend': cl,
+                                          'legend_cols': 1,
+                                          'use_marks': False,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'nr_x_if_nan': x_rows,
+                                          'enlarge_lbl_dist': None,
+                                          'enlarge_title_space': exp_value,
+                                          'use_string_labels': True,
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     tex_infos['abbreviations'] = gloss
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'],
+                                        base_out_name, keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 
@@ -1575,7 +1855,8 @@ def eval_mean_time_poolcorrs(**keywords):
         get_limits_log_exp, \
         enl_space_title, \
         handle_nans, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
 
     df_grp = keywords['data'].xs('mean', axis=1, level=1,
                                  drop_level=True).reset_index().drop([a for a in keywords['it_parameters']
@@ -1651,26 +1932,13 @@ def eval_mean_time_poolcorrs(**keywords):
                                       'use_string_labels': True,
                                       })
 
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'],
+                                        base_out_name, keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
     return res
@@ -1695,7 +1963,8 @@ def eval_mean_time_pool_3D_dist(**keywords):
         enl_space_title, \
         add_to_glossary, \
         handle_nans, \
-        check_file_exists_rename
+        check_file_exists_rename, \
+        split_and_compile_pdf
 
     title = 'Mean Execution Times over the Last 30 Stereo Frames out of 150 Frames for Comparison of Different ' + \
             keywords['sub_title_it_pars']
@@ -1781,26 +2050,13 @@ def eval_mean_time_pool_3D_dist(**keywords):
                                           'use_string_labels': True,
                                           })
     tex_infos['abbreviations'] = gloss
-    template = ji_env.get_template('usac-testing_2D_plots.tex')
-    rendered_tex = template.render(title=tex_infos['title'],
-                                   make_index=tex_infos['make_index'],
-                                   ctrl_fig_size=tex_infos['ctrl_fig_size'],
-                                   figs_externalize=tex_infos['figs_externalize'],
-                                   fill_bar=tex_infos['fill_bar'],
-                                   sections=tex_infos['sections'],
-                                   abbreviations=tex_infos['abbreviations'])
     base_out_name = 'tex_' + t_main_name + '-'.join(keywords['it_parameters'])
-    texf_name = base_out_name + '.tex'
     if keywords['build_pdf'][0]:
-        pdf_name = base_out_name + '.pdf'
-        res = abs(compile_tex(rendered_tex,
-                              keywords['tex_folder'],
-                              texf_name,
-                              tex_infos['make_index'],
-                              os.path.join(keywords['pdf_folder'], pdf_name),
-                              tex_infos['figs_externalize']))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'],
+                                        base_out_name, keywords['pdf_folder'], True))
     else:
-        res = abs(compile_tex(rendered_tex, keywords['tex_folder'], texf_name, False))
+        res = abs(split_and_compile_pdf(tex_infos, 'usac-testing_2D_plots', keywords['tex_folder'], base_out_name,
+                                        None, False))
     if res != 0:
         warnings.warn('Error occurred during writing/compiling tex file', UserWarning)
 

@@ -408,7 +408,7 @@ def get_corrpool_size(eval_path):
     # Possible par_name: stereoParameters_maxPoolCorrespondences
     main_pars = ['corrpool_size_pts_dist_inlrat', 'corrpool_size_pts_dist_best_comb_scenes',
                  'corrpool_size_pts_dist_end_frames_best_comb_scenes', 'corrpool_size_converge',
-                 'corrpool_size_converge_mean']
+                 'corrpool_size_converge_mean', 'corrpool_size_converge_smooth']
     data = read_paramter_file(eval_path, main_pars)
     if data is None:
         return None
@@ -416,14 +416,17 @@ def get_corrpool_size(eval_path):
            float(data[main_pars[1]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
            float(data[main_pars[2]]['Algorithms']['stereoParameters_maxPoolCorrespondences'])]
     res1 = [float(data[main_pars[3]]['mean_conv_pool_size']),
-            float(data[main_pars[4]]['mean_conv_pool_size'])]
+            float(data[main_pars[4]]['mean_conv_pool_size']),
+            float(data[main_pars[5]]['mean_conv_pool_size'])]
     res_dist = [float(data[main_pars[3]]['Algorithm']['stereoParameters_minPtsDistance']),
-                float(data[main_pars[4]]['Algorithm']['stereoParameters_minPtsDistance'])]
+                float(data[main_pars[4]]['Algorithm']['stereoParameters_minPtsDistance']),
+                float(data[main_pars[5]]['Algorithm']['stereoParameters_minPtsDistance'])]
     b_err = [data[main_pars[0]]['b_best_val'],
              data[main_pars[1]]['b_min'],
              data[main_pars[2]]['b_min']]
     err1 = [abs(data[main_pars[3]]['mean_R_error']) + abs(data[main_pars[3]]['mean_t_error']),
-            abs(data[main_pars[4]]['mean_R_error']) + abs(data[main_pars[4]]['mean_t_error'])]
+            abs(data[main_pars[4]]['mean_R_error']) + abs(data[main_pars[4]]['mean_t_error']),
+            abs(data[main_pars[5]]['mean_R_error']) + abs(data[main_pars[5]]['mean_t_error'])]
     mi = min(res)
     ma = max(res)
     if np.isclose(mi, ma):
@@ -442,7 +445,8 @@ def get_corrpool_size(eval_path):
     else:
         if any((a / max(res1)) < 0.75 for a in res1):
             return None
-        if np.isclose(res_dist[0], res_dist[1]) or np.isclose(err1[0], err1[1]):
+        if (np.isclose(res_dist[0], res_dist[1]) and np.isclose(res_dist[0], res_dist[2])) or \
+                (np.isclose(err1[0], err1[1]) and np.isclose(err1[0], err1[2])):
             m = sum(res1) / len(res1)
         else:
             w = [1.3 - a / max(err1) for a in err1]
@@ -461,7 +465,7 @@ def get_min_pt_dist(eval_path, maxPoolCorrs):
     # Possible par_name: stereoParameters_minPtsDistance
     main_pars = ['corrpool_size_pts_dist_inlrat', 'corrpool_size_pts_dist_best_comb_scenes',
                  'corrpool_size_pts_dist_end_frames_best_comb_scenes', 'corrpool_size_converge',
-                 'corrpool_size_converge_mean']
+                 'corrpool_size_converge_mean', 'corrpool_size_converge_smooth']
     data = read_paramter_file(eval_path, main_pars)
     if data is None:
         return None
@@ -469,12 +473,14 @@ def get_min_pt_dist(eval_path, maxPoolCorrs):
            float(data[main_pars[1]]['Algorithms']['stereoParameters_minPtsDistance']),
            float(data[main_pars[2]]['Algorithms']['stereoParameters_minPtsDistance']),
            float(data[main_pars[3]]['Algorithm']['stereoParameters_minPtsDistance']),
-           float(data[main_pars[4]]['Algorithm']['stereoParameters_minPtsDistance'])]
+           float(data[main_pars[4]]['Algorithm']['stereoParameters_minPtsDistance']),
+           float(data[main_pars[5]]['Algorithm']['stereoParameters_minPtsDistance'])]
     res1 = [float(data[main_pars[0]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
             float(data[main_pars[1]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
             float(data[main_pars[2]]['Algorithms']['stereoParameters_maxPoolCorrespondences']),
             float(data[main_pars[3]]['mean_conv_pool_size']),
-            float(data[main_pars[4]]['mean_conv_pool_size'])]
+            float(data[main_pars[4]]['mean_conv_pool_size']),
+            float(data[main_pars[5]]['mean_conv_pool_size'])]
     b_err = [data[main_pars[0]]['b_best_val'],
              data[main_pars[1]]['b_min'],
              data[main_pars[2]]['b_min']]

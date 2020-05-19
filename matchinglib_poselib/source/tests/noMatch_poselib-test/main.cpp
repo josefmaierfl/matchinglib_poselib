@@ -308,7 +308,7 @@ struct algorithmResult{
             R_mostLikely_diffAll = 180.0 * rdiff / M_PI;
             t_mostLikely_distDiff = tdiff;
         }else if(gt_elem_diff){
-            R_GT_n_diffAll = round(180000000.0 * rdiff / M_PI) / 1000000.0;
+            R_GT_n_diffAll = round(1800000000.0 * (rdiff / M_PI)) / 10000000.0;
         }else{
             R_diffAll = 180.0 * rdiff / M_PI;
             t_distDiff = tdiff;
@@ -322,7 +322,7 @@ struct algorithmResult{
             t_mostLikely_angDiff = tdiff_angle;
         }else if(gt_elem_diff){
             R_GT_n_diff = rotAngles(roll_d, pitch_d, yaw_d);
-            t_GT_n_angDiff = round(1000000.0 * tdiff_angle) / 1000000.0;
+            t_GT_n_angDiff = round(10000000.0 * tdiff_angle) / 10000000.0;
         }else{
             R_diff = rotAngles(roll_d, pitch_d, yaw_d);
             t_angDiff = tdiff_angle;
@@ -332,7 +332,7 @@ struct algorithmResult{
                       << setprecision(4) << roll_d << char(248)
                       << " pitch = " << pitch_d << char(248)
                       << " yaw = " << yaw_d << char(248) << endl;
-            std::cout << "Angle between translation vectors: " << setprecision(3) << tdiff_angle << char(248) << endl;
+            std::cout << "Angle between translation vectors: " << setprecision(6) << tdiff_angle << char(248) << endl;
         }
     }
 

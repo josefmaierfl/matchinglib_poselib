@@ -3035,7 +3035,7 @@ double getAnglesBetwVectors(cv::Mat v1, cv::Mat v2, bool degree)
     CV_Assert((v1.cols == v2.cols) && (v1.rows == v2.rows));
     double angle = v1.dot(v2);// std::acos(v1.dot(v2) / (cv::norm(v1) * cv::norm(v2)));
     angle /= cv::norm(v1) * cv::norm(v2);
-    if(poselib::nearZero(1e3 * (angle - 1.0))){
+    if(poselib::nearZero(1e5 * (angle - 1.0))){
         return 0;
     }
     angle = std::acos(angle);

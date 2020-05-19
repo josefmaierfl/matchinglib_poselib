@@ -313,7 +313,7 @@ xlabel style={align=center},%
 ylabel={\VAR{sec['label_x']}},%
 xlabel={\VAR{sec['label_y_l']}},%
 enlarge y limits={true, abs value=0.5},%
-\BLOCK{ if sec['plots_l']|length > 1 }
+\BLOCK{ if sec['plots_l']|length > 1 or sec['row_cnt'] > 12 }
 y=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_l']|length))|round(2) }cm,%
 bar width=0.3cm,%
 /pgf/bar shift={-\VAR{ (0.05 + 0.37056 * sec['plots_l']|length / 2)|round(2) }cm
@@ -351,7 +351,7 @@ ylabel style={align=center},%
 xlabel={\VAR{sec['label_x']}},%
 ylabel={\VAR{sec['label_y_l']}},%
 enlarge x limits={true, abs value=0.5},%
-\BLOCK{ if sec['plots_l']|length > 1 }
+\BLOCK{ if sec['plots_l']|length > 1  or sec['row_cnt'] > 12 }
 x=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_l']|length))|round(2) }cm,%
 bar width=0.3cm,%
 /pgf/bar shift={-\VAR{ (0.05 + 0.37056 * sec['plots_l']|length / 2)|round(2) }cm
@@ -542,7 +542,7 @@ xlabel style={align=center},%
 \BLOCK{ endif }
 xlabel={\VAR{sec['label_y_r']}},%
 enlarge y limits={true, abs value=0.5},%
-\BLOCK{ if sec['plots_r']|length > 1 }
+\BLOCK{ if sec['plots_r']|length > 1 or sec['row_cnt'] > 12 }
 y=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_r']|length))|round(2) }cm,%
 bar width=0.3cm,%
 /pgf/bar shift={\VAR{ (0.05 + 0.37056 * sec['plots_r']|length / 2)|round(2) }cm
@@ -574,7 +574,7 @@ ylabel style={align=center},%
 \BLOCK{ endif }
 ylabel={\VAR{sec['label_y_r']}},%
 enlarge x limits={true, abs value=0.5},%
-\BLOCK{ if sec['plots_r']|length > 1 }
+\BLOCK{ if sec['plots_r']|length > 1 or sec['row_cnt'] > 12 }
 x=\VAR{ (0.1 + 2 * (0.4 + 0.37056 * sec['plots_r']|length))|round(2) }cm,%
 bar width=0.3cm,%
 /pgf/bar shift={\VAR{ (0.05 + 0.37056 * sec['plots_r']|length / 2)|round(2) }cm

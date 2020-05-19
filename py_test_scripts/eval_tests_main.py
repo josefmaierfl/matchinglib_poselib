@@ -13,12 +13,22 @@ from timeit import default_timer as timer
 import contextlib, logging
 # We must import this explicitly, it is not imported by the top-level
 # multiprocessing module.
-#import multiprocessing.pool
+import multiprocessing.pool
+import multiprocessing.context
 # import time
 from copy import deepcopy
 import multiprocess.context as mpc
+from multiprocessing import Semaphore, TimeoutError as mTimeoutError, get_context
 
 import evaluation_numbers as en
+import psutil
+import tempfile, shutil
+import mplog
+from pathos.helpers import mp as pathmp
+from typing import overload
+
+
+fileh = None
 
 
 def opencv_matrix_constructor(loader, node):
@@ -62,22 +72,48 @@ def RepresentsInt(s):
         return False
 
 
+def get_nr_procs_memory(df_mem, cpus_max, in_mem, pickle_file):
+    if pickle_file is not None:
+        folder = os.path.dirname(pickle_file)
+        disk = psutil.disk_usage(folder).free
+    else:
+        disk = psutil.disk_usage('/').free
+    if in_mem and 1.25 * df_mem > disk:
+        return 1
+    ram_available = psutil.virtual_memory().available
+    swap = psutil.swap_memory().free
+    usable = 0.75 * ram_available + swap / 3
+    if in_mem:
+        usable += df_mem
+    cpus = max(min(math.ceil(usable / (2 * df_mem)), cpus_max), 1)
+    return cpus
+
+
 # To allow multiprocessing (children) during multiprocessing
-# class NoDaemonProcess(multiprocessing.Process):
-#     # make 'daemon' attribute always return False
-#     def _get_daemon(self):
-#         return False
-#
-#     def _set_daemon(self, value):
-#         pass
-#     daemon = property(_get_daemon, _set_daemon)
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
 
 
 # To allow multiprocessing (children) during multiprocessing
 # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
 # because the latter is only a wrapper function, not a proper class.
-# class MyPool(multiprocessing.pool.Pool):
-#     Process = NoDaemonProcess
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
+
+
+class MyBaseContext(multiprocessing.context.BaseContext):
+    Pool = MyPool
+
+
+def init_load_csv(lock_):
+    global lock
+    lock = lock_
 
 
 def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
@@ -94,7 +130,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
         raise ValueError('No subdirectories holding data found')
 
     message_path_new = create_message_path(message_path, test_name, test_nr)
-    excmess = configure_logging(message_path_new, 'loading_except_', test_name, test_nr)
+    excmess, log = configure_logging(message_path_new, 'loading_except_', test_name, test_nr)
 
     maxd_parallel = int(len(sub_dirs) / nr_cpus)
     if maxd_parallel == 0:
@@ -119,6 +155,7 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     with mp(processes=nr_used_cpus) as pool:
         procs = [pool.apply_async(read_file_list, (t, res_path)) for t in sub_dirs_split]
         for i, r in enumerate(procs):
+            t_cnt = 0
             while 1:
                 try:
                     res = r.get(1.0)
@@ -131,9 +168,15 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                 except mpc.TimeoutError:
                     processing_flush(cnt_dot)
                     cnt_dot += 1
-                except Exception:
-                    logging.error('Fatal error while reading file list for ' + test_name +
+                    t_cnt += 1
+                    if t_cnt > 7200:
+                        log.error('Timeout while reading file list for ' + test_name +
                                   ', Test Nr ' + str(test_nr), exc_info=True)
+                        pool.terminate()
+                        return pd.DataFrame(), 0
+                except Exception:
+                    log.error('Fatal error while reading file list for ' + test_name +
+                              ', Test Nr ' + str(test_nr), exc_info=True)
                     pool.terminate()
                     return pd.DataFrame(), 0
     print()
@@ -158,9 +201,11 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
     df_parts = []
     cnt_dot = 0
     print('Loading data using', nr_used_cpus, 'processes')
-    with mp(processes=nr_used_cpus) as pool:
+    sem = Semaphore(32)
+    with mp(processes=nr_used_cpus, initializer=init_load_csv, initargs=(sem, )) as pool:
         procs = [pool.apply_async(load_data, (t, test_name, test_nr)) for t in data_list_split]
         for i, r in enumerate(procs):
+            t_cnt = 0
             while 1:
                 try:
                     res = r.get(1.0)
@@ -169,9 +214,15 @@ def get_data_files(load_path, test_name, test_nr, nr_cpus, message_path):
                 except mpc.TimeoutError:
                     processing_flush(cnt_dot)
                     cnt_dot += 1
-                except Exception:
-                    logging.error('Fatal error while loading test results for ' + test_name +
+                    t_cnt += 1
+                    if t_cnt > 7200:
+                        log.error('Timeout while loading test results for ' + test_name +
                                   ', Test Nr ' + str(test_nr), exc_info=True)
+                        pool.terminate()
+                        return pd.DataFrame(), 0
+                except Exception:
+                    log.error('Fatal error while loading test results for ' + test_name +
+                              ', Test Nr ' + str(test_nr), exc_info=True)
                     pool.terminate()
                     return pd.DataFrame(), 0
     print()
@@ -213,10 +264,17 @@ def processing_flush(n, index=5):
 
 
 def load_data(data_list, test_name, test_nr):
+    multproc = False
+    if 'lock' in locals() or 'lock' in globals():
+        multproc = True
     data_parts = []
     used_cols = en.get_used_eval_cols(test_name, test_nr)
     for elem in data_list:
-        csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
+        if multproc:
+            with lock:
+                csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
+        else:
+            csv_data = pd.read_csv(elem[1], delimiter=';', engine='c')
         addSequInfo_sep = None
         for row in csv_data.itertuples():
             tmp = row.addSequInfo.split('_')
@@ -311,31 +369,9 @@ def load_test_res(load_path):
     return data, load_time
 
 
-def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path):
+def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, cpu_use, message_path, pickle_df):
     # data, load_time = load_test_res(load_path)
-    data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
-    if data.empty:
-        return 1
-    print('Finished loading test results after ', load_time, ' seconds.')
-    # data = None
-    # data_dict = data.to_dict('list')
-    # data = mpd.DataFrame(data_dict)
-    # data = mpd.utils.from_pandas(data)
-    #print('Finished loading data')
-
     main_test_names, sub_test_numbers, sub_sub_test_nr = en.get_available_evals()
-    # main_test_names = ['usac-testing', 'usac_vs_ransac', 'refinement_ba', 'vfc_gms_sof',
-    #                    'refinement_ba_stereo', 'correspondence_pool', 'robustness', 'usac_vs_autocalib']
-    # sub_test_numbers = [2, 0, 2, 0, 2, 3, 6, 0]
-    # sub_sub_test_nr = [[list(range(1, 7)), list(range(7, 15)) + [36]],
-    #                    [list(range(1, 8))],
-    #                    [list(range(1, 6)), list(range(1, 5))],
-    #                    [list(range(1, 8))],
-    #                    [list(range(1, 4)), list(range(1, 5))],
-    #                    [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
-    #                    [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
-    #                     list(range(25, 29)), list(range(29, 38))],
-    #                    [list(range(1, 9))]]
     evals_w_compare = en.get_evals_with_compare()
     test_idx = main_test_names.index(test_name)
     tn_idx = 0
@@ -346,6 +382,42 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
         used_evals = sub_sub_test_nr[test_idx][tn_idx]
     else:
         used_evals = eval_nr
+    nr_evals = len(used_evals)
+    use_pickle_str = False
+    pickle_file = None
+    if pickle_df:
+        pickle_file = os.path.join(output_path, test_name + '_' + str(test_nr) + '.pkl')
+        if os.path.exists(pickle_file):
+            if cpu_use == 1 or nr_evals == 1:
+                start = timer()
+                data = pd.read_pickle(pickle_file)
+                end = timer()
+                load_time = end - start
+                if data.empty:
+                    return 1
+                print('Finished loading test results after ', load_time, ' seconds.')
+            else:
+                data = None
+                use_pickle_str = True
+        else:
+            data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
+            try:
+                data.to_pickle(pickle_file)
+            except Exception:
+                print('Exception while trying to pickle dataframe', file=sys.stderr)
+                logging.error('Exception while trying to pickle dataframe of ' + test_name +
+                              ', Test Nr ' + str(test_nr), exc_info=True)
+                pickle_df = False
+                try:
+                    os.remove(pickle_file)
+                except:
+                    pass
+    else:
+        data, load_time = get_data_files(load_path, test_name, test_nr, cpu_use, message_path)
+        if data.empty:
+            return 1
+        print('Finished loading test results after ', load_time, ' seconds.')
+
     comp_pars_list = []
     if any(test_name == a for a in evcn):
         for i in evals_w_compare:
@@ -361,11 +433,39 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             else:
                 comp_pars_list.append(None)
     else:
-        comp_pars_list = [None] * len(used_evals)
+        comp_pars_list = [None] * nr_evals
 
-    if cpu_use == 1 and not comp_pars:
+    if not use_pickle_str:
+        df_mem = data.memory_usage(index=True, deep=True).sum()
+    else:
+        df_mem = 2.5 * os.stat(pickle_file).st_size
+    no_mult_proc = 0
+    if df_mem >= 4294967295 and not (cpu_use == 1 or nr_evals == 1):
+        cpu_use = get_nr_procs_memory(df_mem, cpu_use, not use_pickle_str, pickle_file)
+        if cpu_use > 1:
+            no_mult_proc = 2
+        else:
+            no_mult_proc = 1
+
+    if (cpu_use == 1 or nr_evals == 1 or no_mult_proc == 1) and not comp_pars:
+        if use_pickle_str and no_mult_proc == 1:
+            start = timer()
+            data = pd.read_pickle(pickle_file)
+            end = timer()
+            load_time = end - start
+            if data.empty:
+                return 1
+            print('Finished loading test results after ', load_time, ' seconds.')
         return eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
-    elif cpu_use == 1:
+    elif cpu_use == 1 or nr_evals == 1 or no_mult_proc == 1:
+        if use_pickle_str and no_mult_proc == 1:
+            start = timer()
+            data = pd.read_pickle(pickle_file)
+            end = timer()
+            load_time = end - start
+            if data.empty:
+                return 1
+            print('Finished loading test results after ', load_time, ' seconds.')
         evs_no_cmp = [a for i, a in enumerate(used_evals) if not comp_pars_list[i]]
         evs_cmp = [[i, a] for i, a in enumerate(used_evals) if comp_pars_list[i]]
         ret = eval_test_exec(data, output_path, test_name, test_nr, evs_no_cmp, None, None)
@@ -373,54 +473,28 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
             ret += eval_test_exec(data, output_path, test_name, test_nr, [i[1]], comp_path, comp_pars_list[i[0]])
         return ret
     else:
-        # parts = 1
-        # rest = 0
-        # if cpu_use > len(used_evals):
-        #     cpu_use = len(used_evals)
-        # elif cpu_use < len(used_evals):
-        #     parts = int(float(len(used_evals)) / float(cpu_use))
-        #     rest = len(used_evals) % cpu_use
-        # cmds = [[(data, output_path, test_name, test_nr, a, comp_path, b)
-        #          for a, b in zip(used_evals[(p * cpu_use):(p * (cpu_use + 1))],
-        #                          comp_pars_list[(p * cpu_use):(p * (cpu_use + 1))])] for p in range(0, parts)]
-        # if rest:
-        #     cmds.append([(data, output_path, test_name, test_nr, a, comp_path, b)
-        #                  for a, b in zip(used_evals[(len(used_evals) - rest):],
-        #                                  comp_pars_list[(len(used_evals) - rest):])])
         message_path_new = create_message_path(message_path, test_name, test_nr)
-        cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
-                for a, b in zip(used_evals, comp_pars_list)]
-        nr_cpus = min(len(used_evals), cpu_use)
+        excmess, log = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
 
-        excmess = configure_logging(message_path_new, 'evals_except_', test_name, test_nr, True)
-        ret = 0
-        cnt_dot = 0
-        with mp(processes=nr_cpus) as pool:
-            results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
-            res1 = []
-            for i, r in enumerate(results):
-                while 1:
-                    sys.stdout.flush()
-                    try:
-                        res = r.get(2.0)
-                        ret += res
-                        break
-                    except mpc.TimeoutError:
-                        if cnt_dot >= 90:
-                            print()
-                            cnt_dot = 0
-                        sys.stdout.write('.')
-                        cnt_dot = cnt_dot + 1
-                    except Exception:
-                        print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
-                              ', Eval Nr', used_evals[i], file=sys.stderr)
-                        logging.error('Fatal error within evaluation on ' + test_name +
-                                      ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
-                        res1.append(cmds[i][2:5])
-                        ret += 1
-                        break
+        nr_cpus = min(len(used_evals), cpu_use)
+        if no_mult_proc == 2 or use_pickle_str:
+            ret, res1 = subprocesses(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data,
+                                     pickle_file, use_pickle_str, output_path, comp_path, message_path_new,
+                                     used_evals, comp_pars_list)
+        else:
+            ret, res1 = subprocesses_pathos(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data,
+                                            pickle_file, use_pickle_str, output_path, comp_path, message_path_new,
+                                            used_evals, comp_pars_list)
+
         if os.path.exists(excmess) and os.stat(excmess).st_size < 4:
-            os.remove(excmess)
+            if no_mult_proc == 2 or use_pickle_str:
+                tmp = open(excmess, 'a')
+                tmp.flush()
+                tmp.close()
+                if os.stat(excmess).st_size < 4:
+                    os.remove(excmess)
+            else:
+                os.remove(excmess)
         if res1:
             failed_cmds_base_name = 'cmds_evals_failed_' + test_name + '_' + str(test_nr)
             base = failed_cmds_base_name
@@ -434,6 +508,131 @@ def eval_test(load_path, output_path, test_name, test_nr, eval_nr, comp_path, co
                 fo1.write('Failed evaluations:\n')
                 fo1.write('\n'.join(['  '.join(map(str, a)) for a in res1]))
         return ret
+
+
+def subprocesses(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data, pickle_file, use_pickle_str,
+                 output_path, comp_path, message_path_new, used_evals, comp_pars_list):
+    ret = 0
+    res1 = []
+    cnt_dot = 0
+    ctx = MyBaseContext().get_context('spawn')
+    with mplog.open_queue(False, ctx) as log_queue:
+        if no_mult_proc == 2:
+            if not pickle_df:
+                dirpath = tempfile.mkdtemp()
+                fname = test_name + '_' + str(test_nr) + '.pkl'
+                pickle_file = os.path.join(dirpath, fname)
+                try:
+                    data.to_pickle(pickle_file)
+                except Exception:
+                    print('Exception while trying to pickle dataframe', file=sys.stderr)
+                    log.error('Exception while trying to pickle dataframe of ' + test_name +
+                              ', Test Nr ' + str(test_nr), exc_info=True)
+                    shutil.rmtree(dirpath)
+                    return 10
+                del data
+            elif not use_pickle_str:
+                del data
+
+            cmds = [(log_queue, eval_test_exec_std_wrap, pickle_file, output_path, test_name, test_nr, [a], comp_path, b,
+                     message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        elif use_pickle_str:
+            cmds = [(log_queue, eval_test_exec_std_wrap, pickle_file, output_path, test_name, test_nr, [a], comp_path, b,
+                     message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        else:
+            cmds = [(log_queue, eval_test_exec_std_wrap, data, output_path, test_name, test_nr, [a], comp_path, b,
+                     message_path_new)
+                    for a, b in zip(used_evals, comp_pars_list)]
+        with MyPool(processes=nr_cpus) as pool:
+            results = [pool.apply_async(mplog.logged_call, t) for t in cmds]
+            for i, r in enumerate(results):
+                while 1:
+                    sys.stdout.flush()
+                    try:
+                        res = r.get(2.0)
+                        ret += res
+                        break
+                    except mTimeoutError:
+                        if cnt_dot >= 90:
+                            print()
+                            cnt_dot = 0
+                        sys.stdout.write('.')
+                        cnt_dot = cnt_dot + 1
+                    except Exception:
+                        print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
+                              ', Eval Nr', used_evals[i], file=sys.stderr)
+                        log.error('Fatal error within evaluation on ' + test_name +
+                                  ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
+                        res1.append(cmds[i][2:5])
+                        ret += 1
+                        break
+
+    if no_mult_proc == 2 and not pickle_df:
+        shutil.rmtree(dirpath)
+    remove_log_handlers()
+    return ret, res1
+
+
+def subprocesses_pathos(nr_cpus, no_mult_proc, pickle_df, test_name, test_nr, log, data, pickle_file, use_pickle_str,
+                 output_path, comp_path, message_path_new, used_evals, comp_pars_list):
+    ret = 0
+    res1 = []
+    cnt_dot = 0
+    if no_mult_proc == 2:
+        if not pickle_df:
+            dirpath = tempfile.mkdtemp()
+            fname = test_name + '_' + str(test_nr) + '.pkl'
+            pickle_file = os.path.join(dirpath, fname)
+            try:
+                data.to_pickle(pickle_file)
+            except Exception:
+                print('Exception while trying to pickle dataframe', file=sys.stderr)
+                log.error('Exception while trying to pickle dataframe of ' + test_name +
+                          ', Test Nr ' + str(test_nr), exc_info=True)
+                shutil.rmtree(dirpath)
+                return 10
+            del data
+        elif not use_pickle_str:
+            del data
+
+        cmds = [(pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+    elif use_pickle_str:
+        cmds = [(pickle_file, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+    else:
+        cmds = [(data, output_path, test_name, test_nr, [a], comp_path, b, message_path_new)
+                for a, b in zip(used_evals, comp_pars_list)]
+    with mp(processes=nr_cpus) as pool:
+        results = [pool.apply_async(eval_test_exec_std_wrap, t) for t in cmds]
+        for i, r in enumerate(results):
+            while 1:
+                sys.stdout.flush()
+                try:
+                    res = r.get(2.0)
+                    ret += res
+                    break
+                except mpc.TimeoutError:
+                    if cnt_dot >= 90:
+                        print()
+                        cnt_dot = 0
+                    sys.stdout.write('.')
+                    cnt_dot = cnt_dot + 1
+                except Exception:
+                    print('Exception within evaluation on', test_name, ', Test Nr', test_nr,
+                          ', Eval Nr', used_evals[i], file=sys.stderr)
+                    log.error('Fatal error within evaluation on ' + test_name +
+                              ', Test Nr ' + str(test_nr) + ', Eval Nr ' + str(used_evals[i]), exc_info=True)
+                    res1.append(cmds[i][2:5])
+                    ret += 1
+                    break
+
+    if no_mult_proc == 2 and not pickle_df:
+        shutil.rmtree(dirpath)
+    remove_log_handlers()
+    return ret, res1
 
 
 def create_message_path(message_path, test_name, test_nr):
@@ -465,18 +664,34 @@ def configure_logging(message_path, base_name, test_name, test_nr, already_set=F
         excmess = os.path.join(message_path, base + '.txt')
         cnt += 1
     if already_set:
+        global fileh
         fileh = logging.FileHandler(excmess, 'a')
         fileh.setLevel(level=logging.DEBUG)
         log = logging.getLogger()  # root logger
         for hdlr in log.handlers[:]:  # remove all old handlers
+            hdlr.close()
             log.removeHandler(hdlr)
         log.addHandler(fileh)  # set the new handler
     else:
         logging.basicConfig(filename=excmess, level=logging.DEBUG)
-    return excmess
+        log = logging.getLogger()  # root logger
+    return excmess, log
+
+
+def remove_log_handlers():
+    global fileh
+    if fileh is not None:
+        fileh.close()
+    log = logging.getLogger()  # root logger
+    for hdlr in log.handlers[:]:  # remove all handlers
+        hdlr.close()
+        log.removeHandler(hdlr)
+    logging.shutdown()
 
 
 def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars, message_path):
+    if type(data) is str:
+        data = pd.read_pickle(data)
     mess_base_name = 'evals_' + test_name + '_' + str(test_nr) + '_' + str(eval_nr[0])
     base = mess_base_name
     errmess = os.path.join(message_path, 'stderr_' + base + '.txt')
@@ -490,6 +705,8 @@ def eval_test_exec_std_wrap(data, output_path, test_name, test_nr, eval_nr, comp
     with open(stdmess, 'a') as f_std, open(errmess, 'a') as f_err:
         with contextlib.redirect_stdout(f_std), contextlib.redirect_stderr(f_err):
             ret = eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
+            sys.stdout.flush()
+            sys.stderr.flush()
             # ret = test_func(data, output_path, test_name, test_nr, eval_nr, comp_path, comp_pars)
     if os.stat(errmess).st_size < 4:
         os.remove(errmess)
@@ -2652,7 +2869,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
             raise ValueError('test_nr is required correspondence_pool')
         if test_nr == 1:
             if eval_nr[0] < 0:
-                evals = list(range(1, 11))
+                evals = list(range(1, 11)) + [16]
             else:
                 evals = eval_nr
             for ev in evals:
@@ -2834,6 +3051,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     special_calcs_args = {'build_pdf': (True, True, True),
                                           'use_marks': True,
                                           'partition_x_axis': 'kpAccSd',
+                                          'nr_plots_ddiff': 2,
                                           'res_par_name': 'corrpool_size_converge'}
                     from corr_pool_eval import filter_max_pool_size, \
                         calc_rt_diff2_frame_to_frame, \
@@ -3031,6 +3249,54 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                          make_fig_index=True,
                                                          build_pdf=True,
                                                          figs_externalize=False)
+                elif ev == 16:
+                    fig_title_pre_str = 'Differences of R\\&t Differences from Frame to Frame with a Maximum ' \
+                                        'Correspondence Pool Size of $\\hat{n}_{cp}=30000$ Features for Different '
+                    eval_columns = ['R_diffAll', 'R_diff_roll_deg', 'R_diff_pitch_deg', 'R_diff_yaw_deg',
+                                    't_angDiff_deg', 't_distDiff', 't_diff_tx', 't_diff_ty', 't_diff_tz',
+                                    'poolSize']
+                    units = [('R_diffAll', '/\\textdegree'), ('R_diff_roll_deg', '/\\textdegree'),
+                             ('R_diff_pitch_deg', '/\\textdegree'), ('R_diff_yaw_deg', '/\\textdegree'),
+                             ('t_angDiff_deg', '/\\textdegree'), ('t_distDiff', ''), ('t_diff_tx', ''),
+                             ('t_diff_ty', ''), ('t_diff_tz', ''), ('poolSize', '')]
+                    it_parameters = ['stereoParameters_minPtsDistance']
+                    calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratMin'],
+                                      'keepEval': ['poolSize', 'R_diffAll', 't_angDiff_deg'],
+                                      'eval_on': ['poolSize'],
+                                      'diff_by': 'Nr'}
+                    special_calcs_args = {'build_pdf': (True, True, True),
+                                          'use_marks': True,
+                                          'partition_x_axis': 'kpAccSd',
+                                          'smooth': True,
+                                          'nr_plots_ddiff': 4,
+                                          'func_name': 'eval_corr_pool_converge_smooth',
+                                          'res_par_name': 'corrpool_size_converge_smooth'}
+                    from corr_pool_eval import filter_max_pool_size, \
+                        calc_rt_diff2_frame_to_frame, \
+                        eval_corr_pool_converge
+                    ret += calcFromFuncAndPlot_3D_partitions(data=data,
+                                                             store_path=output_path,
+                                                             tex_file_pre_str='plots_corrPool_',
+                                                             fig_title_pre_str=fig_title_pre_str,
+                                                             eval_description_path='RT-diff',
+                                                             eval_columns=eval_columns,  # Column names for which statistics are calculated (y-axis)
+                                                             units=units,  # Units in string format for every entry of eval_columns
+                                                             it_parameters=it_parameters,  # Algorithm parameters to evaluate
+                                                             partitions=['depthDistr', 'kpAccSd'],  # Data properties to calculate results separately
+                                                             xy_axis_columns=[],  # x-axis column name
+                                                             filter_func=filter_max_pool_size,
+                                                             filter_func_args=None,
+                                                             special_calcs_func=eval_corr_pool_converge,
+                                                             special_calcs_args=special_calcs_args,
+                                                             calc_func=calc_rt_diff2_frame_to_frame,
+                                                             calc_func_args=calc_func_args,
+                                                             fig_type='surface',
+                                                             use_marks=False,
+                                                             ctrl_fig_size=True,
+                                                             make_fig_index=True,
+                                                             build_pdf=False,
+                                                             figs_externalize=True,
+                                                             no_tex=True)
                 else:
                     raise ValueError('Eval nr ' + str(ev) + ' does not exist')
         elif test_nr == 2:
@@ -3277,7 +3543,9 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'stereoParameters_minInlierRatSkip',
                                                             'stereoParameters_minInlierRatioReInit',
                                                             'stereoParameters_relMinInlierRatSkip',
-                                                            'inlratCRate']}
+                                                            'inlratCRate'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')}
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -3317,7 +3585,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                      'stereoParameters_minInlierRatioReInit',
                                      'stereoParameters_relMinInlierRatSkip']
                     partitions = ['rt_change_type']
-                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                    special_calcs_args = {'build_pdf': (False, True, True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'robustness_best_comb_scenes_inlc_depth'}
@@ -3327,7 +3595,9 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'stereoParameters_minInlierRatioReInit',
                                                             'stereoParameters_relMinInlierRatSkip',
                                                             'inlratCRate',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')}
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -3367,7 +3637,7 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                      'stereoParameters_minInlierRatioReInit',
                                      'stereoParameters_relMinInlierRatSkip']
                     partitions = ['rt_change_type']
-                    special_calcs_args = {'build_pdf': (True, True, True, True),
+                    special_calcs_args = {'build_pdf': (False, True, True, True),
                                           'use_marks': True,
                                           'fig_type': 'surface',
                                           'res_par_name': 'robustness_best_comb_scenes_inlc_kpAccSd'}
@@ -3377,7 +3647,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'stereoParameters_minInlierRatioReInit',
                                                             'stereoParameters_relMinInlierRatSkip',
                                                             'inlratCRate',
-                                                            'kpAccSd']}
+                                                            'kpAccSd'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -3424,12 +3697,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_scene': 'jra'}
+                                        'filter_scene': 'jra',
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos', 'rt_change_type'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -3439,7 +3719,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'change_Nr': 25,
                                           'additional_data': ['rt_change_pos', 'rt_change_type'],
                                           'scene': 'jra',
-                                          'res_par_name': 'robustness_delay_jra'}
+                                          'res_par_name': 'robustness_delay_jra',
+                                          'data_file': os.path.join(output_path, 'df_robustness_frameDelays_' +
+                                                                    str(test_nr) + '_' + str(ev))
+                                          }
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay
                     ret += calcFromFuncAndPlot_2D_partitions(data=data,
@@ -3488,12 +3771,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_scene': 'jta'}
+                                        'filter_scene': 'jta',
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos', 'rt_change_type'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -3508,7 +3798,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                        'robustness_best_comb_scenes_inlc_kpAccSd',
                                                        'robustness_delay_jra',
                                                        'robustness_delay_jta'],
-                                          'res_par_name': 'robustness_delay_jta'}
+                                          'res_par_name': 'robustness_delay_jta',
+                                          'data_file': os.path.join(output_path, 'df_robustness_frameDelays_' +
+                                                                    str(test_nr) + '_' + str(ev))
+                                          }
                     from corr_pool_eval import calc_rt_diff2_frame_to_frame
                     from robustness_eval import get_rt_change_type, calc_calib_delay
                     ret += calcFromFuncAndPlot_2D_partitions(data=data,
@@ -3573,7 +3866,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'check_mostLikely': True}
+                                        'check_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_comb_scenes_ml_1
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -3628,7 +3924,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'depthDistr',
                                                             'kpAccSd'],
-                                        'check_mostLikely': True}
+                                        'check_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -3683,7 +3982,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'check_mostLikely': True}
+                                        'check_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -3741,7 +4043,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'depthDistr',
                                                             'kpAccSd',
                                                             'inlratCRate'],
-                                        'check_mostLikely': True}
+                                        'check_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_comb_3d_scenes_ml_1
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -3775,7 +4080,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['stereoParameters_checkPoolPoseRobust',
                                                             'depthDistr',
                                                             'kpAccSd',
-                                                            'inlratCRate']}
+                                                            'inlratCRate'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type
                     ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
@@ -3837,7 +4145,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_mostLikely': True}
+                                        'filter_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
@@ -3890,7 +4201,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_mostLikely': True}
+                                        'filter_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
@@ -3941,7 +4255,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_mostLikely': True}
+                                        'filter_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
@@ -3989,7 +4306,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_mostLikely': True}
+                                        'filter_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type
                     ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
@@ -4054,7 +4374,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_mostLikely': True}
+                                        'filter_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -4121,7 +4444,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_poseIsStable': True}
+                                        'filter_poseIsStable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -4187,7 +4513,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_poseIsStable': True}
+                                        'filter_poseIsStable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4252,7 +4581,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_poseIsStable': True}
+                                        'filter_poseIsStable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4309,7 +4641,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_poseIsStable': True}
+                                        'filter_poseIsStable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4368,7 +4703,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_mostLikely': True}
+                                        'filter_mostLikely': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, calc_pose_stable_ratio, get_best_stability_pars
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -4435,7 +4773,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_mostLikelyPose_stable': True}
+                                        'filter_mostLikelyPose_stable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -4501,7 +4842,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_mostLikelyPose_stable': True}
+                                        'filter_mostLikelyPose_stable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4566,7 +4910,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_mostLikelyPose_stable': True}
+                                        'filter_mostLikelyPose_stable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_ml_acc
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4623,7 +4970,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_mostLikelyPose_stable': True}
+                                        'filter_mostLikelyPose_stable': True,
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4675,7 +5025,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['stereoParameters_useRANSAC_fewMatches',
                                                             'inlratCRate',
                                                             'kpAccSd',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
                     ret += calcSatisticAndPlot_2D_partitions(data=data,
                                                              store_path=output_path,
@@ -4721,7 +5074,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['stereoParameters_useRANSAC_fewMatches',
                                                             'inlratCRate',
                                                             'kpAccSd',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4769,7 +5125,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['stereoParameters_useRANSAC_fewMatches',
                                                             'inlratCRate',
                                                             'kpAccSd',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_best_robust_pool_pars
                     ret += calcSatisticAndPlot_3D_partitions(data=data,
                                                              store_path=output_path,
@@ -4846,7 +5205,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'data_separators': ['rt_change_type']}
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_cRT_stats
                     ret += calcSatisticAndPlot_2D(data=data,
                                                   store_path=output_path,
@@ -4888,7 +5250,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'data_separators': ['rt_change_type', 'depthDistr']}
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_cRT_stats
                     ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
@@ -4928,7 +5293,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                           'data_separators': ['rt_change_type', 'kpAccSd']}
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
-                                                            'depthDistr']}
+                                                            'depthDistr'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     from robustness_eval import get_rt_change_type, get_cRT_stats
                     ret += calcSatisticAndPlot_3D(data=data,
                                                   store_path=output_path,
@@ -4967,12 +5335,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_scene': ['jra', 'jrx', 'jry', 'jrz']}
+                                        'filter_scene': ['jra', 'jrx', 'jry', 'jrz'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5028,12 +5403,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_scene': ['jta', 'jtx', 'jty', 'jtz']}
+                                        'filter_scene': ['jta', 'jtx', 'jty', 'jtz'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5089,12 +5471,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                     filter_func_args = {'data_seperators': ['inlratCRate',
                                                             'kpAccSd',
                                                             'depthDistr'],
-                                        'filter_scene': 'jrt'}
+                                        'filter_scene': 'jrt',
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_diffAll', 't_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5157,12 +5546,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_scene': ['jra', 'jrx', 'jry', 'jrz']}
+                                        'filter_scene': ['jra', 'jrx', 'jry', 'jrz'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5224,12 +5620,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_scene': ['jta', 'jtx', 'jty', 'jtz']}
+                                        'filter_scene': ['jta', 'jtx', 'jty', 'jtz'],
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5291,12 +5694,19 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                                                             'kpAccSd',
                                                             'depthDistr'],
                                         'filter_mostLikely': True,
-                                        'filter_scene': 'jrt'}
+                                        'filter_scene': 'jrt',
+                                        'data_file': os.path.join(output_path, 'df_robustness_diffRT_' +
+                                                                  str(test_nr) + '_' + str(ev) + '.gz')
+                                        }
                     calc_func_args = {'data_separators': ['Nr', 'depthDistr', 'kpAccSd', 'inlratCRate'],
                                       'keepEval': ['R_mostLikely_diffAll', 't_mostLikely_angDiff_deg'],
                                       'additional_data': ['rt_change_pos'],
                                       'eval_on': None,
-                                      'diff_by': 'Nr'}
+                                      'diff_by': 'Nr',
+                                      'mult_cpus': True,
+                                      'data_file': os.path.join(output_path, 'df_robustness_f2fDiff_' +
+                                                                str(test_nr) + '_' + str(ev))
+                                      }
                     special_calcs_args = {'build_pdf': (True, True),
                                           'use_marks': True,
                                           'data_separators': ['inlratCRate',
@@ -5369,7 +5779,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_diffRT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': True,
@@ -5415,7 +5828,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_diffRT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': True,
@@ -5461,7 +5877,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_diffRT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': True,
@@ -5510,7 +5929,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_diffRT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': False,
@@ -5558,7 +5980,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': ['crt', 'jrt']}
+                                    'filter_scene': ['crt', 'jrt'],
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_diffRT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 special_calcs_args = {'build_pdf': (True, True),
                                       'use_marks': False,
@@ -5812,6 +6237,10 @@ def main():
                         help='If provided, a different path is used for loading results for comparison. Otherwise, '
                              'the part from option --path is used. Results are only loaded, if option '
                              '--compare_pars is provided.')
+    parser.add_argument('--pickle_df', type=bool, nargs='?', required=False, default=False, const=True,
+                        help='If provided, the loaded data for evaluation is pickled and stored to disk if not already'
+                             'done before. Thus, only the pickled data has to be read from file in future evaluations '
+                             'on the same data.')
     args = parser.parse_args()
 
     if not os.path.exists(args.path):
@@ -5879,9 +6308,10 @@ def main():
             comp_path = args.path
 
     ret = eval_test(load_path, output_path, test_name, args.test_nr, args.eval_nr, comp_path, comp_pars, cpu_use,
-                    args.message_path)
+                    args.message_path, args.pickle_df)
     sys.exit(ret)
 
 
 if __name__ == "__main__":
+    # mpc._force_start_method('spawn')
     main()

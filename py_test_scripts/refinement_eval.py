@@ -140,7 +140,6 @@ def get_best_comb_scenes_1(**keywords):
                     part_name_title[-1] += ', and '
 
         _, use_limits, use_log, exp_value = get_limits_log_exp(tmp)
-        is_neg = check_if_neg_values(tmp, data_it_b_columns[-1], use_log, use_limits)
         reltex_name = os.path.join(ret['rel_data_path'], b_mean_name[-1])
         if 'error_type_text' in keywords:
             fig_name = 'Mean ' + strToLower(keywords['error_type_text']) + \
@@ -153,43 +152,65 @@ def get_best_comb_scenes_1(**keywords):
                        '\\\\vs ' + replaceCSVLabels(str(dp), True, False, True) + \
                        ' for parameter variations of\\\\' + strToLower(ret['sub_title_it_pars'])
             label_y = 'mean R \\& t error $e_{R\\bm{t}}$'
-        fig_name = split_large_titles(fig_name)
-        exp_value = enl_space_title(exp_value, fig_name, tmp, dp,
-                                    len(data_it_b_columns[-1]), 'smooth')
-        x_rows = handle_nans(tmp, data_it_b_columns[-1], not is_numeric[-1], 'smooth')
-        tex_infos['sections'].append({'file': reltex_name,
-                                      'name': fig_name.replace('\\\\', ' '),
-                                      'title': fig_name,
-                                      'title_rows': fig_name.count('\\\\'),
-                                      'fig_type': 'smooth',
-                                      'plots': data_it_b_columns[-1],
-                                      'label_y': label_y,  # Label of the value axis. For xbar it labels the x-axis
-                                      # Label/column name of axis with bars. For xbar it labels the y-axis
-                                      'label_x': replaceCSVLabels(str(dp)),
-                                      # Column name of axis with bars. For xbar it is the column for the y-axis
-                                      'print_x': str(dp),
-                                      # Set print_meta to True if values from column plot_meta should be printed next to each bar
-                                      'print_meta': False,
-                                      'plot_meta': None,
-                                      # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
-                                      'rotate_meta': 0,
-                                      'limits': use_limits,
-                                      # If None, no legend is used, otherwise use a list
-                                      'legend': column_legend[-1],
-                                      'legend_cols': None,
-                                      'use_marks': ret['use_marks'],
-                                      # The x/y-axis values are given as strings if True
-                                      'use_string_labels': True if not is_numeric[-1] else False,
-                                      'use_log_y_axis': use_log,
-                                      'xaxis_txt_rows': 1,
-                                      'enlarge_lbl_dist': None,
-                                      'enlarge_title_space': exp_value,
-                                      'large_meta_space_needed': False,
-                                      'is_neg': is_neg,
-                                      'nr_x_if_nan': x_rows,
-                                      'caption': fig_name.replace('\\\\', ' ')
-                                      })
-        tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
+
+        nr_plots = len(data_it_b_columns[-1])
+        exp_value_o = exp_value
+        if nr_plots <= 20:
+            nr_plots_i = [nr_plots]
+        else:
+            pp = math.floor(nr_plots / 20)
+            nr_plots_i = [20] * int(pp)
+            rp = nr_plots - pp * 20
+            if rp > 0:
+                nr_plots_i += [nr_plots - pp * 20]
+        pcnt = 0
+        for i1, it1 in enumerate(nr_plots_i):
+            ps = data_it_b_columns[-1][pcnt: pcnt + it1]
+            cl = column_legend[-1][pcnt: pcnt + it1]
+            pcnt += it1
+            if nr_plots > 20:
+                sec_name1 = fig_name + ' -- part ' + str(i1 + 1)
+            else:
+                sec_name1 = fig_name
+
+            is_neg = check_if_neg_values(tmp, ps, use_log, use_limits)
+            sec_name1 = split_large_titles(sec_name1)
+            exp_value = enl_space_title(exp_value_o, sec_name1, tmp, dp,
+                                        len(ps), 'smooth')
+            x_rows = handle_nans(tmp, ps, not is_numeric[-1], 'smooth')
+            tex_infos['sections'].append({'file': reltex_name,
+                                          'name': sec_name1.replace('\\\\', ' '),
+                                          'title': sec_name1,
+                                          'title_rows': sec_name1.count('\\\\'),
+                                          'fig_type': 'smooth',
+                                          'plots': ps,
+                                          'label_y': label_y,  # Label of the value axis. For xbar it labels the x-axis
+                                          # Label/column name of axis with bars. For xbar it labels the y-axis
+                                          'label_x': replaceCSVLabels(str(dp)),
+                                          # Column name of axis with bars. For xbar it is the column for the y-axis
+                                          'print_x': str(dp),
+                                          # Set print_meta to True if values from column plot_meta should be printed next to each bar
+                                          'print_meta': False,
+                                          'plot_meta': None,
+                                          # A value in degrees can be specified to rotate the text (Use only 0, 45, and 90)
+                                          'rotate_meta': 0,
+                                          'limits': use_limits,
+                                          # If None, no legend is used, otherwise use a list
+                                          'legend': cl,
+                                          'legend_cols': None,
+                                          'use_marks': ret['use_marks'],
+                                          # The x/y-axis values are given as strings if True
+                                          'use_string_labels': True if not is_numeric[-1] else False,
+                                          'use_log_y_axis': use_log,
+                                          'xaxis_txt_rows': 1,
+                                          'enlarge_lbl_dist': None,
+                                          'enlarge_title_space': exp_value,
+                                          'large_meta_space_needed': False,
+                                          'is_neg': is_neg,
+                                          'nr_x_if_nan': x_rows,
+                                          'caption': sec_name1.replace('\\\\', ' ')
+                                          })
+            tex_infos['sections'][-1]['legend_cols'] = calcNrLegendCols(tex_infos['sections'][-1])
 
     template = ji_env.get_template('usac-testing_2D_bar_chart_and_meta.tex')
     rendered_tex = template.render(title=tex_infos['title'],

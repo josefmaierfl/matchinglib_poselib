@@ -3,29 +3,26 @@
 # External dependencies
 #
 
-option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." ON)
+option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the OpenCV library." ON)
+option(USE_MANUAL_ANNOTATION "Manual annotate GTM for detected inaccuracies."         OFF)
 
-if(WIN32)
-	if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-	  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-	endif()
-	#if("$ENV{PFELIBROOT}" STREQUAL "")
-		#message(ERROR "Not able to build lib: Root of pfelib not found! set PFELIBROOT")
-	#endif()
-	include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
+if(OPENMP_ENABLED)
+	find_package(OpenMP QUIET)
 endif()
+
+find_package(Ceres REQUIRED)
 
 find_package(Eigen REQUIRED)
 
 find_package(OpenCV 4.2.0 REQUIRED)
 
-if(WIN32)
-	set(PCL_DIR "C:/work/THIRDPARTY/pcl-1.8.1/pcl-1.8.1-dl/PCL 1.8.1/cmake/")
-	find_package(PCL 1.8 REQUIRED)# COMPONENTS common filters)
-	#find_package(PCL 1.8 REQUIRED COMPONENTS common filters visualization)
-else()
-	find_package(PCL 1.9.1 REQUIRED)
+if(USE_MANUAL_ANNOTATION)
+	if(UNIX)
+		find_package(Qt5 COMPONENTS Widgets REQUIRED)
+	endif()
 endif()
+
+find_package(PCL 1.9.1 REQUIRED)
 #message(STATUS ${PCL_VERSION})
 if(PCL_FOUND)
 	message(STATUS "Found PCL lib!")
@@ -80,7 +77,29 @@ set(sources
 	${source_path}/generateMatches.cpp
 	${source_path}/imgFeatures.cpp
 	${source_path}/descriptor-RIFF/riff.cpp
-	${source_path}/descriptor-BOLD/bold.cpp)
+	${source_path}/descriptor-BOLD/bold.cpp
+	${source_path}/GTM/base_matcher.cpp
+	${source_path}/GTM/inscribeRectangle.cpp
+	${source_path}/GTM/colmap/camera.cc
+	${source_path}/GTM/colmap/camera_models.cc
+	${source_path}/GTM/colmap/essential_matrix.cc
+	${source_path}/GTM/colmap/image.cc
+	${source_path}/GTM/colmap/logging.cc
+	${source_path}/GTM/colmap/math.cc
+	${source_path}/GTM/colmap/point2d.cc
+	${source_path}/GTM/colmap/pose.cc
+	${source_path}/GTM/colmap/projection.cc
+	${source_path}/GTM/colmap/string.cc
+	${source_path}/GTM/colmap/triangulation.cc
+	${source_path}/GTM/colmap/visibility_pyramid.cc
+	${source_path}/GTM/colmap/misc.cc
+	${source_path}/GTM/colmap/point3d.cc
+	${source_path}/GTM/colmap/track.cc
+	${source_path}/GTM/colmap/bundle_adjustment.cc
+	${source_path}/GTM/colmap/reconstruction.cc
+	${source_path}/GTM/colmap/camera_rig.cc
+	${source_path}/GTM/colmapBase.cpp
+	${source_path}/GTM/prepareMegaDepth.cpp)
 
 # Group source files
 set(header_group "Header Files (API)")
@@ -194,8 +213,14 @@ target_link_libraries(${target}
 
     INTERFACE
 )
-
-
+if(USE_MANUAL_ANNOTATION)
+	if(UNIX)
+		target_link_libraries(${target}
+			PUBLIC
+			Qt5::Widgets
+		)
+	endif()
+endif()
 #
 # Compile definitions
 #

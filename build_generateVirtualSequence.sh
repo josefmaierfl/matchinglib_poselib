@@ -8,7 +8,7 @@ build_dir=${virtsequ_dir}/build
 mkdir ${build_dir}
 cd ${build_dir}
 cmake ../ -DCMAKE_BUILD_TYPE=Release
-make -j8
+make -j "$(nproc)"
 
 copy_dir=${root_dir}/tmp/generateVirtualSequence/build
 mkdir -p ${copy_dir}

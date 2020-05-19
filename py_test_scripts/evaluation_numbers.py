@@ -13,7 +13,7 @@ def get_available_evals():
                        [list(range(1, 6)), list(range(1, 5))],
                        [list(range(1, 10))],
                        [list(range(1, 4)), list(range(1, 5))],
-                       [list(range(1, 11)), list(range(11, 14)), list(range(14, 16))],
+                       [list(range(1, 11)) + [16], list(range(11, 14)), list(range(14, 16))],
                        [list(range(1, 6)), list(range(6, 11)), list(range(11, 15)), list(range(15, 25)),
                         list(range(25, 29)), list(range(29, 38))],
                        [list(range(1, 9))]]

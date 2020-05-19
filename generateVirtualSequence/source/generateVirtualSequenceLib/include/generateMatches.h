@@ -24,6 +24,14 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     bool rwXMLinfo;//If true, the parameters and information are stored and read in XML format. Otherwise it is stored or read in YAML format
     bool compressedWrittenInfo;//If true, the stored information and parameters are compressed (appends .gz) and it is assumed that paramter files to be read are aslo compressed
     bool takeLessFramesIfLessKeyP;//If true and too less images images are provided (resulting in too less keypoints), only as many frames with GT matches are provided as keypoints are available.
+    bool checkDescriptorDist;//If true, TP and TN descriptors are only accepted if their descriptor distances between correspondences match the distribution calculated on the given images.
+    std::pair<double, double> repeatPatternPortStereo;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) between stereo cameras.
+    std::pair<double, double> repeatPatternPortFToF;//Minimal and maximal percentage (0 to 1.0) of repeated patterns (image patches) from frame to frame.
+    bool distortPatchCam1;//If true, tracked image patch in the first stereo image are distorted
+    double oxfordGTMportion;//Portion of GT matches from Oxford dataset (GT = homographies)
+    double kittiGTMportion;//Portion of GT matches from KITTI dataset (GT = flow, disparity)
+    double megadepthGTMportion;//Portion of GT matches from MegaDepth dataset (GT = depth)
+    double GTMportion;//Portion of GT matches (GTM) compared to warped patch correspondences if multiple datasets are used as source (Oxford, KITTI, MegaDepth)
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -38,7 +46,15 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            bool storePtClouds_ = false,
                            bool rwXMLinfo_ = false,
                            bool compressedWrittenInfo_ = false,
-                           bool takeLessFramesIfLessKeyP_ = false) :
+                           bool takeLessFramesIfLessKeyP_ = false,
+                           bool checkDescriptorDist_ = true,
+                           std::pair<double, double> repeatPatternPortStereo_ = std::make_pair(0, 0),
+                           std::pair<double, double> repeatPatternPortFToF_ = std::make_pair(0, 0),
+                           bool distortPatchCam1_ = false,
+                           double oxfordGTMportion_ = 0,
+                           double kittiGTMportion_ = 0,
+                           double megadepthGTMportion_ = 0,
+                           double GTMportion_ = 0):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -52,6 +68,14 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             rwXMLinfo(rwXMLinfo_),
             compressedWrittenInfo(compressedWrittenInfo_),
             takeLessFramesIfLessKeyP(takeLessFramesIfLessKeyP_),
+            checkDescriptorDist(checkDescriptorDist_),
+            repeatPatternPortStereo(std::move(repeatPatternPortStereo_)),
+            repeatPatternPortFToF(std::move(repeatPatternPortFToF_)),
+            distortPatchCam1(distortPatchCam1_),
+            oxfordGTMportion(oxfordGTMportion_),
+            kittiGTMportion(kittiGTMportion_),
+            megadepthGTMportion(megadepthGTMportion_),
+            GTMportion(GTMportion_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -78,6 +102,14 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             rwXMLinfo(false),
             compressedWrittenInfo(false),
             takeLessFramesIfLessKeyP(false),
+            checkDescriptorDist(true),
+            repeatPatternPortStereo(std::make_pair(0, 0)),
+            repeatPatternPortFToF(std::make_pair(0, 0)),
+            distortPatchCam1(false),
+            oxfordGTMportion(0),
+            kittiGTMportion(0),
+            megadepthGTMportion(0),
+            GTMportion(0),
             parsValid(false){}
 
     bool checkParameters(){
@@ -90,7 +122,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             return false;
         }
         imgIntNoise.second = abs(imgIntNoise.second);
-        if(!((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0))){
+        if(!((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0))){//A minimum sum of mean and std of 25 is advisable
             std::cerr << "Invalid imgIntNoise." << std::endl;
             return false;
         }
@@ -98,8 +130,48 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             std::cerr << "imgPath cannot be empty." << std::endl;
             return false;
         }
+        repeatPatternPortStereo.first = std::round(abs(repeatPatternPortStereo.first) * 1e4) / 1e4;
+        repeatPatternPortStereo.second = std::round(abs(repeatPatternPortStereo.second) * 1e4) / 1e4;
+        if((repeatPatternPortStereo.first > (1. + DBL_EPSILON)) || (repeatPatternPortStereo.second > (1. + DBL_EPSILON)) ||
+                (repeatPatternPortStereo.first > (repeatPatternPortStereo.second + DBL_EPSILON))){
+            std::cerr << "Invalid repeatPatternPortStereo." << std::endl;
+            return false;
+        }
+        repeatPatternPortFToF.first = std::round(abs(repeatPatternPortFToF.first) * 1e4) / 1e4;
+        repeatPatternPortFToF.second = std::round(abs(repeatPatternPortFToF.second) * 1e4) / 1e4;
+        if((repeatPatternPortFToF.first > (1. + DBL_EPSILON)) || (repeatPatternPortFToF.second > (1. + DBL_EPSILON)) ||
+           (repeatPatternPortFToF.first > (repeatPatternPortFToF.second + DBL_EPSILON))){
+            std::cerr << "Invalid repeatPatternPortFToF." << std::endl;
+            return false;
+        }
+        oxfordGTMportion = std::round(abs(oxfordGTMportion) * 1e4) / 1e4;
+        if(oxfordGTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid oxfordGTMportion." << std::endl;
+            return false;
+        }
+        kittiGTMportion = std::round(abs(kittiGTMportion) * 1e4) / 1e4;
+        if(kittiGTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid kittiGTMportion." << std::endl;
+            return false;
+        }
+        megadepthGTMportion = std::round(abs(megadepthGTMportion) * 1e4) / 1e4;
+        if(megadepthGTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid megadepthGTMportion." << std::endl;
+            return false;
+        }
+        GTMportion = std::round(abs(GTMportion) * 1e4) / 1e4;
+        if(GTMportion > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid oxfordGTMportion." << std::endl;
+            return false;
+        }
         return true;
     }
+};
+
+enum GT_DATASETS{
+    OXFORD = 0x1,
+    KITTI = 0x2,
+    MEGADEPTH = 0x4
 };
 
 struct stats{
@@ -110,6 +182,47 @@ struct stats{
     double maxVal;
 };
 
+struct PatchCInfo{
+    int show_cnt;
+    const int show_interval;
+    size_t featureIdx_tmp;
+    double stdNoiseTN;
+    double meanIntTNNoise;
+    bool kpCalcNeeded;
+    double ThTp;
+    const double minDescrDistTP;
+    double ThTn;
+    double ThTnNear;
+    std::normal_distribution<double> distr;
+    bool visualize;
+    bool useTN;
+    bool succ;
+    int i;
+
+    PatchCInfo(const double &minDescrDistTP_,
+               bool &useTN_,
+               double &stdNoiseTN_,
+               double &meanIntTNNoise_,
+               bool &kpCalcNeeded_,
+               double &ThTp_,
+               double &ThTn_,
+               double &ThTnNear_,
+               bool visualize_ = false,
+               const int show_interval_ = 50):
+            show_cnt(0),
+            show_interval(show_interval_),
+            featureIdx_tmp(0),
+            stdNoiseTN(stdNoiseTN_),
+            meanIntTNNoise(meanIntTNNoise_),
+            kpCalcNeeded(kpCalcNeeded_),
+            ThTp(ThTp_),
+            minDescrDistTP(minDescrDistTP_),
+            ThTn(ThTn_),
+            ThTnNear(ThTnNear_),
+            visualize(visualize_),
+            useTN(useTN_),
+            succ(true){};
+};
 
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
 public:
@@ -121,8 +234,9 @@ public:
                  StereoSequParameters pars3D_,
                  GenMatchSequParameters &parsMtch_,
                  bool filter_occluded_points_,
-                 uint32_t verbose_ = 0) :
-            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, filter_occluded_points_, verbose_),
+                 uint32_t verbose_ = 0,
+                 const std::string &writeIntermRes_path_ = "") :
+            genStereoSequ(imgSize_, K1_, K2_, R_, t_, pars3D_, filter_occluded_points_, verbose_, writeIntermRes_path_),
             parsMtch(parsMtch_),
             pars3D(pars3D_),
             imgSize(imgSize_),
@@ -141,13 +255,18 @@ public:
 
     genMatchSequ(const std::string &sequLoadFolder,
                  GenMatchSequParameters &parsMtch_,
-                 uint32_t verboseMatch_ = 0);
+                 uint32_t verboseMatch_ = 0,
+                 const std::string &writeIntermRes_path_ = "");
 
     bool generateMatches();
 
 private:
     //Loads the image names (including folders) of all specified images (used to generate matches) within a given folder
     bool getImageList();
+    //Check if feature matches should be used from a 3rd party GT dataset
+    bool check_3rdPty_GT();
+    //Generate GTM from 3rd party datasets
+    bool calcGTM();
     //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
     size_t hashFromSequPars();
     //Generates a hash value from the parameters used to generate matches from 3D correspondences
@@ -156,8 +275,6 @@ private:
     void totalNrCorrs();
     //Loads images and extracts keypoints and descriptors from them to generate matches later on
     bool getFeatures();
-    //Calculates the descriptor distance between 2 descriptors
-    double getDescriptorDistance(const cv::Mat &descriptor1, const cv::Mat &descriptor2);
     //Writes the parameters used to generate 3D scenes to disk
     bool writeSequenceParameters(const std::string &filename);
     //Writes a subset of parameters used to generate a 3D scene to disk (used within an overview file which holds basic information about all sub-folders that contain parameters and different 3D scenes)
@@ -201,7 +318,8 @@ private:
                                        int64_t idx3D,
                                        size_t keyPIdx,
                                        cv::InputArray planeNVec,
-                                       bool visualize);
+                                       bool visualize,
+                                       bool forCam1 = false);
     //Checks if the 3D point of the given correspondence was already used before in a different stereo frame to calculate a homography (in this case the same 3D plane is used to calculate a homography) and if not, calculates a new homography
     cv::Mat getHomographyForDistortionChkOld(const cv::Mat& X,
                                              const cv::Mat& x1,
@@ -209,7 +327,8 @@ private:
                                              int64_t idx3D,
                                              int64_t idx3D2,
                                              size_t keyPIdx,
-                                             bool visualize);
+                                             bool visualize,
+                                             bool forCam1 = false);
 
     //Create a homography for a TN correspondence
     cv::Mat getHomographyForDistortionTN(const cv::Mat& x1,
@@ -235,7 +354,7 @@ private:
     //Generates features and matches for correspondences of a given stereo frame (TN and TP) and stores them to disk
     bool generateCorrespondingFeatures();
     //Generates features and matches based on image patches and calculated homographies for either TN or TP
-    void generateCorrespondingFeaturesTPTN(size_t featureIdxBegin,
+    void generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                            bool useTN,
                                            std::vector<cv::KeyPoint> &frameKPs1,
                                            std::vector<cv::KeyPoint> &frameKPs2,
@@ -243,7 +362,20 @@ private:
                                            cv::Mat &frameDescr2,
                                            std::vector<cv::DMatch> &frameMatches,
                                            std::vector<cv::Mat> &homo,
-                                           std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp);
+                                           std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                                           std::vector<cv::Mat> *homoCam1 = nullptr);
+    //Calculate warped patches and corresponding descriptors
+    cv::Mat calculateDescriptorWarped(const cv::Mat &img,
+                                      const cv::KeyPoint &kp,
+                                      cv::Mat &H,
+                                      std::vector<cv::Mat> &homo,
+                                      PatchCInfo &patchInfos,
+                                      cv::KeyPoint &kp2,
+                                      cv::Point2f &kp2err,
+                                      double &descrDist,
+                                      bool forCam1,
+                                      cv::InputArray H_cam1 = cv::noArray(),
+                                      cv::InputArray descr_cam1 = cv::noArray());
     //Calculates the size of a patch that should be extracted from the source image to get a minimum square patch size after warping with the given homography based on the shape of the ellipse which emerges after warping a circle with the given keypoint diameter
     bool getRectFitsInEllipse(const cv::Mat &H,
                               const cv::KeyPoint &kp,
@@ -286,6 +418,7 @@ private:
     const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
     size_t featureIdxBegin = 0;//Index for features at the beginning of every calculated frame
+    std::vector<size_t> featureIdxRepPatt;//Index to keypoints, descriptors, and featureImgIdx with possible duplicates to simulate repeated patterns
     std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
     size_t nrCorrsFullSequ = 0;//Number of predicted overall correspondences (TP+TN) for all frames
@@ -319,7 +452,8 @@ private:
     cv::Mat frameDescriptors1, frameDescriptors2;//Descriptors for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the descriptor order of each of them is the same as in their corresponding keypoint vector). Descriptors corresponding to the same static 3D point (not for moving objects) in different stereo frames are similar
     std::vector<cv::DMatch> frameMatches;//Matches between features of a single stereo frame. They are sorted based on the descriptor distance (smallest first)
     std::vector<bool> frameInliers;//Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) is an inlier.
-    std::vector<cv::Mat> frameHomographies;//Holds the homographies for all patches arround keypoints for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point (not for moving objects) in different stereo frames are similar
+    std::vector<cv::Mat> frameHomographies;//Holds the homographies for all patches arround keypoints for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point in different stereo frames are similar
+    std::vector<cv::Mat> frameHomographiesCam1;//Holds homographies for all patches arround keypoints in the first camera (for tracked features) for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point in different stereo frames are similar
     std::vector<std::pair<size_t,cv::KeyPoint>> srcImgPatchIdxAndKp; //Holds the keypoint and image index of the image used to extract patches
     std::vector<int> corrType;//Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object, or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3) object (old means,that the corresponding 3D point emerged before this stereo frame and also has one or more correspondences in a different stereo frame))
     std::vector<double> kpErrors;//Holds distances from the original to the distorted keypoint locations for every correspondence of the whole sequence
@@ -328,12 +462,13 @@ private:
     std::vector<std::pair<double,double>> timePerFrameMatch;//Holds time measurements for every frame in microseconds. The first value corresponds to the time for loading or calculating 3D information of one stereo frame. The second value holds the time for calculating the matches.
     qualityParm timeMatchStats = qualityParm();//Statistics for the execution time in microseconds for calculating matches based on all frames
     qualityParm time3DStats = qualityParm();//Statistics for the execution time in microseconds for calculating 3D correspondences based on all frames
+    uint8_t use_3dPrtyGT = false;//Indicates if feature matches from 3rd party GT datasets should be used. The first 3 bits indicate which datasets should be used.
 };
 
-GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
-//void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, bool& value);
-void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, int64_t& value);
-GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
-GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
+//GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);
+////void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, bool& value);
+//void GENERATEVIRTUALSEQUENCELIB_API operator >> (const cv::FileNode& n, int64_t& value);
+//GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, int64_t &value);
+//GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIterator& it, int64_t & value);
 
 #endif //GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

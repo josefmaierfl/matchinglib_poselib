@@ -32,7 +32,7 @@
 int GENERATEVIRTUALSEQUENCELIB_API loadStereoSequence(std::string filepath, std::string fileprefl, std::string fileprefr,
 					   std::vector<std::string> & filenamesl, std::vector<std::string> & filenamesr);
 //This function reads all images from a given directory and stores their names into a vector.
-int GENERATEVIRTUALSEQUENCELIB_API loadImageSequence(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl);
+bool GENERATEVIRTUALSEQUENCELIB_API loadImageSequence(const std::string &filepath, const std::string &fileprefl, std::vector<std::string> &filenamesl);
 //This function reads all stereo or 2 subsequent images from a given directory and stores their names into two vectors. Search patterns can be used.
 int GENERATEVIRTUALSEQUENCELIB_API loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::string fileprefr,
 	std::vector<std::string> & filenamesl, std::vector<std::string> & filenamesr);
@@ -55,8 +55,39 @@ bool GENERATEVIRTUALSEQUENCELIB_API deleteFile(const std::string &filename);
 //Create a new directory
 bool GENERATEVIRTUALSEQUENCELIB_API createDirectory(const std::string &path);
 
+//Delete directory tree
+bool GENERATEVIRTUALSEQUENCELIB_API deleteDirectory(const std::string &path);
+
+//Get all directoies within a folder
+std::vector<std::string> GENERATEVIRTUALSEQUENCELIB_API getDirs(const std::string &path);
+
+//Count the number of files in the folder
+size_t GENERATEVIRTUALSEQUENCELIB_API getNumberFilesInFolder(const std::string &path);
+
 //Concatenate a main and a sub-path
 std::string GENERATEVIRTUALSEQUENCELIB_API concatPath(const std::string &mainPath, const std::string &subPath);
+
+//Return only the filename with extension from a string made of path + filename
+std::string getFilenameFromPath(const std::string &name);
+
+//Remove extension from filename
+std::string remFileExt(const std::string &name);
+
+//Reads all homography file names (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/) from a given directory and stores their names into a vector.
+bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl);
+
+//Reads a homography from a given file (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/)
+bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFromFile(const std::string& filepath, const std::string& filename, cv::OutputArray H);
+
+//Read a 3-channel uint16 image and convert to flow
+bool GENERATEVIRTUALSEQUENCELIB_API convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> *positionI1 = nullptr,
+                                                         std::vector<cv::Point2f> *positionI2 = nullptr, cv::OutputArray flow3 = cv::noArray(), float precision = 64.f,
+                                                         bool useBoolValidity = true, float validityPrecision = 64.f, float minConfidence = 1.f);
+
+//Read a 1- or 3-channel uint16 image and convert to disparity using the same output format as for flow
+bool GENERATEVIRTUALSEQUENCELIB_API convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> *positionI1 = nullptr,
+                                                              std::vector<cv::Point2f> *positionI2 = nullptr, cv::OutputArray flow3 = cv::noArray(),
+                                                              bool useFLowStyle = false, float precision = 256.f, bool use0Invalid = true);
 
 /*!***************************************************************************
 * PURPOSE: returns cv::Mat datastructure with PfePixImgStruct data

@@ -942,7 +942,7 @@ void free_polygon(polygon_contour *p)
   p->num_contours = 0;
 }
 
-void add_contour_from_array(double * pStart, int numVerts, polygon_contour *pRet)
+void add_contour_from_array(const double * pStart, int numVerts, polygon_contour *pRet)
 {
   int v;
   polygon_vertex_list *p = (polygon_vertex_list *)malloc(sizeof(polygon_vertex_list) * (pRet->num_contours + 1));

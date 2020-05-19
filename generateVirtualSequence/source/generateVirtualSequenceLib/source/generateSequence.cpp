@@ -39,6 +39,7 @@ a view restrictions like depth ranges, moving objects, ...
 #include "polygon_helper.h"
 
 #include "side_funcs.h"
+#include "io_data.h"
 
 
 using namespace std;
@@ -59,8 +60,10 @@ genStereoSequ::genStereoSequ(cv::Size imgSize_,
                              std::vector<cv::Mat> t_,
                              StereoSequParameters &pars_,
                              bool filter_occluded_points_,
-                             uint32_t verbose_) :
+                             uint32_t verbose_,
+                             const std::string &writeIntermRes_path_) :
         verbose(verbose_),
+        writeIntermRes_path(writeIntermRes_path_),
         filter_occluded_points(filter_occluded_points_),
         imgSize(imgSize_),
         K1(K1_),
@@ -383,12 +386,92 @@ void genStereoSequ::getImgIntersection(std::vector<cv::Point> &img1Poly,
         intersectCont[0] = img1Poly;
         Mat wimg = Mat::zeros(imgSize, CV_8UC3);
         drawContours(wimg, intersectCont, 0, Scalar(0, 255, 0), FILLED);
-        namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
-        imshow("Stereo intersection", wimg);
+        if(!writeIntermediateImg(wimg, "stereo_intersection")) {
+            namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
+            imshow("Stereo intersection", wimg);
 
-        waitKey(0);
-        destroyWindow("Stereo intersection");
+            waitKey(0);
+            destroyWindow("Stereo intersection");
+        }
     }
+}
+
+//Writes an image of an intermediate result to disk
+bool genStereoSequ::writeIntermediateImg(const cv::Mat &img, const std::string &filename){
+    if(writeIntermRes_path.empty()){
+        return false;
+    }
+    if(!checkPathExists(writeIntermRes_path)){
+        return false;
+    }
+    if(img.empty()){
+        return false;
+    }
+    Mat tmp;
+    if(!((img.type() == CV_8UC1) || (img.type() == CV_8UC3))){
+//        cout << "Data for storing into image is not 8bit" << endl;
+        int channels = img.channels();
+        if(img.type() == CV_16UC1){
+            img.convertTo(tmp, CV_8UC1, 1./256.);
+        }else if(img.type() == CV_16UC3){
+            img.convertTo(tmp, CV_8UC3, 1./256.);
+        }else if ((img.type() == CV_64F) || (img.type() == CV_32F)){
+            double minv, maxv;
+            if(channels == 1) {
+                cv::minMaxLoc(img, &minv, &maxv);
+                img.copyTo(tmp);
+                tmp.convertTo(tmp, CV_64FC1);
+                tmp -= minv;
+                tmp.convertTo(tmp, CV_8UC1, 255./(maxv - minv));
+            }else if (channels == 3){
+                vector<Mat> channels;
+                cv::split(img, channels);
+                for(auto &ch: channels){
+                    cv::minMaxLoc(ch, &minv, &maxv);
+                    ch.convertTo(tmp, CV_64FC1);
+                    ch -= minv;
+                    double scale = 255./(maxv - minv);
+                    ch.convertTo(ch, CV_8UC1, scale, scale * minv);
+                }
+                cv::merge(channels, tmp);
+            }else{
+                return false;
+            }
+        }else{
+            double minv, maxv;
+            if(channels == 1){
+                cv::minMaxLoc(img, &minv, &maxv);
+                img.copyTo(tmp);
+                tmp.convertTo(tmp, CV_64FC1);
+                tmp -= minv;
+                tmp.convertTo(tmp, CV_8UC1, 255./(maxv - minv));
+            }else if (channels == 3){
+                vector<Mat> channels;
+                cv::split(img, channels);
+                for(auto &ch: channels){
+                    cv::minMaxLoc(ch, &minv, &maxv);
+                    ch.convertTo(tmp, CV_64FC1);
+                    ch -= minv;
+                    double scale = 255./(maxv - minv);
+                    ch.convertTo(ch, CV_8UC1, scale, scale * minv);
+                }
+                cv::merge(channels, tmp);
+            }else{
+                return false;
+            }
+        }
+    }else{
+        tmp = img;
+    }
+    string filen = filename + "_frame_" + std::to_string(actFrameCnt);
+    string resPath = concatPath(writeIntermRes_path, filen + ".png");
+    int cnt = 0;
+    while(checkFileExists(resPath)){
+        resPath = concatPath(writeIntermRes_path, filen + "_" + std::to_string(cnt) + ".png");
+        cnt++;
+    }
+    cv::imwrite(resPath, tmp);
+    return true;
 }
 
 //Get the fraction of intersection between the stereo images for every image region (3x3)
@@ -469,10 +552,12 @@ void genStereoSequ::getInterSecFracRegions(cv::Mat &fracUseableTPperRegion_,
 
     //Draw intersection area
     if(mask.empty() && (verbose & SHOW_STEREO_INTERSECTION)){
-        namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
-        imshow("Stereo intersection", combDepths);
-        waitKey(0);
-        destroyWindow("Stereo intersection");
+        if(!writeIntermediateImg(combDepths, "stereo_intersection_combDepths")) {
+            namedWindow("Stereo intersection", WINDOW_AUTOSIZE);
+            imshow("Stereo intersection", combDepths);
+            waitKey(0);
+            destroyWindow("Stereo intersection");
+        }
     }
 
     if (!mask.empty()) {
@@ -2462,13 +2547,16 @@ void genStereoSequ::genDepthMaps() {
 
     //Show the masks
     if (verbose & SHOW_BUILD_PROC_STATIC_OBJ) {
-        namedWindow("Mask for largest 2 depths", WINDOW_AUTOSIZE);
-        imshow("Mask for largest 2 depths", noGenMask);
-        namedWindow("Mask for largest depth", WINDOW_AUTOSIZE);
-        imshow("Mask for largest depth", noGenMask2);
-        waitKey(0);
-        destroyWindow("Mask for largest 2 depths");
-        destroyWindow("Mask for largest depth");
+        if(!writeIntermediateImg(noGenMask, "static_obj_mask_largest_2_depths") ||
+                !writeIntermediateImg(noGenMask2, "static_obj_mask_largest_depth")) {
+            namedWindow("Mask for largest 2 depths", WINDOW_AUTOSIZE);
+            imshow("Mask for largest 2 depths", noGenMask);
+            namedWindow("Mask for largest depth", WINDOW_AUTOSIZE);
+            imshow("Mask for largest depth", noGenMask2);
+            waitKey(0);
+            destroyWindow("Mask for largest 2 depths");
+            destroyWindow("Mask for largest depth");
+        }
     }
 
     //Show the region masks
@@ -2785,10 +2873,12 @@ void genStereoSequ::genDepthMaps() {
                     unsigned char clmul = 255 / 3;
                     // Apply the colormap:
                     applyColorMap(depthAreaMap * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
-                    namedWindow("Static object depth areas creation process", WINDOW_AUTOSIZE);
-                    imshow("Static object depth areas creation process", colorMapImg);
-                    waitKey(0);
-                    destroyWindow("Static object depth areas creation process");
+                    if(!writeIntermediateImg(colorMapImg, "static_obj_depth_areas_creation_process_step_" + std::to_string(visualizeMask))){
+                        namedWindow("Static object depth areas creation process", WINDOW_AUTOSIZE);
+                        imshow("Static object depth areas creation process", colorMapImg);
+                        waitKey(0);
+                        destroyWindow("Static object depth areas creation process");
+                    }
                 }
                 visualizeMask++;
             }
@@ -2801,10 +2891,12 @@ void genStereoSequ::genDepthMaps() {
         // Apply the colormap:
         Mat colorMapImg;
         applyColorMap(depthAreaMap * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
-        namedWindow("Static object depth areas after filling 2 depths per region", WINDOW_AUTOSIZE);
-        imshow("Static object depth areas after filling 2 depths per region", colorMapImg);
-        waitKey(0);
-        destroyWindow("Static object depth areas after filling 2 depths per region");
+        if(!writeIntermediateImg(colorMapImg, "static_obj_depth_areas_after_filling_2_depths_per_region")){
+            namedWindow("Static object depth areas after filling 2 depths per region", WINDOW_AUTOSIZE);
+            imshow("Static object depth areas after filling 2 depths per region", colorMapImg);
+            waitKey(0);
+            destroyWindow("Static object depth areas after filling 2 depths per region");
+        }
     }
 
     /*//Show the mask
@@ -2900,10 +2992,12 @@ void genStereoSequ::genDepthMaps() {
         completeDepthMap |= (maskMid & Mat::ones(imgSize, CV_8UC1)) * (clmul * 2);
         completeDepthMap |= maskFar;
         applyColorMap(completeDepthMap, colorMapImg, cv::COLORMAP_RAINBOW);
-        namedWindow("Largest static object depth areas before final dilation", WINDOW_AUTOSIZE);
-        imshow("Largest static object depth areas before final dilation", colorMapImg);
-        waitKey(0);
-        destroyWindow("Largest static object depth areas before final dilation");
+        if(!writeIntermediateImg(colorMapImg, "largest_static_object_depth_areas_before_final_dilation")){
+            namedWindow("Largest static object depth areas before final dilation", WINDOW_AUTOSIZE);
+            imshow("Largest static object depth areas before final dilation", colorMapImg);
+            waitKey(0);
+            destroyWindow("Largest static object depth areas before final dilation");
+        }
     }
 
     //Try to fill the remaining gaps using dilation
@@ -2968,10 +3062,12 @@ void genStereoSequ::genDepthMaps() {
         completeDepthMap |= (maskMid & Mat::ones(imgSize, CV_8UC1)) * (clmul * 2);
         completeDepthMap |= maskFar;
         applyColorMap(completeDepthMap, colorMapImg, cv::COLORMAP_RAINBOW);
-        namedWindow("Static object depth areas (largest areas)", WINDOW_AUTOSIZE);
-        imshow("Static object depth areas (largest areas)", colorMapImg);
-        waitKey(0);
-        destroyWindow("Static object depth areas (largest areas)");
+        if(!writeIntermediateImg(colorMapImg, "static_object_depth_largest_areas")){
+            namedWindow("Static object depth areas (largest areas)", WINDOW_AUTOSIZE);
+            imshow("Static object depth areas (largest areas)", colorMapImg);
+            waitKey(0);
+            destroyWindow("Static object depth areas (largest areas)");
+        }
     }
 
     //Combine created masks
@@ -2993,10 +3089,12 @@ void genStereoSequ::genDepthMaps() {
         // Apply the colormap:
         Mat colorMapImg;
         applyColorMap(depthAreaMap * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
-        namedWindow("Static object depth areas before glob area fill", WINDOW_AUTOSIZE);
-        imshow("Static object depth areas before glob area fill", colorMapImg);
-        waitKey(0);
-        destroyWindow("Static object depth areas before glob area fill");
+        if(!writeIntermediateImg(colorMapImg, "static_object_depth_areas_before_glob_area_fill")){
+            namedWindow("Static object depth areas before glob area fill", WINDOW_AUTOSIZE);
+            imshow("Static object depth areas before glob area fill", colorMapImg);
+            waitKey(0);
+            destroyWindow("Static object depth areas before glob area fill");
+        }
     }
 
     //Fill the remaining areas
@@ -3034,12 +3132,14 @@ void genStereoSequ::genDepthMaps() {
         // Apply the colormap:
         Mat colorMapImg;
         applyColorMap(depthAreaMap * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
-        namedWindow("Static object depth areas", WINDOW_AUTOSIZE);
-        imshow("Static object depth areas", colorMapImg);
-        waitKey(0);
-        if ((verbose & SHOW_STATIC_OBJ_DISTANCES) &&
+        if(!writeIntermediateImg(colorMapImg, "static_object_depth_areas")){
+            namedWindow("Static object depth areas", WINDOW_AUTOSIZE);
+            imshow("Static object depth areas", colorMapImg);
+            waitKey(0);
+            if ((verbose & SHOW_STATIC_OBJ_DISTANCES) &&
             !(verbose & (SHOW_STATIC_OBJ_DISTANCES | SHOW_STATIC_OBJ_3D_PTS))) {
-            destroyWindow("Static object depth areas");
+                destroyWindow("Static object depth areas");
+            }
         }
     }
 
@@ -3056,18 +3156,27 @@ void genStereoSequ::genDepthMaps() {
     if (verbose & SHOW_STATIC_OBJ_DISTANCES) {
         Mat normalizedDepth;
         cv::normalize(depthMapNear, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, depthMapNear > 0);
-        namedWindow("Normalized Static Obj Depth Near", WINDOW_AUTOSIZE);
-        imshow("Normalized Static Obj Depth Near", normalizedDepth);
+        bool wtd = !writeIntermediateImg(normalizedDepth, "normalized_static_object_depth_near");
+        if(wtd){
+            namedWindow("Normalized Static Obj Depth Near", WINDOW_AUTOSIZE);
+            imshow("Normalized Static Obj Depth Near", normalizedDepth);
+        }
 
         normalizedDepth.release();
         cv::normalize(depthMapMid, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, depthMapMid > 0);
-        namedWindow("Normalized Static Obj Depth Mid", WINDOW_AUTOSIZE);
-        imshow("Normalized Static Obj Depth Mid", normalizedDepth);
+        wtd |= !writeIntermediateImg(normalizedDepth, "normalized_static_object_depth_mid");
+        if(wtd){
+            namedWindow("Normalized Static Obj Depth Mid", WINDOW_AUTOSIZE);
+            imshow("Normalized Static Obj Depth Mid", normalizedDepth);
+        }
 
         normalizedDepth.release();
         cv::normalize(depthMapFar, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, depthMapFar > 0);
-        namedWindow("Normalized Static Obj Depth Far", WINDOW_AUTOSIZE);
-        imshow("Normalized Static Obj Depth Far", normalizedDepth);
+        wtd |= !writeIntermediateImg(normalizedDepth, "normalized_static_object_depth_far");
+        if(wtd){
+            namedWindow("Normalized Static Obj Depth Far", WINDOW_AUTOSIZE);
+            imshow("Normalized Static Obj Depth Far", normalizedDepth);
+        }
 
 //        Mat normalizedDepth;//, labelMask = cv::Mat::zeros(imgSize, CV_8UC1);
         //labelMask |= actUsedAreaNear | actUsedAreaMid | actUsedAreaFar;
@@ -3076,8 +3185,11 @@ void genStereoSequ::genDepthMaps() {
         Mat normalizedDepthColor;
         normalizedDepth.convertTo(normalizedDepthColor, CV_8UC1, 255.0);
         applyColorMap(normalizedDepthColor, normalizedDepthColor, cv::COLORMAP_RAINBOW);
-        namedWindow("Normalized Static Obj Depth", WINDOW_AUTOSIZE);
-        imshow("Normalized Static Obj Depth", normalizedDepthColor);
+        wtd |= !writeIntermediateImg(normalizedDepthColor, "normalized_static_object_depth_full");
+        if(wtd){
+            namedWindow("Normalized Static Obj Depth", WINDOW_AUTOSIZE);
+            imshow("Normalized Static Obj Depth", normalizedDepthColor);
+        }
 
         normalizedDepth.release();
         Mat labelMask = (depthMapFar == 0);
@@ -3085,34 +3197,45 @@ void genStereoSequ::genDepthMaps() {
         normalizedDepthColor.release();
         normalizedDepth.convertTo(normalizedDepthColor, CV_8UC1, 255.0);
         applyColorMap(normalizedDepthColor, normalizedDepthColor, cv::COLORMAP_RAINBOW);
-        namedWindow("Normalized Static Obj Depth Near and Mid", WINDOW_AUTOSIZE);
-        imshow("Normalized Static Obj Depth Near and Mid", normalizedDepthColor);
+        wtd |= !writeIntermediateImg(normalizedDepthColor, "normalized_static_object_depth_near_mid");
+        if(wtd){
+            namedWindow("Normalized Static Obj Depth Near and Mid", WINDOW_AUTOSIZE);
+            imshow("Normalized Static Obj Depth Near and Mid", normalizedDepthColor);
+        }
 
         //Check for 0 values
         Mat check0 = (depthMap <= 0);
         int check0val = cv::countNonZero(check0);
         if (check0val) {
-            namedWindow("Zero or lower Obj Depth", WINDOW_AUTOSIZE);
-            imshow("Zero or lower Obj Depth", check0);
+            bool wtd2 = !writeIntermediateImg(check0, "zero_or_lower_obj_depth_positions");
+            if(wtd2){
+                namedWindow("Zero or lower Obj Depth", WINDOW_AUTOSIZE);
+                imshow("Zero or lower Obj Depth", check0);
+            }
             Mat checkB0 = (depthMap < 0);
             check0val = cv::countNonZero(checkB0);
             if (check0val) {
-                namedWindow("Below zero Obj Depth", WINDOW_AUTOSIZE);
-                imshow("Below zero Obj Depth", checkB0);
-                waitKey(0);
-                destroyWindow("Below zero Obj Depth");
+                if(!writeIntermediateImg(checkB0, "below_zero_obj_depth_positions")){
+                    namedWindow("Below zero Obj Depth", WINDOW_AUTOSIZE);
+                    imshow("Below zero Obj Depth", checkB0);
+                    waitKey(0);
+                    destroyWindow("Below zero Obj Depth");
+                }
             }
-            waitKey(0);
-            destroyWindow("Zero or lower Obj Depth");
+            if(wtd2){
+                waitKey(0);
+                destroyWindow("Zero or lower Obj Depth");
+            }
 //            throw SequenceException("Static depth value of zero or below zero found!");
         }
-
-        waitKey(0);
-        destroyWindow("Normalized Static Obj Depth Near");
-        destroyWindow("Normalized Static Obj Depth Mid");
-        destroyWindow("Normalized Static Obj Depth Far");
-        destroyWindow("Normalized Static Obj Depth");
-        destroyWindow("Normalized Static Obj Depth Near and Mid");
+        if(wtd){
+            waitKey(0);
+            destroyWindow("Normalized Static Obj Depth Near");
+            destroyWindow("Normalized Static Obj Depth Mid");
+            destroyWindow("Normalized Static Obj Depth Far");
+            destroyWindow("Normalized Static Obj Depth");
+            destroyWindow("Normalized Static Obj Depth Near and Mid");
+        }
     }
     if (!(verbose & SHOW_STATIC_OBJ_3D_PTS)) {
         destroyAllWindows();
@@ -3436,10 +3559,12 @@ void genStereoSequ::getDepthVals(cv::OutputArray dout, const cv::Mat &din, doubl
         Mat colorMapImg;
         Mat mask = (din > 0);
         buildColorMapHSV2RGB(actUsedAreaLabel, colorMapImg, nrLabels, mask);
-        namedWindow("Static Obj Connected Components", WINDOW_AUTOSIZE);
-        imshow("Static Obj Connected Components", colorMapImg);
-        waitKey(0);
-        destroyWindow("Static Obj Connected Components");
+        if(!writeIntermediateImg(colorMapImg, "Static_Obj_Connected_Components")){
+            namedWindow("Static Obj Connected Components", WINDOW_AUTOSIZE);
+            imshow("Static Obj Connected Components", colorMapImg);
+            waitKey(0);
+            destroyWindow("Static Obj Connected Components");
+        }
     }
 
     //dout.release();
@@ -4527,13 +4652,16 @@ void genStereoSequ::getKeypoints() {
                 //Visualize the masks
                 if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
                     if (dispit % dispit_interval == 0) {
-                        namedWindow("Static Corrs mask img1", WINDOW_AUTOSIZE);
-                        imshow("Static Corrs mask img1", (corrsIMG > 0));
-                        namedWindow("Static Corrs mask img2", WINDOW_AUTOSIZE);
-                        imshow("Static Corrs mask img2", (cImg2 > 0));
-                        waitKey(0);
-                        destroyWindow("Static Corrs mask img1");
-                        destroyWindow("Static Corrs mask img2");
+                        if(!writeIntermediateImg((corrsIMG > 0), "Static_Corrs_mask_img1_step_" + std::to_string(dispit)) ||
+                           !writeIntermediateImg((cImg2 > 0), "Static_Corrs_mask_img2_step_" + std::to_string(dispit))){
+                            namedWindow("Static Corrs mask img1", WINDOW_AUTOSIZE);
+                            imshow("Static Corrs mask img1", (corrsIMG > 0));
+                            namedWindow("Static Corrs mask img2", WINDOW_AUTOSIZE);
+                            imshow("Static Corrs mask img2", (cImg2 > 0));
+                            waitKey(0);
+                            destroyWindow("Static Corrs mask img1");
+                            destroyWindow("Static Corrs mask img2");
+                        }
                     }
                     dispit++;
                 }
@@ -4641,7 +4769,6 @@ void genStereoSequ::getKeypoints() {
             //Visualize the mask afterwards
             if ((verbose & SHOW_STATIC_OBJ_CORRS_GEN) && !x1TN[y][x].empty()) {
                 if (!x2TN[y][x].empty()) {
-                    namedWindow("Static rand TN Corrs mask img2", WINDOW_AUTOSIZE);
                     Mat dispMask2 = (cImg2 > 0);
                     vector<Mat> channels;
                     Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -4650,9 +4777,12 @@ void genStereoSequ::getKeypoints() {
                     channels.push_back(dispMask2);
                     Mat img3c;
                     merge(channels, img3c);
-                    imshow("Static rand TN Corrs mask img2", img3c);
-                    waitKey(0);
-                    destroyWindow("Static rand TN Corrs mask img2");
+                    if(!writeIntermediateImg(img3c, "Static_rand_TN_corrs_mask_img2")){
+                        namedWindow("Static rand TN Corrs mask img2", WINDOW_AUTOSIZE);
+                        imshow("Static rand TN Corrs mask img2", img3c);
+                        waitKey(0);
+                        destroyWindow("Static rand TN Corrs mask img2");
+                    }
                 }
             }
 
@@ -4692,7 +4822,6 @@ void genStereoSequ::getKeypoints() {
 
                 //Visualize the mask afterwards
                 if (verbose & SHOW_STATIC_OBJ_CORRS_GEN) {
-                    namedWindow("Static rand TN Corrs mask img1", WINDOW_AUTOSIZE);
                     Mat dispMask2 = (cImg2 > 0);
                     vector<Mat> channels;
                     Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -4701,9 +4830,12 @@ void genStereoSequ::getKeypoints() {
                     channels.push_back(dispMask2);
                     Mat img3c;
                     merge(channels, img3c);
-                    imshow("Static rand TN Corrs mask img1", img3c);
-                    waitKey(0);
-                    destroyWindow("Static rand TN Corrs mask img1");
+                    if(!writeIntermediateImg(img3c, "Static_rand_TN_corrs_mask_img1")){
+                        namedWindow("Static rand TN Corrs mask img1", WINDOW_AUTOSIZE);
+                        imshow("Static rand TN Corrs mask img1", img3c);
+                        waitKey(0);
+                        destroyWindow("Static rand TN Corrs mask img1");
+                    }
                 }
             }
 
@@ -4742,13 +4874,16 @@ void genStereoSequ::getKeypoints() {
                     Mat img3c, img3c1;
                     merge(channels, img3c);
                     merge(channels1, img3c1);
-                    namedWindow("Static rand img1 rand img2 TN Corrs mask img1", WINDOW_AUTOSIZE);
-                    imshow("Static rand img1 rand img2 TN Corrs mask img1", img3c1);
-                    namedWindow("Static rand img1 rand img2 TN Corrs mask img2", WINDOW_AUTOSIZE);
-                    imshow("Static rand img1 rand img2 TN Corrs mask img2", img3c);
-                    waitKey(0);
-                    destroyWindow("Static rand img1 rand img2 TN Corrs mask img1");
-                    destroyWindow("Static rand img1 rand img2 TN Corrs mask img2");
+                    if(!writeIntermediateImg(img3c1, "Static_rand_img1_rand_img2_TN_corrs_mask_img1") ||
+                       !writeIntermediateImg(img3c, "Static_rand_img1_rand_img2_TN_corrs_mask_img2")){
+                        namedWindow("Static rand img1 rand img2 TN Corrs mask img1", WINDOW_AUTOSIZE);
+                        imshow("Static rand img1 rand img2 TN Corrs mask img1", img3c1);
+                        namedWindow("Static rand img1 rand img2 TN Corrs mask img2", WINDOW_AUTOSIZE);
+                        imshow("Static rand img1 rand img2 TN Corrs mask img2", img3c);
+                        waitKey(0);
+                        destroyWindow("Static rand img1 rand img2 TN Corrs mask img1");
+                        destroyWindow("Static rand img1 rand img2 TN Corrs mask img2");
+                    }
                 }
 
                 if (!x1TN_tmp.empty()) {
@@ -5804,11 +5939,13 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 unsigned char clmul = (unsigned char)255 / (unsigned char)nr_movObj;
                 // Apply the colormap:
                 applyColorMap(combMovObjLabels * clmul, colorMapImg, cv::COLORMAP_RAINBOW);
-                namedWindow("combined ObjLabels", WINDOW_AUTOSIZE);
-                imshow("combined ObjLabels", colorMapImg);
+                if(!writeIntermediateImg(colorMapImg, "moving_object_labels_build_step_" + std::to_string(visualizeMask))){
+                    namedWindow("combined ObjLabels", WINDOW_AUTOSIZE);
+                    imshow("combined ObjLabels", colorMapImg);
 
-                waitKey(0);
-                destroyWindow("combined ObjLabels");
+                    waitKey(0);
+                    destroyWindow("combined ObjLabels");
+                }
             }
             visualizeMask++;
         }
@@ -5836,10 +5973,12 @@ objRegionIndices[i].y = seeds[i].y / (imgSize.height / 3);
                 }
             }
         }
-        namedWindow("Moving object labels for point cloud comparison", WINDOW_AUTOSIZE);
-        imshow("Moving object labels for point cloud comparison", labelImgRGB);
+        if(!writeIntermediateImg(labelImgRGB, "moving_object_labels_build_step_" + std::to_string(visualizeMask))){
+            namedWindow("Moving object labels for point cloud comparison", WINDOW_AUTOSIZE);
+            imshow("Moving object labels for point cloud comparison", labelImgRGB);
 
-        waitKey(0);
+            waitKey(0);
+        }
     }
 
     //Get bounding rectangles for the areas
@@ -6801,10 +6940,12 @@ void genStereoSequ::genNewDepthMovObj() {
             labelMask |= (dl != 0);
         }
         cv::normalize(combMovObjDepths, normalizedDepth, 0.1, 1.0, cv::NORM_MINMAX, -1, labelMask);
-        namedWindow("Normalized Moving Obj Depth", WINDOW_AUTOSIZE);
-        imshow("Normalized Moving Obj Depth", normalizedDepth);
-        waitKey(0);
-        destroyWindow("Normalized Moving Obj Depth");
+        if(!writeIntermediateImg(normalizedDepth, "normalized_moving_obj_depth")){
+            namedWindow("Normalized Moving Obj Depth", WINDOW_AUTOSIZE);
+            imshow("Normalized Moving Obj Depth", normalizedDepth);
+            waitKey(0);
+            destroyWindow("Normalized Moving Obj Depth");
+        }
     }
 }
 
@@ -6907,13 +7048,16 @@ void genStereoSequ::getMovObjCorrs() {
             //Visualize the masks
             if (verbose & SHOW_MOV_OBJ_CORRS_GEN) {
                 if (dispit % dispit_interval == 0) {
-                    namedWindow("Move Corrs mask img1", WINDOW_AUTOSIZE);
-                    imshow("Move Corrs mask img1", (corrsSet > 0));
-                    namedWindow("Move Corrs mask img2", WINDOW_AUTOSIZE);
-                    imshow("Move Corrs mask img2", (movObjMask2All > 0));
-                    waitKey(0);
-                    destroyWindow("Move Corrs mask img1");
-                    destroyWindow("Move Corrs mask img2");
+                    if(!writeIntermediateImg((corrsSet > 0), "moving_obj_corrs_mask_img1_step_" + std::to_string(dispit)) ||
+                       !writeIntermediateImg((movObjMask2All > 0), "moving_obj_corrs_mask_img2_step_" + std::to_string(dispit))){
+                        namedWindow("Move Corrs mask img1", WINDOW_AUTOSIZE);
+                        imshow("Move Corrs mask img1", (corrsSet > 0));
+                        namedWindow("Move Corrs mask img2", WINDOW_AUTOSIZE);
+                        imshow("Move Corrs mask img2", (movObjMask2All > 0));
+                        waitKey(0);
+                        destroyWindow("Move Corrs mask img1");
+                        destroyWindow("Move Corrs mask img2");
+                    }
                 }
                 dispit++;
             }
@@ -6964,7 +7108,6 @@ void genStereoSequ::getMovObjCorrs() {
 
             //Visualize the mask afterwards
             if (verbose & SHOW_MOV_OBJ_CORRS_GEN) {
-                namedWindow("Move TN Corrs mask img2", WINDOW_AUTOSIZE);
                 Mat dispMask2 = (movObjMask2All > 0);
                 vector<Mat> channels;
                 Mat b = Mat::zeros(dispMask2.size(), CV_8UC1);
@@ -6973,9 +7116,12 @@ void genStereoSequ::getMovObjCorrs() {
                 channels.push_back(dispMask2);
                 Mat img3c;
                 merge(channels, img3c);
-                imshow("Move TN Corrs mask img2", img3c);
-                waitKey(0);
-                destroyWindow("Move TN Corrs mask img2");
+                if(!writeIntermediateImg(img3c, "moving_obj_TN_corrs_mask_img2")){
+                    namedWindow("Move TN Corrs mask img2", WINDOW_AUTOSIZE);
+                    imshow("Move TN Corrs mask img2", img3c);
+                    waitKey(0);
+                    destroyWindow("Move TN Corrs mask img2");
+                }
             }
         }
 
@@ -7035,13 +7181,16 @@ void genStereoSequ::getMovObjCorrs() {
                 Mat img3c, img3c1;
                 merge(channels, img3c);
                 merge(channels1, img3c1);
-                namedWindow("Move rand TN Corrs mask img1", WINDOW_AUTOSIZE);
-                imshow("Move rand TN Corrs mask img1", img3c1);
-                namedWindow("Move rand TN Corrs mask img2", WINDOW_AUTOSIZE);
-                imshow("Move rand TN Corrs mask img2", img3c);
-                waitKey(0);
-                destroyWindow("Move rand TN Corrs mask img1");
-                destroyWindow("Move rand TN Corrs mask img2");
+                if(!writeIntermediateImg(img3c1, "moving_obj_rand_TN_corrs_mask_img1") ||
+                   !writeIntermediateImg(img3c, "moving_obj_rand_TN_corrs_mask_img2")){
+                    namedWindow("Move rand TN Corrs mask img1", WINDOW_AUTOSIZE);
+                    imshow("Move rand TN Corrs mask img1", img3c1);
+                    namedWindow("Move rand TN Corrs mask img2", WINDOW_AUTOSIZE);
+                    imshow("Move rand TN Corrs mask img2", img3c);
+                    waitKey(0);
+                    destroyWindow("Move rand TN Corrs mask img1");
+                    destroyWindow("Move rand TN Corrs mask img2");
+                }
             }
 
             if (!x1TN_tmp.empty()) {
@@ -7352,18 +7501,22 @@ void genStereoSequ::backProjectMovObj() {
                 channels.push_back(dispMask12);
                 Mat img3c;
                 merge(channels, img3c);
-                namedWindow("Backprojected moving objects mask of TP and TN image 1", WINDOW_AUTOSIZE);
-                imshow("Backprojected moving objects mask of TP and TN image 1", img3c);
+                if(!writeIntermediateImg(img3c, "backprojected_moving_obj_mask_of_TP_and_TN_corrs_img1")){
+                    namedWindow("Backprojected moving objects mask of TP and TN image 1", WINDOW_AUTOSIZE);
+                    imshow("Backprojected moving objects mask of TP and TN image 1", img3c);
+                }
                 channels.clear();
                 channels.push_back(b);
                 channels.push_back(dispMask2);
                 channels.push_back(dispMask22);
                 merge(channels, img3c);
-                namedWindow("Backprojected moving objects mask of TP and TN image 2", WINDOW_AUTOSIZE);
-                imshow("Backprojected moving objects mask of TP and TN image 2", img3c);
-                waitKey(0);
-                destroyWindow("Backprojected moving objects mask of TP and TN image 1");
-                destroyWindow("Backprojected moving objects mask of TP and TN image 2");
+                if(!writeIntermediateImg(img3c, "backprojected_moving_obj_mask_of_TP_and_TN_corrs_img2")){
+                    namedWindow("Backprojected moving objects mask of TP and TN image 2", WINDOW_AUTOSIZE);
+                    imshow("Backprojected moving objects mask of TP and TN image 2", img3c);
+                    waitKey(0);
+                    destroyWindow("Backprojected moving objects mask of TP and TN image 1");
+                    destroyWindow("Backprojected moving objects mask of TP and TN image 2");
+                }
             }
         }
     }
@@ -7464,10 +7617,12 @@ void genStereoSequ::backProjectMovObj() {
             channels.push_back(dispMask2);
             Mat img3c;
             merge(channels, img3c);
-            namedWindow("Backprojected moving object hulls", WINDOW_AUTOSIZE);
-            imshow("Backprojected moving object hulls", img3c);
-            waitKey(0);
-            destroyWindow("Backprojected moving object hulls");
+            if(!writeIntermediateImg(img3c, "backprojected_moving_obj_hulls")){
+                namedWindow("Backprojected moving object hulls", WINDOW_AUTOSIZE);
+                imshow("Backprojected moving object hulls", img3c);
+                waitKey(0);
+                destroyWindow("Backprojected moving object hulls");
+            }
         }
     }
 
@@ -7510,13 +7665,16 @@ void genStereoSequ::backProjectMovObj() {
         int areaMO = cv::countNonZero(movObjLabelsFromLast[i]);
         if(areaMO == 0){
             if(verbose & SHOW_IMGS_AT_ERROR) {
-                namedWindow("Error - Backprojected moving object area zero - whole mask", WINDOW_AUTOSIZE);
-                imshow("Error - Backprojected moving object area zero - whole mask", movObjMaskFromLast);
-                namedWindow("Error - Backprojected moving object area zero - marked keypoints", WINDOW_AUTOSIZE);
-                imshow("Error - Backprojected moving object area zero - marked keypoints", movObjMaskFromLastLarge[i]);
-                waitKey(0);
-                destroyWindow("Error - Backprojected moving object area zero - whole mask");
-                destroyWindow("Error - Backprojected moving object area zero - marked keypoints");
+                if(!writeIntermediateImg(movObjMaskFromLast, "error_zero_backprojected_moving_obj_are_whole_mask_-_obj_nr_" + std::to_string(i)) ||
+                   !writeIntermediateImg(movObjMaskFromLastLarge[i], "error_zero_backprojected_moving_obj_are_marked_keypoints_-_obj_nr_" + std::to_string(i))){
+                    namedWindow("Error - Backprojected moving object area zero - whole mask", WINDOW_AUTOSIZE);
+                    imshow("Error - Backprojected moving object area zero - whole mask", movObjMaskFromLast);
+                    namedWindow("Error - Backprojected moving object area zero - marked keypoints", WINDOW_AUTOSIZE);
+                    imshow("Error - Backprojected moving object area zero - marked keypoints", movObjMaskFromLastLarge[i]);
+                    waitKey(0);
+                    destroyWindow("Error - Backprojected moving object area zero - whole mask");
+                    destroyWindow("Error - Backprojected moving object area zero - marked keypoints");
+                }
             }
             throw SequenceException("Label area of backprojected moving object is zero!");
         }
@@ -7531,10 +7689,13 @@ void genStereoSequ::backProjectMovObj() {
                 imgSDdilate.copyTo(movObjLabelsFromLast[i]);
                 if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
                     if ((cnt % 4) == 0) {
-                        namedWindow("Backprojected moving object hull enlargement", WINDOW_AUTOSIZE);
-                        imshow("Backprojected moving object hull enlargement", movObjLabelsFromLast[i] > 0);
-                        waitKey(0);
-                        destroyWindow("Backprojected moving object hull enlargement");
+                        if(!writeIntermediateImg(movObjLabelsFromLast[i] > 0,
+                                "backprojected_moving_obj_nr" + std::to_string(i) + "_hull_enlargement_step_" + std::to_string(cnt))){
+                            namedWindow("Backprojected moving object hull enlargement", WINDOW_AUTOSIZE);
+                            imshow("Backprojected moving object hull enlargement", movObjLabelsFromLast[i] > 0);
+                            waitKey(0);
+                            destroyWindow("Backprojected moving object hull enlargement");
+                        }
                     }
                 }
             } else {
@@ -7559,10 +7720,12 @@ void genStereoSequ::backProjectMovObj() {
                 channels.push_back(dispMask2);
                 Mat img3c;
                 merge(channels, img3c);
-                namedWindow("Backprojected dilated moving object hulls", WINDOW_AUTOSIZE);
-                imshow("Backprojected dilated moving object hulls", img3c);
-                waitKey(0);
-                destroyWindow("Backprojected dilated moving object hulls");
+                if(!writeIntermediateImg(img3c, "backprojected_dilated_moving_obj_hulls")){
+                    namedWindow("Backprojected dilated moving object hulls", WINDOW_AUTOSIZE);
+                    imshow("Backprojected dilated moving object hulls", img3c);
+                    waitKey(0);
+                    destroyWindow("Backprojected dilated moving object hulls");
+                }
             }
         }
     }
@@ -7644,10 +7807,12 @@ void genStereoSequ::backProjectMovObj() {
                     channels.push_back(dispMask2);
                     Mat img3c;
                     merge(channels, img3c);
-                    namedWindow("Random TN in img2 for backprojected moving object TN of img1", WINDOW_AUTOSIZE);
-                    imshow("Random TN in img2 for backprojected moving object TN of img1", img3c);
-                    waitKey(0);
-                    destroyWindow("Random TN in img2 for backprojected moving object TN of img1");
+                    if(!writeIntermediateImg(img3c, "random_TN_in_img2_for_backprojected_moving_obj_TN_of_img1")){
+                        namedWindow("Random TN in img2 for backprojected moving object TN of img1", WINDOW_AUTOSIZE);
+                        imshow("Random TN in img2 for backprojected moving object TN of img1", img3c);
+                        waitKey(0);
+                        destroyWindow("Random TN in img2 for backprojected moving object TN of img1");
+                    }
                 }
 
                 if (movObjCorrsImg2TNFromLast[i].empty()){
@@ -7714,10 +7879,12 @@ void genStereoSequ::backProjectMovObj() {
                     channels.push_back(dispMask2);
                     Mat img3c;
                     merge(channels, img3c);
-                    namedWindow("Random TN in img1 for backprojected moving object TN of img2", WINDOW_AUTOSIZE);
-                    imshow("Random TN in img1 for backprojected moving object TN of img2", img3c);
-                    waitKey(0);
-                    destroyWindow("Random TN in img1 for backprojected moving object TN of img2");
+                    if(!writeIntermediateImg(img3c, "random_TN_in_img1_for_backprojected_moving_obj_TN_of_img2")){
+                        namedWindow("Random TN in img1 for backprojected moving object TN of img2", WINDOW_AUTOSIZE);
+                        imshow("Random TN in img1 for backprojected moving object TN of img2", img3c);
+                        waitKey(0);
+                        destroyWindow("Random TN in img1 for backprojected moving object TN of img2");
+                    }
                 }
 
 //                movObjLabelsFromLast[i] |= movObjMaskFromLastBorder(Rect(Point(posadd, posadd), imgSize));
@@ -7829,18 +7996,24 @@ void genStereoSequ::backProjectMovObj() {
                     channels.push_back(dispMask12);
                     Mat img3c;
                     merge(channels, img3c);
-                    namedWindow("Random TN in img1 for backprojected moving object", WINDOW_AUTOSIZE);
-                    imshow("Random TN in img1 for backprojected moving object", img3c);
+                    bool wii = !writeIntermediateImg(img3c, "random_TN_in_img1_for_backprojected_moving_obj");
+                    if(wii){
+                        namedWindow("Random TN in img1 for backprojected moving object", WINDOW_AUTOSIZE);
+                        imshow("Random TN in img1 for backprojected moving object", img3c);
+                    }
                     channels.clear();
                     channels.push_back(b);
                     channels.push_back(dispMask2);
                     channels.push_back(dispMask22);
                     merge(channels, img3c);
-                    namedWindow("Random TN in img2 for backprojected moving object", WINDOW_AUTOSIZE);
-                    imshow("Random TN in img2 for backprojected moving object", img3c);
-                    waitKey(0);
-                    destroyWindow("Random TN in img1 for backprojected moving object");
-                    destroyWindow("Random TN in img2 for backprojected moving object");
+                    wii |= !writeIntermediateImg(img3c, "random_TN_in_img2_for_backprojected_moving_obj");
+                    if(wii){
+                        namedWindow("Random TN in img2 for backprojected moving object", WINDOW_AUTOSIZE);
+                        imshow("Random TN in img2 for backprojected moving object", img3c);
+                        waitKey(0);
+                        destroyWindow("Random TN in img1 for backprojected moving object");
+                        destroyWindow("Random TN in img2 for backprojected moving object");
+                    }
                 }
 
                 movObjLabelsFromLastN(Rect(Point(posadd, posadd), imgSize)) &= movObjLabelsFromLast[i];
@@ -7946,19 +8119,23 @@ void genStereoSequ::backProjectMovObj() {
                 }
             }
         }
-        namedWindow("Backprojected final moving object labels", WINDOW_AUTOSIZE);
-        imshow("Backprojected final moving object labels", labelImgRGB);
-        waitKey(0);
-        destroyWindow("Backprojected final moving object labels");
+        if(!writeIntermediateImg(labelImgRGB, "final_backprojected_moving_obj_labels")){
+            namedWindow("Backprojected final moving object labels", WINDOW_AUTOSIZE);
+            imshow("Backprojected final moving object labels", labelImgRGB);
+            waitKey(0);
+            destroyWindow("Backprojected final moving object labels");
+        }
     }
 }
 
 void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> &finalHull) {
 
     if (verbose & SHOW_BACKPROJECT_MOV_OBJ_CORRS) {
-        namedWindow("Original backprojected moving object mask", WINDOW_AUTOSIZE);
-        imshow("Original backprojected moving object mask", mask > 0);
-        waitKey(0);
+        if(!writeIntermediateImg(mask > 0, "original_backprojected_moving_obj_mask")){
+            namedWindow("Original backprojected moving object mask", WINDOW_AUTOSIZE);
+            imshow("Original backprojected moving object mask", mask > 0);
+            waitKey(0);
+        }
     }
 
     //Get the contour of the mask
@@ -8328,10 +8505,12 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
         contours[0] = bigAreaContour;
     }else if(contSize == 0){
         if(verbose & SHOW_IMGS_AT_ERROR) {
-            namedWindow("Error - No contour found", WINDOW_AUTOSIZE);
-            imshow("Error - No contour found", mask > 0);
-            waitKey(0);
-            destroyWindow("Error - No contour found");
+            if(!writeIntermediateImg(mask > 0, "error_no_contour_found")){
+                namedWindow("Error - No contour found", WINDOW_AUTOSIZE);
+                imshow("Error - No contour found", mask > 0);
+                waitKey(0);
+                destroyWindow("Error - No contour found");
+            }
         }
         throw SequenceException("No contour found for backprojected moving object!");
     }
@@ -8351,12 +8530,14 @@ void genStereoSequ::genHullFromMask(const cv::Mat &mask, std::vector<cv::Point> 
         vector<vector<Point>> tmp(1);
         tmp[0] = finalHull;
         drawContours(maskcontours, tmp, 0, Scalar(0, 0, 255));
-        namedWindow("Approximated and original backprojected moving object mask contour", WINDOW_AUTOSIZE);
-        imshow("Approximated and original backprojected moving object mask contour", maskcontours > 0);
+        if(!writeIntermediateImg(maskcontours > 0, "approximated_and_original_backprojected_moving_object_mask_contour")){
+            namedWindow("Approximated and original backprojected moving object mask contour", WINDOW_AUTOSIZE);
+            imshow("Approximated and original backprojected moving object mask contour", maskcontours > 0);
 
-        waitKey(0);
-        destroyWindow("Original backprojected moving object mask");
-        destroyWindow("Approximated and original backprojected moving object mask contour");
+            waitKey(0);
+            destroyWindow("Original backprojected moving object mask");
+            destroyWindow("Approximated and original backprojected moving object mask contour");
+        }
     }
 }
 
@@ -9043,11 +9224,12 @@ void genStereoSequ::visualizeAllCorrespondences(){
     if(cnt_overlaps > 0){
         cout << "Found " << cnt_overlaps << " overlapping correspondences!" << endl;
     }
-
-    namedWindow("Combined correspondences in image 1", WINDOW_AUTOSIZE);
-    imshow("Combined correspondences in image 1", allCorrs);
-    waitKey(0);
-    destroyWindow("Combined correspondences in image 1");
+    if(!writeIntermediateImg(allCorrs, "combined_correspondences_in_image_1")) {
+        namedWindow("Combined correspondences in image 1", WINDOW_AUTOSIZE);
+        imshow("Combined correspondences in image 1", allCorrs);
+        waitKey(0);
+        destroyWindow("Combined correspondences in image 1");
+    }
 }
 
 //Get the paramters and indices for the actual frame. This function must be called before simulating a new stereo frame
@@ -9530,10 +9712,12 @@ void genStereoSequ::getMovObjPtsCam() {
             }
 
             if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
-                namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
-                imshow("Backprojected moving object keypoints", locMOmask > 0);
-                waitKey(0);
-                destroyWindow("Backprojected moving object keypoints");
+                if(!writeIntermediateImg(locMOmask > 0, "backprojected_moving_object_keypoints")){
+                    namedWindow("Backprojected moving object keypoints", WINDOW_AUTOSIZE);
+                    imshow("Backprojected moving object keypoints", locMOmask > 0);
+                    waitKey(0);
+                    destroyWindow("Backprojected moving object keypoints");
+                }
             }
 
             Mat resMOmask;
@@ -9551,18 +9735,22 @@ void genStereoSequ::getMovObjPtsCam() {
             }
 
             if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
-                namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
-                imshow("Backprojected moving object area final", locMOmask);
+                if(!writeIntermediateImg(locMOmask, "backprojected_moving_object_area_final")){
+                    namedWindow("Backprojected moving object area final", WINDOW_AUTOSIZE);
+                    imshow("Backprojected moving object area final", locMOmask);
+                }
             }
 
             Mat overlaps = globMOmask & locMOmask;
 
             if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
-                namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
-                imshow("Overlap with other moving objects", overlaps);
-                waitKey(0);
-                destroyWindow("Overlap with other moving objects");
-                destroyWindow("Backprojected moving object area final");
+                if(!writeIntermediateImg(overlaps, "overlap_with_other_moving_objects")){
+                    namedWindow("Overlap with other moving objects", WINDOW_AUTOSIZE);
+                    imshow("Overlap with other moving objects", overlaps);
+                    waitKey(0);
+                    destroyWindow("Overlap with other moving objects");
+                    destroyWindow("Backprojected moving object area final");
+                }
             }
 //            destroyWindow("Backprojected moving object area using convex hull");
 
@@ -9596,10 +9784,12 @@ void genStereoSequ::getMovObjPtsCam() {
             globMOmask |= locMOmask;
 
             if (verbose & SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ) {
-                namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
-                imshow("Global backprojected moving objects mask", globMOmask);
-                waitKey(0);
-                destroyWindow("Global backprojected moving objects mask");
+                if(!writeIntermediateImg(globMOmask, "global_backprojected_moving_objects_mask")){
+                    namedWindow("Global backprojected moving objects mask", WINDOW_AUTOSIZE);
+                    imshow("Global backprojected moving objects mask", globMOmask);
+                    waitKey(0);
+                    destroyWindow("Global backprojected moving objects mask");
+                }
             }
         }
     } else if (delList.empty()) {
@@ -10443,6 +10633,14 @@ bool genStereoSequ::checkCorrespondenceConsisty(const cv::Mat &x1, const cv::Mat
     double err = err1 + err2;
     bool test = nearZero(err / 10.0);
     return test;
+}
+
+//Set camera matrices from outside to be able to use function checkCorrespondenceConsisty
+void genStereoSequ::setCamMats(const cv::Mat &K1_, const cv::Mat &K2_){
+    K1 = K1_.clone();
+    K2 = K2_.clone();
+    K1i = K1.inv();
+    K2i = K2.inv();
 }
 
 //Check, if 3D points are consistent with image projections

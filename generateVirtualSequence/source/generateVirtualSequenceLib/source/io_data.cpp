@@ -27,6 +27,8 @@
 #include "dirent.h"
 #include <algorithm>
 #include <functional>
+#include <boost/range/iterator_range.hpp>
+#include <boost/lambda/bind.hpp>
 
 #define OLDVERSIONCHECKDIR 0
 #if OLDVERSIONCHECKDIR
@@ -147,12 +149,8 @@ int loadStereoSequence(std::string filepath, std::string fileprefl, std::string 
  * string fileprefl				Input  -> File prefix for the left or first images (last character must be "_" which is the
  *										  last character in the filename before the image number)
  * vector<string> filenamesl	Output -> Vector with sorted filenames of the images in the given directory
- *
- * Return value:				 0:		  Everything ok
- *								-1:		  Could not open directory
- *								-2:		  No images available
  */
-int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl)
+bool loadImageSequence(const std::string &filepath, const std::string &fileprefl, std::vector<std::string> &filenamesl)
 {
 	DIR *dir;
 	struct dirent *ent;
@@ -169,8 +167,8 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 
 		if(filenamesl.empty())
 		{
-			perror("No images available");
-			return -2;
+            std::cerr << "No images available" << endl;
+			return false;
 		}
 
 		sort(filenamesl.begin(),filenamesl.end(),
@@ -179,11 +177,11 @@ int loadImageSequence(std::string filepath, std::string fileprefl, std::vector<s
 	}
 	else
 	{
-		perror("Could not open directory");
-		return -1;
+		std::cerr << "Could not open directory" << endl;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 /* This function reads all stereo or 2 subsequent images from a given directory and stores their names into two vectors.
@@ -585,8 +583,23 @@ bool createDirectory(const std::string &path){
 	return boost::filesystem::create_directories(path);
 }
 
+bool deleteDirectory(const std::string &path){
+    return boost::filesystem::remove_all(path) > 0;
+}
+
 bool deleteFile(const std::string &filename){
 	return boost::filesystem::remove(filename);
+}
+
+std::string remFileExt(const std::string &name){
+    size_t lastindex = name.find_last_of('.');
+    string fname_new;
+    if(lastindex == std::string::npos){
+        fname_new = name;
+    }else {
+        fname_new = name.substr(0, lastindex);
+    }
+    return fname_new;
 }
 
 std::string concatPath(const std::string &mainPath, const std::string &subPath){
@@ -602,4 +615,428 @@ std::string concatPath(const std::string &mainPath, const std::string &subPath){
 		filedir2 = filedir2.substr(1, filedir1.size());
 
 	return filedir1 + '/' + filedir2;
+}
+
+/* This function reads all homography file names from a given directory and stores their names into a vector.
+ *
+ * string filepath				Input  -> Path to the directory
+ * string fileprefl				Input  -> File prefix for the left or first images (for the dataset of
+ *										  www.robots.ox.ac.uk/~vgg/research/affine/ this must be H1to because
+ *										  the file names look like H1to2, H1to3, ...)
+ * vector<string> filenamesl	Output -> Vector with sorted filenames of the images in the given directory
+ */
+bool readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl)
+{
+    DIR *dir;
+    struct dirent *ent;
+    if((dir = opendir(filepath.c_str())) != nullptr)
+    {
+        while ((ent = readdir(dir)) != nullptr)
+        {
+            string filename;
+            filename = string(ent->d_name);
+            if(filename.compare(0,fileprefl.size(),fileprefl) == 0)
+                filenamesl.push_back(filename);
+        }
+        closedir(dir);
+
+        if(filenamesl.empty())
+        {
+            std::cerr << "No homography files available" << endl;
+            return false;
+        }
+
+        sort(filenamesl.begin(),filenamesl.end(),
+             [](string const &first, string const &second){return stoi(first.substr(first.find_last_of('o')+1)) <
+                     stoi(second.substr(second.find_last_of('o')+1));});
+    }
+    else
+    {
+        std::cerr << "Could not open directory" << endl;
+        return false;
+    }
+
+    return true;
+}
+
+/* This function reads a homography from a given file.
+ *
+ * string filepath				Input  -> Path to the directory
+ * string filename				Input  -> Filename of a stored homography (from www.robots.ox.ac.uk/~vgg/research/affine/ )
+ * Mat* H						Output -> Pointer to the homography
+ */
+bool readHomographyFromFile(const std::string& filepath, const std::string& filename, cv::OutputArray H)
+{
+    ifstream ifs;
+    char stringline[100];
+    char* pEnd;
+    Mat H_ = Mat(3,3,CV_64FC1);
+    size_t i = 0, j;
+    string fpn = concatPath(filepath, filename);
+    ifs.open(fpn, ifstream::in);
+
+    while(ifs.getline(stringline,100) && (i < 3))
+    {
+        H_.at<double>(i,0) = strtod(stringline, &pEnd);
+        for(j = 1; j < 3; j++)
+        {
+            H_.at<double>(i,j) = strtod(pEnd, &pEnd);
+        }
+        i++;
+    }
+    ifs.close();
+
+    if((i < 3) || (j < 3))
+        return false; //Reading homography failed
+    if (H.needed())
+    {
+        if (H.empty())
+            H.create(3, 3, CV_64F);
+        H_.copyTo(H.getMat());
+    }else{
+        return false;
+    }
+
+    return true;
+}
+
+std::string getFilenameFromPath(const std::string &name){
+    return boost::filesystem::path(name).filename().string();
+}
+
+//Get all directoies within a folder
+std::vector<std::string> getDirs(const std::string &path){
+    boost::filesystem::path p(path);
+    if(!boost::filesystem::is_directory(p)){
+        return std::vector<std::string>();
+    }
+    std::vector<std::string> dirs;
+    for(auto& entry : boost::make_iterator_range(boost::filesystem::directory_iterator(p), {})){
+        if(!boost::filesystem::is_directory(entry)){
+            dirs.emplace_back(entry.path().string());
+        }
+    }
+    return dirs;
+}
+
+//Count the number of files in the folder
+size_t getNumberFilesInFolder(const std::string &path){
+    boost::filesystem::path p(path);
+
+    size_t cnt = std::count_if(
+            boost::filesystem::directory_iterator(p),
+            boost::filesystem::directory_iterator(),
+            static_cast<bool(*)(const boost::filesystem::path&)>(boost::filesystem::is_regular_file) );
+    return cnt;
+}
+
+/* This function takes an 16Bit RGB integer image and converts it to a 3-channel float flow matrix where R specifies the
+ * flow in u, G the flow in v and B if the flow is valid.
+ *
+ * string filename				Input  -> File name of the flow file
+ * vector<Point2f> positionI1   Output -> Points in first image corresponding to positionI2
+ * vector<Point2f> positionI2   Output -> Points in second image corresponding to positionI1
+ * OutputArray flow3			Output -> Pointer to the resulting 3-channel flow matrix (floats) where channel 1 specifies
+ *										  the flow in u, channel 2 the flow in v and channel 3 if the flow is valid (=1).
+ * float precision				Input  -> Used precision in the given flow image file after the decimal point
+ *										  (e.g. a precision of 64 yields a resolution of 1/64). [Default = 64]
+ * bool useBoolValidity			Input  -> If true, it is asumed that the given validity in B is boolean (0 or 1) as e.g.
+ *										  used within the KITTI database. Otherwise it can be a float number with
+ *										  with precision validityPrecision (validity = B/validityPrecision). [Default = true]
+ * float validityPrecision		Input  -> If useBoolValidity = false, this value specifies the precision of the
+ *										  validity B (validity = B/validityPrecision). [Default = 64]
+ * float minConfidence			Input  -> If useBoolValidity = false, minConfidence specifies the treshold used to decide
+ *										  if a flow value is marked as valid or invalid (for validities between 0 and 1).
+ *										  [Default = 1.0]
+ */
+bool convertImageFlowFile(const std::string &filename, std::vector<cv::Point2f> *positionI1, std::vector<cv::Point2f> *positionI2, cv::OutputArray flow3,
+                          float precision, bool useBoolValidity, float validityPrecision, float minConfidence)
+{
+    Mat intflow = imread(filename, cv::IMREAD_UNCHANGED);
+
+    if(intflow.data  == nullptr){
+        cerr <<"Error reading flow file" << endl;
+        return false;
+    }
+    if(intflow.type() != CV_16UC3){
+        cerr <<"Wrong format after reading flow file" << endl;
+        return false;
+    }
+
+    //flow3->create(intflow.rows, intflow.cols, CV_32FC3);
+
+    vector<Mat> channels(3), channels_fin;
+    if(flow3.needed()) {
+        channels_fin.emplace_back(intflow.rows, intflow.cols, CV_32FC1);
+        channels_fin.emplace_back(intflow.rows, intflow.cols, CV_32FC1);
+        channels_fin.emplace_back(intflow.rows, intflow.cols, CV_32FC1);
+    }
+    cv::split(intflow, channels);
+    auto nr_elems = static_cast<size_t>(intflow.rows * intflow.cols);
+    if(useBoolValidity)
+    {
+        if(flow3.needed()) {
+            for (int u = 0; u < intflow.rows; u++) {
+                for (int v = 0; v < intflow.cols; v++) {
+                    if (channels[2].at<uint16_t>(u, v) > 0) {
+                        channels_fin[0].at<float>(u, v) =
+                                ((float) channels[0].at<uint16_t>(u, v) - 32768.0f) / precision;
+                        channels_fin[1].at<float>(u, v) =
+                                ((float) channels[1].at<uint16_t>(u, v) - 32768.0f) / precision;
+                        channels_fin[2].at<float>(u, v) = (float) channels[2].at<uint16_t>(u, v);
+                    } else {
+                        channels_fin[0].at<float>(u, v) = 0.0f;
+                        channels_fin[1].at<float>(u, v) = 0.0f;
+                        channels_fin[2].at<float>(u, v) = 0.0f;
+                    }
+                }
+            }
+        }
+        if((positionI1 != nullptr) && (positionI2 != nullptr)){
+            *positionI1 = std::vector<cv::Point2f>(nr_elems);
+            *positionI2 = std::vector<cv::Point2f>(nr_elems);
+            size_t used = 0;
+            cv::Point2f flow;
+            for (int u = 0; u < intflow.rows; u++) {
+                for (int v = 0; v < intflow.cols; v++) {
+                    if (channels[2].at<uint16_t>(u, v) > 0) {
+                        flow.x = (static_cast<float>(channels[0].at<uint16_t>(u, v)) - 32768.0f) / precision;
+                        flow.y = (static_cast<float>(channels[1].at<uint16_t>(u, v)) - 32768.0f) / precision;
+                        (*positionI1)[used].x = static_cast<float>(v);
+                        (*positionI1)[used].y = static_cast<float>(u);
+                        (*positionI2)[used].x = static_cast<float>(v) + flow.x;
+                        (*positionI2)[used++].y = static_cast<float>(u) + flow.y;
+                    }
+                }
+            }
+            positionI1->erase(positionI1->begin() + used, positionI1->end());
+            positionI2->erase(positionI2->begin() + used, positionI2->end());
+        }
+    }else{
+        if(flow3.needed()) {
+            for (int u = 0; u < intflow.rows; u++) {
+                for (int v = 0; v < intflow.cols; v++) {
+                    if (channels[2].at<uint16_t>(u, v) > 0) {
+                        float conf = (float) channels[2].at<uint16_t>(u, v) / validityPrecision;
+                        if (conf >= minConfidence) {
+                            channels_fin[0].at<float>(u, v) =
+                                    ((float) channels[0].at<uint16_t>(u, v) - 32768.0f) / precision;
+                            channels_fin[1].at<float>(u, v) =
+                                    ((float) channels[1].at<uint16_t>(u, v) - 32768.0f) / precision;
+                            channels_fin[2].at<float>(u, v) = 1.0f;
+                        } else {
+                            channels_fin[0].at<float>(u, v) = 0.0f;
+                            channels_fin[1].at<float>(u, v) = 0.0f;
+                            channels_fin[2].at<float>(u, v) = 0.0f;
+                        }
+                    } else {
+                        channels_fin[0].at<float>(u, v) = 0.0f;
+                        channels_fin[1].at<float>(u, v) = 0.0f;
+                        channels_fin[2].at<float>(u, v) = 0.0f;
+                    }
+                }
+            }
+        }
+        if((positionI1 != nullptr) && (positionI2 != nullptr)){
+            *positionI1 = std::vector<cv::Point2f>(nr_elems);
+            *positionI2 = std::vector<cv::Point2f>(nr_elems);
+            size_t used = 0;
+            cv::Point2f flow;
+            for (int u = 0; u < intflow.rows; u++) {
+                for (int v = 0; v < intflow.cols; v++) {
+                    if (channels[2].at<uint16_t>(u, v) > 0) {
+                        const float conf = static_cast<float>(channels[2].at<uint16_t>(u, v)) / validityPrecision;
+                        if (conf >= minConfidence) {
+                            flow.x = (static_cast<float>(channels[0].at<uint16_t>(u, v)) - 32768.0f) / precision;
+                            flow.y = (static_cast<float>(channels[1].at<uint16_t>(u, v)) - 32768.0f) / precision;
+                            (*positionI1)[used].x = static_cast<float>(v);
+                            (*positionI1)[used].y = static_cast<float>(u);
+                            (*positionI2)[used].x = static_cast<float>(v) + flow.x;
+                            (*positionI2)[used++].y = static_cast<float>(u) + flow.y;
+                        }
+                    }
+                }
+            }
+            positionI1->erase(positionI1->begin() + used, positionI1->end());
+            positionI2->erase(positionI2->begin() + used, positionI2->end());
+        }
+    }
+
+    if(flow3.needed()) {
+        if (flow3.empty())
+            flow3.create(intflow.rows, intflow.cols, CV_32FC3);
+        cv::merge(channels_fin, flow3.getMat());
+    }
+
+    return true;
+}
+
+/* This function takes an 16Bit 1-channel integer image (grey values) and converts it to a 3-channel (RGB) float flow matrix
+ * where R specifies the disparity, G is always 0 (as the disparity only represents the flow in x-direction) and B specifies
+ * if the flow/disparity is valid (0 or 1).
+ * string filename				Input  -> File name of the disparity file
+ * vector<Point2f> positionI1   Output -> Points in first image corresponding to positionI2
+ * vector<Point2f> positionI2   Output -> Points in second image corresponding to positionI1
+ * OutputArray flow3			Output -> Resulting 3-channel flow matrix (floats) where channel 1 specifies
+ *										  the the disparity, channel 2 is always 0 (as the disparity only represents the
+ *										  flow in x-direction) and channel 3 specifies if the disparity is valid (=1).
+ * bool useFLowStyle			Input  -> If true [Default=false], the input file is expected to be a 3-channel 16bit file,
+ *										  where the first channel includes the disparity values, the second channel is useless
+ *										  and the third channel specifies if a disparity value is valid (valid >0, invalid 0)
+ * float precision				Input  -> Used precision in the given disparity image file after the decimal point
+ *										  (e.g. a precision of 64 yields a resolution of 1/64). [Default = 256]
+ * bool use0Invalid				Input  -> If true, it is asumed that the given disparity is valid if the disparity is >0
+ *										  (0 = invalid) as e.g. used within the KITTI database. Otherwise it is asumed that
+ *										  invalid disparities have the value 0xFFFF. [Default = true]
+ */
+bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> *positionI1, std::vector<cv::Point2f> *positionI2,
+                               cv::OutputArray flow3, const bool useFLowStyle, const float precision, const bool use0Invalid)
+{
+    Mat intflow = imread(filename, cv::IMREAD_UNCHANGED);
+
+    if(intflow.data  == nullptr){
+        cerr <<"Error reading flow file" << endl;
+        return false;
+    }
+    if(intflow.type() != CV_16UC1 || intflow.type() != CV_16UC3){
+        cerr <<"Wrong format after reading flow file" << endl;
+        return false;
+    }
+
+    vector<Mat> channels(3), channels_fin;
+    if(flow3.needed()) {
+        channels_fin.emplace_back(intflow.rows, intflow.cols, CV_32FC1);
+        channels_fin.emplace_back(intflow.rows, intflow.cols, CV_32FC1);
+        channels_fin.emplace_back(intflow.rows, intflow.cols, CV_32FC1);
+    }
+    auto nr_elems = static_cast<size_t>(intflow.rows * intflow.cols);
+    if(useFLowStyle && flow3.needed())
+    {
+        cv::split(intflow, channels);
+        //namedWindow( "Channel 1", WINDOW_AUTOSIZE );// Create a window for display.
+        //imshow( "Channel 1", channels[0] );
+        //namedWindow( "Channel 2", WINDOW_AUTOSIZE );// Create a window for display.
+        //imshow( "Channel 2", channels[1] );
+        //namedWindow( "Channel 3", WINDOW_AUTOSIZE );// Create a window for display.
+        //imshow( "Channel 3", channels[2] );
+        //cv::waitKey(0);
+    }
+
+    if(useFLowStyle)
+    {
+        if(flow3.needed()) {
+            for (int u = 0; u < intflow.rows; u++) {
+                for (int v = 0; v < intflow.cols; v++) {
+                    if (channels[2].at<uint16_t>(u, v) > 0) {
+                        channels_fin[0].at<float>(u, v) = -1.0f * (float) channels[0].at<uint16_t>(u, v) / precision;
+                        channels_fin[1].at<float>(u, v) = 0.0f;
+                        channels_fin[2].at<float>(u, v) = (float) channels[2].at<uint16_t>(u, v);
+                    } else {
+                        channels_fin[0].at<float>(u, v) = 0.0f;
+                        channels_fin[1].at<float>(u, v) = 0.0f;
+                        channels_fin[2].at<float>(u, v) = 0.0f;
+                    }
+                }
+            }
+        }
+        if((positionI1 != nullptr) && (positionI2 != nullptr)){
+            *positionI1 = std::vector<cv::Point2f>(nr_elems);
+            *positionI2 = std::vector<cv::Point2f>(nr_elems);
+            size_t used = 0;
+            float disp = 0;
+            for (int u = 0; u < intflow.rows; u++) {
+                for (int v = 0; v < intflow.cols; v++) {
+                    if (channels[2].at<uint16_t>(u, v) > 0) {
+                        disp = -1.0f * static_cast<float>(channels[0].at<uint16_t>(u, v)) / precision;
+                        (*positionI1)[used].x = static_cast<float>(v);
+                        (*positionI1)[used].y = static_cast<float>(u);
+                        (*positionI2)[used].x = static_cast<float>(v) + disp;
+                        (*positionI2)[used++].y = static_cast<float>(u);
+                    }
+                }
+            }
+            positionI1->erase(positionI1->begin() + used, positionI1->end());
+            positionI2->erase(positionI2->begin() + used, positionI2->end());
+        }
+    }else{
+        if(use0Invalid){
+            if(flow3.needed()) {
+                for (int u = 0; u < intflow.rows; u++) {
+                    for (int v = 0; v < intflow.cols; v++) {
+                        if (intflow.at<uint16_t>(u, v) > 0) {
+                            channels_fin[0].at<float>(u, v) = -1.0f * (float) intflow.at<uint16_t>(u, v) / precision;
+                            channels_fin[1].at<float>(u, v) = 0.0f;
+                            channels_fin[2].at<float>(u, v) = 1.0f;
+                        } else {
+                            channels_fin[0].at<float>(u, v) = 0.0f;
+                            channels_fin[1].at<float>(u, v) = 0.0f;
+                            channels_fin[2].at<float>(u, v) = 0.0f;
+                        }
+                    }
+                }
+            }
+            if((positionI1 != nullptr) && (positionI2 != nullptr)){
+                *positionI1 = std::vector<cv::Point2f>(nr_elems);
+                *positionI2 = std::vector<cv::Point2f>(nr_elems);
+                size_t used = 0;
+                float disp = 0;
+                for (int u = 0; u < intflow.rows; u++) {
+                    for (int v = 0; v < intflow.cols; v++) {
+                        if (intflow.at<uint16_t>(u, v) > 0) {
+                            disp = -1.0f * static_cast<float>(intflow.at<uint16_t>(u, v)) / precision;
+                            (*positionI1)[used].x = static_cast<float>(v);
+                            (*positionI1)[used].y = static_cast<float>(u);
+                            (*positionI2)[used].x = static_cast<float>(v) + disp;
+                            (*positionI2)[used++].y = static_cast<float>(u);
+                        }
+                    }
+                }
+                positionI1->erase(positionI1->begin() + used, positionI1->end());
+                positionI2->erase(positionI2->begin() + used, positionI2->end());
+            }
+        }else{
+            if(flow3.needed()) {
+                for (int u = 0; u < intflow.rows; u++) {
+                    for (int v = 0; v < intflow.cols; v++) {
+                        if (intflow.at<uint16_t>(u, v) == 0xFFFF) {
+                            channels_fin[0].at<float>(u, v) = 0.0f;
+                            channels_fin[1].at<float>(u, v) = 0.0f;
+                            channels_fin[2].at<float>(u, v) = 0.0f;
+                        } else {
+                            channels_fin[0].at<float>(u, v) = -1.0f * (float) intflow.at<uint16_t>(u, v) / precision;
+                            channels_fin[1].at<float>(u, v) = 0.0f;
+                            channels_fin[2].at<float>(u, v) = 1.0f;
+                        }
+                    }
+                }
+            }
+            if((positionI1 != nullptr) && (positionI2 != nullptr)){
+                *positionI1 = std::vector<cv::Point2f>(nr_elems);
+                *positionI2 = std::vector<cv::Point2f>(nr_elems);
+                size_t used = 0;
+                float disp = 0;
+                for (int u = 0; u < intflow.rows; u++) {
+                    for (int v = 0; v < intflow.cols; v++) {
+                        if (intflow.at<uint16_t>(u, v) != 0xFFFF) {
+                            disp = -1.0f * static_cast<float>(intflow.at<uint16_t>(u, v)) / precision;
+                            (*positionI1)[used].x = static_cast<float>(v);
+                            (*positionI1)[used].y = static_cast<float>(u);
+                            (*positionI2)[used].x = static_cast<float>(v) + disp;
+                            (*positionI2)[used++].y = static_cast<float>(u);
+                        }
+                    }
+                }
+                positionI1->erase(positionI1->begin() + used, positionI1->end());
+                positionI2->erase(positionI2->begin() + used, positionI2->end());
+            }
+        }
+    }
+
+    if(flow3.needed()) {
+        if (flow3.empty())
+            flow3.create(intflow.rows, intflow.cols, CV_32FC3);
+        cv::merge(channels_fin, flow3.getMat());
+    }
+
+    return true;
 }
