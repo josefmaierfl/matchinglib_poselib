@@ -18,7 +18,10 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "GTM/prepareMegaDepth.h"
 #include "helper_funcs.h"
-#include "opencv2/hdf5"
+#include "opencv2/hdf.hpp"
+#include <opencv2/core/eigen.hpp>
+#include "opencv2/xfeatures2d.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 using namespace colmap;
 using namespace std;
@@ -79,8 +82,53 @@ struct corrStats{
             R_rel(move(R_rel_)),
             t_rel(move(t_rel_)){}
 
-    bool readDepthMap(){
+    static bool readDepthMap(const std::string &filename, cv::Mat &depth){
+        cv::Ptr<cv::hdf::HDF5> h5io = cv::hdf::open(filename);
+        if(!h5io->hlexists("/depth")){
+            h5io->close();
+            return false;
+        }
+        h5io->dsread(depth, "/depth");
+        h5io->close();
+        if(depth.channels() > 1){
+            return false;
+        }
+        depth.convertTo(depth, CV_64FC1);
+        return cv::countNonZero(depth < 0) == 0;
+    }
 
+    bool getKeypointsDepth(){
+        cv::Mat depthMap;
+        if(!readDepthMap(depthImg1, depthMap)){
+            return false;
+        }
+        cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(1000);
+        if(detector.empty()){
+            cerr << "Cannot create keypoint detector!" << endl;
+            return false; //Error creating feature detector
+        }
+        cv::Mat img = cv::imread(img1, cv::IMREAD_GRAYSCALE);
+        vector<cv::KeyPoint> keypoints;
+        detector->detect( img, keypoints );
+        keypDepth1.clear();
+        double maxHeight = static_cast<double>(undistortedCam2.Height()) - 10.;
+        double maxWidth = static_cast<double>(undistortedCam2.Width()) - 10.;
+        for(auto &kp: keypoints){
+            Eigen::Vector2d kp1(round(static_cast<double>(kp.pt.x)), round(static_cast<double>(kp.pt.y)));
+            Eigen::Vector2d kp2 = undistortedCam1.ImageToWorld(kp1);
+            Eigen::Vector3d pt(kp2(0), kp2(1), 1.);
+            Eigen::Vector2i kpi(static_cast<int>(kp1(0)), static_cast<int>(kp1(1)));
+            const double d = depthMap.at<double>(kpi(1), kpi(0));
+            pt *= d;
+            pt = R_rel * pt + t_rel;
+            pt /= pt(2);
+            kp2 = undistortedCam2.WorldToImage(Eigen::Vector2d(pt(0), pt(1)));
+            if(kp2(0) < 10. || kp2(0) > maxWidth || kp2(1) < 10. || kp2(1) > maxHeight){
+                continue;
+            }
+            keypDepth1.emplace_back(move(kpi), d);
+        }
+        return keypDepth1.size() > 100;
     }
 };
 
