@@ -39,7 +39,7 @@ int GENERATEVIRTUALSEQUENCELIB_API loadStereoSequenceNew(std::string filepath, s
 //This function reads all images from a given directory and stores their names into a vector. Search patterns can be used.
 int GENERATEVIRTUALSEQUENCELIB_API loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl);
 
-//Check for supported types if cv::imread
+//Check for supported types of cv::imread
 bool IsImgTypeSupported(std::string const& type);
 std::vector<std::string> GetSupportedImgTypes();
 
@@ -68,10 +68,13 @@ size_t GENERATEVIRTUALSEQUENCELIB_API getNumberFilesInFolder(const std::string &
 std::string GENERATEVIRTUALSEQUENCELIB_API concatPath(const std::string &mainPath, const std::string &subPath);
 
 //Return only the filename with extension from a string made of path + filename
-std::string getFilenameFromPath(const std::string &name);
+std::string GENERATEVIRTUALSEQUENCELIB_API getFilenameFromPath(const std::string &name);
+
+//Returns the parent path
+std::string GENERATEVIRTUALSEQUENCELIB_API getParentPath(const std::string &path);
 
 //Remove extension from filename
-std::string remFileExt(const std::string &name);
+std::string GENERATEVIRTUALSEQUENCELIB_API remFileExt(const std::string &name);
 
 //Reads all homography file names (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/) from a given directory and stores their names into a vector.
 bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl);
@@ -88,47 +91,6 @@ bool GENERATEVIRTUALSEQUENCELIB_API convertImageFlowFile(const std::string &file
 bool GENERATEVIRTUALSEQUENCELIB_API convertImageDisparityFile(const std::string &filename, std::vector<cv::Point2f> *positionI1 = nullptr,
                                                               std::vector<cv::Point2f> *positionI2 = nullptr, cv::OutputArray flow3 = cv::noArray(),
                                                               bool useFLowStyle = false, float precision = 256.f, bool use0Invalid = true);
-
-/*!***************************************************************************
-* PURPOSE: returns cv::Mat datastructure with PfePixImgStruct data
-*
-* DESCRIPTION:
-*
-* RETURN:
-*     cv::Mat
-****************************************************************************!*/
-//static cv::Mat PfeConvToMat
-//  ( PfePixImgStruct *   pPfe
-//  )
-//{
-//  int type = CV_8UC1;
-//
-//  if ( pPfe->u16BitsPerPixel == 8 )
-//  {
-//    type = CV_8UC1;
-//  }
-//  else if ( pPfe->u16BitsPerPixel == 16 )
-//  {
-//    type = CV_16UC1;
-//  }
-//  else if ( pPfe->u16BitsPerPixel == 24 )
-//  {
-//    type = CV_8UC3;
-//  }
-//  else if ( pPfe->u16BitsPerPixel == 32 )
-//  {
-//    type = CV_32FC1;
-//  }
-//  else if ( pPfe->u16BitsPerPixel == 48 )
-//  {
-//	  type = CV_16UC3;
-//  }
-//
-//  return cv::Mat
-//      ( pPfe->u32Height         // _rows
-//      , pPfe->u32Width          // _cols
-//      , type                    // _type
-//      , pPfe->pBits             // _data
-//      , pPfe->u32BytesPerLine   // _step
-//      );
-//}
+//Convert a 3 channel floating point flow matrix (x, y, last channel corresp. to validity) to a 3-channel uint16 png image (same format as KITTI)
+bool GENERATEVIRTUALSEQUENCELIB_API writeKittiFlowFile(const std::string &filename, const cv::Mat &flow, float precision = 64.f,
+                                                       bool useBoolValidity = true, float validityPrecision = 64.f);

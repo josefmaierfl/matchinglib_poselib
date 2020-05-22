@@ -39,7 +39,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-//#include <ceres/ceres.h>
+#include <ceres/ceres.h>
 
 namespace colmap {
 
@@ -550,33 +550,41 @@ void BaseCameraModel<CameraModel>::IterativeUndistortion(const T* params, T* u,
   // central differences, 100 iterations should be enough even for complex
   // camera models with higher order terms.
   const size_t kNumIterations = 100;
-  const double kMaxStepNorm = 1e-10;
-  const double kRelStepSize = 1e-6;
+  const T kMaxStepNorm = T(1e-10);
+  const T kRelStepSize = T(1e-6);
 
-  Eigen::Matrix2d J;
-  const Eigen::Vector2d x0(*u, *v);
-  Eigen::Vector2d x(*u, *v);
-  Eigen::Vector2d dx;
-  Eigen::Vector2d dx_0b;
-  Eigen::Vector2d dx_0f;
-  Eigen::Vector2d dx_1b;
-  Eigen::Vector2d dx_1f;
+//  Eigen::Matrix2d J;
+//  const Eigen::Vector2d x0(*u, *v);
+//  Eigen::Vector2d x(*u, *v);
+//  Eigen::Vector2d dx;
+//  Eigen::Vector2d dx_0b;
+//  Eigen::Vector2d dx_0f;
+//  Eigen::Vector2d dx_1b;
+//  Eigen::Vector2d dx_1f;
+    Eigen::Matrix<T, 2, 2> J;
+    const Eigen::Matrix<T, 2, 1> x0(*u, *v);
+    Eigen::Matrix<T, 2, 1> x(*u, *v);
+    Eigen::Matrix<T, 2, 1> dx;
+    Eigen::Matrix<T, 2, 1> dx_0b;
+    Eigen::Matrix<T, 2, 1> dx_0f;
+    Eigen::Matrix<T, 2, 1> dx_1b;
+    Eigen::Matrix<T, 2, 1> dx_1f;
 
   for (size_t i = 0; i < kNumIterations; ++i) {
-    const double step0 = std::max(std::numeric_limits<double>::epsilon(),
-                                  std::abs(kRelStepSize * x(0)));
-    const double step1 = std::max(std::numeric_limits<double>::epsilon(),
-                                  std::abs(kRelStepSize * x(1)));
+    const T step0 = std::max(T(std::numeric_limits<double>::epsilon()),
+                             ceres::abs(kRelStepSize * x(0)));
+    const T step1 = std::max(T(std::numeric_limits<double>::epsilon()),
+                             ceres::abs(kRelStepSize * x(1)));
     CameraModel::Distortion(params, x(0), x(1), &dx(0), &dx(1));
     CameraModel::Distortion(params, x(0) - step0, x(1), &dx_0b(0), &dx_0b(1));
     CameraModel::Distortion(params, x(0) + step0, x(1), &dx_0f(0), &dx_0f(1));
     CameraModel::Distortion(params, x(0), x(1) - step1, &dx_1b(0), &dx_1b(1));
     CameraModel::Distortion(params, x(0), x(1) + step1, &dx_1f(0), &dx_1f(1));
-    J(0, 0) = 1 + (dx_0f(0) - dx_0b(0)) / (2 * step0);
-    J(0, 1) = (dx_1f(0) - dx_1b(0)) / (2 * step1);
-    J(1, 0) = (dx_0f(1) - dx_0b(1)) / (2 * step0);
-    J(1, 1) = 1 + (dx_1f(1) - dx_1b(1)) / (2 * step1);
-    const Eigen::Vector2d step_x = J.inverse() * (x + dx - x0);
+    J(0, 0) = T(1) + (dx_0f(0) - dx_0b(0)) / (T(2) * step0);
+    J(0, 1) = (dx_1f(0) - dx_1b(0)) / (T(2) * step1);
+    J(1, 0) = (dx_0f(1) - dx_0b(1)) / (T(2) * step0);
+    J(1, 1) = T(1) + (dx_1f(1) - dx_1b(1)) / (T(2) * step1);
+    const Eigen::Matrix<T, 2, 1> step_x = J.inverse() * (x + dx - x0);
     x -= step_x;
     if (step_x.squaredNorm() < kMaxStepNorm) {
       break;
@@ -967,10 +975,10 @@ void OpenCVFisheyeCameraModel::Distortion(const T* extra_params, const T u,
   const T k3 = extra_params[2];
   const T k4 = extra_params[3];
 
-  const T r = std::sqrt(u * u + v * v);
+  const T r = ceres::sqrt(u * u + v * v);
 
   if (r > T(std::numeric_limits<double>::epsilon())) {
-    const T theta = std::atan(r);
+    const T theta = ceres::atan(r);
     const T theta2 = theta * theta;
     const T theta4 = theta2 * theta2;
     const T theta6 = theta4 * theta2;
@@ -1158,13 +1166,13 @@ void FOVCameraModel::Distortion(const T* extra_params, const T u, const T v,
     // factor(radius) = atan(radius * 2 * tan(omega / 2)) / ...
     //                  (radius * omega);
     // simplify(taylor(factor, radius, 'order', 3))
-    const T tan_half_omega = std::tan(omega / T(2));
+    const T tan_half_omega = ceres::tan(omega / T(2));
     factor = (T(-2) * tan_half_omega *
               (T(4) * radius2 * tan_half_omega * tan_half_omega - T(3))) /
              (T(3) * omega);
   } else {
-    const T radius = std::sqrt(radius2);
-    const T numerator = std::atan(radius * T(2) * std::tan(omega / T(2)));
+    const T radius = ceres::sqrt(radius2);
+    const T numerator = ceres::atan(radius * T(2) * ceres::tan(omega / T(2)));
     factor = numerator / (radius * omega);
   }
 
@@ -1198,11 +1206,11 @@ void FOVCameraModel::Undistortion(const T* extra_params, const T u, const T v,
     //                  (radius * 2*tan(omega/2));
     // simplify(taylor(factor, radius, 'order', 3))
     factor = (omega * (omega * omega * radius2 + T(3))) /
-             (T(6) * std::tan(omega / T(2)));
+             (T(6) * ceres::tan(omega / T(2)));
   } else {
-    const T radius = std::sqrt(radius2);
-    const T numerator = std::tan(radius * omega);
-    factor = numerator / (radius * T(2) * std::tan(omega / T(2)));
+    const T radius = ceres::sqrt(radius2);
+    const T numerator = ceres::tan(radius * omega);
+    factor = numerator / (radius * T(2) * ceres::tan(omega / T(2)));
   }
 
   *du = u * factor;
@@ -1274,10 +1282,10 @@ void SimpleRadialFisheyeCameraModel::Distortion(const T* extra_params,
                                                 T* dv) {
   const T k = extra_params[0];
 
-  const T r = std::sqrt(u * u + v * v);
+  const T r = ceres::sqrt(u * u + v * v);
 
   if (r > T(std::numeric_limits<double>::epsilon())) {
-    const T theta = std::atan(r);
+    const T theta = ceres::atan(r);
     const T theta2 = theta * theta;
     const T thetad = theta * (T(1) + k * theta2);
     *du = u * thetad / r - u;
@@ -1350,10 +1358,10 @@ void RadialFisheyeCameraModel::Distortion(const T* extra_params, const T u,
   const T k1 = extra_params[0];
   const T k2 = extra_params[1];
 
-  const T r = std::sqrt(u * u + v * v);
+  const T r = ceres::sqrt(u * u + v * v);
 
   if (r > T(std::numeric_limits<double>::epsilon())) {
-    const T theta = std::atan(r);
+    const T theta = ceres::atan(r);
     const T theta2 = theta * theta;
     const T theta4 = theta2 * theta2;
     const T thetad =
@@ -1410,11 +1418,11 @@ void ThinPrismFisheyeCameraModel::WorldToImage(const T* params, const T u,
   const T c1 = params[2];
   const T c2 = params[3];
 
-  const T r = std::sqrt(u * u + v * v);
+  const T r = ceres::sqrt(u * u + v * v);
 
   T uu, vv;
   if (r > T(std::numeric_limits<double>::epsilon())) {
-    const T theta = std::atan(r);
+    const T theta = ceres::atan(r);
     uu = theta * u / r;
     vv = theta * v / r;
   } else {
@@ -1447,10 +1455,10 @@ void ThinPrismFisheyeCameraModel::ImageToWorld(const T* params, const T x,
 
   IterativeUndistortion(&params[4], u, v);
 
-  const T theta = std::sqrt(*u * *u + *v * *v);
-  const T theta_cos_theta = theta * std::cos(theta);
+  const T theta = ceres::sqrt(*u * *u + *v * *v);
+  const T theta_cos_theta = theta * ceres::cos(theta);
   if (theta_cos_theta > T(std::numeric_limits<double>::epsilon())) {
-    const T scale = std::sin(theta) / theta_cos_theta;
+    const T scale = ceres::sin(theta) / theta_cos_theta;
     *u *= scale;
     *v *= scale;
   }

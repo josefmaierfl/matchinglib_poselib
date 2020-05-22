@@ -7,6 +7,13 @@
 set(target virtualSequenceLib-CMD-interface)
 message(STATUS "${target}")
 
+#set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost REQUIRED COMPONENTS
+		filesystem
+		regex
+		system)
+
+find_package(Ceres REQUIRED)
 
 #
 # Sources
@@ -50,6 +57,8 @@ target_include_directories(${target}
     PRIVATE
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${PROJECT_BINARY_DIR}/source/include
+	${Boost_INCLUDE_DIRS}
+	${CERES_INCLUDE_DIRS}
 )
 
 
@@ -61,6 +70,8 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::generateVirtualSequenceLib
+	${Boost_LIBRARIES}
+	${CERES_LIBRARIES}
 #    gmock-dev
 )
 

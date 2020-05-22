@@ -1,11 +1,226 @@
 //
 // Created by maierj on 5/14/20.
 //
+#ifdef OPENMP_ENABLED
+#include <omp.h>
+#endif
 #include "GTM/colmapBase.h"
+#include <iomanip>
+#include "GTM/colmap/cost_functions.h"
+#include <thread>
+#include <io_data.h>
 //#include <opencv2/core/eigen.hpp>
 
 using namespace colmap;
 using namespace std;
+
+ceres::LossFunction* BundleAdjustmentOptions::CreateLossFunction() const {
+    ceres::LossFunction* loss_function = nullptr;
+    switch (loss_function_type) {
+        case LossFunctionType::TRIVIAL:
+            loss_function = new ceres::TrivialLoss();
+            break;
+        case LossFunctionType::SOFT_L1:
+            loss_function = new ceres::SoftLOneLoss(loss_function_scale);
+            break;
+        case LossFunctionType::CAUCHY:
+            loss_function = new ceres::CauchyLoss(loss_function_scale);
+            break;
+        case LossFunctionType::HUBER:
+            loss_function = new ceres::HuberLoss(loss_function_scale);
+            break;
+        default:
+            loss_function = new ceres::TrivialLoss();
+            break;
+    }
+    CHECK_NOTNULL(loss_function);
+    return loss_function;
+}
+
+bool BundleAdjustmentOptions::Check() const {
+    CHECK_OPTION_GE(loss_function_scale, 0);
+    return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// RigFixedDepthBundleAdjuster
+////////////////////////////////////////////////////////////////////////////////
+
+RigFixedDepthBundleAdjuster::RigFixedDepthBundleAdjuster(BundleAdjustmentOptions options)
+        : options_(std::move(options)) {
+    CHECK(options_.Check());
+    loss_function = options_.CreateLossFunction();
+}
+
+bool RigFixedDepthBundleAdjuster::Solve(corrStats* corrImgs) {
+    problem_.reset(new ceres::Problem());
+
+//    ceres::LossFunction* loss_function = options_.CreateLossFunction();
+    SetUp(corrImgs);
+
+    if (problem_->NumResiduals() == 0) {
+        return false;
+    }
+
+    ceres::Solver::Options solver_options = options_.solver_options;
+    solver_options.linear_solver_type = ceres::DENSE_SCHUR;
+
+    solver_options.num_threads = GetEffectiveNumThreads(solver_options.num_threads);
+#if CERES_VERSION_MAJOR < 2
+    solver_options.num_linear_solver_threads = GetEffectiveNumThreads(solver_options.num_linear_solver_threads);
+#endif  // CERES_VERSION_MAJOR
+
+    std::string solver_error;
+    CHECK(solver_options.IsValid(&solver_error));// << solver_error;
+
+    ceres::Solve(solver_options, problem_.get(), &summary_);
+
+    if (solver_options.minimizer_progress_to_stdout) {
+        std::cout << std::endl;
+    }
+
+    if (options_.print_summary) {
+        PrintHeading2("Rig Bundle adjustment report");
+        PrintSolverSummary(summary_);
+    }
+
+    return summary_.IsSolutionUsable();
+}
+
+void RigFixedDepthBundleAdjuster::SetUp(corrStats* corrImgs) {
+    AddImageToProblem(corrImgs);
+    ParameterizeCameraRigs();
+}
+
+void RigFixedDepthBundleAdjuster::AddImageToProblem(corrStats* corrImgs) {
+    const double max_squared_reproj_error = max_reproj_error * max_reproj_error;
+
+    Camera& camera1 = corrImgs->undistortedCam1;
+    Camera& camera2 = corrImgs->undistortedCam2;
+
+    double* qvec_data = nullptr;
+    double* tvec_data = nullptr;
+    double* camera_params_data1 = camera1.ParamsData();
+    double* camera_params_data2 = camera2.ParamsData();
+
+    // CostFunction assumes unit quaternions.
+    corrImgs->quat_rel = NormalizeQuaternion(corrImgs->quat_rel);
+    qvec_data = corrImgs->quat_rel.data();
+    tvec_data = corrImgs->t_rel.data();
+
+    // The number of added observations for the current image.
+    size_t num_observations = 0;
+
+    // Add residuals to bundle adjustment problem.
+    for (const auto& point2D : corrImgs->keypDepth1) {
+        if(corrImgs->calcReprojectionError(point2D) > max_squared_reproj_error){
+            continue;
+        }
+
+        num_observations += 1;
+
+        ceres::CostFunction* cost_function = nullptr;
+
+        switch (camera1.ModelId()) {
+#define CAMERA_MODEL_CASE(CameraModel)                                          \
+  case CameraModel::kModelId:                                                   \
+    cost_function =                                                             \
+        RelativePoseFixedDepthCostFunction<CameraModel>::Create(point2D.first,  \
+                point2D.second,                                                 \
+                corrImgs->depthMap2);                                           \
+                                                                                \
+    break;
+
+            CAMERA_MODEL_SWITCH_CASES
+
+#undef CAMERA_MODEL_CASE
+        }
+        problem_->AddResidualBlock(cost_function, loss_function, qvec_data,
+                                   tvec_data, camera_params_data1, camera_params_data2);
+
+    }
+
+    if (num_observations > 0) {
+        parameterized_qvec_data_.insert(qvec_data);
+    }
+}
+
+void RigFixedDepthBundleAdjuster::ParameterizeCameraRigs() {
+    for (double* qvec_data : parameterized_qvec_data_) {
+        ceres::LocalParameterization* quaternion_parameterization =
+                new ceres::QuaternionParameterization;
+        problem_->SetParameterization(qvec_data, quaternion_parameterization);
+    }
+}
+
+void PrintSolverSummary(const ceres::Solver::Summary& summary) {
+    std::cout << std::right << std::setw(16) << "Residuals : ";
+    std::cout << std::left << summary.num_residuals_reduced << std::endl;
+
+    std::cout << std::right << std::setw(16) << "Parameters : ";
+    std::cout << std::left << summary.num_effective_parameters_reduced
+              << std::endl;
+
+    std::cout << std::right << std::setw(16) << "Iterations : ";
+    std::cout << std::left
+              << summary.num_successful_steps + summary.num_unsuccessful_steps
+              << std::endl;
+
+    std::cout << std::right << std::setw(16) << "Time : ";
+    std::cout << std::left << summary.total_time_in_seconds << " [s]"
+              << std::endl;
+
+    std::cout << std::right << std::setw(16) << "Initial cost : ";
+    std::cout << std::right << std::setprecision(6)
+              << std::sqrt(summary.initial_cost / summary.num_residuals_reduced)
+              << " [px]" << std::endl;
+
+    std::cout << std::right << std::setw(16) << "Final cost : ";
+    std::cout << std::right << std::setprecision(6)
+              << std::sqrt(summary.final_cost / summary.num_residuals_reduced)
+              << " [px]" << std::endl;
+
+    std::cout << std::right << std::setw(16) << "Termination : ";
+
+    std::string termination = "";
+
+    switch (summary.termination_type) {
+        case ceres::CONVERGENCE:
+            termination = "Convergence";
+            break;
+        case ceres::NO_CONVERGENCE:
+            termination = "No convergence";
+            break;
+        case ceres::FAILURE:
+            termination = "Failure";
+            break;
+        case ceres::USER_SUCCESS:
+            termination = "User success";
+            break;
+        case ceres::USER_FAILURE:
+            termination = "User failure";
+            break;
+        default:
+            termination = "Unknown";
+            break;
+    }
+
+    std::cout << std::right << termination << std::endl;
+    std::cout << std::endl;
+}
+
+int GetEffectiveNumThreads(const int num_threads) {
+    int num_effective_threads = num_threads;
+    if (num_threads <= 0) {
+        num_effective_threads = std::thread::hardware_concurrency();
+    }
+
+    if (num_effective_threads <= 0) {
+        num_effective_threads = 1;
+    }
+
+    return num_effective_threads;
+}
 
 bool colmapBase::prepareColMapData(const megaDepthFolders& folders){
     try{
@@ -19,11 +234,113 @@ bool colmapBase::prepareColMapData(const megaDepthFolders& folders){
     return getCorrespondingImgs();
 }
 
-bool colmapBase::refineRelPoses(){
+bool colmapBase::getCorrectDims(){
     getUndistortedScaledDims();
-    if(!checkCorrectDimensions()){
+    return checkCorrectDimensions();
+}
+
+bool colmapBase::calculateFlow(const std::string &flowPath, std::vector<megaDepthData> &data){
+    data.clear();
+    if(!getCorrectDims()){
         return false;
     }
+    if(!refineRelPoses()){
+        return false;
+    }
+    for(auto &i: correspImgs_){
+        cv::Mat flow;
+        if(!estimateFlow(flow, i.second)){
+            continue;
+        }
+        if(storeFlowFile) {
+            string flowName = remFileExt(getFilenameFromPath(i.second.img1));
+            flowName += "-";
+            flowName += remFileExt(getFilenameFromPath(i.second.img2));
+            flowName += ".png";
+            flowName = concatPath(flowPath, flowName);
+            writeKittiFlowFile(flowName, flow);
+        }
+        data.emplace_back(move(i.second.img1), move(i.second.img2), move(flow));
+    }
+    return !data.empty();
+}
+
+bool colmapBase::estimateFlow(cv::Mat &flow, const corrStats &data){
+    cv::Mat depthMap1;
+    if(!data.getDepthMap1(depthMap1)){
+        return false;
+    }
+    flow = cv::Mat::zeros(depthMap1.size(), CV_32FC3);
+    vector<cv::Mat> channels;
+    cv::split(flow, channels);
+    Eigen::Vector2d loc2;
+    size_t cnt = 0;
+    for(int y = 0; y < depthMap1.rows; ++y){
+        for(int x = 0; x < depthMap1.cols; ++x){
+            const double dist2 = data.calcReprojectionError(std::make_pair(Eigen::Vector2i(x, y), depthMap1.at<double>(y, x)), &loc2);
+            if(dist2 > 2.){
+                continue;
+            }
+            cnt++;
+            channels[0].at<float>(y, x) = static_cast<float>(loc2(0)) - static_cast<float>(x);
+            channels[1].at<float>(y, x) = static_cast<float>(loc2(1)) - static_cast<float>(y);
+            channels[2].at<float>(y, x) = 1.f;
+        }
+    }
+    if(cnt < static_cast<size_t>(depthMap1.rows) * static_cast<size_t>(depthMap1.cols) / 3){
+        return false;
+    }
+    cv::merge(channels, flow);
+    return true;
+}
+
+bool colmapBase::refineRelPoses(){
+    vector<image_t> delIdx;
+    for(auto &i: correspImgs_){
+        if(refineSfM) {
+            if (!i.second.getKeypointsDepth()) {
+                delIdx.push_back(i.first);
+                continue;
+            }
+            i.second.getRelQuaternions();
+        }
+        if(!i.second.getDepthMap2()){
+            delIdx.push_back(i.first);
+            continue;
+        }
+    }
+    if(!delIdx.empty()){
+        for(auto &i: delIdx){
+            correspImgs_.erase(i);
+        }
+        delIdx.clear();
+    }
+    if(correspImgs_.empty()){
+        return false;
+    }
+    if(!refineSfM) {
+        return true;
+    }
+    BundleAdjustmentOptions options;
+    options.loss_function_type = BundleAdjustmentOptions::LossFunctionType::CAUCHY;
+    options.loss_function_scale = 1.0;
+    options.solver_options.function_tolerance = 1e-6;
+    options.solver_options.gradient_tolerance = 1e-8;
+    options.solver_options.parameter_tolerance = 1e-8;
+    options.solver_options.minimizer_progress_to_stdout = true;
+    RigFixedDepthBundleAdjuster ba(options);
+    for(auto &i: correspImgs_){
+        if(!ba.Solve(&i.second)){
+            delIdx.push_back(i.first);
+        }
+    }
+    if(!delIdx.empty()){
+        for(auto &i: delIdx){
+            correspImgs_.erase(i);
+        }
+        delIdx.clear();
+    }
+    return !correspImgs_.empty();
 }
 
 void colmapBase::getMaxDepthImgDim(){
@@ -44,13 +361,12 @@ void colmapBase::getUndistortedScaledDims(){
     UndistortCameraOptions options;
     options.max_image_size = maxdepthImgSize;
     for(auto &i: correspImgs_){
-        i.second.undistortedCam1 = UndistortCamera(options, Camera(Image(i.first).CameraId()));
-        i.second.undistortedCam2 = UndistortCamera(options, Camera(Image(i.second.imgID).CameraId()));
+        i.second.undistortedCam1 = UndistortCamera(options, getCamera(getImage(i.first).CameraId()));
+        i.second.undistortedCam2 = UndistortCamera(options, getCamera(getImage(i.second.imgID).CameraId()));
     }
 }
 
 bool colmapBase::checkCorrectDimensions(){
-    int cnt = 0;
     vector<image_t> delIdx;
     for(auto &i: correspImgs_){
         int diff = abs(static_cast<int>(i.second.undistortedCam1.Width()) - i.second.imgSize1.width);
@@ -606,7 +922,7 @@ void colmapBase::ReadImagesText(const std::string& path) {
             }
         }
 
-        image.SetUp(Camera(image.CameraId()));
+        image.SetUp(getCamera(image.CameraId()));
         image.SetPoints2D(points2D);
 
         for (point2D_t point2D_idx = 0; point2D_idx < image.NumPoints2D();

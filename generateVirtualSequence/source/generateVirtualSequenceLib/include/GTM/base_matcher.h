@@ -27,6 +27,7 @@
 #include <tuple>
 #include <utility>
 #include "GTM/prepareMegaDepth.h"
+//#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
 
@@ -184,12 +185,13 @@ struct kittiFolders{
     kittiFolders(std::initializer_list<std::string> const img1_,
                  std::initializer_list<std::string> const img2_,
                  std::initializer_list<std::string> const gt12_,
-                 bool if1){
-        std::copy(img1_.begin(), img1_.end(), img1);
-        std::copy(img2_.begin(), img2_.end(), img2);
-        std::copy(gt12_.begin(), gt12_.end(), gt12);
-        isFlow = if1;
-    }
+                 bool if1):img1(img1_), img2(img2_), gt12(gt12_), isFlow(if1){}
+//                 {
+//        std::copy(img1_.begin(), img1_.end(), img1);
+//        std::copy(img2_.begin(), img2_.end(), img2);
+//        std::copy(gt12_.begin(), gt12_.end(), gt12);
+//        isFlow = if1;
+//    }
 
 //    kittiFolders(std::initializer_list<std::string> &&img1_,
 //                 std::initializer_list<std::string> &&img2_,
@@ -219,7 +221,7 @@ public:
 private:
     const std::string base_url_oxford = "http://www.robots.ox.ac.uk/~vgg/research/affine/det_eval_files/";
     const std::string gtm_sub_folder = "GTM";
-    static const struct megaDepthFStruct{
+    const struct megaDepthFStruct{
         std::string mainFolder = "MegaDepth";//MegaDepth
         std::string depthImgSubF = "MegaDepth_v1";//MegaDepth_v1 -> followed by numbered (zero padded) folder
         std::string depthImgPart = "dense";//dense* -> * corresponds to number
@@ -301,7 +303,7 @@ private:
 
     static std::vector<kittiFolders> GetKITTISubDirs();
 
-    static std::vector<megaDepthFolders> GetMegaDepthSubDirs(const std::string &path);
+    std::vector<megaDepthFolders> GetMegaDepthSubDirs(const std::string &path);
 
     //Initial detection of all features without filtering
     bool detectFeatures();

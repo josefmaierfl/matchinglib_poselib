@@ -39,6 +39,10 @@
 
 namespace colmap {
 
+    template<typename SCALAR, int N>
+    int get_integer_part( const ceres::Jet<SCALAR, N>& x );
+    int get_integer_part( double x );
+
 // Standard bundle adjustment cost function for variable
 // camera pose and calibration and point parameters.
 template <typename CameraModel>
@@ -290,15 +294,18 @@ class RelativePoseCostFunction {
                         T* residuals) const {
             Eigen::Matrix<T, 3, 3, Eigen::RowMajor> R;
             ceres::QuaternionToRotation(qvec, R.data());
-            Eigen::Vector3d t(tvec[0], tvec[1], tvec[2]);
+//            Eigen::Matrix<T, 3, 1, Eigen::RowMajor> t(tvec[0], tvec[1], tvec[2]);
 
             // Undistort and transform to world space.
             T x1w, y1w, x2i, y2i;
-            CameraModel::ImageToWorld(camera_params1, T(x1_), (y1_),
+            CameraModel::ImageToWorld(camera_params1, T(x1_), T(y1_),
                                       &x1w, &y1w);
-            Eigen::Matrix<T, 3, 1> p1(x1w, y1w, 1.);
+            Eigen::Matrix<T, 3, 1> p1(x1w, y1w, T(1.));
             p1 *= T(depth1_);
-            p1 = R * p1 + t;
+            p1 = R * p1;
+            p1(0) += tvec[0];
+            p1(1) += tvec[1];
+            p1(2) += tvec[2];
 
             residuals[0] = p1(0);
             residuals[1] = p1(1);
@@ -312,43 +319,43 @@ class RelativePoseCostFunction {
 
             // Bilinear interpolation of depth in 2nd image
             double dtl, dtr, dbl, dbr;
-            double xl = std::floor(x2i);
-            double xr = std::ceil(std::abs(x2i));
-            double yt = std::floor(y2i);
-            double yb = std::ceil(std::abs(y2i));
-            int xli = static_cast<int>(xl);
-            int xri = static_cast<int>(xr);
-            int yti = static_cast<int>(yt);
-            int ybi = static_cast<int>(yb);
+            T xl = ceres::floor(x2i);
+            T xr = ceres::ceil(ceres::abs(x2i));
+            T yt = ceres::floor(y2i);
+            T yb = ceres::ceil(ceres::abs(y2i));
+            int xli = get_integer_part(xl);
+            int xri = get_integer_part(xr);
+            int yti = get_integer_part(yt);
+            int ybi = get_integer_part(yb);
             if((xli < 0) || (xri >= depthMap2_.cols()) || (yti < 0) || (ybi >= depthMap2_.rows())){
-                residuals[0] = 0;
-                residuals[1] = 0;
-                residuals[2] = 0;
+                residuals[0] = T(0);
+                residuals[1] = T(0);
+                residuals[2] = T(0);
                 return true;
             }
             dtl = depthMap2_(yti, xli);
             dtr = depthMap2_(yti, xri);
             dbl = depthMap2_(ybi, xli);
             dbr = depthMap2_(ybi, xri);
-            double xdiff = xr - xl;
-            double dt, db, d2;
-            if(xdiff < 1e-4){
-                dt = dtl;
-                db = dbl;
+            T xdiff = xr - xl;
+            T dt, db, d2;
+            if(xdiff < T(1e-4)){
+                dt = T(dtl);
+                db = T(dbl);
             }else {
-                double xrDiff = xr - x2i;
-                double xlDiff = x2i - xl;
-                dt = ((dtl * xrDiff + dtr * xlDiff)) / xdiff;
-                db = ((dbl * xrDiff + dbr * xlDiff)) / xdiff;
+                T xrDiff = xr - x2i;
+                T xlDiff = x2i - xl;
+                dt = ((T(dtl) * xrDiff + T(dtr) * xlDiff)) / xdiff;
+                db = ((T(dbl) * xrDiff + T(dbr) * xlDiff)) / xdiff;
             }
-            double ydiff = yb - yt;
-            if(ydiff < 1e-4){
+            T ydiff = yb - yt;
+            if(ydiff < T(1e-4)){
                 d2 = dt;
             }else {
                 d2 = ((dt * (yb - y2i) + db * (y2i - yt))) / ydiff;
             }
 
-            p1 *= T(d2);
+            p1 *= d2;
 
             residuals[0] -= p1(0);
             residuals[1] -= p1(1);
@@ -363,6 +370,13 @@ class RelativePoseCostFunction {
         const double depth1_;
         const Eigen::Ref<const Eigen::MatrixXd> depthMap2_;
     };
+
+    int get_integer_part( double x )
+    { return static_cast<int>(x); }
+
+    template<typename SCALAR, int N>
+    int get_integer_part( const ceres::Jet<SCALAR, N>& x )
+    { return static_cast<int>(x.a); }
 
 }  // namespace colmap
 

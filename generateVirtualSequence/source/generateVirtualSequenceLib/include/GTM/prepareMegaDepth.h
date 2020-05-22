@@ -6,6 +6,7 @@
 #define GENERATEVIRTUALSEQUENCE_PREPAREMEGADEPTH_H
 
 #include <glob_includes.h>
+#include <opencv2/highgui.hpp>
 
 struct megaDepthFolders{
     std::string mdImgF;//Folder holding images of a MegaDepth sub-set
@@ -18,6 +19,15 @@ struct megaDepthFolders{
             mdImgF(move(mdImgF_)), mdDepth(move(mdDepth_)), sfmF(move(sfmF_)), sfmImgF(move(sfmImgF_)), depthExt(move(depthExt_)){}
 
     megaDepthFolders()= default;
+};
+
+struct megaDepthData{
+    std::string img1_name;//Name and path to first image
+    std::string img2_name;//Name and path to first image
+    cv::Mat flow;//Optical flow data
+
+    megaDepthData(std::string &&img1_name_, std::string &&img2_name_, cv::Mat &&flow_):
+            img1_name(std::move(img1_name_)), img2_name(std::move(img2_name_)), flow(std::move(flow_)){};
 };
 
 #endif //GENERATEVIRTUALSEQUENCE_PREPAREMEGADEPTH_H

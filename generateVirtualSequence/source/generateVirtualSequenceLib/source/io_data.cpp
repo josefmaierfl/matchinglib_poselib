@@ -27,8 +27,7 @@
 #include "dirent.h"
 #include <algorithm>
 #include <functional>
-#include <boost/range/iterator_range.hpp>
-#include <boost/lambda/bind.hpp>
+//#include <boost/lambda/bind.hpp>
 
 #define OLDVERSIONCHECKDIR 0
 #if OLDVERSIONCHECKDIR
@@ -38,7 +37,10 @@
 #include <string>
 #endif
 
+//#define BOOST_NO_CXX11_SCOPED_ENUMS
+#include <boost/range/iterator_range.hpp>
 #include <boost/filesystem.hpp>
+//#undef BOOST_NO_CXX11_SCOPED_ENUMS
 #include "alphanum.hpp"
 
 //#include "PfeImgFileIO.h"
@@ -719,6 +721,11 @@ std::vector<std::string> getDirs(const std::string &path){
     return dirs;
 }
 
+//Returns the parent path
+std::string getParentPath(const std::string &path){
+    return boost::filesystem::path(path).parent_path().string();
+}
+
 //Count the number of files in the folder
 size_t getNumberFilesInFolder(const std::string &path){
     boost::filesystem::path p(path);
@@ -1038,5 +1045,76 @@ bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Poin
         cv::merge(channels_fin, flow3.getMat());
     }
 
+    return true;
+}
+
+//Convert a 3 channel floating point flow matrix (x, y, last channel corresp. to validity) to a 3-channel uint16 png image (same format as KITTI)
+bool writeKittiFlowFile(const std::string &filename, const cv::Mat &flow, float precision,
+                        bool useBoolValidity, float validityPrecision){
+    if(checkFileExists(filename)){
+        cerr << "Flow file " << filename << " already exists." << endl;
+        return false;
+    }
+    if(flow.type() != CV_32FC3){
+        cerr <<"Wrong format of flow matrix" << endl;
+        return false;
+    }
+
+    vector<Mat> channels, channelsInt(3, Mat::zeros(flow.size(), CV_16UC1));
+    cv::split(flow, channels);
+    if(useBoolValidity)
+    {
+        for (int u = 0; u < flow.rows; u++) {
+            for (int v = 0; v < flow.cols; v++) {
+                if (channels[2].at<float>(u, v) > 0) {
+                    const float fx = round(channels[0].at<float>(u, v) * precision + 32768.0f);
+                    if(fx < 0 || fx > static_cast<float>(std::numeric_limits<uint16_t>::max())){
+                        continue;
+                    }
+                    const float fy = round(channels[1].at<float>(u, v) * precision + 32768.0f);
+                    if(fy < 0 || fy > static_cast<float>(std::numeric_limits<uint16_t>::max())){
+                        continue;
+                    }
+                    channelsInt[0].at<uint16_t>(u, v) = static_cast<uint16_t>(fx);
+                    channelsInt[1].at<uint16_t>(u, v) = static_cast<uint16_t>(fy);
+                    channelsInt[2].at<uint16_t>(u, v) = 1;
+                }
+            }
+        }
+    }else{
+        for (int u = 0; u < flow.rows; u++) {
+            for (int v = 0; v < flow.cols; v++) {
+                if (channels[2].at<float>(u, v) > 0) {
+                    const float fx = round(channels[0].at<float>(u, v) * precision + 32768.0f);
+                    if(fx < 0 || fx > static_cast<float>(std::numeric_limits<uint16_t>::max())){
+                        continue;
+                    }
+                    const float fy = round(channels[1].at<float>(u, v) * precision + 32768.0f);
+                    if(fy < 0 || fy > static_cast<float>(std::numeric_limits<uint16_t>::max())){
+                        continue;
+                    }
+                    channelsInt[0].at<uint16_t>(u, v) = static_cast<uint16_t>(fx);
+                    channelsInt[1].at<uint16_t>(u, v) = static_cast<uint16_t>(fy);
+                    channelsInt[2].at<float>(u, v) = static_cast<uint16_t>(round(channels[2].at<float>(u, v) * validityPrecision));
+                }
+            }
+        }
+    }
+    Mat pngFlow;
+    cv::merge(channelsInt, pngFlow);
+    vector<int> compression_params;
+    compression_params.push_back(IMWRITE_PNG_COMPRESSION);
+    compression_params.push_back(0);
+    bool result = false;
+    try {
+        result = cv::imwrite(filename, pngFlow, compression_params);
+    }catch (const cv::Exception& ex){
+        cerr << "Exception converting image to PNG format: " << ex.what() << endl;
+        return false;
+    }
+    if (!result) {
+        cerr << "ERROR: Can't save PNG file." << endl;
+        return false;
+    }
     return true;
 }

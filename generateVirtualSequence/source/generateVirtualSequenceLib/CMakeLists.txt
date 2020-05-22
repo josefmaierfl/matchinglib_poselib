@@ -10,6 +10,12 @@ if(OPENMP_ENABLED)
 	find_package(OpenMP QUIET)
 endif()
 
+#set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost REQUIRED COMPONENTS
+		filesystem
+		regex
+		system)
+
 find_package(Ceres REQUIRED)
 
 find_package(Eigen REQUIRED)
@@ -95,9 +101,6 @@ set(sources
 	${source_path}/GTM/colmap/misc.cc
 	${source_path}/GTM/colmap/point3d.cc
 	${source_path}/GTM/colmap/track.cc
-	${source_path}/GTM/colmap/bundle_adjustment.cc
-	${source_path}/GTM/colmap/reconstruction.cc
-	${source_path}/GTM/colmap/camera_rig.cc
 	${source_path}/GTM/colmapBase.cpp
 	${source_path}/GTM/prepareMegaDepth.cpp)
 
@@ -171,12 +174,14 @@ target_include_directories(${target}
     ${DEFAULT_INCLUDE_DIRECTORIES}
     #${FLANN_INCLUDE_DIRS}
     #${FLANN_INCLUDE_DIRS}
+	${Boost_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIR}
     #${EIGEN3_INCLUDE_DIR}
 	#${MATCHINGLIB_INCLUDE_DIRS}
 	#${PFELIB_INCLUDE_DIR}
 	${PCL_INCLUDE_DIRS}
+	${CERES_INCLUDE_DIRS}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -195,6 +200,7 @@ target_link_libraries(${target}
     PUBLIC
     ${DEFAULT_LIBRARIES}
     #${FLANN_LIBRARIES}
+	${Boost_LIBRARIES}
     ${OpenCV_LIBS}
 	#${MATCHINGLIB_LIBRARIES}
 
@@ -209,6 +215,7 @@ target_link_libraries(${target}
 	${PCL_SEGMENTATION_LIBRARIES}
 	#${PCL_STEREO_LIBRARIES}
 	${PCL_VISUALIZATION_LIBRARIES}
+	${CERES_LIBRARIES}
 	#Eigen
 
     INTERFACE
