@@ -221,6 +221,7 @@ public:
 private:
     const std::string base_url_oxford = "http://www.robots.ox.ac.uk/~vgg/research/affine/det_eval_files/";
     const std::string gtm_sub_folder = "GTM";
+    const std::string gtm_ending = ".yaml.gz";
     const struct megaDepthFStruct{
         std::string mainFolder = "MegaDepth";//MegaDepth
         std::string depthImgSubF = "MegaDepth_v1";//MegaDepth_v1 -> followed by numbered (zero padded) folder
@@ -281,6 +282,9 @@ private:
                                    const int &remainingImgs, bool save_it = true);
     //Check if GTM are available on disk and load them
     bool loadGTM(const std::string &gtm_path, const std::pair<std::string, std::string> &imageNames);
+    //Extract image names from GTM file name given a list of image file names of the folder containing the images
+    bool getImgNamesFromGTM(const std::string &file, const std::vector<std::string> &imgNames,
+                            std::string &imgName1, std::string &imgName2);
     //Adds GTM from a single image pair to gtmdata (gtmdata.imgNamesAll is not added)
     void addGTMdataToPool();
     //Checks if GTM for the Oxford dataset are available and if not calculates them
@@ -293,11 +297,13 @@ private:
     static bool loadKittiImageGtFnames(const std::string &mainPath, kittiFolders &info,
                                 std::vector<std::tuple<std::string, std::string, std::string>> &fileNames);
     //Loads KITTI GT, interpolates flow/disparity, and calculates GTM
-    bool getKittiGTM(const std::string &img1f, const std::string &img2f, const std::string &gt, bool is_flow);
+    bool getKitti_MD_GTM(const std::string &img1f, const std::string &img2f, const std::string &gt, bool is_flow,
+                         cv::InputArray flow = cv::noArray());
     //Calculates, refines, and stores GTM of an KITTI image pair
-    bool calcRefineStoreGTM_KITTI(const std::tuple<std::string, std::string, std::string> &fileNames,
-                                  bool is_flow, const std::string &gtm_path, const std::string &sub,
-                                  const int &remainingImgs, bool save_it);
+    bool calcRefineStoreGTM_KITTI_MD(const std::tuple<std::string, std::string, std::string> &fileNames,
+                                     bool is_flow, const std::string &gtm_path, const std::string &sub,
+                                     const int &remainingImgs, bool save_it, const std::string &gt_type,
+                                     cv::InputArray flow = cv::noArray());
     //Holds sub-directory names for the Oxford dataset
     static std::vector<std::string> GetOxfordSubDirs();
 
