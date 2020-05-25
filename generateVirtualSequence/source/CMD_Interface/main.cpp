@@ -2556,6 +2556,10 @@ bool genTemplateFile(const std::string &filename){
     fs.writeComment("If multiple GT datasets (Oxford, KITTI, MegaDepth) are used, this portion (0 - 1.0) specifies "
                     "the overall ratio of used GT datasets compared to warped patch feature matches.");
     fs << "GTMportion" << 0;
+    fs.writeComment("Portion (0 - 1.0) of TN that should be drawn from warped image patches (and not from GTM).");
+    fs << "WarpedPortionTN" << 1.0;
+    fs.writeComment("Portion (0 - 1.0) of TN that should be from GTM or from different image patches (first <-> second stereo camera).");
+    fs << "portionGrossTN" << 0;
 
     fs.release();
 
@@ -2994,6 +2998,14 @@ bool loadConfigFile(const std::string &filename,
     n = fs["GTMportion"];
     if(!n.empty()){
         n >> matchPars.GTMportion;
+    }
+    n = fs["WarpedPortionTN"];
+    if(!n.empty()){
+        n >> matchPars.WarpedPortionTN;
+    }
+    n = fs["portionGrossTN"];
+    if(!n.empty()){
+        n >> matchPars.portionGrossTN;
     }
 
     fs.release();

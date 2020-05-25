@@ -204,6 +204,11 @@ bool genMatchSequ::generateMatches(){
     //Calculate maximum number of TP and TN correspondences
     totalNrCorrs();
 
+    //Calculate GTM
+    if(!calcGTM() && (verbose & PRINT_WARNING_MESSAGES)){
+        cout << "Use of GTM disabled." << endl;
+    }
+
     //Calculate features from given images
     if(!getFeatures()){
         cerr << "Unable to calculate necessary keypoints from images!" << endl;
@@ -907,6 +912,11 @@ void genMatchSequ::totalNrCorrs() {
     for (auto &i : nrCorrs) {
         nrCorrsFullSequ += i;
     }
+    nrTNFullSequ = 0;
+    for (auto &i : nrTrueNeg) {
+        nrTNFullSequ += i;
+    }
+    nrTPFullSequ = nrCorrsFullSequ - nrTNFullSequ;
 }
 
 bool genMatchSequ::check_3rdPty_GT(){
@@ -951,17 +961,78 @@ bool genMatchSequ::check_3rdPty_GT(){
 //Generate GTM from 3rd party datasets
 bool genMatchSequ::calcGTM(){
     if(!check_3rdPty_GT()){
+        resetGTMuse();
         return false;
     }
+    baseMatcher bm(parsMtch.keyPointType, parsMtch.imgPath, parsMtch.descriptorType, &rand2);
+    bool data_av = false;
     if(use_3dPrtyGT & GT_DATASETS::OXFORD){
-
+        auto min_nrTP = static_cast<size_t>(round(parsMtch.oxfordGTMportion * static_cast<double>(nrTPFullSequ)));
+        if(!bm.calcGTM_Oxford(min_nrTP)){
+            cerr << "Unable to use GTM from the Oxford dataset." << endl;
+        }else{
+            data_av |= true;
+        }
     }
     if(use_3dPrtyGT & GT_DATASETS::KITTI){
-
+        auto min_nrTP = static_cast<size_t>(round(parsMtch.kittiGTMportion * static_cast<double>(nrTPFullSequ)));
+        if(!bm.calcGTM_KITTI(min_nrTP)){
+            cerr << "Unable to use GTM from the KITTI dataset." << endl;
+        }else{
+            data_av |= true;
+        }
     }
     if(use_3dPrtyGT & GT_DATASETS::MEGADEPTH){
-
+        auto min_nrTP = static_cast<size_t>(round(parsMtch.megadepthGTMportion * static_cast<double>(nrTPFullSequ)));
+        if(!bm.calcGTM_MegaDepth(min_nrTP)){
+            cerr << "Unable to use GTM from the MegaDepth dataset." << endl;
+        }else{
+            data_av |= true;
+        }
     }
+    if(!data_av){
+        resetGTMuse();
+        return false;
+    }
+    gtmdata = bm.moveGTMdata();
+    nrTNFullSequWarped = static_cast<size_t>(round(parsMtch.WarpedPortionTN * static_cast<double>(nrTNFullSequ)));
+    nrGrossTNFullSequGTM = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(nrTNFullSequ)));
+    if(nrGrossTNFullSequGTM >= gtmdata.sum_TN){
+        nrGrossTNFullSequWarped = nrGrossTNFullSequGTM - gtmdata.sum_TN;
+        if(nrGrossTNFullSequWarped > nrTNFullSequWarped){
+            if(verbose & PRINT_WARNING_MESSAGES) {
+                cout << "Number of gross TN from warped patches is larger than specified portion of TN from warped patches "
+                        "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN << " to " <<
+                        static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
+            }
+            nrTNFullSequWarped = nrGrossTNFullSequWarped;
+        }
+        nrGrossTNFullSequGTM = gtmdata.sum_TN;
+    }else{
+        nrGrossTNFullSequWarped = 0;
+        if(nrTNFullSequWarped > nrTNFullSequ - nrGrossTNFullSequGTM){
+            nrTNFullSequWarped = nrTNFullSequ - nrGrossTNFullSequGTM;
+            if(verbose & PRINT_WARNING_MESSAGES) {
+                cout << "Number of gross TN from GTM is larger than specified portion of TN from warped patches "
+                        "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN << " to " <<
+                     static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
+            }
+        }
+    }
+    nrCorrsFullSequWarped = nrCorrsFullSequ - gtmdata.useNrTP - nrGrossTNFullSequGTM;
+    nrTPFullSequWarped = nrTPFullSequ - gtmdata.useNrTP;
+    return true;
+}
+
+//Resets all GTM related variables to only use warped patches
+void genMatchSequ::resetGTMuse(){
+    parsMtch.WarpedPortionTN = 1.0;
+    nrTNFullSequWarped = nrTNFullSequ;
+    nrGrossTNFullSequWarped = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(nrTNFullSequ)));
+    nrGrossTNFullSequGTM = 0;
+    nrCorrsFullSequWarped = nrCorrsFullSequ;
+    nrTPFullSequWarped = nrTPFullSequ;
+    gtmdata.clear();
 }
 
 //Extracts the necessary number of keypoints from the set of images
@@ -978,11 +1049,11 @@ bool genMatchSequ::getFeatures() {
 
     //Check for the correct keypoint & descriptor types
     if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
-        cout << "Keypoint type " << parsMtch.keyPointType << " is not supported!" << endl;
+        cerr << "Keypoint type " << parsMtch.keyPointType << " is not supported!" << endl;
         return false;
     }
     if (!matchinglib::IsDescriptorTypeSupported(parsMtch.descriptorType)) {
-        cout << "Descriptor type " << parsMtch.descriptorType << " is not supported!" << endl;
+        cerr << "Descriptor type " << parsMtch.descriptorType << " is not supported!" << endl;
         return false;
     }
 
@@ -3389,6 +3460,8 @@ size_t genMatchSequ::hashFromMtchPars() {
     ss << parsMtch.kittiGTMportion;
     ss << parsMtch.megadepthGTMportion;
     ss << parsMtch.GTMportion;
+    ss << parsMtch.WarpedPortionTN;
+    ss << parsMtch.portionGrossTN;
 
     strFromPars = ss.str();
 
@@ -3545,6 +3618,10 @@ bool genMatchSequ::writeMatchingParameters(){
         fs << "megadepthGTMportion" << parsMtch.megadepthGTMportion;
         fs.writeComment("Portion of GTM over all datasets (Oxford, KITTI, MegaDepth) compared to warped patch matches.");
         fs << "GTMportion" << parsMtch.GTMportion;
+        fs.writeComment("Portion of TN that should be drawn from warped image patches (and not from GTM).");
+        fs << "WarpedPortionTN" << parsMtch.WarpedPortionTN;
+        fs.writeComment("Portion of TN that should be from GTM or from different image patches (first <-> second stereo camera).");
+        fs << "portionGrossTN" << parsMtch.portionGrossTN;
 
         fs.release();
     }catch(interprocess_exception &ex){

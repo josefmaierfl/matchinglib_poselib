@@ -895,7 +895,6 @@ private:
 	double absCamVelocity;//in baselines from frame to frame
 
 	std::vector<size_t> nrTruePos;//Absolute number of true positive correspondences per frame
-	std::vector<size_t> nrTrueNeg;//Absolute number of true negative correspondences per frame
 	bool fixedNrCorrs = false;//If the inlier ratio and the absolute number of true positive correspondences are constant over all frames, the # of correspondences are as well const. and fixedNrCorrs = true
 	std::vector<cv::Mat> nrTruePosRegs;//Absolute number of true positive correspondences per image region and frame; Type CV_32SC1
 	std::vector<cv::Mat> nrCorrsRegs;//Absolute number of correspondences (TP+TN) per image region and frame; Type CV_32SC1
@@ -1022,6 +1021,7 @@ protected:
     std::vector<cv::Mat> t;
     size_t nrStereoConfs;//Number of different stereo camera configurations
     std::vector<size_t> nrCorrs;//Absolute number of correspondences (TP+TN) per frame
+    std::vector<size_t> nrTrueNeg;//Absolute number of true negative correspondences per frame
     std::vector<double> inlRat;//Inlier ratio for every frame
 	std::vector<Poses> absCamCoordinates;//Absolute coordinates of the camera centres (left or bottom cam of stereo rig) for every frame; Includes the rotation from the camera into world and the position of the camera centre C in the world: X_world  = R * X_cam + t (t corresponds to C in this case); X_cam = R^T * X_world - R^T * t
 	pcl::PointCloud<pcl::PointXYZ>::Ptr staticWorld3DPts;//Point cloud in the world coordinate system holding all generated 3D points

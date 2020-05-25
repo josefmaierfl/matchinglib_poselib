@@ -113,14 +113,25 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
  * string _imgsPath				Input  -> Path to the images which is necessary for loading and storing the ground truth matches
  *
  */
-baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, bool refineGTM_) :
+baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, std::mt19937 *rand2_, bool refineGTM_) :
+        refineGTM(refineGTM_),
+        rand2ptr(rand2_),
+        inlRatio(0),
+        inlRatio_refined(0),
+        positivesGT(0),
+        positivesGT_refined(0),
+        negativesGT(0),
+        negativesGT_refined(0),
         imgsPath(move(_imgsPath)),
+        flowGtIsUsed(true),
+        usedMatchTH(3.0),
         GTfilterExtractor(move(_descriptortype)),
-        featuretype(move(_featuretype)),
-        refineGTM(refineGTM_)
+        featuretype(move(_featuretype))
 {
-//	memset(&qpm, 0, sizeof(matchQualParams));
-//	memset(&qpr, 0, sizeof(matchQualParams));
+    if(rand2ptr == nullptr){
+        long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        *rand2ptr = std::mt19937(seed);
+    }
 }
 
 /* Feature extraction in both images without filtering
@@ -139,7 +150,7 @@ bool baseMatcher::detectFeatures()
         return false; //Too less features detected
     }
 
-#define showfeatures 0
+#define showfeatures 1
 #if showfeatures
     cv::Mat img1c;
     drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
@@ -1984,7 +1995,7 @@ int baseMatcher::filterInitFeaturesGT()
     {
         //Delete all outliers from the right image so that it is equal to the number of outliers in the left image
         for(int i = 0; i < outlDiff; i++){
-            int delOutlIdx = rand() % rightOutlSize;
+            int delOutlIdx = rand2() % rightOutlSize;
             size_t rKeyPIdx = outlR[delOutlIdx];
             for(auto &k1: nearest_dist){
                 if(k1.first > rKeyPIdx){
@@ -2004,7 +2015,7 @@ int baseMatcher::filterInitFeaturesGT()
         outlDiff *= -1;
         //Delete as many outliers from the left image so that it is equal to the number of outliers in the right image
         for(int i = 0; i < outlDiff; i++){
-            int delOutlIdx = rand() % leftOutlSize;
+            int delOutlIdx = rand2() % leftOutlSize;
             keypL.erase(keypL.begin() + outlL[delOutlIdx]);
             leftInlier.erase(leftInlier.begin() + outlL[delOutlIdx]);
             for(size_t k1 = 0; k1 < leftOutlSize; k1++){
@@ -2780,11 +2791,11 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 	{
         int idx = i;
         if(maxSampleSize < GTsi) {
-            idx = rand() % GTsi;
+            idx = rand2() % GTsi;
             {
                 int j = 0;
                 while (j < (int) used_matches.size()) {
-                    idx = rand() % GTsi;
+                    idx = rand2() % GTsi;
                     for (j = 0; j < (int) used_matches.size(); j++) {
                         if (idx == used_matches[j])
                             break;
@@ -5144,6 +5155,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
         cerr << "No MegaDepth data found" << endl;
         return false;
     }
+    gtmdata.vecIdxRng_MegaDepth.first = gtmdata.matchesGTAll.size();
     for(auto &i: all_folders){
         const string md_sub_parentP = getParentPath(i.mdImgF);
         const string gtm_path = concatPath(md_sub_parentP, gtm_sub_folder);
@@ -5194,8 +5206,13 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
                 save_it = false;
             }
             std::vector<megaDepthData> data;
-            if(!convertMegaDepthData(i, mdFolders.flowSub, data)){
-                cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
+            try {
+                if (!convertMegaDepthData(i, mdFolders.flowSub, data)) {
+                    cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
+                    return false;
+                }
+            }catch (Exception &e) {
+                cerr << e.what() << endl;
                 return false;
             }
             const string sub_dense = getFilenameFromPath(md_sub_parentP);
@@ -5226,6 +5243,13 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
             break;
         }
     }
+    gtmdata.vecIdxRng_MegaDepth.second = gtmdata.matchesGTAll.size();
+    if(min_nrTP > gtmdata.sum_TP_MegaDepth){
+        gtmdata.minNrTP_MegaDepth = gtmdata.sum_TP_MegaDepth;
+    }else{
+        gtmdata.minNrTP_MegaDepth = min_nrTP;
+    }
+    gtmdata.useNrTP += gtmdata.minNrTP_MegaDepth;
     return true;
 }
 
@@ -5277,6 +5301,7 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
     gtmdata.sum_TP_KITTI = 0;
     gtmdata.sum_TN_KITTI = 0;
     flowGtIsUsed = true;
+    gtmdata.vecIdxRng_KITTI.first = gtmdata.matchesGTAll.size();
     for(auto &i: GetKITTISubDirs()){
         string img1_path = concatPath(path, i.img1.sub_folder);
         if(!checkPathExists(img1_path)){
@@ -5348,6 +5373,13 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
             break;
         }
     }
+    gtmdata.vecIdxRng_KITTI.second = gtmdata.matchesGTAll.size();
+    if(min_nrTP > gtmdata.sum_TP_KITTI){
+        gtmdata.minNrTP_KITTI = gtmdata.sum_TP_KITTI;
+    }else{
+        gtmdata.minNrTP_KITTI = min_nrTP;
+    }
+    gtmdata.useNrTP += gtmdata.minNrTP_KITTI;
     return true;
 }
 
@@ -5502,6 +5534,7 @@ bool baseMatcher::calcGTM_Oxford(size_t &min_nrTP) {
 bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
     gtmdata.sum_TP_Oxford = 0;
     gtmdata.sum_TN_Oxford = 0;
+    gtmdata.vecIdxRng_Oxford.first = gtmdata.matchesGTAll.size();
     for(auto &sub: GetOxfordSubDirs()){
         const string sub_path = concatPath(path, sub);
         const string gtm_path = concatPath(sub_path, gtm_sub_folder);
@@ -5556,6 +5589,13 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
             break;
         }
     }
+    gtmdata.vecIdxRng_Oxford.second = gtmdata.matchesGTAll.size();
+    if(min_nrTP > gtmdata.sum_TP_Oxford){
+        gtmdata.minNrTP_Oxford = gtmdata.sum_TP_Oxford;
+    }else{
+        gtmdata.minNrTP_Oxford = min_nrTP;
+    }
+    gtmdata.useNrTP += gtmdata.minNrTP_Oxford;
     return true;
 }
 

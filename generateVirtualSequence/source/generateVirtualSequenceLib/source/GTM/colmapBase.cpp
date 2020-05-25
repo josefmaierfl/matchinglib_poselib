@@ -229,8 +229,13 @@ bool colmapBase::prepareColMapData(const megaDepthFolders& folders){
         cerr << e.what() << endl;
         return false;
     }
-    filterExistingDepth(folders);
-    filterInterestingImgs();
+    try {
+        filterExistingDepth(folders);
+        filterInterestingImgs();
+    } catch (colmapException &e) {
+        cerr << e.what() << endl;
+        return false;
+    }
     return getCorrespondingImgs();
 }
 

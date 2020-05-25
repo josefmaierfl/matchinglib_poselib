@@ -26,6 +26,7 @@
 #include "opencv2/features2d/features2d.hpp"
 #include <tuple>
 #include <utility>
+#include <random>
 #include "GTM/prepareMegaDepth.h"
 //#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
@@ -100,6 +101,13 @@ struct GTMdata{
     size_t sum_TN_KITTI = 0;//Number of GT TN loaded/computed so far over the KITTI dataset
     size_t sum_TP_MegaDepth = 0;//Number of GT TP loaded/computed so far over the MegaDepth dataset
     size_t sum_TN_MegaDepth = 0;//Number of GT TN loaded/computed so far over the MegaDepth dataset
+    size_t minNrTP_Oxford = 0;//Number of TP used from Oxford Dataset
+    size_t minNrTP_KITTI = 0;//Number of TP used from KITTI Dataset
+    size_t minNrTP_MegaDepth = 0;//Number of TP used from MegaDepth Dataset
+    size_t useNrTP = 0;//Number of TP used from all datasets
+    std::pair<int, int> vecIdxRng_Oxford;//Indices pointing to first (including) and last (excluding) elements of the Oxford dataset in std::vector variables of this struct. Negative values indicate no data available.
+    std::pair<int, int> vecIdxRng_KITTI;//Indices pointing to first (including) and last (excluding) elements of the KITTI dataset in std::vector variables of this struct. Negative values indicate no data available.
+    std::pair<int, int> vecIdxRng_MegaDepth;//Indices pointing to first (including) and last (excluding) elements of the MegaDepth dataset in std::vector variables of this struct. Negative values indicate no data available.
     std::vector<std::vector<cv::KeyPoint>> keypLAll;//Left GT keypoints loaded/computed so far over the whole dataset
     std::vector<std::vector<cv::KeyPoint>> keypRAll;//Right GT keypoints loaded/computed so far over the whole dataset
     std::vector<std::vector<bool>> leftInlierAll;// Left inlier/outlier mask loaded/computed so far over the whole dataset
@@ -108,7 +116,7 @@ struct GTMdata{
     std::vector<std::vector<std::pair<std::string, std::string>>> imgNamesAll;//Image names including paths of first and second source images corresponding to indices of keypLAll, keypRAll, leftInlierAll, rightInlierAll, matchesGTAll
     std::vector<char> sourceGT;//Indicates from which dataset GTM were calculated (O ... Oxford, K ... KITTI, M ... MegaDepth)
 
-    GTMdata(){
+    explicit GTMdata(){
         sum_TP = 0;
         sum_TN = 0;
         sum_TP_Oxford = 0;
@@ -117,6 +125,13 @@ struct GTMdata{
         sum_TN_KITTI = 0;
         sum_TP_MegaDepth = 0;
         sum_TN_MegaDepth = 0;
+        minNrTP_Oxford = 0;
+        minNrTP_KITTI = 0;
+        minNrTP_MegaDepth = 0;
+        useNrTP = 0;
+        vecIdxRng_Oxford = std::make_pair(-1, -1);
+        vecIdxRng_KITTI = std::make_pair(-1, -1);
+        vecIdxRng_MegaDepth = std::make_pair(-1, -1);
     }
 
     void clear(){
@@ -128,6 +143,13 @@ struct GTMdata{
         sum_TN_KITTI = 0;
         sum_TP_MegaDepth = 0;
         sum_TN_MegaDepth = 0;
+        minNrTP_Oxford = 0;
+        minNrTP_KITTI = 0;
+        minNrTP_MegaDepth = 0;
+        useNrTP = 0;
+        vecIdxRng_Oxford = std::make_pair(-1, -1);
+        vecIdxRng_KITTI = std::make_pair(-1, -1);
+        vecIdxRng_MegaDepth = std::make_pair(-1, -1);
         keypLAll.clear();
         keypRAll.clear();
         leftInlierAll.clear();
@@ -209,7 +231,11 @@ public:
 	//FUNCTION PROTOTYPES ----------------------------------------
 
 	//Constructor
-    baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, bool refineGTM_ = true);
+    baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true);
+
+    GTMdata &&moveGTMdata(){
+        return std::move(gtmdata);
+    }
 
     //Prepare GTM from Oxford dataset
     bool calcGTM_Oxford(size_t &min_nrTP);
@@ -237,6 +263,7 @@ private:
     bool refineGTM = true;
     annotImgPars quality;
     bool refinedGTMAvailable = false;
+    std::mt19937 *rand2ptr;
 
     //Quality parameters after feature extraction
     double inlRatio, inlRatio_refined;//Inlier ratio over all keypoints in both images
@@ -333,6 +360,9 @@ private:
 	std::string prepareFileNameGT(const std::pair<std::string, std::string> &filenamesImg, const std::string &GTM_path);
     std::string getGTMbasename() const;
     static std::string concatImgNames(const std::pair<std::string, std::string> &filenamesImg);
+    inline int rand2(){
+        return static_cast<int>((*rand2ptr)() % static_cast<size_t>(std::numeric_limits<int>::max()));
+    }
 };
 
 /* --------------------- Function prototypes --------------------- */

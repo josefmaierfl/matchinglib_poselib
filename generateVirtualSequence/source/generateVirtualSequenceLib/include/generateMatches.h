@@ -9,6 +9,7 @@
 #include <opencv2/core/types.hpp>
 #include <map>
 #include <tuple>
+#include "GTM/base_matcher.h"
 
 struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::string mainStorePath;//Path for storing results. If empty and the 3D correspondences are loaded from file, the path for loading these correspondences is also used for storing the matches
@@ -32,6 +33,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     double kittiGTMportion;//Portion of GT matches from KITTI dataset (GT = flow, disparity)
     double megadepthGTMportion;//Portion of GT matches from MegaDepth dataset (GT = depth)
     double GTMportion;//Portion of GT matches (GTM) compared to warped patch correspondences if multiple datasets are used as source (Oxford, KITTI, MegaDepth)
+    double WarpedPortionTN;//Portion of TN that should be drawn from warped image patches (and not from GTM).
+    double portionGrossTN;//Portion of TN that should be from GTM or from different image patches (first <-> second stereo camera).
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -54,7 +57,9 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            double oxfordGTMportion_ = 0,
                            double kittiGTMportion_ = 0,
                            double megadepthGTMportion_ = 0,
-                           double GTMportion_ = 0):
+                           double GTMportion_ = 0,
+                           double WarpedPortionTN_ = 1.0,
+                           double portionGrossTN_ = 0):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -76,6 +81,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             kittiGTMportion(kittiGTMportion_),
             megadepthGTMportion(megadepthGTMportion_),
             GTMportion(GTMportion_),
+            WarpedPortionTN(WarpedPortionTN_),
+            portionGrossTN(portionGrossTN_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -110,6 +117,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             kittiGTMportion(0),
             megadepthGTMportion(0),
             GTMportion(0),
+            WarpedPortionTN(1.0),
+            portionGrossTN(0),
             parsValid(false){}
 
     bool checkParameters(){
@@ -162,6 +171,16 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
         GTMportion = std::round(abs(GTMportion) * 1e4) / 1e4;
         if(GTMportion > (1. + DBL_EPSILON)){
             std::cerr << "Invalid oxfordGTMportion." << std::endl;
+            return false;
+        }
+        WarpedPortionTN = std::round(abs(WarpedPortionTN) * 1e4) / 1e4;
+        if(WarpedPortionTN > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid WarpedPortionTN." << std::endl;
+            return false;
+        }
+        portionGrossTN = std::round(abs(portionGrossTN) * 1e4) / 1e4;
+        if(portionGrossTN > (1. + DBL_EPSILON)){
+            std::cerr << "Invalid portionGrossTN." << std::endl;
             return false;
         }
         return true;
@@ -267,6 +286,8 @@ private:
     bool check_3rdPty_GT();
     //Generate GTM from 3rd party datasets
     bool calcGTM();
+    //Resets all GTM related variables to only use warped patches
+    void resetGTMuse();
     //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
     size_t hashFromSequPars();
     //Generates a hash value from the parameters used to generate matches from 3D correspondences
@@ -422,6 +443,13 @@ private:
     std::vector<cv::Mat> imgs;//If less than maxImgLoad images are in the specified folder, they are loaded into this vector. Otherwise, this vector holds only images for the current frame
     std::vector<std::string> imageList;//Holds the filenames of all images to extract keypoints
     size_t nrCorrsFullSequ = 0;//Number of predicted overall correspondences (TP+TN) for all frames
+    size_t nrTNFullSequ = 0;//Number of predicted overall TN correspondences for all frames
+    size_t nrTPFullSequ = 0;//Number of predicted overall TP correspondences for all frames
+    size_t nrCorrsFullSequWarped = 0;//Number of predicted overall correspondences (TP+TN) for all frames that should be generated using warped patches
+    size_t nrTNFullSequWarped = 0;//Number of predicted overall TN correspondences for all frames that should be generated using warped patches
+    size_t nrGrossTNFullSequWarped = 0;//Number of predicted overall TN correspondences for all frames that should be from different image patches (first <-> second stereo camera)
+    size_t nrGrossTNFullSequGTM = 0;//Number of predicted overall TN correspondences for all frames that should be from GTM
+    size_t nrTPFullSequWarped = 0;//Number of predicted overall TP correspondences for all frames that should be generated using warped patches
     std::vector<cv::KeyPoint> keypoints1;//Keypoints from all used images
     cv::Mat descriptors1;//Descriptors from all used images
     size_t nrFramesGenMatches = 0;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
@@ -463,6 +491,7 @@ private:
     qualityParm timeMatchStats = qualityParm();//Statistics for the execution time in microseconds for calculating matches based on all frames
     qualityParm time3DStats = qualityParm();//Statistics for the execution time in microseconds for calculating 3D correspondences based on all frames
     uint8_t use_3dPrtyGT = false;//Indicates if feature matches from 3rd party GT datasets should be used. The first 3 bits indicate which datasets should be used.
+    GTMdata gtmdata;//Holds Ground Truth matches and related information
 };
 
 //GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);

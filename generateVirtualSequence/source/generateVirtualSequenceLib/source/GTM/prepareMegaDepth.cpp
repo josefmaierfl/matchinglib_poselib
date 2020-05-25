@@ -20,10 +20,15 @@ bool convertMegaDepthData(const megaDepthFolders& folders, const std::string &fl
         return false;
     }
     colmapBase cb;
-    if(!cb.prepareColMapData(folders)){
-        return false;
-    }
-    if(!cb.getFileNames(folders)){
+    try {
+        if (!cb.prepareColMapData(folders)) {
+            return false;
+        }
+        if (!cb.getFileNames(folders)) {
+            return false;
+        }
+    }catch (colmapException &e) {
+        cerr << e.what() << endl;
         return false;
     }
     return cb.calculateFlow(flowPath, data);
