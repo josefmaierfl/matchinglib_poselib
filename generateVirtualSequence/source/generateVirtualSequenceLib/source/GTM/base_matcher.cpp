@@ -186,7 +186,7 @@ bool baseMatcher::detectFeatures()
  */
 int baseMatcher::filterInitFeaturesGT()
 {
-#define showfeatures 0
+#define showfeatures 1
 	Mat descriptors1, descriptors22nd;
 	std::vector<cv::KeyPoint> keypR_tmp, keypR_tmp1;//Right found keypoints
 	std::vector<cv::KeyPoint> keypL_tmp, keypL_tmp1;//Left found keypoints
@@ -5192,8 +5192,9 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
                         cerr << "Unable to load GTM for MegaDepth subset " << i.mdDepth << endl;
                         return false;
                     }
-                    gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
-                    gtmdata.sourceGT.emplace_back('M');
+                    gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'M');
+                    gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                            make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
                 }
             }
         }else{
@@ -5236,8 +5237,9 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
                 cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
                 return false;
             }
-            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
-            gtmdata.sourceGT.emplace_back('M');
+            gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'M');
+            gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                                       make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
         }
         if(gtmdata.sum_TP_MegaDepth >= min_nrTP){
             break;
@@ -5343,8 +5345,9 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
                 cerr << "Unable to load/calculate GTM for KITTI subset " << i.gt12.sub_folder << endl;
                 return false;
             }
-            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
-            gtmdata.sourceGT.emplace_back('K');
+            gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'K');
+            gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                                       make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
         }else{
             bool save_it = true;
             if(!createDirectory(gtm_path)){
@@ -5366,8 +5369,9 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
                 cerr << "Unable to calculate GTM for KITTI subset " << i.gt12.sub_folder << endl;
                 return false;
             }
-            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
-            gtmdata.sourceGT.emplace_back('K');
+            gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'K');
+            gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                                       make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
         }
         if(gtmdata.sum_TP_KITTI >= min_nrTP){
             break;
@@ -5561,8 +5565,9 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
                 cerr << "Unable to load/calculate GTM for Oxford subset " << sub << endl;
                 return false;
             }
-            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
-            gtmdata.sourceGT.emplace_back('O');
+            gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'O');
+            gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                                       make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
         }else{
             bool save_it = true;
             if(!createDirectory(gtm_path)){
@@ -5582,8 +5587,9 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
                 cerr << "Unable to calculate GTM for Oxford subset " << sub << endl;
                 return false;
             }
-            gtmdata.imgNamesAll.emplace_back(std::move(imgNames_tmp));
-            gtmdata.sourceGT.emplace_back('O');
+            gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'O');
+            gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                                       make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
         }
         if(gtmdata.sum_TP_Oxford >= min_nrTP){
             break;

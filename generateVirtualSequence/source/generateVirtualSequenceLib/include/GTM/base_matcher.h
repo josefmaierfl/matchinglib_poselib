@@ -25,6 +25,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/features2d/features2d.hpp"
 #include <tuple>
+#include <map>
 #include <utility>
 #include <random>
 #include "GTM/prepareMegaDepth.h"
@@ -113,8 +114,13 @@ struct GTMdata{
     std::vector<std::vector<bool>> leftInlierAll;// Left inlier/outlier mask loaded/computed so far over the whole dataset
     std::vector<std::vector<bool>> rightInlierAll;//Right inlier/outlier mask loaded/computed so far over the whole dataset
     std::vector<std::vector<cv::DMatch>> matchesGTAll;//Ground truth matches loaded/computed so far over the whole dataset
-    std::vector<std::vector<std::pair<std::string, std::string>>> imgNamesAll;//Image names including paths of first and second source images corresponding to indices of keypLAll, keypRAll, leftInlierAll, rightInlierAll, matchesGTAll
+    std::vector<std::pair<size_t, size_t>> matchesGTAllIdx;//Shuffled vector indices for matchesGTAll (computed later on)
+    std::vector<cv::Mat> leftDescriptorsAll;//Descriptors of left images (computed later on)
+    std::vector<cv::Mat> rightDescriptorsAll;//Descriptors of right images (computed later on)
+    std::vector<std::vector<cv::DMatch>> matchesTNAll;//TN matches over the whole dataset (computed later on)
+    std::vector<std::pair<std::string, std::string>> imgNamesAll;//Image names including paths of first and second source images corresponding to indices of keypLAll, keypRAll, leftInlierAll, rightInlierAll, matchesGTAll
     std::vector<char> sourceGT;//Indicates from which dataset GTM were calculated (O ... Oxford, K ... KITTI, M ... MegaDepth)
+    std::map<size_t, std::pair<size_t, bool>> imgIDToImgNamesAll;//Unique image ID pointing to imgNamesAll entry (false = first pair entry, true = second pair entry)  (computed later on)
 
     explicit GTMdata(){
         sum_TP = 0;
@@ -155,7 +161,16 @@ struct GTMdata{
         leftInlierAll.clear();
         rightInlierAll.clear();
         matchesGTAll.clear();
+        matchesTNAll.clear();
         imgNamesAll.clear();
+    }
+
+    bool isValid() const{
+        return (sum_TP > 0) && (vecIdxRng_Oxford.second > 0 || vecIdxRng_KITTI.second > 0 || vecIdxRng_MegaDepth.second > 0);
+    }
+
+    size_t getNumberImgs() const{
+        return imgNamesAll.size() * 2;
     }
 };
 

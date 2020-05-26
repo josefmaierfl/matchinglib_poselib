@@ -243,6 +243,152 @@ struct PatchCInfo{
             succ(true){};
 };
 
+//template <typename ImageID>
+class KeypointIndexer{
+public:
+    //Constructor for normal warped TN or TP (single image patch for both correspondences)
+    KeypointIndexer(const std::string* idxImg1_,
+                    const cv::Mat &descr1_,
+                    const int &descr1Row_,
+                    const cv::KeyPoint* kp1_,
+                    const size_t &id_,
+                    const size_t &imgId_):
+            isGrossTN(false),
+            fromGTM(false),
+            idxImg1(idxImg1_),
+            idxImg2(nullptr),
+            descr1(descr1_),
+            descr1Row(descr1Row_),
+            descr2Row(-1),
+            kp1(kp1_),
+            kp2(nullptr),
+            match(nullptr),
+            gtmIdx(std::numeric_limits<size_t>::max()),
+            id(id_),
+            imgId1(imgId_),
+            imgId2(std::numeric_limits<size_t>::max()){}
+
+    //Constructor for warped gross TN (2 image patches for correspondences)
+    KeypointIndexer(const std::string* idxImg1_,
+                    const std::string* idxImg2_,
+                    const cv::Mat &descr1_,
+                    const cv::Mat &descr2_,
+                    const int &descr1Row_,
+                    const int &descr2Row_,
+                    const cv::KeyPoint* kp1_,
+                    const cv::KeyPoint* kp2_,
+                    const size_t &id_,
+                    const size_t &imgId1_,
+                    const size_t &imgId2_):
+            isGrossTN(true),
+            fromGTM(false),
+            idxImg1(idxImg1_),
+            idxImg2(idxImg2_),
+            descr1(descr1_),
+            descr2(descr2_),
+            descr1Row(descr1Row_),
+            descr2Row(descr2Row_),
+            kp1(kp1_),
+            kp2(kp2_),
+            match(nullptr),
+            gtmIdx(std::numeric_limits<size_t>::max()),
+            id(id_),
+            imgId1(imgId1_),
+            imgId2(imgId2_){}
+
+    //Constructor for GTM correspondences
+    KeypointIndexer(const std::string* idxImg1_,
+                    const std::string* idxImg2_,
+                    const cv::Mat &descr1_,
+                    const cv::Mat &descr2_,
+                    const int &descr1Row_,
+                    const int &descr2Row_,
+                    const cv::KeyPoint* kp1_,
+                    const cv::KeyPoint* kp2_,
+                    const cv::DMatch* match_,
+                    const size_t &gtmIdx_,
+                    const size_t &id_,
+                    const size_t &imgId1_,
+                    const size_t &imgId2_):
+            isGrossTN(false),
+            fromGTM(true),
+            idxImg1(idxImg1_),
+            idxImg2(idxImg2_),
+            descr1(descr1_),
+            descr2(descr2_),
+            descr1Row(descr1Row_),
+            descr2Row(descr2Row_),
+            kp1(kp1_),
+            kp2(kp2_),
+            match(match_),
+            gtmIdx(gtmIdx_),
+            id(id_),
+            imgId1(imgId1_),
+            imgId2(imgId2_){}
+
+    bool has2Imgs() const{ return idxImg2 != nullptr; }
+
+    std::string getImgName1() const{ return *idxImg1; }
+
+    std::string getImgName2() const{ return *idxImg2; }
+
+    size_t getCorrespID() const{ return id; }
+
+    size_t getImgID1() const{ return imgId1; }
+
+    size_t getImgID2() const{ return imgId2; }
+
+    cv::Mat getDescriptor1() const{ return descr1.row(descr1Row); }
+
+    cv::Mat getDescriptor2() const{
+        if(descr2.empty()){
+            return cv::Mat();
+        }
+        return descr2.row(descr2Row);
+    }
+
+    cv::KeyPoint getKeypoint1() const{ return *kp1; }
+
+    cv::KeyPoint getKeypoint2() const{
+        if(fromGTM || isGrossTN){
+            return *kp2;
+        }
+        return {-1.f, -1.f, 0};
+    }
+
+    double getDescriptorDist() const{
+        if(!fromGTM && !isGrossTN){
+            return -1.;
+        }else if(fromGTM){
+            return static_cast<double>(match->distance);
+        }
+        if(descr1.type() == CV_8U) {
+            return norm(descr1.row(descr1Row), descr2.row(descr2Row), cv::NORM_HAMMING);
+        }
+        return norm(descr1.row(descr1Row), descr2.row(descr2Row), cv::NORM_L2);
+    }
+
+    size_t getGtmIdx() const{ return gtmIdx; }
+
+private:
+    const bool isGrossTN;//Specifies if correspondence uses 2 different image patches
+//    bool isTP;//Specifies if correspondence is a TP
+    const bool fromGTM;//True, if from GTM, else from warped patches
+    const std::string* idxImg1;//Pointer to first image name
+    const std::string* idxImg2;//Pointer to second image name
+    cv::Mat descr1;//Descriptor array/Pointer to first descriptors
+    cv::Mat descr2;//Descriptor array/Pointer to second descriptors
+    const int descr1Row;//Row of first descriptor in descr1
+    int descr2Row;//Row of second descriptor in descr2; If -1, the second descriptor is calculated by warping and distorting
+    const cv::KeyPoint* kp1;//Pointer to first keypoint if correspondence stems from warped patch
+    const cv::KeyPoint* kp2;//Pointer to second keypoint if correspondence stems from warped gross TN patch or GTM
+    const cv::DMatch* match;//Pointer to GTM match
+    const size_t gtmIdx;//Index to GTM vector elements of an image pair
+    const size_t id;//Identifier of the correspondence
+    const size_t imgId1;//Identifier of the underlying first image
+    const size_t imgId2;//Identifier of the underlying second image
+};
+
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
 public:
     genMatchSequ(cv::Size &imgSize_,
@@ -288,6 +434,10 @@ private:
     bool calcGTM();
     //Resets all GTM related variables to only use warped patches
     void resetGTMuse();
+    //Calculate GTM descriptors and update variables within gtmdata
+    bool getGtmDescriptors();
+    //Build index corrToIdxMap which holds information for and pointers to correspondence data (warped and GTM correspondences)
+    void buildCorrsIdx();
     //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
     size_t hashFromSequPars();
     //Generates a hash value from the parameters used to generate matches from 3D correspondences
@@ -410,7 +560,9 @@ private:
                               bool &reflectionY,
                               cv::Size &imgFeatureSi);
     //Calculate statistics on descriptor distances for not matching descriptors
-    void calcGoodBadDescriptorTH();
+    bool calcGoodBadDescriptorTH();
+    //Calculate statistics on descriptor distances for not matching descriptors of GTM if available
+    bool getGTMDescrDistStat(std::vector<double> &descrDistsTN, const double &minDist = 0);
     //Distorts the keypoint position
     void distortKeyPointPosition(cv::KeyPoint &kp2,
                                  const cv::Rect &roi,
@@ -450,6 +602,7 @@ private:
     size_t nrGrossTNFullSequWarped = 0;//Number of predicted overall TN correspondences for all frames that should be from different image patches (first <-> second stereo camera)
     size_t nrGrossTNFullSequGTM = 0;//Number of predicted overall TN correspondences for all frames that should be from GTM
     size_t nrTPFullSequWarped = 0;//Number of predicted overall TP correspondences for all frames that should be generated using warped patches
+    size_t nrCorrsExtractWarped = 0;//Number of features that should be extracted from given images to meet nrGrossTNFullSequWarped, nrTNFullSequWarped, and nrTPFullSequWarped
     std::vector<cv::KeyPoint> keypoints1;//Keypoints from all used images
     cv::Mat descriptors1;//Descriptors from all used images
     size_t nrFramesGenMatches = 0;//Number of frames used to calculate matches. If a smaller number of keypoints was found than necessary for the full sequence, this number corresponds to the number of frames for which enough features are available. Otherwise, it equals to totalNrFrames.
@@ -468,6 +621,7 @@ private:
     const std::string matchSingleFrameBaseFName = "matchSingleFrameData";//Base name for storing data of generated matches
     std::string sequLoadPath = "";//Holds the path for loading a 3D sequence
     std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
+    std::map<size_t, KeypointIndexer> corrToIdxMap;//Holds information for and pointers to correspondence data (warped and GTM correspondences)
     cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     std::map<int64_t,std::tuple<cv::Mat,size_t,size_t>> planeTo3DIdx;//Holds the plane coefficients, keypoint index, and stereo frame number for every used keypoint in correspondence to the index of the 3D point in the point cloud

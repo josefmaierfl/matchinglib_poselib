@@ -995,6 +995,24 @@ bool genMatchSequ::calcGTM(){
         return false;
     }
     gtmdata = bm.moveGTMdata();
+    if(!getGtmDescriptors()){
+        resetGTMuse();
+        return false;
+    }
+    gtmdata.matchesGTAllIdx.clear();
+    size_t nr_gtm = 0;
+    for(auto &i: gtmdata.matchesGTAll){
+        nr_gtm += i.size();
+    }
+    gtmdata.matchesGTAllIdx.reserve(nr_gtm);
+    for(size_t i = 0; i < gtmdata.matchesGTAll.size(); ++i){
+        for(size_t j = 0; j < gtmdata.matchesGTAll.size(); ++j){
+            gtmdata.matchesGTAllIdx.emplace_back(i, j);
+        }
+    }
+    vector<std::size_t> idx;
+    shuffleVector(idx, nr_gtm);
+    reOrderVector(gtmdata.matchesGTAllIdx, idx);
     nrTNFullSequWarped = static_cast<size_t>(round(parsMtch.WarpedPortionTN * static_cast<double>(nrTNFullSequ)));
     nrGrossTNFullSequGTM = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(nrTNFullSequ)));
     if(nrGrossTNFullSequGTM >= gtmdata.sum_TN){
@@ -1021,6 +1039,43 @@ bool genMatchSequ::calcGTM(){
     }
     nrCorrsFullSequWarped = nrCorrsFullSequ - gtmdata.useNrTP - nrGrossTNFullSequGTM;
     nrTPFullSequWarped = nrTPFullSequ - gtmdata.useNrTP;
+    //Corresponds to nrCorrsExtractWarped = 2 * nrGrossTNFullSequWarped + (nrTNFullSequWarped - nrGrossTNFullSequWarped) + nrTPFullSequWarped;
+    nrCorrsExtractWarped = nrGrossTNFullSequWarped + nrTNFullSequWarped + nrTPFullSequWarped;
+    return true;
+}
+
+bool genMatchSequ::getGtmDescriptors(){
+    size_t nr_Elems = gtmdata.matchesGTAll.size();
+    gtmdata.leftDescriptorsAll.clear();
+    gtmdata.leftDescriptorsAll.resize(nr_Elems);
+    gtmdata.rightDescriptorsAll.clear();
+    gtmdata.rightDescriptorsAll.resize(nr_Elems);
+    for (size_t i = 0; i < nr_Elems; ++i) {
+        Mat img1 = cv::imread(gtmdata.imgNamesAll[i].first, IMREAD_GRAYSCALE);
+        Mat img2 = cv::imread(gtmdata.imgNamesAll[i].second, IMREAD_GRAYSCALE);
+        size_t nr_before = gtmdata.keypLAll[i].size();
+        if (matchinglib::getDescriptors(img1,
+                                        gtmdata.keypLAll[i],
+                                        parsMtch.descriptorType,
+                                        gtmdata.leftDescriptorsAll[i],
+                                        parsMtch.keyPointType) != 0) {
+            return false;
+        }
+        if(nr_before != gtmdata.keypLAll[i].size()){
+            return false;
+        }
+        nr_before = gtmdata.keypRAll[i].size();
+        if (matchinglib::getDescriptors(img2,
+                                        gtmdata.keypRAll[i],
+                                        parsMtch.descriptorType,
+                                        gtmdata.rightDescriptorsAll[i],
+                                        parsMtch.keyPointType) != 0) {
+            return false;
+        }
+        if(nr_before != gtmdata.keypRAll[i].size()){
+            return false;
+        }
+    }
     return true;
 }
 
@@ -1032,108 +1087,129 @@ void genMatchSequ::resetGTMuse(){
     nrGrossTNFullSequGTM = 0;
     nrCorrsFullSequWarped = nrCorrsFullSequ;
     nrTPFullSequWarped = nrTPFullSequ;
+    //Corresponds to nrCorrsExtractWarped = 2 * nrGrossTNFullSequWarped + (nrTNFullSequWarped - nrGrossTNFullSequWarped) + nrTPFullSequWarped;
+    nrCorrsExtractWarped = nrGrossTNFullSequWarped + nrTNFullSequWarped + nrTPFullSequWarped;
     gtmdata.clear();
 }
 
 //Extracts the necessary number of keypoints from the set of images
 bool genMatchSequ::getFeatures() {
-    minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
-    //Load image names
-    if (!getImageList()) {
-        return false;
-    }
-    size_t nrImgs = imageList.size();
-
-    //Get random sequence of images
-    std::shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
-
-    //Check for the correct keypoint & descriptor types
-    if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
-        cerr << "Keypoint type " << parsMtch.keyPointType << " is not supported!" << endl;
-        return false;
-    }
-    if (!matchinglib::IsDescriptorTypeSupported(parsMtch.descriptorType)) {
-        cerr << "Descriptor type " << parsMtch.descriptorType << " is not supported!" << endl;
-        return false;
-    }
-
-    //Load images and extract features & descriptors
+    size_t nrImgs = 0;
+    size_t kpCnt = 0;
     keypoints1.clear();
     descriptors1.release();
-//    imgs.reserve(imageList.size());
-    int errCnt = 0;
-    const int maxErrCnt = 10;
-    size_t kpCnt = 0;
-    if(nrImgs <= maxImgLoad) {
-        imgs.reserve(nrImgs);
+    if(gtmdata.isValid()){
+        nrImgs = gtmdata.getNumberImgs();
     }
-    for (size_t i = 0; i < nrImgs; ++i) {
-        //Load image
-        Mat img;
-        if(nrImgs <= maxImgLoad){
-            imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
-            img = imgs.back();
+    minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
+    if(nrCorrsExtractWarped > 0) {
+        //Load image names
+        if (!getImageList()) {
+            return false;
         }
-        else{
-            img = cv::imread(imageList[i], IMREAD_GRAYSCALE);
+        nrImgs += imageList.size();
+
+        //Get random sequence of images
+        std::shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
+
+        //Check for the correct keypoint & descriptor types
+        if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
+            cerr << "Keypoint type " << parsMtch.keyPointType << " is not supported!" << endl;
+            return false;
         }
+        if (!matchinglib::IsDescriptorTypeSupported(parsMtch.descriptorType)) {
+            cerr << "Descriptor type " << parsMtch.descriptorType << " is not supported!" << endl;
+            return false;
+        }
+
+        //Load images and extract features & descriptors
+        int errCnt = 0;
+        const int maxErrCnt = 10;
+        if (nrImgs <= maxImgLoad) {
+            imgs.reserve(nrImgs);
+        }
+        for (size_t i = 0; i < nrImgs; ++i) {
+            //Load image
+            Mat img;
+            if (nrImgs <= maxImgLoad) {
+                imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
+                img = imgs.back();
+            } else {
+                img = cv::imread(imageList[i], IMREAD_GRAYSCALE);
+            }
 //        imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
-        std::vector<cv::KeyPoint> keypoints1Img;
+            std::vector<cv::KeyPoint> keypoints1Img;
 
-        //Extract keypoints
-        if (matchinglib::getKeypoints(img, keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
-            errCnt++;
-            if (errCnt > maxErrCnt) {
-                cout << "Extraction of keypoints failed for too many images!" << endl;
-                return false;
+            //Extract keypoints
+            if (matchinglib::getKeypoints(img, keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
+                errCnt++;
+                if (errCnt > maxErrCnt) {
+                    cout << "Extraction of keypoints failed for too many images!" << endl;
+                    return false;
+                }
+            }
+
+            //Compute descriptors
+            cv::Mat descriptors1Img;
+            if (matchinglib::getDescriptors(img,
+                                            keypoints1Img,
+                                            parsMtch.descriptorType,
+                                            descriptors1Img,
+                                            parsMtch.keyPointType) != 0) {
+                errCnt++;
+                if (errCnt > maxErrCnt) {
+                    cout << "Calculation of descriptors failed for too many images!" << endl;
+                    return false;
+                }
+            }
+            errCnt = 0;
+            CV_Assert(keypoints1Img.size() == (size_t) descriptors1Img.rows);
+            keypoints1.insert(keypoints1.end(), keypoints1Img.begin(), keypoints1Img.end());
+            if (descriptors1.empty()) {
+                descriptors1 = descriptors1Img;
+            } else {
+                descriptors1.push_back(descriptors1Img);
+            }
+            kpCnt += keypoints1Img.size();
+            vector<size_t> imgNr_tmp = vector<size_t>(keypoints1Img.size(), i);
+            featureImgIdx.insert(featureImgIdx.end(), imgNr_tmp.begin(), imgNr_tmp.end());
+            if (kpCnt > (size_t) (1.03 * (double) nrCorrsExtractWarped)) {
+                break;
             }
         }
-
-        //Compute descriptors
-        cv::Mat descriptors1Img;
-        if (matchinglib::getDescriptors(img,
-                                        keypoints1Img,
-                                        parsMtch.descriptorType,
-                                        descriptors1Img,
-                                        parsMtch.keyPointType) != 0) {
-            errCnt++;
-            if (errCnt > maxErrCnt) {
-                cout << "Calculation of descriptors failed for too many images!" << endl;
-                return false;
-            }
-        }
-        errCnt = 0;
-        CV_Assert(keypoints1Img.size() == (size_t) descriptors1Img.rows);
-        keypoints1.insert(keypoints1.end(), keypoints1Img.begin(), keypoints1Img.end());
-        if (descriptors1.empty()) {
-            descriptors1 = descriptors1Img;
-        } else {
-            descriptors1.push_back(descriptors1Img);
-        }
-        kpCnt += keypoints1Img.size();
-        vector<size_t> imgNr_tmp = vector<size_t>(keypoints1Img.size(), i);
-        featureImgIdx.insert(featureImgIdx.end(), imgNr_tmp.begin(), imgNr_tmp.end());
-        if (kpCnt > (size_t)(1.03 *(double)nrCorrsFullSequ)) {
-            break;
-        }
+        //Update number of available features
+        size_t kpCntDiff = kpCnt - nrCorrsExtractWarped;
+        nrCorrsFullSequWarped += kpCntDiff;
+        double inlRatTmp = static_cast<double>(nrTPFullSequ) / static_cast<double>(nrCorrsFullSequ);
+        auto tp_part = static_cast<size_t>(round(inlRatTmp * static_cast<double>(kpCntDiff)));
+        auto tn_part = kpCntDiff - tp_part;
+        auto gross_part = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(tn_part) / 2.));
+        nrTNFullSequWarped += tn_part;
+        nrGrossTNFullSequWarped += gross_part;
+        nrTPFullSequWarped += tp_part;
+        nrCorrsExtractWarped = kpCnt;
     }
 
     //Calculate statistics for bad descriptor distances
-    calcGoodBadDescriptorTH();
-
-    //Shuffle keypoints and descriptors
-    vector<KeyPoint> keypoints1_tmp(keypoints1.size());
-    Mat descriptors1_tmp;
-    descriptors1_tmp.reserve((size_t)descriptors1.rows);
-    vector<size_t> featureImgIdx_tmp(featureImgIdx.size());
-    vector<size_t> featureIdxs;
-    shuffleVector(featureIdxs, keypoints1.size());
-    reOrderVector(keypoints1, featureIdxs);
-    reOrderVector(featureImgIdx, featureIdxs);
-    for(auto &i : featureIdxs){
-        descriptors1_tmp.push_back(descriptors1.row((int)i));
+    if(!calcGoodBadDescriptorTH()){
+        return false;
     }
-    descriptors1_tmp.copyTo(descriptors1);
+
+    if(nrCorrsExtractWarped > 0) {
+        //Shuffle keypoints and descriptors
+        vector<KeyPoint> keypoints1_tmp(keypoints1.size());
+        Mat descriptors1_tmp;
+        descriptors1_tmp.reserve((size_t) descriptors1.rows);
+        vector<size_t> featureImgIdx_tmp(featureImgIdx.size());
+        vector<size_t> featureIdxs;
+        shuffleVector(featureIdxs, keypoints1.size());
+        reOrderVector(keypoints1, featureIdxs);
+        reOrderVector(featureImgIdx, featureIdxs);
+        for (auto &i : featureIdxs) {
+            descriptors1_tmp.push_back(descriptors1.row((int) i));
+        }
+        descriptors1_tmp.copyTo(descriptors1);
+    }
 
     //Init index to keypoints, descriptors and featureImgIdx with optionally containing duplicates
     bool repStereo = !(nearZero(parsMtch.repeatPatternPortStereo.first) && nearZero(parsMtch.repeatPatternPortStereo.second));
@@ -1407,6 +1483,69 @@ bool genMatchSequ::getFeatures() {
     }
 
     return true;
+}
+
+void genMatchSequ::buildCorrsIdx(){
+    corrToIdxMap.clear();
+    vector<uint8_t> corrTypeIdx;
+    if(nrTPFullSequWarped > 0){
+        corrTypeIdx = vector<uint8_t>(nrTPFullSequWarped, 0);
+    }
+    if(nrGrossTNFullSequWarped > 0){
+        corrTypeIdx.insert(corrTypeIdx.end(), nrGrossTNFullSequWarped, 1);
+    }
+    size_t nrTNwarpSingle = nrTNFullSequWarped - nrGrossTNFullSequWarped;
+    if(nrTNwarpSingle > 0){
+        corrTypeIdx.insert(corrTypeIdx.end(), nrTNwarpSingle, 2);
+    }
+    size_t min_idx = 0;
+    if(gtmdata.isValid()){
+        //Generate IDs for images
+        min_idx = imageList.size();
+        size_t idx = min_idx;
+        gtmdata.imgIDToImgNamesAll.clear();
+        for(size_t i = 0; i < gtmdata.imgNamesAll.size(); ++i){
+            gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, false));
+            gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, true));
+        }
+        corrTypeIdx.insert(corrTypeIdx.end(), gtmdata.useNrTP, 3);
+        if(nrGrossTNFullSequGTM > 0){
+            corrTypeIdx.insert(corrTypeIdx.end(), nrGrossTNFullSequGTM, 4);
+        }
+    }
+    vector<std::size_t> idx;
+    shuffleVector(idx, corrTypeIdx.size());
+    reOrderVector(corrTypeIdx, idx);
+    size_t id_run = 0, idx_warped = 0, idx_gtm_TP = 0, idx_gtm_TN = 0, gtm_img_id = min_idx;
+    for(auto &i: corrTypeIdx){
+        switch (i) {
+            case 0:
+                corrToIdxMap.emplace(id_run, KeypointIndexer(&imageList[featureImgIdx[idx_warped]],
+                                                             descriptors1,
+                                                             static_cast<int>(idx_warped),
+                                                             &keypoints1[idx_warped],
+                                                             id_run,
+                                                             featureImgIdx[idx_warped]));
+                idx_warped++;
+                break;
+            case 1:
+                //Check descriptor distance
+                corrToIdxMap.emplace(id_run, KeypointIndexer(&imageList[featureImgIdx[idx_warped]],
+                                                             &imageList[featureImgIdx[idx_warped + 1]],
+                                                             descriptors1,
+                                                             descriptors1,
+                                                             static_cast<int>(idx_warped),
+                                                             static_cast<int>(idx_warped + 1),
+                                                             &keypoints1[idx_warped],
+                                                             &keypoints1[idx_warped + 1],
+                                                             id_run,
+                                                             featureImgIdx[idx_warped],
+                                                             featureImgIdx[idx_warped + 1]));
+                idx_warped += 2;
+                break;
+        }
+        id_run++;
+    }
 }
 
 bool genMatchSequ::generateCorrespondingFeatures(){
@@ -2758,214 +2897,243 @@ void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
     }
 }
 
-void genMatchSequ::calcGoodBadDescriptorTH(){
-    const int typicalNr = 150;
-    int compareNr = min(typicalNr, (int)keypoints1.size());
-    vector<int> usedDescriptors;
-    bool enlargeSelDescr = false;
-    bool excludeLowerQuartile = false;
+bool genMatchSequ::calcGoodBadDescriptorTH(){
+    int maxComps = 0;
+    vector<double> dist_bad;
+    if(nrCorrsExtractWarped > 0) {
+        const int typicalNr = 150;
+        int compareNr = min(typicalNr, (int) keypoints1.size());
+        vector<int> usedDescriptors;
+        bool enlargeSelDescr = false;
+        bool excludeLowerQuartile = false;
 
-    do {
-        shuffleVector(usedDescriptors, (size_t) descriptors1.rows);
-        usedDescriptors.erase(usedDescriptors.begin() + compareNr, usedDescriptors.end());
+        do {
+            shuffleVector(usedDescriptors, (size_t) descriptors1.rows);
+            usedDescriptors.erase(usedDescriptors.begin() + compareNr, usedDescriptors.end());
 
-        //Exclude possible true positive matches between different images
-        //Get image indices
-        vector<pair<size_t, int>> usedImgIdx;
-        usedImgIdx.reserve((size_t) compareNr);
-        for (int i = 0; i < compareNr; ++i) {
-            usedImgIdx.emplace_back(make_pair(featureImgIdx[usedDescriptors[i]], i));
-        }
-        sort(usedImgIdx.begin(),
-             usedImgIdx.end(),
-             [](pair<size_t, int> &first, pair<size_t, int> &second) { return first.first < second.first; });
-        //Group feature indices from the same images
-        vector<vector<int>> multImgFeatures;
-        for (int i = 0; i < compareNr - 1; ++i) {
-            vector<int> sameImgs;
-            int j = i + 1;
-            for (; j < compareNr; ++j) {
-                sameImgs.push_back(usedImgIdx[j - 1].second);
-                if (usedImgIdx[i].first != usedImgIdx[j].first) {
-                    i = j - 1;
+            //Exclude possible true positive matches between different images
+            //Get image indices
+            vector<pair<size_t, int>> usedImgIdx;
+            usedImgIdx.reserve((size_t) compareNr);
+            for (int i = 0; i < compareNr; ++i) {
+                usedImgIdx.emplace_back(make_pair(featureImgIdx[usedDescriptors[i]], i));
+            }
+            sort(usedImgIdx.begin(),
+                 usedImgIdx.end(),
+                 [](pair<size_t, int> &first, pair<size_t, int> &second) { return first.first < second.first; });
+            //Group feature indices from the same images
+            vector<vector<int>> multImgFeatures;
+            for (int i = 0; i < compareNr - 1; ++i) {
+                vector<int> sameImgs;
+                int j = i + 1;
+                for (; j < compareNr; ++j) {
+                    sameImgs.push_back(usedImgIdx[j - 1].second);
+                    if (usedImgIdx[i].first != usedImgIdx[j].first) {
+                        i = j - 1;
+                        break;
+                    }
+                }
+                multImgFeatures.emplace_back(sameImgs);
+                if (j == compareNr) {
                     break;
                 }
             }
-            multImgFeatures.emplace_back(sameImgs);
-            if(j == compareNr){
-                break;
-            }
-        }
-        if (usedImgIdx[compareNr - 2].first != usedImgIdx[compareNr - 1].first) {
-            multImgFeatures.emplace_back(vector<int>(1, usedImgIdx[compareNr - 1].second));
-        } else {
-            multImgFeatures.back().push_back(usedImgIdx[compareNr - 1].second);
-        }
-        if (multImgFeatures.size() > 1) {
-            //Calculate descriptor distances between different images
-            vector<DMatch> descrDistMultImg;
-            if (descriptors1.type() == CV_8U) {
-                for (size_t i = 0; i < multImgFeatures.size() - 1; ++i) {
-                    for (size_t j = i + 1; j < multImgFeatures.size(); ++j) {
-                        for (size_t k = 0; k < multImgFeatures[i].size(); ++k) {
-                            const int descrIdx1 = multImgFeatures[i][k];
-                            const int descrIdx11 = usedDescriptors[descrIdx1];
-                            for (auto &l : multImgFeatures[j]) {
-                                double descr_norm = norm(descriptors1.row(descrIdx11),
-                                                         descriptors1.row(usedDescriptors[l]),
-                                                         NORM_HAMMING);
-                                descrDistMultImg.emplace_back(DMatch(descrIdx1,
-                                                                     l, (float) descr_norm));
-                            }
-                        }
-                    }
-                }
+            if (usedImgIdx[compareNr - 2].first != usedImgIdx[compareNr - 1].first) {
+                multImgFeatures.emplace_back(vector<int>(1, usedImgIdx[compareNr - 1].second));
             } else {
-                for (size_t i = 0; i < multImgFeatures.size() - 1; ++i) {
-                    for (size_t j = i + 1; j < multImgFeatures.size(); ++j) {
-                        for (size_t k = 0; k < multImgFeatures[i].size(); ++k) {
-                            const int descrIdx1 = multImgFeatures[i][k];
-                            const int descrIdx11 = usedDescriptors[descrIdx1];
-                            for (auto &l : multImgFeatures[j]) {
-                                double descr_norm = norm(descriptors1.row(descrIdx11),
-                                                         descriptors1.row(usedDescriptors[l]),
-                                                         NORM_L2);
-                                descrDistMultImg.emplace_back(DMatch(descrIdx1,
-                                                                     l, (float) descr_norm));
-                            }
-                        }
-                    }
-                }
+                multImgFeatures.back().push_back(usedImgIdx[compareNr - 1].second);
             }
-
-            //Calculate descriptor distances within same images
-            //Check if we have features from the same images
-            vector<size_t> maxNrKPSameImg;
-            for (auto &i : multImgFeatures) {
-                maxNrKPSameImg.emplace_back(i.size());
-            }
-            size_t maxNr = *max_element(maxNrKPSameImg.begin(), maxNrKPSameImg.end());
-            if (maxNr > 2) {
-                vector<float> descrDistSameImg;
+            if (multImgFeatures.size() > 1) {
+                //Calculate descriptor distances between different images
+                vector<DMatch> descrDistMultImg;
                 if (descriptors1.type() == CV_8U) {
-                    for (auto &i : multImgFeatures) {
-                        for (size_t j = 0; j < i.size() - 1; ++j) {
-                            for (size_t k = j + 1; k < i.size(); ++k) {
-                                double norm_tmp = norm(descriptors1.row(usedDescriptors[i[j]]),
-                                                       descriptors1.row(usedDescriptors[i[k]]),
-                                                       NORM_HAMMING);
-                                if(nearZero(norm_tmp)){
-                                    continue;
+                    for (size_t i = 0; i < multImgFeatures.size() - 1; ++i) {
+                        for (size_t j = i + 1; j < multImgFeatures.size(); ++j) {
+                            for (size_t k = 0; k < multImgFeatures[i].size(); ++k) {
+                                const int descrIdx1 = multImgFeatures[i][k];
+                                const int descrIdx11 = usedDescriptors[descrIdx1];
+                                for (auto &l : multImgFeatures[j]) {
+                                    double descr_norm = norm(descriptors1.row(descrIdx11),
+                                                             descriptors1.row(usedDescriptors[l]),
+                                                             NORM_HAMMING);
+                                    descrDistMultImg.emplace_back(DMatch(descrIdx1,
+                                                                         l, (float) descr_norm));
                                 }
-                                descrDistSameImg.push_back((float)norm_tmp);
                             }
                         }
                     }
                 } else {
-                    for (auto &i : multImgFeatures) {
-                        for (size_t j = 0; j < i.size() - 1; ++j) {
-                            for (size_t k = j + 1; k < i.size(); ++k) {
-                                double norm_tmp = norm(descriptors1.row(usedDescriptors[i[j]]),
-                                                       descriptors1.row(usedDescriptors[i[k]]),
-                                                       NORM_L2);
-                                if(nearZero(norm_tmp)){
-                                    continue;
+                    for (size_t i = 0; i < multImgFeatures.size() - 1; ++i) {
+                        for (size_t j = i + 1; j < multImgFeatures.size(); ++j) {
+                            for (size_t k = 0; k < multImgFeatures[i].size(); ++k) {
+                                const int descrIdx1 = multImgFeatures[i][k];
+                                const int descrIdx11 = usedDescriptors[descrIdx1];
+                                for (auto &l : multImgFeatures[j]) {
+                                    double descr_norm = norm(descriptors1.row(descrIdx11),
+                                                             descriptors1.row(usedDescriptors[l]),
+                                                             NORM_L2);
+                                    descrDistMultImg.emplace_back(DMatch(descrIdx1,
+                                                                         l, (float) descr_norm));
                                 }
-                                descrDistSameImg.push_back((float) norm_tmp);
                             }
                         }
                     }
                 }
-                //Get smallest descriptor distance within images
-                float smallestDescrDistSameImg = *min_element(descrDistSameImg.begin(), descrDistSameImg.end());
 
-                //Mark every descriptor distance between different images that is smaller than the smallest within an image as possible TP
-                vector<int> excludeIdx;
-                for (auto &i : descrDistMultImg) {
-                    if (i.distance < smallestDescrDistSameImg) {
-                        excludeIdx.push_back(i.queryIdx);
-                    }
+                //Calculate descriptor distances within same images
+                //Check if we have features from the same images
+                vector<size_t> maxNrKPSameImg;
+                for (auto &i : multImgFeatures) {
+                    maxNrKPSameImg.emplace_back(i.size());
                 }
-
-                if (!excludeIdx.empty()) {
-                    sort(excludeIdx.begin(), excludeIdx.end(), [](int &first, int &second) { return first < second; });
-                    //Remove duplicates
-                    excludeIdx.erase(unique(excludeIdx.begin(), excludeIdx.end()), excludeIdx.end());
-
-                    //Check the remaining number of descriptors
-                    if ((((int) usedDescriptors.size() - (int) excludeIdx.size()) < 25)
-                        && ((int) keypoints1.size() > max(typicalNr, compareNr))) {
-                        double enlargeRat = min(1.2 * (double) usedDescriptors.size() /
-                                (double) (usedDescriptors.size() - excludeIdx.size() + 1), 3.0);
-                        int newDescrSi = (int) ceil(enlargeRat * (double) usedDescriptors.size());
-                        compareNr = min(newDescrSi, (int) keypoints1.size());
-                        enlargeSelDescr = true;
-                        usedDescriptors.clear();
-                    } else {
-                        //Remove the potential true positives from the index
-                        for (int i = (int) excludeIdx.size() - 1; i >= 0; i--) {
-                            usedDescriptors.erase(usedDescriptors.begin() + excludeIdx[i]);
+                size_t maxNr = *max_element(maxNrKPSameImg.begin(), maxNrKPSameImg.end());
+                if (maxNr > 2) {
+                    vector<float> descrDistSameImg;
+                    if (descriptors1.type() == CV_8U) {
+                        for (auto &i : multImgFeatures) {
+                            for (size_t j = 0; j < i.size() - 1; ++j) {
+                                for (size_t k = j + 1; k < i.size(); ++k) {
+                                    double norm_tmp = norm(descriptors1.row(usedDescriptors[i[j]]),
+                                                           descriptors1.row(usedDescriptors[i[k]]),
+                                                           NORM_HAMMING);
+                                    if (nearZero(norm_tmp)) {
+                                        continue;
+                                    }
+                                    descrDistSameImg.push_back((float) norm_tmp);
+                                }
+                            }
                         }
-                        //Adapt the number of remaining descriptors
-                        compareNr = (int) usedDescriptors.size();
-                        enlargeSelDescr = false;
+                    } else {
+                        for (auto &i : multImgFeatures) {
+                            for (size_t j = 0; j < i.size() - 1; ++j) {
+                                for (size_t k = j + 1; k < i.size(); ++k) {
+                                    double norm_tmp = norm(descriptors1.row(usedDescriptors[i[j]]),
+                                                           descriptors1.row(usedDescriptors[i[k]]),
+                                                           NORM_L2);
+                                    if (nearZero(norm_tmp)) {
+                                        continue;
+                                    }
+                                    descrDistSameImg.push_back((float) norm_tmp);
+                                }
+                            }
+                        }
                     }
-                }
-            } else {
-                //Exclude lower quartile
-                excludeLowerQuartile = true;
-                enlargeSelDescr = false;
-            }
-        }
-    }while(enlargeSelDescr);
+                    //Get smallest descriptor distance within images
+                    float smallestDescrDistSameImg = *min_element(descrDistSameImg.begin(), descrDistSameImg.end());
 
-    //Calculate any possible descriptor distance of not matching descriptors
-    int maxComps = compareNr * (compareNr - 1) / 2;
-    vector<double> dist_bad((size_t)maxComps);
-    int nrComps = 0;
-    if(descriptors1.type() == CV_8U) {
-        for (int i = 0; i < compareNr - 1; ++i) {
-            for (int j = i + 1; j < compareNr; ++j) {
-                double descr_norm;
-                descr_norm = norm(descriptors1.row(usedDescriptors[i]), descriptors1.row(usedDescriptors[j]),
-                                  NORM_HAMMING);
-                if(nearZero(descr_norm)){
-                    if(nrComps > 0) {
-                        descr_norm = dist_bad[nrComps - 1];
-                    }else{
-                        descr_norm = 100.0;
+                    //Mark every descriptor distance between different images that is smaller than the smallest within an image as possible TP
+                    vector<int> excludeIdx;
+                    for (auto &i : descrDistMultImg) {
+                        if (i.distance < smallestDescrDistSameImg) {
+                            excludeIdx.push_back(i.queryIdx);
+                        }
                     }
+
+                    if (!excludeIdx.empty()) {
+                        sort(excludeIdx.begin(), excludeIdx.end(),
+                             [](int &first, int &second) { return first < second; });
+                        //Remove duplicates
+                        excludeIdx.erase(unique(excludeIdx.begin(), excludeIdx.end()), excludeIdx.end());
+
+                        //Check the remaining number of descriptors
+                        if ((((int) usedDescriptors.size() - (int) excludeIdx.size()) < 25)
+                            && ((int) keypoints1.size() > max(typicalNr, compareNr))) {
+                            double enlargeRat = min(1.2 * (double) usedDescriptors.size() /
+                                                    (double) (usedDescriptors.size() - excludeIdx.size() + 1), 3.0);
+                            int newDescrSi = (int) ceil(enlargeRat * (double) usedDescriptors.size());
+                            compareNr = min(newDescrSi, (int) keypoints1.size());
+                            enlargeSelDescr = true;
+                            usedDescriptors.clear();
+                        } else {
+                            //Remove the potential true positives from the index
+                            for (int i = (int) excludeIdx.size() - 1; i >= 0; i--) {
+                                usedDescriptors.erase(usedDescriptors.begin() + excludeIdx[i]);
+                            }
+                            //Adapt the number of remaining descriptors
+                            compareNr = (int) usedDescriptors.size();
+                            enlargeSelDescr = false;
+                        }
+                    }
+                } else {
+                    //Exclude lower quartile
+                    excludeLowerQuartile = true;
+                    enlargeSelDescr = false;
                 }
-                dist_bad[nrComps] = descr_norm;
-                nrComps++;
+            }
+        } while (enlargeSelDescr);
+
+        //Calculate any possible descriptor distance of not matching descriptors
+        maxComps = compareNr * (compareNr - 1) / 2;
+        dist_bad = vector<double>((size_t) maxComps);
+        int nrComps = 0;
+        if (descriptors1.type() == CV_8U) {
+            for (int i = 0; i < compareNr - 1; ++i) {
+                for (int j = i + 1; j < compareNr; ++j) {
+                    double descr_norm;
+                    descr_norm = norm(descriptors1.row(usedDescriptors[i]), descriptors1.row(usedDescriptors[j]),
+                                      NORM_HAMMING);
+                    if (nearZero(descr_norm)) {
+                        if (nrComps > 0) {
+                            descr_norm = dist_bad[nrComps - 1];
+                        } else {
+                            descr_norm = 100.0;
+                        }
+                    }
+                    dist_bad[nrComps] = descr_norm;
+                    nrComps++;
+                }
+            }
+        } else {
+            for (int i = 0; i < compareNr - 1; ++i) {
+                for (int j = i + 1; j < compareNr; ++j) {
+                    double descr_norm;
+                    descr_norm = norm(descriptors1.row(usedDescriptors[i]), descriptors1.row(usedDescriptors[j]),
+                                      NORM_L2);
+                    if (nearZero(descr_norm)) {
+                        if (nrComps > 0) {
+                            descr_norm = dist_bad[nrComps - 1];
+                        } else {
+                            descr_norm = 1.0;
+                        }
+                    }
+                    dist_bad[nrComps] = descr_norm;
+                    nrComps++;
+                }
             }
         }
-    }else{
-        for (int i = 0; i < compareNr - 1; ++i) {
-            for (int j = i + 1; j < compareNr; ++j) {
-                double descr_norm;
-                descr_norm = norm(descriptors1.row(usedDescriptors[i]), descriptors1.row(usedDescriptors[j]), NORM_L2);
-                if(nearZero(descr_norm)){
-                    if(nrComps > 0) {
-                        descr_norm = dist_bad[nrComps - 1];
-                    }else{
-                        descr_norm = 1.0;
-                    }
-                }
-                dist_bad[nrComps] = descr_norm;
-                nrComps++;
+
+        sort(dist_bad.begin(), dist_bad.end(), [](double &first, double &second) { return first < second; });
+        if (excludeLowerQuartile) {
+            int newStartPos = (int) round(0.25 * (double) maxComps);
+            if (maxComps - newStartPos > 25) {
+                dist_bad.erase(dist_bad.begin(), dist_bad.begin() + newStartPos);
+                maxComps = (int) dist_bad.size();
             }
+        }
+
+        //Get min value
+        badDescrTH.minVal = *min_element(dist_bad.begin(), dist_bad.end());
+    }
+
+    if(gtmdata.isValid()){
+        std::vector<double> descrDistsTN;
+        bool succ = false;
+        if(nrCorrsExtractWarped > 0){
+            succ = getGTMDescrDistStat(descrDistsTN, badDescrTH.minVal);
+        }else{
+            succ = getGTMDescrDistStat(descrDistsTN);
+            if(!succ){
+                return false;
+            }
+        }
+        if(succ){
+            dist_bad.insert(dist_bad.end(), make_move_iterator(descrDistsTN.begin()), make_move_iterator(descrDistsTN.end()));
+            badDescrTH.minVal = *min_element(dist_bad.begin(), dist_bad.end());
         }
     }
 
-    sort(dist_bad.begin(), dist_bad.end(), [](double &first, double &second) { return first < second; });
-    if(excludeLowerQuartile){
-        int newStartPos = (int)round(0.25 * (double)maxComps);
-        if(maxComps - newStartPos > 25) {
-            dist_bad.erase(dist_bad.begin(), dist_bad.begin() + newStartPos);
-            maxComps = (int) dist_bad.size();
-        }
-    }
+    //Get max value
+    badDescrTH.maxVal = *max_element(dist_bad.begin(), dist_bad.end());
 
     //Calculate the median
     if((maxComps % 2) == 0){
@@ -2989,10 +3157,103 @@ void genMatchSequ::calcGoodBadDescriptorTH(){
     }
     badDescrTH.standardDev /= (double)maxComps;
     badDescrTH.standardDev = sqrt(badDescrTH.standardDev);
+    return true;
+}
 
-    //Get min and max values
-    badDescrTH.minVal = *min_element(dist_bad.begin(), dist_bad.end());
-    badDescrTH.maxVal = *max_element(dist_bad.begin(), dist_bad.end());
+bool genMatchSequ::getGTMDescrDistStat(std::vector<double> &descrDistsTN, const double &minDist){
+    if(gtmdata.leftDescriptorsAll.empty() || gtmdata.rightDescriptorsAll.empty()){
+        return false;
+    }
+    size_t nr_Elems = gtmdata.matchesGTAll.size();
+    double th = 0.5 * minDist;
+    gtmdata.matchesTNAll.clear();
+    for (size_t i = 0; i < nr_Elems; ++i) {
+        if(gtmdata.leftDescriptorsAll[i].empty() || gtmdata.rightDescriptorsAll[i].empty()){
+            return false;
+        }
+        vector<cv::KeyPoint> kpTN1, kpTN2;
+        vector<size_t> idxTN1, idxTN2;
+        for (size_t k = 0; k < gtmdata.leftInlierAll[i].size(); ++k) {
+            if(!gtmdata.leftInlierAll[i][k]){
+                kpTN1.push_back(gtmdata.keypLAll[i][k]);
+                idxTN1.push_back(k);
+            }
+        }
+        for (size_t k = 0; k < gtmdata.rightInlierAll[i].size(); ++k) {
+            if(!gtmdata.rightInlierAll[i][k]){
+                kpTN2.push_back(gtmdata.keypRAll[i][k]);
+                idxTN2.push_back(k);
+            }
+        }
+        if(kpTN1.size() != kpTN2.size()){
+            if(kpTN1.size() > kpTN2.size()){
+                kpTN1.resize(kpTN2.size());
+                idxTN1.resize(idxTN2.size());
+            }else{
+                kpTN2.resize(kpTN1.size());
+                idxTN2.resize(idxTN1.size());
+            }
+        }
+        vector<size_t> idx1, idx2;
+        size_t tnsi = kpTN1.size();
+        shuffleVector(idx1, tnsi);
+        reOrderVector(kpTN1, idx1);
+        shuffleVector(idx2, tnsi);
+        reOrderVector(kpTN2, idx2);
+        cv::Mat descriptors1N, descriptors2N;
+        descriptors1N.reserve(tnsi);
+        descriptors2N.reserve(tnsi);
+        for(auto &j: idx1){
+            descriptors1N.push_back(gtmdata.leftDescriptorsAll[i].row(idxTN1[j]));
+        }
+        for(auto &j: idx2){
+            descriptors2N.push_back(gtmdata.rightDescriptorsAll[i].row(idxTN2[j]));
+        }
+        if(descriptors1N.rows != descriptors2N.rows){
+            if(descriptors1N.rows > descriptors2N.rows){
+                kpTN1.resize(kpTN2.size());
+                descriptors1N = descriptors1N.rowRange(0, descriptors2N.rows);
+                idx1.resize(kpTN2.size());
+            }else{
+                kpTN2.resize(kpTN1.size());
+                descriptors2N = descriptors2N.rowRange(0, descriptors1N.rows);
+                idx2.resize(kpTN1.size());
+            }
+        }
+        size_t start = descrDistsTN.size();
+        descrDistsTN.resize(descrDistsTN.size() + kpTN1.size());
+        vector<DMatch> tnmatch;
+        tnmatch.reserve(kpTN1.size());
+        if(descriptors1N.type() == CV_8U) {
+            for (int j = 0; j < descriptors1N.rows; ++j) {
+                double descr_norm;
+                descr_norm = norm(descriptors1N.row(j), descriptors2N.row(j),
+                                  NORM_HAMMING);
+                if(nearZero(descr_norm) || (descr_norm < th)){
+                    continue;
+                }
+                descrDistsTN[start] = descr_norm;
+                tnmatch.emplace_back(DMatch(idxTN1[idx1[j]], idxTN2[idx2[j]], static_cast<float>(descr_norm)));
+                start++;
+            }
+        }else{
+            for (int j = 0; j < descriptors1N.rows; ++j) {
+                double descr_norm;
+                descr_norm = norm(descriptors1N.row(j), descriptors2N.row(j), NORM_L2);
+                if(nearZero(descr_norm) || (descr_norm < th)){
+                    continue;
+                }
+                descrDistsTN[start] = descr_norm;
+                tnmatch.emplace_back(DMatch(idxTN1[idx1[j]], idxTN2[idx2[j]], static_cast<float>(descr_norm)));
+                start++;
+            }
+        }
+        if(start < descrDistsTN.size()){
+            descrDistsTN.erase(descrDistsTN.begin() + start, descrDistsTN.end());
+        }
+        gtmdata.matchesTNAll.emplace_back(std::move(tnmatch));
+    }
+    return !descrDistsTN.empty();
 }
 
 bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
