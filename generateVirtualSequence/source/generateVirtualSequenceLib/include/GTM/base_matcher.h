@@ -28,6 +28,7 @@
 #include <map>
 #include <utility>
 #include <random>
+#include <exception>
 #include "GTM/prepareMegaDepth.h"
 //#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
@@ -118,9 +119,11 @@ struct GTMdata{
     std::vector<cv::Mat> leftDescriptorsAll;//Descriptors of left images (computed later on)
     std::vector<cv::Mat> rightDescriptorsAll;//Descriptors of right images (computed later on)
     std::vector<std::vector<cv::DMatch>> matchesTNAll;//TN matches over the whole dataset (computed later on)
+    std::vector<std::pair<size_t, size_t>> matchesTNAllIdx;//Shuffled vector indices for matchesGTAll (computed later on)
     std::vector<std::pair<std::string, std::string>> imgNamesAll;//Image names including paths of first and second source images corresponding to indices of keypLAll, keypRAll, leftInlierAll, rightInlierAll, matchesGTAll
     std::vector<char> sourceGT;//Indicates from which dataset GTM were calculated (O ... Oxford, K ... KITTI, M ... MegaDepth)
     std::map<size_t, std::pair<size_t, bool>> imgIDToImgNamesAll;//Unique image ID pointing to imgNamesAll entry (false = first pair entry, true = second pair entry)  (computed later on)
+    std::map<std::pair<size_t, bool>, size_t> gtmIdxToImgID;//imgNamesAll entry index (false = first pair entry, true = second pair entry) pointing to unique image ID (computed later on)
 
     explicit GTMdata(){
         sum_TP = 0;
@@ -171,6 +174,34 @@ struct GTMdata{
 
     size_t getNumberImgs() const{
         return imgNamesAll.size() * 2;
+    }
+
+    std::string getImgNameByID(const size_t &id){
+        if(imgIDToImgNamesAll.empty()){
+            throw std::out_of_range("No GTM image IDs available");
+        }
+        std::map<size_t, std::pair<size_t, bool>>::const_iterator got = imgIDToImgNamesAll.find(id);
+        if(got == imgIDToImgNamesAll.end()){
+            throw std::out_of_range("Specified GTM image ID " + std::to_string(id) + " not available");
+        }
+        if(got->second.second){
+            return imgNamesAll[got->second.first].second;
+        }
+        return imgNamesAll[got->second.first].first;
+    }
+
+    size_t getImgIDbyGTMIdx(const size_t &vecIdx, const bool &secfir){
+        if(gtmIdxToImgID.empty()){
+            throw std::out_of_range("No GTM image IDs available");
+        }
+        if(vecIdx >= imgNamesAll.size()){
+            throw std::out_of_range("GTM image index out of range");
+        }
+        std::map<std::pair<size_t, bool>, size_t>::const_iterator got = gtmIdxToImgID.find(std::make_pair(vecIdx, secfir));
+        if(got == gtmIdxToImgID.end()){
+            throw std::out_of_range("Specified GTM image Index " + std::to_string(vecIdx) + " not available");
+        }
+        return got->second;
     }
 };
 
@@ -246,7 +277,8 @@ public:
 	//FUNCTION PROTOTYPES ----------------------------------------
 
 	//Constructor
-    baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true);
+    baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
+            std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true);
 
     GTMdata &&moveGTMdata(){
         return std::move(gtmdata);

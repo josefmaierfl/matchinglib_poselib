@@ -69,7 +69,8 @@ genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            const std::string &writeIntermRes_path_) :
         genStereoSequ(false, verbose_, writeIntermRes_path_),
         parsMtch(parsMtch_),
-        sequParsLoaded(true){
+        sequParsLoaded(true),
+        tntpindexer(&rand2){
     CV_Assert(parsMtch.parsValid);
 
     sequLoadPath = sequLoadFolder;
@@ -1013,6 +1014,20 @@ bool genMatchSequ::calcGTM(){
     vector<std::size_t> idx;
     shuffleVector(idx, nr_gtm);
     reOrderVector(gtmdata.matchesGTAllIdx, idx);
+    gtmdata.matchesTNAllIdx.clear();
+    nr_gtm = 0;
+    for(auto &i: gtmdata.matchesTNAll){
+        nr_gtm += i.size();
+    }
+    gtmdata.matchesTNAllIdx.reserve(nr_gtm);
+    for(size_t i = 0; i < gtmdata.matchesTNAll.size(); ++i){
+        for(size_t j = 0; j < gtmdata.matchesTNAll.size(); ++j){
+            gtmdata.matchesTNAllIdx.emplace_back(i, j);
+        }
+    }
+    idx.clear();
+    shuffleVector(idx, nr_gtm);
+    reOrderVector(gtmdata.matchesTNAllIdx, idx);
     nrTNFullSequWarped = static_cast<size_t>(round(parsMtch.WarpedPortionTN * static_cast<double>(nrTNFullSequ)));
     nrGrossTNFullSequGTM = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(nrTNFullSequ)));
     if(nrGrossTNFullSequGTM >= gtmdata.sum_TN){
@@ -1504,9 +1519,12 @@ void genMatchSequ::buildCorrsIdx(){
         min_idx = imageList.size();
         size_t idx = min_idx;
         gtmdata.imgIDToImgNamesAll.clear();
+        gtmdata.gtmIdxToImgID.clear();
         for(size_t i = 0; i < gtmdata.imgNamesAll.size(); ++i){
             gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, false));
+            gtmdata.gtmIdxToImgID.emplace(make_pair(i, false), idx++);
             gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, true));
+            gtmdata.gtmIdxToImgID.emplace(make_pair(i, true), idx++);
         }
         corrTypeIdx.insert(corrTypeIdx.end(), gtmdata.useNrTP, 3);
         if(nrGrossTNFullSequGTM > 0){
@@ -1516,35 +1534,120 @@ void genMatchSequ::buildCorrsIdx(){
     vector<std::size_t> idx;
     shuffleVector(idx, corrTypeIdx.size());
     reOrderVector(corrTypeIdx, idx);
-    size_t id_run = 0, idx_warped = 0, idx_gtm_TP = 0, idx_gtm_TN = 0, gtm_img_id = min_idx;
+    size_t id_run = 0, idx_warped = 0, idx_gtm_TP = 0, idx_gtm_TN = 0;
+    vector<uint8_t> type_cache;
+    double descr_norm = 0;
+    size_t gtm_idx1 = 0, gtm_idx2 = 0;
+    DMatch *match_tmp;
     for(auto &i: corrTypeIdx){
-        switch (i) {
-            case 0:
-                corrToIdxMap.emplace(id_run, KeypointIndexer(&imageList[featureImgIdx[idx_warped]],
-                                                             descriptors1,
-                                                             static_cast<int>(idx_warped),
-                                                             &keypoints1[idx_warped],
-                                                             id_run,
-                                                             featureImgIdx[idx_warped]));
-                idx_warped++;
+        type_cache.push_back(i);
+        bool skip = false;
+        while(!type_cache.empty()) {
+            switch (type_cache.back()) {
+                case 0:
+                    corrToIdxMap.emplace(id_run, KeypointIndexer(false,
+                                                                 &imageList[featureImgIdx[idx_warped]],
+                                                                 descriptors1,
+                                                                 static_cast<int>(idx_warped),
+                                                                 &keypoints1[idx_warped],
+                                                                 id_run,
+                                                                 featureImgIdx[idx_warped]));
+                    idx_warped++;
+                    tntpindexer.addTPID(id_run);
+                    type_cache.pop_back();
+                    break;
+                case 1:
+                    //Check descriptor distance
+                    if(descriptors1.type() == CV_8U) {
+                        descr_norm = norm(descriptors1.row(static_cast<int>(idx_warped)),
+                                          descriptors1.row(static_cast<int>(idx_warped + 1)), NORM_HAMMING);
+                    }else{
+                        descr_norm = norm(descriptors1.row(static_cast<int>(idx_warped)),
+                                          descriptors1.row(static_cast<int>(idx_warped + 1)), NORM_L2);
+                    }
+                    if(descr_norm < badDescrTH.minVal){
+                        skip = true;
+                        break;
+                    }
+                    corrToIdxMap.emplace(id_run, KeypointIndexer(&imageList[featureImgIdx[idx_warped]],
+                                                                 &imageList[featureImgIdx[idx_warped + 1]],
+                                                                 descriptors1,
+                                                                 descriptors1,
+                                                                 static_cast<int>(idx_warped),
+                                                                 static_cast<int>(idx_warped + 1),
+                                                                 &keypoints1[idx_warped],
+                                                                 &keypoints1[idx_warped + 1],
+                                                                 id_run,
+                                                                 featureImgIdx[idx_warped],
+                                                                 featureImgIdx[idx_warped + 1]));
+                    idx_warped += 2;
+                    tntpindexer.addTNID(id_run);
+                    type_cache.pop_back();
+                    break;
+                case 2:
+                    corrToIdxMap.emplace(id_run, KeypointIndexer(true,
+                                                                 &imageList[featureImgIdx[idx_warped]],
+                                                                 descriptors1,
+                                                                 static_cast<int>(idx_warped),
+                                                                 &keypoints1[idx_warped],
+                                                                 id_run,
+                                                                 featureImgIdx[idx_warped]));
+                    idx_warped++;
+                    tntpindexer.addTNID(id_run);
+                    type_cache.pop_back();
+                    break;
+                case 3:
+                    gtm_idx1 = gtmdata.matchesGTAllIdx[idx_gtm_TP].first;
+                    gtm_idx2 = gtmdata.matchesGTAllIdx[idx_gtm_TP].second;
+                    match_tmp = &(gtmdata.matchesGTAll[gtm_idx1][gtm_idx2]);
+                    corrToIdxMap.emplace(id_run, KeypointIndexer(false,
+                                                                 &(gtmdata.imgNamesAll[gtm_idx1].first),
+                                                                 &(gtmdata.imgNamesAll[gtm_idx1].second),
+                                                                 gtmdata.leftDescriptorsAll[gtm_idx1],
+                                                                 gtmdata.rightDescriptorsAll[gtm_idx1],
+                                                                 match_tmp->queryIdx,
+                                                                 match_tmp->trainIdx,
+                                                                 &(gtmdata.keypLAll[gtm_idx1][match_tmp->queryIdx]),
+                                                                 &(gtmdata.keypRAll[gtm_idx1][match_tmp->trainIdx]),
+                                                                 match_tmp,
+                                                                 idx_gtm_TP,
+                                                                 id_run,
+                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, false),
+                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, true)));
+                    idx_gtm_TP++;
+                    tntpindexer.addTPID(id_run);
+                    type_cache.pop_back();
+                    break;
+                case 4:
+                    gtm_idx1 = gtmdata.matchesTNAllIdx[idx_gtm_TN].first;
+                    gtm_idx2 = gtmdata.matchesTNAllIdx[idx_gtm_TN].second;
+                    match_tmp = &(gtmdata.matchesTNAll[gtm_idx1][gtm_idx2]);
+                    corrToIdxMap.emplace(id_run, KeypointIndexer(true,
+                                                                 &(gtmdata.imgNamesAll[gtm_idx1].first),
+                                                                 &(gtmdata.imgNamesAll[gtm_idx1].second),
+                                                                 gtmdata.leftDescriptorsAll[gtm_idx1],
+                                                                 gtmdata.rightDescriptorsAll[gtm_idx1],
+                                                                 match_tmp->queryIdx,
+                                                                 match_tmp->trainIdx,
+                                                                 &(gtmdata.keypLAll[gtm_idx1][match_tmp->queryIdx]),
+                                                                 &(gtmdata.keypRAll[gtm_idx1][match_tmp->trainIdx]),
+                                                                 match_tmp,
+                                                                 idx_gtm_TN,
+                                                                 id_run,
+                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, false),
+                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, true)));
+                    idx_gtm_TN++;
+                    tntpindexer.addTNID(id_run);
+                    type_cache.pop_back();
+                    break;
+                default:
+                    throw SequenceException("Undefined correspondence type.");
+            }
+            if(skip){
                 break;
-            case 1:
-                //Check descriptor distance
-                corrToIdxMap.emplace(id_run, KeypointIndexer(&imageList[featureImgIdx[idx_warped]],
-                                                             &imageList[featureImgIdx[idx_warped + 1]],
-                                                             descriptors1,
-                                                             descriptors1,
-                                                             static_cast<int>(idx_warped),
-                                                             static_cast<int>(idx_warped + 1),
-                                                             &keypoints1[idx_warped],
-                                                             &keypoints1[idx_warped + 1],
-                                                             id_run,
-                                                             featureImgIdx[idx_warped],
-                                                             featureImgIdx[idx_warped + 1]));
-                idx_warped += 2;
-                break;
+            }
+            id_run++;
         }
-        id_run++;
     }
 }
 

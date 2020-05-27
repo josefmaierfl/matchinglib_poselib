@@ -8,6 +8,7 @@
 #include "generateSequence.h"
 #include <opencv2/core/types.hpp>
 #include <map>
+#include <unordered_map>
 #include <tuple>
 #include "GTM/base_matcher.h"
 
@@ -247,13 +248,15 @@ struct PatchCInfo{
 class KeypointIndexer{
 public:
     //Constructor for normal warped TN or TP (single image patch for both correspondences)
-    KeypointIndexer(const std::string* idxImg1_,
+    KeypointIndexer(const bool &isTN_,
+                    const std::string* idxImg1_,
                     const cv::Mat &descr1_,
                     const int &descr1Row_,
                     const cv::KeyPoint* kp1_,
                     const size_t &id_,
                     const size_t &imgId_):
             isGrossTN(false),
+            isTN(isTN_),
             fromGTM(false),
             idxImg1(idxImg1_),
             idxImg2(nullptr),
@@ -281,6 +284,7 @@ public:
                     const size_t &imgId1_,
                     const size_t &imgId2_):
             isGrossTN(true),
+            isTN(true),
             fromGTM(false),
             idxImg1(idxImg1_),
             idxImg2(idxImg2_),
@@ -297,7 +301,8 @@ public:
             imgId2(imgId2_){}
 
     //Constructor for GTM correspondences
-    KeypointIndexer(const std::string* idxImg1_,
+    KeypointIndexer(const bool &isTN_,
+                    const std::string* idxImg1_,
                     const std::string* idxImg2_,
                     const cv::Mat &descr1_,
                     const cv::Mat &descr2_,
@@ -311,6 +316,7 @@ public:
                     const size_t &imgId1_,
                     const size_t &imgId2_):
             isGrossTN(false),
+            isTN(isTN_),
             fromGTM(true),
             idxImg1(idxImg1_),
             idxImg2(idxImg2_),
@@ -328,6 +334,8 @@ public:
 
     bool has2Imgs() const{ return idxImg2 != nullptr; }
 
+    bool isTP() const{ return !isTN; }
+
     std::string getImgName1() const{ return *idxImg1; }
 
     std::string getImgName2() const{ return *idxImg2; }
@@ -342,7 +350,7 @@ public:
 
     cv::Mat getDescriptor2() const{
         if(descr2.empty()){
-            return cv::Mat();
+            throw SequenceException("No second descriptor available.");
         }
         return descr2.row(descr2Row);
     }
@@ -350,29 +358,35 @@ public:
     cv::KeyPoint getKeypoint1() const{ return *kp1; }
 
     cv::KeyPoint getKeypoint2() const{
-        if(fromGTM || isGrossTN){
-            return *kp2;
+        if(!fromGTM && !isGrossTN){
+            throw SequenceException("No second keypoint available.");
         }
-        return {-1.f, -1.f, 0};
+        return *kp2;
     }
 
-    double getDescriptorDist() const{
-        if(!fromGTM && !isGrossTN){
-            return -1.;
+    double getDescriptorDist(cv::InputArray descr2_ = cv::noArray()) const{
+        if(!fromGTM && !isGrossTN && descr2_.empty()){
+            throw SequenceException("Cannot calculate descriptor distance. Provide a second descriptor.");
         }else if(fromGTM){
             return static_cast<double>(match->distance);
         }
-        if(descr1.type() == CV_8U) {
-            return norm(descr1.row(descr1Row), descr2.row(descr2Row), cv::NORM_HAMMING);
+        cv::Mat sec_descr;
+        if(!descr2_.empty()){
+            sec_descr = descr2_.getMat();
+        }else{
+            sec_descr = descr2.row(descr2Row);
         }
-        return norm(descr1.row(descr1Row), descr2.row(descr2Row), cv::NORM_L2);
+        if(descr1.type() == CV_8U) {
+            return norm(descr1.row(descr1Row), sec_descr, cv::NORM_HAMMING);
+        }
+        return norm(descr1.row(descr1Row), sec_descr, cv::NORM_L2);
     }
 
     size_t getGtmIdx() const{ return gtmIdx; }
 
 private:
     const bool isGrossTN;//Specifies if correspondence uses 2 different image patches
-//    bool isTP;//Specifies if correspondence is a TP
+    bool isTN;//Specifies if correspondence is a TN
     const bool fromGTM;//True, if from GTM, else from warped patches
     const std::string* idxImg1;//Pointer to first image name
     const std::string* idxImg2;//Pointer to second image name
@@ -387,6 +401,66 @@ private:
     const size_t id;//Identifier of the correspondence
     const size_t imgId1;//Identifier of the underlying first image
     const size_t imgId2;//Identifier of the underlying second image
+};
+
+class TNTPindexer{
+public:
+    explicit TNTPindexer(std::mt19937 *rand2_ = nullptr): tn_idx(0), tp_idx(0), rand2ptr(rand2_){
+        if(rand2ptr == nullptr){
+            long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+            *rand2ptr = std::mt19937(seed);
+        }
+    }
+
+    size_t getNextTPID(){
+        if(tp_ids.empty()){
+            throw SequenceException("No TP match IDs available");
+        }
+        size_t idx = tp_idx;
+        if(tp_idx >= tp_ids.size()){
+            idx = rand2() % tp_ids.size();
+        }
+        tptn_ids.emplace(tp_idx + tn_idx, &tp_ids[idx]);
+        tp_idx++;
+        return tp_ids[idx];
+    }
+
+    size_t getNextTNID(){
+        if(tn_ids.empty()){
+            throw SequenceException("No TN match IDs available");
+        }
+        size_t idx = tn_idx;
+        if(tn_idx >= tn_ids.size()){
+            idx = rand2() % tn_ids.size();
+        }
+        tptn_ids.emplace(tp_idx + tn_idx, &tn_ids[idx]);
+        tn_idx++;
+        return tn_ids[idx];
+    }
+
+    size_t getCorrID(const size_t &nr){
+        std::unordered_map<size_t, size_t*>::const_iterator got = tptn_ids.find(nr);
+        if(got == tptn_ids.end()){
+            throw SequenceException("Feature number out of range");
+        }
+        return *(got->second);
+    }
+
+    void addTPID(const size_t &id){ tp_ids.push_back(id); }
+
+    void addTNID(const size_t &id){ tn_ids.push_back(id); }
+
+private:
+    inline size_t rand2(){
+        return (*rand2ptr)();
+    }
+
+    size_t tn_idx = 0;
+    size_t tp_idx = 0;
+    std::vector<size_t> tn_ids;
+    std::vector<size_t> tp_ids;
+    std::unordered_map<size_t, size_t*> tptn_ids;
+    std::mt19937 *rand2ptr;
 };
 
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
@@ -407,7 +481,8 @@ public:
             imgSize(imgSize_),
             K1(K1_),
             K2(K2_),
-            sequParsLoaded(false) {
+            sequParsLoaded(false),
+            tntpindexer(&rand2){
         CV_Assert(!parsMtch.mainStorePath.empty());
         CV_Assert(parsMtch.parsValid);
         genSequenceParsFileName();
@@ -622,6 +697,7 @@ private:
     std::string sequLoadPath = "";//Holds the path for loading a 3D sequence
     std::vector<size_t> featureImgIdx;//Contains an index to the corresponding image for every keypoint and descriptor
     std::map<size_t, KeypointIndexer> corrToIdxMap;//Holds information for and pointers to correspondence data (warped and GTM correspondences)
+    TNTPindexer tntpindexer;//Converts a running correspondence index to correspondence IDs of corrToIdxMap
     cv::Mat actTransGlobWorld;//Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     std::map<int64_t,std::tuple<cv::Mat,size_t,size_t>> planeTo3DIdx;//Holds the plane coefficients, keypoint index, and stereo frame number for every used keypoint in correspondence to the index of the 3D point in the point cloud

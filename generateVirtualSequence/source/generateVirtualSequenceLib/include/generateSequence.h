@@ -497,7 +497,8 @@ public:
 			bool filter_occluded_points_ = false,
 			uint32_t verbose = 0,
             const std::string &writeIntermRes_path_ = "");
-    genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0, const std::string &writeIntermRes_path_ = ""):
+
+	genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0, const std::string &writeIntermRes_path_ = ""):
     verbose(verbose_),
     writeIntermRes_path(writeIntermRes_path_),
     filter_occluded_points(filter_occluded_points_),
@@ -505,6 +506,7 @@ public:
         long int seed = randSeed(rand_gen);
         randSeed(rand2, seed);
     };
+
     genStereoSequ(const genStereoSequ& gss):
             verbose(gss.verbose),
             writeIntermRes_path(gss.writeIntermRes_path),
