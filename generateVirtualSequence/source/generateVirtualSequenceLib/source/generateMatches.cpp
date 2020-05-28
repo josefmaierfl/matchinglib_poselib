@@ -1796,7 +1796,7 @@ bool genMatchSequ::generateCorrespondingFeatures(){
         Mat frameDescr1TN, frameDescr2TN;
         vector<DMatch> frameMatchesTN;
         vector<Mat> frameHomosTN;
-        vector<std::pair<size_t,cv::KeyPoint>> srcImgPatchIdxAndKpTN;
+        std::vector<std::pair<std::pair<size_t,cv::KeyPoint>, std::pair<size_t,cv::KeyPoint>>> srcImgPatchIdxAndKpTN;
         generateCorrespondingFeaturesTPTN(featureIdxBegin_tmp,
                                           true,
                                           frameKPsTN1,
